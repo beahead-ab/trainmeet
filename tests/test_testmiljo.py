@@ -6,11 +6,12 @@ import json
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 from scaleway.iam.v1alpha1.types import LocalityType, Quotum, QuotumLimit
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
+from scaleway.instance.v1.types import Server, ServerAction, ServerState
 
 from deploy import testmiljo
 from deploy.testmiljo import Keys, cloud_init, known_hosts_line
@@ -117,6 +118,33 @@ def test_security_group_sends_uppercase_protocols_to_instance_v1() -> None:
 
     rules = instance.set_security_group_rules.call_args.kwargs["rules"]
     assert [rule.protocol for rule in rules] == ["TCP", "TCP", "TCP", "UDP", "ICMP"] * 2
+
+
+def test_a_new_server_receives_cloud_init_before_power_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    instance = Mock(spec=InstanceUtilsV1API)
+    instance.list_servers.return_value = SimpleNamespace(servers=[])
+    instance._create_server.return_value = SimpleNamespace(
+        server=Mock(spec=Server, id="server", state=ServerState.STOPPED)
+    )
+    running = Mock(spec=Server, id="server", state=ServerState.RUNNING)
+    instance.get_server.return_value = SimpleNamespace(server=running)
+    monkeypatch.setattr(testmiljo, "root_volume", lambda *_: ("ubuntu", {}))
+
+    ip = Mock(id="ip")
+    assert testmiljo.ensure_server(instance, Mock(), "project", "group", ip, KEYS, "DEV1-S") == (
+        running,
+        True,
+    )
+    assert instance.mock_calls[-3:] == [
+        call.set_server_user_data(
+            server_id="server",
+            key="cloud-init",
+            content=cloud_init(KEYS).encode(),
+            zone=testmiljo.ZONE,
+        ),
+        call.server_action(zone=testmiljo.ZONE, server_id="server", action=ServerAction.POWERON),
+        call.get_server(zone=testmiljo.ZONE, server_id="server"),
+    ]
 
 
 def test_usage_without_command() -> None:

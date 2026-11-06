@@ -335,9 +335,9 @@ def ensure_server(
         ).server
         if server is None:
             fail("Scaleway gav ingen server tillbaka.")
-            instance.set_server_user_data(
-                server_id=server.id, key="cloud-init", content=cloud_init(keys).encode(), zone=ZONE
-            )
+        instance.set_server_user_data(
+            server_id=server.id, key="cloud-init", content=cloud_init(keys).encode(), zone=ZONE
+        )
         created = True
         print(f"Servern {NAME} ({commercial_type}) skapad.")
     elif ip.server is None or ip.server.id != server.id:
