@@ -6,6 +6,7 @@ Värnamo Moduldagar is the key (H54).
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +14,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from contracts import drift, planning
+from contracts.common import checksum
 from contracts.meet import MeetPackage
+from drift.store import PreviewStore
+from hub import provbanan
 from hub.app import create_app
 from hub.build_info import BuildInfo
+from hub.running import Running
 from hub.tests.test_tmbox_web import Tab
+from planering.store import Planning
 
 PIN = "482915"
 API = "/api/planering/1"
@@ -183,3 +189,26 @@ def test_the_pages_are_light_and_the_buttons_need_the_administrator(planned: Tes
     assert planned.get("/planering/..%2Fx").status_code in {404, 422}
     assert 'href="/planering"' in planned.get("/").text
     assert 'id="new-choice"' in planned.get("/drift").text
+
+
+def test_a_run_keeps_its_package_when_the_contracts_gain_a_field(
+    planned: TestClient, tmp_path: Path
+) -> None:
+    """A run belongs to the version as published, so a new contract field with a default (as
+    call.exchange in 4a) does not end the meet that runs."""
+    run_varnamo(planned)
+    plans = Planning(tmp_path / "planering.sqlite3")
+    [version] = plans.versions(MEET)
+    running = Running(tmp_path, provbanan.package(), provbanan.package_key(), plans)
+    store = running.store
+    assert store.package_key == version.checksum
+    run_id = store.current()
+    widened = MeetPackage.model_validate({**store.package.model_dump(mode="json"), "later": 1})
+    assert checksum(widened.model_dump(mode="json")) != version.checksum
+    later = PreviewStore(store.path, widened, version=1, package_key=version.checksum, max_runs=64)
+    assert later.current() == run_id
+    assert provbanan.package_key() == checksum(
+        json.loads(
+            (Path(__file__).parents[2] / "contracts/examples/provbanan.meet.json").read_text()
+        )
+    )

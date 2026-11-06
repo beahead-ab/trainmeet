@@ -32,9 +32,12 @@ class UnknownMeet(LookupError):
 
 
 class Running:
-    def __init__(self, data_dir: Path, provbanan: MeetPackage, planning: Planning) -> None:
+    def __init__(
+        self, data_dir: Path, provbanan: MeetPackage, provbanan_key: str, planning: Planning
+    ) -> None:
         self.data_dir = data_dir
         self.provbanan = provbanan
+        self.provbanan_key = provbanan_key
         self.planning = planning
         self.state_path = data_dir / "drift" / "running.json"
         self._stores: dict[tuple[str, int], PreviewStore] = {}
@@ -67,20 +70,22 @@ class Running:
             )
             return store, run_id
 
-    def _package(self, meet: str, version: int) -> MeetPackage:
+    def _package(self, meet: str, version: int) -> tuple[MeetPackage, str]:
+        """The package and the key its runs carry: the checksum it was published with."""
         if meet == PROVBANAN:
             if version != 1:
                 raise UnknownMeet()
-            return self.provbanan
+            return self.provbanan, self.provbanan_key
         try:
-            return self.planning.package(meet, version)
-        except PlanningError as error:
+            published = next(v for v in self.planning.versions(meet) if v.number == version)
+            return self.planning.package(meet, version), published.checksum
+        except (PlanningError, StopIteration) as error:
             raise UnknownMeet() from error
 
     def _store(self, meet: str, version: int) -> PreviewStore:
         key = (meet, version)
         if key not in self._stores:
-            package = self._package(meet, version)
+            package, package_key = self._package(meet, version)
             if meet == PROVBANAN:
                 # The file the hub's meet has had since step 3.
                 path = self.data_dir / "traff.sqlite3"
@@ -95,5 +100,6 @@ class Running:
                 max_runs=MAX_RUNS,
                 max_actions=MAX_ACTIONS,
                 version=version,
+                package_key=package_key,
             )
         return self._stores[key]
