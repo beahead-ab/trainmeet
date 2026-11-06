@@ -37,6 +37,11 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
 - Repot ska vara publikt med AGPL-3.0 (beslut ST6 och ST7). Inga nycklar, koder, lösenord, personuppgifter eller interna adresser i koden, i loggar eller i ärenden.
 - Hemligheter läggs i GitHub eller hos Scaleway och läses från miljön. De skrivs aldrig ut.
 
+## Testmiljön
+
+- test.hub.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
+- Behöver hubben nya inställningar eller hemligheter i testmiljön läggs de i `deploy/testmiljo/compose.yaml` som variabler, aldrig som värden i koden.
+
 ## Gamla repon
 
 trainmeet-server, trainmeet-cloud, cda-tkl och tk-tkl är referens. Logiken portas därifrån, men koden kopieras inte rakt av. De arkiveras när den nya generationen är klar och provad (ST8).

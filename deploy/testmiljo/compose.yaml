@@ -1,0 +1,35 @@
+# Testmiljön på servern, i /srv/trainmeet. Läggs dit av jobbet "Testmiljön" vid varje
+# ändring på main, tillsammans med Caddyfile och en .env med HUB_TAG och HUB_DOMAIN.
+services:
+  hub:
+    image: trainmeet-hub:${HUB_TAG:?HUB_TAG saknas}
+    restart: unless-stopped
+    environment:
+      TRAINMEET_HUB_NAME: Testhubben
+      # Only Caddy talks to the hub; trust its X-Forwarded-* headers.
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - ./hub-data:/data
+    ports:
+      # Reachable from the server itself for the deploy check, never from outside.
+      - "127.0.0.1:8080:8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - hub
+    environment:
+      HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN saknas}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

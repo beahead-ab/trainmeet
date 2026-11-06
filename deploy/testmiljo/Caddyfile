@@ -1,0 +1,19 @@
+# Caddy framför testhubben. Certifikatet hämtas automatiskt från Let's Encrypt när
+# DNS-raden för HUB_DOMAIN pekar på servern.
+{
+	admin off
+}
+
+{$HUB_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		-Server
+	}
+
+	reverse_proxy hub:8080
+}

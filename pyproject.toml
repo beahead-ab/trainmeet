@@ -16,6 +16,8 @@ dev = [
     "mypy>=1.13",
     "pytest>=8.3",
     "ruff>=0.8",
+    # Scaleway's official SDK, for the test environment (deploy/testmiljo.py).
+    "scaleway>=2.12",
 ]
 
 [build-system]
@@ -39,11 +41,17 @@ allowed-confusables = ["×", "–"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["hub", "tests"]
+files = ["hub", "deploy", "tests"]
+
+[[tool.mypy.overrides]]
+# The SDK has type hints but no py.typed marker.
+module = ["scaleway", "scaleway.*"]
+follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -q"
 testpaths = ["tests", "hub"]
+pythonpath = ["."]
 filterwarnings = [
     "error",
     # Starlette's test client still works with httpx; the hint about another package is noise.

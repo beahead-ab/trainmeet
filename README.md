@@ -39,6 +39,26 @@ uv run uvicorn hub.app:app --reload      # hubben på http://127.0.0.1:8000
 
 Hubbens bild byggs med `docker build -f hub/Dockerfile -t trainmeet-hub .` från repots rot.
 
+## Testmiljön
+
+https://test.hub.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
+
+- **Var:** en server hos Scaleway i Paris (DEV1-S, Ubuntu 24.04) med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
+- **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
+- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S).
+
+### Engångsuppsättningen
+
+1. **En API-nyckel hos Scaleway**, bara för det här repot:
+   - I Scaleways konsol: *IAM → Applications → Create application*, med namnet `trainmeet-github`.
+   - *IAM → Policies → Create policy* för applikationen, med tillgång till projektet `trainmeet` och behörigheterna `InstancesFullAccess` och `SecretManagerFullAccess`.
+   - *IAM → API keys → Generate API key* för applikationen, med `trainmeet` som standardprojekt. Spara *Secret Key* direkt; den visas bara en gång.
+2. **Fyra secrets i GitHub** (*Settings → Secrets and variables → Actions → New repository secret*): `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID` (projektets id under projektets *Settings*) och `SCW_DEFAULT_ORGANIZATION_ID` (under *Organization settings*).
+3. **Kör jobbet:** *Actions → Tester → Run workflow* på `main`. Första gången skapas servern. Sammanfattningen av körningen visar serverns adress.
+4. **DNS-raden i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). Kör jobbet en gång till. Då hämtar Caddy certifikatet, och sidan är ute.
+
+Utan nyckeln hoppar jobbet över utläggningen och säger det, så att `main` ändå blir grön.
+
 ## Licens
 
 GNU Affero General Public License, version 3 (AGPL-3.0). Se [LICENSE](LICENSE).

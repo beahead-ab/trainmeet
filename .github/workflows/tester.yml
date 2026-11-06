@@ -70,3 +70,141 @@ jobs:
       - name: Visa loggen om något gick fel
         if: failure()
         run: docker logs hub || true
+
+  # Lägger ut hubben på test.hub.trainmeet.app när en ändring har slagits ihop med main
+  # och båda kontrollerna är gröna. Servern skapas första gången (deploy/testmiljo.py).
+  testmiljon:
+    name: Testmiljön
+    needs: [tester, bilden]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: testmiljon
+      cancel-in-progress: false
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+      TESTMILJO_TYPE: ${{ vars.TESTMILJO_TYPE }}
+      DOMAIN: ${{ vars.TESTHUB_DOMAIN || 'test.hub.trainmeet.app' }}
+      TAG: ${{ github.sha }}
+    steps:
+      - name: Finns Scaleway-nyckeln?
+        id: nyckel
+        run: |
+          if [ -n "$SCW_SECRET_KEY" ] && [ -n "$SCW_ACCESS_KEY" ] && [ -n "$SCW_DEFAULT_PROJECT_ID" ] && [ -n "$SCW_DEFAULT_ORGANIZATION_ID" ]; then
+            echo "finns=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "finns=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Testmiljön väntar på Scaleway-nyckeln. Lägg in SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID och SCW_DEFAULT_ORGANIZATION_ID under Settings → Secrets and variables → Actions."
+            {
+              echo "### Testmiljön väntar på Scaleway-nyckeln"
+              echo ""
+              echo "Lägg in de fyra secrets som står i README under *Testmiljön*, och kör sedan jobbet igen under Actions."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.nyckel.outputs.finns == 'true'
+
+      - uses: astral-sh/setup-uv@v6
+        if: steps.nyckel.outputs.finns == 'true'
+        with:
+          enable-cache: true
+
+      - name: Vilken ändring är det?
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR=$(gh api "repos/${{ github.repository }}/commits/$TAG/pulls" --jq '.[0].number // empty' || true)
+          TITLE=$(gh api "repos/${{ github.repository }}/commits/$TAG/pulls" --jq '.[0].title // empty' || true)
+          if [ -z "$TITLE" ]; then TITLE=$(git log -1 --format=%s "$TAG"); fi
+          echo "PR=$PR" >> "$GITHUB_ENV"
+          {
+            echo "TITLE<<TITEL_SLUT"
+            echo "$TITLE"
+            echo "TITEL_SLUT"
+          } >> "$GITHUB_ENV"
+          echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Bygg bilden
+        if: steps.nyckel.outputs.finns == 'true'
+        run: |
+          docker build -f hub/Dockerfile -t "trainmeet-hub:$TAG" \
+            --build-arg TRAINMEET_COMMIT="$TAG" \
+            --build-arg TRAINMEET_PR="$PR" \
+            --build-arg TRAINMEET_TITLE="$TITLE" \
+            --build-arg TRAINMEET_BUILT="$BUILT" .
+
+      - name: Servern hos Scaleway
+        id: server
+        if: steps.nyckel.outputs.finns == 'true'
+        run: |
+          uv sync --locked
+          uv run python deploy/testmiljo.py ensure
+
+      - name: Vänta tills servern är uppsatt
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+          SSH_USER: ${{ steps.server.outputs.user }}
+          KEY: ${{ steps.server.outputs.key_file }}
+          KNOWN: ${{ steps.server.outputs.known_hosts }}
+        run: |
+          SSH="ssh -i $KEY -o UserKnownHostsFile=$KNOWN -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes"
+          echo "SSH=$SSH" >> "$GITHUB_ENV"
+          echo "TARGET=$SSH_USER@$IP" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            $SSH "$SSH_USER@$IP" true 2>/dev/null && break
+            sleep 5
+          done
+          $SSH "$SSH_USER@$IP" "cloud-init status --wait >/dev/null; cloud-init status"
+
+      - name: Lägg ut hubben
+        if: steps.nyckel.outputs.finns == 'true'
+        run: |
+          docker save "trainmeet-hub:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
+          cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" < deploy/testmiljo/up.sh
+
+      - name: Prova adressen
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$DOMAIN pekar inte på servern än ($IP). Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### Hubben är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **A**, namn **${DOMAIN%%.trainmeet.app}**, innehåll **$IP**, proxy **av** (grått moln)."
+              echo "Kör sedan jobbet igen, eller vänta till nästa ihopslagning."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            # Caddy waits longer and longer between certificate attempts while DNS is missing.
+            # Once DNS points here, one restart makes it try again at once.
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
+              {
+                echo "### Testhubben är ute"
+                echo ""
+                echo "- https://$DOMAIN"
+                echo "- Ändring: ${PR:+#$PR }$TITLE"
+                echo "- Server: $IP"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$DOMAIN svarar inte med den nya versionen."
+          exit 1
