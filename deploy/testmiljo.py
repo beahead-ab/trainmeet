@@ -142,7 +142,7 @@ def cloud_init(keys: Keys) -> str:
         "packages": ["docker.io", "docker-compose-v2", "curl"],
         "ssh_pwauth": False,
         "ssh_deletekeys": True,
-        "ssh_genkeytypes": [],
+        "ssh_genkeytypes": ["ed25519"],
         "ssh_keys": {"ed25519_private": keys.host_private, "ed25519_public": keys.host_public},
         "users": [
             "default",
