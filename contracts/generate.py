@@ -15,7 +15,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaValue
 
-from contracts import drift, meet, station, station_outside, terminal
+from contracts import drift, hub, meet, station, station_outside, terminal
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 OPENAPI = SCHEMA_DIR.parent / "openapi.json"
@@ -47,6 +47,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.assign": drift.Assign,
     "trainmeet.drift-1.client": drift.Client,
     "trainmeet.drift-1.event": drift.DriftEvent,
+    "trainmeet.hub-1.info": hub.HubInfo,
+    "trainmeet.hub-1.setup": hub.SetUp,
+    "trainmeet.hub-1.login": hub.LogIn,
+    "trainmeet.hub-1.session": hub.Session,
 }
 
 
@@ -248,6 +252,10 @@ def openapi() -> str:
         )
     route("get", "/api/drift/1/log", "driftLog", d + "event", bearer=True, many=True)
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
+    h = "trainmeet.hub-1."
+    route("get", "/api/hub", "hubInfo", h + "info")
+    route("post", "/api/hub/setup", "hubSetUp", h + "session", h + "setup")
+    route("post", "/api/hub/login", "hubLogIn", h + "session", h + "login")
     return (
         json.dumps(
             {

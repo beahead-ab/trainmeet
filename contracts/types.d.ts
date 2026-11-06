@@ -276,6 +276,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["hubInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hubSetUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hubLogIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3401,6 +3449,55 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** HubInfo */
+        "trainmeet.hub-1.info": {
+            /** Name */
+            name: string;
+            /**
+             * Set Up
+             * @description Har hubben fått namn och PIN vid första start?
+             */
+            set_up: boolean;
+            /** Logged In */
+            logged_in: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetUp
+         * @description First start: only possible while the hub has no PIN.
+         */
+        "trainmeet.hub-1.setup": {
+            /** Name */
+            name: string;
+            /**
+             * Pin
+             * @description 6–12 siffror. Skrivs aldrig ut i loggen.
+             */
+            pin: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LogIn */
+        "trainmeet.hub-1.login": {
+            /**
+             * Pin
+             * @description 6–12 siffror. Skrivs aldrig ut i loggen.
+             */
+            pin: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Session */
+        "trainmeet.hub-1.session": {
+            /**
+             * Session Key
+             * @description Visas en gång. Gäller 12 timmar, eller tills utloggning.
+             */
+            session_key: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -3791,6 +3888,74 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    hubInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.info"];
+                };
+            };
+        };
+    };
+    hubSetUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.setup"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.session"];
+                };
+            };
+        };
+    };
+    hubLogIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.login"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.session"];
                 };
             };
         };

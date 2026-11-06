@@ -52,6 +52,14 @@ a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 footer { margin-top: 16px; color: var(--mute); font-size: 13px; display: flex; gap: 16px;
   flex-wrap: wrap; }
+#hubben { margin-bottom: 16px; }
+.formular { display: grid; gap: 12px; max-width: 320px; }
+.formular label { display: grid; gap: 4px; color: var(--mute); font-size: 13px; }
+#hubben input { font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+#hubben button { font: inherit; font-weight: 600; color: #fff; background: var(--link);
+  border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; justify-self: start; }
+.meddelande { color: var(--warn); min-height: 1.5em; margin: 8px 0 0; }
 """.strip()
 
 
@@ -108,10 +116,54 @@ def _document(info: BuildInfo, content: str, extra_head: str = "") -> str:
 """
 
 
-def render_start_page(info: BuildInfo) -> str:
+def _hub_card(set_up: bool, logged_in: bool, name: str) -> str:
+    """Den här hubben: first start, logging in, or who one is (S1, H52)."""
+    if not set_up:
+        return f"""<section class="kort" id="hubben">
+    <h1>Välkommen till hubben</h1>
+    <p class="ingress">Välj ett namn på hubben och en PIN-kod. Du blir hubbens lokala
+      administratör och loggar in med koden.</p>
+    <form id="setup-form" class="formular">
+      <label>Hubbens namn <input id="hub-name" maxlength="40" required
+        value="{escape(name)}" autocomplete="off"></label>
+      <label>PIN-kod, 6–12 siffror <input id="pin" type="password" inputmode="numeric"
+        pattern="[0-9]{{6,12}}" minlength="6" maxlength="12" required
+        autocomplete="new-password"></label>
+      <label>Samma PIN-kod igen <input id="pin-again" type="password" inputmode="numeric"
+        pattern="[0-9]{{6,12}}" minlength="6" maxlength="12" required
+        autocomplete="new-password"></label>
+      <button type="submit">Spara och logga in</button>
+    </form>
+    <p id="hub-message" class="meddelande" role="alert"></p>
+  </section>
+"""
+    if not logged_in:
+        return """<section class="kort" id="hubben">
+    <h1>Logga in</h1>
+    <p class="ingress">Utan inloggning kan du titta. Logga in med hubbens PIN-kod för att
+      köra träffen.</p>
+    <form id="login-form" class="formular">
+      <label>PIN-kod <input id="pin" type="password" inputmode="numeric"
+        pattern="[0-9]{6,12}" minlength="6" maxlength="12" required
+        autocomplete="current-password"></label>
+      <button type="submit">Logga in</button>
+    </form>
+    <p id="hub-message" class="meddelande" role="alert"></p>
+  </section>
+"""
+    return """<section class="kort" id="hubben">
+    <h1>Inloggad</h1>
+    <p class="ingress">Du är inloggad som hubbens lokala administratör.</p>
+    <button id="logout" type="button">Logga ut</button>
+  </section>
+"""
+
+
+def render_start_page(info: BuildInfo, *, set_up: bool = True, logged_in: bool = False) -> str:
     return _document(
         info,
         f"""<main>
+  {_hub_card(set_up, logged_in, info.hub_name)}
   <section class="kort">
     <h1>Prova Drift</h1>
     <p class="ingress">Här kan du prova Drift med en påhittad träff på Provbanan.</p>
@@ -130,6 +182,7 @@ def render_start_page(info: BuildInfo) -> str:
     <span>AGPL-3.0</span>
   </footer>
 </main>
+<script src="/static/hubben.js" defer></script>
 """,
     )
 

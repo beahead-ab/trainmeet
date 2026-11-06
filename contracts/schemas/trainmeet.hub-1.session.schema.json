@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.session.schema.json",
+  "title": "trainmeet.hub-1.session",
+  "additionalProperties": true,
+  "properties": {
+    "session_key": {
+      "description": "Visas en gång. Gäller 12 timmar, eller tills utloggning.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Session Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_key"
+  ],
+  "type": "object"
+}
