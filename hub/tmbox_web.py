@@ -18,9 +18,10 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from contracts import terminal
-from drift.store import MissingRun, PreviewStore, RunLimit, UnknownBox
+from drift.store import MissingRun, RunLimit, UnknownBox
 from hub import page
 from hub.build_info import BuildInfo
+from hub.stores import AnyRun
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -47,11 +48,13 @@ def _changed(old: dict[str, Any], new: dict[str, Any]) -> bool:
     return any(old.get(name) != new.get(name) for name in fields)
 
 
-def router(store: PreviewStore, info: Callable[[], BuildInfo]) -> APIRouter:
+def router(store: AnyRun, info: Callable[[], BuildInfo]) -> APIRouter:
     routes = APIRouter()
 
+    @routes.get("/box", response_class=HTMLResponse)
     @routes.get("/provbanan/box", response_class=HTMLResponse)
     def box_page() -> str:
+        """The box: the meet's code or a Provbanan run's code decides which it joins."""
         return page.render_box(info())
 
     @routes.post("/api/terminal/session", status_code=201)

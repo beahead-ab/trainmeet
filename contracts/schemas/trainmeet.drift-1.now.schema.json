@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.now.schema.json",
+  "title": "trainmeet.drift-1.now",
+  "$defs": {
+    "Clearance": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "from_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Place",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ClearanceStatus"
+        },
+        "departed": {
+          "default": false,
+          "title": "Departed",
+          "type": "boolean"
+        },
+        "requested_at": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "reminders": {
+          "default": 0,
+          "description": "Påminnelser hittills (H39).",
+          "minimum": 0,
+          "title": "Reminders",
+          "type": "integer"
+        },
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "call",
+        "train_number",
+        "section",
+        "from_place",
+        "to_place",
+        "status",
+        "requested_at",
+        "revision"
+      ],
+      "title": "Clearance",
+      "type": "object"
+    },
+    "ClearanceStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "rejected",
+        "cancelled",
+        "invalidated"
+      ],
+      "title": "ClearanceStatus",
+      "type": "string"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "LegNow": {
+      "additionalProperties": true,
+      "description": "One train between two places today, and where it stands.",
+      "properties": {
+        "leg": {
+          "description": "Avgångens tågbesök; nyckeln för sträckan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Leg",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "train_type": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Type"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "from_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Place",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "requested",
+            "cleared",
+            "on_the_way",
+            "arrived"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "clearance_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clearance Id"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ankomstspåret, planerat eller faktiskt.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "leg",
+        "train_number",
+        "section",
+        "from_place",
+        "to_place",
+        "state"
+      ],
+      "title": "LegNow",
+      "type": "object"
+    },
+    "NowPlace": {
+      "additionalProperties": true,
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place",
+        "code",
+        "name"
+      ],
+      "title": "NowPlace",
+      "type": "object"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The meet as it runs: open to everyone, so it holds no names of people, no codes and no\nphone numbers (B13).",
+  "properties": {
+    "meet_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "traffic_day": {
+      "$ref": "#/$defs/Weekday"
+    },
+    "game_day": {
+      "title": "Game Day",
+      "type": "integer"
+    },
+    "clock": {
+      "$ref": "#/$defs/Clock"
+    },
+    "places": {
+      "items": {
+        "$ref": "#/$defs/NowPlace"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "legs": {
+      "items": {
+        "$ref": "#/$defs/LegNow"
+      },
+      "title": "Legs",
+      "type": "array"
+    },
+    "clearances": {
+      "items": {
+        "$ref": "#/$defs/Clearance"
+      },
+      "title": "Clearances",
+      "type": "array"
+    }
+  },
+  "required": [
+    "meet_id",
+    "name",
+    "traffic_day",
+    "game_day",
+    "clock",
+    "places",
+    "legs",
+    "clearances"
+  ],
+  "type": "object"
+}

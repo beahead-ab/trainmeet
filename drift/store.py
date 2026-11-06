@@ -15,7 +15,7 @@ from typing import Any, Final, TypeVar
 
 from contracts import drift as events
 from contracts import station
-from contracts.common import checksum
+from contracts.common import Weekday, checksum
 from contracts.meet import MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.terminal import DisplaySize
@@ -107,9 +107,23 @@ def epoch_of(run_id: str) -> str:
 
 
 class PreviewStore:
-    def __init__(self, path: Path, package: MeetPackage) -> None:
+    def __init__(
+        self,
+        path: Path,
+        package: MeetPackage,
+        *,
+        lifetime: timedelta = RUN_LIFETIME,
+        max_runs: int = MAX_RUNS,
+        max_actions: int = MAX_ACTIONS,
+    ) -> None:
+        """Provbanan's runs by default: one per browser for a day, with limits for the shared
+        test hub. The hub's own meet uses the same store in a file of its own, with no end
+        and no small limits (spec 7: a file per running meet)."""
         self.path = path
         self.package = package
+        self.lifetime = lifetime
+        self.max_runs = max_runs
+        self.max_actions = max_actions
         self.package_key = checksum(package.model_dump(mode="json"))
         self.boot = token_hex(16)
         self._ready = False
@@ -156,7 +170,11 @@ class PreviewStore:
             db.execute("UPDATE preview_run SET boot=? WHERE id=?", (self.boot, run_id))
         return drift
 
-    def start(self) -> str:
+    def start(
+        self, traffic_day: Weekday | None = None, game_day: int = 1, *, replace: bool = False
+    ) -> str:
+        """A new run. With replace (the hub's meet), the runs before it are archived: their
+        boxes and clients are let go and must join the new meet with its code (B14)."""
         now = now_utc()
         with self._transaction() as db:
             db.execute(
@@ -167,15 +185,18 @@ class PreviewStore:
                 ),
             )
             count = db.execute("SELECT count(*) FROM preview_run").fetchone()[0]
-            if count >= MAX_RUNS:
+            if count >= self.max_runs:
                 raise RunLimit()
             run_id = token_hex(24)
             db.execute(
                 "INSERT INTO preview_run VALUES (?, ?, ?, ?)",
-                (run_id, (now + RUN_LIFETIME).timestamp(), self.package_key, self.boot),
+                (run_id, (now + self.lifetime).timestamp(), self.package_key, self.boot),
             )
+            if replace:
+                for table in ("preview_box", "station_client", "preview_join"):
+                    db.execute(f"DELETE FROM {table} WHERE run_id!=?", (run_id,))
             drift = Drift(self.package, [], now=now)
-            drift.start(now)
+            drift.start(now, traffic_day, game_day)
             self._save(db, run_id, drift.history)
         return run_id
 
@@ -188,7 +209,7 @@ class PreviewStore:
             now = now_utc()
             drift = self._load(db, run_id, now)
             size = len(drift.history)
-            if size >= MAX_ACTIONS:
+            if size >= self.max_actions:
                 raise RunLimit()
             drift.control_clock(control, now)
             self._save(db, run_id, drift.history[size:])
@@ -212,7 +233,7 @@ class PreviewStore:
             count = db.execute(
                 "SELECT count(*) FROM preview_receipt WHERE run_id=?", (run_id,)
             ).fetchone()[0]
-            if max(size, count) >= MAX_ACTIONS:
+            if max(size, count) >= self.max_actions:
                 raise RunLimit()
             reason = None
             try:
@@ -325,7 +346,7 @@ class PreviewStore:
             size = db.execute(
                 "SELECT count(*) FROM preview_event WHERE run_id=?", (run_id,)
             ).fetchone()[0]
-            if size >= MAX_ACTIONS:
+            if size >= self.max_actions:
                 raise RunLimit()
             return self._with_boxes(db, run_id, lambda b: b.press(b.boxes[client_id], body))
 
@@ -534,8 +555,8 @@ class PreviewStore:
                 db.execute(
                     "SELECT count(*) FROM station_reply WHERE run_id=?", (run_id,)
                 ).fetchone()[0]
-                >= MAX_ACTIONS
-                or len(drift.history) >= MAX_ACTIONS
+                >= self.max_actions
+                or len(drift.history) >= self.max_actions
             ):
                 raise RunLimit()
             size = len(drift.history)
@@ -563,3 +584,42 @@ class PreviewStore:
             return station.Reply.model_validate(
                 {**answer, "snapshot": snapshot(drift, command.place, now).model_dump(mode="json")}
             )
+
+    # --- The hub's own meet ---------------------------------------------------------------
+
+    def current(self) -> str:
+        """The meet that runs: the one started last. Older ones stay, archived (T11)."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT id FROM preview_run WHERE expires>? AND package=? "
+                "ORDER BY expires DESC LIMIT 1",
+                (now_utc().timestamp(), self.package_key),
+            ).fetchone()
+        if row is None:
+            raise MissingRun()
+        return str(row[0])
+
+    def log(
+        self, run_id: str, place: str | None = None, train: str | None = None
+    ) -> list[events.DriftEvent]:
+        """The Drift events of the run, newest first, for one place or train if asked."""
+        drift = self.state(run_id)
+        found = [
+            event
+            for event in drift.history
+            if (place is None or event.place == place or self._touches(drift, event, place))
+            and (train is None or event.train == train or self._numbered(drift, event, train))
+        ]
+        return list(reversed(found))
+
+    @staticmethod
+    def _touches(drift: Drift, event: events.DriftEvent, place: str) -> bool:
+        if event.call is None:
+            return False
+        leg = drift.legs.get(event.call) or drift.by_arrival.get(event.call)
+        return leg is not None and place in {leg.departure.place, leg.arrival.place}
+
+    @staticmethod
+    def _numbered(drift: Drift, event: events.DriftEvent, number: str) -> bool:
+        found = drift.calls.get(event.call or "")
+        return found is not None and found[0].number == number
