@@ -6,8 +6,9 @@ under A, #Ja *Nej, the arrows ? < > ◀ ▶, the notices (NEKAT, ÅTERTAGET, ANK
 that go away by themselves, and the receipt MOTTAGET at the sender. The TMBox logic is
 not redesigned (decided 1 November).
 
-Not yet ported, each with its own step: another arrival track (B:Sp), FLYTTA HIT for a train
-nobody sent, putting a train away, the automation, the box's side, 20×4 and other languages.
+Also ported: another arrival track (B:Sp, UPPT SPÅR), FLYTTA HIT for a train nobody sent,
+a through train asked for while on its way in, and putting away a train that ended here.
+Not yet: the automation (steps after 2), the box's side, 20×4 and other languages.
 
 The boxes of a run share one Drift: what one box does, the others see. What a box was told
 is worked out from Drift's events, so a box that was away catches up on its next picture.
@@ -61,6 +62,9 @@ NAVIGATION_ACTIONS: Final = frozenset(
         "select",
         "cancel_view",
         "reject_view",
+        "tracks",
+        "next_track",
+        "previous_track",
     }
 )
 
@@ -94,6 +98,14 @@ SHORT_LABELS: Final = {
     "Rapportera avgång": "AVGÅTT",
     "Återta klartecken…": "ÅTERTA",
     "Rapportera ankomst": "INNE",
+    "Föregående spår": "FÖREG",
+    "Nästa spår": "NÄSTA",
+    "Ankommit på valt spår": "INNE",
+    "Annat ankomstspår": "SPÅR",
+    "Placera på spår": "PLACERA",
+    "Placera på spår…": "PLACERA",
+    "Flytta hit": "FLYTTA",
+    "Ställ undan": "UNDAN",
 }
 
 # The old Server's words for the refusals a box shows; the rest use the common texts.
@@ -123,6 +135,7 @@ class Box:
     selected: str | None = None
     return_screen: str = "detail"
     browse_filter: str = "all"
+    track: int = 0
     notice: str = ""
     notice_hint: str = ""
     notice_until: float | None = None
@@ -169,10 +182,7 @@ class Boxes:
         return self.drift.legs
 
     def _case(self, key: str) -> Case | None:
-        return next(
-            (c for c in self.drift.cases.values() if c.active and c.leg.departure.id == key),
-            None,
-        )
+        return self.drift.active_case(key)
 
     def _state(self, key: str) -> LineState:
         case = self._case(key)
@@ -273,7 +283,14 @@ class Boxes:
                     if self.legs[k].arrival.place == box.place
                 }
                 return [k for k in active if self.legs[k].departure.id not in arriving]
+            # Nothing under way. A through train the system has not seen come is moved here
+            # first (FLYTTA 93 HIT?), and the next 93# asks for the departure (Benny #170).
             own = [k for k in matches if self._own(box, self.legs[k])]
+            if len(own) == 1:
+                previous = self.legs[own[0]].previous
+                coming = [k for k in matches if k == previous]
+                if coming:
+                    return coming
             matches = own or matches
         return matches
 
@@ -307,7 +324,34 @@ class Boxes:
                 else 4
             )
             choices.append((priority, self._schedule(box, leg)["order"], key))
+        for key in self._to_put_away(box):
+            choices.append((5, self._schedule(box, self.legs[key])["order"], key))
         return [key for _, _, key in sorted(choices)]
+
+    def _to_put_away(self, box: Box) -> list[str]:
+        """Trains that ended their run here and still stand on a track (Casper, 2026-10-10)."""
+        return [
+            key
+            for key, leg in self.legs.items()
+            if leg.arrival.place == box.place and self.drift.ended_here(key)
+        ]
+
+    def _can_take_in(self, key: str) -> bool:
+        """An arrival can be reported unless it waits for an answer (old Server 2.1.0)."""
+        return self._state(key) in {LineState.FREE, LineState.RESERVED, LineState.OCCUPIED}
+
+    def _movable(self, box: Box, leg: Leg) -> bool:
+        """A train for this place the system does not see coming: never sent, or cleared but
+        never reported departed. The box asks whether to move it here (issue #115)."""
+        if leg.arrival.place != box.place or self._completed(leg.departure.id):
+            return False
+        return self._state(leg.departure.id) in {LineState.FREE, LineState.RESERVED}
+
+    def _track_choices(self, box: Box) -> list[str]:
+        leg = self.legs.get(box.selected or "")
+        if leg is None or leg.arrival.place != box.place:
+            return []
+        return self.drift.track_choices(leg)
 
     def _mode(self, leg: Leg) -> ClearanceMode:
         return leg.section.clearance_mode or self.drift.package.meet.clearance_mode
@@ -479,6 +523,9 @@ class Boxes:
             buttons["D"] = ("next_active", "Nästa aktiva tåg")
             if box.selected not in self._active_trains(box):
                 return buttons  # Never silently select or confirm another train.
+        if box.selected in self._to_put_away(box):
+            buttons["#"] = ("stable", "Ställ undan")  # # puts it away and frees the track.
+            return buttons
         leg = self.legs.get(box.selected or "")
         if leg is None or self._completed(leg.departure.id):
             return buttons
@@ -494,6 +541,18 @@ class Boxes:
             buttons["*"] = ("back", "Tillbaka utan att neka")
             if not own and state == LineState.REQUESTED:
                 buttons["#"] = ("reject", "Bekräfta neka")
+            return buttons
+        if box.screen == "move" and self._movable(box, leg):
+            # Reached only by typing or picking the train, so the # after a #Ja on a request
+            # can never move a train by mistake.
+            buttons["#"] = ("arrive", "Flytta hit")
+            buttons["B"] = ("tracks", "Annat ankomstspår")
+            return buttons
+        if box.screen == "tracks":
+            if not own and self._can_take_in(key) and self._track_choices(box):
+                buttons["#"] = ("arrive_track", "Ankommit på valt spår")
+                buttons["C"] = ("previous_track", "Föregående spår")
+                buttons["D"] = ("next_track", "Nästa spår")
             return buttons
         if not active_view:
             buttons["C"] = ("previous", "Föregående tåg")
@@ -515,6 +574,15 @@ class Boxes:
             buttons["B"] = ("home", "Översikt utan trafikändring")
         elif state == LineState.OCCUPIED and not own:
             buttons["#"] = ("arrive", "Rapportera ankomst")
+            buttons["B"] = ("tracks", "Annat ankomstspår")
+        elif not own and state == LineState.FREE:
+            # Never sent in the system: 93# shows it, # places it (old Server 2.1.0).
+            buttons["#"] = ("arrive", "Placera på spår")
+            buttons["B"] = ("tracks", "Annat ankomstspår")
+        elif not own and state == LineState.RESERVED:
+            # Cleared here but never reported departed: placed through the track picker only,
+            # so the # after #Ja never takes a train in.
+            buttons["B"] = ("tracks", "Placera på spår…")
         return buttons
 
     # --- The picture -----------------------------------------------------------------------
@@ -612,10 +680,26 @@ class Boxes:
                 first, hint = lcd.row(f"{word} {selected.train.number}?", "", WIDTH), "#Ja *Nej"
             else:
                 first, hint = lcd.row("LÄGET ÄNDRAT", "", WIDTH), "*=Bak"
+        elif box.screen == "move" and selected is not None and self._movable(box, selected):
+            question = f"FLYTTA {selected.train.number} HIT?"
+            if len(question) > WIDTH:
+                question = f"FLYTTA {selected.train.number}?"
+            first, hint = lcd.row(question, "", WIDTH), "#Ja B:Sp"
+        elif box.screen == "tracks" and selected is not None and self._track_choices(box):
+            tracks = self._track_choices(box)
+            label = tracks[box.track % len(tracks)]
+            first = lcd.row(f"{selected.train.number} SPÅR {label}", "", WIDTH)
+            hint = "#In C/D:Sp"
         elif box.screen == "active" and not active_position:
             first = lcd.row("LÄGET ÄNDRAT" if active else "INGA AKTIVA TÅG", "", WIDTH)
             hint = "C/D B:Öv"
-        elif box.screen in {"detail", "active"} and selected is not None:
+        elif (
+            box.screen in {"detail", "active"}
+            and selected is not None
+            and buttons.get("#", ("",))[0] == "stable"
+        ):
+            first, hint = lcd.row(f"{selected.train.number} SLUTAR HÄR", "", WIDTH), "#Undan"
+        elif box.screen in {"detail", "active", "move"} and selected is not None:
             label, side = self._label(box.place, selected)
             first = lcd.row(label, "", WIDTH) if side == "left" else lcd.row("", label, WIDTH)
             action = buttons.get("#", ("", ""))[0]
@@ -623,7 +707,7 @@ class Boxes:
                 "request": "#Beg A:Kö",
                 "accept": "#Ja *Nej",
                 "depart": "#Avg *Åter",
-                "arrive": "#In A:Kö",
+                "arrive": "#In B:Sp",
             }.get(
                 action,
                 "*Åter B:Öv"
@@ -636,7 +720,7 @@ class Boxes:
                 hint = "#Sändklar"
             if box.screen == "active":
                 counter = f"{compact(active_position)}/{compact(len(active))}"
-                hint = {"depart": "#Avg C/D", "arrive": "#In C/D"}.get(action, "C/D B:Öv")
+                hint = {"depart": "#Avg C/D", "arrive": "#In B:Sp"}.get(action, "C/D B:Öv")
                 if len(label) + len(counter) < WIDTH:
                     first = (
                         lcd.row(label, counter, WIDTH)
@@ -679,6 +763,11 @@ class Boxes:
             direction = "Avgång till" if schedule["kind"] == "departure" else "Ankomst från"
             status = (
                 f"Tåg {selected.train.number} · {direction} {other} · planerat {schedule['time']}"
+            )
+        if selected is not None and selected.departure.id in self._to_put_away(box):
+            status = (
+                f"Tåg {selected.train.number} slutar här. "
+                "# ställer undan det, så blir spåret fritt."
             )
         if box.screen == "requests":
             status = (
@@ -870,7 +959,9 @@ class Boxes:
         action = button[0]
         box.notice, box.notice_hint, box.notice_until = "", "", None
         if action == "back":
-            box.screen = box.return_screen if box.screen in {"cancel", "reject"} else "overview"
+            box.screen = (
+                box.return_screen if box.screen in {"cancel", "reject", "tracks"} else "overview"
+            )
         elif action == "home":
             box.screen = "overview"
         elif action in {"requests", "next_request", "previous_request"}:
@@ -887,7 +978,14 @@ class Boxes:
             box.selected = None
             self._browse(box)
         elif action == "select":
-            box.screen = "detail"
+            leg = self.legs[box.selected or ""]
+            box.screen = "move" if self._movable(box, leg) else "detail"
+        elif action == "tracks":
+            box.return_screen = box.screen
+            box.track, box.screen = 0, "tracks"
+        elif action in {"next_track", "previous_track"}:
+            step = 1 if action == "next_track" else -1
+            box.track = (box.track + step) % max(1, len(self._track_choices(box)))
         elif action in {"cancel_view", "reject_view"}:
             box.return_screen = box.screen
             box.screen = "cancel" if action == "cancel_view" else "reject"
@@ -913,6 +1011,8 @@ class Boxes:
         else:
             box.selected, box.screen, box.notice = matches[0], "detail", ""
             box.browse_filter = "all"
+            if self._movable(box, self.legs[matches[0]]):
+                box.screen = "move"
             # 101# is enough: a departure that can be asked for is asked for at once,
             # and * takes it back until the receiver has answered (Casper, 2026-10-02).
             if self._buttons(box).get("#", ("",))[0] == "request":
@@ -1006,19 +1106,41 @@ class Boxes:
                 )
             case "depart":
                 reason = self._command(box, station.Action.TRAIN_DEPARTED, {"call": key}, None)
-            case "arrive":
+            case "arrive" | "arrive_track":
+                choices = self._track_choices(box)
+                track = (
+                    choices[box.track % len(choices)]
+                    if action == "arrive_track" and choices
+                    else self.drift.planned_track(leg)
+                )
+                occupied = (
+                    track is not None
+                    and self.drift.occupant(leg.arrival.place, track, key) is not None
+                )
+                payload: dict[str, object] = {"call": leg.arrival.id}
+                if track is not None:
+                    payload["track"] = track
+                reason = self._command(box, station.Action.TRAIN_ARRIVED, payload, None)
+            case "stable":
                 reason = self._command(
-                    box, station.Action.TRAIN_ARRIVED, {"call": leg.arrival.id}, None
+                    box, station.Action.TRAIN_SET_ASIDE, {"call": leg.arrival.id}, None
                 )
             case _:
                 return "Läget har ändrats. Välj tåget igen."
         if reason is not None:
             return REFUSED_TEXT.get(reason, TEXT_SV[reason].rstrip("."))
+        if action == "stable":
+            # Put away: the track is free, and the box says so with the train's number.
+            box.notice, box.notice_hint = "UNDANSTÄLLT", number
+            box.notice_until = self.t + NOTICE_SECONDS
+            box.screen, box.selected = "overview", None
+            return ""
         if action == "accept" and box.screen == "requests":
             box.screen = "detail"  # Stay with the accepted train; # never moves to the next.
-        if action == "arrive":
-            track = leg.arrival.track or "?"
-            box.notice = f"{number} ANK SP{track}"
+        if action in {"arrive", "arrive_track"}:
+            track = self.drift.tracks.get(key) or "?"
+            # Another train on the track does not stop the arrival; the box says so (4.12.2).
+            box.notice = f"{number} UPPT SPÅR" if occupied else f"{number} ANK SP{track}"
             box.notice_hint = self._code(leg.departure.place)
             box.notice_until = self.t + NOTICE_SECONDS
         if action == "cancel":

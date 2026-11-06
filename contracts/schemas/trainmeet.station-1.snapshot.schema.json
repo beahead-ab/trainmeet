@@ -11,6 +11,7 @@
         "train.arrived",
         "train.position.set",
         "train.crew_ready.set",
+        "train.set_aside",
         "clearance.request",
         "clearance.response",
         "clearance.cancel",

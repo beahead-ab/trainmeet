@@ -9,12 +9,21 @@ from typing import Any, Final
 
 from contracts import drift as events
 from contracts import station
-from contracts.common import Weekday
+from contracts.common import Side, Weekday
 from contracts.meet import Call, ClearanceMode, MeetPackage, PlaceKind, Section, TrackKind, Train
 from contracts.reasons import Reason
 
 VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
+
+
+_AT_ARRIVAL: Final = frozenset(
+    {
+        events.EventKind.TRAIN_ARRIVED,
+        events.EventKind.TRAIN_MOVED_HERE,
+        events.EventKind.TRAIN_SET_ASIDE,
+    }
+)
 
 
 class Refused(Exception):
@@ -92,6 +101,11 @@ class Drift:
         self.cases: dict[str, Case] = {}
         self.arrived: set[str] = set()
         self.legs: dict[str, Leg] = {}
+        self.by_arrival: dict[str, Leg] = {}
+        self.next_leg: dict[str, str] = {}
+        # Where each arrived train stands (leg key -> track), and the ones put away.
+        self.tracks: dict[str, str] = {}
+        self.set_aside: set[str] = set()
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -107,6 +121,8 @@ class Drift:
         stops = {p.id for p in self.package.places if p.kind != PlaceKind.HALT}
         sections = {frozenset((s.place_a, s.place_b)): s for s in self.package.sections}
         self.legs.clear()
+        self.by_arrival.clear()
+        self.next_leg.clear()
         for train in self.package.trains:
             if day not in train.days:
                 continue
@@ -114,7 +130,11 @@ class Drift:
             for departure, arrival in pairwise(c for c in train.calls if c.place in stops):
                 section = sections.get(frozenset((departure.place, arrival.place)))
                 if section is not None:
-                    self.legs[departure.id] = Leg(train, departure, arrival, section, previous)
+                    leg = Leg(train, departure, arrival, section, previous)
+                    self.legs[departure.id] = leg
+                    self.by_arrival[arrival.id] = leg
+                    if previous is not None:
+                        self.next_leg[previous] = departure.id
                 previous = departure.id
 
     def _record(
@@ -143,11 +163,7 @@ class Drift:
                 message_id=command.message_id if command else None,
                 place=command.place if command else None,
                 train=leg.train.id if leg else None,
-                call=(
-                    leg.arrival.id if kind == events.EventKind.TRAIN_ARRIVED else leg.departure.id
-                )
-                if leg
-                else None,
+                call=(leg.arrival.id if kind in _AT_ARRIVAL else leg.departure.id) if leg else None,
                 data=data,
             )
         )
@@ -219,20 +235,118 @@ class Drift:
                 self.cases[case.id] = replace(
                     case, status=station.ClearanceStatus.CANCELLED, revision=case.revision + 1
                 )
-            case events.EventKind.TRAIN_DEPARTED | events.EventKind.TRAIN_ARRIVED:
+            case events.EventKind.TRAIN_DEPARTED:
                 case = self.cases[events.ClearanceRef.model_validate(event.data).clearance_id]
-                arrived = event.kind == events.EventKind.TRAIN_ARRIVED
+                self.cases[case.id] = replace(case, departed=True, revision=case.revision + 1)
+            case events.EventKind.TRAIN_ARRIVED:
+                arrival = events.TrainArrived.model_validate(event.data)
+                case = self.cases[arrival.clearance_id]
                 self.cases[case.id] = replace(
-                    case, departed=True, arrived=arrived, revision=case.revision + 1
+                    case, departed=True, arrived=True, revision=case.revision + 1
                 )
-                if arrived:
-                    self.arrived.add(case.leg.departure.id)
+                self._arrive(case.leg, arrival.track)
+            case events.EventKind.TRAIN_MOVED_HERE:
+                assert event.call is not None
+                moved = events.TrainMovedHere.model_validate(event.data)
+                self._arrive(self.by_arrival[event.call], moved.track)
+            case events.EventKind.TRAIN_SET_ASIDE:
+                assert event.call is not None
+                self.set_aside.add(self.by_arrival[event.call].departure.id)
             case _:
                 raise ValueError(f"Okänd händelse i Provbanans logg: {event.kind}")
         self.history.append(event)
 
+    def _arrive(self, leg: Leg, track: str | None) -> None:
+        self.arrived.add(leg.departure.id)
+        if track is not None:
+            self.tracks[leg.departure.id] = track
+
+    # --- Tracks: where the trains stand (old Server 4.9.0 and 4.12.2) ------------------
+
+    def active_case(self, key: str) -> Case | None:
+        return next(
+            (c for c in self.cases.values() if c.active and c.leg.departure.id == key), None
+        )
+
+    def _gone_on(self, key: str) -> bool:
+        """Has the train that came in on this leg left again on its next leg?"""
+        following = self.next_leg.get(key)
+        if following is None:
+            return False
+        case = self.active_case(following)
+        return following in self.arrived or (case is not None and case.departed)
+
+    def occupant(self, place: str, track: str, but: str | None = None) -> Leg | None:
+        """Another train standing on the track now: in and not gone on, and not put away.
+        A train due on the track later in the day does not count."""
+        for key, standing in self.tracks.items():
+            leg = self.legs[key]
+            if (
+                key != but
+                and standing == track
+                and leg.arrival.place == place
+                and key not in self.set_aside
+                and not self._gone_on(key)
+            ):
+                return leg
+        return None
+
+    def ended_here(self, key: str) -> bool:
+        """A train that arrived on this leg and goes no further today."""
+        return key in self.arrived and key not in self.next_leg and key not in self.set_aside
+
+    def track_names(self, place: str) -> list[str]:
+        found = next(p for p in self.package.places if p.id == place)
+        return [t.name for t in sorted(found.tracks, key=lambda t: t.sort_order)]
+
+    def planned_track(self, leg: Leg) -> str | None:
+        """The timetable's track, else the first free standard track for the train (4.9.0)."""
+        if leg.arrival.track:
+            return leg.arrival.track
+        for track in self.default_tracks(leg):
+            if self.occupant(leg.arrival.place, track, leg.departure.id) is None:
+                return track
+        return None
+
+    def default_tracks(self, leg: Leg) -> list[str]:
+        place = next(p for p in self.package.places if p.id == leg.arrival.place)
+        towards = self._travel_side(leg)
+        return [
+            d.track
+            for d in place.default_tracks
+            if (d.train_type in (None, leg.train.train_type))
+            and (d.towards is None or d.towards == towards)
+        ]
+
+    def _travel_side(self, leg: Leg) -> Side | None:
+        """The side of the arrival place the train is heading towards."""
+        section = leg.section
+        came_from = section.side_at_b if leg.arrival.place == section.place_b else section.side_at_a
+        if came_from is None:
+            return None
+        return Side.RIGHT if came_from == Side.LEFT else Side.LEFT
+
+    def track_choices(self, leg: Leg) -> list[str]:
+        """The track picker: the train's track first, then standard tracks, then the rest."""
+        order: list[str] = []
+        planned = self.planned_track(leg)
+        for track in [planned, *self.default_tracks(leg), *self.track_names(leg.arrival.place)]:
+            if track and track not in order:
+                order.append(track)
+        return order
+
+    def _arrival_track(self, leg: Leg, requested: str | None) -> str | None:
+        if requested is None:
+            return self.planned_track(leg)
+        names = self.track_names(leg.arrival.place)
+        if names and requested not in names:
+            raise Refused(Reason.UNKNOWN_TRACK)
+        return requested
+
     def request_block(self, leg: Leg) -> Reason | None:
-        if leg.departure.id in self.arrived or (leg.previous and leg.previous not in self.arrived):
+        # A through train's next leg may be asked for while it is still on its way in; sent
+        # on, it jumps here with the departure (old Server, Casper 2026-10-02).
+        if leg.departure.id in self.arrived:
             return Reason.INVALID_DEPARTURE
         if any(
             case.active and case.leg.departure.id == leg.departure.id
@@ -310,37 +424,93 @@ class Drift:
             kind = events.EventKind.CLEARANCE_CANCELLED
         self._record(kind, data, now, command=command, leg=case.leg)
 
-    def _movement(self, command: station.Command, now: datetime) -> None:
-        departure = command.action == station.Action.TRAIN_DEPARTED
-        if departure:
-            call = station.CallOnly.model_validate(command.payload).call
-        else:
-            arrival = station.Arrival.model_validate(command.payload)
-            if arrival.track is not None:
-                raise Refused(Reason.UNKNOWN_ACTION)
-            call = arrival.call
-        matches = [
-            case
-            for case in self.cases.values()
-            if case.active and (case.leg.departure.id if departure else case.leg.arrival.id) == call
-        ]
-        if not matches:
-            raise Refused(Reason.DEPARTURE_NOT_RESERVED if departure else Reason.TRAIN_NOT_DEPARTED)
-        case = matches[0]
-        place = case.leg.departure.place if departure else case.leg.arrival.place
-        if command.place != place:
+    def _finish(self, leg: Leg, command: station.Command, now: datetime) -> None:
+        """Bring a leg to its end, whatever it last knew, so the train is here (old _finish_leg)."""
+        case = self.active_case(leg.departure.id)
+        track = self.planned_track(leg)
+        if case is None:
+            self._record(
+                events.EventKind.TRAIN_MOVED_HERE, {"track": track}, now, command=command, leg=leg
+            )
+            return
+        if case.status == station.ClearanceStatus.WAITING:
+            self._record(
+                events.EventKind.CLEARANCE_ANSWERED,
+                {"clearance_id": case.id, "approved": True},
+                now,
+                command=command,
+                leg=leg,
+            )
+        self._record(
+            events.EventKind.TRAIN_ARRIVED,
+            {"clearance_id": case.id, "track": track},
+            now,
+            command=command,
+            leg=leg,
+        )
+
+    def _departure(self, command: station.Command, now: datetime) -> None:
+        call = station.CallOnly.model_validate(command.payload).call
+        case = self.active_case(call)
+        if case is None:
+            raise Refused(Reason.DEPARTURE_NOT_RESERVED)
+        if command.place != case.leg.departure.place:
             raise Refused(Reason.WRONG_PLACE)
-        if departure:
-            if case.status != station.ClearanceStatus.APPROVED:
-                raise Refused(Reason.DEPARTURE_NOT_RESERVED)
-            if case.departed:
-                raise Refused(Reason.TRAIN_ALREADY_DEPARTED)
-            kind = events.EventKind.TRAIN_DEPARTED
+        if case.departed:
+            raise Refused(Reason.TRAIN_ALREADY_DEPARTED)
+        if case.status != station.ClearanceStatus.APPROVED:
+            raise Refused(Reason.DEPARTURE_NOT_RESERVED)
+        # Not seen to come in: it jumps here with the departure, and every earlier part of
+        # the route still open here is brought to its end (old Server 2.1.0).
+        previous = self.legs.get(case.leg.previous or "")
+        if previous is not None and previous.departure.id not in self.arrived:
+            self._finish(previous, command, now)
+        self._record(
+            events.EventKind.TRAIN_DEPARTED,
+            {"clearance_id": case.id},
+            now,
+            command=command,
+            leg=case.leg,
+        )
+
+    def _arrival(self, command: station.Command, now: datetime) -> None:
+        """An arrival can always be taken (old Server 2.1.0): sent and departed, cleared but
+        never reported departed, or never sent at all. An occupied track does not stop it."""
+        arrival = station.Arrival.model_validate(command.payload)
+        leg = self.by_arrival.get(arrival.call)
+        if leg is None:
+            raise Refused(Reason.UNKNOWN_CALL)
+        if command.place != leg.arrival.place:
+            raise Refused(Reason.WRONG_PLACE)
+        if leg.departure.id in self.arrived:
+            raise Refused(Reason.INVALID_ARRIVAL)
+        track = self._arrival_track(leg, arrival.track)
+        case = self.active_case(leg.departure.id)
+        if case is None:
+            self._record(
+                events.EventKind.TRAIN_MOVED_HERE, {"track": track}, now, command=command, leg=leg
+            )
+        elif case.status == station.ClearanceStatus.WAITING:
+            raise Refused(Reason.TRAIN_NOT_DEPARTED)
         else:
-            if not case.departed:
-                raise Refused(Reason.TRAIN_NOT_DEPARTED)
-            kind = events.EventKind.TRAIN_ARRIVED
-        self._record(kind, {"clearance_id": case.id}, now, command=command, leg=case.leg)
+            self._record(
+                events.EventKind.TRAIN_ARRIVED,
+                {"clearance_id": case.id, "track": track},
+                now,
+                command=command,
+                leg=leg,
+            )
+
+    def _set_aside(self, command: station.Command, now: datetime) -> None:
+        call = station.CallOnly.model_validate(command.payload).call
+        leg = self.by_arrival.get(call)
+        if leg is None:
+            raise Refused(Reason.UNKNOWN_CALL)
+        if command.place != leg.arrival.place:
+            raise Refused(Reason.WRONG_PLACE)
+        if not self.ended_here(leg.departure.id):
+            raise Refused(Reason.INVALID_ARRIVAL)
+        self._record(events.EventKind.TRAIN_SET_ASIDE, {}, now, command=command, leg=leg)
 
     def command(self, command: station.Command, now: datetime) -> None:
         if command.context != self.context:
@@ -350,8 +520,12 @@ class Drift:
                 self._request(command, now)
             case station.Action.CLEARANCE_RESPONSE | station.Action.CLEARANCE_CANCEL:
                 self._case_action(command, now)
-            case station.Action.TRAIN_DEPARTED | station.Action.TRAIN_ARRIVED:
-                self._movement(command, now)
+            case station.Action.TRAIN_DEPARTED:
+                self._departure(command, now)
+            case station.Action.TRAIN_ARRIVED:
+                self._arrival(command, now)
+            case station.Action.TRAIN_SET_ASIDE:
+                self._set_aside(command, now)
             case _:
                 raise Refused(Reason.UNKNOWN_ACTION)
 

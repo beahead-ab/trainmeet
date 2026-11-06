@@ -38,6 +38,10 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Nyckel | `Authorization: Bearer` | Klientens nyckel från godkännandet. Krävs för alla stationskommandon, klarar omstarter och kan återkallas. Skickas i huvudet, aldrig i kroppen. |
 | Ögonblicksbild | `station.Snapshot` | Allt en klient behöver om en driftplats, ersatt i sin helhet varje gång. Den är sanningen; händelserna säger bara att den ändrats. |
 | Skäl | `Reason` | Varför Drift sa nej, med texten för varje skäl. |
+| Ankomstspår | `train.arrived.track` | Spåret tåget faktiskt kom in på. Planspåret står kvar; boxen väljer ett annat med B. |
+| Flytta hit | `train.moved_here` | Ett tåg ingen skickat tas in här ändå, så spelet går vidare (FLYTTA HIT). |
+| Genomgående tåg | `Leg.previous` | Ett tåg som kommer in och går vidare med samma nummer. Nästa sträcka kan begäras innan det kommit, och tåget hoppar hit när det skickas vidare. |
+| Ställa undan | `train.set_aside` | Ett tåg som slutat här ställs undan, och spåret blir fritt. |
 | På väg hit, har lämnat | `on_the_way`, `have_left` | Tåg på sträckan, från avgången hos grannen till ankomsten här, och tvärtom. Drift räknar fram båda. |
 | Bild | `terminal.Frame` | Det en TMBox visar. Drift ritar den; boxen skickar bara knapptryck. |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
