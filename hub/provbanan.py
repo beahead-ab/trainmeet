@@ -16,8 +16,8 @@ from contracts import drift, station
 from contracts.meet import MeetPackage
 from contracts.reasons import TEXT_SV
 from drift.engine import VERSION, Drift, Refused, now_utc
-from drift.store import RUN_LIFETIME, MissingRun, PreviewStore, RunLimit
-from hub import page
+from drift.store import RUN_LIFETIME, MissingRun, PreviewStore, RunLimit, UnknownBox
+from hub import page, tmbox_web
 from hub.build_info import BuildInfo
 
 COOKIE = "trainmeet_provbanan"
@@ -100,6 +100,31 @@ def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
         control: drift.ClockControl, response: Response, run: RunCookie = None
     ) -> dict[str, Any]:
         return snapshot(response, run, lambda run_id: store.clock(run_id, control))
+
+    def boxes(
+        response: Response, run_id: str | None, change: drift.Assign | None = None
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            if not run_id:
+                raise MissingRun()
+            listed = store.assign(run_id, change) if change else store.clients(run_id)
+            code = store.join_code(run_id)
+        except (MissingRun, RunLimit, Refused) as error:
+            _error(error)
+        except UnknownBox as error:
+            raise HTTPException(404, "Boxen finns inte i provkörningen.") from error
+        return {"code": code, "clients": listed}
+
+    @routes.get("/api/provbanan/clients")
+    def clients(response: Response, run: RunCookie = None) -> dict[str, Any]:
+        return boxes(response, run)
+
+    @routes.post("/api/provbanan/clients/assign")
+    def assign(change: drift.Assign, response: Response, run: RunCookie = None) -> dict[str, Any]:
+        return boxes(response, run, change)
+
+    routes.include_router(tmbox_web.router(store, info))
 
     @routes.post("/api/provbanan/command")
     def command(

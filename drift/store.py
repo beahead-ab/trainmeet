@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
-from secrets import token_hex
+from secrets import randbelow, token_hex, token_urlsafe
 from threading import Lock
-from typing import Final
+from typing import Any, Final, TypeVar
 
 from contracts import drift as events
 from contracts import station
@@ -17,10 +18,14 @@ from contracts.common import checksum
 from contracts.meet import MeetPackage
 from contracts.reasons import Reason
 from drift.engine import Drift, Refused, now_utc
+from drift.terminal import Box, Boxes
 
 RUN_LIFETIME: Final = timedelta(days=1)
 MAX_RUNS: Final = 256
 MAX_ACTIONS: Final = 2000
+MAX_BOXES: Final = 16
+
+T = TypeVar("T")
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -37,6 +42,17 @@ CREATE TABLE IF NOT EXISTS preview_receipt (
     client_id TEXT NOT NULL, message_id TEXT NOT NULL, reason TEXT,
     PRIMARY KEY (run_id, client_id, message_id)
 );
+CREATE TABLE IF NOT EXISTS preview_join (
+    run_id TEXT PRIMARY KEY REFERENCES preview_run(id) ON DELETE CASCADE,
+    code TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS preview_box (
+    client_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL UNIQUE,
+    created REAL NOT NULL,
+    state TEXT NOT NULL
+);
 """
 
 
@@ -46,6 +62,19 @@ class MissingRun(Exception):
 
 class RunLimit(Exception):
     """A preview run or the shared test hub reached its limit."""
+
+
+class UnknownBox(Exception):
+    """The box's session key does not belong to a live run."""
+
+
+def _key_hash(key: str) -> str:
+    return sha256(key.encode()).hexdigest()
+
+
+def epoch_of(run_id: str) -> str:
+    """What the boxes see of their run. Never the run id itself: that is the browser's key."""
+    return sha256(("epoch:" + run_id).encode()).hexdigest()[:16]
 
 
 class PreviewStore:
@@ -166,3 +195,126 @@ class PreviewStore:
         if reason is not None:
             raise Refused(reason)
         return drift
+
+    # --- TMBox web: boxes that join a run with its code ------------------------------------
+
+    def join_code(self, run_id: str) -> str:
+        """The run's code for boxes, made the first time it is asked for."""
+        with self._transaction() as db:
+            self._load(db, run_id, now_utc())
+            row = db.execute("SELECT code FROM preview_join WHERE run_id=?", (run_id,)).fetchone()
+            if row is not None:
+                return str(row[0])
+            while True:
+                code = f"{randbelow(10**6):06d}"
+                taken = db.execute("SELECT 1 FROM preview_join WHERE code=?", (code,)).fetchone()
+                if taken is None:
+                    db.execute("INSERT INTO preview_join VALUES (?, ?)", (run_id, code))
+                    return code
+
+    def login(self, name: str, code: str) -> tuple[str, str]:
+        """A new box under Väntar. Returns its client id and its session key, shown once."""
+        now = now_utc()
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT j.run_id FROM preview_join j JOIN preview_run r ON r.id=j.run_id "
+                "WHERE j.code=? AND r.expires>? AND r.package=?",
+                (code, now.timestamp(), self.package_key),
+            ).fetchone()
+            if row is None:
+                raise MissingRun()
+            run_id = str(row[0])
+            drift = self._load(db, run_id, now)
+            count = db.execute(
+                "SELECT count(*) FROM preview_box WHERE run_id=?", (run_id,)
+            ).fetchone()[0]
+            if count >= MAX_BOXES:
+                raise RunLimit()
+            client_id = "box-" + token_hex(6)
+            key = token_urlsafe(32)
+            box = Box(client_id=client_id, name=name, seen=len(drift.history))
+            db.execute(
+                "INSERT INTO preview_box VALUES (?, ?, ?, ?, ?)",
+                (client_id, run_id, _key_hash(key), now.timestamp(), box.to_json()),
+            )
+        return client_id, key
+
+    def _boxes(self, db: sqlite3.Connection, run_id: str) -> dict[str, tuple[Box, str]]:
+        rows = db.execute(
+            "SELECT client_id, state FROM preview_box WHERE run_id=? ORDER BY created, client_id",
+            (run_id,),
+        ).fetchall()
+        return {str(cid): (Box.from_json(state), str(state)) for cid, state in rows}
+
+    def _with_boxes(
+        self, db: sqlite3.Connection, run_id: str, operation: Callable[[Boxes], T]
+    ) -> T:
+        now = now_utc()
+        drift = self._load(db, run_id, now)
+        size = len(drift.history)
+        stored = self._boxes(db, run_id)
+        boxes = Boxes(
+            drift, {cid: box for cid, (box, _) in stored.items()}, epoch=epoch_of(run_id), now=now
+        )
+        boxes.catch_up()
+        result = operation(boxes)
+        self._save(db, run_id, drift.history[size:])
+        for cid, box in boxes.boxes.items():
+            state = box.to_json()
+            if state != stored[cid][1]:
+                db.execute("UPDATE preview_box SET state=? WHERE client_id=?", (state, cid))
+        return result
+
+    def _box_run(self, db: sqlite3.Connection, key: str) -> tuple[str, str]:
+        row = db.execute(
+            "SELECT b.client_id, b.run_id FROM preview_box b JOIN preview_run r ON r.id=b.run_id "
+            "WHERE b.key_hash=? AND r.expires>?",
+            (_key_hash(key), now_utc().timestamp()),
+        ).fetchone()
+        if row is None:
+            raise UnknownBox()
+        return str(row[0]), str(row[1])
+
+    def box_frame(self, key: str) -> dict[str, Any]:
+        with self._transaction() as db:
+            client_id, run_id = self._box_run(db, key)
+            return self._with_boxes(db, run_id, lambda b: b.frame(b.boxes[client_id]))
+
+    def box_press(self, key: str, body: dict[str, Any]) -> dict[str, Any]:
+        with self._transaction() as db:
+            client_id, run_id = self._box_run(db, key)
+            size = db.execute(
+                "SELECT count(*) FROM preview_event WHERE run_id=?", (run_id,)
+            ).fetchone()[0]
+            if size >= MAX_ACTIONS:
+                raise RunLimit()
+            return self._with_boxes(db, run_id, lambda b: b.press(b.boxes[client_id], body))
+
+    def clients(self, run_id: str) -> list[dict[str, Any]]:
+        """The boxes of the run, waiting ones first, as the Client contract says."""
+        with self._transaction() as db:
+            boxes = self._with_boxes(db, run_id, lambda b: list(b.boxes.values()))
+        listed = [
+            {
+                "client_id": box.client_id,
+                "name": box.name,
+                "kind": "tmbox_web",
+                "status": "approved" if box.place else "waiting",
+                "places": [box.place] if box.place else [],
+                "side": box.side,
+            }
+            for box in boxes
+        ]
+        return sorted(listed, key=lambda item: item["status"] != "waiting")
+
+    def assign(self, run_id: str, assignment: events.Assign) -> list[dict[str, Any]]:
+        with self._transaction() as db:
+
+            def give(boxes: Boxes) -> None:
+                box = boxes.boxes.get(assignment.client_id)
+                if box is None:
+                    raise UnknownBox()
+                boxes.assign(box, assignment.places[0], assignment.side)
+
+            self._with_boxes(db, run_id, give)
+        return self.clients(run_id)

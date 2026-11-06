@@ -127,8 +127,9 @@ async function request(path = "", body, fresh = false) {
       return;
     }
     const next = await response.json();
-    if (fresh) state = undefined;
+    if (fresh) { state = undefined; clientsShown = ""; }
     render(next);
+    if (fresh) refreshClients();
   } catch {
     notice.textContent = "Kontakten med Hubben bröts. Ladda om sidan för att läsa läget.";
   } finally {
@@ -149,6 +150,71 @@ function answer(item, approved) {
   return command(item.to_place, "clearance.response", { clearance_id: item.id, approved }, item);
 }
 
+let clientsShown = "";
+
+function showClients(data) {
+  element("join-code").textContent = data.code;
+  element("box-link").href = "/provbanan/box#kod=" + data.code;
+  const shown = JSON.stringify(data.clients) + JSON.stringify(state?.stations);
+  if (shown === clientsShown) return;
+  clientsShown = shown;
+  const list = element("clients");
+  list.replaceChildren();
+  if (!data.clients.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "Inga boxar anslutna ännu.";
+    list.append(empty);
+  }
+  for (const client of data.clients) {
+    const row = document.createElement("li");
+    const where = client.places.length
+      ? "Tilldelad " + client.places.map(place => state.places[place]).join(", ")
+      : "Väntar på tilldelning";
+    row.textContent = client.name + " · " + where;
+    const controls = document.createElement("div");
+    controls.className = "controls";
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Driftplats för " + client.name);
+    for (const place of state?.stations ?? []) select.append(new Option(state.places[place], place));
+    if (client.places.length) select.value = client.places[0];
+    controls.append(select);
+    addButton(controls, client.places.length ? "Byt driftplats" : "Tilldela", () => assign(client, select.value));
+    row.append(controls);
+    list.append(row);
+  }
+}
+
+async function refreshClients() {
+  try {
+    const response = await fetch("/api/provbanan/clients", { cache: "no-store" });
+    if (response.ok) showClients(await response.json());
+  } catch { /* The next round tries again. */ }
+}
+
+async function assign(client, place) {
+  notice.textContent = "";
+  const response = await fetch("/api/provbanan/clients/assign", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: client.client_id, places: [place], side: "both" }),
+  });
+  const answer = await response.json();
+  if (!response.ok) {
+    notice.textContent = typeof answer.detail === "string" ? answer.detail : "Det gick inte.";
+    return;
+  }
+  showClients(answer);
+}
+
+// What the boxes do shows here too: the run is read again every other second.
+async function poll() {
+  if (busy || !state) return;
+  try {
+    const response = await fetch("/api/provbanan", { cache: "no-store" });
+    if (response.ok && !busy) render(await response.json());
+  } catch { /* The next round tries again. */ }
+  refreshClients();
+}
+
 function start() { return request("/start", { version: 1 }, true); }
 element("start").onclick = start;
 element("restart").onclick = start;
@@ -165,4 +231,5 @@ element("request").onclick = () => {
 };
 legSelect.onchange = showLeg;
 setInterval(showClock, 1000);
-request();
+setInterval(poll, 2000);
+request().then(refreshClients);
