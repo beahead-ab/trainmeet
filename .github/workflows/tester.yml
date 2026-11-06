@@ -1,0 +1,72 @@
+# Körs på varje PR och varje ändring på main: kodstil, typer, testerna och Hubbens bild.
+# Båda kontrollerna, "Tester" och "Hubbens bild", ska vara gröna innan en PR slås ihop.
+name: Tester
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tester-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tester:
+    name: Tester
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Installera
+        run: uv sync --locked
+
+      - name: Kodstil
+        run: |
+          uv run ruff check --output-format=github .
+          uv run ruff format --check .
+
+      - name: Typer
+        run: uv run mypy
+
+      - name: Testerna
+        run: uv run pytest
+
+  bilden:
+    name: Hubbens bild
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg bilden
+        run: >
+          docker build -f hub/Dockerfile -t trainmeet-hub:prov
+          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+
+      - name: Starta bilden och prova sidorna
+        run: |
+          docker run -d --name hub -p 8080:8080 trainmeet-hub:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/healthz
+          curl -fsS http://localhost:8080/ | grep -q "Tom hubb"
+          curl -fsS http://localhost:8080/api/version | grep -q '"product":"TrainMeet Hub"'
+          curl -fsS -o /dev/null http://localhost:8080/static/skylt.svg
+          curl -fsS -o /dev/null http://localhost:8080/static/fonts/inter.woff2
+          docker inspect --format '{{.Config.User}}' hub | grep -qx hub
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: docker logs hub || true

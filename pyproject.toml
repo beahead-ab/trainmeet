@@ -1,0 +1,51 @@
+[project]
+name = "trainmeet"
+version = "0.1.0"
+description = "TrainMeet, nästa generation: Hubben, kontrakten och delarna."
+readme = "README.md"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# One package per part. New parts (contracts, core, drift, ...) are added here as they are built.
+packages = ["hub"]
+exclude = ["**/tests", "hub/Dockerfile"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# Swedish typography is intended: 5×7, tankstreck (–).
+allowed-confusables = ["×", "–"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["hub", "tests"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib -q"
+testpaths = ["tests", "hub"]
+filterwarnings = [
+    "error",
+    # Starlette's test client still works with httpx; the hint about another package is noise.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
