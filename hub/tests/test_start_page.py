@@ -28,7 +28,7 @@ def test_start_page_shows_an_empty_hub_with_its_version() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     html = response.text
-    assert "Tom hubb" in html
+    assert "Prova Drift" in html
     assert "<dd>0.1.0</dd>" in html
     assert '<span class="sida">Testhubben</span>' in html
 

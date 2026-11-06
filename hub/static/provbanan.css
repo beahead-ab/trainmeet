@@ -1,0 +1,20 @@
+.prov { max-width: 900px; }
+.prov .kort { margin: 12px 0; }
+.prov h2 { font-size: 17px; margin: 24px 0 6px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.controls label { white-space: nowrap; }
+.prov input, .prov select, .prov button {
+  background: var(--bg); color: var(--text); border: 1px solid var(--mute);
+  border-radius: 5px; padding: 6px 10px; font: inherit;
+}
+.prov select { max-width: 100%; }
+.prov input { width: 5em; }
+.prov button { cursor: pointer; }
+.prov button:disabled { opacity: .55; cursor: default; }
+.prov button:hover:enabled { border-color: var(--link); }
+#clock { font-size: 24px; min-width: 6em; }
+#notice:empty { display: none; }
+#notice { color: var(--warn); }
+.cases { padding: 0; list-style: none; }
+.cases li { border-top: 1px solid var(--line); padding: 10px 0; }
+.cases .controls { margin-top: 6px; }

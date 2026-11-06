@@ -29,7 +29,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 # One package per part. New parts (contracts, core, drift, ...) are added here as they are built.
-packages = ["contracts", "hub"]
+packages = ["contracts", "drift", "hub"]
 exclude = ["**/tests", "hub/Dockerfile"]
 
 [tool.ruff]
@@ -44,7 +44,7 @@ allowed-confusables = ["×", "–"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["contracts", "hub", "deploy", "tests"]
+files = ["contracts", "drift", "hub", "deploy", "tests"]
 
 [[tool.mypy.overrides]]
 # These have type hints but no py.typed marker.

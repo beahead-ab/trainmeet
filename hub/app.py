@@ -8,12 +8,16 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from hub import build_info, page
+from hub import build_info, page, provbanan
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-def create_app(info: build_info.BuildInfo | None = None) -> FastAPI:
+def create_app(
+    info: build_info.BuildInfo | None = None,
+    *,
+    preview_db: Path | None = None,
+) -> FastAPI:
     info = info if info is not None else build_info.from_env()
 
     # The interactive API pages are off: they load scripts from another site. The contracts
@@ -26,6 +30,7 @@ def create_app(info: build_info.BuildInfo | None = None) -> FastAPI:
         openapi_url=None,
     )
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.include_router(provbanan.router(info, preview_db))
 
     @app.get("/", response_class=HTMLResponse)
     def start_page() -> str:
