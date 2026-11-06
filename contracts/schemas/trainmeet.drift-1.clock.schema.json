@@ -64,5 +64,44 @@
   "required": [
     "action"
   ],
-  "type": "object"
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "action": {
+          "const": "speed"
+        },
+        "speed": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "speed"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "jump"
+        },
+        "time": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "time"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "enum": [
+            "start",
+            "stop",
+            "undo_jump"
+          ]
+        }
+      }
+    }
+  ]
 }

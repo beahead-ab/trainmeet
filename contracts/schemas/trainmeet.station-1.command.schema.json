@@ -91,6 +91,286 @@
       ],
       "title": "RevisionScope",
       "type": "string"
+    },
+    "TrainLookup": {
+      "additionalProperties": true,
+      "properties": {
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "pattern": "^[0-9]{1,5}$",
+          "title": "Train Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "train_number"
+      ],
+      "title": "TrainLookup",
+      "type": "object"
+    },
+    "TrackChange": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "track": {
+          "description": "Stationens spår-id, eller planens spårnamn utan station.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Track",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call",
+        "track"
+      ],
+      "title": "TrackChange",
+      "type": "object"
+    },
+    "CallOnly": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "title": "CallOnly",
+      "type": "object"
+    },
+    "Arrival": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Utan spår: första lediga standardspår.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "title": "Arrival",
+      "type": "object"
+    },
+    "Flag": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "call",
+        "value"
+      ],
+      "title": "Flag",
+      "type": "object"
+    },
+    "ClearanceRequest": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "clearance_id": {
+          "description": "Klienten väljer id, så att omsändning blir dubblett.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call",
+        "section",
+        "clearance_id"
+      ],
+      "title": "ClearanceRequest",
+      "type": "object"
+    },
+    "ClearanceResponse": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "approved"
+      ],
+      "title": "ClearanceResponse",
+      "type": "object"
+    },
+    "ClearanceCancel": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "clearance_id"
+      ],
+      "title": "ClearanceCancel",
+      "type": "object"
+    },
+    "LineAvailable": {
+      "additionalProperties": true,
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call",
+        "section"
+      ],
+      "title": "LineAvailable",
+      "type": "object"
+    },
+    "LineAcknowledge": {
+      "additionalProperties": true,
+      "properties": {
+        "message_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Message Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id"
+      ],
+      "title": "LineAcknowledge",
+      "type": "object"
+    },
+    "SectionOccupancy": {
+      "additionalProperties": true,
+      "description": "Level 3 only: a section's detection. The section is free when every part is empty.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "occupied": {
+          "title": "Occupied",
+          "type": "boolean"
+        },
+        "parts": {
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "type": "boolean"
+            }
+          },
+          "title": "Parts",
+          "type": "object"
+        }
+      },
+      "required": [
+        "section",
+        "occupied"
+      ],
+      "title": "SectionOccupancy",
+      "type": "object"
+    },
+    "ExitSignalAspect": {
+      "enum": [
+        "stop",
+        "proceed",
+        "unknown"
+      ],
+      "title": "ExitSignalAspect",
+      "type": "string"
+    },
+    "ExitSignal": {
+      "additionalProperties": true,
+      "description": "What the exit signal shows, for Lokföraren and the neighbour.",
+      "properties": {
+        "exit": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "aspect": {
+          "$ref": "#/$defs/ExitSignalAspect"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        }
+      },
+      "required": [
+        "exit",
+        "section",
+        "aspect"
+      ],
+      "title": "ExitSignal",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -148,5 +428,202 @@
     "context",
     "action"
   ],
-  "type": "object"
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "action": {
+          "const": "train.lookup",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/TrainLookup"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.track.change",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/TrackChange"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.departed",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/CallOnly"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.arrived",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Arrival"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.position.set",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Flag"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.crew_ready.set",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Flag"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "clearance.request",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ClearanceRequest"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "clearance.response",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ClearanceResponse"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "clearance.cancel",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ClearanceCancel"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "line.available.publish",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/LineAvailable"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "line.available.acknowledge",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/LineAcknowledge"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "section.occupancy",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/SectionOccupancy"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "signal.exit",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ExitSignal"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    }
+  ]
 }

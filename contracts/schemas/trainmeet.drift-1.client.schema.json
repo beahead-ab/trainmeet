@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.client.schema.json",
+  "title": "trainmeet.drift-1.client",
+  "$defs": {
+    "ApprovalStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "refused",
+        "revoked"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "tkl",
+        "tmbox_app",
+        "dispatch",
+        "tmbox_web",
+        "tmbox"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ApprovalStatus"
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "side": {
+      "default": "both",
+      "enum": [
+        "both",
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_id",
+    "name",
+    "kind",
+    "status"
+  ],
+  "type": "object"
+}

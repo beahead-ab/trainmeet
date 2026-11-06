@@ -3,12 +3,12 @@
 First version (Claude, draft). Transport is HTTP with JSON and an event stream (SSE), behind
 the dispatcher's login (a local PIN until TrainMeet ID, step 6):
 
-    POST /api/drift/1/start              StartMeet            version and game day
-    POST /api/drift/1/clock              ClockControl         start, stop, speed, jump, undo
-    GET  /api/drift/1/clients            the list in Klienter, Väntar first
-    POST /api/drift/1/clients/approve    Approve              TKL and the app (H31)
-    POST /api/drift/1/clients/revoke     Revoke
-    POST /api/drift/1/clients/assign     Assign               TMBoxes: place and side
+    POST /api/drift/1/start              StartMeet -> DriftEvent
+    POST /api/drift/1/clock              ClockControl -> DriftEvent
+    GET  /api/drift/1/clients            list[Client]         Väntar first
+    POST /api/drift/1/clients/approve    Approve -> Client    TKL and the app (H31)
+    POST /api/drift/1/clients/revoke     Revoke -> Client
+    POST /api/drift/1/clients/assign     Assign -> Client     TMBoxes: place and side
     GET  /api/drift/1/log?place=&train=  DriftEvent list       the event log, filtered (F27)
     GET  /api/drift/1/events             DriftEvent stream    live, for Nu and Logg
 
@@ -28,6 +28,7 @@ from typing import Final, Literal
 from pydantic import Field, model_validator
 
 from contracts.common import Contract, Id, Text, TimeOfDay, Weekday
+from contracts.station import ApprovalStatus
 
 PROTOCOL: Final = "trainmeet.drift/1"
 
@@ -80,6 +81,15 @@ class Assign(Contract):
     side: Literal["both", "left", "right"] = "both"
 
 
+class Client(Contract):
+    client_id: Id
+    name: Text
+    kind: Literal["tkl", "tmbox_app", "dispatch", "tmbox_web", "tmbox"]
+    status: ApprovalStatus
+    places: list[Id] = Field(default_factory=list)
+    side: Literal["both", "left", "right"] = "both"
+
+
 class EventKind(StrEnum):
     MEET_STARTED = "meet.started"
     CLOCK_STARTED = "clock.started"
@@ -117,6 +127,42 @@ class Actor(Contract):
     id: Id | None = None
 
 
+class MeetStarted(Contract):
+    traffic_day: Weekday
+    speed: float = Field(gt=0, le=60)
+
+
+class ClockChanged(Contract):
+    seconds: float = Field(ge=0)
+    speed: float = Field(gt=0, le=60)
+
+
+class ClearanceRef(Contract):
+    clearance_id: Id
+
+
+class ClearanceRequested(ClearanceRef):
+    section: Id
+    to_place: Id
+
+
+class ClearanceAnswered(ClearanceRef):
+    approved: bool
+
+
+EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
+    EventKind.MEET_STARTED: MeetStarted,
+    EventKind.CLOCK_STARTED: ClockChanged,
+    EventKind.CLOCK_STOPPED: ClockChanged,
+    EventKind.CLOCK_SPEED: ClockChanged,
+    EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
+    EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
+    EventKind.CLEARANCE_CANCELLED: ClearanceRef,
+    EventKind.TRAIN_DEPARTED: ClearanceRef,
+    EventKind.TRAIN_ARRIVED: ClearanceRef,
+}
+
+
 class DriftEvent(Contract):
     protocol: Literal["trainmeet.drift/1"] = PROTOCOL
     seq: int = Field(ge=1, description="Händelsens nummer i den körande träffen.")
@@ -133,3 +179,12 @@ class DriftEvent(Contract):
     train: Id | None = None
     call: Id | None = None
     data: dict[str, object] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _check_data(self) -> DriftEvent:
+        if self.kind == EventKind.CLEARANCE_REQUESTED and self.call is None:
+            raise ValueError("Klareringsbegäran måste ange avgångens tågbesök.")
+        model = EVENT_PAYLOADS.get(self.kind)
+        if model is not None:
+            model.model_validate(self.data)
+        return self
