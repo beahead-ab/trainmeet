@@ -3700,6 +3700,7 @@
           "invalid_departure",
           "invalid_arrival",
           "train_not_departed",
+          "unknown_line_message",
           "already_acknowledged",
           "not_level_3"
         ],
@@ -7078,6 +7079,96 @@
           {
             "properties": {
               "kind": {
+                "const": "train.track_changed",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.TrackChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "train.positioned",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.FlagSet"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "train.crew_ready",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.FlagSet"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clearance.invalidated",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "line.available",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.LineAvailableSent"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "line.acknowledged",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.LineAcknowledged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "not": {
                   "enum": [
                     "meet.started",
@@ -7090,7 +7181,13 @@
                     "train.departed",
                     "train.arrived",
                     "train.moved_here",
-                    "train.set_aside"
+                    "train.set_aside",
+                    "train.track_changed",
+                    "train.positioned",
+                    "train.crew_ready",
+                    "clearance.invalidated",
+                    "line.available",
+                    "line.acknowledged"
                   ]
                 }
               }
@@ -7171,12 +7268,16 @@
           "clearance.answered",
           "clearance.cancelled",
           "clearance.reminded",
+          "clearance.invalidated",
           "train.departed",
           "train.arrived",
           "train.moved_here",
           "train.track_changed",
           "train.set_aside",
+          "train.positioned",
+          "train.crew_ready",
           "line.available",
+          "line.acknowledged",
           "section.occupancy",
           "signal.exit"
         ],
@@ -7359,6 +7460,81 @@
         "description": "Ställ undan: a train that ended here is put away, and its track is free.",
         "properties": {},
         "title": "TrainSetAside",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.TrackChanged": {
+        "additionalProperties": true,
+        "description": "The call's track now. A train standing there moves with it.",
+        "properties": {
+          "track": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackChanged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.FlagSet": {
+        "additionalProperties": true,
+        "description": "Uppställt or föraren på plats, set or taken back. REDO is both, never set itself.",
+        "properties": {
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "FlagSet",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.LineAvailableSent": {
+        "additionalProperties": true,
+        "description": "Ledig linje: a message to the other end, never a request (old Server v2).",
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "section",
+          "to_place"
+        ],
+        "title": "LineAvailableSent",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.LineAcknowledged": {
+        "additionalProperties": true,
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "title": "LineAcknowledged",
         "type": "object"
       }
     },

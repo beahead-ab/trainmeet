@@ -581,6 +581,7 @@
         "invalid_departure",
         "invalid_arrival",
         "train_not_departed",
+        "unknown_line_message",
         "already_acknowledged",
         "not_level_3"
       ],

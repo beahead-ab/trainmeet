@@ -43,6 +43,7 @@ class Reason(StrEnum):
     INVALID_ARRIVAL = "invalid_arrival"
     TRAIN_NOT_DEPARTED = "train_not_departed"
     # Line clear
+    UNKNOWN_LINE_MESSAGE = "unknown_line_message"
     ALREADY_ACKNOWLEDGED = "already_acknowledged"
     # Detection and signals (TKL level 3)
     NOT_LEVEL_3 = "not_level_3"
@@ -74,6 +75,7 @@ TEXT_SV: dict[Reason, str] = {
     Reason.INVALID_DEPARTURE: "Avgång kan inte registreras i tågets nuvarande läge.",
     Reason.INVALID_ARRIVAL: "Ankomst kan inte registreras i tågets nuvarande läge.",
     Reason.TRAIN_NOT_DEPARTED: "Tåget har inte avgått.",
+    Reason.UNKNOWN_LINE_MESSAGE: "Beskedet om ledig linje finns inte.",
     Reason.ALREADY_ACKNOWLEDGED: "Beskedet är redan kvitterat.",
     Reason.NOT_LEVEL_3: "Beläggning tas bara emot från en station på nivå 3.",
 }

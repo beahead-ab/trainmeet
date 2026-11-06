@@ -110,12 +110,16 @@ class EventKind(StrEnum):
     CLEARANCE_ANSWERED = "clearance.answered"
     CLEARANCE_CANCELLED = "clearance.cancelled"
     CLEARANCE_REMINDED = "clearance.reminded"
+    CLEARANCE_INVALIDATED = "clearance.invalidated"  # spårbyte på avgångsbesöket
     TRAIN_DEPARTED = "train.departed"
     TRAIN_ARRIVED = "train.arrived"
     TRAIN_MOVED_HERE = "train.moved_here"  # FLYTTA HIT: a train nobody sent
     TRAIN_TRACK_CHANGED = "train.track_changed"
     TRAIN_SET_ASIDE = "train.set_aside"  # undanställning (H41)
+    TRAIN_POSITIONED = "train.positioned"  # TKL: tåget uppställt
+    TRAIN_CREW_READY = "train.crew_ready"  # TKL: föraren på plats; REDO räknas fram
     LINE_AVAILABLE = "line.available"
+    LINE_ACKNOWLEDGED = "line.acknowledged"
     SECTION_OCCUPANCY = "section.occupancy"
     EXIT_SIGNAL = "signal.exit"
 
@@ -171,6 +175,30 @@ class TrainSetAside(Contract):
     """Ställ undan: a train that ended here is put away, and its track is free."""
 
 
+class TrackChanged(Contract):
+    """The call's track now. A train standing there moves with it."""
+
+    track: Text
+
+
+class FlagSet(Contract):
+    """Uppställt or föraren på plats, set or taken back. REDO is both, never set itself."""
+
+    value: bool
+
+
+class LineAvailableSent(Contract):
+    """Ledig linje: a message to the other end, never a request (old Server v2)."""
+
+    message_id: Id
+    section: Id
+    to_place: Id
+
+
+class LineAcknowledged(Contract):
+    message_id: Id
+
+
 EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.MEET_STARTED: MeetStarted,
     EventKind.CLOCK_STARTED: ClockChanged,
@@ -183,7 +211,18 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.TRAIN_ARRIVED: TrainArrived,
     EventKind.TRAIN_MOVED_HERE: TrainMovedHere,
     EventKind.TRAIN_SET_ASIDE: TrainSetAside,
+    EventKind.TRAIN_TRACK_CHANGED: TrackChanged,
+    EventKind.TRAIN_POSITIONED: FlagSet,
+    EventKind.TRAIN_CREW_READY: FlagSet,
+    EventKind.CLEARANCE_INVALIDATED: ClearanceRef,
+    EventKind.LINE_AVAILABLE: LineAvailableSent,
+    EventKind.LINE_ACKNOWLEDGED: LineAcknowledged,
 }
+
+
+_ON_A_CALL: Final = frozenset(
+    {EventKind.TRAIN_TRACK_CHANGED, EventKind.TRAIN_POSITIONED, EventKind.TRAIN_CREW_READY}
+)
 
 
 class DriftEvent(Contract):
@@ -209,6 +248,8 @@ class DriftEvent(Contract):
             raise ValueError("Klareringsbegäran måste ange avgångens tågbesök.")
         if self.kind in (EventKind.TRAIN_MOVED_HERE, EventKind.TRAIN_SET_ASIDE) and not self.call:
             raise ValueError("Händelsen måste ange ankomstens tågbesök.")
+        if self.kind in _ON_A_CALL and not self.call:
+            raise ValueError("Händelsen måste ange tågbesöket.")
         model = EVENT_PAYLOADS.get(self.kind)
         if model is not None:
             model.model_validate(self.data)
