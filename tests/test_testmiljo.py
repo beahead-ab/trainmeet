@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from scaleway.iam.v1alpha1.types import LocalityType, Quotum, QuotumLimit
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
 
 from deploy import testmiljo
@@ -136,3 +137,30 @@ def test_a_missing_permission_says_which() -> None:
 
 def test_other_errors_are_passed_on() -> None:
     assert testmiljo.explain(500, "boom", "X") == "Scaleway svarade 500: boom"
+
+
+def quotum(name: str, limit: int, unlimited: bool = False) -> Quotum:
+    return Quotum(
+        name=name,
+        pretty_name=name,
+        unit="",
+        description="",
+        locality_type=LocalityType.ZONE,
+        limits=[QuotumLimit(zone="fr-par-1", limit=limit, unlimited=unlimited, global_=False)],
+        limit=None,
+        unlimited=None,
+    )
+
+
+def test_the_quota_report_lists_the_server_types_the_account_may_create() -> None:
+    quota = [
+        quotum("cp_servers_type_DEV1_S", 0),
+        quotum("cp_servers_type_PLAY2_PICO", 10),
+        quotum("cp_servers_type_POP2_2C_8G", 1),
+        quotum("instances_ip_addresses", 20),
+    ]
+    assert testmiljo.quota_report(quota) == "Kontot får skapa: PLAY2-PICO (10), POP2-2C-8G (1)."
+
+
+def test_the_quota_report_says_when_nothing_is_allowed() -> None:
+    assert "inte skapa någon" in testmiljo.quota_report([quotum("cp_servers_type_DEV1_S", 0)])

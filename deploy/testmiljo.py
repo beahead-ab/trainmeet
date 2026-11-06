@@ -34,6 +34,8 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 
 from scaleway import Client
+from scaleway.iam.v1alpha1 import IamV1Alpha1API
+from scaleway.iam.v1alpha1.types import Quotum
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
 from scaleway.instance.v1.types import (
     Ip,
@@ -380,6 +382,51 @@ def explain(status: int | None, body: str, commercial_type: str) -> str:
     return f"Scaleway svarade {status}: {body}"
 
 
+QUOTA_PREFIX = "cp_servers_type_"
+
+
+def server_type_from_quota(name: str) -> str:
+    """cp_servers_type_PLAY2_PICO -> PLAY2-PICO"""
+    return name.removeprefix(QUOTA_PREFIX).replace("_", "-")
+
+
+def quota_limit(quotum: Quotum) -> int | None:
+    """The quota for ZONE, or None for unlimited."""
+    if quotum.unlimited:
+        return None
+    limits = [lim for lim in quotum.limits if lim.zone in (None, ZONE) or lim.global_]
+    if any(lim.unlimited for lim in limits):
+        return None
+    values = [lim.limit or 0 for lim in limits] or [quotum.limit or 0]
+    return max(values)
+
+
+def quota_report(quota: list[Quotum]) -> str:
+    """Which server types the account may create, cheapest kinds first as Scaleway lists them."""
+    allowed: list[str] = []
+    for quotum in quota:
+        if not quotum.name.startswith(QUOTA_PREFIX):
+            continue
+        limit = quota_limit(quotum)
+        if limit is None or limit > 0:
+            count = "obegränsat" if limit is None else str(limit)
+            allowed.append(f"{server_type_from_quota(quotum.name)} ({count})")
+    if not allowed:
+        return "Kontot får inte skapa någon servertyp alls just nu."
+    return "Kontot får skapa: " + ", ".join(sorted(allowed)) + "."
+
+
+def read_quota(client: Client, organization_id: str) -> str:
+    try:
+        quota = IamV1Alpha1API(client).list_quota_all(organization_id=organization_id)
+    except ScalewayException as error:
+        return (
+            f"Kvoterna gick inte att läsa (Scaleway svarade {error.status_code}). "
+            "Ge applikationen behörigheten IAMReadOnly i organisationen för att se dem här."
+        )
+    return quota_report(quota)
+
+
 def main(argv: list[str]) -> int:
     if argv[1:] != ["ensure"]:
         print(__doc__)
@@ -407,7 +454,15 @@ def main(argv: list[str]) -> int:
             instance, marketplace, project_id, security_group_id, ip, keys, commercial_type
         )
     except ScalewayException as error:
-        fail(explain(error.status_code, str(error), commercial_type))
+        message = explain(error.status_code, str(error), commercial_type)
+        if "quotas_exceeded" in str(error):
+            report = read_quota(client, env("SCW_DEFAULT_ORGANIZATION_ID"))
+            message += " " + report
+            summary = os.environ.get("GITHUB_STEP_SUMMARY")
+            if summary:
+                with open(summary, "a", encoding="utf-8") as file:
+                    file.write(f"### Kvoten hos Scaleway\n\n{report}\n")
+        fail(message)
 
     key_file, known_hosts = write_ssh_files(keys, ip.address)
     output("ip", ip.address)
