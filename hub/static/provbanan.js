@@ -166,6 +166,10 @@ function showClients(data) {
     list.append(empty);
   }
   for (const client of data.clients) {
+    if (client.kind !== "tmbox_web") {
+      list.append(stationClient(client));
+      continue;
+    }
     const row = document.createElement("li");
     const where = client.places.length
       ? "Tilldelad " + client.places.map(place => state.places[place]).join(", ")
@@ -186,6 +190,45 @@ function showClients(data) {
     row.append(controls);
     list.append(row);
   }
+}
+
+// TKL, the TMBox app and the dispatcher's views: approved for a place, with a key (H31).
+const KINDS = { tkl: "TKL", tmbox_app: "TMBox-appen", dispatch: "Trafikledningen" };
+const APPROVAL = { waiting: "Väntar på godkännande", approved: "Godkänd för",
+  refused: "Nekad", revoked: "Återkallad" };
+
+function stationClient(client) {
+  const row = document.createElement("li");
+  const where = client.status === "approved"
+    ? " " + client.places.map(place => state.places[place]).join(", ") : "";
+  row.textContent = `${client.name} (${KINDS[client.kind] ?? client.kind}) · `
+    + (APPROVAL[client.status] ?? client.status) + where;
+  const controls = document.createElement("div");
+  controls.className = "controls";
+  if (client.status === "approved") {
+    addButton(controls, "Återkalla", () => change("revoke", { client_id: client.client_id }));
+  } else {
+    const place = choice("Driftplats för " + client.name,
+      (state?.stations ?? []).map(id => [id, state.places[id]]), client.places[0]);
+    controls.append(place);
+    addButton(controls, "Godkänn",
+      () => change("approve", { client_id: client.client_id, places: [place.value] }));
+  }
+  row.append(controls);
+  return row;
+}
+
+async function change(action, body) {
+  notice.textContent = "";
+  const response = await fetch("/api/provbanan/clients/" + action, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const answer = await response.json();
+  if (!response.ok) {
+    notice.textContent = typeof answer.detail === "string" ? answer.detail : "Det gick inte.";
+    return;
+  }
+  showClients(answer);
 }
 
 const SIDES = { both: "Båda sidor", left: "Vänster", right: "Höger" };

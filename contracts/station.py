@@ -63,6 +63,10 @@ class ConnectRequest(Contract):
     station_id: Id | None = None
     outside: StationOutside | None = None
     wants: list[Id] = Field(default_factory=list, description="Driftplatserna den vill köra.")
+    code: Text | None = Field(
+        default=None,
+        description="Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
+    )
 
 
 class ApprovalStatus(StrEnum):

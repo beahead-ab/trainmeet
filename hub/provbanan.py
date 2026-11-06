@@ -16,8 +16,15 @@ from contracts import drift, station
 from contracts.meet import MeetPackage
 from contracts.reasons import TEXT_SV
 from drift.engine import VERSION, Drift, Refused, now_utc
-from drift.store import RUN_LIFETIME, MissingRun, PreviewStore, RunLimit, UnknownBox
-from hub import page, tmbox_web
+from drift.store import (
+    RUN_LIFETIME,
+    MissingRun,
+    PreviewStore,
+    RunLimit,
+    UnknownBox,
+    UnknownClient,
+)
+from hub import page, station_api, tmbox_web
 from hub.build_info import BuildInfo
 
 COOKIE = "trainmeet_provbanan"
@@ -102,18 +109,30 @@ def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
         return snapshot(response, run, lambda run_id: store.clock(run_id, control))
 
     def boxes(
-        response: Response, run_id: str | None, change: drift.Assign | None = None
+        response: Response,
+        run_id: str | None,
+        change: drift.Assign | drift.Approve | drift.Revoke | None = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         try:
             if not run_id:
                 raise MissingRun()
-            listed = store.assign(run_id, change) if change else store.clients(run_id)
+            match change:
+                case drift.Assign():
+                    listed = store.assign(run_id, change)
+                case drift.Approve():
+                    listed = store.approve(run_id, change)
+                case drift.Revoke():
+                    listed = store.revoke(run_id, change)
+                case _:
+                    listed = store.clients(run_id)
             code = store.join_code(run_id)
         except (MissingRun, RunLimit, Refused) as error:
             _error(error)
         except UnknownBox as error:
             raise HTTPException(404, "Boxen finns inte i provkörningen.") from error
+        except UnknownClient as error:
+            raise HTTPException(404, "Klienten finns inte i provkörningen.") from error
         return {"code": code, "clients": listed}
 
     @routes.get("/api/provbanan/clients")
@@ -124,7 +143,20 @@ def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
     def assign(change: drift.Assign, response: Response, run: RunCookie = None) -> dict[str, Any]:
         return boxes(response, run, change)
 
+    @routes.post("/api/provbanan/clients/approve")
+    def approve(
+        approval: drift.Approve, response: Response, run: RunCookie = None
+    ) -> dict[str, Any]:
+        return boxes(response, run, approval)
+
+    @routes.post("/api/provbanan/clients/revoke")
+    def revoke(
+        revocation: drift.Revoke, response: Response, run: RunCookie = None
+    ) -> dict[str, Any]:
+        return boxes(response, run, revocation)
+
     routes.include_router(tmbox_web.router(store, info))
+    routes.include_router(station_api.router(store))
 
     @routes.post("/api/provbanan/command")
     def command(

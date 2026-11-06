@@ -1068,6 +1068,12 @@ export interface components {
              * @description Driftplatserna den vill köra.
              */
             wants?: string[];
+            /**
+             * Code
+             * @description Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.
+             * @default null
+             */
+            code: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1756,7 +1762,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "already_acknowledged" | "not_level_3";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3221,6 +3227,30 @@ export interface components {
             kind: "train.set_aside";
             data: components["schemas"]["trainmeet.drift-1.event.TrainSetAside"];
         } | {
+            /** @constant */
+            kind: "train.track_changed";
+            data: components["schemas"]["trainmeet.drift-1.event.TrackChanged"];
+        } | {
+            /** @constant */
+            kind: "train.positioned";
+            data: components["schemas"]["trainmeet.drift-1.event.FlagSet"];
+        } | {
+            /** @constant */
+            kind: "train.crew_ready";
+            data: components["schemas"]["trainmeet.drift-1.event.FlagSet"];
+        } | {
+            /** @constant */
+            kind: "clearance.invalidated";
+            data: components["schemas"]["trainmeet.drift-1.event.ClearanceRef"];
+        } | {
+            /** @constant */
+            kind: "line.available";
+            data: components["schemas"]["trainmeet.drift-1.event.LineAvailableSent"];
+        } | {
+            /** @constant */
+            kind: "line.acknowledged";
+            data: components["schemas"]["trainmeet.drift-1.event.LineAcknowledged"];
+        } | {
             kind?: unknown;
         });
         /** Actor */
@@ -3243,7 +3273,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "line.available" | "section.occupancy" | "signal.exit";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -3328,6 +3358,47 @@ export interface components {
          * @description Ställ undan: a train that ended here is put away, and its track is free.
          */
         "trainmeet.drift-1.event.TrainSetAside": {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackChanged
+         * @description The call's track now. A train standing there moves with it.
+         */
+        "trainmeet.drift-1.event.TrackChanged": {
+            /** Track */
+            track: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FlagSet
+         * @description Uppställt or föraren på plats, set or taken back. REDO is both, never set itself.
+         */
+        "trainmeet.drift-1.event.FlagSet": {
+            /** Value */
+            value: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineAvailableSent
+         * @description Ledig linje: a message to the other end, never a request (old Server v2).
+         */
+        "trainmeet.drift-1.event.LineAvailableSent": {
+            /** Message Id */
+            message_id: string;
+            /** Section */
+            section: string;
+            /** To Place */
+            to_place: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LineAcknowledged */
+        "trainmeet.drift-1.event.LineAcknowledged": {
+            /** Message Id */
+            message_id: string;
+        } & {
             [key: string]: unknown;
         };
     };

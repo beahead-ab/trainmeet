@@ -163,7 +163,8 @@ def render_preview(info: BuildInfo) -> str:
       <p id="leg-info" class="ingress"></p>
       <h2>Boxar</h2>
       <p class="ingress">Öppna en box i en ny flik, och anslut den med koden
-        <strong id="join-code" class="kod">–</strong>. Tilldela den sedan en driftplats här.</p>
+        <strong id="join-code" class="kod">–</strong>. Tilldela den sedan en driftplats här.
+        En TKL eller TMBox-appen ansluter med samma kod och godkänns här.</p>
       <p><a id="box-link" href="/provbanan/box" target="_blank"
         rel="noopener">Öppna en box →</a></p>
       <ul id="clients" class="cases"></ul>
