@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.terminal16.hello.schema.json",
+  "title": "trainmeet.terminal16.hello",
+  "$defs": {
+    "DisplaySize": {
+      "additionalProperties": true,
+      "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
+      "properties": {
+        "rows": {
+          "default": 2,
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "default": 16,
+          "enum": [
+            16,
+            20
+          ],
+          "title": "Cols",
+          "type": "integer"
+        }
+      },
+      "title": "DisplaySize",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "device_code": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Device Code",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "firmware_version": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Firmware Version",
+      "type": "string"
+    },
+    "hardware_version": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Hardware Version",
+      "type": "string"
+    },
+    "display": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DisplaySize"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "boot": {
+      "description": "Ny för varje anslutning; alla meddelanden bär den.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Boot",
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_code",
+    "model",
+    "firmware_version",
+    "hardware_version",
+    "boot"
+  ],
+  "type": "object"
+}

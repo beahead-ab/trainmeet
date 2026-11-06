@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.command.schema.json",
+  "title": "trainmeet.station-1.command",
+  "$defs": {
+    "Action": {
+      "enum": [
+        "train.lookup",
+        "train.track.change",
+        "train.departed",
+        "train.arrived",
+        "train.position.set",
+        "train.crew_ready.set",
+        "clearance.request",
+        "clearance.response",
+        "clearance.cancel",
+        "line.available.publish",
+        "line.available.acknowledge",
+        "section.occupancy",
+        "signal.exit"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "MeetContext": {
+      "additionalProperties": true,
+      "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+      "properties": {
+        "meet_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "epoch": {
+          "description": "Ledarskapets epok; byts vid övertag.",
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "meet_id",
+        "version",
+        "game_day",
+        "epoch"
+      ],
+      "title": "MeetContext",
+      "type": "object"
+    },
+    "Revision": {
+      "additionalProperties": true,
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/RevisionScope"
+        },
+        "key": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "minimum": 0,
+          "title": "Value",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scope",
+        "key",
+        "value"
+      ],
+      "title": "Revision",
+      "type": "object"
+    },
+    "RevisionScope": {
+      "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+      "enum": [
+        "call",
+        "case",
+        "place"
+      ],
+      "title": "RevisionScope",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "protocol": {
+      "const": "trainmeet.station/1",
+      "default": "trainmeet.station/1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "message_id": {
+      "description": "Unikt per klient. Samma id ger samma svar.",
+      "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+      "title": "Message Id",
+      "type": "string"
+    },
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "place": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Place",
+      "type": "string"
+    },
+    "context": {
+      "$ref": "#/$defs/MeetContext"
+    },
+    "action": {
+      "$ref": "#/$defs/Action"
+    },
+    "expected_revision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Revision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Exakt en scope och nyckel; utelämnas för train.lookup."
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    }
+  },
+  "required": [
+    "message_id",
+    "client_id",
+    "place",
+    "context",
+    "action"
+  ],
+  "type": "object"
+}

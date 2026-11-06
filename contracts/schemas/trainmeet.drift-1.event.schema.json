@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.event.schema.json",
+  "title": "trainmeet.drift-1.event",
+  "$defs": {
+    "Actor": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActorKind"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "ActorKind": {
+      "enum": [
+        "client",
+        "dispatcher",
+        "automation",
+        "system"
+      ],
+      "title": "ActorKind",
+      "type": "string"
+    },
+    "EventKind": {
+      "enum": [
+        "meet.started",
+        "clock.started",
+        "clock.stopped",
+        "clock.speed",
+        "clock.jump",
+        "clock.jump_undone",
+        "day.changed",
+        "client.approved",
+        "client.revoked",
+        "client.assigned",
+        "clearance.requested",
+        "clearance.answered",
+        "clearance.cancelled",
+        "clearance.reminded",
+        "train.departed",
+        "train.arrived",
+        "train.moved_here",
+        "train.track_changed",
+        "train.set_aside",
+        "line.available",
+        "section.occupancy",
+        "signal.exit"
+      ],
+      "title": "EventKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "protocol": {
+      "const": "trainmeet.drift/1",
+      "default": "trainmeet.drift/1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "seq": {
+      "description": "Händelsens nummer i den körande träffen.",
+      "minimum": 1,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "epoch": {
+      "description": "Ledarens epok; högre epok vinner.",
+      "minimum": 0,
+      "title": "Epoch",
+      "type": "integer"
+    },
+    "meet_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet Id",
+      "type": "string"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "game_day": {
+      "minimum": 1,
+      "title": "Game Day",
+      "type": "integer"
+    },
+    "model_time": {
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Model Time",
+      "type": "string"
+    },
+    "wall_time": {
+      "format": "date-time",
+      "title": "Wall Time",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/EventKind"
+    },
+    "actor": {
+      "$ref": "#/$defs/Actor"
+    },
+    "message_id": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kommandots id, för spårbarhet.",
+      "title": "Message Id"
+    },
+    "place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Place"
+    },
+    "train": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Train"
+    },
+    "call": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Call"
+    },
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+    }
+  },
+  "required": [
+    "seq",
+    "epoch",
+    "meet_id",
+    "version",
+    "game_day",
+    "model_time",
+    "wall_time",
+    "kind",
+    "actor"
+  ],
+  "type": "object"
+}

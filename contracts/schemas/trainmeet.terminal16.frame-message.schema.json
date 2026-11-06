@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.terminal16.frame-message.schema.json",
+  "title": "trainmeet.terminal16.frame-message",
+  "$defs": {
+    "Attention": {
+      "additionalProperties": true,
+      "properties": {
+        "epoch": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Epoch",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttentionKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "epoch",
+        "seq"
+      ],
+      "title": "Attention",
+      "type": "object"
+    },
+    "AttentionKind": {
+      "description": "What the box should beep for, most important first. The box picks the tones.",
+      "enum": [
+        "incoming_request",
+        "request_denied",
+        "request_approved",
+        "incoming_train"
+      ],
+      "title": "AttentionKind",
+      "type": "string"
+    },
+    "Entry": {
+      "additionalProperties": true,
+      "properties": {
+        "context": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Context",
+          "type": "string"
+        },
+        "max_length": {
+          "default": 5,
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "lcd": {
+          "$ref": "#/$defs/Lcd"
+        },
+        "row": {
+          "default": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "default": 5,
+          "title": "Column",
+          "type": "integer"
+        },
+        "commit": {
+          "default": "#",
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "A",
+            "B",
+            "C",
+            "D",
+            "#",
+            "*"
+          ],
+          "title": "Commit",
+          "type": "string"
+        },
+        "cancel": {
+          "default": "*",
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "A",
+            "B",
+            "C",
+            "D",
+            "#",
+            "*"
+          ],
+          "title": "Cancel",
+          "type": "string"
+        },
+        "erase": {
+          "default": "B",
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "A",
+            "B",
+            "C",
+            "D",
+            "#",
+            "*"
+          ],
+          "title": "Erase",
+          "type": "string"
+        },
+        "shortcut": {
+          "default": "A",
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "A",
+            "B",
+            "C",
+            "D",
+            "#",
+            "*"
+          ],
+          "title": "Shortcut",
+          "type": "string"
+        },
+        "labels": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "object"
+        },
+        "short": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Short",
+          "type": "object"
+        }
+      },
+      "required": [
+        "context",
+        "lines",
+        "lcd"
+      ],
+      "title": "Entry",
+      "type": "object"
+    },
+    "Frame": {
+      "additionalProperties": true,
+      "description": "One screen. The old Server sends more fields (requests, active, status, upcoming ...);\nthey are kept as they are, since unknown fields are kept.",
+      "properties": {
+        "profile": {
+          "default": "server-16x2-pilot",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Profile",
+          "type": "string"
+        },
+        "device_id": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "station": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Station",
+          "type": "string"
+        },
+        "station_code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Station Code",
+          "type": "string"
+        },
+        "rows": {
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "enum": [
+            16,
+            20
+          ],
+          "title": "Cols",
+          "type": "integer"
+        },
+        "lines": {
+          "description": "Exakt rows rader, var och en exakt cols tecken.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "lcd": {
+          "$ref": "#/$defs/Lcd"
+        },
+        "attention": {
+          "$ref": "#/$defs/Attention"
+        },
+        "view_token": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "View Token",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "view_revision": {
+          "minimum": 0,
+          "title": "View Revision",
+          "type": "integer"
+        },
+        "input_guard_ms": {
+          "default": 500,
+          "title": "Input Guard Ms",
+          "type": "integer"
+        },
+        "language": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "keys": {
+          "additionalProperties": {
+            "$ref": "#/$defs/KeyInfo"
+          },
+          "title": "Keys",
+          "type": "object"
+        },
+        "entry": {
+          "$ref": "#/$defs/Entry"
+        }
+      },
+      "required": [
+        "device_id",
+        "station",
+        "station_code",
+        "rows",
+        "cols",
+        "lines",
+        "lcd",
+        "attention",
+        "view_token",
+        "revision",
+        "view_revision",
+        "language",
+        "keys",
+        "entry"
+      ],
+      "title": "Frame",
+      "type": "object"
+    },
+    "Glyph": {
+      "additionalProperties": true,
+      "properties": {
+        "slot": {
+          "maximum": 7,
+          "minimum": 0,
+          "title": "Slot",
+          "type": "integer"
+        },
+        "character": {
+          "maxLength": 1,
+          "minLength": 1,
+          "title": "Character",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 8,
+          "minItems": 8,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "slot",
+        "character",
+        "rows"
+      ],
+      "title": "Glyph",
+      "type": "object"
+    },
+    "KeyInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "short": {
+          "description": "Ordet en telefon skriver under tangenten.",
+          "maxLength": 12,
+          "title": "Short",
+          "type": "string"
+        },
+        "acts": {
+          "description": "Sant när tangenten ändrar trafiken.",
+          "title": "Acts",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "short",
+        "acts"
+      ],
+      "title": "KeyInfo",
+      "type": "object"
+    },
+    "Lcd": {
+      "additionalProperties": true,
+      "properties": {
+        "encoding": {
+          "const": "hd44780-5x8-cgram-v1",
+          "default": "hd44780-5x8-cgram-v1",
+          "title": "Encoding",
+          "type": "string"
+        },
+        "cells": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "glyphs": {
+          "items": {
+            "$ref": "#/$defs/Glyph"
+          },
+          "maxItems": 8,
+          "title": "Glyphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cells"
+      ],
+      "title": "Lcd",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "boot": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Boot",
+      "type": "string"
+    },
+    "frame": {
+      "$ref": "#/$defs/Frame"
+    }
+  },
+  "required": [
+    "boot",
+    "frame"
+  ],
+  "type": "object"
+}

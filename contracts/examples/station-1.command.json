@@ -1,0 +1,23 @@
+{
+  "protocol": "trainmeet.station/1",
+  "message_id": "tkl-nby-2026-0001",
+  "client_id": "c-tkl-nby",
+  "place": "nby",
+  "context": {
+    "meet_id": "provbanan",
+    "version": 1,
+    "game_day": 1,
+    "epoch": 0
+  },
+  "action": "clearance.request",
+  "expected_revision": {
+    "scope": "call",
+    "key": "t101-nby",
+    "value": 0
+  },
+  "payload": {
+    "call": "t101-nby",
+    "section": "s-nby-asn",
+    "clearance_id": "clr-t101-1"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.start.schema.json",
+  "title": "trainmeet.drift-1.start",
+  "$defs": {
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "description": "Versionen av träffpaketet som körs.",
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "game_day": {
+      "default": 1,
+      "description": "Speldygnet, Dag 1…N.",
+      "minimum": 1,
+      "title": "Game Day",
+      "type": "integer"
+    },
+    "traffic_day": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Weekday"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Trafikdagen; tomt betyder paketets förval (F8)."
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "type": "object"
+}

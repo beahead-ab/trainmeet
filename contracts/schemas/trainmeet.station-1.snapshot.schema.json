@@ -1,0 +1,724 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.snapshot.schema.json",
+  "title": "trainmeet.station-1.snapshot",
+  "$defs": {
+    "Action": {
+      "enum": [
+        "train.lookup",
+        "train.track.change",
+        "train.departed",
+        "train.arrived",
+        "train.position.set",
+        "train.crew_ready.set",
+        "clearance.request",
+        "clearance.response",
+        "clearance.cancel",
+        "line.available.publish",
+        "line.available.acknowledge",
+        "section.occupancy",
+        "signal.exit"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "ArrivalState": {
+      "enum": [
+        "none",
+        "on_the_way",
+        "arrived"
+      ],
+      "title": "ArrivalState",
+      "type": "string"
+    },
+    "CallHere": {
+      "additionalProperties": true,
+      "description": "A call at this place, with what the client may do with it right now.",
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "train_label": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel IC 116 (F9).",
+          "title": "Train Label"
+        },
+        "train_type": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Type"
+        },
+        "manual": {
+          "default": false,
+          "title": "Manual",
+          "type": "boolean"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "day_offset": {
+          "default": 0,
+          "title": "Day Offset",
+          "type": "integer"
+        },
+        "planned_track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Planned Track"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Var tåget står eller ska stå nu.",
+          "title": "Track"
+        },
+        "from_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Place"
+        },
+        "to_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Place"
+        },
+        "arrival_state": {
+          "$ref": "#/$defs/ArrivalState",
+          "default": "none"
+        },
+        "departure_state": {
+          "$ref": "#/$defs/DepartureState",
+          "default": "planned"
+        },
+        "positioned": {
+          "default": false,
+          "title": "Positioned",
+          "type": "boolean"
+        },
+        "crew_ready": {
+          "default": false,
+          "title": "Crew Ready",
+          "type": "boolean"
+        },
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "allowed_actions": {
+          "items": {
+            "$ref": "#/$defs/Action"
+          },
+          "title": "Allowed Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "call",
+        "train",
+        "train_number",
+        "revision"
+      ],
+      "title": "CallHere",
+      "type": "object"
+    },
+    "Clearance": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "from_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Place",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ClearanceStatus"
+        },
+        "departed": {
+          "default": false,
+          "title": "Departed",
+          "type": "boolean"
+        },
+        "requested_at": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "reminders": {
+          "default": 0,
+          "description": "Påminnelser hittills (H39).",
+          "minimum": 0,
+          "title": "Reminders",
+          "type": "integer"
+        },
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "call",
+        "train_number",
+        "section",
+        "from_place",
+        "to_place",
+        "status",
+        "requested_at",
+        "revision"
+      ],
+      "title": "Clearance",
+      "type": "object"
+    },
+    "ClearanceMode": {
+      "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+      "enum": [
+        "requested",
+        "direct"
+      ],
+      "title": "ClearanceMode",
+      "type": "string"
+    },
+    "ClearanceStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "rejected",
+        "cancelled",
+        "invalidated"
+      ],
+      "title": "ClearanceStatus",
+      "type": "string"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "DepartureState": {
+      "enum": [
+        "planned",
+        "requested",
+        "cleared",
+        "departed"
+      ],
+      "title": "DepartureState",
+      "type": "string"
+    },
+    "LineMessage": {
+      "additionalProperties": true,
+      "properties": {
+        "message_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Message Id",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "from_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Place",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "acknowledged": {
+          "default": false,
+          "title": "Acknowledged",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "message_id",
+        "section",
+        "from_place"
+      ],
+      "title": "LineMessage",
+      "type": "object"
+    },
+    "MeetContext": {
+      "additionalProperties": true,
+      "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+      "properties": {
+        "meet_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "epoch": {
+          "description": "Ledarskapets epok; byts vid övertag.",
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "meet_id",
+        "version",
+        "game_day",
+        "epoch"
+      ],
+      "title": "MeetContext",
+      "type": "object"
+    },
+    "Neighbour": {
+      "additionalProperties": true,
+      "description": "A place and its game number, for the telephone list in TKL and the app (H24).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "place",
+        "code",
+        "name"
+      ],
+      "title": "Neighbour",
+      "type": "object"
+    },
+    "SectionHere": {
+      "additionalProperties": true,
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "other_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Other Place",
+          "type": "string"
+        },
+        "other_code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Other Code",
+          "type": "string"
+        },
+        "tracks": {
+          "$ref": "#/$defs/TrackKind"
+        },
+        "clearance_mode": {
+          "$ref": "#/$defs/ClearanceMode"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Side"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exit": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationens utfart för sträckan.",
+          "title": "Exit"
+        },
+        "occupied": {
+          "default": false,
+          "title": "Occupied",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "section",
+        "other_place",
+        "other_code",
+        "tracks",
+        "clearance_mode"
+      ],
+      "title": "SectionHere",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "TrackKind": {
+      "enum": [
+        "single",
+        "double"
+      ],
+      "title": "TrackKind",
+      "type": "string"
+    },
+    "TrainOnSection": {
+      "additionalProperties": true,
+      "description": "A train on its way here or that has left, from the departure to the arrival (H32).",
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "train_type": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Type"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "other_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Other Place",
+          "type": "string"
+        },
+        "planned_track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret vid ankomsten.",
+          "title": "Planned Track"
+        },
+        "departed_at": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Departed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call",
+        "train_number",
+        "section",
+        "other_place",
+        "departed_at"
+      ],
+      "title": "TrainOnSection",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Everything a client needs for one place, replaced whole every time.",
+  "properties": {
+    "protocol": {
+      "const": "trainmeet.station/1",
+      "default": "trainmeet.station/1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "place": {
+      "$ref": "#/$defs/Neighbour"
+    },
+    "context": {
+      "$ref": "#/$defs/MeetContext"
+    },
+    "clock": {
+      "$ref": "#/$defs/Clock"
+    },
+    "place_revision": {
+      "minimum": 0,
+      "title": "Place Revision",
+      "type": "integer"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/SectionHere"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "calls": {
+      "items": {
+        "$ref": "#/$defs/CallHere"
+      },
+      "title": "Calls",
+      "type": "array"
+    },
+    "on_the_way": {
+      "description": "På väg hit.",
+      "items": {
+        "$ref": "#/$defs/TrainOnSection"
+      },
+      "title": "On The Way",
+      "type": "array"
+    },
+    "have_left": {
+      "description": "Har lämnat.",
+      "items": {
+        "$ref": "#/$defs/TrainOnSection"
+      },
+      "title": "Have Left",
+      "type": "array"
+    },
+    "clearances": {
+      "items": {
+        "$ref": "#/$defs/Clearance"
+      },
+      "title": "Clearances",
+      "type": "array"
+    },
+    "line_messages": {
+      "items": {
+        "$ref": "#/$defs/LineMessage"
+      },
+      "title": "Line Messages",
+      "type": "array"
+    },
+    "neighbours": {
+      "items": {
+        "$ref": "#/$defs/Neighbour"
+      },
+      "title": "Neighbours",
+      "type": "array"
+    },
+    "all_places": {
+      "items": {
+        "$ref": "#/$defs/Neighbour"
+      },
+      "title": "All Places",
+      "type": "array"
+    }
+  },
+  "required": [
+    "place",
+    "context",
+    "clock",
+    "place_revision"
+  ],
+  "type": "object"
+}
