@@ -264,6 +264,7 @@ class Drift:
                     self.clock.running and event.kind == events.EventKind.CLOCK_SPEED
                 )
                 self.clock = Clock(clock.seconds, clock.speed, running, event.wall_time)
+                self._touch_places(*{call.place for _, call in self.calls.values()})
             case events.EventKind.CLEARANCE_REQUESTED:
                 requested = events.ClearanceRequested.model_validate(event.data)
                 assert event.call is not None

@@ -245,6 +245,21 @@
       },
       "title": "Wants",
       "type": "array"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
+      "title": "Code"
     }
   },
   "required": [

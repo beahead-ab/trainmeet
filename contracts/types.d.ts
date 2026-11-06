@@ -1068,6 +1068,12 @@ export interface components {
              * @description Driftplatserna den vill köra.
              */
             wants?: string[];
+            /**
+             * Code
+             * @description Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.
+             * @default null
+             */
+            code: string | null;
         } & {
             [key: string]: unknown;
         };
