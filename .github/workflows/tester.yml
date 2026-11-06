@@ -166,7 +166,19 @@ jobs:
             $SSH "$SSH_USER@$IP" true 2>/dev/null && break
             sleep 5
           done
-          $SSH "$SSH_USER@$IP" "cloud-init status --wait >/dev/null; cloud-init status"
+          $SSH "$SSH_USER@$IP" '
+            set -e
+            status=0
+            cloud-init status --wait || status=$?
+            # Exit 2 means cloud-init finished with recoverable errors.
+            case "$status" in
+              0|2) ;;
+              *) exit "$status" ;;
+            esac
+            test -w /srv/trainmeet
+            docker info >/dev/null
+            docker compose version --short
+          '
 
       - name: Lägg ut hubben
         if: steps.nyckel.outputs.finns == 'true'

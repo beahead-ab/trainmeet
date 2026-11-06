@@ -55,7 +55,7 @@ def test_the_server_gets_a_known_host_key() -> None:
         "ed25519_private": KEYS.host_private,
         "ed25519_public": KEYS.host_public,
     }
-    assert parsed["ssh_genkeytypes"] == []
+    assert parsed["ssh_genkeytypes"] == ["ed25519"]
 
 
 def test_cloud_init_installs_docker_and_prepares_the_hub_folder() -> None:
