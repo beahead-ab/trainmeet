@@ -23,6 +23,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
 
 - `contracts/` är den enda vägen mellan delarna. Ingen del importerar en annan dels inre kod.
 - Ändras ett kontrakt ändras alla som använder det i samma PR.
+- Modellerna i `contracts/` är källan. JSON-schemana skapas med `uv run python -m contracts.generate` och checkas in; testerna jämför dem. Orden står i `contracts/ORDLISTA.md`, ett namn per begrepp.
 - Gränserna kontrolleras av `tests/test_boundaries.py`. Hubbens fyra delar (drift, planering, synk, integrationer) får använda `contracts` och `core` men aldrig varandra. ID, TKL och CAD får bara använda `contracts`. `hub/` är startprogrammet och får dra igång Hubbens delar.
 
 ## Tester

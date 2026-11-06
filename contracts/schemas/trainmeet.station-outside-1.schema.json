@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-outside-1.schema.json",
+  "title": "trainmeet.station-outside/1",
+  "$defs": {
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+  "properties": {
+    "format": {
+      "const": "trainmeet.station-outside/1",
+      "default": "trainmeet.station-outside/1",
+      "title": "Format",
+      "type": "string"
+    },
+    "station_id": {
+      "description": "Stationens id, skapat i TKL Studio.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Station Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "tracks": {
+      "items": {
+        "$ref": "#/$defs/StationTrack"
+      },
+      "minItems": 1,
+      "title": "Tracks",
+      "type": "array"
+    },
+    "exits": {
+      "items": {
+        "$ref": "#/$defs/Exit"
+      },
+      "minItems": 1,
+      "title": "Exits",
+      "type": "array"
+    },
+    "sides": {
+      "items": {
+        "$ref": "#/$defs/BoxSide"
+      },
+      "title": "Sides",
+      "type": "array"
+    }
+  },
+  "required": [
+    "station_id",
+    "name",
+    "tracks",
+    "exits"
+  ],
+  "type": "object"
+}

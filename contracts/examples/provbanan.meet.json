@@ -1,0 +1,740 @@
+{
+  "format": "trainmeet.meet/1",
+  "meet": {
+    "id": "provbanan",
+    "name": "Provbanan",
+    "country": "se",
+    "timezone": "Europe/Stockholm",
+    "traffic_week": {
+      "start_weekday": "mon",
+      "days": 1
+    },
+    "clearance_mode": "requested"
+  },
+  "clock": {
+    "start_time": "06:00",
+    "speed": 4,
+    "styles": [
+      "analog",
+      "digital"
+    ],
+    "stop_reasons": [
+      "Paus",
+      "Lunch"
+    ]
+  },
+  "places": [
+    {
+      "id": "nby",
+      "code": "Nby",
+      "name": "Norrby",
+      "kind": "manned",
+      "phone": "101",
+      "tracks": [
+        {
+          "name": "1",
+          "sort_order": 0
+        },
+        {
+          "name": "2",
+          "sort_order": 1
+        },
+        {
+          "name": "3",
+          "sort_order": 2
+        }
+      ],
+      "default_tracks": [
+        {
+          "track": "1",
+          "towards": "right"
+        },
+        {
+          "track": "2",
+          "towards": "left"
+        },
+        {
+          "track": "3",
+          "train_type": "Gt"
+        }
+      ]
+    },
+    {
+      "id": "asn",
+      "code": "Ån",
+      "name": "Åsen",
+      "kind": "manned",
+      "phone": "102",
+      "tracks": [
+        {
+          "name": "1",
+          "sort_order": 0
+        },
+        {
+          "name": "2",
+          "sort_order": 1
+        },
+        {
+          "name": "3",
+          "sort_order": 2
+        }
+      ],
+      "station": {
+        "station_id": "asen",
+        "version": 1,
+        "outside": {
+          "format": "trainmeet.station-outside/1",
+          "station_id": "asen",
+          "name": "Åsen",
+          "tracks": [
+            {
+              "id": "1",
+              "label": "Spår 1"
+            },
+            {
+              "id": "2",
+              "label": "Spår 2"
+            },
+            {
+              "id": "3",
+              "label": "Spår 3"
+            }
+          ],
+          "exits": [
+            {
+              "id": "v",
+              "side": "left",
+              "name": "Mot Norrby",
+              "tracks": [
+                "1",
+                "2",
+                "3"
+              ],
+              "signals": [
+                "A"
+              ]
+            },
+            {
+              "id": "o",
+              "side": "right",
+              "name": "Mot Mellanå",
+              "tracks": [
+                "1",
+                "2",
+                "3"
+              ],
+              "signals": [
+                "B"
+              ]
+            }
+          ],
+          "sides": [
+            {
+              "side": "left",
+              "label": "Väster"
+            },
+            {
+              "side": "right",
+              "label": "Öster"
+            }
+          ]
+        },
+        "track_map": {
+          "1": "1",
+          "2": "2",
+          "3": "3"
+        },
+        "exit_map": {
+          "s-nby-asn": "v",
+          "s-asn-mla": "o"
+        }
+      },
+      "instructions": {
+        "sv": "Åsen har ett ställverk. Möten på spår 1 och 2."
+      }
+    },
+    {
+      "id": "lvh",
+      "code": "Lvh",
+      "name": "Lövhult",
+      "kind": "halt"
+    },
+    {
+      "id": "mla",
+      "code": "Mlå",
+      "name": "Mellanå",
+      "kind": "manned",
+      "phone": "103",
+      "tracks": [
+        {
+          "name": "1",
+          "sort_order": 0
+        },
+        {
+          "name": "2",
+          "sort_order": 1
+        }
+      ]
+    },
+    {
+      "id": "sjv",
+      "code": "Sjv",
+      "name": "Sjövik",
+      "kind": "manned",
+      "phone": "104",
+      "tracks": [
+        {
+          "name": "1",
+          "sort_order": 0
+        },
+        {
+          "name": "2",
+          "sort_order": 1
+        },
+        {
+          "name": "3",
+          "sort_order": 2
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "s-nby-asn",
+      "place_a": "nby",
+      "place_b": "asn",
+      "tracks": "single",
+      "side_at_a": "right",
+      "side_at_b": "left",
+      "parts": [
+        {
+          "id": "p-nby-asn",
+          "from_place": "nby",
+          "to_place": "asn"
+        }
+      ]
+    },
+    {
+      "id": "s-asn-mla",
+      "place_a": "asn",
+      "place_b": "mla",
+      "tracks": "double",
+      "side_at_a": "right",
+      "side_at_b": "left",
+      "parts": [
+        {
+          "id": "p-asn-lvh",
+          "from_place": "asn",
+          "to_place": "lvh"
+        },
+        {
+          "id": "p-lvh-mla",
+          "from_place": "lvh",
+          "to_place": "mla"
+        }
+      ]
+    },
+    {
+      "id": "s-mla-sjv",
+      "place_a": "mla",
+      "place_b": "sjv",
+      "tracks": "single",
+      "clearance_mode": "direct",
+      "side_at_a": "right",
+      "side_at_b": "left",
+      "parts": [
+        {
+          "id": "p-mla-sjv",
+          "from_place": "mla",
+          "to_place": "sjv"
+        }
+      ]
+    }
+  ],
+  "trains": [
+    {
+      "id": "t101",
+      "number": "101",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t101-nby",
+          "place": "nby",
+          "track": "1",
+          "departure": "06:00"
+        },
+        {
+          "id": "t101-asn",
+          "place": "asn",
+          "track": "1",
+          "arrival": "06:08",
+          "departure": "06:10"
+        },
+        {
+          "id": "t101-lvh",
+          "place": "lvh",
+          "arrival": "06:14",
+          "departure": "06:15"
+        },
+        {
+          "id": "t101-mla",
+          "place": "mla",
+          "track": "1",
+          "arrival": "06:19",
+          "departure": "06:21"
+        },
+        {
+          "id": "t101-sjv",
+          "place": "sjv",
+          "track": "1",
+          "arrival": "06:29"
+        }
+      ]
+    },
+    {
+      "id": "t102",
+      "number": "102",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t102-sjv",
+          "place": "sjv",
+          "track": "2",
+          "departure": "06:05"
+        },
+        {
+          "id": "t102-mla",
+          "place": "mla",
+          "track": "2",
+          "arrival": "06:13",
+          "departure": "06:15"
+        },
+        {
+          "id": "t102-lvh",
+          "place": "lvh",
+          "arrival": "06:19",
+          "departure": "06:20"
+        },
+        {
+          "id": "t102-asn",
+          "place": "asn",
+          "track": "2",
+          "arrival": "06:24",
+          "departure": "06:26"
+        },
+        {
+          "id": "t102-nby",
+          "place": "nby",
+          "track": "2",
+          "arrival": "06:34"
+        }
+      ]
+    },
+    {
+      "id": "t4501",
+      "number": "4501",
+      "train_type": "Gt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t4501-nby",
+          "place": "nby",
+          "track": "3",
+          "departure": "06:35"
+        },
+        {
+          "id": "t4501-asn",
+          "place": "asn",
+          "track": "1",
+          "arrival": "06:43",
+          "departure": "06:45"
+        },
+        {
+          "id": "t4501-lvh",
+          "place": "lvh",
+          "stops": false,
+          "departure": "06:49"
+        },
+        {
+          "id": "t4501-mla",
+          "place": "mla",
+          "track": "1",
+          "arrival": "06:53",
+          "departure": "06:55"
+        },
+        {
+          "id": "t4501-sjv",
+          "place": "sjv",
+          "track": "3",
+          "arrival": "07:03"
+        }
+      ],
+      "note": "Godståg, ej uppehåll i Lövhult."
+    },
+    {
+      "id": "t103",
+      "number": "103",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t103-nby",
+          "place": "nby",
+          "track": "1",
+          "departure": "07:00"
+        },
+        {
+          "id": "t103-asn",
+          "place": "asn",
+          "track": "1",
+          "arrival": "07:08",
+          "departure": "07:10"
+        },
+        {
+          "id": "t103-lvh",
+          "place": "lvh",
+          "arrival": "07:14",
+          "departure": "07:15"
+        },
+        {
+          "id": "t103-mla",
+          "place": "mla",
+          "track": "1",
+          "arrival": "07:19",
+          "departure": "07:21"
+        },
+        {
+          "id": "t103-sjv",
+          "place": "sjv",
+          "track": "1",
+          "arrival": "07:29"
+        }
+      ]
+    },
+    {
+      "id": "t104",
+      "number": "104",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t104-sjv",
+          "place": "sjv",
+          "track": "2",
+          "departure": "07:05"
+        },
+        {
+          "id": "t104-mla",
+          "place": "mla",
+          "track": "2",
+          "arrival": "07:13",
+          "departure": "07:15"
+        },
+        {
+          "id": "t104-lvh",
+          "place": "lvh",
+          "arrival": "07:19",
+          "departure": "07:20"
+        },
+        {
+          "id": "t104-asn",
+          "place": "asn",
+          "track": "2",
+          "arrival": "07:24",
+          "departure": "07:26"
+        },
+        {
+          "id": "t104-nby",
+          "place": "nby",
+          "track": "2",
+          "arrival": "07:34"
+        }
+      ]
+    },
+    {
+      "id": "t4502",
+      "number": "4502",
+      "train_type": "Gt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t4502-sjv",
+          "place": "sjv",
+          "track": "3",
+          "departure": "07:30"
+        },
+        {
+          "id": "t4502-mla",
+          "place": "mla",
+          "track": "2",
+          "arrival": "07:38",
+          "departure": "07:40"
+        },
+        {
+          "id": "t4502-lvh",
+          "place": "lvh",
+          "stops": false,
+          "departure": "07:44"
+        },
+        {
+          "id": "t4502-asn",
+          "place": "asn",
+          "track": "2",
+          "arrival": "07:48",
+          "departure": "07:50"
+        },
+        {
+          "id": "t4502-nby",
+          "place": "nby",
+          "track": "3",
+          "arrival": "07:58"
+        }
+      ]
+    },
+    {
+      "id": "t105",
+      "number": "105",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t105-nby",
+          "place": "nby",
+          "track": "1",
+          "departure": "08:00"
+        },
+        {
+          "id": "t105-asn",
+          "place": "asn",
+          "track": "1",
+          "arrival": "08:08",
+          "departure": "08:10"
+        },
+        {
+          "id": "t105-lvh",
+          "place": "lvh",
+          "arrival": "08:14",
+          "departure": "08:15"
+        },
+        {
+          "id": "t105-mla",
+          "place": "mla",
+          "track": "1",
+          "arrival": "08:19",
+          "departure": "08:21"
+        },
+        {
+          "id": "t105-sjv",
+          "place": "sjv",
+          "track": "1",
+          "arrival": "08:29"
+        }
+      ]
+    },
+    {
+      "id": "t106",
+      "number": "106",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t106-sjv",
+          "place": "sjv",
+          "track": "2",
+          "departure": "08:05"
+        },
+        {
+          "id": "t106-mla",
+          "place": "mla",
+          "track": "2",
+          "arrival": "08:13",
+          "departure": "08:15"
+        },
+        {
+          "id": "t106-lvh",
+          "place": "lvh",
+          "arrival": "08:19",
+          "departure": "08:20"
+        },
+        {
+          "id": "t106-asn",
+          "place": "asn",
+          "track": "2",
+          "arrival": "08:24",
+          "departure": "08:26"
+        },
+        {
+          "id": "t106-nby",
+          "place": "nby",
+          "track": "2",
+          "arrival": "08:34"
+        }
+      ]
+    },
+    {
+      "id": "t107",
+      "number": "107",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t107-nby",
+          "place": "nby",
+          "track": "1",
+          "departure": "09:00"
+        },
+        {
+          "id": "t107-asn",
+          "place": "asn",
+          "track": "1",
+          "arrival": "09:08",
+          "departure": "09:10"
+        },
+        {
+          "id": "t107-lvh",
+          "place": "lvh",
+          "arrival": "09:14",
+          "departure": "09:15"
+        },
+        {
+          "id": "t107-mla",
+          "place": "mla",
+          "track": "1",
+          "arrival": "09:19",
+          "departure": "09:21"
+        },
+        {
+          "id": "t107-sjv",
+          "place": "sjv",
+          "track": "1",
+          "arrival": "09:29"
+        }
+      ]
+    },
+    {
+      "id": "t108",
+      "number": "108",
+      "train_type": "Pt",
+      "days": [
+        "mon"
+      ],
+      "calls": [
+        {
+          "id": "t108-sjv",
+          "place": "sjv",
+          "track": "2",
+          "departure": "09:05"
+        },
+        {
+          "id": "t108-mla",
+          "place": "mla",
+          "track": "2",
+          "arrival": "09:13",
+          "departure": "09:15"
+        },
+        {
+          "id": "t108-lvh",
+          "place": "lvh",
+          "arrival": "09:19",
+          "departure": "09:20"
+        },
+        {
+          "id": "t108-asn",
+          "place": "asn",
+          "track": "2",
+          "arrival": "09:24",
+          "departure": "09:26"
+        },
+        {
+          "id": "t108-nby",
+          "place": "nby",
+          "track": "2",
+          "arrival": "09:34"
+        }
+      ]
+    }
+  ],
+  "duties": [
+    {
+      "id": "d1",
+      "name": "Tjänst 1",
+      "legs": [
+        {
+          "train": "t101",
+          "from_call": "t101-nby",
+          "to_call": "t101-sjv"
+        },
+        {
+          "train": "t104",
+          "from_call": "t104-sjv",
+          "to_call": "t104-nby"
+        }
+      ]
+    }
+  ],
+  "turns": [
+    {
+      "id": "o1",
+      "name": "Omlopp 1",
+      "trains": [
+        "t101",
+        "t104"
+      ]
+    }
+  ],
+  "shunting": [
+    {
+      "id": "v1",
+      "place": "sjv",
+      "name": "Ställ undan 4501",
+      "time": "07:10"
+    }
+  ],
+  "display": {
+    "graph_order": [
+      "nby",
+      "asn",
+      "lvh",
+      "mla",
+      "sjv"
+    ]
+  },
+  "about": {
+    "sv": {
+      "title": "Provbanan",
+      "description": "En liten påhittad bana för att prova Drift: fyra driftplatser i rad och en hållplats.",
+      "instructions": "Norrby–Åsen och Mellanå–Sjövik är enkelspår. Åsen–Mellanå är dubbelspår förbi Lövhult. Mellanå–Sjövik har direktklarering."
+    }
+  },
+  "findings": [
+    {
+      "id": "f1",
+      "severity": "observation",
+      "code": "place_without_phone",
+      "message": "Lövhult har inget telefonnummer.",
+      "refs": [
+        "lvh"
+      ]
+    }
+  ]
+}
