@@ -1,0 +1,57 @@
+{
+  "format": "trainmeet.station-outside/1",
+  "station_id": "asen",
+  "name": "Åsen",
+  "tracks": [
+    {
+      "id": "1",
+      "label": "Spår 1"
+    },
+    {
+      "id": "2",
+      "label": "Spår 2"
+    },
+    {
+      "id": "3",
+      "label": "Spår 3"
+    }
+  ],
+  "exits": [
+    {
+      "id": "v",
+      "side": "left",
+      "name": "Mot Norrby",
+      "tracks": [
+        "1",
+        "2",
+        "3"
+      ],
+      "signals": [
+        "A"
+      ]
+    },
+    {
+      "id": "o",
+      "side": "right",
+      "name": "Mot Mellanå",
+      "tracks": [
+        "1",
+        "2",
+        "3"
+      ],
+      "signals": [
+        "B"
+      ]
+    }
+  ],
+  "sides": [
+    {
+      "side": "left",
+      "label": "Väster"
+    },
+    {
+      "side": "right",
+      "label": "Öster"
+    }
+  ]
+}
