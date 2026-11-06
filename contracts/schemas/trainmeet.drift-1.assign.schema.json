@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.assign.schema.json",
+  "title": "trainmeet.drift-1.assign",
+  "additionalProperties": true,
+  "description": "A TMBox gets a place and a side, as before. One box may run several places (H44).",
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Places",
+      "type": "array"
+    },
+    "side": {
+      "default": "both",
+      "enum": [
+        "both",
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_id",
+    "places"
+  ],
+  "type": "object"
+}

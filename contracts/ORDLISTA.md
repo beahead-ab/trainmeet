@@ -34,5 +34,13 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Växlingsuppdrag | `shunting` | Växling på en driftplats. |
 | Fynd | `finding` | Trafikkontrollens konflikter och iakttagelser. Stoppar inte publicering. |
 | Bilaga | `attachment` | En fil som paketet bär, till exempel en urtavla. |
+| Godkännande | `station.ConnectReply` | Trafikledningen godkänner en TKL eller app i Klienter. Ger en nyckel för träffen och driftplatsen. |
+| Nyckel | `Authorization: Bearer` | Klientens nyckel från godkännandet. Krävs för alla stationskommandon, klarar omstarter och kan återkallas. Skickas i huvudet, aldrig i kroppen. |
+| Ögonblicksbild | `station.Snapshot` | Allt en klient behöver om en driftplats, ersatt i sin helhet varje gång. Den är sanningen; händelserna säger bara att den ändrats. |
+| Skäl | `Reason` | Varför Drift sa nej, med texten för varje skäl. |
+| På väg hit, har lämnat | `on_the_way`, `have_left` | Tåg på sträckan, från avgången hos grannen till ankomsten här, och tvärtom. Drift räknar fram båda. |
+| Bild | `terminal.Frame` | Det en TMBox visar. Drift ritar den; boxen skickar bara knapptryck. |
+| Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
+| Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
 | Nivå | – | Bara i TKL: hur mycket av ställverket en station har (0–3). |
 | Underlagsnivå | – | Bara i importen: hur bra underlaget är (1–4). |

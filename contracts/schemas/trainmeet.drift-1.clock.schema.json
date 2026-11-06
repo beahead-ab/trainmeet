@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.clock.schema.json",
+  "title": "trainmeet.drift-1.clock",
+  "$defs": {
+    "ClockAction": {
+      "enum": [
+        "start",
+        "stop",
+        "speed",
+        "jump",
+        "undo_jump"
+      ],
+      "title": "ClockAction",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/ClockAction"
+    },
+    "speed": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Speed"
+    },
+    "time": {
+      "anyOf": [
+        {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Time"
+    },
+    "game_day": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Game Day"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}

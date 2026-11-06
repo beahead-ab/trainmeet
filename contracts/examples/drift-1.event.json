@@ -1,0 +1,24 @@
+{
+  "protocol": "trainmeet.drift/1",
+  "seq": 12,
+  "epoch": 0,
+  "meet_id": "provbanan",
+  "version": 1,
+  "game_day": 1,
+  "model_time": "05:58",
+  "wall_time": "2026-11-06T09:12:30Z",
+  "kind": "clearance.requested",
+  "actor": {
+    "kind": "client",
+    "id": "c-tkl-nby"
+  },
+  "message_id": "tkl-nby-2026-0001",
+  "place": "nby",
+  "train": "t101",
+  "call": "t101-nby",
+  "data": {
+    "clearance_id": "clr-t101-1",
+    "section": "s-nby-asn",
+    "to_place": "asn"
+  }
+}

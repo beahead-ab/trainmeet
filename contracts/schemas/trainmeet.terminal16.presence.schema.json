@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.terminal16.presence.schema.json",
+  "title": "trainmeet.terminal16.presence",
+  "additionalProperties": true,
+  "properties": {
+    "nonce": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Nonce",
+      "type": "string"
+    },
+    "boot": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Boot",
+      "type": "string"
+    }
+  },
+  "required": [
+    "nonce",
+    "boot"
+  ],
+  "type": "object"
+}

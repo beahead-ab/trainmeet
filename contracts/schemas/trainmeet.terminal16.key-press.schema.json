@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.terminal16.key-press.schema.json",
+  "title": "trainmeet.terminal16.key-press",
+  "additionalProperties": true,
+  "properties": {
+    "command_id": {
+      "description": "<boot>-<n>, unik per boot.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Command Id",
+      "type": "string"
+    },
+    "view_token": {
+      "description": "Binder trycket till bilden det gjordes på.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "View Token",
+      "type": "string"
+    },
+    "key": {
+      "enum": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "A",
+        "B",
+        "C",
+        "D",
+        "#",
+        "*"
+      ],
+      "title": "Key",
+      "type": "string"
+    },
+    "train_number": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "pattern": "^[0-9]{1,5}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Train Number"
+    },
+    "entry_context": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entry Context"
+    },
+    "boot": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bara över MQTT.",
+      "title": "Boot"
+    }
+  },
+  "required": [
+    "command_id",
+    "view_token",
+    "key"
+  ],
+  "type": "object"
+}

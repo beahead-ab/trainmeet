@@ -4,8 +4,9 @@ No part imports another part's inner code; they share these models and the JSON 
 generated from them (contracts/schemas). TKL, CAD, TrainMeet Catalog and the apps read the
 schemas; the Hub's Python parts import the models.
 
-Step 1, part 1: the meet package (trainmeet.meet/1) and a station's outside
-(trainmeet.station-outside/1). Part 2 adds the station and terminal protocols and Drift's API.
+The meet package (trainmeet.meet/1), a station's outside (trainmeet.station-outside/1), the
+station protocol (trainmeet.station/1), the terminal protocol (the 16×2 profile) and Drift's API
+(trainmeet.drift/1). Synk and the drivers' API are sketches in SKISSER.md.
 """
 
 from contracts.common import canonical_json, checksum

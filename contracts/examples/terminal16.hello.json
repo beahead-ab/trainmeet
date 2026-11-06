@@ -1,0 +1,11 @@
+{
+  "device_code": "TBX-B57200",
+  "model": "NodeMCU ESP8266 PCF8574",
+  "firmware_version": "0.8.0",
+  "hardware_version": "server-16x2",
+  "display": {
+    "rows": 2,
+    "cols": 16
+  },
+  "boot": "7cd2916f535b49d2-1"
+}

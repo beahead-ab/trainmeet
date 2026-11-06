@@ -1,0 +1,140 @@
+{
+  "protocol": "trainmeet.station/1",
+  "message_id": "tkl-nby-2026-0001",
+  "status": "accepted",
+  "revision": {
+    "scope": "call",
+    "key": "t101-nby",
+    "value": 1
+  },
+  "snapshot": {
+    "protocol": "trainmeet.station/1",
+    "place": {
+      "place": "nby",
+      "code": "Nby",
+      "name": "Norrby",
+      "phone": "101"
+    },
+    "context": {
+      "meet_id": "provbanan",
+      "version": 1,
+      "game_day": 1,
+      "epoch": 0
+    },
+    "clock": {
+      "time": "05:58",
+      "seconds": 21480,
+      "running": true,
+      "speed": 4.0,
+      "game_day": 1
+    },
+    "place_revision": 7,
+    "sections": [
+      {
+        "section": "s-nby-asn",
+        "other_place": "asn",
+        "other_code": "Ån",
+        "tracks": "single",
+        "clearance_mode": "requested",
+        "side": "right",
+        "occupied": false
+      }
+    ],
+    "calls": [
+      {
+        "call": "t101-nby",
+        "train": "t101",
+        "train_number": "101",
+        "train_type": "Pt",
+        "manual": false,
+        "departure": "06:00",
+        "day_offset": 0,
+        "planned_track": "1",
+        "track": "1",
+        "to_place": "asn",
+        "arrival_state": "none",
+        "departure_state": "requested",
+        "positioned": true,
+        "crew_ready": true,
+        "revision": 1,
+        "allowed_actions": [
+          "clearance.cancel"
+        ]
+      },
+      {
+        "call": "t102-nby",
+        "train": "t102",
+        "train_number": "102",
+        "train_type": "Pt",
+        "manual": false,
+        "arrival": "06:34",
+        "day_offset": 0,
+        "planned_track": "2",
+        "from_place": "asn",
+        "arrival_state": "none",
+        "departure_state": "planned",
+        "positioned": false,
+        "crew_ready": false,
+        "revision": 0,
+        "allowed_actions": []
+      }
+    ],
+    "on_the_way": [],
+    "have_left": [],
+    "clearances": [
+      {
+        "clearance_id": "clr-t101-1",
+        "call": "t101-nby",
+        "train_number": "101",
+        "section": "s-nby-asn",
+        "from_place": "nby",
+        "to_place": "asn",
+        "status": "waiting",
+        "departed": false,
+        "requested_at": "05:58",
+        "reminders": 0,
+        "revision": 1
+      }
+    ],
+    "line_messages": [],
+    "neighbours": [
+      {
+        "place": "asn",
+        "code": "Ån",
+        "name": "Åsen",
+        "phone": "102"
+      }
+    ],
+    "all_places": [
+      {
+        "place": "nby",
+        "code": "Nby",
+        "name": "Norrby",
+        "phone": "101"
+      },
+      {
+        "place": "asn",
+        "code": "Ån",
+        "name": "Åsen",
+        "phone": "102"
+      },
+      {
+        "place": "lvh",
+        "code": "Lvh",
+        "name": "Lövhult"
+      },
+      {
+        "place": "mla",
+        "code": "Mlå",
+        "name": "Mellanå",
+        "phone": "103"
+      },
+      {
+        "place": "sjv",
+        "code": "Sjv",
+        "name": "Sjövik",
+        "phone": "104"
+      }
+    ]
+  }
+}

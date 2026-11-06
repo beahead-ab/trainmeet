@@ -1,0 +1,141 @@
+{
+  "boot": "7cd2916f535b49d2-1",
+  "frame": {
+    "profile": "server-16x2-pilot",
+    "device_id": "esp8266-308398b57200",
+    "station": "Norrby",
+    "station_code": "Nby",
+    "rows": 2,
+    "cols": 16,
+    "lines": [
+      "101 ? ASEN 06:00",
+      "*Ater      05:58"
+    ],
+    "lcd": {
+      "encoding": "hd44780-5x8-cgram-v1",
+      "cells": [
+        [
+          49,
+          48,
+          49,
+          32,
+          63,
+          32,
+          65,
+          83,
+          69,
+          78,
+          32,
+          48,
+          54,
+          58,
+          48,
+          48
+        ],
+        [
+          42,
+          65,
+          116,
+          101,
+          114,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          48,
+          53,
+          58,
+          53,
+          56
+        ]
+      ],
+      "glyphs": []
+    },
+    "attention": {
+      "epoch": "e1",
+      "seq": 0
+    },
+    "view_token": "dfe2bb9d4d9a68fe8e5991e3",
+    "revision": 7,
+    "view_revision": 3,
+    "input_guard_ms": 500,
+    "language": "sv",
+    "keys": {
+      "*": {
+        "label": "Återta förfrågan",
+        "short": "ÅTERTA",
+        "acts": true
+      }
+    },
+    "entry": {
+      "context": "e1:esp8266-308398b57200:nby",
+      "max_length": 5,
+      "lines": [
+        "TAG: _____",
+        "#Sok B:Del 05:58"
+      ],
+      "lcd": {
+        "encoding": "hd44780-5x8-cgram-v1",
+        "cells": [
+          [
+            84,
+            65,
+            71,
+            58,
+            32,
+            95,
+            95,
+            95,
+            95,
+            95,
+            32,
+            32,
+            32,
+            32,
+            32,
+            32
+          ],
+          [
+            35,
+            83,
+            111,
+            107,
+            32,
+            66,
+            58,
+            68,
+            101,
+            108,
+            32,
+            48,
+            53,
+            58,
+            53,
+            56
+          ]
+        ],
+        "glyphs": []
+      },
+      "row": 0,
+      "column": 5,
+      "commit": "#",
+      "cancel": "*",
+      "erase": "B",
+      "shortcut": "A",
+      "labels": {
+        "#": "Sök tåg (begär direkt)",
+        "*": "Avbryt inmatning",
+        "B": "Sudda siffra",
+        "A": "Förfrågningskö (avbryt inmatning)"
+      },
+      "short": {
+        "#": "SÖK",
+        "*": "AVBRYT",
+        "B": "SUDDA",
+        "A": "KÖ"
+      }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.connect-reply.schema.json",
+  "title": "trainmeet.station-1.connect-reply",
+  "$defs": {
+    "ApprovalStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "refused",
+        "revoked"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "protocol": {
+      "const": "trainmeet.station/1",
+      "default": "trainmeet.station/1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ApprovalStatus"
+    },
+    "places": {
+      "description": "Godkända driftplatser.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.",
+      "title": "Key"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "client_id",
+    "status"
+  ],
+  "type": "object"
+}

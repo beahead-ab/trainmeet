@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.connect-request.schema.json",
+  "title": "trainmeet.station-1.connect-request",
+  "$defs": {
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "ClientKind": {
+      "enum": [
+        "tkl",
+        "tmbox_app",
+        "dispatch"
+      ],
+      "title": "ClientKind",
+      "type": "string"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StationOutside": {
+      "additionalProperties": true,
+      "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+      "properties": {
+        "format": {
+          "const": "trainmeet.station-outside/1",
+          "default": "trainmeet.station-outside/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "station_id": {
+          "description": "Stationens id, skapat i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/StationTrack"
+          },
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/Exit"
+          },
+          "minItems": 1,
+          "title": "Exits",
+          "type": "array"
+        },
+        "sides": {
+          "items": {
+            "$ref": "#/$defs/BoxSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "tracks",
+        "exits"
+      ],
+      "title": "StationOutside",
+      "type": "object"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+  "properties": {
+    "protocol": {
+      "const": "trainmeet.station/1",
+      "default": "trainmeet.station/1",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "protocols": {
+      "description": "Alla versioner klienten talar.",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Protocols",
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/$defs/ClientKind"
+    },
+    "name": {
+      "description": "Det trafikledningen ser i Klienter.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "software": {
+      "description": "Program och version, till exempel TKL 0.1.0.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Software",
+      "type": "string"
+    },
+    "station_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Station Id"
+    },
+    "outside": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StationOutside"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "wants": {
+      "description": "Driftplatserna den vill köra.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Wants",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "name",
+    "software"
+  ],
+  "type": "object"
+}
