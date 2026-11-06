@@ -23,16 +23,24 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
 
 - `contracts/` är den enda vägen mellan delarna. Ingen del importerar en annan dels inre kod.
 - Ändras ett kontrakt ändras alla som använder det i samma PR.
+- Gränserna kontrolleras av `tests/test_boundaries.py`. Hubbens fyra delar (drift, planering, synk, integrationer) får använda `contracts` och `core` men aldrig varandra. ID, TKL och CAD får bara använda `contracts`. `hub/` är startprogrammet och får dra igång Hubbens delar.
 
 ## Tester
 
-- Testerna körs på varje PR.
+- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest) och "Hubbens bild" (bilden byggs och provas). Båda ska vara gröna.
 - Gamla Servers tester är facit. Ett beteende som portas tar med sitt test.
+- Kör samma sak lokalt: `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`. Python 3.12, beroendena låsta i `uv.lock`.
+- Ett nytt beroende läggs bara till om det är välkänt och behövs; nämn det i PR-texten.
 
 ## Hemligheter och personuppgifter
 
 - Repot ska vara publikt med AGPL-3.0 (beslut ST6 och ST7). Inga nycklar, koder, lösenord, personuppgifter eller interna adresser i koden, i loggar eller i ärenden.
 - Hemligheter läggs i GitHub eller hos Scaleway och läses från miljön. De skrivs aldrig ut.
+
+## Testmiljön
+
+- test.hub.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
+- Behöver hubben nya inställningar eller hemligheter i testmiljön läggs de i `deploy/testmiljo/compose.yaml` som variabler, aldrig som värden i koden.
 
 ## Gamla repon
 
