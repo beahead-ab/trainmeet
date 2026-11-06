@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
 from contracts import drift, station
+from contracts.common import checksum
 from contracts.meet import MeetPackage
 from contracts.reasons import TEXT_SV
 from drift.engine import VERSION, Drift, Refused, now_utc
@@ -50,10 +52,19 @@ def database_path(db_path: Path | None = None) -> Path:
     )
 
 
+def _fixture() -> bytes:
+    return files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
+
+
 def package() -> MeetPackage:
     """Provbanan, the made-up meet every hub has (steg 2)."""
-    fixture = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
-    return MeetPackage.model_validate_json(fixture)
+    return MeetPackage.model_validate_json(_fixture())
+
+
+def package_key() -> str:
+    """Provbanan's runs belong to the package as written, not as the contracts read it today:
+    a new field with a default must not end a run."""
+    return checksum(json.loads(_fixture()))
 
 
 def router(

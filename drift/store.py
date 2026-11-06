@@ -131,6 +131,7 @@ class PreviewStore:
         max_runs: int = MAX_RUNS,
         max_actions: int = MAX_ACTIONS,
         version: int = 1,
+        package_key: str | None = None,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
@@ -141,7 +142,9 @@ class PreviewStore:
         self.lifetime = lifetime
         self.max_runs = max_runs
         self.max_actions = max_actions
-        self.package_key = checksum(package.model_dump(mode="json"))
+        # Which package a run belongs to. A published version brings the checksum it was
+        # published with, so a run keeps its package when the contracts gain a field.
+        self.package_key = package_key or checksum(package.model_dump(mode="json"))
         self.boot = token_hex(16)
         self._ready = False
         self._lock = Lock()

@@ -42,10 +42,10 @@ def create_app(
     data_dir = preview_path.parent
     login = LocalLogin(data_dir / "hubben.sqlite3", info.hub_name)
     package = provbanan.package()
-    preview = PreviewStore(preview_path, package)
+    preview = PreviewStore(preview_path, package, package_key=provbanan.package_key())
     plans = Planning(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
-    running = Running(data_dir, package, plans)
+    running = Running(data_dir, package, provbanan.package_key(), plans)
 
     def current() -> build_info.BuildInfo:
         return replace(info, hub_name=login.state().name)
