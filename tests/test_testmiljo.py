@@ -146,7 +146,7 @@ def quotum(name: str, limit: int, unlimited: bool = False) -> Quotum:
         unit="",
         description="",
         locality_type=LocalityType.ZONE,
-        limits=[QuotumLimit(zone="fr-par-1", limit=limit, unlimited=unlimited, global_=False)],
+        limits=[QuotumLimit(zone=testmiljo.ZONE, limit=limit, unlimited=unlimited, global_=False)],
         limit=None,
         unlimited=None,
     )
