@@ -75,37 +75,53 @@ function shownLines() {
   return rows.map(cells => cells.join(""));
 }
 
-function keyInfo(key) {
-  if (!frame || frame.waiting) return null;
-  if (entry !== null) {
-    if (/[0-9]/.test(key)) return { short: "", acts: false };
-    const short = frame.entry?.short?.[key];
-    return short === undefined ? null : { short, acts: false };
+function labels() {
+  if (!frame || frame.waiting) return {};
+  if (entry !== null) return frame.entry?.labels ?? {};
+  return Object.fromEntries(Object.entries(frame.keys ?? {}).map(([key, info]) => [key, info.label]));
+}
+
+// The display as the box draws it: one row per line, one cell per character (old lcd.js).
+function drawLCD(lines) {
+  const lcd = $("lcd");
+  lcd.replaceChildren();
+  lcd.setAttribute("aria-label", lines.join(". "));
+  for (const line of lines) {
+    const row = document.createElement("div");
+    row.className = "lcd-row";
+    for (const character of line.normalize("NFC")) {
+      const cell = document.createElement("span");
+      cell.className = "lcd-cell";
+      cell.textContent = character;
+      row.append(cell);
+    }
+    lcd.append(row);
   }
-  if (/[0-9]/.test(key)) return { short: "", acts: false };
-  return frame.keys?.[key] ?? null;
 }
 
 function draw() {
-  shownLines().forEach((line, index) => {
-    const row = $("row-" + index);
-    if (!row) return;
-    row.replaceChildren(...[...line.padEnd(16).slice(0, 16)].map(char => {
-      const cell = document.createElement("span");
-      cell.textContent = char;
-      return cell;
-    }));
-  });
+  drawLCD(shownLines());
   $("status").textContent = entry !== null
     ? "Skriv tågnumret och tryck #. B suddar, * avbryter."
     : frame?.status ?? "";
-  for (const key of KEYS) {
-    const button = $("key-" + key);
-    const info = keyInfo(key);
-    button.classList.toggle("av", !info);
-    button.classList.toggle("handling", Boolean(info?.acts));
-    button.querySelector("small").textContent = info?.short ?? "";
-    button.title = entry === null ? frame?.keys?.[key]?.label ?? "" : frame?.entry?.labels?.[key] ?? "";
+  const queue = $("queue");
+  queue.textContent = frame?.requests?.label ?? "";
+  queue.classList.toggle("vantar", Boolean(frame?.requests?.count));
+  const shown = labels();
+  const hints = $("hints");
+  hints.replaceChildren();
+  for (const [key, label] of Object.entries(shown)) {
+    const hint = document.createElement("span");
+    const strong = document.createElement("b");
+    strong.textContent = key;
+    hint.append(strong, label);
+    hints.append(hint);
+  }
+  // Every key can always be pressed, as on the box. One that cannot do anything right now
+  // simply does nothing; nothing lights up or dims.
+  for (const button of document.querySelectorAll("#keypad button")) {
+    const key = button.dataset.key;
+    button.setAttribute("aria-label", shown[key] ? `${key} · ${shown[key]}` : key);
   }
 }
 
@@ -160,7 +176,7 @@ function press(key) {
     return;
   }
   const info = frame.keys?.[key];
-  if (!info) return say("Tangenten gör inget just nu.");
+  if (!info) return;
   // After a new picture, a key that changes the traffic waits a moment (input_guard_ms).
   if (info.acts && performance.now() - shownAt < (frame.input_guard_ms ?? 500)) return;
   send({ key });
@@ -237,10 +253,10 @@ function buildKeypad() {
   for (const key of KEYS) {
     const button = document.createElement("button");
     button.type = "button";
-    button.id = "key-" + key;
-    button.className = "knapp" + (/[A-D]/.test(key) ? " bokstav" : /[*#]/.test(key) ? " tecken" : "");
-    button.innerHTML = "<span></span><small></small>";
-    button.querySelector("span").textContent = key;
+    button.className = "key" + (/[A-D]/.test(key) ? " function" : "");
+    button.textContent = key;
+    button.dataset.key = key;
+    button.setAttribute("aria-label", key);
     button.onclick = () => press(key);
     pad.append(button);
   }

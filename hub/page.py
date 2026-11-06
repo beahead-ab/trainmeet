@@ -203,13 +203,14 @@ def render_box(info: BuildInfo) -> str:
       <h1 id="box-name">TMBox</h1>
       <button id="logout" type="button" class="lank">Koppla från</button>
     </div>
-    <div class="lcd" role="img" aria-live="polite" aria-label="Boxens display">
-      <div id="row-0" class="lcd-rad"></div>
-      <div id="row-1" class="lcd-rad"></div>
-    </div>
     <p id="status" class="boxstatus"></p>
+    <p id="queue" class="boxko" role="status"></p>
+    <div class="tmbox-case">
+      <div class="lcd-frame"><div id="lcd" class="lcd" role="img"></div></div>
+      <div id="keypad" class="keypad"></div>
+    </div>
+    <div id="hints" class="key-hints"></div>
     <p id="message" class="fel" role="status"></p>
-    <div id="keypad" class="knappsats"></div>
     <p class="ingress tips">Tangentbordet fungerar också: siffror, A–D, * och #.
       Enter är #, Backsteg är B och Esc är *.</p>
   </section>
