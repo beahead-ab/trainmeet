@@ -154,6 +154,7 @@ def _hub_card(set_up: bool, logged_in: bool, name: str) -> str:
     return """<section class="kort" id="hubben">
     <h1>Inloggad</h1>
     <p class="ingress">Du är inloggad som hubbens lokala administratör.</p>
+    <p><a href="/drift">Kör träffen →</a></p>
     <button id="logout" type="button">Logga ut</button>
   </section>
 """
@@ -167,7 +168,7 @@ def render_start_page(info: BuildInfo, *, set_up: bool = True, logged_in: bool =
   <section class="kort">
     <h1>Prova Drift</h1>
     <p class="ingress">Här kan du prova Drift med en påhittad träff på Provbanan.</p>
-    <p><a href="/provbanan">Öppna Provbanan →</a></p>
+    <p><a href="/provbanan">Öppna Provbanan →</a> &nbsp; <a href="/drift">Se träffen →</a></p>
     <dl>
       <dt>Status</dt><dd><span class="status">Igång</span></dd>
       <dt>Version</dt><dd>{escape(info.version)}</dd>

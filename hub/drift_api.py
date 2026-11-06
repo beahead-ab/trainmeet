@@ -159,6 +159,15 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         run_id = admin(session, authorization)
         return [event.model_dump(mode="json") for event in meet.log(run_id, place, train)]
 
+    @routes.get("/refusals")
+    def refusals(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> list[dict[str, Any]]:
+        """What clients were told no, newest first (B15)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        return [refusal.model_dump(mode="json") for refusal in meet.refusals(run_id)]
+
     @routes.get("/connect")
     def connect(
         request: Request,
