@@ -954,5 +954,33 @@
     "status",
     "snapshot"
   ],
-  "type": "object"
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "status": {
+          "const": "rejected"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    },
+    {
+      "properties": {
+        "status": {
+          "enum": [
+            "accepted",
+            "duplicate"
+          ]
+        },
+        "reason": {
+          "type": "null"
+        }
+      }
+    }
+  ]
 }

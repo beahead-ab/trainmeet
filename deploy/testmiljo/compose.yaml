@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       TRAINMEET_HUB_NAME: Testhubben
+      TRAINMEET_PREVIEW_DB: /data/provbanan.sqlite3
       # Only Caddy talks to the hub; trust its X-Forwarded-* headers.
       FORWARDED_ALLOW_IPS: "*"
     volumes:

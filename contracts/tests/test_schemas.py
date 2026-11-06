@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from pydantic import ValidationError
 
 from contracts.generate import CONTRACTS, SCHEMA_DIR, filename, main
 
@@ -53,3 +54,31 @@ def test_the_example_follows_the_published_schema(stem: str) -> None:
 def test_the_example_follows_the_model(stem: str) -> None:
     example = json.loads((EXAMPLES / EXAMPLE_FOR[stem]).read_text(encoding="utf-8"))
     CONTRACTS[stem].model_validate(example)
+
+
+@pytest.mark.parametrize(
+    ("stem", "change"),
+    [
+        ("trainmeet.station-1.command", "missing_section"),
+        ("trainmeet.station-1.reply", "missing_reason"),
+        ("trainmeet.drift-1.clock", "missing_speed"),
+        ("trainmeet.drift-1.event", "missing_departure_call"),
+    ],
+)
+def test_clients_and_hub_reject_the_same_incomplete_messages(stem: str, change: str) -> None:
+    if change == "missing_speed":
+        message = {"action": "speed"}
+    else:
+        message = json.loads((EXAMPLES / EXAMPLE_FOR[stem]).read_text(encoding="utf-8"))
+        match change:
+            case "missing_section":
+                del message["payload"]["section"]
+            case "missing_reason":
+                message["status"] = "rejected"
+                message.pop("reason", None)
+            case "missing_departure_call":
+                del message["call"]
+    schema = json.loads((SCHEMA_DIR / filename(stem)).read_text(encoding="utf-8"))
+    assert not Draft202012Validator(schema).is_valid(message)
+    with pytest.raises(ValidationError):
+        CONTRACTS[stem].model_validate(message)

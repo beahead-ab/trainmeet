@@ -66,6 +66,124 @@
       ],
       "title": "EventKind",
       "type": "string"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    },
+    "MeetStarted": {
+      "additionalProperties": true,
+      "properties": {
+        "traffic_day": {
+          "$ref": "#/$defs/Weekday"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "traffic_day",
+        "speed"
+      ],
+      "title": "MeetStarted",
+      "type": "object"
+    },
+    "ClockChanged": {
+      "additionalProperties": true,
+      "properties": {
+        "seconds": {
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "number"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "seconds",
+        "speed"
+      ],
+      "title": "ClockChanged",
+      "type": "object"
+    },
+    "ClearanceRequested": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "section",
+        "to_place"
+      ],
+      "title": "ClearanceRequested",
+      "type": "object"
+    },
+    "ClearanceAnswered": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "approved"
+      ],
+      "title": "ClearanceAnswered",
+      "type": "object"
+    },
+    "ClearanceRef": {
+      "additionalProperties": true,
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "clearance_id"
+      ],
+      "title": "ClearanceRef",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -190,5 +308,182 @@
     "kind",
     "actor"
   ],
-  "type": "object"
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {
+          "const": "meet.started",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/MeetStarted"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.started",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClockChanged"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.stopped",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClockChanged"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.speed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClockChanged"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clearance.requested",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceRequested"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clearance.answered",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceAnswered"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clearance.cancelled",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceRef"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "train.departed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceRef"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "train.arrived",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceRef"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "not": {
+            "enum": [
+              "meet.started",
+              "clock.started",
+              "clock.stopped",
+              "clock.speed",
+              "clearance.requested",
+              "clearance.answered",
+              "clearance.cancelled",
+              "train.departed",
+              "train.arrived"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "clearance.requested"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "call": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "call"
+        ]
+      }
+    }
+  ]
 }

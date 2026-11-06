@@ -18,9 +18,15 @@ with DNS-SD `_tmbox._tcp`, TXT `protocol=…` and `server_id=…`):
 TMBox web, in the browser: the same frames and key presses over HTTP and an event stream,
 drawn by the same code in Drift, so the two cannot behave differently:
 
+    POST /api/terminal/session    WebLogin -> WebSession
     GET  /api/terminal/frame      Frame
     POST /api/terminal/keys       KeyPress -> Ack
     GET  /api/terminal/events     the frame again whenever it changes (text/event-stream)
+
+Each login creates a separate box under Väntar. The dispatcher assigns its client_id
+to a place and side through Drift's API. The tab keeps its session key separately
+and uses Authorization: Bearer for frames, keys and SSE (using fetch). The server
+checks the assignment on each request. Keys never travel in URLs or logs.
 
 New in the next generation, without changing how the box works: each box gets its own queue
 in Drift, so one hiccup never stalls all boxes. Physical boxes over MQTT are accepted as today,
@@ -34,7 +40,7 @@ from typing import Final, Literal
 
 from pydantic import Field
 
-from contracts.common import Contract, Text
+from contracts.common import Contract, Id, Text
 
 TOPIC_PREFIX: Final = "tmbox/terminal/device/"
 PROFILE: Final = "server-16x2-pilot"  # the value the old Server sends and the firmware knows
@@ -86,6 +92,16 @@ class KeyPress(Contract):
     train_number: Text | None = Field(default=None, pattern=r"^[0-9]{1,5}$")
     entry_context: Text | None = None
     boot: Text | None = Field(default=None, description="Bara över MQTT.")
+
+
+class WebLogin(Contract):
+    name: Text
+    code: Text = Field(description="Lokal kod för träffen. Skrivs aldrig ut i loggen.")
+
+
+class WebSession(Contract):
+    client_id: Id
+    session_key: Text = Field(description="Boxens sessionsnyckel. Skrivs aldrig ut i loggen.")
 
 
 class Glyph(Contract):

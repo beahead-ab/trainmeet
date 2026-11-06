@@ -43,6 +43,9 @@ jobs:
       - name: Testerna
         run: uv run pytest
 
+      - name: Kontraktens TypeScript-typer
+        run: npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts --check
+
   bilden:
     name: Hubbens bild
     runs-on: ubuntu-latest
@@ -63,7 +66,10 @@ jobs:
             sleep 1
           done
           curl -fsS http://localhost:8080/healthz
-          curl -fsS http://localhost:8080/ | grep -q "Tom hubb"
+          curl -fsS http://localhost:8080/ | grep -q "Öppna Provbanan"
+          curl -fsS http://localhost:8080/provbanan | grep -q "Starta provkörning"
+          curl -fsS -H 'Content-Type: application/json' -d '{"version":1}' \
+            http://localhost:8080/api/provbanan/start | grep -q '"meet_id":"provbanan"'
           curl -fsS http://localhost:8080/api/version | grep -q '"product":"TrainMeet Hub"'
           curl -fsS -o /dev/null http://localhost:8080/static/skylt.svg
           curl -fsS -o /dev/null http://localhost:8080/static/fonts/inter.woff2

@@ -1,0 +1,7147 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TrainMeet Hub · kontrakten",
+    "version": "1"
+  },
+  "paths": {
+    "/api/station/1/connect": {
+      "post": {
+        "operationId": "connectStation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.connect-reply"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.station-1.connect-request"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/station/1/connect/{client}": {
+      "get": {
+        "operationId": "stationApproval",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.connect-reply"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "client",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/station/1/places/{place}": {
+      "get": {
+        "operationId": "stationSnapshot",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.snapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "place",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/station/1/commands": {
+      "post": {
+        "operationId": "stationCommand",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.reply"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/station/1/places/{place}/events": {
+      "get": {
+        "operationId": "stationEvents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "x-event-schema": {
+                    "$ref": "#/components/schemas/trainmeet.station-1.event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "place",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/terminal/session": {
+      "post": {
+        "operationId": "terminalLogin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.terminal-web-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.terminal-web-1.login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/terminal/frame": {
+      "get": {
+        "operationId": "terminalFrame",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.terminal16.frame"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/terminal/keys": {
+      "post": {
+        "operationId": "terminalKey",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.terminal16.ack"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.terminal16.key-press"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/terminal/events": {
+      "get": {
+        "operationId": "terminalEvents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "x-event-schema": {
+                    "$ref": "#/components/schemas/trainmeet.terminal16.frame"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/start": {
+      "post": {
+        "operationId": "startMeet",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.start"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clock": {
+      "post": {
+        "operationId": "driftClock",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.clock"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clients": {
+      "get": {
+        "operationId": "driftClients",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clients/approve": {
+      "post": {
+        "operationId": "approveClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.approve"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clients/revoke": {
+      "post": {
+        "operationId": "revokeClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.revoke"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clients/assign": {
+      "post": {
+        "operationId": "assignClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.assign"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/log": {
+      "get": {
+        "operationId": "driftLog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "train",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/drift/1/events": {
+      "get": {
+        "operationId": "driftEvents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "x-event-schema": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "trainmeet.meet-1": {
+        "additionalProperties": true,
+        "properties": {
+          "format": {
+            "const": "trainmeet.meet/1",
+            "default": "trainmeet.meet/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "meet": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Meet"
+          },
+          "clock": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Clock"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Attachment"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Place"
+            },
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Section"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "trains": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Train"
+            },
+            "title": "Trains",
+            "type": "array"
+          },
+          "duties": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Duty"
+            },
+            "title": "Duties",
+            "type": "array"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Turn"
+            },
+            "title": "Turns",
+            "type": "array"
+          },
+          "shunting": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Shunting"
+            },
+            "title": "Shunting",
+            "type": "array"
+          },
+          "display": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Display"
+          },
+          "about": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.About"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Language"
+            },
+            "title": "About",
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "meet",
+          "clock",
+          "places"
+        ],
+        "title": "MeetPackage",
+        "type": "object"
+      },
+      "trainmeet.meet-1.About": {
+        "additionalProperties": true,
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Instructions"
+          }
+        },
+        "title": "About",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Attachment": {
+        "additionalProperties": true,
+        "description": "A file the package carries, beside the package, with its own checksum.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.AttachmentKind"
+          },
+          "filename": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Media Type",
+            "type": "string"
+          },
+          "size": {
+            "minimum": 0,
+            "title": "Size",
+            "type": "integer"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "filename",
+          "media_type",
+          "size",
+          "sha256"
+        ],
+        "title": "Attachment",
+        "type": "object"
+      },
+      "trainmeet.meet-1.AttachmentKind": {
+        "enum": [
+          "clock_face",
+          "sketch",
+          "overview",
+          "other"
+        ],
+        "title": "AttachmentKind",
+        "type": "string"
+      },
+      "trainmeet.meet-1.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Call": {
+        "additionalProperties": true,
+        "description": "Tågbesök: what Drift keeps track of. A train number alone is never a key (A1).",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Planens spårnamn.",
+            "title": "Track"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          },
+          "day_offset": {
+            "default": 0,
+            "description": "Speldygn efter tågets första.",
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Day Offset",
+            "type": "integer"
+          },
+          "stops": {
+            "default": true,
+            "description": "Falskt för ej uppehåll.",
+            "title": "Stops",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "id",
+          "place"
+        ],
+        "title": "Call",
+        "type": "object"
+      },
+      "trainmeet.meet-1.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.meet-1.Clock": {
+        "additionalProperties": true,
+        "properties": {
+          "start_time": {
+            "description": "Modelltiden när klockan startar.",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "speed": {
+            "default": 1.0,
+            "description": "Modellminuter per minut.",
+            "exclusiveMinimum": 0,
+            "maximum": 60,
+            "title": "Speed",
+            "type": "number"
+          },
+          "styles": {
+            "description": "Klockans stilar: analog, digital eller custom:<urtavlans id>.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Styles",
+            "type": "array"
+          },
+          "stop_reasons": {
+            "description": "Stoppskälen.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Stop Reasons",
+            "type": "array"
+          },
+          "faces": {
+            "description": "Urtavlorna, som bilagor (F13).",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Faces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start_time"
+        ],
+        "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.meet-1.CoupledStation": {
+        "additionalProperties": true,
+        "description": "A station coupled to the place in advance: its outside pinned to a version (H28).",
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "version": {
+            "description": "Versionen av stationspaketet som gäller.",
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "outside": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.StationOutside"
+          },
+          "track_map": {
+            "additionalProperties": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "description": "Planens spårnamn → stationens spår-id.",
+            "propertyNames": {
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "title": "Track Map",
+            "type": "object"
+          },
+          "exit_map": {
+            "description": "Sträckans id → stationens utfart (H26).",
+            "patternProperties": {
+              "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              }
+            },
+            "title": "Exit Map",
+            "type": "object"
+          }
+        },
+        "required": [
+          "station_id",
+          "version",
+          "outside"
+        ],
+        "title": "CoupledStation",
+        "type": "object"
+      },
+      "trainmeet.meet-1.DefaultTrack": {
+        "additionalProperties": true,
+        "description": "Standard track per train type and direction at a place (B4).",
+        "properties": {
+          "track": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tomt betyder alla tågslag.",
+            "title": "Train Type"
+          },
+          "towards": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.meet-1.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tomt betyder båda riktningarna."
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "DefaultTrack",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Display": {
+        "additionalProperties": true,
+        "properties": {
+          "graph_order": {
+            "description": "Platserna i grafen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Graph Order",
+            "type": "array"
+          },
+          "graph_pages": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.GraphPage"
+            },
+            "title": "Graph Pages",
+            "type": "array"
+          }
+        },
+        "title": "Display",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Duty": {
+        "additionalProperties": true,
+        "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.DutyLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Duty",
+        "type": "object"
+      },
+      "trainmeet.meet-1.DutyLeg": {
+        "additionalProperties": true,
+        "properties": {
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "from_call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Call",
+            "type": "string"
+          },
+          "to_call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Call",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train",
+          "from_call",
+          "to_call"
+        ],
+        "title": "DutyLeg",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Finding": {
+        "additionalProperties": true,
+        "description": "From the traffic check (Planering): shown, but does not stop publishing.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Severity"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "refs": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "severity",
+          "code",
+          "message"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "trainmeet.meet-1.GraphPage": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "places"
+        ],
+        "title": "GraphPage",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Language": {
+        "enum": [
+          "sv",
+          "en",
+          "da",
+          "nb",
+          "de"
+        ],
+        "title": "Language",
+        "type": "string"
+      },
+      "trainmeet.meet-1.Meet": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "country": {
+            "default": "se",
+            "enum": [
+              "se",
+              "dk",
+              "no",
+              "de"
+            ],
+            "title": "Country",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "Europe/Stockholm",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Date"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Date"
+          },
+          "traffic_week": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.TrafficWeek"
+          },
+          "clearance_mode": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.ClearanceMode",
+            "default": "requested"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Meet",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Place": {
+        "additionalProperties": true,
+        "description": "Driftplats: a place from the plan. Sections, calls and protocols point here.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "code": {
+            "description": "Signaturen, till exempel Nby.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.PlaceKind"
+          },
+          "remote_from": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsen som fjärrstyr.",
+            "title": "Remote From"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffens leknummer (H30).",
+            "title": "Phone"
+          },
+          "aliases": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.PlanTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "default_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.DefaultTrack"
+            },
+            "title": "Default Tracks",
+            "type": "array"
+          },
+          "station": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.meet-1.CoupledStation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "instructions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Language"
+            },
+            "title": "Instructions",
+            "type": "object"
+          },
+          "source_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Planens käll-id:n, till exempel för Tellurian.",
+            "title": "Source Ids",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "kind"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
+      "trainmeet.meet-1.PlaceKind": {
+        "description": "Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.",
+        "enum": [
+          "manned",
+          "remote",
+          "unmanned",
+          "shadow_yard",
+          "halt"
+        ],
+        "title": "PlaceKind",
+        "type": "string"
+      },
+      "trainmeet.meet-1.PlanTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PlanTrack",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Section": {
+        "additionalProperties": true,
+        "description": "Sträcka: the plan's clearance section between two places that clear to each other (F1).\nA train gets clearance once for the whole section, even past halts along it.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "place_a": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place A",
+            "type": "string"
+          },
+          "place_b": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place B",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.TrackKind",
+            "default": "single"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.meet-1.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara om sträckan avviker från träffens grundläge."
+          },
+          "side_at_a": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.meet-1.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sidan vid place_a (F3)."
+          },
+          "side_at_b": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.meet-1.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sidan vid place_b (F3)."
+          },
+          "parts": {
+            "description": "Delsträckorna i ordning från place_a till place_b.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.SectionPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "source_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "place_a",
+          "place_b"
+        ],
+        "title": "Section",
+        "type": "object"
+      },
+      "trainmeet.meet-1.SectionPart": {
+        "additionalProperties": true,
+        "description": "Delsträcka: the physical piece between two places, for map, graph and detection.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from_place",
+          "to_place"
+        ],
+        "title": "SectionPart",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Severity": {
+        "description": "A published package carries no structural errors: those stop publishing.",
+        "enum": [
+          "conflict",
+          "observation"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "trainmeet.meet-1.Shunting": {
+        "additionalProperties": true,
+        "description": "Växlingsuppdrag at a place.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          }
+        },
+        "required": [
+          "id",
+          "place",
+          "name"
+        ],
+        "title": "Shunting",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.meet-1.StationOutside": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.meet-1.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.meet-1.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.meet-1.TrafficWeek": {
+        "additionalProperties": true,
+        "description": "The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.",
+        "properties": {
+          "start_weekday": {
+            "$ref": "#/components/schemas/trainmeet.meet-1.Weekday",
+            "default": "mon"
+          },
+          "days": {
+            "default": 1,
+            "description": "Antal speldygn, Dag 1…N.",
+            "maximum": 31,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "runs_over_midnight": {
+            "default": false,
+            "title": "Runs Over Midnight",
+            "type": "boolean"
+          }
+        },
+        "title": "TrafficWeek",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Train": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "description": "Tågnumret, för inmatning och visning.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "service_key": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Håller isär två tåg med samma nummer samma dag (F9).",
+            "title": "Service Key"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågslaget.",
+            "title": "Train Type"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator"
+          },
+          "days": {
+            "description": "Trafikdagarna.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Weekday"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "manual": {
+            "default": false,
+            "description": "Körs manuellt (F10).",
+            "title": "Manual",
+            "type": "boolean"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.Call"
+            },
+            "minItems": 1,
+            "title": "Calls",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "source_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "days",
+          "calls"
+        ],
+        "title": "Train",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Turn": {
+        "additionalProperties": true,
+        "description": "Omlopp: the trains one set of vehicles runs, in order.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "trains": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Trains",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Turn",
+        "type": "object"
+      },
+      "trainmeet.meet-1.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
+      },
+      "trainmeet.station-outside-1": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-outside-1.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-outside-1.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-outside-1.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.station-outside-1.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.station-outside-1.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.station-outside-1.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.station-outside-1.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.station-outside-1.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.station-outside-1.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request": {
+        "additionalProperties": true,
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "protocols": {
+            "description": "Alla versioner klienten talar.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Protocols",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.station-1.connect-request.ClientKind"
+          },
+          "name": {
+            "description": "Det trafikledningen ser i Klienter.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Program och version, till exempel TKL 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          },
+          "station_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Station Id"
+          },
+          "outside": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.connect-request.StationOutside"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "wants": {
+            "description": "Driftplatserna den vill köra.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Wants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "software"
+        ],
+        "title": "ConnectRequest",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.station-1.connect-request.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request.ClientKind": {
+        "enum": [
+          "tkl",
+          "tmbox_app",
+          "dispatch"
+        ],
+        "title": "ClientKind",
+        "type": "string"
+      },
+      "trainmeet.station-1.connect-request.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.station-1.connect-request.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.station-1.connect-request.StationOutside": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.connect-request.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.connect-request.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.connect-request.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-reply": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.station-1.connect-reply.ApprovalStatus"
+          },
+          "places": {
+            "description": "Godkända driftplatser.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.",
+            "title": "Key"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message"
+          }
+        },
+        "required": [
+          "client_id",
+          "status"
+        ],
+        "title": "ConnectReply",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-reply.ApprovalStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "refused",
+          "revoked"
+        ],
+        "title": "ApprovalStatus",
+        "type": "string"
+      },
+      "trainmeet.station-1.command": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "message_id": {
+            "description": "Unikt per klient. Samma id ger samma svar.",
+            "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.station-1.command.MeetContext"
+          },
+          "action": {
+            "$ref": "#/components/schemas/trainmeet.station-1.command.Action"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exakt en scope och nyckel; utelämnas för train.lookup."
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "message_id",
+          "client_id",
+          "place",
+          "context",
+          "action"
+        ],
+        "title": "Command",
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "action": {
+                "const": "train.lookup",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.TrainLookup"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "train.track.change",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.TrackChange"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "train.departed",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.CallOnly"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "train.arrived",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.Arrival"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "train.position.set",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.Flag"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "train.crew_ready.set",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.Flag"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "clearance.request",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ClearanceRequest"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "clearance.response",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ClearanceResponse"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "clearance.cancel",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ClearanceCancel"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "line.available.publish",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.LineAvailable"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "line.available.acknowledge",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.LineAcknowledge"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "section.occupancy",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.SectionOccupancy"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "signal.exit",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ExitSignal"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          }
+        ]
+      },
+      "trainmeet.station-1.command.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.station-1.command.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.station-1.command.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.station-1.command.TrainLookup": {
+        "additionalProperties": true,
+        "properties": {
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "^[0-9]{1,5}$",
+            "title": "Train Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train_number"
+        ],
+        "title": "TrainLookup",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.TrackChange": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "track": {
+            "description": "Stationens spår-id, eller planens spårnamn utan station.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "track"
+        ],
+        "title": "TrackChange",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.CallOnly": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "CallOnly",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.Arrival": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Utan spår: första lediga standardspår.",
+            "title": "Track"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "Arrival",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.Flag": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "call",
+          "value"
+        ],
+        "title": "Flag",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ClearanceRequest": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "clearance_id": {
+            "description": "Klienten väljer id, så att omsändning blir dubblett.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "section",
+          "clearance_id"
+        ],
+        "title": "ClearanceRequest",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ClearanceResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "approved"
+        ],
+        "title": "ClearanceResponse",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ClearanceCancel": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clearance_id"
+        ],
+        "title": "ClearanceCancel",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.LineAvailable": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "section"
+        ],
+        "title": "LineAvailable",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.LineAcknowledge": {
+        "additionalProperties": true,
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "title": "LineAcknowledge",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.SectionOccupancy": {
+        "additionalProperties": true,
+        "description": "Level 3 only: a section's detection. The section is free when every part is empty.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "occupied": {
+            "title": "Occupied",
+            "type": "boolean"
+          },
+          "parts": {
+            "patternProperties": {
+              "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+                "type": "boolean"
+              }
+            },
+            "title": "Parts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "section",
+          "occupied"
+        ],
+        "title": "SectionOccupancy",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ExitSignalAspect": {
+        "enum": [
+          "stop",
+          "proceed",
+          "unknown"
+        ],
+        "title": "ExitSignalAspect",
+        "type": "string"
+      },
+      "trainmeet.station-1.command.ExitSignal": {
+        "additionalProperties": true,
+        "description": "What the exit signal shows, for Lokföraren and the neighbour.",
+        "properties": {
+          "exit": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Exit",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "aspect": {
+            "$ref": "#/components/schemas/trainmeet.station-1.command.ExitSignalAspect"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          }
+        },
+        "required": [
+          "exit",
+          "section",
+          "aspect"
+        ],
+        "title": "ExitSignal",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "message_id": {
+            "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.ReplyStatus"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.reply.Reason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Texten att visa, på klientens språk.",
+            "title": "Message"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.reply.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "result": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.reply.LookupMatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara för train.lookup.",
+            "title": "Result"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.Snapshot"
+          }
+        },
+        "required": [
+          "message_id",
+          "status",
+          "snapshot"
+        ],
+        "title": "Reply",
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "status": {
+                "const": "rejected"
+              },
+              "reason": {
+                "$ref": "#/components/schemas/trainmeet.station-1.reply.Reason"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          {
+            "properties": {
+              "status": {
+                "enum": [
+                  "accepted",
+                  "duplicate"
+                ]
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          }
+        ]
+      },
+      "trainmeet.station-1.reply.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.ArrivalState": {
+        "enum": [
+          "none",
+          "on_the_way",
+          "arrived"
+        ],
+        "title": "ArrivalState",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.CallHere": {
+        "additionalProperties": true,
+        "description": "A call at this place, with what the client may do with it right now.",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel IC 116 (F9).",
+            "title": "Train Label"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "manual": {
+            "default": false,
+            "title": "Manual",
+            "type": "boolean"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          },
+          "day_offset": {
+            "default": 0,
+            "title": "Day Offset",
+            "type": "integer"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Planned Track"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var tåget står eller ska stå nu.",
+            "title": "Track"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "arrival_state": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.ArrivalState",
+            "default": "none"
+          },
+          "departure_state": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.DepartureState",
+            "default": "planned"
+          },
+          "positioned": {
+            "default": false,
+            "title": "Positioned",
+            "type": "boolean"
+          },
+          "crew_ready": {
+            "default": false,
+            "title": "Crew Ready",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "allowed_actions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.Action"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "call",
+          "train",
+          "train_number",
+          "revision"
+        ],
+        "title": "CallHere",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.Clearance": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.ClearanceStatus"
+          },
+          "departed": {
+            "default": false,
+            "title": "Departed",
+            "type": "boolean"
+          },
+          "requested_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "reminders": {
+            "default": 0,
+            "description": "Påminnelser hittills (H39).",
+            "minimum": 0,
+            "title": "Reminders",
+            "type": "integer"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "call",
+          "train_number",
+          "section",
+          "from_place",
+          "to_place",
+          "status",
+          "requested_at",
+          "revision"
+        ],
+        "title": "Clearance",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.ClearanceStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "rejected",
+          "cancelled",
+          "invalidated"
+        ],
+        "title": "ClearanceStatus",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.Clock": {
+        "additionalProperties": true,
+        "properties": {
+          "time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Time",
+            "type": "string"
+          },
+          "seconds": {
+            "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "running": {
+            "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+            "title": "Running",
+            "type": "boolean"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "title": "Speed",
+            "type": "number"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "time",
+          "seconds",
+          "running",
+          "speed",
+          "game_day"
+        ],
+        "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.DepartureState": {
+        "enum": [
+          "planned",
+          "requested",
+          "cleared",
+          "departed"
+        ],
+        "title": "DepartureState",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.LineMessage": {
+        "additionalProperties": true,
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "acknowledged": {
+            "default": false,
+            "title": "Acknowledged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id",
+          "section",
+          "from_place"
+        ],
+        "title": "LineMessage",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.LookupMatch": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Label"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
+          }
+        },
+        "required": [
+          "call",
+          "train_number"
+        ],
+        "title": "LookupMatch",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.Neighbour": {
+        "additionalProperties": true,
+        "description": "A place and its game number, for the telephone list in TKL and the app (H24).",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place",
+          "code",
+          "name"
+        ],
+        "title": "Neighbour",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.Reason": {
+        "enum": [
+          "unsupported_protocol",
+          "unknown_action",
+          "not_approved",
+          "wrong_place",
+          "stale_meet_context",
+          "stale_revision",
+          "no_active_meet",
+          "train_number_required",
+          "unknown_train_number",
+          "ambiguous_train_number",
+          "unknown_call",
+          "unknown_track",
+          "track_occupied",
+          "unknown_section",
+          "channel_occupied",
+          "call_already_requested",
+          "clearance_not_pending",
+          "unknown_clearance",
+          "not_sender",
+          "not_receiver",
+          "train_already_departed",
+          "departure_not_reserved",
+          "invalid_departure",
+          "invalid_arrival",
+          "train_not_departed",
+          "already_acknowledged",
+          "not_level_3"
+        ],
+        "title": "Reason",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.ReplyStatus": {
+        "enum": [
+          "accepted",
+          "rejected",
+          "duplicate"
+        ],
+        "title": "ReplyStatus",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.SectionHere": {
+        "additionalProperties": true,
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "other_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Other Code",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.TrackKind"
+          },
+          "clearance_mode": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.ClearanceMode"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.reply.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "exit": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens utfart för sträckan.",
+            "title": "Exit"
+          },
+          "occupied": {
+            "default": false,
+            "title": "Occupied",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "section",
+          "other_place",
+          "other_code",
+          "tracks",
+          "clearance_mode"
+        ],
+        "title": "SectionHere",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.Snapshot": {
+        "additionalProperties": true,
+        "description": "Everything a client needs for one place, replaced whole every time.",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "place": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.Neighbour"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.MeetContext"
+          },
+          "clock": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.Clock"
+          },
+          "place_revision": {
+            "minimum": 0,
+            "title": "Place Revision",
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.SectionHere"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.CallHere"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "on_the_way": {
+            "description": "På väg hit.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.TrainOnSection"
+            },
+            "title": "On The Way",
+            "type": "array"
+          },
+          "have_left": {
+            "description": "Har lämnat.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.TrainOnSection"
+            },
+            "title": "Have Left",
+            "type": "array"
+          },
+          "clearances": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.Clearance"
+            },
+            "title": "Clearances",
+            "type": "array"
+          },
+          "line_messages": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.LineMessage"
+            },
+            "title": "Line Messages",
+            "type": "array"
+          },
+          "neighbours": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.Neighbour"
+            },
+            "title": "Neighbours",
+            "type": "array"
+          },
+          "all_places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.Neighbour"
+            },
+            "title": "All Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "context",
+          "clock",
+          "place_revision"
+        ],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "trainmeet.station-1.reply.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.station-1.reply.TrainOnSection": {
+        "additionalProperties": true,
+        "description": "A train on its way here or that has left, from the departure to the arrival (H32).",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret vid ankomsten.",
+            "title": "Planned Track"
+          },
+          "departed_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "train_number",
+          "section",
+          "other_place",
+          "departed_at"
+        ],
+        "title": "TrainOnSection",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot": {
+        "additionalProperties": true,
+        "description": "Everything a client needs for one place, replaced whole every time.",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "place": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Neighbour"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.MeetContext"
+          },
+          "clock": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Clock"
+          },
+          "place_revision": {
+            "minimum": 0,
+            "title": "Place Revision",
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.SectionHere"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.CallHere"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "on_the_way": {
+            "description": "På väg hit.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.TrainOnSection"
+            },
+            "title": "On The Way",
+            "type": "array"
+          },
+          "have_left": {
+            "description": "Har lämnat.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.TrainOnSection"
+            },
+            "title": "Have Left",
+            "type": "array"
+          },
+          "clearances": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Clearance"
+            },
+            "title": "Clearances",
+            "type": "array"
+          },
+          "line_messages": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.LineMessage"
+            },
+            "title": "Line Messages",
+            "type": "array"
+          },
+          "neighbours": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Neighbour"
+            },
+            "title": "Neighbours",
+            "type": "array"
+          },
+          "all_places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Neighbour"
+            },
+            "title": "All Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "context",
+          "clock",
+          "place_revision"
+        ],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.ArrivalState": {
+        "enum": [
+          "none",
+          "on_the_way",
+          "arrived"
+        ],
+        "title": "ArrivalState",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.CallHere": {
+        "additionalProperties": true,
+        "description": "A call at this place, with what the client may do with it right now.",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel IC 116 (F9).",
+            "title": "Train Label"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "manual": {
+            "default": false,
+            "title": "Manual",
+            "type": "boolean"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          },
+          "day_offset": {
+            "default": 0,
+            "title": "Day Offset",
+            "type": "integer"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Planned Track"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var tåget står eller ska stå nu.",
+            "title": "Track"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "arrival_state": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.ArrivalState",
+            "default": "none"
+          },
+          "departure_state": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.DepartureState",
+            "default": "planned"
+          },
+          "positioned": {
+            "default": false,
+            "title": "Positioned",
+            "type": "boolean"
+          },
+          "crew_ready": {
+            "default": false,
+            "title": "Crew Ready",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "allowed_actions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Action"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "call",
+          "train",
+          "train_number",
+          "revision"
+        ],
+        "title": "CallHere",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.Clearance": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.ClearanceStatus"
+          },
+          "departed": {
+            "default": false,
+            "title": "Departed",
+            "type": "boolean"
+          },
+          "requested_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "reminders": {
+            "default": 0,
+            "description": "Påminnelser hittills (H39).",
+            "minimum": 0,
+            "title": "Reminders",
+            "type": "integer"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "call",
+          "train_number",
+          "section",
+          "from_place",
+          "to_place",
+          "status",
+          "requested_at",
+          "revision"
+        ],
+        "title": "Clearance",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.ClearanceStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "rejected",
+          "cancelled",
+          "invalidated"
+        ],
+        "title": "ClearanceStatus",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.Clock": {
+        "additionalProperties": true,
+        "properties": {
+          "time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Time",
+            "type": "string"
+          },
+          "seconds": {
+            "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "running": {
+            "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+            "title": "Running",
+            "type": "boolean"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "title": "Speed",
+            "type": "number"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "time",
+          "seconds",
+          "running",
+          "speed",
+          "game_day"
+        ],
+        "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.DepartureState": {
+        "enum": [
+          "planned",
+          "requested",
+          "cleared",
+          "departed"
+        ],
+        "title": "DepartureState",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.LineMessage": {
+        "additionalProperties": true,
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "acknowledged": {
+            "default": false,
+            "title": "Acknowledged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id",
+          "section",
+          "from_place"
+        ],
+        "title": "LineMessage",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.Neighbour": {
+        "additionalProperties": true,
+        "description": "A place and its game number, for the telephone list in TKL and the app (H24).",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place",
+          "code",
+          "name"
+        ],
+        "title": "Neighbour",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.SectionHere": {
+        "additionalProperties": true,
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "other_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Other Code",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.TrackKind"
+          },
+          "clearance_mode": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.ClearanceMode"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.snapshot.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "exit": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens utfart för sträckan.",
+            "title": "Exit"
+          },
+          "occupied": {
+            "default": false,
+            "title": "Occupied",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "section",
+          "other_place",
+          "other_code",
+          "tracks",
+          "clearance_mode"
+        ],
+        "title": "SectionHere",
+        "type": "object"
+      },
+      "trainmeet.station-1.snapshot.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.station-1.snapshot.TrainOnSection": {
+        "additionalProperties": true,
+        "description": "A train on its way here or that has left, from the departure to the arrival (H32).",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret vid ankomsten.",
+            "title": "Planned Track"
+          },
+          "departed_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "train_number",
+          "section",
+          "other_place",
+          "departed_at"
+        ],
+        "title": "TrainOnSection",
+        "type": "object"
+      },
+      "trainmeet.station-1.event": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "seq": {
+            "description": "Ökar per händelseström; ingen uppspelning av missade.",
+            "minimum": 0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.station-1.event.EventKind"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "place_revision": {
+            "minimum": 0,
+            "title": "Place Revision",
+            "type": "integer"
+          },
+          "clearance_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Clearance Id"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Number"
+          }
+        },
+        "required": [
+          "seq",
+          "kind",
+          "place",
+          "place_revision"
+        ],
+        "title": "Event",
+        "type": "object"
+      },
+      "trainmeet.station-1.event.EventKind": {
+        "enum": [
+          "changed",
+          "train.approaching",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.reminder",
+          "line.available",
+          "approval"
+        ],
+        "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.terminal16.hello": {
+        "additionalProperties": true,
+        "properties": {
+          "device_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Device Code",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "firmware_version": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Firmware Version",
+            "type": "string"
+          },
+          "hardware_version": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hardware Version",
+            "type": "string"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.terminal16.hello.DisplaySize"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "boot": {
+            "description": "Ny för varje anslutning; alla meddelanden bär den.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Boot",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_code",
+          "model",
+          "firmware_version",
+          "hardware_version",
+          "boot"
+        ],
+        "title": "Hello",
+        "type": "object"
+      },
+      "trainmeet.terminal16.hello.DisplaySize": {
+        "additionalProperties": true,
+        "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
+        "properties": {
+          "rows": {
+            "default": 2,
+            "enum": [
+              2,
+              4
+            ],
+            "title": "Rows",
+            "type": "integer"
+          },
+          "cols": {
+            "default": 16,
+            "enum": [
+              16,
+              20
+            ],
+            "title": "Cols",
+            "type": "integer"
+          }
+        },
+        "title": "DisplaySize",
+        "type": "object"
+      },
+      "trainmeet.terminal16.presence": {
+        "additionalProperties": true,
+        "properties": {
+          "nonce": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Nonce",
+            "type": "string"
+          },
+          "boot": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Boot",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nonce",
+          "boot"
+        ],
+        "title": "Presence",
+        "type": "object"
+      },
+      "trainmeet.terminal16.alive": {
+        "additionalProperties": true,
+        "properties": {
+          "boot": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Boot",
+            "type": "string"
+          },
+          "nonce": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nonce"
+          }
+        },
+        "required": [
+          "boot"
+        ],
+        "title": "Alive",
+        "type": "object"
+      },
+      "trainmeet.terminal16.key-press": {
+        "additionalProperties": true,
+        "properties": {
+          "command_id": {
+            "description": "<boot>-<n>, unik per boot.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Command Id",
+            "type": "string"
+          },
+          "view_token": {
+            "description": "Binder trycket till bilden det gjordes på.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "View Token",
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "pattern": "^[0-9]{1,5}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Number"
+          },
+          "entry_context": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Entry Context"
+          },
+          "boot": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara över MQTT.",
+            "title": "Boot"
+          }
+        },
+        "required": [
+          "command_id",
+          "view_token",
+          "key"
+        ],
+        "title": "KeyPress",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame": {
+        "additionalProperties": true,
+        "description": "One screen. The old Server sends more fields (requests, active, status, upcoming ...);\nthey are kept as they are, since unknown fields are kept.",
+        "properties": {
+          "profile": {
+            "default": "server-16x2-pilot",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Profile",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "station": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station",
+            "type": "string"
+          },
+          "station_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station Code",
+            "type": "string"
+          },
+          "rows": {
+            "enum": [
+              2,
+              4
+            ],
+            "title": "Rows",
+            "type": "integer"
+          },
+          "cols": {
+            "enum": [
+              16,
+              20
+            ],
+            "title": "Cols",
+            "type": "integer"
+          },
+          "lines": {
+            "description": "Exakt rows rader, var och en exakt cols tecken.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame.Lcd"
+          },
+          "attention": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame.Attention"
+          },
+          "view_token": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "View Token",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "view_revision": {
+            "minimum": 0,
+            "title": "View Revision",
+            "type": "integer"
+          },
+          "input_guard_ms": {
+            "default": 500,
+            "title": "Input Guard Ms",
+            "type": "integer"
+          },
+          "language": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Language",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.frame.KeyInfo"
+            },
+            "title": "Keys",
+            "type": "object"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame.Entry"
+          }
+        },
+        "required": [
+          "device_id",
+          "station",
+          "station_code",
+          "rows",
+          "cols",
+          "lines",
+          "lcd",
+          "attention",
+          "view_token",
+          "revision",
+          "view_revision",
+          "language",
+          "keys",
+          "entry"
+        ],
+        "title": "Frame",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame.Attention": {
+        "additionalProperties": true,
+        "properties": {
+          "epoch": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.terminal16.frame.AttentionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "epoch",
+          "seq"
+        ],
+        "title": "Attention",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame.AttentionKind": {
+        "description": "What the box should beep for, most important first. The box picks the tones.",
+        "enum": [
+          "incoming_request",
+          "request_denied",
+          "request_approved",
+          "incoming_train"
+        ],
+        "title": "AttentionKind",
+        "type": "string"
+      },
+      "trainmeet.terminal16.frame.Entry": {
+        "additionalProperties": true,
+        "properties": {
+          "context": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Context",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 5,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame.Lcd"
+          },
+          "row": {
+            "default": 0,
+            "title": "Row",
+            "type": "integer"
+          },
+          "column": {
+            "default": 5,
+            "title": "Column",
+            "type": "integer"
+          },
+          "commit": {
+            "default": "#",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Commit",
+            "type": "string"
+          },
+          "cancel": {
+            "default": "*",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Cancel",
+            "type": "string"
+          },
+          "erase": {
+            "default": "B",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Erase",
+            "type": "string"
+          },
+          "shortcut": {
+            "default": "A",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Shortcut",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "short": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Short",
+            "type": "object"
+          }
+        },
+        "required": [
+          "context",
+          "lines",
+          "lcd"
+        ],
+        "title": "Entry",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame.Glyph": {
+        "additionalProperties": true,
+        "properties": {
+          "slot": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Slot",
+            "type": "integer"
+          },
+          "character": {
+            "maxLength": 1,
+            "minLength": 1,
+            "title": "Character",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slot",
+          "character",
+          "rows"
+        ],
+        "title": "Glyph",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame.KeyInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "short": {
+            "description": "Ordet en telefon skriver under tangenten.",
+            "maxLength": 12,
+            "title": "Short",
+            "type": "string"
+          },
+          "acts": {
+            "description": "Sant när tangenten ändrar trafiken.",
+            "title": "Acts",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "short",
+          "acts"
+        ],
+        "title": "KeyInfo",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame.Lcd": {
+        "additionalProperties": true,
+        "properties": {
+          "encoding": {
+            "const": "hd44780-5x8-cgram-v1",
+            "default": "hd44780-5x8-cgram-v1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "cells": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "glyphs": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.frame.Glyph"
+            },
+            "maxItems": 8,
+            "title": "Glyphs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cells"
+        ],
+        "title": "Lcd",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message": {
+        "additionalProperties": true,
+        "properties": {
+          "boot": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Boot",
+            "type": "string"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Frame"
+          }
+        },
+        "required": [
+          "boot",
+          "frame"
+        ],
+        "title": "FrameMessage",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.Attention": {
+        "additionalProperties": true,
+        "properties": {
+          "epoch": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.AttentionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "epoch",
+          "seq"
+        ],
+        "title": "Attention",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.AttentionKind": {
+        "description": "What the box should beep for, most important first. The box picks the tones.",
+        "enum": [
+          "incoming_request",
+          "request_denied",
+          "request_approved",
+          "incoming_train"
+        ],
+        "title": "AttentionKind",
+        "type": "string"
+      },
+      "trainmeet.terminal16.frame-message.Entry": {
+        "additionalProperties": true,
+        "properties": {
+          "context": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Context",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 5,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Lcd"
+          },
+          "row": {
+            "default": 0,
+            "title": "Row",
+            "type": "integer"
+          },
+          "column": {
+            "default": 5,
+            "title": "Column",
+            "type": "integer"
+          },
+          "commit": {
+            "default": "#",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Commit",
+            "type": "string"
+          },
+          "cancel": {
+            "default": "*",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Cancel",
+            "type": "string"
+          },
+          "erase": {
+            "default": "B",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Erase",
+            "type": "string"
+          },
+          "shortcut": {
+            "default": "A",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Shortcut",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "short": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Short",
+            "type": "object"
+          }
+        },
+        "required": [
+          "context",
+          "lines",
+          "lcd"
+        ],
+        "title": "Entry",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.Frame": {
+        "additionalProperties": true,
+        "description": "One screen. The old Server sends more fields (requests, active, status, upcoming ...);\nthey are kept as they are, since unknown fields are kept.",
+        "properties": {
+          "profile": {
+            "default": "server-16x2-pilot",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Profile",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "station": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station",
+            "type": "string"
+          },
+          "station_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station Code",
+            "type": "string"
+          },
+          "rows": {
+            "enum": [
+              2,
+              4
+            ],
+            "title": "Rows",
+            "type": "integer"
+          },
+          "cols": {
+            "enum": [
+              16,
+              20
+            ],
+            "title": "Cols",
+            "type": "integer"
+          },
+          "lines": {
+            "description": "Exakt rows rader, var och en exakt cols tecken.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Lcd"
+          },
+          "attention": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Attention"
+          },
+          "view_token": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "View Token",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "view_revision": {
+            "minimum": 0,
+            "title": "View Revision",
+            "type": "integer"
+          },
+          "input_guard_ms": {
+            "default": 500,
+            "title": "Input Guard Ms",
+            "type": "integer"
+          },
+          "language": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Language",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.KeyInfo"
+            },
+            "title": "Keys",
+            "type": "object"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Entry"
+          }
+        },
+        "required": [
+          "device_id",
+          "station",
+          "station_code",
+          "rows",
+          "cols",
+          "lines",
+          "lcd",
+          "attention",
+          "view_token",
+          "revision",
+          "view_revision",
+          "language",
+          "keys",
+          "entry"
+        ],
+        "title": "Frame",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.Glyph": {
+        "additionalProperties": true,
+        "properties": {
+          "slot": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Slot",
+            "type": "integer"
+          },
+          "character": {
+            "maxLength": 1,
+            "minLength": 1,
+            "title": "Character",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slot",
+          "character",
+          "rows"
+        ],
+        "title": "Glyph",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.KeyInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "short": {
+            "description": "Ordet en telefon skriver under tangenten.",
+            "maxLength": 12,
+            "title": "Short",
+            "type": "string"
+          },
+          "acts": {
+            "description": "Sant när tangenten ändrar trafiken.",
+            "title": "Acts",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "short",
+          "acts"
+        ],
+        "title": "KeyInfo",
+        "type": "object"
+      },
+      "trainmeet.terminal16.frame-message.Lcd": {
+        "additionalProperties": true,
+        "properties": {
+          "encoding": {
+            "const": "hd44780-5x8-cgram-v1",
+            "default": "hd44780-5x8-cgram-v1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "cells": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "glyphs": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.frame-message.Glyph"
+            },
+            "maxItems": 8,
+            "title": "Glyphs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cells"
+        ],
+        "title": "Lcd",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack": {
+        "additionalProperties": true,
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.AckStatus"
+          },
+          "message": {
+            "default": "",
+            "description": "En text att visa, på boxens språk.",
+            "title": "Message",
+            "type": "string"
+          },
+          "command_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Command Id",
+            "type": "string"
+          },
+          "boot": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Boot"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.Frame"
+          }
+        },
+        "required": [
+          "status",
+          "command_id",
+          "frame"
+        ],
+        "title": "Ack",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.AckStatus": {
+        "enum": [
+          "accepted",
+          "rejected",
+          "duplicate"
+        ],
+        "title": "AckStatus",
+        "type": "string"
+      },
+      "trainmeet.terminal16.ack.Attention": {
+        "additionalProperties": true,
+        "properties": {
+          "epoch": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.terminal16.ack.AttentionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "epoch",
+          "seq"
+        ],
+        "title": "Attention",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.AttentionKind": {
+        "description": "What the box should beep for, most important first. The box picks the tones.",
+        "enum": [
+          "incoming_request",
+          "request_denied",
+          "request_approved",
+          "incoming_train"
+        ],
+        "title": "AttentionKind",
+        "type": "string"
+      },
+      "trainmeet.terminal16.ack.Entry": {
+        "additionalProperties": true,
+        "properties": {
+          "context": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Context",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 5,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.Lcd"
+          },
+          "row": {
+            "default": 0,
+            "title": "Row",
+            "type": "integer"
+          },
+          "column": {
+            "default": 5,
+            "title": "Column",
+            "type": "integer"
+          },
+          "commit": {
+            "default": "#",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Commit",
+            "type": "string"
+          },
+          "cancel": {
+            "default": "*",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Cancel",
+            "type": "string"
+          },
+          "erase": {
+            "default": "B",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Erase",
+            "type": "string"
+          },
+          "shortcut": {
+            "default": "A",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "A",
+              "B",
+              "C",
+              "D",
+              "#",
+              "*"
+            ],
+            "title": "Shortcut",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "short": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Short",
+            "type": "object"
+          }
+        },
+        "required": [
+          "context",
+          "lines",
+          "lcd"
+        ],
+        "title": "Entry",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.Frame": {
+        "additionalProperties": true,
+        "description": "One screen. The old Server sends more fields (requests, active, status, upcoming ...);\nthey are kept as they are, since unknown fields are kept.",
+        "properties": {
+          "profile": {
+            "default": "server-16x2-pilot",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Profile",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "station": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station",
+            "type": "string"
+          },
+          "station_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Station Code",
+            "type": "string"
+          },
+          "rows": {
+            "enum": [
+              2,
+              4
+            ],
+            "title": "Rows",
+            "type": "integer"
+          },
+          "cols": {
+            "enum": [
+              16,
+              20
+            ],
+            "title": "Cols",
+            "type": "integer"
+          },
+          "lines": {
+            "description": "Exakt rows rader, var och en exakt cols tecken.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "lcd": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.Lcd"
+          },
+          "attention": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.Attention"
+          },
+          "view_token": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "View Token",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "view_revision": {
+            "minimum": 0,
+            "title": "View Revision",
+            "type": "integer"
+          },
+          "input_guard_ms": {
+            "default": 500,
+            "title": "Input Guard Ms",
+            "type": "integer"
+          },
+          "language": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Language",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.ack.KeyInfo"
+            },
+            "title": "Keys",
+            "type": "object"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/trainmeet.terminal16.ack.Entry"
+          }
+        },
+        "required": [
+          "device_id",
+          "station",
+          "station_code",
+          "rows",
+          "cols",
+          "lines",
+          "lcd",
+          "attention",
+          "view_token",
+          "revision",
+          "view_revision",
+          "language",
+          "keys",
+          "entry"
+        ],
+        "title": "Frame",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.Glyph": {
+        "additionalProperties": true,
+        "properties": {
+          "slot": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Slot",
+            "type": "integer"
+          },
+          "character": {
+            "maxLength": 1,
+            "minLength": 1,
+            "title": "Character",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slot",
+          "character",
+          "rows"
+        ],
+        "title": "Glyph",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.KeyInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "short": {
+            "description": "Ordet en telefon skriver under tangenten.",
+            "maxLength": 12,
+            "title": "Short",
+            "type": "string"
+          },
+          "acts": {
+            "description": "Sant när tangenten ändrar trafiken.",
+            "title": "Acts",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "short",
+          "acts"
+        ],
+        "title": "KeyInfo",
+        "type": "object"
+      },
+      "trainmeet.terminal16.ack.Lcd": {
+        "additionalProperties": true,
+        "properties": {
+          "encoding": {
+            "const": "hd44780-5x8-cgram-v1",
+            "default": "hd44780-5x8-cgram-v1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "cells": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "glyphs": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.terminal16.ack.Glyph"
+            },
+            "maxItems": 8,
+            "title": "Glyphs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cells"
+        ],
+        "title": "Lcd",
+        "type": "object"
+      },
+      "trainmeet.terminal-web-1.login": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "description": "Lokal kod för träffen. Skrivs aldrig ut i loggen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "WebLogin",
+        "type": "object"
+      },
+      "trainmeet.terminal-web-1.session": {
+        "additionalProperties": true,
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "session_key": {
+            "description": "Boxens sessionsnyckel. Skrivs aldrig ut i loggen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Session Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "session_key"
+        ],
+        "title": "WebSession",
+        "type": "object"
+      },
+      "trainmeet.drift-1.start": {
+        "additionalProperties": true,
+        "properties": {
+          "version": {
+            "description": "Versionen av träffpaketet som körs.",
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "default": 1,
+            "description": "Speldygnet, Dag 1…N.",
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "traffic_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.start.Weekday"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Trafikdagen; tomt betyder paketets förval (F8)."
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "StartMeet",
+        "type": "object"
+      },
+      "trainmeet.drift-1.start.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
+      },
+      "trainmeet.drift-1.clock": {
+        "additionalProperties": true,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.clock.ClockAction"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 60,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Speed"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
+          },
+          "game_day": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Game Day"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ClockControl",
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "action": {
+                "const": "speed"
+              },
+              "speed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "speed"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "jump"
+              },
+              "time": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "time"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "enum": [
+                  "start",
+                  "stop",
+                  "undo_jump"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "trainmeet.drift-1.clock.ClockAction": {
+        "enum": [
+          "start",
+          "stop",
+          "speed",
+          "jump",
+          "undo_jump"
+        ],
+        "title": "ClockAction",
+        "type": "string"
+      },
+      "trainmeet.drift-1.approve": {
+        "additionalProperties": true,
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client_id",
+          "places"
+        ],
+        "title": "Approve",
+        "type": "object"
+      },
+      "trainmeet.drift-1.revoke": {
+        "additionalProperties": true,
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "Revoke",
+        "type": "object"
+      },
+      "trainmeet.drift-1.assign": {
+        "additionalProperties": true,
+        "description": "A TMBox gets a place and a side, as before. One box may run several places (H44).",
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          },
+          "side": {
+            "default": "both",
+            "enum": [
+              "both",
+              "left",
+              "right"
+            ],
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "places"
+        ],
+        "title": "Assign",
+        "type": "object"
+      },
+      "trainmeet.drift-1.client": {
+        "additionalProperties": true,
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "tkl",
+              "tmbox_app",
+              "dispatch",
+              "tmbox_web",
+              "tmbox"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.client.ApprovalStatus"
+          },
+          "places": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "side": {
+            "default": "both",
+            "enum": [
+              "both",
+              "left",
+              "right"
+            ],
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "name",
+          "kind",
+          "status"
+        ],
+        "title": "Client",
+        "type": "object"
+      },
+      "trainmeet.drift-1.client.ApprovalStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "refused",
+          "revoked"
+        ],
+        "title": "ApprovalStatus",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.drift/1",
+            "default": "trainmeet.drift/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "seq": {
+            "description": "Händelsens nummer i den körande träffen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarens epok; högre epok vinner.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          },
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "model_time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Model Time",
+            "type": "string"
+          },
+          "wall_time": {
+            "format": "date-time",
+            "title": "Wall Time",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.EventKind"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.Actor"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Kommandots id, för spårbarhet.",
+            "title": "Message Id"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "train": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "seq",
+          "epoch",
+          "meet_id",
+          "version",
+          "game_day",
+          "model_time",
+          "wall_time",
+          "kind",
+          "actor"
+        ],
+        "title": "DriftEvent",
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "meet.started",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.MeetStarted"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clock.started",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClockChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clock.stopped",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClockChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clock.speed",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClockChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clearance.requested",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceRequested"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clearance.answered",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceAnswered"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clearance.cancelled",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "train.departed",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "train.arrived",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "not": {
+                  "enum": [
+                    "meet.started",
+                    "clock.started",
+                    "clock.stopped",
+                    "clock.speed",
+                    "clearance.requested",
+                    "clearance.answered",
+                    "clearance.cancelled",
+                    "train.departed",
+                    "train.arrived"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "clearance.requested"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "call": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "call"
+              ]
+            }
+          }
+        ]
+      },
+      "trainmeet.drift-1.event.Actor": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.ActorKind"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Actor",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ActorKind": {
+        "enum": [
+          "client",
+          "dispatcher",
+          "automation",
+          "system"
+        ],
+        "title": "ActorKind",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.EventKind": {
+        "enum": [
+          "meet.started",
+          "clock.started",
+          "clock.stopped",
+          "clock.speed",
+          "clock.jump",
+          "clock.jump_undone",
+          "day.changed",
+          "client.approved",
+          "client.revoked",
+          "client.assigned",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.cancelled",
+          "clearance.reminded",
+          "train.departed",
+          "train.arrived",
+          "train.moved_here",
+          "train.track_changed",
+          "train.set_aside",
+          "line.available",
+          "section.occupancy",
+          "signal.exit"
+        ],
+        "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.MeetStarted": {
+        "additionalProperties": true,
+        "properties": {
+          "traffic_day": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.Weekday"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "maximum": 60,
+            "title": "Speed",
+            "type": "number"
+          }
+        },
+        "required": [
+          "traffic_day",
+          "speed"
+        ],
+        "title": "MeetStarted",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ClockChanged": {
+        "additionalProperties": true,
+        "properties": {
+          "seconds": {
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "number"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "maximum": 60,
+            "title": "Speed",
+            "type": "number"
+          }
+        },
+        "required": [
+          "seconds",
+          "speed"
+        ],
+        "title": "ClockChanged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ClearanceRequested": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "section",
+          "to_place"
+        ],
+        "title": "ClearanceRequested",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ClearanceAnswered": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "approved"
+        ],
+        "title": "ClearanceAnswered",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ClearanceRef": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clearance_id"
+        ],
+        "title": "ClearanceRef",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "clientKey": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

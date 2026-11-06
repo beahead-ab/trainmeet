@@ -81,7 +81,7 @@ def _built(info: BuildInfo) -> str:
     return escape(info.built.strftime("%Y-%m-%d %H:%M %Z").strip())
 
 
-def render_start_page(info: BuildInfo) -> str:
+def _document(info: BuildInfo, content: str, extra_head: str = "") -> str:
     hub_name = escape(info.hub_name)
     return f"""<!doctype html>
 <html lang="sv">
@@ -93,6 +93,7 @@ def render_start_page(info: BuildInfo) -> str:
 <style>
 {_STYLE}
 </style>
+{extra_head}
 </head>
 <body>
 <header>
@@ -101,11 +102,20 @@ def render_start_page(info: BuildInfo) -> str:
   <span class="streck" aria-hidden="true"></span>
   <span class="sida">{hub_name}</span>
 </header>
-<main>
+{content}
+</body>
+</html>
+"""
+
+
+def render_start_page(info: BuildInfo) -> str:
+    return _document(
+        info,
+        f"""<main>
   <section class="kort">
-    <h1>Tom hubb</h1>
-    <p class="ingress">Hubben är igång men har inga träffar än. Drift, Planering, Synk och
-    Integrationer kommer i nästa steg.</p>
+    <h1>Prova Drift</h1>
+    <p class="ingress">Här kan du prova Drift med en påhittad träff på Provbanan.</p>
+    <p><a href="/provbanan">Öppna Provbanan →</a></p>
     <dl>
       <dt>Status</dt><dd><span class="status">Igång</span></dd>
       <dt>Version</dt><dd>{escape(info.version)}</dd>
@@ -120,6 +130,45 @@ def render_start_page(info: BuildInfo) -> str:
     <span>AGPL-3.0</span>
   </footer>
 </main>
-</body>
-</html>
-"""
+""",
+    )
+
+
+def render_preview(info: BuildInfo) -> str:
+    return _document(
+        info,
+        """<main class="prov">
+  <a href="/">← Hubben</a>
+  <section class="kort">
+    <h1>Provbanan</h1>
+    <p class="ingress">Prova Drift på fyra driftplatser med måndagens tio tåg.
+      Du agerar från den driftplats som anges på knappen.</p>
+    <button id="start" type="button">Starta provkörning</button>
+    <p id="notice" role="status" aria-live="polite"></p>
+    <div id="run" hidden>
+      <div class="controls">
+        <output id="clock" class="kod"></output>
+        <button id="toggle-clock" type="button">Starta klockan</button>
+        <label>Hastighet <input id="speed" type="number" min="0.1" max="60" step="0.1"></label>
+        <button id="set-speed" type="button">Spara hastighet</button>
+      </div>
+      <h2>Tidtabell och klarering</h2>
+      <p class="ingress">Prova tåg 101 från Norrby för begärd klarering. Prova tåg 102 från
+        Sjövik för direktklarering. Välj ett tågbesök och följ ärendet till ankomst.</p>
+      <div class="controls">
+        <label for="leg">Avgång</label>
+        <select id="leg"></select>
+        <button id="request" type="button">Begär klarering</button>
+      </div>
+      <p id="leg-info" class="ingress"></p>
+      <h2>Klareringar</h2>
+      <ul id="cases" class="cases"></ul>
+      <button id="restart" type="button">Ny provkörning</button>
+    </div>
+  </section>
+  <p class="ingress">Din provkörning sparas i ett dygn i den här webbläsaren.</p>
+</main>
+""",
+        """<link rel="stylesheet" href="/static/provbanan.css">
+<script src="/static/provbanan.js" defer></script>""",
+    )
