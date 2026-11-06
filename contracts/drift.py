@@ -35,6 +35,9 @@ PROTOCOL: Final = "trainmeet.drift/1"
 
 
 class StartMeet(Contract):
+    meet: Id = Field(
+        default="provbanan", description="Träffen som körs: Provbanan eller en träff i Planering."
+    )
     version: int = Field(ge=1, description="Versionen av träffpaketet som körs.")
     game_day: int = Field(default=1, ge=1, description="Speldygnet, Dag 1…N.")
     traffic_day: Weekday | None = Field(
@@ -292,6 +295,7 @@ class Now(Contract):
 
     meet_id: Id
     name: Text
+    version: int = Field(default=1, ge=1, description="Versionen av träffpaketet som körs.")
     traffic_day: Weekday
     game_day: int
     clock: Clock

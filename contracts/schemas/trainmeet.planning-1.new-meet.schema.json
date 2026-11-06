@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.new-meet.schema.json",
+  "title": "trainmeet.planning-1.new-meet",
+  "additionalProperties": true,
+  "description": "Ny träff: a name, the dates and the country.",
+  "properties": {
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "first_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "First Date"
+    },
+    "last_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Date"
+    },
+    "country": {
+      "default": "se",
+      "enum": [
+        "se",
+        "dk",
+        "no",
+        "de"
+      ],
+      "title": "Country",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}

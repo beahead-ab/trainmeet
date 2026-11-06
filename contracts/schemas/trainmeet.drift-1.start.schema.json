@@ -20,6 +20,13 @@
   },
   "additionalProperties": true,
   "properties": {
+    "meet": {
+      "default": "provbanan",
+      "description": "Träffen som körs: Provbanan eller en träff i Planering.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
     "version": {
       "description": "Versionen av träffpaketet som körs.",
       "minimum": 1,

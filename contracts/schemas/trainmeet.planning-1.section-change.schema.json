@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.section-change.schema.json",
+  "title": "trainmeet.planning-1.section-change",
+  "$defs": {
+    "ClearanceMode": {
+      "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+      "enum": [
+        "requested",
+        "direct"
+      ],
+      "title": "ClearanceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
+  "properties": {
+    "section": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Section",
+      "type": "string"
+    },
+    "clearance_mode": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClearanceMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "section"
+  ],
+  "type": "object"
+}

@@ -130,12 +130,14 @@ class PreviewStore:
         lifetime: timedelta = RUN_LIFETIME,
         max_runs: int = MAX_RUNS,
         max_actions: int = MAX_ACTIONS,
+        version: int = 1,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
         and no small limits (spec 7: a file per running meet)."""
         self.path = path
         self.package = package
+        self.version = version
         self.lifetime = lifetime
         self.max_runs = max_runs
         self.max_actions = max_actions
@@ -177,7 +179,7 @@ class PreviewStore:
                 "SELECT body FROM preview_event WHERE run_id=? ORDER BY seq", (run_id,)
             )
         ]
-        drift = Drift(self.package, history, now=now)
+        drift = Drift(self.package, history, now=now, version=self.version)
         if row[0] != self.boot:
             size = len(history)
             drift.pause_after_restart(now)
@@ -210,7 +212,7 @@ class PreviewStore:
             if replace:
                 for table in ("preview_box", "station_client", "screen", "preview_join"):
                     db.execute(f"DELETE FROM {table} WHERE run_id!=?", (run_id,))
-            drift = Drift(self.package, [], now=now)
+            drift = Drift(self.package, [], now=now, version=self.version)
             drift.start(now, traffic_day, game_day)
             self._save(db, run_id, drift.history)
         return run_id
@@ -626,6 +628,24 @@ class PreviewStore:
         if row is None:
             raise MissingRun()
         return str(row[0])
+
+    def events_after(self, run_id: str, seq: int) -> list[events.DriftEvent]:
+        """The run's events after seq, read as they are stored: no replay, so a stream can ask
+        often even for a big meet."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT 1 FROM preview_run WHERE id=? AND expires>? AND package=?",
+                (run_id, now_utc().timestamp(), self.package_key),
+            ).fetchone()
+            if row is None:
+                raise MissingRun()
+            return [
+                events.DriftEvent.model_validate_json(body)
+                for (body,) in db.execute(
+                    "SELECT body FROM preview_event WHERE run_id=? AND seq>? ORDER BY seq",
+                    (run_id, seq),
+                )
+            ]
 
     def log(
         self, run_id: str, place: str | None = None, train: str | None = None

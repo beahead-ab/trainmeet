@@ -730,6 +730,382 @@
           }
         }
       }
+    },
+    "/api/planering/1/meets": {
+      "get": {
+        "operationId": "planningMeets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "newMeet",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.new-meet"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}": {
+      "get": {
+        "operationId": "planningDraft",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/places": {
+      "post": {
+        "operationId": "changePlace",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.meet-1.Place"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.place-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/sections": {
+      "post": {
+        "operationId": "changeSection",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.meet-1.Section"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.section-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/answers": {
+      "post": {
+        "operationId": "answerQuestion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.answer"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/check": {
+      "get": {
+        "operationId": "planningCheck",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.check"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/versions": {
+      "get": {
+        "operationId": "planningVersions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.planning-1.version"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "publish",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.version"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/versions/{number}": {
+      "get": {
+        "operationId": "planningVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.meet-1"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/sources": {
+      "post": {
+        "operationId": "addSource",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6667,6 +7043,13 @@
       "trainmeet.drift-1.start": {
         "additionalProperties": true,
         "properties": {
+          "meet": {
+            "default": "provbanan",
+            "description": "Träffen som körs: Provbanan eller en träff i Planering.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
           "version": {
             "description": "Versionen av träffpaketet som körs.",
             "minimum": 1,
@@ -7823,6 +8206,13 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "version": {
+            "default": 1,
+            "description": "Versionen av träffpaketet som körs.",
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
           },
           "traffic_day": {
             "$ref": "#/components/schemas/trainmeet.drift-1.now.Weekday"
@@ -10347,6 +10737,21 @@
               }
             ],
             "default": null
+          },
+          "changes": {
+            "description": "Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.PlaceChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.SectionChange"
+                }
+              ]
+            },
+            "title": "Changes",
+            "type": "array"
           }
         },
         "required": [
@@ -11457,6 +11862,36 @@
         "title": "Place",
         "type": "object"
       },
+      "trainmeet.planning-1.draft.PlaceChange": {
+        "additionalProperties": true,
+        "description": "A change to one place in the draft. Only the fields sent are changed.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "PlaceChange",
+        "type": "object"
+      },
       "trainmeet.planning-1.draft.PlaceKind": {
         "description": "Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.",
         "enum": [
@@ -11648,6 +12083,33 @@
           "place_b"
         ],
         "title": "Section",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.SectionChange": {
+        "additionalProperties": true,
+        "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.planning-1.draft.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "section"
+        ],
+        "title": "SectionChange",
         "type": "object"
       },
       "trainmeet.planning-1.draft.SectionPart": {
@@ -12138,6 +12600,489 @@
         ],
         "title": "Weekday",
         "type": "string"
+      },
+      "trainmeet.planning-1.new-meet": {
+        "additionalProperties": true,
+        "description": "Ny träff: a name, the dates and the country.",
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Date"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Date"
+          },
+          "country": {
+            "default": "se",
+            "enum": [
+              "se",
+              "dk",
+              "no",
+              "de"
+            ],
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "NewMeet",
+        "type": "object"
+      },
+      "trainmeet.planning-1.meet-summary": {
+        "additionalProperties": true,
+        "description": "A meet in the list: its draft at a glance and its versions.",
+        "properties": {
+          "meet": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.Meet"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "maximum": 4,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Level"
+          },
+          "places": {
+            "default": 0,
+            "title": "Places",
+            "type": "integer"
+          },
+          "trains": {
+            "default": 0,
+            "title": "Trains",
+            "type": "integer"
+          },
+          "sources": {
+            "default": 0,
+            "title": "Sources",
+            "type": "integer"
+          },
+          "questions": {
+            "default": 0,
+            "title": "Questions",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.Version"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "meet"
+        ],
+        "title": "MeetSummary",
+        "type": "object"
+      },
+      "trainmeet.planning-1.meet-summary.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.planning-1.meet-summary.Meet": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "country": {
+            "default": "se",
+            "enum": [
+              "se",
+              "dk",
+              "no",
+              "de"
+            ],
+            "title": "Country",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "Europe/Stockholm",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Date"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Date"
+          },
+          "traffic_week": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.TrafficWeek"
+          },
+          "clearance_mode": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.ClearanceMode",
+            "default": "requested"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Meet",
+        "type": "object"
+      },
+      "trainmeet.planning-1.meet-summary.TrafficWeek": {
+        "additionalProperties": true,
+        "description": "The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.",
+        "properties": {
+          "start_weekday": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.Weekday",
+            "default": "mon"
+          },
+          "days": {
+            "default": 1,
+            "description": "Antal speldygn, Dag 1…N.",
+            "maximum": 31,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "runs_over_midnight": {
+            "default": false,
+            "title": "Runs Over Midnight",
+            "type": "boolean"
+          }
+        },
+        "title": "TrafficWeek",
+        "type": "object"
+      },
+      "trainmeet.planning-1.meet-summary.Version": {
+        "additionalProperties": true,
+        "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "number": {
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "published": {
+            "format": "date-time",
+            "title": "Published",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "observations": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Observations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet",
+          "number",
+          "published",
+          "checksum"
+        ],
+        "title": "Version",
+        "type": "object"
+      },
+      "trainmeet.planning-1.meet-summary.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
+      },
+      "trainmeet.planning-1.place-change": {
+        "additionalProperties": true,
+        "description": "A change to one place in the draft. Only the fields sent are changed.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "PlaceChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.section-change": {
+        "additionalProperties": true,
+        "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.planning-1.section-change.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "section"
+        ],
+        "title": "SectionChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.section-change.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.planning-1.answer": {
+        "additionalProperties": true,
+        "description": "The planner's answer to a question: one of its alternatives.",
+        "properties": {
+          "question": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Question",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "value"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
+      "trainmeet.planning-1.check": {
+        "additionalProperties": true,
+        "description": "Trafikkontrollen of the draft: what publishing would carry in its findings.",
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.check.Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "title": "Check",
+        "type": "object"
+      },
+      "trainmeet.planning-1.check.Finding": {
+        "additionalProperties": true,
+        "description": "From the traffic check (Planering): shown, but does not stop publishing.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.check.Severity"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "refs": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "severity",
+          "code",
+          "message"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "trainmeet.planning-1.check.Severity": {
+        "description": "A published package carries no structural errors: those stop publishing.",
+        "enum": [
+          "conflict",
+          "observation"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "trainmeet.planning-1.version": {
+        "additionalProperties": true,
+        "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "number": {
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "published": {
+            "format": "date-time",
+            "title": "Published",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "observations": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Observations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet",
+          "number",
+          "published",
+          "checksum"
+        ],
+        "title": "Version",
+        "type": "object"
       }
     },
     "securitySchemes": {

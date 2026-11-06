@@ -1,0 +1,139 @@
+/* Planering, in Biblioteket (light): TrainMeet Design System, proposal 4 November.
+   Dark when one runs, light when one plans. The header is dark in both.
+   Times and train numbers in Inter with tabular figures; Mono only for codes and ids (S7). */
+@font-face { font-family: Inter; src: url(/static/fonts/inter.woff2) format("woff2");
+  font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url(/static/fonts/jetbrains-mono.woff2)
+  format("woff2"); font-weight: 100 800; font-display: swap; }
+
+:root { color-scheme: light; --bg: #f6f5f2; --panel: #ffffff; --step: #fbfaf9;
+  --step-2: #f0efec; --line: #e5e5e2; --text: #0a0a0a; --text-2: #3d3d3a; --mute: #6b6b66;
+  --blue: #2256c3; --green: #15803d; --amber: #a16207; --red: #b42318;
+  --shadow: 0 1px 2px rgb(10 10 10 / 4%), 0 2px 8px rgb(10 10 10 / 4%); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 17px; margin: 0 0 4px; font-weight: 700; }
+h3 { font-size: 14px; margin: 20px 0 8px; font-weight: 700; color: var(--text-2); }
+.liten { color: var(--mute); font-size: 13.5px; margin: 2px 0 0; }
+.ingress { color: var(--text-2); font-size: 16px; margin: 8px 0 0; max-width: 680px; }
+.overrubrik { color: var(--blue); font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; margin: 0 0 6px; }
+.mono, td.kod { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 13px; }
+.fet { font-weight: 600; margin: 0; }
+.antal { color: var(--mute); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.sidhuvud { height: 60px; display: flex; align-items: center; gap: 14px; padding: 0 20px;
+  background: #121418; color: #e9ebef; border-bottom: 1px solid #333944; }
+.sidhuvud .skylt { height: 34px; width: auto; display: block; }
+.sidhuvud .namn { height: 21px; width: auto; display: block; }
+.sidhuvud .streck { width: 1px; height: 24px; background: #333944; }
+.spar { display: flex; gap: 8px; align-items: baseline; font-weight: 600; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spar a { color: #8d94a0; }
+.spar .pil { color: #8d94a0; }
+.fyll { flex: 1; }
+.hknapp { font: inherit; font-size: 13px; font-weight: 600; color: #e9ebef;
+  background: #1b1f26; border: 1px solid #333944; border-radius: 8px; padding: 5px 12px;
+  cursor: pointer; white-space: nowrap; }
+.hknapp:hover { text-decoration: none; border-color: #4a5260; }
+
+.flikar { display: flex; gap: 26px; background: var(--panel);
+  padding: 0 max(24px, calc((100% - 1180px) / 2 + 24px));
+  border-bottom: 1px solid var(--line); }
+.flikar a { color: var(--mute); padding: 13px 0 11px; border-bottom: 2px solid transparent;
+  font-weight: 600; }
+.flikar a[aria-current="page"] { color: var(--text); border-bottom-color: var(--blue); }
+.flikar a:hover { text-decoration: none; color: var(--text); }
+
+main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+.sidrubrik { margin-bottom: 24px; }
+.kort { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 22px 24px; margin: 0 0 18px; box-shadow: var(--shadow); }
+.lista-kort { padding: 8px 0 4px; overflow-x: auto; }
+.lista-kort > h2, .lista-kort > p { padding: 12px 24px 0; }
+.rad { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0 0; }
+.formular { display: grid; gap: 12px; margin-top: 12px; }
+label { color: var(--mute); font-size: 13px; display: inline-flex; flex-direction: column;
+  gap: 4px; }
+.formular > label { max-width: 420px; }
+input, select { font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-height: 36px; }
+input:focus, select:focus { outline: 2px solid rgb(34 86 195 / 25%); border-color: var(--blue); }
+button { font: inherit; font-weight: 600; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button:hover { border-color: #cfcfca; }
+button.primar { background: var(--blue); border-color: var(--blue); color: #fff;
+  min-height: 40px; padding: 8px 18px; justify-self: start; }
+button:disabled { opacity: 0.55; cursor: default; }
+.meddelande { color: var(--red); min-height: 1.5em; margin: 12px 0 0; }
+.meddelande.ok { color: var(--green); }
+
+.tabell { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabell th { text-align: left; color: var(--mute); font-weight: 600; font-size: 12.5px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabell td { padding: 9px 12px; border-bottom: 1px solid var(--step-2);
+  font-variant-numeric: tabular-nums; vertical-align: middle; }
+.tabell tr:last-child td { border-bottom: 0; }
+.tabell th:first-child, .tabell td:first-child { padding-left: 24px; }
+.tabell th:last-child, .tabell td:last-child { padding-right: 24px; }
+.tabell .tal { text-align: right; }
+.tabell td.tom { color: var(--mute); }
+.tabell input { min-height: 30px; padding: 4px 8px; width: 9em; }
+.tabell select { min-height: 30px; padding: 3px 6px; }
+.tabell .svag { color: var(--mute); }
+
+.niva { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700;
+  color: var(--green); background: #ecf6ef; border: 1px solid #cfe7d6; border-radius: 999px;
+  padding: 3px 10px; white-space: nowrap; }
+.niva.ingen { color: var(--mute); background: var(--step-2); border-color: var(--line); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+  font-weight: 600; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; }
+.pill.sure, .pill.confirmed { color: var(--green); }
+.pill.likely { color: var(--blue); }
+.pill.unsure { color: var(--amber); }
+.pill.conflict { color: var(--red); }
+.pill.observation { color: var(--amber); }
+
+.rapporthuvud { display: flex; gap: 14px; align-items: center; margin: 12px 0 4px; }
+.nyckeltal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px; }
+.nyckeltal div { background: var(--step); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 14px; }
+.nyckeltal b { display: block; font-size: 24px; font-weight: 800;
+  font-variant-numeric: tabular-nums; }
+.nyckeltal span { color: var(--mute); font-size: 13px; }
+.nyckeltal small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
+.punkter { margin: 0; padding-left: 20px; color: var(--text-2); }
+.punkter li { margin: 4px 0; }
+.punkter li.tom { list-style: none; margin-left: -20px; color: var(--mute); }
+
+.fragor, .fynd { list-style: none; margin: 12px 0 0; padding: 0; }
+.fragor li, .fynd li { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  margin: 0 0 8px; background: var(--step); }
+.fragor li.tom, .fynd li.tom { border: 0; background: none; padding: 0; color: var(--mute); }
+.fynd li { display: flex; gap: 12px; align-items: baseline; }
+.fynd .pill { min-width: 100px; }
+.svar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.svar button[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip { font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-2);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 14px; min-height: 32px; cursor: pointer; }
+.chip[aria-pressed="true"] { color: #fff; background: var(--blue); border-color: var(--blue); }
+.chip .antal { margin-left: 6px; color: inherit; opacity: 0.75; }
+#filters:empty { display: none; }
+#filters { margin: 0 0 14px; }
+
+@media (max-width: 700px) {
+  .sidhuvud { gap: 10px; padding: 0 12px; }
+  .sidhuvud .namn, .sidhuvud .streck { display: none; }
+  main { padding: 20px 14px 48px; }
+  h1 { font-size: 24px; }
+}

@@ -20,6 +20,7 @@ def now(drift: Drift, at: datetime) -> contract.Now:
     return contract.Now(
         meet_id=drift.package.meet.id,
         name=drift.package.meet.name,
+        version=drift.version,
         traffic_day=drift.traffic_day,
         game_day=drift.game_day,
         clock=station.Clock(

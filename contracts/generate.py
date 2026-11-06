@@ -60,6 +60,13 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.session": hub.Session,
     "trainmeet.planning-1.import": planning.ImportResult,
     "trainmeet.planning-1.draft": planning.Draft,
+    "trainmeet.planning-1.new-meet": planning.NewMeet,
+    "trainmeet.planning-1.meet-summary": planning.MeetSummary,
+    "trainmeet.planning-1.place-change": planning.PlaceChange,
+    "trainmeet.planning-1.section-change": planning.SectionChange,
+    "trainmeet.planning-1.answer": planning.Answer,
+    "trainmeet.planning-1.check": planning.Check,
+    "trainmeet.planning-1.version": planning.Version,
 }
 
 
@@ -272,6 +279,42 @@ def openapi() -> str:
     route("get", "/api/hub", "hubInfo", h + "info")
     route("post", "/api/hub/setup", "hubSetUp", h + "session", h + "setup")
     route("post", "/api/hub/login", "hubLogIn", h + "session", h + "login")
+    p = "trainmeet.planning-1."
+    m = "/api/planering/1/meets"
+    route("get", m, "planningMeets", p + "meet-summary", many=True)
+    route("post", m, "newMeet", p + "draft", p + "new-meet", bearer=True)
+    route("get", m + "/{meet}", "planningDraft", p + "draft")
+    route(
+        "post",
+        m + "/{meet}/places",
+        "changePlace",
+        "trainmeet.meet-1.Place",
+        p + "place-change",
+        bearer=True,
+    )
+    route(
+        "post",
+        m + "/{meet}/sections",
+        "changeSection",
+        "trainmeet.meet-1.Section",
+        p + "section-change",
+        bearer=True,
+    )
+    route("post", m + "/{meet}/answers", "answerQuestion", p + "draft", p + "answer", bearer=True)
+    route("get", m + "/{meet}/check", "planningCheck", p + "check")
+    route("get", m + "/{meet}/versions", "planningVersions", p + "version", many=True)
+    route("post", m + "/{meet}/versions", "publish", p + "version", bearer=True)
+    route("get", m + "/{meet}/versions/{number}", "planningVersion", "trainmeet.meet-1")
+    # Lägg till underlag: the file's own bytes, its name in the address.
+    route("post", m + "/{meet}/sources", "addSource", p + "draft", bearer=True)
+    upload = paths[m + "/{meet}/sources"]["post"]
+    upload["requestBody"] = {
+        "required": True,
+        "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+    }
+    upload["parameters"].append(
+        {"name": "name", "in": "query", "required": True, "schema": {"type": "string"}}
+    )
     return (
         json.dumps(
             {

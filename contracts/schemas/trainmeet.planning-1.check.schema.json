@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.check.schema.json",
+  "title": "trainmeet.planning-1.check",
+  "$defs": {
+    "Finding": {
+      "additionalProperties": true,
+      "description": "From the traffic check (Planering): shown, but does not stop publishing.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "Severity": {
+      "description": "A published package carries no structural errors: those stop publishing.",
+      "enum": [
+        "conflict",
+        "observation"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Trafikkontrollen of the draft: what publishing would carry in its findings.",
+  "properties": {
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

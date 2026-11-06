@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.version.schema.json",
+  "title": "trainmeet.planning-1.version",
+  "additionalProperties": true,
+  "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+  "properties": {
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
+    "number": {
+      "minimum": 1,
+      "title": "Number",
+      "type": "integer"
+    },
+    "published": {
+      "format": "date-time",
+      "title": "Published",
+      "type": "string"
+    },
+    "checksum": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Checksum",
+      "type": "string"
+    },
+    "conflicts": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Conflicts",
+      "type": "integer"
+    },
+    "observations": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Observations",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "meet",
+    "number",
+    "published",
+    "checksum"
+  ],
+  "type": "object"
+}

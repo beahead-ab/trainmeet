@@ -119,8 +119,10 @@ class Drift:
         history: list[events.DriftEvent],
         *,
         now: datetime,
+        version: int = VERSION,
     ) -> None:
         self.package = package
+        self.version = version
         self.history: list[events.DriftEvent] = []
         self.traffic_day = package.meet.traffic_week.start_weekday
         self.game_day = 1
@@ -151,7 +153,7 @@ class Drift:
     @property
     def context(self) -> station.MeetContext:
         return station.MeetContext(
-            meet_id=self.package.meet.id, version=VERSION, game_day=self.game_day, epoch=0
+            meet_id=self.package.meet.id, version=self.version, game_day=self.game_day, epoch=0
         )
 
     def _set_traffic_day(self, day: Weekday) -> None:
@@ -202,7 +204,7 @@ class Drift:
                 seq=len(self.history) + 1,
                 epoch=self.context.epoch,
                 meet_id=self.package.meet.id,
-                version=VERSION,
+                version=self.version,
                 game_day=self.context.game_day,
                 model_time=model_time(self.clock.at(now) if seconds is None else seconds),
                 wall_time=now,

@@ -420,6 +420,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningMeets"];
+        put?: never;
+        post: operations["newMeet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changePlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeSection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["answerQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningVersions"];
+        put?: never;
+        post: operations["publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/versions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3118,6 +3262,12 @@ export interface components {
         /** StartMeet */
         "trainmeet.drift-1.start": {
             /**
+             * Meet
+             * @description Träffen som körs: Provbanan eller en träff i Planering.
+             * @default provbanan
+             */
+            meet: string;
+            /**
              * Version
              * @description Versionen av träffpaketet som körs.
              */
@@ -3578,6 +3728,12 @@ export interface components {
             meet_id: string;
             /** Name */
             name: string;
+            /**
+             * Version
+             * @description Versionen av träffpaketet som körs.
+             * @default 1
+             */
+            version: number;
             traffic_day: components["schemas"]["trainmeet.drift-1.now.Weekday"];
             /** Game Day */
             game_day: number;
@@ -4805,6 +4961,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.planning-1.draft.Question"][];
             /** @default null */
             report: components["schemas"]["trainmeet.planning-1.draft.ImportReport"] | null;
+            /**
+             * Changes
+             * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
+             */
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"])[];
         } & {
             [key: string]: unknown;
         };
@@ -5351,6 +5512,21 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PlaceChange
+         * @description A change to one place in the draft. Only the fields sent are changed.
+         */
+        "trainmeet.planning-1.draft.PlaceChange": {
+            /** Place */
+            place: string;
+            /**
+             * Phone
+             * @default null
+             */
+            phone: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PlaceKind
          * @description Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.
          * @enum {string}
@@ -5445,6 +5621,18 @@ export interface components {
             source_ids?: {
                 [key: string]: string;
             };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SectionChange
+         * @description A change to one section in the draft. Clearance mode empty follows the meet.
+         */
+        "trainmeet.planning-1.draft.SectionChange": {
+            /** Section */
+            section: string;
+            /** @default null */
+            clearance_mode: components["schemas"]["trainmeet.planning-1.draft.ClearanceMode"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5696,6 +5884,279 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.draft.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * NewMeet
+         * @description Ny träff: a name, the dates and the country.
+         */
+        "trainmeet.planning-1.new-meet": {
+            /** Name */
+            name: string;
+            /**
+             * First Date
+             * @default null
+             */
+            first_date: string | null;
+            /**
+             * Last Date
+             * @default null
+             */
+            last_date: string | null;
+            /**
+             * Country
+             * @default se
+             * @enum {string}
+             */
+            country: "se" | "dk" | "no" | "de";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetSummary
+         * @description A meet in the list: its draft at a glance and its versions.
+         */
+        "trainmeet.planning-1.meet-summary": {
+            meet: components["schemas"]["trainmeet.planning-1.meet-summary.Meet"];
+            /**
+             * Level
+             * @default null
+             */
+            level: number | null;
+            /**
+             * Places
+             * @default 0
+             */
+            places: number;
+            /**
+             * Trains
+             * @default 0
+             */
+            trains: number;
+            /**
+             * Sources
+             * @default 0
+             */
+            sources: number;
+            /**
+             * Questions
+             * @default 0
+             */
+            questions: number;
+            /** Versions */
+            versions?: components["schemas"]["trainmeet.planning-1.meet-summary.Version"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.meet-summary.ClearanceMode": "requested" | "direct";
+        /** Meet */
+        "trainmeet.planning-1.meet-summary.Meet": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Country
+             * @default se
+             * @enum {string}
+             */
+            country: "se" | "dk" | "no" | "de";
+            /**
+             * Timezone
+             * @default Europe/Stockholm
+             */
+            timezone: string;
+            /**
+             * First Date
+             * @default null
+             */
+            first_date: string | null;
+            /**
+             * Last Date
+             * @default null
+             */
+            last_date: string | null;
+            traffic_week?: components["schemas"]["trainmeet.planning-1.meet-summary.TrafficWeek"];
+            /** @default requested */
+            clearance_mode: components["schemas"]["trainmeet.planning-1.meet-summary.ClearanceMode"];
+            /**
+             * Settings
+             * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
+             */
+            settings?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrafficWeek
+         * @description The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.
+         */
+        "trainmeet.planning-1.meet-summary.TrafficWeek": {
+            /** @default mon */
+            start_weekday: components["schemas"]["trainmeet.planning-1.meet-summary.Weekday"];
+            /**
+             * Days
+             * @description Antal speldygn, Dag 1…N.
+             * @default 1
+             */
+            days: number;
+            /**
+             * Runs Over Midnight
+             * @default false
+             */
+            runs_over_midnight: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Version
+         * @description A published version: frozen, never changed, never deleted (Ordlista).
+         */
+        "trainmeet.planning-1.meet-summary.Version": {
+            /** Meet */
+            meet: string;
+            /** Number */
+            number: number;
+            /**
+             * Published
+             * Format: date-time
+             */
+            published: string;
+            /** Checksum */
+            checksum: string;
+            /**
+             * Conflicts
+             * @default 0
+             */
+            conflicts: number;
+            /**
+             * Observations
+             * @default 0
+             */
+            observations: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.meet-summary.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * PlaceChange
+         * @description A change to one place in the draft. Only the fields sent are changed.
+         */
+        "trainmeet.planning-1.place-change": {
+            /** Place */
+            place: string;
+            /**
+             * Phone
+             * @default null
+             */
+            phone: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SectionChange
+         * @description A change to one section in the draft. Clearance mode empty follows the meet.
+         */
+        "trainmeet.planning-1.section-change": {
+            /** Section */
+            section: string;
+            /** @default null */
+            clearance_mode: components["schemas"]["trainmeet.planning-1.section-change.ClearanceMode"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.section-change.ClearanceMode": "requested" | "direct";
+        /**
+         * Answer
+         * @description The planner's answer to a question: one of its alternatives.
+         */
+        "trainmeet.planning-1.answer": {
+            /** Question */
+            question: string;
+            /** Value */
+            value: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Check
+         * @description Trafikkontrollen of the draft: what publishing would carry in its findings.
+         */
+        "trainmeet.planning-1.check": {
+            /** Findings */
+            findings?: components["schemas"]["trainmeet.planning-1.check.Finding"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Finding
+         * @description From the traffic check (Planering): shown, but does not stop publishing.
+         */
+        "trainmeet.planning-1.check.Finding": {
+            /** Id */
+            id: string;
+            severity: components["schemas"]["trainmeet.planning-1.check.Severity"];
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Refs */
+            refs?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Severity
+         * @description A published package carries no structural errors: those stop publishing.
+         * @enum {string}
+         */
+        "trainmeet.planning-1.check.Severity": "conflict" | "observation";
+        /**
+         * Version
+         * @description A published version: frozen, never changed, never deleted (Ordlista).
+         */
+        "trainmeet.planning-1.version": {
+            /** Meet */
+            meet: string;
+            /** Number */
+            number: number;
+            /**
+             * Published
+             * Format: date-time
+             */
+            published: string;
+            /** Checksum */
+            checksum: string;
+            /**
+             * Conflicts
+             * @default 0
+             */
+            conflicts: number;
+            /**
+             * Observations
+             * @default 0
+             */
+            observations: number;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -6282,6 +6743,267 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.session"];
+                };
+            };
+        };
+    };
+    planningMeets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.meet-summary"][];
+                };
+            };
+        };
+    };
+    newMeet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.new-meet"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    planningDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    changePlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.place-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.meet-1.Place"];
+                };
+            };
+        };
+    };
+    changeSection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.section-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.meet-1.Section"];
+                };
+            };
+        };
+    };
+    answerQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    planningCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.check"];
+                };
+            };
+        };
+    };
+    planningVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.version"][];
+                };
+            };
+        };
+    };
+    publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.version"];
+                };
+            };
+        };
+    };
+    planningVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.meet-1"];
+                };
+            };
+        };
+    };
+    addSource: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
                 };
             };
         };
