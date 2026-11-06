@@ -150,6 +150,22 @@ class ClearanceAnswered(ClearanceRef):
     approved: bool
 
 
+class TrainArrived(ClearanceRef):
+    """The train is in. Without a track it came in on the planned one (old Server 4.9.0)."""
+
+    track: Text | None = Field(default=None, description="Spåret tåget kom in på.")
+
+
+class TrainMovedHere(Contract):
+    """FLYTTA HIT: a train nobody sent is placed here, so the game goes on (issue #115)."""
+
+    track: Text | None = None
+
+
+class TrainSetAside(Contract):
+    """Ställ undan: a train that ended here is put away, and its track is free."""
+
+
 EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.MEET_STARTED: MeetStarted,
     EventKind.CLOCK_STARTED: ClockChanged,
@@ -159,7 +175,9 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
     EventKind.TRAIN_DEPARTED: ClearanceRef,
-    EventKind.TRAIN_ARRIVED: ClearanceRef,
+    EventKind.TRAIN_ARRIVED: TrainArrived,
+    EventKind.TRAIN_MOVED_HERE: TrainMovedHere,
+    EventKind.TRAIN_SET_ASIDE: TrainSetAside,
 }
 
 
@@ -184,6 +202,8 @@ class DriftEvent(Contract):
     def _check_data(self) -> DriftEvent:
         if self.kind == EventKind.CLEARANCE_REQUESTED and self.call is None:
             raise ValueError("Klareringsbegäran måste ange avgångens tågbesök.")
+        if self.kind in (EventKind.TRAIN_MOVED_HERE, EventKind.TRAIN_SET_ASIDE) and not self.call:
+            raise ValueError("Händelsen måste ange ankomstens tågbesök.")
         model = EVENT_PAYLOADS.get(self.kind)
         if model is not None:
             model.model_validate(self.data)

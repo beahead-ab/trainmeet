@@ -47,7 +47,7 @@ def test_the_actions_kept_from_v2_and_the_new_ones_for_tkl() -> None:
         "train.position.set",
         "train.crew_ready.set",
     }
-    new = {"section.occupancy", "signal.exit"}
+    new = {"section.occupancy", "signal.exit", "train.set_aside"}
     assert {a.value for a in station.Action} == kept | new
 
 

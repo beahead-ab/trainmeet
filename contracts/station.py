@@ -94,6 +94,7 @@ class Action(StrEnum):
     TRAIN_ARRIVED = "train.arrived"
     TRAIN_POSITION_SET = "train.position.set"
     TRAIN_CREW_READY_SET = "train.crew_ready.set"
+    TRAIN_SET_ASIDE = "train.set_aside"  # Ställ undan: a train that ended here frees its track
     CLEARANCE_REQUEST = "clearance.request"
     CLEARANCE_RESPONSE = "clearance.response"
     CLEARANCE_CANCEL = "clearance.cancel"
@@ -224,6 +225,7 @@ PAYLOADS: dict[Action, type[Contract]] = {
     Action.TRAIN_ARRIVED: Arrival,
     Action.TRAIN_POSITION_SET: Flag,
     Action.TRAIN_CREW_READY_SET: Flag,
+    Action.TRAIN_SET_ASIDE: CallOnly,
     Action.CLEARANCE_REQUEST: ClearanceRequest,
     Action.CLEARANCE_RESPONSE: ClearanceResponse,
     Action.CLEARANCE_CANCEL: ClearanceCancel,

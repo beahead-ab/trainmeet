@@ -9,7 +9,7 @@ let lastUpdate;
 let busy = false;
 
 const reasons = {
-  invalid_departure: "Tåget har inte kommit fram till den här avgången än.",
+  invalid_departure: "Tåget har redan kört den här sträckan.",
   call_already_requested: "Tåget har redan en pågående klarering.",
   channel_occupied: "Sträckan är upptagen.",
 };

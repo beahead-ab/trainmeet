@@ -45,6 +45,18 @@ class Lab:
         for place, box in self.boxes.items():
             view.assign(box, place)
 
+    def add(self, place: str) -> None:
+        """One more box, given a place: Mellanå has none to begin with."""
+        self.boxes[place] = Box(client_id=f"box-{place}", name=f"Box {place}")
+        self.view().assign(self.boxes[place], place)
+
+    def departure(self) -> None:
+        """101 asked for at Norrby, cleared at Åsen and sent on its way."""
+        self.lookup("101")
+        self.lookup("101", "asn")
+        self.accept("asn", "#")
+        self.accept("nby", "#")
+
     def view(self) -> Boxes:
         boxes = {box.client_id: box for box in self.boxes.values()}
         view = Boxes(self.drift, boxes, epoch="e1", now=self.now)
@@ -280,3 +292,178 @@ def test_every_frame_can_be_drawn_on_the_box(lab: Lab) -> None:
         frame = lab.frame(place)
         assert len(frame["lcd"]["glyphs"]) <= 8
         assert json.dumps(frame, ensure_ascii=False)
+
+
+# --- Tracks, FLYTTA HIT, through trains and putting away (old Server 2.1.0–4.12) ----------
+
+
+def test_a_train_never_sent_can_be_placed_from_its_number(lab: Lab) -> None:
+    """Casper, 2026-10-02: the receiver places a train nobody sent, on the timetable's track,
+    so the game goes on. Since issue #115 the box asks first whether to move it here."""
+    frame = lab.lookup("102")["frame"]  # Åsen never sent 102, which ends at Norrby.
+    assert frame["lines"] == ["FLYTTA 102 HIT? ", "#Ja B:Sp   06:00"]
+    assert frame["keys"]["#"]["label"] == "Flytta hit"
+    assert frame["keys"]["#"]["short"] == "FLYTTA"
+    assert lab.kinds() == []  # A lookup sends nothing.
+    lab.accept("nby", "#")
+    assert lab.kinds() == ["train.moved_here"]
+    assert lab.drift.tracks["t102-asn"] == "2"
+    assert "102 ANK SP2" in lab.lines("nby")[0]
+    view = lab.view()
+    assert "t102-asn" not in view._candidates(lab.boxes["asn"])
+
+
+def test_another_track_for_a_train_moved_here(lab: Lab) -> None:
+    lab.lookup("102")
+    lab.accept("nby", "B")
+    assert lab.lines("nby") == ["102 SPÅR 2      ", "#In C/D:Sp 06:00"]
+    lab.accept("nby", "D")
+    assert lab.lines("nby")[0].startswith("102 SPÅR")
+    chosen = lab.lines("nby")[0].split()[-1]
+    lab.accept("nby", "#")
+    assert lab.drift.tracks["t102-asn"] == chosen != "2"
+
+
+def test_a_through_train_never_seen_to_come_is_moved_here_first(lab: Lab) -> None:
+    """Benny #170, Casper 2026-10-09: Norrby never sent 101. At Åsen 101# asks FLYTTA 101
+    HIT? and asks Mellanå nothing; once it is here, the next 101# asks Mellanå at once."""
+    lab.add("mla")
+    frame = lab.lookup("101", "asn")["frame"]
+    assert frame["lines"][0] == "FLYTTA 101 HIT? "
+    assert frame["keys"]["#"]["label"] == "Flytta hit"
+    assert lab.frame("mla")["requests"]["count"] == 0, "nothing asked of Mellanå"
+    lab.accept("asn", "#")  # Moved here on its planned track.
+    assert "t101-nby" in lab.drift.arrived  # Norrby's part is over.
+    assert "t101-nby" not in lab.view()._candidates(lab.boxes["nby"])
+    lab.accept("asn", "#")  # Dismiss the arrival notice.
+    frame = lab.lookup("101", "asn")["frame"]  # Here now: the departure, asked at once.
+    assert frame["lines"][0].endswith("101?Mlå"), frame["lines"]
+
+
+def test_a_departure_picked_from_the_list_still_takes_the_train_along(lab: Lab) -> None:
+    """The departure picked in the list can be asked for before the train is seen to come;
+    sent on, it jumps here (Casper, 2026-10-02)."""
+    lab.add("mla")
+    lab.boxes["asn"].selected, lab.boxes["asn"].screen = "t101-asn", "detail"
+    lab.accept("asn", "#")  # Asks Mellanå.
+    lab.lookup("101", "mla")
+    lab.accept("mla", "#")
+    frame = lab.frame("asn")
+    assert frame["keys"]["#"]["label"] == "Rapportera avgång"
+    assert frame["lines"][0] == "         101>Mlå"
+    lab.accept("asn", "#")
+    assert "t101-nby" in lab.drift.arrived  # Norrby's part is over.
+    assert lab.lookup("101", "mla")["frame"]["keys"]["#"]["label"] == "Rapportera ankomst"
+
+
+def test_a_through_train_in_the_usual_order(lab: Lab) -> None:
+    lab.add("mla")
+    lab.lookup("101")  # Norrby asks Åsen.
+    frame = lab.lookup("101", "asn")["frame"]  # The request, not the departure.
+    assert frame["keys"]["#"]["label"] == "Ge klart"
+    lab.accept("asn", "#")
+    lab.accept("nby", "#")
+    assert lab.lookup("101", "asn")["frame"]["keys"]["#"]["label"] == "Rapportera ankomst"
+    lab.accept("asn", "#")
+    lab.accept("asn", "#")  # Dismiss the arrival notice.
+    frame = lab.lookup("101", "asn")["frame"]  # Arrived: the departure, asked at once.
+    assert frame["lines"][0].endswith("101?Mlå"), frame["lines"]
+
+
+def test_star_leaves_track_picker_without_arrival(lab: Lab) -> None:
+    lab.departure()
+    lab.accept("asn", "B")
+    lab.accept("asn", "D")
+    frame = lab.accept("asn", "*")["frame"]
+    assert frame["keys"]["#"]["label"] == "Rapportera ankomst"
+    assert "t101-nby" not in lab.drift.arrived
+    assert lab.kinds()[-1] == "train.departed"
+
+
+def test_after_clearance_hash_never_takes_the_train_in(lab: Lab) -> None:
+    """The # after #Ja must not receive the train. One the sender never reported departed
+    can still be placed, with B and then #."""
+    lab.lookup("101")
+    lab.lookup("101", "asn")
+    lab.accept("asn", "#")
+    frame = lab.frame("asn")
+    assert "#" not in frame["keys"]
+    assert frame["keys"]["B"]["label"] == "Placera på spår…"
+    assert lab.send("asn", "#")["status"] == "rejected"
+    assert "t101-nby" not in lab.drift.arrived
+    lab.accept("asn", "B")
+    lab.accept("asn", "#")
+    assert lab.drift.tracks["t101-nby"] == "1"
+    assert lab.drift.active_case("t101-nby") is None
+
+
+def test_arrival_track_override_preserves_plan(lab: Lab) -> None:
+    lab.departure()
+    lab.accept("asn", "B")
+    lab.accept("asn", "D")
+    assert "SPÅR 2" in lab.lines("asn")[0]
+    lab.accept("asn", "#")
+    assert lab.drift.tracks["t101-nby"] == "2"
+    assert lab.drift.planned_track(lab.drift.legs["t101-nby"]) == "1"
+    assert lab.lines("asn")[0] == "101 ANK SP2     "
+
+
+def test_an_occupied_track_does_not_stop_the_arrival(lab: Lab) -> None:
+    """Casper, 2026-10-02: taken in all the same, and the box says so."""
+    lab.lookup("4501", "asn")  # 4501 is moved to Åsen's track 1 first.
+    lab.accept("asn", "#")
+    lab.accept("asn", "#")  # Dismiss its notice.
+    lab.departure()
+    lab.accept("asn", "#")
+    assert lab.lines("asn")[0] == "101 UPPT SPÅR   "
+    assert lab.drift.tracks["t101-nby"] == "1"
+    assert lab.drift.active_case("t101-nby") is None
+    assert "101 MOTTAGET" in lab.lines("nby")[0], "the sender is still told"
+
+
+def test_alternate_arrival_track_also_notifies_sender(lab: Lab) -> None:
+    lab.departure()
+    lab.accept("asn", "B")
+    lab.accept("asn", "D")
+    lab.accept("asn", "#")
+    assert lab.drift.tracks["t101-nby"] == "2"
+    assert "101 MOTTAGET" in lab.lines("nby")[0]
+
+
+def test_the_box_says_the_train_ends_here_and_hash_puts_it_away(lab: Lab) -> None:
+    """Casper, 2026-10-10: at a manned place the box says the train ends here, and the
+    operator reports it put away. Then the track is free."""
+    lab.lookup("102")
+    lab.accept("nby", "#")  # 102 is here, on track 2, and goes no further.
+    lab.accept("nby", "#")  # Dismiss the arrival notice.
+    frame = lab.frame("nby")
+    assert frame["keys"]["B"]["label"] == "Aktiva tåg (1)", "the train to put away is active"
+    frame = lab.accept("nby", "B")["frame"]
+    assert [frame["lines"][0].strip(), frame["lines"][1][:11].strip()] == [
+        "102 SLUTAR HÄR",
+        "#Undan",
+    ]
+    assert frame["keys"]["#"]["label"] == "Ställ undan"
+    assert frame["keys"]["#"]["acts"] is True, "putting away is a traffic act"
+    assert "Tåg 102 slutar här." in frame["status"]
+    frame = lab.accept("nby", "#")["frame"]
+    assert frame["lines"][0].strip() == "UNDANSTÄLLT"
+    assert frame["lines"][1][:11].strip() == "102"
+    assert lab.kinds()[-1] == "train.set_aside"
+    assert lab.drift.occupant("nby", "2") is None, "the track is free"
+    frame = lab.accept("nby", "#")["frame"]  # OK.
+    assert frame["keys"]["B"]["label"] == "Aktiva tåg (0)", "nothing more to do with 102"
+
+
+def test_a_train_that_goes_on_is_not_offered_to_put_away(lab: Lab) -> None:
+    lab.lookup("101", "asn")
+    lab.accept("asn", "#")  # 101 moved to Åsen; it goes on to Mellanå.
+    lab.accept("asn", "#")
+    assert "SLUTAR" not in " ".join(lab.accept("asn", "B")["frame"]["lines"])
+
+
+def test_every_track_notice_fits_on_the_box(lab: Lab) -> None:
+    box = lab.boxes["nby"]
+    for notice in ("12345 ANK SP12A", "12345 UPPT SPÅR", "UNDANSTÄLLT", "FLERA TÅG ADMIN"):
+        box.notice, box.notice_hint, box.notice_until = notice, "12345", None
+        assert [len(line) for line in lab.frame("nby")["lines"]] == [16, 16]

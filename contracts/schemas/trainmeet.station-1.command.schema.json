@@ -11,6 +11,7 @@
         "train.arrived",
         "train.position.set",
         "train.crew_ready.set",
+        "train.set_aside",
         "clearance.request",
         "clearance.response",
         "clearance.cancel",
@@ -513,6 +514,21 @@
         },
         "payload": {
           "$ref": "#/$defs/Flag"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "train.set_aside",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/CallOnly"
         }
       },
       "required": [

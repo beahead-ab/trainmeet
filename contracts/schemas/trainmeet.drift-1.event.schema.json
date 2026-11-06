@@ -184,6 +184,66 @@
       ],
       "title": "ClearanceRef",
       "type": "object"
+    },
+    "TrainArrived": {
+      "additionalProperties": true,
+      "description": "The train is in. Without a track it came in on the planned one (old Server 4.9.0).",
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret tåget kom in på.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "clearance_id"
+      ],
+      "title": "TrainArrived",
+      "type": "object"
+    },
+    "TrainMovedHere": {
+      "additionalProperties": true,
+      "description": "FLYTTA HIT: a train nobody sent is placed here, so the game goes on (issue #115).",
+      "properties": {
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        }
+      },
+      "title": "TrainMovedHere",
+      "type": "object"
+    },
+    "TrainSetAside": {
+      "additionalProperties": true,
+      "description": "Ställ undan: a train that ended here is put away, and its track is free.",
+      "properties": {},
+      "title": "TrainSetAside",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -437,7 +497,37 @@
           "type": "string"
         },
         "data": {
-          "$ref": "#/$defs/ClearanceRef"
+          "$ref": "#/$defs/TrainArrived"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "train.moved_here",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/TrainMovedHere"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "train.set_aside",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/TrainSetAside"
         }
       },
       "required": [
@@ -458,7 +548,9 @@
               "clearance.answered",
               "clearance.cancelled",
               "train.departed",
-              "train.arrived"
+              "train.arrived",
+              "train.moved_here",
+              "train.set_aside"
             ]
           }
         }
