@@ -1,4 +1,4 @@
-"""The TMBox 16×2 view: Drift draws the screen and the box sends key presses.
+"""The TMBox view, 16×2 or 20×4: Drift draws the screen and the box sends key presses.
 
 Ported from the old Server's terminal16 (Terminal16Lab, Server 4.24) with its tests as the
 key: the start screen with the station's name, 101# that asks at once, the request queue
@@ -7,8 +7,9 @@ that go away by themselves, and the receipt MOTTAGET at the sender. The TMBox lo
 not redesigned (decided 1 November).
 
 Also ported: another arrival track (B:Sp, UPPT SPÅR), FLYTTA HIT for a train nobody sent,
-a through train asked for while on its way in, and putting away a train that ended here.
-Not yet: the automation (steps after 2), the box's side, 20×4 and other languages.
+a through train asked for while on its way in, putting away a train that ended here, the
+box's side (ANNAN SIDA), the 20×4 display and the five languages (drift/terminal_text.py).
+Not yet: the automation, which comes after step 2.
 
 The boxes of a run share one Drift: what one box does, the others see. What a box was told
 is worked out from Drift's events, so a box that was away catches up on its next picture.
@@ -17,6 +18,7 @@ is worked out from Drift's events, so a box that was away catches up on its next
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -29,11 +31,10 @@ from contracts import station
 from contracts.common import Side
 from contracts.meet import ClearanceMode, Place, Section
 from contracts.reasons import TEXT_SV, Reason
-from drift import lcd
+from drift import lcd, terminal_text
 from drift.engine import Case, Drift, Leg, Refused, model_time, parse_time
 
 PROFILE: Final = "server-16x2-pilot"
-WIDTH: Final = 16
 NOTICE_SECONDS: Final = 3
 RECEIPT_SECONDS: Final = 5
 ATTENTION_WINDOW_SECONDS: Final = 2
@@ -131,6 +132,9 @@ class Box:
     name: str
     place: str | None = None
     side: str = "both"
+    language: str = "sv"
+    rows: int = 2
+    cols: int = 16
     screen: str = "overview"
     selected: str | None = None
     return_screen: str = "detail"
@@ -159,6 +163,7 @@ class Box:
 
 
 Buttons = dict[str, tuple[str, str]]
+Translate = Callable[..., str]
 
 
 class Boxes:
@@ -214,6 +219,15 @@ class Boxes:
     def _own(self, box: Box, leg: Leg) -> bool:
         return leg.departure.place == box.place
 
+    def _on_side(self, box: Box, leg: Leg) -> bool:
+        """A box set to one side handles only the trains on sections to that side
+        (Casper, 2026-10-01). Both, the default, is the whole place."""
+        if box.side == "both" or box.place is None:
+            return True
+        own = leg.departure.place == box.place
+        other = leg.arrival.place if own else leg.departure.place
+        return self._side(box.place, leg.section, other) == box.side
+
     def _label(self, place: str, leg: Leg) -> tuple[str, str]:
         own = leg.departure.place == place
         other = leg.arrival.place if own else leg.departure.place
@@ -255,7 +269,7 @@ class Boxes:
             incoming = leg.arrival.place == box.place
             if own and self._state(key) == LineState.OCCUPIED:
                 continue  # A departed train is no longer a departure to come at its sender.
-            if own or incoming:
+            if (own or incoming) and self._on_side(box, leg):
                 kind = self._schedule(box, leg)["kind"]
                 if filtered and box.browse_filter not in {"all", kind}:
                     continue
@@ -298,7 +312,9 @@ class Boxes:
         return [
             key
             for key in self._active_keys()
-            if self.legs[key].arrival.place == box.place and self._state(key) == LineState.REQUESTED
+            if self.legs[key].arrival.place == box.place
+            and self._on_side(box, self.legs[key])
+            and self._state(key) == LineState.REQUESTED
         ]
 
     def _active_trains(self, box: Box) -> list[str]:
@@ -308,6 +324,8 @@ class Boxes:
             leg = self.legs[key]
             own = self._own(box, leg)
             if not own and leg.arrival.place != box.place:
+                continue
+            if not self._on_side(box, leg):
                 continue
             state = self._state(key)
             if state == LineState.FREE or (not own and state == LineState.REQUESTED):
@@ -333,7 +351,9 @@ class Boxes:
         return [
             key
             for key, leg in self.legs.items()
-            if leg.arrival.place == box.place and self.drift.ended_here(key)
+            if leg.arrival.place == box.place
+            and self.drift.ended_here(key)
+            and self._on_side(box, leg)
         ]
 
     def _can_take_in(self, key: str) -> bool:
@@ -398,6 +418,8 @@ class Boxes:
         number = leg.train.number
         sender = leg.departure.place == box.place
         receiver = leg.arrival.place == box.place
+        if not (sender or receiver) or not self._on_side(box, leg):
+            return  # The box for the other side is not told (Casper, 2026-10-01).
         match event.kind:
             case events.EventKind.CLEARANCE_REQUESTED if receiver:
                 if self._state(key) != LineState.REQUESTED:
@@ -589,25 +611,30 @@ class Boxes:
 
     def _overview(self, box: Box) -> str:
         assert box.place is not None
+        width = box.cols
         left: list[str] = []
         right: list[str] = []
         for key in self._active_keys():
             leg = self.legs[key]
-            if box.place in {leg.departure.place, leg.arrival.place}:
+            if box.place in {leg.departure.place, leg.arrival.place} and self._on_side(box, leg):
                 token, side = self._label(box.place, leg)
                 (left if side == "left" else right).append(token)
         a = left[0] if left else ""
         b = right[0] if right else ""
-        if a and b and len(a) + len(b) >= WIDTH:
-            return lcd.row(a, "", WIDTH)
-        return lcd.row(a, b, WIDTH)
+        if a and b and len(a) + len(b) >= width:
+            # Whole identities: B opens the counted list of active trains.
+            return lcd.row(a, "", width)
+        return lcd.row(a, b, width)
 
     def _idle_titles(self, box: Box) -> list[str]:
+        """An idle box names its place (trainmeet-tmbox #43); the code if the name is too long
+        or has a character the box cannot draw; and nothing, as before."""
         assert box.place is not None
         place = self.places[box.place]
+        width = box.cols
         name = lcd.cells(place.name)
-        titles = [lcd.centered(name, WIDTH)] if len(name) <= WIDTH else []
-        return [*titles, lcd.centered(place.code, WIDTH), " " * WIDTH]
+        titles = [lcd.centered(name, width)] if len(name) <= width else []
+        return [*titles, lcd.centered(place.code, width), " " * width]
 
     def _token(self, box: Box) -> str:
         text = f"{self.epoch}:{box.client_id}:{box.place}:{box.revision}:{len(self.drift.history)}"
@@ -616,16 +643,109 @@ class Boxes:
     def _clock(self) -> str:
         return model_time(self.drift.clock.at(self.now))
 
+    # --- Rows two and three of a 20×4 (trainmeet-tmbox #39) ------------------------------
+
+    def _place_named(self, code: str) -> Place | None:
+        """The place a notice names by its code, if it is a place (UNDANSTÄLLT carries a
+        train number)."""
+        return next((place for place in self.places.values() if place.code == code), None)
+
+    @staticmethod
+    def _name_row(place: Place, width: int) -> str:
+        """A place's name on a row of its own, cut only if it is too long."""
+        return lcd.cells(place.name)[:width].ljust(width)
+
+    @staticmethod
+    def _spread(left: str, right: str, width: int) -> str:
+        """`left` and `right` on one row; `left` gives way (is cut) before `right`."""
+        left, right = lcd.cells(left), lcd.cells(right)
+        left = left[: max(0, width - len(right) - (1 if right else 0))]
+        return lcd.row(left, right, width)
+
+    def _state_word(self, box: Box, leg: Leg) -> str:
+        """Where the train stands, in words, for the third row of a 20×4."""
+        own = self._own(box, leg)
+        key = leg.departure.id
+        if self._completed(key):
+            return ""  # Over: it has arrived, nothing waits for anyone.
+        state = self._state(key)
+        if state == LineState.REQUESTED:
+            return "Väntar svar" if own else "Vill skicka"
+        if state == LineState.RESERVED:
+            return "Klar att avgå" if own else "Klarerad"
+        if state == LineState.OCCUPIED:
+            return "Avgått" if own else "På väg hit"
+        return "Ej begärd" if own else "Ej skickad"
+
+    def _leg_rows(self, box: Box, leg: Leg, t: Translate) -> list[str] | None:
+        """Who the train goes to or comes from and when, then where it stands and the track
+        the timetable has it on here. Never changes what rows one and four say."""
+        if box.rows != 4:
+            return None
+        width = box.cols
+        schedule = self._schedule(box, leg)
+        outgoing = schedule["kind"] == "departure"
+        name = lcd.cells(self.places[schedule["other"]].name)
+        # Without room for Till/Från the row keeps the name; only a name longer than the row
+        # is cut.
+        with_word = t("Till" if outgoing else "Från") + " " + name
+        room = width - len(schedule["time"]) - 1
+        second = lcd.row(
+            with_word if len(with_word) <= room else name[:room], schedule["time"], width
+        )
+        track = (leg.departure if outgoing else leg.arrival).track
+        right = ""
+        if track is not None:
+            word = t("Sp {track}", track=track)
+            right = word if len(word) + 2 <= width else track
+        word = self._state_word(box, leg)
+        return [second, self._spread(t(word) if word else "", right, width)]
+
+    def _upcoming_rows(self, box: Box, t: Translate) -> list[str] | None:
+        """The two nearest trains still to come: number, AVG or ANK, the other place's code
+        and the time."""
+        if box.rows != 4:
+            return None
+        width = box.cols
+        rows: list[str] = []
+        for key in self._candidates(box):
+            if self._state(key) != LineState.FREE:
+                continue  # Already on the first row.
+            leg = self.legs[key]
+            schedule = self._schedule(box, leg)
+            code = self._code(schedule["other"])
+            line = f"{leg.train.number} {t(schedule['label'])} {code}"
+            rows.append(self._spread(line, schedule["time"], width))
+            if len(rows) == 2:
+                break
+        return rows + [" " * width] * (2 - len(rows))
+
+    # --- The picture ---------------------------------------------------------------------
+
     def frame(self, box: Box) -> dict[str, Any]:
-        """The picture for one box, as the Frame contract (contracts.terminal.Frame) says."""
+        """The picture for one box, as the Frame contract (contracts.terminal.Frame) says.
+        Rows one and four of a 20×4 say what a 16×2 says; two and three are extra."""
         clock = self._clock()
         if box.place is None:
             return self._waiting_frame(box, clock)
         self._advance(box)
         buttons = self._buttons(box)
-        room = WIDTH - 5
+        language = box.language
+
+        def t(key: str, **values: object) -> str:
+            return terminal_text.text(language, key, **values)
+
+        width, height = box.cols, box.rows
+
+        def row_(left: str = "", right: str = "") -> str:
+            return lcd.row(left, right, width)
+
+        room = width - 5  # What a hint may take beside the clock.
+        middle: list[str] | None = None
         hint = "Nr# A:Kö"
         first = self._overview(box)
+        if box.screen == "overview":
+            middle = self._upcoming_rows(box, t)
         selected = self.legs.get(box.selected or "")
         requests = self._requests(box)
         active = self._active_trains(box)
@@ -636,72 +756,80 @@ class Boxes:
             return str(count) if count < 100 else "99+"
 
         if box.screen == "overview" and active:
-            hint = f"B:Akt{compact(len(active))} C/D"
-            if len(hint) > room:
-                hint = f"B:Akt{compact(len(active))}"
+            hint = t("B:Akt{count} C/D", count=compact(len(active)))
+            if len(lcd.cells(hint)) > room:
+                hint = t("B:Akt{count}", count=compact(len(active)))
         if box.screen == "overview" and requests:
-            hint = f"A:K{compact(len(requests))} B:Akt" if active else "A:Kö #Visa"
+            hint = t("A:K{count} B:Akt", count=compact(len(requests))) if active else "A:Kö #Visa"
+            if len(lcd.cells(hint)) > room:
+                hint = t("A{count} B:Akt", count=compact(len(requests)))
         if box.notice:
-            first, hint = lcd.row(box.notice, "", WIDTH), box.notice_hint
+            first = row_(terminal_text.notice(language, box.notice))
+            hint = box.notice_hint
+            named = self._place_named(box.notice_hint)
+            middle = [self._name_row(named, width)] if named is not None else None
         elif box.screen == "requests":
             if position and selected is not None:
+                middle = self._leg_rows(box, selected, t)
                 label, side = self._label(box.place, selected)
                 counter = f"{position}/{len(requests)}"
-                if len(label) + len(counter) < WIDTH:
-                    first = (
-                        lcd.row(label, counter, WIDTH)
-                        if side == "left"
-                        else lcd.row(counter, label, WIDTH)
-                    )
+                if len(label) + len(counter) < width:
+                    first = row_(label, counter) if side == "left" else row_(counter, label)
                     hint = "#Ja *Nej"
                 else:
-                    first = lcd.row(label, "", WIDTH) if side == "left" else lcd.row("", label)
-                    hint = f"#Ja {counter}"
+                    # Whole identities; the count goes in the hint.
+                    first = row_(label) if side == "left" else row_("", label)
+                    hint = t("#Ja {count}", count=counter)
             else:
-                first = lcd.row("INGA FRÅGOR" if not requests else "FRÅGAN ÄNDRAD", "", WIDTH)
+                first = row_(t("INGA FRÅGOR" if not requests else "FRÅGAN ÄNDRAD"))
                 hint = "A:Kö *=Bak"
         elif box.screen == "browse":
             choices = self._candidates(box, filtered=True)
             if selected is not None and box.selected in choices:
                 schedule = self._schedule(box, selected)
-                first = lcd.row(
-                    f"{selected.train.number} {schedule['label']}", schedule["time"], WIDTH
-                )
+                middle = self._leg_rows(box, selected, t)
+                first = row_(f"{selected.train.number} {t(schedule['label'])}", schedule["time"])
                 hint = "#Välj A:Kö"
             else:
                 empty = {"all": "INGA TÅG", "arrival": "INGA ANKOMSTER"}.get(
                     box.browse_filter, "INGA AVGÅNGAR"
                 )
-                first = lcd.row("VÄLJ NÄSTA TÅG" if choices else empty, "", WIDTH)
+                first = row_(t("VÄLJ NÄSTA TÅG" if choices else empty))
                 hint = "C/D A:Kö" if choices else "B:Fil A:Kö"
         elif box.screen in {"cancel", "reject"} and selected is not None:
-            word = "ÅTER" if box.screen == "cancel" else "NEKA"
+            question = "ÅTER {number}?" if box.screen == "cancel" else "NEKA {number}?"
             if "#" in buttons:
-                first, hint = lcd.row(f"{word} {selected.train.number}?", "", WIDTH), "#Ja *Nej"
+                first, hint = row_(t(question, number=selected.train.number)), "#Ja *Nej"
+                middle = self._leg_rows(box, selected, t)
             else:
-                first, hint = lcd.row("LÄGET ÄNDRAT", "", WIDTH), "*=Bak"
+                first, hint = row_(t("LÄGET ÄNDRAT")), "*=Bak"
         elif box.screen == "move" and selected is not None and self._movable(box, selected):
-            question = f"FLYTTA {selected.train.number} HIT?"
-            if len(question) > WIDTH:
-                question = f"FLYTTA {selected.train.number}?"
-            first, hint = lcd.row(question, "", WIDTH), "#Ja B:Sp"
+            question = t("FLYTTA {number} HIT?", number=selected.train.number)
+            if len(lcd.cells(question)) > width:
+                question = t("FLYTTA {number}?", number=selected.train.number)
+            first, hint = row_(question), "#Ja B:Sp"
+            middle = self._leg_rows(box, selected, t)
         elif box.screen == "tracks" and selected is not None and self._track_choices(box):
             tracks = self._track_choices(box)
             label = tracks[box.track % len(tracks)]
-            first = lcd.row(f"{selected.train.number} SPÅR {label}", "", WIDTH)
+            first = row_(t("{number} SPÅR {track}", number=selected.train.number, track=label))
             hint = "#In C/D:Sp"
+            middle = self._leg_rows(box, selected, t)
         elif box.screen == "active" and not active_position:
-            first = lcd.row("LÄGET ÄNDRAT" if active else "INGA AKTIVA TÅG", "", WIDTH)
+            first = row_(t("LÄGET ÄNDRAT" if active else "INGA AKTIVA TÅG"))
             hint = "C/D B:Öv"
         elif (
             box.screen in {"detail", "active"}
             and selected is not None
             and buttons.get("#", ("",))[0] == "stable"
         ):
-            first, hint = lcd.row(f"{selected.train.number} SLUTAR HÄR", "", WIDTH), "#Undan"
+            first = row_(t("{number} SLUTAR HÄR", number=selected.train.number))
+            hint = "#Undan"
+            middle = self._leg_rows(box, selected, t)
         elif box.screen in {"detail", "active", "move"} and selected is not None:
             label, side = self._label(box.place, selected)
-            first = lcd.row(label, "", WIDTH) if side == "left" else lcd.row("", label, WIDTH)
+            first = row_(label) if side == "left" else row_("", label)
+            middle = self._leg_rows(box, selected, t)
             action = buttons.get("#", ("", ""))[0]
             hint = {
                 "request": "#Beg A:Kö",
@@ -721,30 +849,45 @@ class Boxes:
             if box.screen == "active":
                 counter = f"{compact(active_position)}/{compact(len(active))}"
                 hint = {"depart": "#Avg C/D", "arrive": "#In B:Sp"}.get(action, "C/D B:Öv")
-                if len(label) + len(counter) < WIDTH:
-                    first = (
-                        lcd.row(label, counter, WIDTH)
-                        if side == "left"
-                        else lcd.row(counter, label, WIDTH)
-                    )
+                if len(label) + len(counter) < width:
+                    first = row_(label, counter) if side == "left" else row_(counter, label)
+                else:
+                    # Long identities stay whole; the count moves beside the action.
+                    prefix = t({"depart": "#Avg", "arrive": "#In"}.get(action, "C/D"))
+                    hint = prefix + " " + counter
+                    if len(lcd.cells(hint)) > room:
+                        hint = prefix + " " + compact(len(active))
 
-        status = self._status(box, selected, requests, active, active_position)
+        status = self._status(box, selected, requests, active, active_position, t)
+        hint = t(hint)
         titles = [first]
         if box.screen == "overview" and not box.notice and not first.strip():
             titles = self._idle_titles(box)
         if box.receipt_until is not None and box.receipts:
             number, destination = box.receipts[0]
-            code = self._code(destination)
-            first, hint = lcd.row(f"{number} MOTTAGET", "", WIDTH), code
-            if len(hint) > room:
-                first, hint = lcd.row(number, code, WIDTH), "MOTTAGET"
+            place = self.places[destination]
+            middle = [self._name_row(place, width)]
+            first, hint = row_(number + " " + t("MOTTAGET")), place.code
+            if len(lcd.cells(hint)) > room:
+                first, hint = row_(number, place.code), t("MOTTAGET")
             titles = [first]
-            name = self.places[destination].name
-            status = f"Tåg {number} mottaget i {name}. Meddelandet försvinner automatiskt."
-        lines = [titles[0], lcd.row(hint, clock, WIDTH)]
+            status = t(
+                "Tåg {number} mottaget i {station}. Meddelandet försvinner automatiskt.",
+                number=number,
+                station=place.name,
+            )
+        blank = " " * width
+        lines = [titles[0], row_(hint, clock)]
         for top in titles:
-            lines = [top, lcd.row(hint, clock, WIDTH)]
-            if lcd.fits(lines):
+            if height == 4:
+                lines = [top, *([*(middle or []), blank, blank][:2]), row_(hint, clock)]
+                if not lcd.fits(lines):
+                    # Only eight places for own characters: rows two and three give way,
+                    # one and four are always shown.
+                    lines[1] = lines[2] = blank
+            else:
+                lines = [top, row_(hint, clock)]
+            if lcd.fits([lines[0], lines[-1]]):
                 break
         return self._picture(box, lines, buttons, clock, status, requests, active, active_position)
 
@@ -755,31 +898,50 @@ class Boxes:
         requests: list[str],
         active: list[str],
         active_position: int,
+        t: Translate,
     ) -> str:
-        status = "Skriv tågnummer direkt, eller bläddra med C/D"
+        status = t("Skriv tågnummer direkt, eller bläddra med C/D")
         if selected is not None and box.screen != "overview":
             schedule = self._schedule(box, selected)
-            other = self.places[schedule["other"]].name
             direction = "Avgång till" if schedule["kind"] == "departure" else "Ankomst från"
-            status = (
-                f"Tåg {selected.train.number} · {direction} {other} · planerat {schedule['time']}"
+            status = t(
+                "Tåg {number} · {direction} {station} · planerat {time}",
+                number=selected.train.number,
+                direction=t(direction),
+                station=self.places[schedule["other"]].name,
+                time=schedule["time"],
             )
+            if box.screen == "browse":
+                choices = self._candidates(box, filtered=True)
+                position = choices.index(box.selected) + 1 if box.selected in choices else 0
+                label = {"all": "alla tåg", "arrival": "ankomster", "departure": "avgångar"}[
+                    box.browse_filter
+                ]
+                status = f"{position}/{len(choices)} · {t(label)} · " + status
         if selected is not None and selected.departure.id in self._to_put_away(box):
-            status = (
-                f"Tåg {selected.train.number} slutar här. "
-                "# ställer undan det, så blir spåret fritt."
+            status = t(
+                "Tåg {number} slutar här. # ställer undan det, så blir spåret fritt.",
+                number=selected.train.number,
             )
         if box.screen == "requests":
             status = (
-                f"Förfrågan {requests.index(box.selected) + 1}/{len(requests)} · " + status
+                t(
+                    "Förfrågan {position}/{count}",
+                    position=requests.index(box.selected) + 1,
+                    count=len(requests),
+                )
+                + " · "
+                + status
                 if box.selected in requests
-                else "Ingen vald förfrågan. A öppnar kön; B visar översikten."
+                else t("Ingen vald förfrågan. A öppnar kön; B visar översikten.")
             )
         if box.screen == "active":
             status = (
-                f"Aktivt tåg {active_position}/{len(active)} · " + status
+                t("Aktivt tåg {position}/{count}", position=active_position, count=len(active))
+                + " · "
+                + status
                 if active_position
-                else "Ingen vald aktiv rörelse. C/D väljer; B visar översikten."
+                else t("Ingen vald aktiv rörelse. C/D väljer; B visar översikten.")
             )
         return status
 
@@ -796,29 +958,33 @@ class Boxes:
     ) -> dict[str, Any]:
         assert box.place is not None
         place = self.places[box.place]
-        entry_lines = [lcd.row("TÅG: _____", "", WIDTH), lcd.row("#Sök B:Del", clock, WIDTH)]
+        language = box.language
+
+        def t(key: str, **values: object) -> str:
+            return terminal_text.text(language, key, **values)
 
         def label(key: str, action: str, text: str) -> str:
             if key == "A":
-                return f"Förfrågningskö ({len(requests)} väntar)"
+                return t("Förfrågningskö ({count} väntar)", count=len(requests))
             if action == "active":
-                return f"Aktiva tåg ({len(active)})"
-            return text
+                return t("Aktiva tåg ({count})", count=len(active))
+            return t(text)
 
         def short(key: str, action: str, text: str) -> str:
             if key == "A":
-                return "KÖ" + (f" {len(requests)}" if requests else "")
+                return t("KÖ") + (f" {len(requests)}" if requests else "")
             if action == "active":
-                return "AKTIVA" + (f" {len(active)}" if active else "")
-            return SHORT_LABELS.get(text, "")
+                return t("AKTIVA") + (f" {len(active)}" if active else "")
+            word = SHORT_LABELS.get(text)
+            return t(word) if word else ""
 
         return {
             "profile": PROFILE,
             "device_id": box.client_id,
             "station": place.name,
             "station_code": place.code,
-            "rows": 2,
-            "cols": WIDTH,
+            "rows": box.rows,
+            "cols": box.cols,
             "lines": lines,
             "lcd": lcd.encode(lines),
             "attention": {
@@ -830,7 +996,7 @@ class Boxes:
             "revision": len(self.drift.history),
             "view_revision": box.revision,
             "input_guard_ms": 500,
-            "language": "sv",
+            "language": language,
             "keys": {
                 key: {
                     "label": label(key, action, text),
@@ -840,28 +1006,19 @@ class Boxes:
                 for key, (action, text) in buttons.items()
             },
             "entry": {
-                "context": f"{self.epoch}:{box.client_id}:{box.place}",
-                "max_length": 5,
-                "lines": entry_lines,
-                "lcd": lcd.encode(entry_lines),
-                "row": 0,
-                "column": 5,
-                "commit": "#",
-                "cancel": "*",
-                "erase": "B",
-                "shortcut": "A",
+                **self._entry(box, clock),
                 "labels": {
-                    "#": "Sök tåg (begär direkt)",
-                    "*": "Avbryt inmatning",
-                    "B": "Sudda siffra",
-                    "A": "Förfrågningskö (avbryt inmatning)",
+                    "#": t("Sök tåg (begär direkt)"),
+                    "*": t("Avbryt inmatning"),
+                    "B": t("Sudda siffra"),
+                    "A": t("Förfrågningskö (avbryt inmatning)"),
                 },
-                "short": {"#": "SÖK", "*": "AVBRYT", "B": "SUDDA", "A": "KÖ"},
+                "short": {"#": t("SÖK"), "*": t("AVBRYT"), "B": t("SUDDA"), "A": t("KÖ")},
             },
             "requests": {
                 "count": len(requests),
                 "position": requests.index(box.selected) + 1 if box.selected in requests else 0,
-                "label": f"A · Förfrågningskö ({len(requests)} väntar)",
+                "label": "A · " + t("Förfrågningskö ({count} väntar)", count=len(requests)),
             },
             "active": {
                 "count": len(active),
@@ -870,17 +1027,43 @@ class Boxes:
             "status": status,
         }
 
+    def _entry(self, box: Box, clock: str) -> dict[str, Any]:
+        """The picture while a train number is typed; the digits go at row 0, column 5."""
+        language = box.language
+        width, blank = box.cols, " " * box.cols
+        first = lcd.row(terminal_text.text(language, "TÅG: _____"), "", width)
+        last = lcd.row(terminal_text.text(language, "#Sök B:Del"), clock, width)
+        lines = [first, blank, blank, last] if box.rows == 4 else [first, last]
+        return {
+            "context": f"{self.epoch}:{box.client_id}:{box.place or '-'}",
+            "max_length": 5,
+            "lines": lines,
+            "lcd": lcd.encode(lines),
+            "row": 0,
+            "column": 5,
+            "commit": "#",
+            "cancel": "*",
+            "erase": "B",
+            "shortcut": "A",
+        }
+
     def _waiting_frame(self, box: Box, clock: str) -> dict[str, Any]:
         """A box nobody has assigned yet: it says so and waits (Väntar in Klienter)."""
-        lines = [lcd.centered("VÄNTAR PÅ", WIDTH), lcd.centered("TILLDELNING", WIDTH)]
-        entry_lines = [lcd.row("TÅG: _____", "", WIDTH), lcd.row("#Sök B:Del", clock, WIDTH)]
+        language = box.language
+        width = box.cols
+        lines = [
+            lcd.centered(terminal_text.text(language, "VÄNTAR PÅ"), width),
+            lcd.centered(terminal_text.text(language, "TILLDELNING"), width),
+        ]
+        lines += [" " * width] * (box.rows - 2)
+        entry = self._entry(box, clock)
         return {
             "profile": PROFILE,
             "device_id": box.client_id,
             "station": box.name,
             "station_code": "-",
-            "rows": 2,
-            "cols": WIDTH,
+            "rows": box.rows,
+            "cols": width,
             "lines": lines,
             "lcd": lcd.encode(lines),
             "attention": {"epoch": self.epoch, "seq": box.attention_seq, "kind": None},
@@ -888,15 +1071,14 @@ class Boxes:
             "revision": len(self.drift.history),
             "view_revision": box.revision,
             "input_guard_ms": 500,
-            "language": "sv",
+            "language": language,
             "keys": {},
-            "entry": {
-                "context": f"{self.epoch}:{box.client_id}:-",
-                "max_length": 5,
-                "lines": entry_lines,
-                "lcd": lcd.encode(entry_lines),
-            },
-            "status": f"{box.name} väntar på att trafikledningen tilldelar en driftplats.",
+            "entry": {key: entry[key] for key in ("context", "max_length", "lines", "lcd")},
+            "status": terminal_text.text(
+                language,
+                "{name} väntar på att trafikledningen tilldelar en driftplats.",
+                name=box.name,
+            ),
             "waiting": True,
         }
 
@@ -1006,7 +1188,18 @@ class Boxes:
         self._dismiss_receipt(box)
         matches = self._lookup(box, number)
         if len(matches) != 1:
-            box.notice = "INGET TÅG" if not matches else "FLERA TÅG ADMIN"
+            here = [
+                leg
+                for key, leg in self.legs.items()
+                if leg.train.number == number
+                and not self._completed(key)
+                and box.place in {leg.departure.place, leg.arrival.place}
+            ]
+            # The train is here, but on the sections the place's other box handles.
+            other_side = bool(here) and not any(self._on_side(box, leg) for leg in here)
+            box.notice = (
+                ("ANNAN SIDA" if other_side else "INGET TÅG") if not matches else "FLERA TÅG ADMIN"
+            )
             box.notice_hint, box.notice_until = "", None
         else:
             box.selected, box.screen, box.notice = matches[0], "detail", ""
@@ -1153,13 +1346,23 @@ class Boxes:
             box.notice_until = self.t + NOTICE_SECONDS
         return ""
 
-    def assign(self, box: Box, place: str, side: str = "both") -> None:
-        """The dispatcher gives the box a place: it starts on the start screen, told nothing old."""
+    def assign(self, box: Box, place: str, side: str = "both", language: str | None = None) -> None:
+        """The dispatcher gives the box a place and a side: it starts on the start screen, told
+        nothing old, with the requests waiting there open (old runtime). A key pressed for the
+        old place or side does nothing, since the picture it was pressed on is gone."""
         if place not in self.places:
             raise Refused(Reason.WRONG_PLACE)
+        if side not in {"both", "left", "right"}:
+            raise ValueError("Sidan är both, left eller right.")
+        if language is not None:
+            if language not in terminal_text.LANGUAGES:
+                raise ValueError("Språket finns inte på boxen.")
+            box.language = language
         box.place, box.side = place, side
         box.screen, box.selected, box.return_screen = "overview", None, "detail"
         box.notice, box.notice_hint, box.notice_until = "", "", None
         box.receipts, box.receipt_until = [], None
         box.seen = len(self.drift.history)
         box.revision += 1
+        if self._requests(box):
+            self._open_requests(box)

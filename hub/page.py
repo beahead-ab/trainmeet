@@ -194,6 +194,10 @@ def render_box(info: BuildInfo) -> str:
       <label>Boxens namn <input id="name" maxlength="40" required autocomplete="off"></label>
       <label>Kod <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
         required autocomplete="off"></label>
+      <label>Display <select id="display">
+        <option value="2x16">16 × 2, som de flesta boxar</option>
+        <option value="4x20">20 × 4</option>
+      </select></label>
       <button type="submit">Anslut</button>
     </form>
     <p id="login-error" class="fel" role="alert"></p>

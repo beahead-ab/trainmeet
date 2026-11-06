@@ -27,8 +27,9 @@ from typing import Final, Literal
 
 from pydantic import Field, model_validator
 
-from contracts.common import Contract, Id, Text, TimeOfDay, Weekday
+from contracts.common import BoxLanguage, Contract, Id, Text, TimeOfDay, Weekday
 from contracts.station import ApprovalStatus
+from contracts.terminal import DisplaySize
 
 PROTOCOL: Final = "trainmeet.drift/1"
 
@@ -74,11 +75,13 @@ class Revoke(Contract):
 
 
 class Assign(Contract):
-    """A TMBox gets a place and a side, as before. One box may run several places (H44)."""
+    """A TMBox gets a place and a side, as before. One box may run several places (H44).
+    The language is the box's own; left out, the box keeps the one it has."""
 
     client_id: Id
     places: list[Id] = Field(min_length=1)
     side: Literal["both", "left", "right"] = "both"
+    language: BoxLanguage | None = None
 
 
 class Client(Contract):
@@ -88,6 +91,8 @@ class Client(Contract):
     status: ApprovalStatus
     places: list[Id] = Field(default_factory=list)
     side: Literal["both", "left", "right"] = "both"
+    language: BoxLanguage | None = Field(default=None, description="Bara för TMBoxar.")
+    display: DisplaySize | None = Field(default=None, description="Bara för TMBoxar.")
 
 
 class EventKind(StrEnum):

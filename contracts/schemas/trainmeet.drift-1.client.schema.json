@@ -12,6 +12,32 @@
       ],
       "title": "ApprovalStatus",
       "type": "string"
+    },
+    "DisplaySize": {
+      "additionalProperties": true,
+      "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
+      "properties": {
+        "rows": {
+          "default": 2,
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "default": 16,
+          "enum": [
+            16,
+            20
+          ],
+          "title": "Cols",
+          "type": "integer"
+        }
+      },
+      "title": "DisplaySize",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -58,6 +84,38 @@
       ],
       "title": "Side",
       "type": "string"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "enum": [
+            "sv",
+            "en",
+            "da",
+            "nb",
+            "de"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bara för TMBoxar.",
+      "title": "Language"
+    },
+    "display": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DisplaySize"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bara för TMBoxar."
     }
   },
   "required": [

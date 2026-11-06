@@ -2,6 +2,34 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.terminal-web-1.login.schema.json",
   "title": "trainmeet.terminal-web-1.login",
+  "$defs": {
+    "DisplaySize": {
+      "additionalProperties": true,
+      "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
+      "properties": {
+        "rows": {
+          "default": 2,
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "default": 16,
+          "enum": [
+            16,
+            20
+          ],
+          "title": "Cols",
+          "type": "integer"
+        }
+      },
+      "title": "DisplaySize",
+      "type": "object"
+    }
+  },
   "additionalProperties": true,
   "properties": {
     "name": {
@@ -16,6 +44,18 @@
       "minLength": 1,
       "title": "Code",
       "type": "string"
+    },
+    "display": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DisplaySize"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Boxens storlek, som i hello. Utelämnad är 16×2."
     }
   },
   "required": [

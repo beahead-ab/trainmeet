@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.assign.schema.json",
   "title": "trainmeet.drift-1.assign",
   "additionalProperties": true,
-  "description": "A TMBox gets a place and a side, as before. One box may run several places (H44).",
+  "description": "A TMBox gets a place and a side, as before. One box may run several places (H44).\nThe language is the box's own; left out, the box keeps the one it has.",
   "properties": {
     "client_id": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -28,6 +28,25 @@
       ],
       "title": "Side",
       "type": "string"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "enum": [
+            "sv",
+            "en",
+            "da",
+            "nb",
+            "de"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Language"
     }
   },
   "required": [

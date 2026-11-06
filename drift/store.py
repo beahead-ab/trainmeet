@@ -17,8 +17,10 @@ from contracts import station
 from contracts.common import checksum
 from contracts.meet import MeetPackage
 from contracts.reasons import Reason
+from contracts.terminal import DisplaySize
 from drift.engine import Drift, Refused, now_utc
 from drift.terminal import Box, Boxes
+from drift.terminal_text import COUNTRY_LANGUAGE
 
 RUN_LIFETIME: Final = timedelta(days=1)
 MAX_RUNS: Final = 256
@@ -212,8 +214,10 @@ class PreviewStore:
                     db.execute("INSERT INTO preview_join VALUES (?, ?)", (run_id, code))
                     return code
 
-    def login(self, name: str, code: str) -> tuple[str, str]:
-        """A new box under Väntar. Returns its client id and its session key, shown once."""
+    def login(self, name: str, code: str, display: DisplaySize | None = None) -> tuple[str, str]:
+        """A new box under Väntar. Returns its client id and its session key, shown once.
+        The box speaks the meet's language until the dispatcher picks another, and is drawn
+        at the size it announced (16×2 unless it says 20×4)."""
         now = now_utc()
         with self._transaction() as db:
             row = db.execute(
@@ -232,7 +236,15 @@ class PreviewStore:
                 raise RunLimit()
             client_id = "box-" + token_hex(6)
             key = token_urlsafe(32)
-            box = Box(client_id=client_id, name=name, seen=len(drift.history))
+            size = display or DisplaySize()
+            box = Box(
+                client_id=client_id,
+                name=name,
+                seen=len(drift.history),
+                language=COUNTRY_LANGUAGE.get(drift.package.meet.country, "sv"),
+                rows=size.rows,
+                cols=size.cols,
+            )
             db.execute(
                 "INSERT INTO preview_box VALUES (?, ?, ?, ?, ?)",
                 (client_id, run_id, _key_hash(key), now.timestamp(), box.to_json()),
@@ -302,6 +314,8 @@ class PreviewStore:
                 "status": "approved" if box.place else "waiting",
                 "places": [box.place] if box.place else [],
                 "side": box.side,
+                "language": box.language,
+                "display": {"rows": box.rows, "cols": box.cols},
             }
             for box in boxes
         ]
@@ -314,7 +328,7 @@ class PreviewStore:
                 box = boxes.boxes.get(assignment.client_id)
                 if box is None:
                     raise UnknownBox()
-                boxes.assign(box, assignment.places[0], assignment.side)
+                boxes.assign(box, assignment.places[0], assignment.side, assignment.language)
 
             self._with_boxes(db, run_id, give)
         return self.clients(run_id)

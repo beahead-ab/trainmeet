@@ -2913,6 +2913,31 @@ export interface components {
              * @description Lokal kod för träffen. Skrivs aldrig ut i loggen.
              */
             code: string;
+            /**
+             * @description Boxens storlek, som i hello. Utelämnad är 16×2.
+             * @default null
+             */
+            display: components["schemas"]["trainmeet.terminal-web-1.login.DisplaySize"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DisplaySize
+         * @description 16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.
+         */
+        "trainmeet.terminal-web-1.login.DisplaySize": {
+            /**
+             * Rows
+             * @default 2
+             * @enum {integer}
+             */
+            rows: 2 | 4;
+            /**
+             * Cols
+             * @default 16
+             * @enum {integer}
+             */
+            cols: 16 | 20;
         } & {
             [key: string]: unknown;
         };
@@ -3011,6 +3036,7 @@ export interface components {
         /**
          * Assign
          * @description A TMBox gets a place and a side, as before. One box may run several places (H44).
+         *     The language is the box's own; left out, the box keeps the one it has.
          */
         "trainmeet.drift-1.assign": {
             /** Client Id */
@@ -3023,6 +3049,11 @@ export interface components {
              * @enum {string}
              */
             side: "both" | "left" | "right";
+            /**
+             * Language
+             * @default null
+             */
+            language: ("sv" | "en" | "da" | "nb" | "de") | null;
         } & {
             [key: string]: unknown;
         };
@@ -3046,6 +3077,17 @@ export interface components {
              * @enum {string}
              */
             side: "both" | "left" | "right";
+            /**
+             * Language
+             * @description Bara för TMBoxar.
+             * @default null
+             */
+            language: ("sv" | "en" | "da" | "nb" | "de") | null;
+            /**
+             * @description Bara för TMBoxar.
+             * @default null
+             */
+            display: components["schemas"]["trainmeet.drift-1.client.DisplaySize"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -3054,6 +3096,26 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.client.ApprovalStatus": "waiting" | "approved" | "refused" | "revoked";
+        /**
+         * DisplaySize
+         * @description 16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.
+         */
+        "trainmeet.drift-1.client.DisplaySize": {
+            /**
+             * Rows
+             * @default 2
+             * @enum {integer}
+             */
+            rows: 2 | 4;
+            /**
+             * Cols
+             * @default 16
+             * @enum {integer}
+             */
+            cols: 16 | 20;
+        } & {
+            [key: string]: unknown;
+        };
         /** DriftEvent */
         "trainmeet.drift-1.event": (({
             /**

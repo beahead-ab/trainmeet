@@ -1,6 +1,6 @@
 "use strict";
 
-// TMBox web: one box per tab. Drift draws the 16×2 picture; this page shows it, keeps the
+// TMBox web: one box per tab. Drift draws the picture (16×2 or 20×4); this page shows it, keeps the
 // typed train number until #, and sends the keys. The session key lives in this tab only.
 
 const $ = id => document.getElementById(id);
@@ -82,17 +82,22 @@ function labels() {
 }
 
 // The display as the box draws it: one row per line, one cell per character (old lcd.js).
+// 16 cells are drawn by the frozen style sheet; a box that announced a 20×4 widens the grid
+// and shrinks the cells to fit, as the old lcd.js did.
 function drawLCD(lines) {
   const lcd = $("lcd");
   lcd.replaceChildren();
   lcd.setAttribute("aria-label", lines.join(". "));
+  const columns = Math.max(16, ...lines.map(line => line.normalize("NFC").length));
   for (const line of lines) {
     const row = document.createElement("div");
     row.className = "lcd-row";
+    if (columns > 16) row.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
     for (const character of line.normalize("NFC")) {
       const cell = document.createElement("span");
       cell.className = "lcd-cell";
       cell.textContent = character;
+      if (columns > 16) cell.style.fontSize = `clamp(10px, ${(128 / columns).toFixed(2)}cqi, 19px)`;
       row.append(cell);
     }
     lcd.append(row);
@@ -272,6 +277,12 @@ document.addEventListener("keydown", event => {
   }
 });
 
+// The size the box announces, as a physical box does in its hello.
+function chosenDisplay() {
+  const [rows, cols] = $("display").value.split("x").map(Number);
+  return { rows, cols };
+}
+
 $("login-form").onsubmit = async event => {
   event.preventDefault();
   try { audio ??= new AudioContext(); } catch { /* no sound */ }
@@ -281,7 +292,7 @@ $("login-form").onsubmit = async event => {
     const response = await fetch("/api/terminal/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, code: $("code").value.trim() }),
+      body: JSON.stringify({ name, code: $("code").value.trim(), display: chosenDisplay() }),
     });
     const answer = await response.json();
     if (!response.ok) {

@@ -41,6 +41,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 # Swedish typography is intended: 5×7, tankstreck (–).
 allowed-confusables = ["×", "–"]
 
+[tool.ruff.lint.per-file-ignores]
+# The TMBox texts: one row per text, five languages side by side.
+"drift/terminal_text.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
