@@ -13,7 +13,9 @@ permissions:
 
 concurrency:
   group: tester-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push replaces an older test run on a PR, but a run on main is never cut off:
+  # it may be in the middle of putting the hub out in the test environment.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   tester:
