@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Annotated, Any, NoReturn
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
@@ -47,12 +47,12 @@ def _changed(old: dict[str, Any], new: dict[str, Any]) -> bool:
     return any(old.get(name) != new.get(name) for name in fields)
 
 
-def router(store: PreviewStore, info: BuildInfo) -> APIRouter:
+def router(store: PreviewStore, info: Callable[[], BuildInfo]) -> APIRouter:
     routes = APIRouter()
 
     @routes.get("/provbanan/box", response_class=HTMLResponse)
     def box_page() -> str:
-        return page.render_box(info)
+        return page.render_box(info())
 
     @routes.post("/api/terminal/session", status_code=201)
     def session(login: terminal.WebLogin, response: Response) -> dict[str, str]:

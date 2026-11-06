@@ -514,6 +514,77 @@
           }
         ]
       }
+    },
+    "/api/hub": {
+      "get": {
+        "operationId": "hubInfo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.info"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hub/setup": {
+      "post": {
+        "operationId": "hubSetUp",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.setup"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hub/login": {
+      "post": {
+        "operationId": "hubLogIn",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.login"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7550,6 +7621,90 @@
           "message_id"
         ],
         "title": "LineAcknowledged",
+        "type": "object"
+      },
+      "trainmeet.hub-1.info": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "set_up": {
+            "description": "Har hubben fått namn och PIN vid första start?",
+            "title": "Set Up",
+            "type": "boolean"
+          },
+          "logged_in": {
+            "title": "Logged In",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "set_up",
+          "logged_in"
+        ],
+        "title": "HubInfo",
+        "type": "object"
+      },
+      "trainmeet.hub-1.setup": {
+        "additionalProperties": true,
+        "description": "First start: only possible while the hub has no PIN.",
+        "properties": {
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pin": {
+            "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "Pin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "pin"
+        ],
+        "title": "SetUp",
+        "type": "object"
+      },
+      "trainmeet.hub-1.login": {
+        "additionalProperties": true,
+        "properties": {
+          "pin": {
+            "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "Pin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pin"
+        ],
+        "title": "LogIn",
+        "type": "object"
+      },
+      "trainmeet.hub-1.session": {
+        "additionalProperties": true,
+        "properties": {
+          "session_key": {
+            "description": "Visas en gång. Gäller 12 timmar, eller tills utloggning.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Session Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_key"
+        ],
+        "title": "Session",
         "type": "object"
       }
     },

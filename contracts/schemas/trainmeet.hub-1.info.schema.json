@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.info.schema.json",
+  "title": "trainmeet.hub-1.info",
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "set_up": {
+      "description": "Har hubben fått namn och PIN vid första start?",
+      "title": "Set Up",
+      "type": "boolean"
+    },
+    "logged_in": {
+      "title": "Logged In",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "set_up",
+    "logged_in"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.setup.schema.json",
+  "title": "trainmeet.hub-1.setup",
+  "additionalProperties": true,
+  "description": "First start: only possible while the hub has no PIN.",
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "pin": {
+      "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+      "pattern": "^[0-9]{6,12}$",
+      "title": "Pin",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "pin"
+  ],
+  "type": "object"
+}

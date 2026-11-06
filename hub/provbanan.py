@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Callable
+from dataclasses import replace
 from importlib.resources import files
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
@@ -39,15 +40,26 @@ def _error(error: MissingRun | RunLimit | Refused) -> NoReturn:
     raise HTTPException(404, "Starta en provkörning först.") from error
 
 
-def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
-    path = (
-        db_path
-        if db_path is not None
-        else Path(
-            os.environ.get("TRAINMEET_PREVIEW_DB")
-            or (Path(tempfile.gettempdir()) / "trainmeet-provbanan.sqlite3")
-        )
+def database_path(db_path: Path | None = None) -> Path:
+    """Provbanan's database. The hub keeps its other files next to it."""
+    if db_path is not None:
+        return db_path
+    return Path(
+        os.environ.get("TRAINMEET_PREVIEW_DB")
+        or (Path(tempfile.gettempdir()) / "trainmeet-provbanan.sqlite3")
     )
+
+
+def router(
+    info: BuildInfo,
+    db_path: Path | None = None,
+    hub_name: Callable[[], str] | None = None,
+) -> APIRouter:
+    def current() -> BuildInfo:
+        """The build, with the name the hub got at first start (H52)."""
+        return replace(info, hub_name=hub_name()) if hub_name else info
+
+    path = database_path(db_path)
     fixture = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
     store = PreviewStore(path, MeetPackage.model_validate_json(fixture))
     routes = APIRouter()
@@ -68,7 +80,7 @@ def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
 
     @routes.get("/provbanan", response_class=HTMLResponse)
     def preview() -> str:
-        return page.render_preview(info)
+        return page.render_preview(current())
 
     @routes.get("/api/provbanan")
     def state(response: Response, run: RunCookie = None) -> dict[str, Any]:
@@ -155,7 +167,7 @@ def router(info: BuildInfo, db_path: Path | None = None) -> APIRouter:
     ) -> dict[str, Any]:
         return boxes(response, run, revocation)
 
-    routes.include_router(tmbox_web.router(store, info))
+    routes.include_router(tmbox_web.router(store, current))
     routes.include_router(station_api.router(store))
 
     @routes.post("/api/provbanan/command")
