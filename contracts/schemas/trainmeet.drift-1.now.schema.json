@@ -138,6 +138,11 @@
           "title": "Leg",
           "type": "string"
         },
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
         "train_number": {
           "maxLength": 500,
           "minLength": 1,
@@ -241,6 +246,7 @@
       },
       "required": [
         "leg",
+        "train",
         "train_number",
         "section",
         "from_place",

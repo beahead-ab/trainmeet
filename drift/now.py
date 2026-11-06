@@ -64,6 +64,7 @@ def _leg(drift: Drift, leg: Leg) -> contract.LegNow:
         state = "requested"
     return contract.LegNow(
         leg=key,
+        train=leg.train.id,
         train_number=leg.train.number,
         train_type=leg.train.train_type,
         section=leg.section.id,

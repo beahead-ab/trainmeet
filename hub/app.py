@@ -11,7 +11,16 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from drift.store import PreviewStore
-from hub import build_info, drift_api, hubben, page, provbanan, station_api, tmbox_web
+from hub import (
+    build_info,
+    drift_api,
+    drift_pages,
+    hubben,
+    page,
+    provbanan,
+    station_api,
+    tmbox_web,
+)
 from hub.local import LocalLogin
 from hub.stores import AnyRun
 
@@ -68,6 +77,27 @@ def create_app(
             set_up=state.set_up,
             logged_in=login.valid(hubben.session_of(session, authorization)),
         )
+
+    def logged_in(session: str | None, authorization: str | None) -> bool:
+        return login.valid(hubben.session_of(session, authorization))
+
+    @app.get("/drift", response_class=HTMLResponse)
+    def nu_page(
+        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
+    ) -> str:
+        return drift_pages.render_nu(current(), logged_in(session, authorization))
+
+    @app.get("/drift/klienter", response_class=HTMLResponse)
+    def clients_page(
+        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
+    ) -> str:
+        return drift_pages.render_klienter(current(), logged_in(session, authorization))
+
+    @app.get("/drift/logg", response_class=HTMLResponse)
+    def log_page(
+        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
+    ) -> str:
+        return drift_pages.render_logg(current(), logged_in(session, authorization))
 
     @app.get("/healthz", response_class=PlainTextResponse)
     def healthz() -> str:

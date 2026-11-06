@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/refusals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driftRefusals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/events": {
         parameters: {
             query?: never;
@@ -3578,6 +3594,8 @@ export interface components {
              * @description Avgångens tågbesök; nyckeln för sträckan.
              */
             leg: string;
+            /** Train */
+            train: string;
             /** Train Number */
             train_number: string;
             /**
@@ -3647,6 +3665,42 @@ export interface components {
             code: string;
             /** Url */
             url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Refusal
+         * @description A command a client was told no to, and why (B15). Kept beside the Drift events: it
+         *     changed nothing, but it explains a complaint after the meet.
+         */
+        "trainmeet.drift-1.refusal": {
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+            /** Model Time */
+            model_time: string;
+            /** Client Id */
+            client_id: string;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * What
+             * @description Åtgärden, eller knappen på en box.
+             */
+            what: string;
+            /**
+             * Reason
+             * @description Skälet som kod, när Drift sa nej.
+             * @default null
+             */
+            reason: string | null;
+            /** Message */
+            message: string;
         } & {
             [key: string]: unknown;
         };
@@ -4109,6 +4163,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.drift-1.event"][];
+                };
+            };
+        };
+    };
+    driftRefusals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.refusal"][];
                 };
             };
         };

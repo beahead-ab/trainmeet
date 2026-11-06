@@ -6,7 +6,7 @@ import json
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from secrets import randbelow, token_hex, token_urlsafe
@@ -19,7 +19,7 @@ from contracts.common import Weekday, checksum
 from contracts.meet import MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.terminal import DisplaySize
-from drift.engine import Drift, Outcome, Refused, now_utc
+from drift.engine import Drift, Outcome, Refused, model_time, now_utc
 from drift.snapshot import snapshot
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
@@ -29,6 +29,7 @@ MAX_RUNS: Final = 256
 MAX_ACTIONS: Final = 2000
 MAX_BOXES: Final = 16
 MAX_STATION_CLIENTS: Final = 16
+MAX_REFUSALS: Final = 500
 
 T = TypeVar("T")
 
@@ -67,6 +68,11 @@ CREATE TABLE IF NOT EXISTS station_client (
     places TEXT NOT NULL,
     key_hash TEXT UNIQUE,
     key_once TEXT
+);
+CREATE TABLE IF NOT EXISTS drift_refusal (
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    at REAL NOT NULL, model_time TEXT NOT NULL, client_id TEXT NOT NULL, place TEXT,
+    what TEXT NOT NULL, reason TEXT, message TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
@@ -319,6 +325,8 @@ class PreviewStore:
         boxes.catch_up()
         result = operation(boxes)
         self._save(db, run_id, drift.history[size:])
+        for client_id, place, key, message in boxes.refusals:
+            self._refused(db, run_id, drift, client_id, place, f"knapp {key}", None, message)
         for cid, box in boxes.boxes.items():
             state = box.to_json()
             if state != stored[cid][1]:
@@ -567,6 +575,17 @@ class PreviewStore:
             except Refused as error:
                 reason = error.reason
             self._save(db, run_id, drift.history[size:])
+            if reason is not None:
+                self._refused(
+                    db,
+                    run_id,
+                    drift,
+                    client_id,
+                    command.place,
+                    command.action.value,
+                    reason.value,
+                    TEXT_SV[reason],
+                )
             answer: dict[str, Any] = {
                 "message_id": command.message_id,
                 "status": station.ReplyStatus.REJECTED if reason else station.ReplyStatus.ACCEPTED,
@@ -623,3 +642,57 @@ class PreviewStore:
     def _numbered(drift: Drift, event: events.DriftEvent, number: str) -> bool:
         found = drift.calls.get(event.call or "")
         return found is not None and found[0].number == number
+
+    # --- Refused commands, for Logg (B15) -------------------------------------------------
+
+    @staticmethod
+    def _refused(
+        db: sqlite3.Connection,
+        run_id: str,
+        drift: Drift,
+        client_id: str,
+        place: str | None,
+        what: str,
+        reason: str | None,
+        message: str,
+    ) -> None:
+        """What a client was told no, and why. Kept beside the events, never as one."""
+        now = now_utc()
+        db.execute(
+            "INSERT INTO drift_refusal VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                now.timestamp(),
+                model_time(drift.clock.at(now)),
+                client_id,
+                place,
+                what,
+                reason,
+                message,
+            ),
+        )
+        db.execute(
+            "DELETE FROM drift_refusal WHERE run_id=? AND rowid NOT IN (SELECT rowid FROM "
+            "drift_refusal WHERE run_id=? ORDER BY at DESC LIMIT ?)",
+            (run_id, run_id, MAX_REFUSALS),
+        )
+
+    def refusals(self, run_id: str) -> list[events.Refusal]:
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT at, model_time, client_id, place, what, reason, message "
+                "FROM drift_refusal WHERE run_id=? ORDER BY at DESC",
+                (run_id,),
+            ).fetchall()
+        return [
+            events.Refusal(
+                wall_time=datetime.fromtimestamp(at, UTC),
+                model_time=model,
+                client_id=client,
+                place=place,
+                what=what,
+                reason=reason,
+                message=message,
+            )
+            for at, model, client, place, what, reason, message in rows
+        ]

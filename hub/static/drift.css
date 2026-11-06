@@ -1,0 +1,118 @@
+/* Trafikledningen, in Kontrollrummet (dark): TrainMeet Design System, proposal 4 November.
+   Times and train numbers in Inter with tabular figures; Mono only for codes (S7). */
+@font-face { font-family: Inter; src: url(/static/fonts/inter.woff2) format("woff2");
+  font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url(/static/fonts/jetbrains-mono.woff2)
+  format("woff2"); font-weight: 100 800; font-display: swap; }
+
+:root { color-scheme: dark; --bg: #0e1114; --panel: #161a1e; --panel-2: #1b1f26;
+  --line: #262c33; --text: #e9ebef; --mute: #8d94a0; --blue: #5aa9ff; --tab: #7da2ff;
+  --green: #46d36b; --red: #ff5a4d; --yellow: #f5c518; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 22px; line-height: 1.25; margin: 0; font-weight: 700; }
+h2 { font-size: 15px; margin: 28px 0 10px; font-weight: 650; }
+.liten { color: var(--mute); font-size: 13px; margin: 4px 0 0; }
+.ingress { color: var(--mute); margin: 6px 0 16px; }
+.mono, .anslutkod, td.kod { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+
+.sidhuvud { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  background: #121418; color: #e9ebef; border-bottom: 1px solid #333944; }
+.sidhuvud .skylt { height: 28px; width: auto; display: block; }
+.sidhuvud .namn { height: 16px; width: auto; display: block; }
+.sidhuvud .streck { width: 1px; height: 20px; background: #333944; }
+.traff { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.byt { font-weight: 500; font-size: 13px; color: var(--tab); }
+.fyll { flex: 1; }
+.klocka { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em; }
+.klocka.gar::after { content: " ▶"; font-size: 11px; color: var(--green); }
+.klocka.star::after { content: " ■"; font-size: 11px; color: var(--mute); }
+.hknapp { font: inherit; font-size: 13px; font-weight: 600; color: #e9ebef;
+  background: #1b1f26; border: 1px solid #333944; border-radius: 8px; padding: 4px 10px;
+  cursor: pointer; white-space: nowrap; }
+.hknapp:hover { text-decoration: none; border-color: #4a5260; }
+#waiting b { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px;
+  background: #333944; text-align: center; font-variant-numeric: tabular-nums; }
+#waiting.har b { background: var(--yellow); color: #121418; }
+
+.flikar { display: flex; gap: 22px; padding: 0 20px; background: var(--panel);
+  border-bottom: 1px solid var(--line); }
+.flikar a { color: var(--mute); padding: 11px 0 9px; border-bottom: 2px solid transparent;
+  font-weight: 600; }
+.flikar a[aria-current="page"] { color: var(--text); border-bottom-color: var(--tab); }
+.flikar a:hover { text-decoration: none; color: var(--text); }
+
+.anslut { display: flex; gap: 24px; align-items: center; justify-content: space-between;
+  padding: 16px 20px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.anslut[hidden] { display: none; }
+.etikett { margin: 0; color: var(--mute); font-size: 13px; }
+.anslutkod { font-size: 40px; letter-spacing: 0.12em; margin: 4px 0; font-weight: 700; }
+#connect-qr { background: #fff; border-radius: 8px; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+.kort { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px; margin: 0 0 16px; }
+.sidrubrik { margin-bottom: 16px; }
+.rad { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+label { color: var(--mute); font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+select, input { font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+button { font: inherit; font-weight: 600; color: var(--text); background: var(--panel-2);
+  border: 1px solid #333944; border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button.primar { background: var(--blue); border-color: var(--blue); color: #08121e;
+  min-height: 40px; padding: 8px 16px; }
+button.fara { border-color: var(--red); color: var(--red); }
+details summary { cursor: pointer; font-weight: 600; }
+details.kort { margin-top: 12px; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font: inherit; font-size: 13px; font-weight: 600; color: var(--mute);
+  background: transparent; border: 1px solid var(--line); border-radius: 16px;
+  padding: 4px 12px; min-height: 32px; cursor: pointer; }
+.chip[aria-pressed="true"] { color: var(--text); background: var(--panel-2);
+  border-color: var(--tab); }
+.chip .antal { margin-left: 6px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.antal { color: var(--mute); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.ram { overflow-x: auto; }
+.tabell { width: 100%; border-collapse: collapse; margin-top: 12px;
+  font-variant-numeric: tabular-nums; }
+.tabell th { text-align: left; color: var(--mute); font-weight: 600; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px;
+  border-bottom: 1px solid var(--line); }
+.tabell td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tabell tr.klar td { color: var(--mute); }
+td.tag { font-weight: 700; }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650;
+  padding: 2px 9px; border-radius: 11px; border: 1px solid var(--line); white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mute); }
+.pill.requested::before { background: var(--yellow); }
+.pill.cleared::before { background: var(--blue); }
+.pill.on_the_way::before { background: var(--green); }
+.pill.arrived { color: var(--mute); }
+
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista li { display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; margin-bottom: 8px; }
+.lista li.vantar { border-color: var(--yellow); }
+.lista .vem { display: grid; gap: 2px; }
+.lista .vem b { font-weight: 650; }
+.lista .kontroller { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tom { color: var(--mute); padding: 10px 0; }
+.meddelande { color: var(--yellow); min-height: 1.5em; }
+
+@media (max-width: 720px) {
+  .sidhuvud { gap: 8px; padding: 0 10px; }
+  .sidhuvud .namn, .sidhuvud .streck { display: none; }
+  .anslut { flex-direction: column; align-items: flex-start; }
+  .tabell th:nth-child(6), .tabell td:nth-child(6) { display: none; }
+  .tabell td, .tabell th { padding: 6px 5px; }
+  .pill { padding: 2px 7px; }
+}

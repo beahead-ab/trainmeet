@@ -529,6 +529,31 @@
         ]
       }
     },
+    "/api/drift/1/refusals": {
+      "get": {
+        "operationId": "driftRefusals",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.refusal"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/events": {
       "get": {
         "operationId": "driftEvents",
@@ -7863,6 +7888,11 @@
             "title": "Leg",
             "type": "string"
           },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
           "train_number": {
             "maxLength": 500,
             "minLength": 1,
@@ -7966,6 +7996,7 @@
         },
         "required": [
           "leg",
+          "train",
           "train_number",
           "section",
           "from_place",
@@ -8040,6 +8071,77 @@
           "url"
         ],
         "title": "Joining",
+        "type": "object"
+      },
+      "trainmeet.drift-1.refusal": {
+        "additionalProperties": true,
+        "description": "A command a client was told no to, and why (B15). Kept beside the Drift events: it\nchanged nothing, but it explains a complaint after the meet.",
+        "properties": {
+          "wall_time": {
+            "format": "date-time",
+            "title": "Wall Time",
+            "type": "string"
+          },
+          "model_time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Model Time",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "what": {
+            "description": "Åtgärden, eller knappen på en box.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "What",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Skälet som kod, när Drift sa nej.",
+            "title": "Reason"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wall_time",
+          "model_time",
+          "client_id",
+          "what",
+          "message"
+        ],
+        "title": "Refusal",
         "type": "object"
       },
       "trainmeet.hub-1.info": {

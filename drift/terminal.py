@@ -175,6 +175,8 @@ class Boxes:
         self.epoch = epoch
         self.now = now
         self.t = now.timestamp()
+        # Presses the box said no to, for Logg (B15): client, place, key and why.
+        self.refusals: list[tuple[str, str | None, str, str]] = []
         package = drift.package
         self.places: dict[str, Place] = {p.id: p for p in package.places}
         order = package.display.graph_order or [p.id for p in package.places]
@@ -1104,6 +1106,11 @@ class Boxes:
         else:
             result = self._dispatch(box, body)
         box.processed = [*box.processed, [command_id, signature, *result]][-PROCESSED_LIMIT:]
+        if not result[0]:
+            key = body.get("key")
+            self.refusals.append(
+                (box.client_id, box.place, key if isinstance(key, str) else "?", result[1])
+            )
         self.catch_up()
         return self._answer(box, command_id, *result)
 

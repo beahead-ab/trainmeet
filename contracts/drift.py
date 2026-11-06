@@ -272,6 +272,7 @@ class LegNow(Contract):
     """One train between two places today, and where it stands."""
 
     leg: Id = Field(description="Avgångens tågbesök; nyckeln för sträckan.")
+    train: Id
     train_number: Text
     train_type: Text | None = None
     section: Id
@@ -304,3 +305,16 @@ class Joining(Contract):
 
     code: Text
     url: Text
+
+
+class Refusal(Contract):
+    """A command a client was told no to, and why (B15). Kept beside the Drift events: it
+    changed nothing, but it explains a complaint after the meet."""
+
+    wall_time: datetime
+    model_time: TimeOfDay
+    client_id: Id
+    place: Id | None = None
+    what: Text = Field(description="Åtgärden, eller knappen på en box.")
+    reason: Text | None = Field(default=None, description="Skälet som kod, när Drift sa nej.")
+    message: Text
