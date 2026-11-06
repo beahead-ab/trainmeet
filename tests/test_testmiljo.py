@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
+from scaleway.instance.v1.custom_api import InstanceUtilsV1API
 
 from deploy import testmiljo
 from deploy.testmiljo import Keys, cloud_init, known_hosts_line
@@ -102,6 +105,17 @@ def test_the_server_files_agree_on_the_names() -> None:
     assert "{$HUB_DOMAIN}" in caddyfile
     assert "HUB_TAG=%s\\nHUB_DOMAIN=%s" in up
     assert "127.0.0.1:8080:8080" in compose
+
+
+def test_security_group_sends_uppercase_protocols_to_instance_v1() -> None:
+    instance = Mock(spec=InstanceUtilsV1API)
+    group = SimpleNamespace(name=testmiljo.NAME, id="group")
+    instance.list_security_groups.return_value = SimpleNamespace(security_groups=[group])
+
+    assert testmiljo.ensure_security_group(instance, "project") == "group"
+
+    rules = instance.set_security_group_rules.call_args.kwargs["rules"]
+    assert [rule.protocol for rule in rules] == ["TCP", "TCP", "TCP", "UDP", "ICMP"] * 2
 
 
 def test_usage_without_command() -> None:
