@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.joining.schema.json",
+  "title": "trainmeet.drift-1.joining",
+  "additionalProperties": true,
+  "description": "Anslut (S2): the meet's code and the address a box opens with it. Only for the\ndispatcher; the code is never shown to those who only look (B13).",
+  "properties": {
+    "code": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "url": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "url"
+  ],
+  "type": "object"
+}

@@ -244,6 +244,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driftNow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driftJoining"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/log": {
         parameters: {
             query?: never;
@@ -3333,6 +3365,11 @@ export interface components {
             traffic_day: components["schemas"]["trainmeet.drift-1.event.Weekday"];
             /** Speed */
             speed: number;
+            /**
+             * Game Day
+             * @default 1
+             */
+            game_day: number;
         } & {
             [key: string]: unknown;
         };
@@ -3446,6 +3483,170 @@ export interface components {
         "trainmeet.drift-1.event.LineAcknowledged": {
             /** Message Id */
             message_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Now
+         * @description The meet as it runs: open to everyone, so it holds no names of people, no codes and no
+         *     phone numbers (B13).
+         */
+        "trainmeet.drift-1.now": {
+            /** Meet Id */
+            meet_id: string;
+            /** Name */
+            name: string;
+            traffic_day: components["schemas"]["trainmeet.drift-1.now.Weekday"];
+            /** Game Day */
+            game_day: number;
+            clock: components["schemas"]["trainmeet.drift-1.now.Clock"];
+            /** Places */
+            places: components["schemas"]["trainmeet.drift-1.now.NowPlace"][];
+            /** Legs */
+            legs: components["schemas"]["trainmeet.drift-1.now.LegNow"][];
+            /** Clearances */
+            clearances: components["schemas"]["trainmeet.drift-1.now.Clearance"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clearance */
+        "trainmeet.drift-1.now.Clearance": {
+            /** Clearance Id */
+            clearance_id: string;
+            /** Call */
+            call: string;
+            /** Train Number */
+            train_number: string;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            status: components["schemas"]["trainmeet.drift-1.now.ClearanceStatus"];
+            /**
+             * Departed
+             * @default false
+             */
+            departed: boolean;
+            /** Requested At */
+            requested_at: string;
+            /**
+             * Reminders
+             * @description Påminnelser hittills (H39).
+             * @default 0
+             */
+            reminders: number;
+            /** Revision */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceStatus
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.ClearanceStatus": "waiting" | "approved" | "rejected" | "cancelled" | "invalidated";
+        /** Clock */
+        "trainmeet.drift-1.now.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LegNow
+         * @description One train between two places today, and where it stands.
+         */
+        "trainmeet.drift-1.now.LegNow": {
+            /**
+             * Leg
+             * @description Avgångens tågbesök; nyckeln för sträckan.
+             */
+            leg: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Train Type
+             * @default null
+             */
+            train_type: string | null;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "planned" | "requested" | "cleared" | "on_the_way" | "arrived";
+            /**
+             * Clearance Id
+             * @default null
+             */
+            clearance_id: string | null;
+            /**
+             * Track
+             * @description Ankomstspåret, planerat eller faktiskt.
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** NowPlace */
+        "trainmeet.drift-1.now.NowPlace": {
+            /** Place */
+            place: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * Joining
+         * @description Anslut (S2): the meet's code and the address a box opens with it. Only for the
+         *     dispatcher; the code is never shown to those who only look (B13).
+         */
+        "trainmeet.drift-1.joining": {
+            /** Code */
+            code: string;
+            /** Url */
+            url: string;
         } & {
             [key: string]: unknown;
         };
@@ -3845,6 +4046,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.drift-1.client"];
+                };
+            };
+        };
+    };
+    driftNow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.now"];
+                };
+            };
+        };
+    };
+    driftJoining: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.joining"];
                 };
             };
         };

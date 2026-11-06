@@ -28,7 +28,7 @@ from typing import Final, Literal
 from pydantic import Field, model_validator
 
 from contracts.common import BoxLanguage, Contract, Id, Text, TimeOfDay, Weekday
-from contracts.station import ApprovalStatus
+from contracts.station import ApprovalStatus, Clearance, Clock
 from contracts.terminal import DisplaySize
 
 PROTOCOL: Final = "trainmeet.drift/1"
@@ -139,6 +139,7 @@ class Actor(Contract):
 class MeetStarted(Contract):
     traffic_day: Weekday
     speed: float = Field(gt=0, le=60)
+    game_day: int = Field(default=1, ge=1)
 
 
 class ClockChanged(Contract):
@@ -254,3 +255,52 @@ class DriftEvent(Contract):
         if model is not None:
             model.model_validate(self.data)
         return self
+
+
+# --- Nu: what the dispatcher and everyone else sees of the meet (S1, steg 3) -----------------
+
+LegState = Literal["planned", "requested", "cleared", "on_the_way", "arrived"]
+
+
+class NowPlace(Contract):
+    place: Id
+    code: Text
+    name: Text
+
+
+class LegNow(Contract):
+    """One train between two places today, and where it stands."""
+
+    leg: Id = Field(description="Avgångens tågbesök; nyckeln för sträckan.")
+    train_number: Text
+    train_type: Text | None = None
+    section: Id
+    from_place: Id
+    to_place: Id
+    departure: TimeOfDay | None = None
+    arrival: TimeOfDay | None = None
+    state: LegState
+    clearance_id: Id | None = None
+    track: Text | None = Field(default=None, description="Ankomstspåret, planerat eller faktiskt.")
+
+
+class Now(Contract):
+    """The meet as it runs: open to everyone, so it holds no names of people, no codes and no
+    phone numbers (B13)."""
+
+    meet_id: Id
+    name: Text
+    traffic_day: Weekday
+    game_day: int
+    clock: Clock
+    places: list[NowPlace]
+    legs: list[LegNow]
+    clearances: list[Clearance]
+
+
+class Joining(Contract):
+    """Anslut (S2): the meet's code and the address a box opens with it. Only for the
+    dispatcher; the code is never shown to those who only look (B13)."""
+
+    code: Text
+    url: Text

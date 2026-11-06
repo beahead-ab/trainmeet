@@ -96,6 +96,12 @@
           "maximum": 60,
           "title": "Speed",
           "type": "number"
+        },
+        "game_day": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
         }
       },
       "required": [

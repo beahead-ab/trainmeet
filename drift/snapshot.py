@@ -51,7 +51,7 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
             if case.departed and case.leg.departure.place == place
         ],
         clearances=[
-            _clearance(drift, case)
+            clearance_of(drift, case)
             for case in _cases(drift)
             if place in {case.leg.departure.place, case.leg.arrival.place}
         ],
@@ -110,7 +110,7 @@ def _on_section(drift: Drift, case: Case, other: str) -> station.TrainOnSection:
     )
 
 
-def _clearance(drift: Drift, case: Case) -> station.Clearance:
+def clearance_of(drift: Drift, case: Case) -> station.Clearance:
     leg = case.leg
     return station.Clearance(
         clearance_id=case.id,

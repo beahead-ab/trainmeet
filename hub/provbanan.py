@@ -25,7 +25,7 @@ from drift.store import (
     UnknownBox,
     UnknownClient,
 )
-from hub import page, station_api, tmbox_web
+from hub import page
 from hub.build_info import BuildInfo
 
 COOKIE = "trainmeet_provbanan"
@@ -50,18 +50,21 @@ def database_path(db_path: Path | None = None) -> Path:
     )
 
 
+def package() -> MeetPackage:
+    """Provbanan, the made-up meet every hub has (steg 2)."""
+    fixture = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
+    return MeetPackage.model_validate_json(fixture)
+
+
 def router(
     info: BuildInfo,
-    db_path: Path | None = None,
+    store: PreviewStore,
     hub_name: Callable[[], str] | None = None,
 ) -> APIRouter:
     def current() -> BuildInfo:
         """The build, with the name the hub got at first start (H52)."""
         return replace(info, hub_name=hub_name()) if hub_name else info
 
-    path = database_path(db_path)
-    fixture = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
-    store = PreviewStore(path, MeetPackage.model_validate_json(fixture))
     routes = APIRouter()
 
     def snapshot(
@@ -166,9 +169,6 @@ def router(
         revocation: drift.Revoke, response: Response, run: RunCookie = None
     ) -> dict[str, Any]:
         return boxes(response, run, revocation)
-
-    routes.include_router(tmbox_web.router(store, current))
-    routes.include_router(station_api.router(store))
 
     @routes.post("/api/provbanan/command")
     def command(

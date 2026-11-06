@@ -47,6 +47,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.assign": drift.Assign,
     "trainmeet.drift-1.client": drift.Client,
     "trainmeet.drift-1.event": drift.DriftEvent,
+    "trainmeet.drift-1.now": drift.Now,
+    "trainmeet.drift-1.joining": drift.Joining,
     "trainmeet.hub-1.info": hub.HubInfo,
     "trainmeet.hub-1.setup": hub.SetUp,
     "trainmeet.hub-1.login": hub.LogIn,
@@ -250,6 +252,8 @@ def openapi() -> str:
             d + action,
             bearer=True,
         )
+    route("get", "/api/drift/1/now", "driftNow", d + "now")
+    route("get", "/api/drift/1/connect", "driftJoining", d + "joining", bearer=True)
     route("get", "/api/drift/1/log", "driftLog", d + "event", bearer=True, many=True)
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
     h = "trainmeet.hub-1."

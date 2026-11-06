@@ -20,7 +20,8 @@ from fastapi.responses import StreamingResponse
 from contracts import station
 from contracts.common import Id
 from contracts.reasons import TEXT_SV, Reason
-from drift.store import MissingRun, NotApproved, PreviewStore, RunLimit, UnknownClient
+from drift.store import MissingRun, NotApproved, RunLimit, UnknownClient
+from hub.stores import AnyRun
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -47,7 +48,7 @@ def _error(error: Exception) -> NoReturn:
     raise HTTPException(401, "Nyckeln gäller inte, eller provkörningen har gått ut.") from error
 
 
-def router(store: PreviewStore) -> APIRouter:
+def router(store: AnyRun) -> APIRouter:
     routes = APIRouter(prefix="/api/station/1")
     failures = (UnknownClient, NotApproved, MissingRun, RunLimit, KeyError)
 

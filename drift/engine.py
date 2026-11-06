@@ -123,6 +123,7 @@ class Drift:
         self.package = package
         self.history: list[events.DriftEvent] = []
         self.traffic_day = package.meet.traffic_week.start_weekday
+        self.game_day = 1
         self.clock = Clock(parse_time(package.clock.start_time), package.clock.speed, False, now)
         self.cases: dict[str, Case] = {}
         self.arrived: set[str] = set()
@@ -150,7 +151,7 @@ class Drift:
     @property
     def context(self) -> station.MeetContext:
         return station.MeetContext(
-            meet_id=self.package.meet.id, version=VERSION, game_day=1, epoch=0
+            meet_id=self.package.meet.id, version=VERSION, game_day=self.game_day, epoch=0
         )
 
     def _set_traffic_day(self, day: Weekday) -> None:
@@ -217,10 +218,16 @@ class Drift:
             )
         )
 
-    def start(self, now: datetime) -> None:
+    def start(self, now: datetime, traffic_day: Weekday | None = None, game_day: int = 1) -> None:
+        """The meet starts on a traffic day (F8: the package's first by default) and a game
+        day, with the clock stopped at the package's start time."""
         self._record(
             events.EventKind.MEET_STARTED,
-            {"traffic_day": self.traffic_day.value, "speed": self.clock.speed},
+            {
+                "traffic_day": (traffic_day or self.traffic_day).value,
+                "speed": self.clock.speed,
+                "game_day": game_day,
+            },
             now,
         )
 
@@ -253,6 +260,7 @@ class Drift:
             case events.EventKind.MEET_STARTED:
                 meet = events.MeetStarted.model_validate(event.data)
                 self._set_traffic_day(meet.traffic_day)
+                self.game_day = meet.game_day
                 self.clock = Clock(parse_time(event.model_time), meet.speed, False, event.wall_time)
             case (
                 events.EventKind.CLOCK_STARTED
