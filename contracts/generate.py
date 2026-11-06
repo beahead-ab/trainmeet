@@ -15,7 +15,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaValue
 
-from contracts import drift, hub, meet, station, station_outside, terminal
+from contracts import drift, hub, meet, screen, station, station_outside, terminal
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 OPENAPI = SCHEMA_DIR.parent / "openapi.json"
@@ -50,6 +50,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.now": drift.Now,
     "trainmeet.drift-1.joining": drift.Joining,
     "trainmeet.drift-1.refusal": drift.Refusal,
+    "trainmeet.screen-1.login": screen.ScreenLogin,
+    "trainmeet.screen-1.session": screen.ScreenSession,
+    "trainmeet.screen-1.show": screen.ShowView,
+    "trainmeet.screen-1.picture": screen.ScreenPicture,
     "trainmeet.hub-1.info": hub.HubInfo,
     "trainmeet.hub-1.setup": hub.SetUp,
     "trainmeet.hub-1.login": hub.LogIn,
@@ -258,6 +262,10 @@ def openapi() -> str:
     route("get", "/api/drift/1/log", "driftLog", d + "event", bearer=True, many=True)
     route("get", "/api/drift/1/refusals", "driftRefusals", d + "refusal", bearer=True, many=True)
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
+    v = "trainmeet.screen-1."
+    route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")
+    route("get", "/api/screen/picture", "screenPicture", v + "picture", bearer=True)
+    route("post", "/api/drift/1/clients/view", "showView", d + "client", v + "show", bearer=True)
     h = "trainmeet.hub-1."
     route("get", "/api/hub", "hubInfo", h + "info")
     route("post", "/api/hub/setup", "hubSetUp", h + "session", h + "setup")

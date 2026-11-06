@@ -18,6 +18,7 @@ from hub import (
     hubben,
     page,
     provbanan,
+    screen_web,
     station_api,
     tmbox_web,
 )
@@ -66,6 +67,7 @@ def create_app(
     runs = AnyRun(meet, preview)
     app.include_router(tmbox_web.router(runs, current))
     app.include_router(station_api.router(runs))
+    app.include_router(screen_web.router(runs))
 
     @app.get("/", response_class=HTMLResponse)
     def start_page(

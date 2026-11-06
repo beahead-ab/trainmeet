@@ -59,7 +59,8 @@
         "tmbox_app",
         "dispatch",
         "tmbox_web",
-        "tmbox"
+        "tmbox",
+        "screen"
       ],
       "title": "Kind",
       "type": "string"
@@ -116,6 +117,21 @@
       ],
       "default": null,
       "description": "Bara för TMBoxar."
+    },
+    "view": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bara för skärmar: vyn den visar.",
+      "title": "View"
     }
   },
   "required": [

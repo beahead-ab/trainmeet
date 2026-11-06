@@ -30,6 +30,7 @@ MAX_ACTIONS: Final = 2000
 MAX_BOXES: Final = 16
 MAX_STATION_CLIENTS: Final = 16
 MAX_REFUSALS: Final = 500
+MAX_SCREENS: Final = 16
 
 T = TypeVar("T")
 
@@ -68,6 +69,14 @@ CREATE TABLE IF NOT EXISTS station_client (
     places TEXT NOT NULL,
     key_hash TEXT UNIQUE,
     key_once TEXT
+);
+CREATE TABLE IF NOT EXISTS screen (
+    client_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL UNIQUE,
+    created REAL NOT NULL,
+    name TEXT NOT NULL,
+    view TEXT
 );
 CREATE TABLE IF NOT EXISTS drift_refusal (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
@@ -199,7 +208,7 @@ class PreviewStore:
                 (run_id, (now + self.lifetime).timestamp(), self.package_key, self.boot),
             )
             if replace:
-                for table in ("preview_box", "station_client", "preview_join"):
+                for table in ("preview_box", "station_client", "screen", "preview_join"):
                     db.execute(f"DELETE FROM {table} WHERE run_id!=?", (run_id,))
             drift = Drift(self.package, [], now=now)
             drift.start(now, traffic_day, game_day)
@@ -363,7 +372,7 @@ class PreviewStore:
         contract says."""
         with self._transaction() as db:
             boxes = self._with_boxes(db, run_id, lambda b: list(b.boxes.values()))
-            others = self._station_clients(db, run_id)
+            others = self._station_clients(db, run_id) + self._screens(db, run_id)
         listed = [
             {
                 "client_id": box.client_id,
@@ -696,3 +705,59 @@ class PreviewStore:
             )
             for at, model, client, place, what, reason, message in rows
         ]
+
+    # --- The meet's screens (S3, S4) ------------------------------------------------------
+
+    def screen_login(self, name: str, code: str) -> tuple[str, str]:
+        """A screen joins with the run's code and waits under Väntar for a view."""
+        with self._transaction() as db:
+            run_id = self._run_by_code(db, code)
+            count = db.execute("SELECT count(*) FROM screen WHERE run_id=?", (run_id,)).fetchone()[
+                0
+            ]
+            if count >= MAX_SCREENS:
+                raise RunLimit()
+            client_id, key = "screen-" + token_hex(6), token_urlsafe(32)
+            db.execute(
+                "INSERT INTO screen VALUES (?, ?, ?, ?, ?, NULL)",
+                (client_id, run_id, _key_hash(key), now_utc().timestamp(), " ".join(name.split())),
+            )
+        return client_id, key
+
+    def _screens(self, db: sqlite3.Connection, run_id: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "client_id": client_id,
+                "name": name,
+                "kind": "screen",
+                "status": "approved" if view else "waiting",
+                "places": [],
+                "side": "both",
+                "view": view,
+            }
+            for client_id, name, view in db.execute(
+                "SELECT client_id, name, view FROM screen WHERE run_id=? ORDER BY created",
+                (run_id,),
+            )
+        ]
+
+    def show_view(self, run_id: str, client_id: str, view: str | None) -> list[dict[str, Any]]:
+        with self._transaction() as db:
+            changed = db.execute(
+                "UPDATE screen SET view=? WHERE client_id=? AND run_id=?", (view, client_id, run_id)
+            ).rowcount
+            if not changed:
+                raise UnknownClient()
+        return self.clients(run_id)
+
+    def screen_picture(self, key: str) -> tuple[str, str | None, Drift]:
+        """The screen's name, its view and the run it shows."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT s.name, s.view, s.run_id FROM screen s JOIN preview_run r ON r.id=s.run_id "
+                "WHERE s.key_hash=? AND r.expires>?",
+                (_key_hash(key), now_utc().timestamp()),
+            ).fetchone()
+            if row is None:
+                raise UnknownClient()
+            return str(row[0]), row[1], self._load(db, str(row[2]), now_utc())

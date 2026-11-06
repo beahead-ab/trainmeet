@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.screen-1.picture.schema.json",
+  "title": "trainmeet.screen-1.picture",
+  "$defs": {
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "ScreenView": {
+      "enum": [
+        "clock"
+      ],
+      "title": "ScreenView",
+      "type": "string"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What the screen shows now. Without a view it waits, and says its name.",
+  "properties": {
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "view": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScreenView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "meet": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Meet",
+      "type": "string"
+    },
+    "traffic_day": {
+      "$ref": "#/$defs/Weekday"
+    },
+    "clock": {
+      "$ref": "#/$defs/Clock"
+    }
+  },
+  "required": [
+    "name",
+    "meet",
+    "traffic_day",
+    "clock"
+  ],
+  "type": "object"
+}

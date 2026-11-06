@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.screen-1.show.schema.json",
+  "title": "trainmeet.screen-1.show",
+  "$defs": {
+    "ScreenView": {
+      "enum": [
+        "clock"
+      ],
+      "title": "ScreenView",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The dispatcher gives a screen its view; none sends it back to Väntar.",
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "view": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScreenView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "client_id"
+  ],
+  "type": "object"
+}
