@@ -58,7 +58,7 @@ def router(store: PreviewStore, info: BuildInfo) -> APIRouter:
     def session(login: terminal.WebLogin, response: Response) -> dict[str, str]:
         response.headers["Cache-Control"] = "no-store"
         try:
-            client_id, key = store.login(login.name, login.code)
+            client_id, key = store.login(login.name, login.code, login.display)
         except MissingRun as error:
             raise HTTPException(
                 404, "Koden finns inte, eller provkörningen har gått ut."

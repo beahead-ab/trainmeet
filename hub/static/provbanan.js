@@ -169,19 +169,34 @@ function showClients(data) {
     const row = document.createElement("li");
     const where = client.places.length
       ? "Tilldelad " + client.places.map(place => state.places[place]).join(", ")
+        + (client.side === "both" ? "" : " · " + SIDES[client.side].toLowerCase())
       : "Väntar på tilldelning";
-    row.textContent = client.name + " · " + where;
+    const size = client.display ? " · " + client.display.cols + "×" + client.display.rows : "";
+    row.textContent = client.name + " · " + where + size;
     const controls = document.createElement("div");
     controls.className = "controls";
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", "Driftplats för " + client.name);
-    for (const place of state?.stations ?? []) select.append(new Option(state.places[place], place));
-    if (client.places.length) select.value = client.places[0];
-    controls.append(select);
-    addButton(controls, client.places.length ? "Byt driftplats" : "Tilldela", () => assign(client, select.value));
+    const place = choice("Driftplats för " + client.name,
+      (state?.stations ?? []).map(id => [id, state.places[id]]), client.places[0]);
+    // Left and right as the box shows the place; both, the default, is the whole place.
+    const side = choice("Sida för " + client.name, Object.entries(SIDES), client.side);
+    const language = choice("Språk för " + client.name, Object.entries(LANGUAGES), client.language);
+    controls.append(place, side, language);
+    addButton(controls, client.places.length ? "Ändra" : "Tilldela",
+      () => assign(client, place.value, side.value, language.value));
     row.append(controls);
     list.append(row);
   }
+}
+
+const SIDES = { both: "Båda sidor", left: "Vänster", right: "Höger" };
+const LANGUAGES = { sv: "Svenska", en: "English", da: "Dansk", nb: "Norsk", de: "Deutsch" };
+
+function choice(label, options, value) {
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", label);
+  for (const [id, text] of options) select.append(new Option(text, id));
+  if (value) select.value = value;
+  return select;
 }
 
 async function refreshClients() {
@@ -191,11 +206,11 @@ async function refreshClients() {
   } catch { /* The next round tries again. */ }
 }
 
-async function assign(client, place) {
+async function assign(client, place, side, language) {
   notice.textContent = "";
   const response = await fetch("/api/provbanan/clients/assign", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: client.client_id, places: [place], side: "both" }),
+    body: JSON.stringify({ client_id: client.client_id, places: [place], side, language }),
   });
   const answer = await response.json();
   if (!response.ok) {

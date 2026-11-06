@@ -34,8 +34,13 @@ def started(hub: TestClient) -> str:
 class Tab:
     """One browser tab: its own session key, sent as Authorization: Bearer."""
 
-    def __init__(self, hub: TestClient, name: str, code: str) -> None:
-        response = hub.post("/api/terminal/session", json={"name": name, "code": code})
+    def __init__(
+        self, hub: TestClient, name: str, code: str, display: dict[str, int] | None = None
+    ) -> None:
+        login: dict[str, Any] = {"name": name, "code": code}
+        if display is not None:
+            login["display"] = display
+        response = hub.post("/api/terminal/session", json=login)
         assert response.status_code == 201, response.text
         session = WebSession.model_validate(response.json())
         self.hub = hub
@@ -70,6 +75,44 @@ def assign(hub: TestClient, tab: Tab, place: str) -> dict[str, Any]:
     assert response.status_code == 200, response.text
     answer: dict[str, Any] = response.json()
     return answer
+
+
+def test_a_box_announces_its_size_and_the_dispatcher_picks_side_and_language(
+    hub: TestClient,
+) -> None:
+    code = started(hub)
+    tall = Tab(hub, "Box 20×4", code, {"rows": 4, "cols": 20})
+    small = Tab(hub, "Box 16×2", code)
+    assert (tall.frame()["rows"], tall.frame()["cols"]) == (4, 20)
+    assert len(tall.frame()["lines"]) == 4
+    assert (small.frame()["rows"], small.frame()["cols"]) == (2, 16)
+    listed = {c["client_id"]: c for c in hub.get("/api/provbanan/clients").json()["clients"]}
+    assert listed[tall.client_id]["display"] == {"rows": 4, "cols": 20}
+    assert listed[small.client_id]["language"] == "sv", "the meet's country decides at first"
+    response = hub.post(
+        "/api/provbanan/clients/assign",
+        json={"client_id": tall.client_id, "places": ["asn"], "side": "left", "language": "en"},
+    )
+    assert response.status_code == 200, response.text
+    listed = {c["client_id"]: c for c in response.json()["clients"]}
+    assert (listed[tall.client_id]["side"], listed[tall.client_id]["language"]) == ("left", "en")
+    frame = tall.frame()
+    Frame.model_validate(frame)
+    assert frame["language"] == "en"
+    assert frame["lines"][3].startswith("No# A:Q")
+    for wrong in ({"side": "middle"}, {"language": "xx"}):
+        body = {"client_id": small.client_id, "places": ["nby"], **wrong}
+        assert hub.post("/api/provbanan/clients/assign", json=body).status_code == 422
+    # A size the Hub does not know is a 16×2; the box is never turned away (old Server).
+    for odd in ("4x20", {"rows": 4, "cols": 16}, {"rows": "4", "cols": "20"}, [4, 20]):
+        response = hub.post(
+            "/api/terminal/session", json={"name": "B", "code": code, "display": odd}
+        )
+        assert response.status_code == 201, odd
+        other = Tab.__new__(Tab)
+        other.hub, other.client_id = hub, response.json()["client_id"]
+        other.headers = {"Authorization": "Bearer " + response.json()["session_key"]}
+        assert (other.frame()["rows"], other.frame()["cols"]) == (2, 16), odd
 
 
 def test_two_tabs_run_train_101_from_request_to_arrival(hub: TestClient) -> None:

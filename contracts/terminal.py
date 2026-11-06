@@ -38,7 +38,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field
+from pydantic import Field, ValidationError, field_validator
 
 from contracts.common import Contract, Id, Text
 
@@ -66,6 +66,18 @@ class DisplaySize(Contract):
     cols: Literal[16, 20] = 16
 
 
+def known_size(value: object) -> DisplaySize | None:
+    """A size the box announced, or None (16×2) for anything else (old Server: 4×16, 1×8,
+    "4x20" and [4, 20] all give a 16×2, and the box is not turned away)."""
+    if value is None or isinstance(value, DisplaySize):
+        return value
+    try:
+        size = DisplaySize.model_validate(value, strict=True)
+    except ValidationError:
+        return None
+    return size if (size.rows, size.cols) in {(2, 16), (4, 20)} else None
+
+
 class Hello(Contract):
     device_code: Text
     model: Text
@@ -73,6 +85,11 @@ class Hello(Contract):
     hardware_version: Text
     display: DisplaySize | None = None
     boot: Text = Field(description="Ny för varje anslutning; alla meddelanden bär den.")
+
+    @field_validator("display", mode="before")
+    @classmethod
+    def _any_size(cls, value: object) -> DisplaySize | None:
+        return known_size(value)
 
 
 class Presence(Contract):
@@ -97,6 +114,14 @@ class KeyPress(Contract):
 class WebLogin(Contract):
     name: Text
     code: Text = Field(description="Lokal kod för träffen. Skrivs aldrig ut i loggen.")
+    display: DisplaySize | None = Field(
+        default=None, description="Boxens storlek, som i hello. Utelämnad är 16×2."
+    )
+
+    @field_validator("display", mode="before")
+    @classmethod
+    def _any_size(cls, value: object) -> DisplaySize | None:
+        return known_size(value)
 
 
 class WebSession(Contract):

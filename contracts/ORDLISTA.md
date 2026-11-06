@@ -15,7 +15,9 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. |
 | Insida | – | Spårplan, signaler och adresser. Stannar alltid hos TKL. |
 | Utfart | `exit` | Där ett spår lämnar stationen, med fast id och sida. Kopplas till en sträcka per träff. |
-| Sida | `side` | `left` eller `right`, som boxen visar en sträcka eller utfart. |
+| Sida | `side` | `left` eller `right`, som boxen visar en sträcka eller utfart. En box kan tilldelas en sida (`both` är förval) och ser då bara tågen på sträckorna åt det hållet. |
+| Boxspråk | `language` | TMBoxens språk: `sv`, `en`, `da`, `nb` eller `de`. Trafikledningen väljer per box; träffens land ger förvalet. Platsnamn, koder, tågnummer och spår översätts aldrig. |
+| Displaystorlek | `display` | 16×2 eller 20×4, som boxen säger när den ansluter. Allt annat räknas som 16×2. |
 | Planspår | `place.tracks[].name` | Spårets namn i planen. Tågbesöket behåller det. |
 | Spårtabell | `station.track_map` | Översätter planens spårnamn till stationens spår-id. |
 | Sträcka | `section` | Planens klareringssträcka mellan två driftplatser, från infartssignal till infartssignal. Tåget får klart en gång för hela sträckan. |

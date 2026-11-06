@@ -13,7 +13,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, StringConstraints
 
@@ -24,6 +24,9 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 """A non-empty line of text for people."""
 
 TimeOfDay = Annotated[str, StringConstraints(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")]
+
+# The five languages a TMBox speaks (old Server; Q7): Swedish, English, Danish, Norwegian, German.
+BoxLanguage = Literal["sv", "en", "da", "nb", "de"]
 """Model time as HH:MM. A time after midnight on the next game day uses day_offset."""
 
 
