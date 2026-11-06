@@ -362,6 +362,7 @@ class Drift:
             "context": self.context.model_dump(mode="json"),
             "traffic_day": self.traffic_day,
             "places": {place.id: place.name for place in self.package.places},
+            "stations": [p.id for p in self.package.places if p.kind != PlaceKind.HALT],
             "sections": {
                 section.id: (section.clearance_mode or self.package.meet.clearance_mode).value
                 for section in self.package.sections

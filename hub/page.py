@@ -161,6 +161,12 @@ def render_preview(info: BuildInfo) -> str:
         <button id="request" type="button">Begär klarering</button>
       </div>
       <p id="leg-info" class="ingress"></p>
+      <h2>Boxar</h2>
+      <p class="ingress">Öppna en box i en ny flik, och anslut den med koden
+        <strong id="join-code" class="kod">–</strong>. Tilldela den sedan en driftplats här.</p>
+      <p><a id="box-link" href="/provbanan/box" target="_blank"
+        rel="noopener">Öppna en box →</a></p>
+      <ul id="clients" class="cases"></ul>
       <h2>Klareringar</h2>
       <ul id="cases" class="cases"></ul>
       <button id="restart" type="button">Ny provkörning</button>
@@ -171,4 +177,44 @@ def render_preview(info: BuildInfo) -> str:
 """,
         """<link rel="stylesheet" href="/static/provbanan.css">
 <script src="/static/provbanan.js" defer></script>""",
+    )
+
+
+def render_box(info: BuildInfo) -> str:
+    """TMBox web: one box per tab. The tab logs in with the run's code and waits to be assigned."""
+    return _document(
+        info,
+        """<main class="tmbox">
+  <a href="/provbanan">← Provbanan</a>
+  <section id="login" class="kort" hidden>
+    <h1>TMBox</h1>
+    <p class="ingress">Anslut boxen till en provkörning med koden som står på Provbanan
+      under Boxar. Varje flik blir en egen box.</p>
+    <form id="login-form" class="falt">
+      <label>Boxens namn <input id="name" maxlength="40" required autocomplete="off"></label>
+      <label>Kod <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+        required autocomplete="off"></label>
+      <button type="submit">Anslut</button>
+    </form>
+    <p id="login-error" class="fel" role="alert"></p>
+  </section>
+  <section id="box" class="kort" hidden>
+    <div class="boxhuvud">
+      <h1 id="box-name">TMBox</h1>
+      <button id="logout" type="button" class="lank">Koppla från</button>
+    </div>
+    <div class="lcd" role="img" aria-live="polite" aria-label="Boxens display">
+      <div id="row-0" class="lcd-rad"></div>
+      <div id="row-1" class="lcd-rad"></div>
+    </div>
+    <p id="status" class="boxstatus"></p>
+    <p id="message" class="fel" role="status"></p>
+    <div id="keypad" class="knappsats"></div>
+    <p class="ingress tips">Tangentbordet fungerar också: siffror, A–D, * och #.
+      Enter är #, Backsteg är B och Esc är *.</p>
+  </section>
+</main>
+""",
+        """<link rel="stylesheet" href="/static/tmbox.css">
+<script src="/static/tmbox.js" defer></script>""",
     )
