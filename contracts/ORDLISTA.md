@@ -27,6 +27,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Tågbesök | `call` | Ett tågs besök på en driftplats, med spår och tider. Det är det Drift håller reda på. |
 | Tågslag | `train_type` | Till exempel persontåg eller godståg. |
 | Ej uppehåll | `call.stops = false` | Tåget passerar utan att stanna. |
+| Inget utbyte | `call.exchange = false` | Tåget står, men varken lastar eller släpper av. Ett vanligt uppehåll i tidtabellen. |
 | Manuellt tåg | `train.manual` | Ett tåg utan tid, sträcka eller med omöjlig gångtid. Körs för hand, och automatiken rör det inte. |
 | Trafikdag | `train.days`, `Weekday` | Tidtabellens veckodag. |
 | Speldygn | `traffic_week` | Dag 1…N på träffen. Inte samma sak som trafikdag: en åttadagarsträff har två måndagar. |
@@ -49,4 +50,13 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
 | Nivå | – | Bara i TKL: hur mycket av ställverket en station har (0–3). |
-| Underlagsnivå | – | Bara i importen: hur bra underlaget är (1–4). |
+| Underlagsnivå | `source.level` | Bara i importen: hur bra underlaget är (1–4). |
+| Underlag | `source` | En fil som lagts till träffen, till exempel Stefans planeringsfil. Sparas som den kom. |
+| Utkast | `trainmeet.planning/1`, `Draft` | Det Planering arbetar med tills det publiceras som en version. |
+| Faktum | `fact` | Det utkastet vet om en sak, med ursprung och säkerhet. |
+| Ursprung | `origin` | Var i vilket underlag ett faktum står, eller `planner` för en ändring i Planering. |
+| Säkerhet | `certainty` | `sure` säker, `likely` trolig, `unsure` osäker, `confirmed` bekräftad. |
+| Regelbok | `rulebook` | Tågslagen och förkortningarna som alla underlag läses med. Saknas en regel blir det en fråga. |
+| Fråga | `question` | Ställs bara där en regel saknas eller två lika tunga underlag säger olika. |
+| Importrapport | `ImportReport` | Nivån, vad underlaget gav, vad reglerna bestämde och vad som inte lästes in. |
+| Program | `about.program` | Träffens program, som fasta tider. |

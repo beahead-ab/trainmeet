@@ -15,6 +15,7 @@ COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY contracts ./contracts
 COPY drift ./drift
+COPY integrationer ./integrationer
 COPY hub ./hub
 RUN uv sync --locked --no-dev --no-editable
 

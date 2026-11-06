@@ -43,6 +43,19 @@
           ],
           "default": null,
           "title": "Instructions"
+        },
+        "program": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Träffens program, som fasta tider.",
+          "title": "Program"
         }
       },
       "title": "About",
@@ -192,6 +205,12 @@
           "default": true,
           "description": "Falskt för ej uppehåll.",
           "title": "Stops",
+          "type": "boolean"
+        },
+        "exchange": {
+          "default": true,
+          "description": "Falskt för uppehåll utan utbyte: tåget står men lastar inte.",
+          "title": "Exchange",
           "type": "boolean"
         },
         "note": {
