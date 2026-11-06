@@ -21,11 +21,12 @@ from fastapi.responses import StreamingResponse
 from contracts import drift, screen
 from contracts.common import Id
 from contracts.reasons import TEXT_SV
-from drift.engine import VERSION, Refused, now_utc
+from drift.engine import Refused, now_utc
 from drift.now import now
-from drift.store import MissingRun, PreviewStore, RunLimit, UnknownBox, UnknownClient
+from drift.store import MissingRun, RunLimit, UnknownBox, UnknownClient
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
+from hub.running import Running, UnknownMeet
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -42,7 +43,7 @@ def _error(error: Exception) -> NoReturn:
     raise HTTPException(404, "Ingen träff är startad.") from error
 
 
-def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
+def router(running: Running, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/drift/1")
     failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient)
 
@@ -50,7 +51,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         """The meet that runs, for a logged-in administrator."""
         require_admin(login, session, authorization)
         try:
-            return meet.current()
+            return running.store.current()
         except MissingRun as error:
             _error(error)
 
@@ -61,14 +62,16 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
-        """Start the meet, or a new one in its place: the old one is kept, archived."""
+        """Start a meet and version, or a new run in its place: the old one is kept, archived."""
         response.headers["Cache-Control"] = "no-store"
         require_admin(login, session, authorization)
-        if request.version != VERSION:
-            raise HTTPException(409, "Den versionen av träffen finns inte i hubben.")
         try:
-            run_id = meet.start(request.traffic_day, request.game_day, replace=True)
-            return meet.state(run_id).history[0].model_dump(mode="json")
+            store, run_id = running.start(
+                request.meet, request.version, request.traffic_day, request.game_day
+            )
+            return store.state(run_id).history[0].model_dump(mode="json")
+        except UnknownMeet as error:
+            raise HTTPException(409, "Den versionen av träffen finns inte i hubben.") from error
         except failures as error:
             _error(error)
 
@@ -82,7 +85,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return meet.clock(run_id, control).history[-1].model_dump(mode="json")
+            return running.store.clock(run_id, control).history[-1].model_dump(mode="json")
         except failures as error:
             _error(error)
 
@@ -91,7 +94,9 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         """Nu, open to everyone who looks (S1)."""
         response.headers["Cache-Control"] = "no-store"
         try:
-            return now(meet.state(meet.current()), now_utc()).model_dump(mode="json")
+            return now(running.store.state(running.store.current()), now_utc()).model_dump(
+                mode="json"
+            )
         except MissingRun as error:
             _error(error)
 
@@ -100,7 +105,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         response: Response, session: SessionCookie = None, authorization: Authorization = None
     ) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
-        return meet.clients(admin(session, authorization))
+        return running.store.clients(admin(session, authorization))
 
     def changed(listed: list[dict[str, Any]], client_id: str) -> dict[str, Any]:
         return next(client for client in listed if client["client_id"] == client_id)
@@ -115,7 +120,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return changed(meet.assign(run_id, change), change.client_id)
+            return changed(running.store.assign(run_id, change), change.client_id)
         except failures as error:
             _error(error)
 
@@ -129,7 +134,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return changed(meet.approve(run_id, change), change.client_id)
+            return changed(running.store.approve(run_id, change), change.client_id)
         except failures as error:
             _error(error)
 
@@ -143,7 +148,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return changed(meet.revoke(run_id, change), change.client_id)
+            return changed(running.store.revoke(run_id, change), change.client_id)
         except failures as error:
             _error(error)
 
@@ -159,7 +164,9 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         run_id = admin(session, authorization)
         view = change.view.value if change.view else None
         try:
-            return changed(meet.show_view(run_id, change.client_id, view), change.client_id)
+            return changed(
+                running.store.show_view(run_id, change.client_id, view), change.client_id
+            )
         except failures as error:
             _error(error)
 
@@ -173,7 +180,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
     ) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
-        return [event.model_dump(mode="json") for event in meet.log(run_id, place, train)]
+        return [event.model_dump(mode="json") for event in running.store.log(run_id, place, train)]
 
     @routes.get("/refusals")
     def refusals(
@@ -182,7 +189,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         """What clients were told no, newest first (B15)."""
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
-        return [refusal.model_dump(mode="json") for refusal in meet.refusals(run_id)]
+        return [refusal.model_dump(mode="json") for refusal in running.store.refusals(run_id)]
 
     @routes.get("/connect")
     def connect(
@@ -193,7 +200,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Anslut (S2): the meet's code, and the address a box opens with it."""
         response.headers["Cache-Control"] = "no-store"
-        code = meet.join_code(admin(session, authorization))
+        code = running.store.join_code(admin(session, authorization))
         url = f"{_origin(request)}/box#kod={code}"
         return drift.Joining(code=code, url=url).model_dump(mode="json")
 
@@ -201,7 +208,7 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
     def connect_qr(
         request: Request, session: SessionCookie = None, authorization: Authorization = None
     ) -> Response:
-        code = meet.join_code(admin(session, authorization))
+        code = running.store.join_code(admin(session, authorization))
         picture = io.BytesIO()
         segno.make(f"{_origin(request)}/box#kod={code}", error="m").save(
             picture, kind="svg", scale=6, border=2, dark="#0e1114", light="#ffffff"
@@ -216,7 +223,8 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
     ) -> StreamingResponse:
         """The meet's Drift events as they happen, from now on."""
         run_id = await run_in_threadpool(admin, session, authorization)
-        start = len((await run_in_threadpool(meet.state, run_id)).history)
+        store = running.store
+        start = len((await run_in_threadpool(store.state, run_id)).history)
 
         async def stream() -> AsyncIterator[str]:
             seen, quiet, waited = start, 0.0, 0.0
@@ -227,15 +235,18 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
                 quiet += STREAM_INTERVAL
                 if await request.is_disconnected():
                     return
+                if store is not running.store:
+                    yield "event: gone\ndata: {}\n\n"
+                    return
                 try:
-                    history = (await run_in_threadpool(meet.state, run_id)).history
+                    found = await run_in_threadpool(store.events_after, run_id, seen)
                 except MissingRun:
                     yield "event: gone\ndata: {}\n\n"
                     return
-                for event in history[seen:]:
+                for event in found:
                     quiet = 0.0
+                    seen = event.seq
                     yield f"event: drift\ndata: {event.model_dump_json()}\n\n"
-                seen = len(history)
                 if quiet >= HEARTBEAT_SECONDS:
                     quiet = 0.0
                     yield ": vänta\n\n"

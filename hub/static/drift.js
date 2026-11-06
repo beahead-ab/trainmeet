@@ -96,7 +96,8 @@ async function refreshNow() {
   try {
     now = await api(API + "/now");
     fetchedAt = Date.now();
-    $("meet-name").textContent = now.name;
+    $("meet-name").textContent =
+      now.meet_id === "provbanan" ? now.name : `${now.name} · version ${now.version}`;
   } catch (error) {
     if (error.status !== 404) return;
     now = null;
@@ -190,9 +191,43 @@ async function clockControl(control) {
   }
 }
 
-async function startMeet(day) {
+// Byt träff: Provbanan, or a published version from Planering (steg 4a).
+async function fillChoices() {
+  let meets = [];
   try {
-    await api(API + "/start", { version: 1, traffic_day: day });
+    meets = await api("/api/planering/1/meets");
+  } catch (error) {
+    meets = [];
+  }
+  const options = [];
+  for (const summary of meets) {
+    for (const version of summary.versions.slice().reverse()) {
+      options.push([`${summary.meet.id}:${version.number}`,
+        `${summary.meet.name} · version ${version.number}`]);
+    }
+  }
+  options.push(["provbanan:1", "Provbanan"]);
+  const wanted = new URLSearchParams(location.search);
+  const asked = wanted.get("traff") ? `${wanted.get("traff")}:${wanted.get("version")}` : null;
+  const running = now ? `${now.meet_id}:${now.version}` : null;
+  for (const id of ["first-choice", "new-choice"]) {
+    const node = $(id);
+    if (!node) continue;
+    node.replaceChildren(...options.map(([value, label]) => new Option(label, value)));
+    const pick = [asked, running, options[0][0]].find(value =>
+      value && options.some(([option]) => option === value));
+    node.value = pick;
+  }
+}
+
+function chosen(id) {
+  const [meet, version] = ($(id)?.value || "provbanan:1").split(":");
+  return { meet, version: Number(version) };
+}
+
+async function startMeet(day, choice) {
+  try {
+    await api(API + "/start", { ...choice, traffic_day: day });
     say("");
     $("connect-panel").hidden = true;
     await refreshNow();
@@ -204,7 +239,9 @@ async function startMeet(day) {
 
 function setUpNu() {
   if (!admin) return;
-  $("start-meet")?.addEventListener("click", () => startMeet($("first-day").value));
+  fillChoices();
+  $("start-meet")?.addEventListener("click",
+    () => startMeet($("first-day").value, chosen("first-choice")));
   $("clock-toggle").addEventListener("click",
     () => clockControl({ action: now?.clock.running ? "stop" : "start" }));
   // Two presses to start a new meet: the old one is archived and its clients let go.
@@ -219,7 +256,7 @@ function setUpNu() {
     armed = 0;
     $("new-meet").textContent = "Starta ny träff";
     $("new-meet").classList.remove("fara");
-    startMeet($("new-day").value);
+    startMeet($("new-day").value, chosen("new-choice"));
   });
   if (location.hash === "#ny-traff") $("ny-traff").open = true;
 }

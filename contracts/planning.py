@@ -155,19 +155,6 @@ class NewMeet(Contract):
     country: Literal["se", "dk", "no", "de"] = "se"
 
 
-class Draft(Contract):
-    """Utkastet: what Planering works on until it is published as a version."""
-
-    format: Literal["trainmeet.planning/1"] = FORMAT
-    meet: Meet
-    package: MeetPackage | None = Field(default=None, description="Tomt tills underlag finns.")
-    facts: list[Fact] = Field(default_factory=list)
-    rulebook: Rulebook = Field(default_factory=Rulebook)
-    sources: list[Source] = Field(default_factory=list)
-    questions: list[Question] = Field(default_factory=list)
-    report: ImportReport | None = None
-
-
 class Version(Contract):
     """A published version: frozen, never changed, never deleted (Ordlista)."""
 
@@ -203,6 +190,30 @@ class SectionChange(Contract):
 
     section: Id
     clearance_mode: ClearanceMode | None = None
+
+
+class Answer(Contract):
+    """The planner's answer to a question: one of its alternatives."""
+
+    question: Id
+    value: Text
+
+
+class Draft(Contract):
+    """Utkastet: what Planering works on until it is published as a version."""
+
+    format: Literal["trainmeet.planning/1"] = FORMAT
+    meet: Meet
+    package: MeetPackage | None = Field(default=None, description="Tomt tills underlag finns.")
+    facts: list[Fact] = Field(default_factory=list)
+    rulebook: Rulebook = Field(default_factory=Rulebook)
+    sources: list[Source] = Field(default_factory=list)
+    questions: list[Question] = Field(default_factory=list)
+    report: ImportReport | None = None
+    changes: list[PlaceChange | SectionChange] = Field(
+        default_factory=list,
+        description="Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
+    )
 
 
 class Check(Contract):

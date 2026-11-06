@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.answer.schema.json",
+  "title": "trainmeet.planning-1.answer",
+  "additionalProperties": true,
+  "description": "The planner's answer to a question: one of its alternatives.",
+  "properties": {
+    "question": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Question",
+      "type": "string"
+    },
+    "value": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "question",
+    "value"
+  ],
+  "type": "object"
+}

@@ -47,6 +47,8 @@ https://test.hub.trainmeet.app visar alltid det som ligger på `main`. När en P
 
 Hubben kör också en riktig träff (steg 3). Den som först öppnade testhubben valde dess namn och PIN-kod och är lokal administratör. Inloggad startar man träffen under [Nu](https://test.hub.trainmeet.app/drift), ansluter boxar, TKL och skärmar med koden under *Anslut* och tilldelar dem under *Klienter*. Utan inloggning kan man titta på Nu. Träffen och hubbens inställningar ligger i egna filer bredvid Provbanans, och står kvar när hubben startas om; klockan står då still tills någon startar den.
 
+Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff, lägger till Stefans planeringsfil (JSON, nivå 4), läser importrapporten, rättar telefon och klareringsläge under *Data* och publicerar en version under *Versioner* (steg 4a). Drift kör sedan versionen: välj den under *Byt träff*. Värnamos planeringsfil finns som testdata i `integrationer/tests/fixtures/varnamo.json.gz`.
+
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
 - **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).

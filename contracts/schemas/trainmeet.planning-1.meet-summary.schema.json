@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.meet-summary.schema.json",
+  "title": "trainmeet.planning-1.meet-summary",
+  "$defs": {
+    "ClearanceMode": {
+      "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+      "enum": [
+        "requested",
+        "direct"
+      ],
+      "title": "ClearanceMode",
+      "type": "string"
+    },
+    "Meet": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "country": {
+          "default": "se",
+          "enum": [
+            "se",
+            "dk",
+            "no",
+            "de"
+          ],
+          "title": "Country",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Europe/Stockholm",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Timezone",
+          "type": "string"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Date"
+        },
+        "last_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Date"
+        },
+        "traffic_week": {
+          "$ref": "#/$defs/TrafficWeek"
+        },
+        "clearance_mode": {
+          "$ref": "#/$defs/ClearanceMode",
+          "default": "requested"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
+          "title": "Settings",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Meet",
+      "type": "object"
+    },
+    "TrafficWeek": {
+      "additionalProperties": true,
+      "description": "The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.",
+      "properties": {
+        "start_weekday": {
+          "$ref": "#/$defs/Weekday",
+          "default": "mon"
+        },
+        "days": {
+          "default": 1,
+          "description": "Antal speldygn, Dag 1…N.",
+          "maximum": 31,
+          "minimum": 1,
+          "title": "Days",
+          "type": "integer"
+        },
+        "runs_over_midnight": {
+          "default": false,
+          "title": "Runs Over Midnight",
+          "type": "boolean"
+        }
+      },
+      "title": "TrafficWeek",
+      "type": "object"
+    },
+    "Version": {
+      "additionalProperties": true,
+      "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+      "properties": {
+        "meet": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "published": {
+          "format": "date-time",
+          "title": "Published",
+          "type": "string"
+        },
+        "checksum": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Checksum",
+          "type": "string"
+        },
+        "conflicts": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Conflicts",
+          "type": "integer"
+        },
+        "observations": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Observations",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "meet",
+        "number",
+        "published",
+        "checksum"
+      ],
+      "title": "Version",
+      "type": "object"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A meet in the list: its draft at a glance and its versions.",
+  "properties": {
+    "meet": {
+      "$ref": "#/$defs/Meet"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Level"
+    },
+    "places": {
+      "default": 0,
+      "title": "Places",
+      "type": "integer"
+    },
+    "trains": {
+      "default": 0,
+      "title": "Trains",
+      "type": "integer"
+    },
+    "sources": {
+      "default": 0,
+      "title": "Sources",
+      "type": "integer"
+    },
+    "questions": {
+      "default": 0,
+      "title": "Questions",
+      "type": "integer"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/Version"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "meet"
+  ],
+  "type": "object"
+}

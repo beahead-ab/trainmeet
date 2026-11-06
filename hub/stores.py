@@ -1,5 +1,6 @@
 """Boxes and station clients find their run by its code or their key, in the hub's meet or in
-a Provbanan run. Each store keeps its own file; this asks them in turn, the meet first.
+a Provbanan run. Each store keeps its own file; this asks them in turn, the meet first. The
+hub's meet is asked for each time, since Byt träff may change it.
 """
 
 from __future__ import annotations
@@ -16,16 +17,16 @@ T = TypeVar("T")
 
 
 class AnyRun:
-    def __init__(self, *stores: PreviewStore) -> None:
+    def __init__(self, *stores: Callable[[], PreviewStore]) -> None:
         self.stores = stores
 
     def _first(self, missing: type[Exception], ask: Callable[[PreviewStore], T]) -> T:
         for store in self.stores[:-1]:
             try:
-                return ask(store)
+                return ask(store())
             except missing:
                 continue
-        return ask(self.stores[-1])
+        return ask(self.stores[-1]())
 
     def login(self, name: str, code: str, display: DisplaySize | None = None) -> tuple[str, str]:
         return self._first(MissingRun, lambda store: store.login(name, code, display))

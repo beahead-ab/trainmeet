@@ -314,6 +314,13 @@
       "title": "Name",
       "type": "string"
     },
+    "version": {
+      "default": 1,
+      "description": "Versionen av träffpaketet som körs.",
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
     "traffic_day": {
       "$ref": "#/$defs/Weekday"
     },

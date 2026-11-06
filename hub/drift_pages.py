@@ -99,8 +99,9 @@ def render_nu(info: BuildInfo, logged_in: bool) -> str:
   <details id="ny-traff" class="kort">
     <summary>Byt träff</summary>
     <p class="liten">En ny träff tar över. Den gamla arkiveras, och boxar och klienter ansluter
-      med den nya koden.</p>
+      med den nya koden. Versionerna publiceras i <a href="/planering">Planering</a>.</p>
     <div class="rad">
+      <label>Träff <select id="new-choice" class="val"></select></label>
       <label>Trafikdag <select id="new-day">{_days()}</select></label>
       <button id="new-meet" type="button">Starta ny träff</button>
     </div>
@@ -109,7 +110,8 @@ def render_nu(info: BuildInfo, logged_in: bool) -> str:
         else ""
     )
     start = (
-        f"""<div class="rad"><label>Trafikdag <select id="first-day">{_days()}</select></label>
+        f"""<div class="rad"><label>Träff <select id="first-choice" class="val"></select></label>
+      <label>Trafikdag <select id="first-day">{_days()}</select></label>
       <button id="start-meet" type="button" class="primar">Starta träffen</button></div>"""
         if logged_in
         else '<p class="liten">Logga in för att starta en träff.</p>'
@@ -120,7 +122,8 @@ def render_nu(info: BuildInfo, logged_in: bool) -> str:
         logged_in,
         f"""<section id="no-meet" class="kort" hidden>
   <h1>Ingen träff är startad</h1>
-  <p class="ingress">Hubben kör en träff åt gången. Här är det Provbanan, tills import kommer.</p>
+  <p class="ingress">Hubben kör en träff åt gången: Provbanan, eller en version av en träff som
+    publicerats i <a href="/planering">Planering</a>.</p>
   {start}
 </section>
 <section id="meet" hidden>
