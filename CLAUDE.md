@@ -16,7 +16,8 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
 
 ## Grenar och pull requests
 
-- En gren per uppgift och ett PR mot `main`. Casper slår ihop själv. Ingen pushar direkt till `main`.
+- En gren per uppgift och ett PR mot `main`. Ingen pushar direkt till `main`.
+- Claude slår ihop sitt eget PR när båda kontrollerna är gröna och ändringen är provad (Casper, 6 november). Casper behöver inte göra något på GitHub för att en ändring ska komma ut. Sammanslagningen lägger ut hubben i testmiljön; följ jobbet "Testmiljön" och säg till Casper om det blir rött.
 - Varje PR säger på svenska vad som ändras och hur det är provat.
 
 ## Kontrakten först

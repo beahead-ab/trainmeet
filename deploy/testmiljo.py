@@ -362,6 +362,24 @@ def write_ssh_files(keys: Keys, address: str) -> tuple[Path, Path]:
     return key_file, known_hosts
 
 
+def explain(status: int | None, body: str, commercial_type: str) -> str:
+    """Scaleway's answer, with what to do about it when it is the account and not the code."""
+    if "quotas_exceeded" in body:
+        return (
+            f"Scaleway-kontot får inte skapa en server av typen {commercial_type}: kvoten är slut. "
+            "Ett nytt konto har kvot först när betalsättet är verifierat, och fler typer när "
+            "identiteten är verifierad. Se Organization → Quotas i Scaleways konsol, eller välj "
+            "en annan typ i variabeln TESTMILJO_TYPE. "
+            f"(Scaleway svarade {status}: {body})"
+        )
+    if status in (401, 403):
+        return (
+            "Scaleway-nyckeln saknar behörighet. Applikationen behöver InstancesFullAccess och "
+            f"SecretManagerFullAccess i projektet. (Scaleway svarade {status}: {body})"
+        )
+    return f"Scaleway svarade {status}: {body}"
+
+
 def main(argv: list[str]) -> int:
     if argv[1:] != ["ensure"]:
         print(__doc__)
@@ -389,7 +407,7 @@ def main(argv: list[str]) -> int:
             instance, marketplace, project_id, security_group_id, ip, keys, commercial_type
         )
     except ScalewayException as error:
-        fail(f"Scaleway svarade {error.status_code}: {error}")
+        fail(explain(error.status_code, str(error), commercial_type))
 
     key_file, known_hosts = write_ssh_files(keys, ip.address)
     output("ip", ip.address)

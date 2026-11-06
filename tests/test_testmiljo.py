@@ -120,3 +120,19 @@ def test_security_group_sends_uppercase_protocols_to_instance_v1() -> None:
 
 def test_usage_without_command() -> None:
     assert testmiljo.main(["testmiljo.py"]) == 2
+
+
+def test_a_quota_error_says_what_to_do() -> None:
+    body = '{"type": "quotas_exceeded", "message": "quota(s) exceeded for this resource"}'
+    text = testmiljo.explain(403, body, "DEV1-S")
+    assert "kvoten är slut" in text
+    assert "DEV1-S" in text
+    assert "Organization → Quotas" in text
+
+
+def test_a_missing_permission_says_which() -> None:
+    assert "InstancesFullAccess" in testmiljo.explain(403, '{"type": "permissions_denied"}', "X")
+
+
+def test_other_errors_are_passed_on() -> None:
+    assert testmiljo.explain(500, "boom", "X") == "Scaleway svarade 500: boom"
