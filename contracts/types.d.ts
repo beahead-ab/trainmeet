@@ -1254,6 +1254,10 @@ export interface components {
             payload: components["schemas"]["trainmeet.station-1.command.Flag"];
         } | {
             /** @constant */
+            action: "train.set_aside";
+            payload: components["schemas"]["trainmeet.station-1.command.CallOnly"];
+        } | {
+            /** @constant */
             action: "clearance.request";
             payload: components["schemas"]["trainmeet.station-1.command.ClearanceRequest"];
         } | {
@@ -1285,7 +1289,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
         /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
@@ -1498,7 +1502,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
         /**
          * ArrivalState
          * @enum {string}
@@ -1926,7 +1930,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
         /**
          * ArrivalState
          * @enum {string}
@@ -3145,7 +3149,15 @@ export interface components {
         } | {
             /** @constant */
             kind: "train.arrived";
-            data: components["schemas"]["trainmeet.drift-1.event.ClearanceRef"];
+            data: components["schemas"]["trainmeet.drift-1.event.TrainArrived"];
+        } | {
+            /** @constant */
+            kind: "train.moved_here";
+            data: components["schemas"]["trainmeet.drift-1.event.TrainMovedHere"];
+        } | {
+            /** @constant */
+            kind: "train.set_aside";
+            data: components["schemas"]["trainmeet.drift-1.event.TrainSetAside"];
         } | {
             kind?: unknown;
         });
@@ -3218,6 +3230,42 @@ export interface components {
             /** Clearance Id */
             clearance_id: string;
         } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainArrived
+         * @description The train is in. Without a track it came in on the planned one (old Server 4.9.0).
+         */
+        "trainmeet.drift-1.event.TrainArrived": {
+            /** Clearance Id */
+            clearance_id: string;
+            /**
+             * Track
+             * @description Spåret tåget kom in på.
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainMovedHere
+         * @description FLYTTA HIT: a train nobody sent is placed here, so the game goes on (issue #115).
+         */
+        "trainmeet.drift-1.event.TrainMovedHere": {
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainSetAside
+         * @description Ställ undan: a train that ended here is put away, and its track is free.
+         */
+        "trainmeet.drift-1.event.TrainSetAside": {
             [key: string]: unknown;
         };
     };
