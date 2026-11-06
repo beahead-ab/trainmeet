@@ -783,7 +783,7 @@ class Boxes:
 
     def _waiting_frame(self, box: Box, clock: str) -> dict[str, Any]:
         """A box nobody has assigned yet: it says so and waits (Väntar in Klienter)."""
-        lines = [lcd.centered("VÄNTAR PÅ", WIDTH), lcd.row("TILLDELNING", clock, WIDTH)]
+        lines = [lcd.centered("VÄNTAR PÅ", WIDTH), lcd.centered("TILLDELNING", WIDTH)]
         entry_lines = [lcd.row("TÅG: _____", "", WIDTH), lcd.row("#Sök B:Del", clock, WIDTH)]
         return {
             "profile": PROFILE,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -193,3 +194,42 @@ def test_the_box_page_keeps_the_key_out_of_addresses(hub: TestClient) -> None:
     assert "sessionStorage" in script
     assert "Authorization" in script
     assert "?key=" not in script and "session_key=" not in script
+
+
+ROOT = Path(__file__).resolve().parents[2]
+FROZEN_START = "/* ===== FRUSET: TMBox-skalet. Ändra inte. ===== */"
+FROZEN_END = "/* ===== slut FRUSET ===== */"
+
+
+def test_the_tmbox_case_is_the_old_servers_frozen_block() -> None:
+    """The pink case, the blue display and the keypad look exactly like the physical TMBox.
+    The block is the old Server's (terminal16_web/style.css), checked against the same
+    golden file. Change it only on a deliberate change to the hardware."""
+    css = (ROOT / "hub" / "static" / "tmbox.css").read_text(encoding="utf-8")
+    start, end = css.index(FROZEN_START), css.index(FROZEN_END)
+    golden = (ROOT / "hub" / "tests" / "tmbox_case_golden.css").read_text(encoding="utf-8")
+    assert css[start:end].strip() == golden.strip()
+    for selector in ("tmbox-case", "lcd-frame", "lcd", "lcd-row", "lcd-cell", "keypad", "key"):
+        assert re.search(rf"\.{selector}(?![\w-])", css[end:]) is None, selector
+
+
+def test_the_old_palette() -> None:
+    golden = (ROOT / "hub" / "tests" / "tmbox_case_golden.css").read_text(encoding="utf-8")
+    palette = dict(re.findall(r"--([\w-]+):\s*(#[0-9a-f]+)", golden))
+    assert palette == {
+        "case": "#b76f80",
+        "lcd-blue": "#0c4fe5",
+        "lcd-text": "#b9d8ff",
+        "key-panel": "#171a21",
+        "key": "#090b10",
+    }
+
+
+def test_the_box_is_built_as_the_old_web_box() -> None:
+    """tmbox-case > lcd-frame > lcd, and keypad > key ×16 with A–D as function keys."""
+    html = (ROOT / "hub" / "page.py").read_text(encoding="utf-8")
+    assert '<div class="tmbox-case">' in html
+    assert '<div class="lcd-frame"><div id="lcd" class="lcd" role="img"></div></div>' in html
+    script = (ROOT / "hub" / "static" / "tmbox.js").read_text(encoding="utf-8")
+    assert '"lcd-row"' in script and '"lcd-cell"' in script
+    assert '"key" + (/[A-D]/.test(key) ? " function" : "")' in script
