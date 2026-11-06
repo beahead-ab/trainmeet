@@ -179,7 +179,7 @@ def test_the_pages_are_light_and_the_buttons_need_the_administrator(planned: Tes
     assert 'id="upload"' not in anonymous.get(f"/planering/{MEET}").text
     assert 'id="publish"' in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="new-meet"' not in anonymous.get("/planering").text
-    assert 'aria-current=page>Data<' in planned.get(f"/planering/{MEET}/data").text
+    assert "aria-current=page>Data<" in planned.get(f"/planering/{MEET}/data").text
     assert planned.get("/planering/..%2Fx").status_code in {404, 422}
     assert 'href="/planering"' in planned.get("/").text
     assert 'id="new-choice"' in planned.get("/drift").text
