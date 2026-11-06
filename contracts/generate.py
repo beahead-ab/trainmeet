@@ -15,7 +15,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaValue
 
-from contracts import drift, hub, meet, screen, station, station_outside, terminal
+from contracts import drift, hub, meet, planning, screen, station, station_outside, terminal
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 OPENAPI = SCHEMA_DIR.parent / "openapi.json"
@@ -58,6 +58,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.setup": hub.SetUp,
     "trainmeet.hub-1.login": hub.LogIn,
     "trainmeet.hub-1.session": hub.Session,
+    "trainmeet.planning-1.import": planning.ImportResult,
+    "trainmeet.planning-1.draft": planning.Draft,
 }
 
 

@@ -200,6 +200,9 @@ class Call(Contract):
     departure: TimeOfDay | None = None
     day_offset: int = Field(default=0, ge=0, le=7, description="Speldygn efter tågets första.")
     stops: bool = Field(default=True, description="Falskt för ej uppehåll.")
+    exchange: bool = Field(
+        default=True, description="Falskt för uppehåll utan utbyte: tåget står men lastar inte."
+    )
     note: Text | None = None
 
 
@@ -268,6 +271,7 @@ class About(Contract):
     title: Text | None = None
     description: str | None = None
     instructions: str | None = None
+    program: str | None = Field(default=None, description="Träffens program, som fasta tider.")
 
 
 class Finding(Contract):

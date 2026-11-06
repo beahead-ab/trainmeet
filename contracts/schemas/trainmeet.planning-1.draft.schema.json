@@ -1,0 +1,1855 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.draft.schema.json",
+  "title": "trainmeet.planning-1.draft",
+  "$defs": {
+    "About": {
+      "additionalProperties": true,
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instructions"
+        },
+        "program": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Träffens program, som fasta tider.",
+          "title": "Program"
+        }
+      },
+      "title": "About",
+      "type": "object"
+    },
+    "Alternative": {
+      "additionalProperties": true,
+      "properties": {
+        "value": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/Origin"
+          },
+          "title": "Origins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
+    "Attachment": {
+      "additionalProperties": true,
+      "description": "A file the package carries, beside the package, with its own checksum.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttachmentKind"
+        },
+        "filename": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "media_type": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "size": {
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "filename",
+        "media_type",
+        "size",
+        "sha256"
+      ],
+      "title": "Attachment",
+      "type": "object"
+    },
+    "AttachmentKind": {
+      "enum": [
+        "clock_face",
+        "sketch",
+        "overview",
+        "other"
+      ],
+      "title": "AttachmentKind",
+      "type": "string"
+    },
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "Call": {
+      "additionalProperties": true,
+      "description": "Tågbesök: what Drift keeps track of. A train number alone is never a key (A1).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Planens spårnamn.",
+          "title": "Track"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "day_offset": {
+          "default": 0,
+          "description": "Speldygn efter tågets första.",
+          "maximum": 7,
+          "minimum": 0,
+          "title": "Day Offset",
+          "type": "integer"
+        },
+        "stops": {
+          "default": true,
+          "description": "Falskt för ej uppehåll.",
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "exchange": {
+          "default": true,
+          "description": "Falskt för uppehåll utan utbyte: tåget står men lastar inte.",
+          "title": "Exchange",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "id",
+        "place"
+      ],
+      "title": "Call",
+      "type": "object"
+    },
+    "Certainty": {
+      "description": "Säkerhet per faktum (import 6).",
+      "enum": [
+        "sure",
+        "likely",
+        "unsure",
+        "confirmed"
+      ],
+      "title": "Certainty",
+      "type": "string"
+    },
+    "ClearanceMode": {
+      "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+      "enum": [
+        "requested",
+        "direct"
+      ],
+      "title": "ClearanceMode",
+      "type": "string"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "start_time": {
+          "description": "Modelltiden när klockan startar.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Start Time",
+          "type": "string"
+        },
+        "speed": {
+          "default": 1.0,
+          "description": "Modellminuter per minut.",
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "title": "Speed",
+          "type": "number"
+        },
+        "styles": {
+          "description": "Klockans stilar: analog, digital eller custom:<urtavlans id>.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Styles",
+          "type": "array"
+        },
+        "stop_reasons": {
+          "description": "Stoppskälen.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Stop Reasons",
+          "type": "array"
+        },
+        "faces": {
+          "description": "Urtavlorna, som bilagor (F13).",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Faces",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_time"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "CoupledStation": {
+      "additionalProperties": true,
+      "description": "A station coupled to the place in advance: its outside pinned to a version (H28).",
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "version": {
+          "description": "Versionen av stationspaketet som gäller.",
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "outside": {
+          "$ref": "#/$defs/StationOutside"
+        },
+        "track_map": {
+          "additionalProperties": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "description": "Planens spårnamn → stationens spår-id.",
+          "propertyNames": {
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "title": "Track Map",
+          "type": "object"
+        },
+        "exit_map": {
+          "description": "Sträckans id → stationens utfart (H26).",
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            }
+          },
+          "title": "Exit Map",
+          "type": "object"
+        }
+      },
+      "required": [
+        "station_id",
+        "version",
+        "outside"
+      ],
+      "title": "CoupledStation",
+      "type": "object"
+    },
+    "DefaultTrack": {
+      "additionalProperties": true,
+      "description": "Standard track per train type and direction at a place (B4).",
+      "properties": {
+        "track": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track",
+          "type": "string"
+        },
+        "train_type": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tomt betyder alla tågslag.",
+          "title": "Train Type"
+        },
+        "towards": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Side"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tomt betyder båda riktningarna."
+        }
+      },
+      "required": [
+        "track"
+      ],
+      "title": "DefaultTrack",
+      "type": "object"
+    },
+    "Display": {
+      "additionalProperties": true,
+      "properties": {
+        "graph_order": {
+          "description": "Platserna i grafen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Graph Order",
+          "type": "array"
+        },
+        "graph_pages": {
+          "items": {
+            "$ref": "#/$defs/GraphPage"
+          },
+          "title": "Graph Pages",
+          "type": "array"
+        }
+      },
+      "title": "Display",
+      "type": "object"
+    },
+    "Duty": {
+      "additionalProperties": true,
+      "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "legs": {
+          "items": {
+            "$ref": "#/$defs/DutyLeg"
+          },
+          "title": "Legs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Duty",
+      "type": "object"
+    },
+    "DutyLeg": {
+      "additionalProperties": true,
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "from_call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Call",
+          "type": "string"
+        },
+        "to_call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Call",
+          "type": "string"
+        }
+      },
+      "required": [
+        "train",
+        "from_call",
+        "to_call"
+      ],
+      "title": "DutyLeg",
+      "type": "object"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": true,
+      "description": "What the draft knows about one thing, where it comes from and how sure it is.",
+      "properties": {
+        "ref": {
+          "description": "Vad det gäller: place:p5, section:d16, train:t27, call:c161, eller ett fält som place:p5.phone.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Ref",
+          "type": "string"
+        },
+        "certainty": {
+          "$ref": "#/$defs/Certainty"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/Origin"
+          },
+          "minItems": 1,
+          "title": "Origins",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hur en regel bestämde värdet.",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "ref",
+        "certainty",
+        "origins"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": true,
+      "description": "From the traffic check (Planering): shown, but does not stop publishing.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "GraphPage": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "places": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Places",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "places"
+      ],
+      "title": "GraphPage",
+      "type": "object"
+    },
+    "ImportReport": {
+      "additionalProperties": true,
+      "description": "Importrapporten: the level, what the source gave, what rules decided, what was left out.",
+      "properties": {
+        "source": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Source",
+          "type": "string"
+        },
+        "level": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "places": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/PlaceKind"
+          },
+          "title": "Places",
+          "type": "object"
+        },
+        "sections": {
+          "default": 0,
+          "title": "Sections",
+          "type": "integer"
+        },
+        "parts": {
+          "default": 0,
+          "title": "Parts",
+          "type": "integer"
+        },
+        "trains": {
+          "default": 0,
+          "title": "Trains",
+          "type": "integer"
+        },
+        "calls": {
+          "default": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "duties": {
+          "default": 0,
+          "title": "Duties",
+          "type": "integer"
+        },
+        "turns": {
+          "default": 0,
+          "title": "Turns",
+          "type": "integer"
+        },
+        "shunting": {
+          "default": 0,
+          "title": "Shunting",
+          "type": "integer"
+        },
+        "train_types": {
+          "default": 0,
+          "title": "Train Types",
+          "type": "integer"
+        },
+        "notes": {
+          "description": "Vad reglerna bestämde, i klartext.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "left_out": {
+          "description": "Det som inte lästes in, och varför.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Left Out",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "level"
+      ],
+      "title": "ImportReport",
+      "type": "object"
+    },
+    "Language": {
+      "enum": [
+        "sv",
+        "en",
+        "da",
+        "nb",
+        "de"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "Meet": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "country": {
+          "default": "se",
+          "enum": [
+            "se",
+            "dk",
+            "no",
+            "de"
+          ],
+          "title": "Country",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Europe/Stockholm",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Timezone",
+          "type": "string"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Date"
+        },
+        "last_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Date"
+        },
+        "traffic_week": {
+          "$ref": "#/$defs/TrafficWeek"
+        },
+        "clearance_mode": {
+          "$ref": "#/$defs/ClearanceMode",
+          "default": "requested"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
+          "title": "Settings",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Meet",
+      "type": "object"
+    },
+    "MeetPackage": {
+      "additionalProperties": true,
+      "properties": {
+        "format": {
+          "const": "trainmeet.meet/1",
+          "default": "trainmeet.meet/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "meet": {
+          "$ref": "#/$defs/Meet"
+        },
+        "clock": {
+          "$ref": "#/$defs/Clock"
+        },
+        "attachments": {
+          "items": {
+            "$ref": "#/$defs/Attachment"
+          },
+          "title": "Attachments",
+          "type": "array"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/Place"
+          },
+          "minItems": 1,
+          "title": "Places",
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/Section"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "trains": {
+          "items": {
+            "$ref": "#/$defs/Train"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "duties": {
+          "items": {
+            "$ref": "#/$defs/Duty"
+          },
+          "title": "Duties",
+          "type": "array"
+        },
+        "turns": {
+          "items": {
+            "$ref": "#/$defs/Turn"
+          },
+          "title": "Turns",
+          "type": "array"
+        },
+        "shunting": {
+          "items": {
+            "$ref": "#/$defs/Shunting"
+          },
+          "title": "Shunting",
+          "type": "array"
+        },
+        "display": {
+          "$ref": "#/$defs/Display"
+        },
+        "about": {
+          "additionalProperties": {
+            "$ref": "#/$defs/About"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Language"
+          },
+          "title": "About",
+          "type": "object"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "meet",
+        "clock",
+        "places"
+      ],
+      "title": "MeetPackage",
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "description": "Underlaget, eller planner för en ändring i Planering.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Source",
+          "type": "string"
+        },
+        "at": {
+          "description": "Var i underlaget, till exempel Trains Id 27.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "at"
+      ],
+      "title": "Origin",
+      "type": "object"
+    },
+    "Place": {
+      "additionalProperties": true,
+      "description": "Driftplats: a place from the plan. Sections, calls and protocols point here.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "code": {
+          "description": "Signaturen, till exempel Nby.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PlaceKind"
+        },
+        "remote_from": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen som fjärrstyr.",
+          "title": "Remote From"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Träffens leknummer (H30).",
+          "title": "Phone"
+        },
+        "aliases": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/PlanTrack"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "default_tracks": {
+          "items": {
+            "$ref": "#/$defs/DefaultTrack"
+          },
+          "title": "Default Tracks",
+          "type": "array"
+        },
+        "station": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoupledStation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "instructions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Language"
+          },
+          "title": "Instructions",
+          "type": "object"
+        },
+        "source_ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Planens käll-id:n, till exempel för Tellurian.",
+          "title": "Source Ids",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "kind"
+      ],
+      "title": "Place",
+      "type": "object"
+    },
+    "PlaceKind": {
+      "description": "Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.",
+      "enum": [
+        "manned",
+        "remote",
+        "unmanned",
+        "shadow_yard",
+        "halt"
+      ],
+      "title": "PlaceKind",
+      "type": "string"
+    },
+    "PlanTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "description": "Spårets namn i planen, som tågbesöken använder.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "sort_order": {
+          "default": 0,
+          "title": "Sort Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "PlanTrack",
+      "type": "object"
+    },
+    "Question": {
+      "additionalProperties": true,
+      "description": "Asked only where a rule is missing or two equal sources disagree (import 3.6).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "cause": {
+          "description": "Orsaken, som frågorna grupperas efter.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Cause",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/Alternative"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answer"
+        }
+      },
+      "required": [
+        "id",
+        "cause",
+        "message"
+      ],
+      "title": "Question",
+      "type": "object"
+    },
+    "Rulebook": {
+      "additionalProperties": true,
+      "description": "Regelboken: the meet's train types. Read by every source; added to by the planner.",
+      "properties": {
+        "train_types": {
+          "items": {
+            "$ref": "#/$defs/TrainTypeRule"
+          },
+          "title": "Train Types",
+          "type": "array"
+        }
+      },
+      "title": "Rulebook",
+      "type": "object"
+    },
+    "Section": {
+      "additionalProperties": true,
+      "description": "Sträcka: the plan's clearance section between two places that clear to each other (F1).\nA train gets clearance once for the whole section, even past halts along it.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "place_a": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place A",
+          "type": "string"
+        },
+        "place_b": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place B",
+          "type": "string"
+        },
+        "tracks": {
+          "$ref": "#/$defs/TrackKind",
+          "default": "single"
+        },
+        "clearance_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClearanceMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara om sträckan avviker från träffens grundläge."
+        },
+        "side_at_a": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Side"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan vid place_a (F3)."
+        },
+        "side_at_b": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Side"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan vid place_b (F3)."
+        },
+        "parts": {
+          "description": "Delsträckorna i ordning från place_a till place_b.",
+          "items": {
+            "$ref": "#/$defs/SectionPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "source_ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "place_a",
+        "place_b"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "SectionPart": {
+      "additionalProperties": true,
+      "description": "Delsträcka: the physical piece between two places, for map, graph and detection.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "From Place",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from_place",
+        "to_place"
+      ],
+      "title": "SectionPart",
+      "type": "object"
+    },
+    "Severity": {
+      "description": "A published package carries no structural errors: those stop publishing.",
+      "enum": [
+        "conflict",
+        "observation"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Shunting": {
+      "additionalProperties": true,
+      "description": "Växlingsuppdrag at a place.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "id",
+        "place",
+        "name"
+      ],
+      "title": "Shunting",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": true,
+      "description": "Underlag: a file added to the meet. Kept as it came, so it can be read again.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "filename": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "size": {
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "level": {
+          "description": "Underlagsnivån filen ger (import 4).",
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "added": {
+          "format": "date-time",
+          "title": "Added",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "filename",
+        "size",
+        "sha256",
+        "level",
+        "added"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "planning_json"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "StationOutside": {
+      "additionalProperties": true,
+      "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+      "properties": {
+        "format": {
+          "const": "trainmeet.station-outside/1",
+          "default": "trainmeet.station-outside/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "station_id": {
+          "description": "Stationens id, skapat i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/StationTrack"
+          },
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/Exit"
+          },
+          "minItems": 1,
+          "title": "Exits",
+          "type": "array"
+        },
+        "sides": {
+          "items": {
+            "$ref": "#/$defs/BoxSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "tracks",
+        "exits"
+      ],
+      "title": "StationOutside",
+      "type": "object"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    },
+    "TrackKind": {
+      "enum": [
+        "single",
+        "double"
+      ],
+      "title": "TrackKind",
+      "type": "string"
+    },
+    "TrafficWeek": {
+      "additionalProperties": true,
+      "description": "The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.",
+      "properties": {
+        "start_weekday": {
+          "$ref": "#/$defs/Weekday",
+          "default": "mon"
+        },
+        "days": {
+          "default": 1,
+          "description": "Antal speldygn, Dag 1…N.",
+          "maximum": 31,
+          "minimum": 1,
+          "title": "Days",
+          "type": "integer"
+        },
+        "runs_over_midnight": {
+          "default": false,
+          "title": "Runs Over Midnight",
+          "type": "boolean"
+        }
+      },
+      "title": "TrafficWeek",
+      "type": "object"
+    },
+    "Train": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "number": {
+          "description": "Tågnumret, för inmatning och visning.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "service_key": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Håller isär två tåg med samma nummer samma dag (F9).",
+          "title": "Service Key"
+        },
+        "train_type": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tågslaget.",
+          "title": "Train Type"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "days": {
+          "description": "Trafikdagarna.",
+          "items": {
+            "$ref": "#/$defs/Weekday"
+          },
+          "minItems": 1,
+          "title": "Days",
+          "type": "array"
+        },
+        "manual": {
+          "default": false,
+          "description": "Körs manuellt (F10).",
+          "title": "Manual",
+          "type": "boolean"
+        },
+        "calls": {
+          "items": {
+            "$ref": "#/$defs/Call"
+          },
+          "minItems": 1,
+          "title": "Calls",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "source_ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "days",
+        "calls"
+      ],
+      "title": "Train",
+      "type": "object"
+    },
+    "TrainTypeRule": {
+      "additionalProperties": true,
+      "description": "A train type in the rulebook: the abbreviation trains carry, and what it carries.",
+      "properties": {
+        "code": {
+          "description": "Förkortningen, som tågen visar den: Pt, X, RE.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "names": {
+          "description": "Tågslagens namn i underlaget.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "enum": [
+                "passengers",
+                "goods",
+                "service"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Resande, gods eller tjänst. Tomt tills en regel finns.",
+          "title": "Content"
+        },
+        "certainty": {
+          "$ref": "#/$defs/Certainty"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/Origin"
+          },
+          "minItems": 1,
+          "title": "Origins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "certainty",
+        "origins"
+      ],
+      "title": "TrainTypeRule",
+      "type": "object"
+    },
+    "Turn": {
+      "additionalProperties": true,
+      "description": "Omlopp: the trains one set of vehicles runs, in order.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "trains": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Trains",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Turn",
+      "type": "object"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Utkastet: what Planering works on until it is published as a version.",
+  "properties": {
+    "format": {
+      "const": "trainmeet.planning/1",
+      "default": "trainmeet.planning/1",
+      "title": "Format",
+      "type": "string"
+    },
+    "meet": {
+      "$ref": "#/$defs/Meet"
+    },
+    "package": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MeetPackage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tomt tills underlag finns."
+    },
+    "facts": {
+      "items": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Facts",
+      "type": "array"
+    },
+    "rulebook": {
+      "$ref": "#/$defs/Rulebook"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/Question"
+      },
+      "title": "Questions",
+      "type": "array"
+    },
+    "report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImportReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "meet"
+  ],
+  "type": "object"
+}
