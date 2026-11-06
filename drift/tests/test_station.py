@@ -17,7 +17,7 @@ import pytest
 from contracts import station
 from contracts.meet import MeetPackage
 from contracts.reasons import Reason
-from drift.engine import Drift, Outcome, Refused
+from drift.engine import Drift, Outcome, Refused, model_time, parse_time
 from drift.snapshot import snapshot
 
 NOW = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
@@ -423,3 +423,22 @@ def test_the_place_revision_moves_only_for_its_own_traffic(drift: Drift) -> None
     after = {p: snapshot(drift, p, NOW).place_revision for p in ("nby", "asn", "mla", "sjv")}
     assert after["nby"] > before["nby"] and after["asn"] > before["asn"]
     assert (after["mla"], after["sjv"]) == (before["mla"], before["sjv"])
+
+
+# --- The clock in the snapshot (old Server test_engine.py) ----------------------------------
+
+
+def test_the_snapshot_shows_the_meet_clock_and_never_a_stopped_one_as_running(
+    drift: Drift,
+) -> None:
+    from contracts.drift import ClockAction, ClockControl
+
+    assert snapshot(drift, "nby", NOW + timedelta(minutes=5)).clock.time == "06:00"
+    drift.control_clock(ClockControl(action=ClockAction.START), NOW)
+    running = snapshot(drift, "nby", NOW + timedelta(seconds=60))
+    assert running.clock.running is True
+    assert running.clock.time == model_time(parse_time("06:00") + 60 * drift.clock.speed)
+    drift.control_clock(ClockControl(action=ClockAction.STOP), NOW + timedelta(seconds=60))
+    stopped = snapshot(drift, "nby", NOW + timedelta(hours=1))
+    assert stopped.clock.running is False
+    assert stopped.clock.time == running.clock.time, "a stopped clock stands still"
