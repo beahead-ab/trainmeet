@@ -1,4 +1,4 @@
-"""Sätter upp testmiljön för TrainMeet Hub hos Scaleway i Paris (zon fr-par-1).
+"""Sätter upp testmiljön för TrainMeet Hub hos Scaleway i Amsterdam (zon nl-ams-1).
 
 Körs av jobbet "Testmiljön" i .github/workflows/tester.yml vid varje ändring på main.
 Allt skapas första gången och återanvänds sedan, så samma körning fungerar första och
@@ -56,8 +56,8 @@ from scaleway.marketplace.v2.types import LocalImageType
 from scaleway.secret.v1beta1 import SecretV1Beta1API
 from scaleway_core.api import ScalewayException
 
-ZONE = "fr-par-1"
-REGION = "fr-par"
+ZONE = "nl-ams-1"
+REGION = "nl-ams"
 NAME = "trainmeet-testhub"
 TAG = "trainmeet-testmiljo"
 SECRET_NAME = "trainmeet-testmiljo-ssh"
