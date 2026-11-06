@@ -10,7 +10,7 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 | --- | --- | --- |
 | `contracts/` | Kontrakten: paketformatet, terminal- och stationsprotokollet, förarnas och driftens API och synken mellan hubbar. De andra delarna pratar bara med varandra genom dem. | – |
 | `core/`, `drift/`, `planering/`, `synk/`, `integrationer/` | TrainMeet Hub, kärnan som kör träffen. Det enda man installerar. | Raspberry Pi på träffen och i molnet |
-| `hub/` | Hubbens startprogram: drar igång delarna och visar startsidan med version och vilken ändring som körs | Raspberry Pi på träffen och i molnet |
+| `hub/` | Hubbens startprogram: drar igång delarna, första start och inloggning, trafikledningens sidor (Nu, Klienter, Logg), TMBox i webbläsaren och klockskärmen | Raspberry Pi på träffen och i molnet |
 | `apps/` | Trafikledningen, Lokföraren, TMBox i webbläsaren, skärmarna och Planering | Levereras av Hubben |
 | `id/` | TrainMeet ID, en inloggning för allt | I molnet |
 | `tkl/` | TrainMeet TKL, ställverket och Studio | Stationens dator eller i molnet |
@@ -44,6 +44,8 @@ Hubbens bild byggs med `docker build -f hub/Dockerfile -t trainmeet-hub .` från
 https://test.hub.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
 
 [Öppna Provbanan](https://test.hub.trainmeet.app/provbanan) och starta en provkörning. Prova tåg 101 från Norrby för begärd klarering och tåg 102 från Sjövik för direktklarering. Du kan starta och stoppa klockan, svara från nästa driftplats och följa tåget till ankomst. Provkörningen är separat för varje webbläsare och sparas i ett dygn.
+
+Hubben kör också en riktig träff (steg 3). Den som först öppnade testhubben valde dess namn och PIN-kod och är lokal administratör. Inloggad startar man träffen under [Nu](https://test.hub.trainmeet.app/drift), ansluter boxar, TKL och skärmar med koden under *Anslut* och tilldelar dem under *Klienter*. Utan inloggning kan man titta på Nu. Träffen och hubbens inställningar ligger i egna filer bredvid Provbanans, och står kvar när hubben startas om; klockan står då still tills någon startar den.
 
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
