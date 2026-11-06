@@ -31,7 +31,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
 from scaleway import Client
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
@@ -226,7 +226,8 @@ def ensure_security_group(instance: InstanceUtilsV1API, project_id: str) -> str:
             rules.append(
                 SetSecurityGroupRulesRequestRule(
                     action=SecurityGroupRuleAction.ACCEPT,
-                    protocol=protocol,
+                    # Instance API v1 expects uppercase, but the Python SDK enum uses lowercase.
+                    protocol=cast(SecurityGroupRuleProtocol, protocol.value.upper()),
                     direction=SecurityGroupRuleDirection.INBOUND,
                     ip_range=ip_range,
                     position=len(rules) + 1,
