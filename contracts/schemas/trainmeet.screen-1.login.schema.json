@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.screen-1.login.schema.json",
+  "title": "trainmeet.screen-1.login",
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "code": {
+      "description": "Träffens kod. Skrivs aldrig ut i loggen.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "code"
+  ],
+  "type": "object"
+}

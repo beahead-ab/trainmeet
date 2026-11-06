@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.screen-1.session.schema.json",
+  "title": "trainmeet.screen-1.session",
+  "additionalProperties": true,
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "session_key": {
+      "description": "Skärmens nyckel. Skrivs aldrig ut i loggen.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Session Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_id",
+    "session_key"
+  ],
+  "type": "object"
+}

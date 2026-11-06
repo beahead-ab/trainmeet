@@ -87,12 +87,13 @@ class Assign(Contract):
 class Client(Contract):
     client_id: Id
     name: Text
-    kind: Literal["tkl", "tmbox_app", "dispatch", "tmbox_web", "tmbox"]
+    kind: Literal["tkl", "tmbox_app", "dispatch", "tmbox_web", "tmbox", "screen"]
     status: ApprovalStatus
     places: list[Id] = Field(default_factory=list)
     side: Literal["both", "left", "right"] = "both"
     language: BoxLanguage | None = Field(default=None, description="Bara för TMBoxar.")
     display: DisplaySize | None = Field(default=None, description="Bara för TMBoxar.")
+    view: Text | None = Field(default=None, description="Bara för skärmar: vyn den visar.")
 
 
 class EventKind(StrEnum):

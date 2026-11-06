@@ -1,0 +1,37 @@
+/* Träffens skärmar: Kontrollrummet (dark), drawn for 1920 × 1080 and scaled to the screen.
+   Times in Inter with tabular figures (S7). */
+@font-face { font-family: Inter; src: url(/static/fonts/inter.woff2) format("woff2");
+  font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url(/static/fonts/jetbrains-mono.woff2)
+  format("woff2"); font-weight: 100 800; font-display: swap; }
+:root { color-scheme: dark; --bg: #0b0d10; --panel: #161a1e; --line: #262c33; --text: #e9ebef;
+  --mute: #8d94a0; --blue: #5aa9ff; --green: #46d36b; --yellow: #f5c518; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
+  font: 16px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+section[hidden] { display: none !important; }
+.skylt { height: 48px; }
+
+.anslut, .vantar { height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; text-align: center; padding: 24px; }
+.anslut h1, .vantar h1 { font-size: 32px; margin: 12px 0 0; }
+.anslut p, .vantar p { color: var(--mute); margin: 0; max-width: 520px; }
+form { display: grid; gap: 12px; margin-top: 12px; width: min(320px, 90vw); text-align: left; }
+label { display: grid; gap: 4px; color: var(--mute); font-size: 13px; }
+input { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; }
+#code { font-family: "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.1em; }
+button { font: inherit; font-weight: 650; color: #08121e; background: var(--blue); border: 0;
+  border-radius: 8px; padding: 11px 16px; cursor: pointer; }
+#message { color: var(--yellow); min-height: 1.4em; }
+
+.klocka { height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; cursor: none; }
+.traff { margin: 0; font-size: 3.2vw; font-weight: 600; color: var(--mute); }
+.tid { margin: 0; font-size: 26vw; line-height: 1; font-weight: 800; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; }
+.lage { margin: 1vw 0 0; font-size: 2.2vw; color: var(--mute); }
+.klocka.star .tid { color: #9aa1ab; }
+.klocka.gar .lage::before { content: "● "; color: var(--green); }
+.klocka.star .lage::before { content: "■ "; }

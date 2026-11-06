@@ -324,6 +324,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/screen/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["screenLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/screen/picture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["screenPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/clients/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["showView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub": {
         parameters: {
             query?: never;
@@ -3169,7 +3217,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "tkl" | "tmbox_app" | "dispatch" | "tmbox_web" | "tmbox";
+            kind: "tkl" | "tmbox_app" | "dispatch" | "tmbox_web" | "tmbox" | "screen";
             status: components["schemas"]["trainmeet.drift-1.client.ApprovalStatus"];
             /** Places */
             places?: string[];
@@ -3190,6 +3238,12 @@ export interface components {
              * @default null
              */
             display: components["schemas"]["trainmeet.drift-1.client.DisplaySize"] | null;
+            /**
+             * View
+             * @description Bara för skärmar: vyn den visar.
+             * @default null
+             */
+            view: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -3704,6 +3758,95 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ScreenLogin */
+        "trainmeet.screen-1.login": {
+            /** Name */
+            name: string;
+            /**
+             * Code
+             * @description Träffens kod. Skrivs aldrig ut i loggen.
+             */
+            code: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ScreenSession */
+        "trainmeet.screen-1.session": {
+            /** Client Id */
+            client_id: string;
+            /**
+             * Session Key
+             * @description Skärmens nyckel. Skrivs aldrig ut i loggen.
+             */
+            session_key: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ShowView
+         * @description The dispatcher gives a screen its view; none sends it back to Väntar.
+         */
+        "trainmeet.screen-1.show": {
+            /** Client Id */
+            client_id: string;
+            /** @default null */
+            view: components["schemas"]["trainmeet.screen-1.show.ScreenView"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ScreenView
+         * @enum {string}
+         */
+        "trainmeet.screen-1.show.ScreenView": "clock";
+        /**
+         * ScreenPicture
+         * @description What the screen shows now. Without a view it waits, and says its name.
+         */
+        "trainmeet.screen-1.picture": {
+            /** Name */
+            name: string;
+            /** @default null */
+            view: components["schemas"]["trainmeet.screen-1.picture.ScreenView"] | null;
+            /** Meet */
+            meet: string;
+            traffic_day: components["schemas"]["trainmeet.screen-1.picture.Weekday"];
+            clock: components["schemas"]["trainmeet.screen-1.picture.Clock"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clock */
+        "trainmeet.screen-1.picture.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ScreenView
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ScreenView": "clock";
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /** HubInfo */
         "trainmeet.hub-1.info": {
             /** Name */
@@ -4203,6 +4346,74 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    screenLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.screen-1.login"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.screen-1.session"];
+                };
+            };
+        };
+    };
+    screenPicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.screen-1.picture"];
+                };
+            };
+        };
+    };
+    showView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.screen-1.show"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.client"];
                 };
             };
         };

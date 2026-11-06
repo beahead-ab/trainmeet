@@ -579,6 +579,87 @@
         ]
       }
     },
+    "/api/screen/session": {
+      "post": {
+        "operationId": "screenLogin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.screen-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.screen-1.login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/screen/picture": {
+      "get": {
+        "operationId": "screenPicture",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.screen-1.picture"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/clients/view": {
+      "post": {
+        "operationId": "showView",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.screen-1.show"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/hub": {
       "get": {
         "operationId": "hubInfo",
@@ -6831,7 +6912,8 @@
               "tmbox_app",
               "dispatch",
               "tmbox_web",
-              "tmbox"
+              "tmbox",
+              "screen"
             ],
             "title": "Kind",
             "type": "string"
@@ -6888,6 +6970,21 @@
             ],
             "default": null,
             "description": "Bara för TMBoxar."
+          },
+          "view": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara för skärmar: vyn den visar.",
+            "title": "View"
           }
         },
         "required": [
@@ -8143,6 +8240,191 @@
         ],
         "title": "Refusal",
         "type": "object"
+      },
+      "trainmeet.screen-1.login": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "description": "Träffens kod. Skrivs aldrig ut i loggen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "ScreenLogin",
+        "type": "object"
+      },
+      "trainmeet.screen-1.session": {
+        "additionalProperties": true,
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "session_key": {
+            "description": "Skärmens nyckel. Skrivs aldrig ut i loggen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Session Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "session_key"
+        ],
+        "title": "ScreenSession",
+        "type": "object"
+      },
+      "trainmeet.screen-1.show": {
+        "additionalProperties": true,
+        "description": "The dispatcher gives a screen its view; none sends it back to Väntar.",
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.show.ScreenView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "ShowView",
+        "type": "object"
+      },
+      "trainmeet.screen-1.show.ScreenView": {
+        "enum": [
+          "clock"
+        ],
+        "title": "ScreenView",
+        "type": "string"
+      },
+      "trainmeet.screen-1.picture": {
+        "additionalProperties": true,
+        "description": "What the screen shows now. Without a view it waits, and says its name.",
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.ScreenView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "meet": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet",
+            "type": "string"
+          },
+          "traffic_day": {
+            "$ref": "#/components/schemas/trainmeet.screen-1.picture.Weekday"
+          },
+          "clock": {
+            "$ref": "#/components/schemas/trainmeet.screen-1.picture.Clock"
+          }
+        },
+        "required": [
+          "name",
+          "meet",
+          "traffic_day",
+          "clock"
+        ],
+        "title": "ScreenPicture",
+        "type": "object"
+      },
+      "trainmeet.screen-1.picture.Clock": {
+        "additionalProperties": true,
+        "properties": {
+          "time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Time",
+            "type": "string"
+          },
+          "seconds": {
+            "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "running": {
+            "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+            "title": "Running",
+            "type": "boolean"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "title": "Speed",
+            "type": "number"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "time",
+          "seconds",
+          "running",
+          "speed",
+          "game_day"
+        ],
+        "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.screen-1.picture.ScreenView": {
+        "enum": [
+          "clock"
+        ],
+        "title": "ScreenView",
+        "type": "string"
+      },
+      "trainmeet.screen-1.picture.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
       },
       "trainmeet.hub-1.info": {
         "additionalProperties": true,

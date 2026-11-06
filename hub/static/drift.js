@@ -27,6 +27,7 @@ const APPROVAL = { waiting: "Väntar", approved: "Ansluten", refused: "Nekad",
 const SIDES = { both: "Båda sidor", left: "Vänster", right: "Höger" };
 const LANGUAGES = { sv: "Svenska", en: "English", da: "Dansk", nb: "Norsk", de: "Deutsch" };
 const SPEEDS = [1, 2, 3, 4, 6, 8, 12];
+const VIEWS = { clock: "Klocka" };
 const EVENTS = {
   "meet.started": "Träffen startade", "clock.started": "Klockan startade",
   "clock.stopped": "Klockan stoppades", "clock.speed": "Ny hastighet",
@@ -124,6 +125,7 @@ async function toggleConnect() {
     const joining = await api(API + "/connect");
     $("connect-code").textContent = joining.code;
     $("connect-url").textContent = joining.url;
+    $("connect-screen").textContent = joining.url.replace("/box#", "/skarm#");
     $("connect-qr").src = API + "/connect.svg?" + Date.now();
     panel.hidden = false;
   } catch (error) {
@@ -250,7 +252,12 @@ function clientRow(client) {
   if (client.display) details.push(`${client.display.cols}×${client.display.rows}`);
   if (client.language && client.kind.startsWith("tmbox")) details.push(LANGUAGES[client.language]);
   const controls = el("div", { class: "kontroller" });
-  if (client.kind.startsWith("tmbox")) {
+  if (client.kind === "screen") {
+    details[1] = client.view ? "Visar " + (VIEWS[client.view] ?? client.view) : "Väntar på en vy";
+    const view = select("Vy för " + client.name, Object.entries(VIEWS), client.view);
+    controls.append(view, el("button", { type: "button", onclick: () => change("view",
+      { client_id: client.client_id, view: view.value }) }, client.view ? "Byt vy" : "Visa"));
+  } else if (client.kind.startsWith("tmbox")) {
     const place = select("Driftplats för " + client.name, places, client.places[0]);
     const side = select("Sida för " + client.name, Object.entries(SIDES), client.side);
     const language = select("Språk för " + client.name, Object.entries(LANGUAGES), client.language);
@@ -276,6 +283,7 @@ function drawClients() {
     waiting: ["Väntar", client => client.status === "waiting"],
     boxes: ["Boxar", client => client.kind.startsWith("tmbox")],
     stations: ["TKL", client => client.kind === "tkl"],
+    screens: ["Skärmar", client => client.kind === "screen"],
   };
   $("client-filters").replaceChildren(...Object.entries(groups).map(([key, [label, test]]) =>
     chip(label, clientFilter === key, () => { clientFilter = key; drawClients(); },

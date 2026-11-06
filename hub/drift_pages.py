@@ -77,6 +77,7 @@ def _document(info: BuildInfo, page: str, logged_in: bool, content: str) -> str:
     <p id="connect-code" class="anslutkod">------</p>
     <p class="liten">Eller skanna koden med telefonen. Boxen öppnas på <span id="connect-url"
       class="mono"></span></p>
+    <p class="liten">En skärm öppnar <span id="connect-screen" class="mono"></span></p>
   </div>
   <img id="connect-qr" alt="QR-kod som öppnar boxen med koden" width="180" height="180">
 </section>

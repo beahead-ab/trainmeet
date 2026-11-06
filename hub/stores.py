@@ -9,6 +9,7 @@ from typing import Any, TypeVar
 
 from contracts import station
 from contracts.terminal import DisplaySize
+from drift.engine import Drift
 from drift.store import MissingRun, PreviewStore, UnknownBox, UnknownClient
 
 T = TypeVar("T")
@@ -49,3 +50,9 @@ class AnyRun:
 
     def station_command(self, key: str, command: station.Command) -> station.Reply:
         return self._first(UnknownClient, lambda store: store.station_command(key, command))
+
+    def screen_login(self, name: str, code: str) -> tuple[str, str]:
+        return self._first(MissingRun, lambda store: store.screen_login(name, code))
+
+    def screen_picture(self, key: str) -> tuple[str, str | None, Drift]:
+        return self._first(UnknownClient, lambda store: store.screen_picture(key))

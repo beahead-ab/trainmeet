@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
-from contracts import drift
+from contracts import drift, screen
 from contracts.common import Id
 from contracts.reasons import TEXT_SV
 from drift.engine import VERSION, Refused, now_utc
@@ -144,6 +144,22 @@ def router(meet: PreviewStore, login: LocalLogin) -> APIRouter:
         run_id = admin(session, authorization)
         try:
             return changed(meet.revoke(run_id, change), change.client_id)
+        except failures as error:
+            _error(error)
+
+    @routes.post("/clients/view")
+    def show_view(
+        change: screen.ShowView,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """A screen gets its view (S3); none sends it back to Väntar."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        view = change.view.value if change.view else None
+        try:
+            return changed(meet.show_view(run_id, change.client_id, view), change.client_id)
         except failures as error:
             _error(error)
 
