@@ -965,6 +965,119 @@ function setUpVersions() {
   });
 }
 
+// --- Bana ---------------------------------------------------------------------------------
+
+let mapChoice = null;
+
+/** A section's short name: the plan's number for its clearance section. */
+function sectionLabel(section) {
+  return section.source_ids?.planning_json ?? section.id;
+}
+
+function originList(ref) {
+  const found = factsOf(ref);
+  if (!found.length) return null;
+  return el("div", { class: "varifran" }, el("p", { class: "overrubrik" }, "Varifrån"),
+    el("ul", {}, ...origins(ref)));
+}
+
+async function saveNow(change, text) {
+  try {
+    draft = await api(`${API}/meets/${meetId}/changes`, { changes: [change] });
+    setFacts();
+    say(text, true);
+    showMap();
+  } catch (error) {
+    say(error.message);
+  }
+}
+
+function sectionChoice(section) {
+  const between = section.parts.slice(0, -1).map(part => {
+    const place = draft.package.places.find(item => item.id === part.to_place);
+    return `${place.name} (${KINDS[place.kind].toLowerCase()})`;
+  });
+  const base = MODES[draft.meet.clearance_mode];
+  const tracks = admin
+    ? el("div", { class: "segment" }, ...Object.entries(TRACKS).map(([key, text]) =>
+      el("button", { type: "button", "aria-pressed": section.tracks === key ? "true" : "false",
+        onclick: () => section.tracks !== key && saveNow({ section: section.id, tracks: key },
+          `${placeName(section.place_a)} – ${placeName(section.place_b)} är ${text.toLowerCase()}spår.`),
+      }, text)))
+    : TRACKS[section.tracks] + "spår";
+  const mode = admin
+    ? selectCell([["", `${base} (träffens grundläge)`], ...Object.entries(MODES)],
+      section.clearance_mode ?? "", "Klarering",
+      next => saveNow({ section: section.id, clearance_mode: next || null }, "Klareringsläget är sparat."))
+    : (section.clearance_mode ? MODES[section.clearance_mode] : `${base} (träffens grundläge)`);
+  const fact = facts.get(`section:${section.id}`);
+  return [
+    el("header", {}, el("span", { class: "overrubrik" }, "Vald sträcka"),
+      fact ? el("span", { class: "pill " + fact.certainty }, CERTAINTY[fact.certainty]) : null),
+    el("h2", {}, `${sectionLabel(section)} · ${placeName(section.place_a)} – ${placeName(section.place_b)}`),
+    el("dl", {},
+      el("dt", {}, "Spår"), el("dd", {}, tracks),
+      el("dt", {}, "Klarering"), el("dd", {}, mode),
+      el("dt", {}, "Delsträckor"), el("dd", {}, section.parts.map(part =>
+        `${placeName(part.from_place)} – ${placeName(part.to_place)}`).join(" · ")),
+      el("dt", {}, "Driftplatser emellan"), el("dd", {}, between.join(", ") || "Inga"),
+      el("dt", {}, "Sidor och utfarter"), el("dd", { class: "liten" },
+        "Kommer från stationernas utsida när ställverken ansluter.")),
+    originList(`section:${section.id}`),
+  ];
+}
+
+function placeChoice(place) {
+  const fact = facts.get(`place:${place.id}`);
+  const sections = draft.package.sections.filter(section =>
+    section.place_a === place.id || section.place_b === place.id);
+  return [
+    el("header", {}, el("span", { class: "overrubrik" }, "Vald driftplats"),
+      fact ? el("span", { class: "pill " + fact.certainty }, CERTAINTY[fact.certainty]) : null),
+    el("h2", {}, `${place.code} · ${place.name}`),
+    el("dl", {},
+      el("dt", {}, "Platstyp"), el("dd", {}, KINDS[place.kind] +
+        (place.remote_from ? `, från ${placeName(place.remote_from)}` : "")),
+      el("dt", {}, "Telefon"), el("dd", {}, place.phone ?? "–"),
+      el("dt", {}, "Spår"), el("dd", {}, place.tracks.map(track => track.name).join(" ") || "–"),
+      el("dt", {}, "Sträckor"), el("dd", {}, sections.map(section =>
+        `${placeName(section.place_a)} – ${placeName(section.place_b)}`).join(" · ") || "Inga")),
+    originList(`place:${place.id}`),
+  ];
+}
+
+function showMap() {
+  const unsure = new Set(draft.facts.filter(fact => fact.certainty === "unsure").map(fact => fact.ref));
+  TrainMeetMap.draw($("map"), draft.package, {
+    selected: mapChoice,
+    label: sectionLabel,
+    unsure,
+    onSelect: (kind, id) => { mapChoice = { kind, id }; showMap(); },
+  });
+  const places = draft.package.places.length, sections = draft.package.sections.length;
+  $("map-count").textContent = `${plural(sections, "sträcka", "sträckor")} · ${plural(places, "driftplats", "driftplatser")}`;
+  const section = mapChoice?.kind === "section"
+    && draft.package.sections.find(item => item.id === mapChoice.id);
+  const place = mapChoice?.kind === "place" && draft.package.places.find(item => item.id === mapChoice.id);
+  $("choice").replaceChildren(...(section ? sectionChoice(section) : place ? placeChoice(place)
+    : [el("p", { class: "liten" }, "Välj en sträcka eller en driftplats på kartan.")]).filter(Boolean));
+  const doubtful = [...unsure].filter(ref => ref.startsWith("place:") || ref.startsWith("section:"));
+  $("unsure").hidden = !doubtful.length;
+  if (doubtful.length) {
+    $("unsure").replaceChildren(el("b", {}, `▲ ${plural(doubtful.length, "uppgift", "uppgifter")} är osäkra.`),
+      " Kontrollera dem under Data, med filtret Osäker.");
+  }
+}
+
+function setUpMap() {
+  if (!draft.package) {
+    $("empty").hidden = false;
+    return;
+  }
+  $("map-page").hidden = false;
+  showMap();
+}
+
 // --- Graf ---------------------------------------------------------------------------------
 
 const DAY_FULL = { mon: "Måndag", tue: "Tisdag", wed: "Onsdag", thu: "Torsdag", fri: "Fredag",
@@ -1105,6 +1218,7 @@ $("logout")?.addEventListener("click", async () => {
   }
   if (!(await loadDraft())) return;
   if (page === "data") setUpData();
+  else if (page === "bana") setUpMap();
   else if (page === "graf") setUpGraph();
   else if (page === "versioner") setUpVersions();
 })();

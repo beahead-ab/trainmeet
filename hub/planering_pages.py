@@ -258,18 +258,38 @@ def render_graph(info: BuildInfo, meet: str, logged_in: bool) -> str:
     )
 
 
-def render_coming(info: BuildInfo, meet: str, page: str, logged_in: bool) -> str:
-    """Bana, until it is built (4b)."""
-    title, text = {
-        "bana": ("Bana", "Kartan med driftplatser och klareringssträckor kommer i 4b."),
-    }[page]
+def render_map(info: BuildInfo, meet: str, logged_in: bool) -> str:
+    """Bana: the map with the places and the clearance sections with their parts."""
     return _document(
         info,
-        page,
+        "bana",
         logged_in,
-        f"""<div class="sidrubrik"><h1>{title}</h1></div>
-<section class="kort"><p class="liten">{text}</p></section>""",
+        """<div class="sidrubrik">
+  <h1>Bana</h1><span class="under">klareringssträckor med delsträckor under</span>
+</div>
+<section class="kort" id="empty" hidden>
+  <p class="liten">Lägg till underlag under Data först.</p>
+</section>
+<div class="notis" id="unsure" hidden></div>
+<div class="bana-yta" id="map-page" hidden>
+  <section class="kort karta-kort">
+    <header class="kort-rubrik"><h2>Banan</h2><span id="map-count" class="liten"></span></header>
+    <div id="map" class="karta-yta"></div>
+    <footer class="forklaring">
+      <span>Fyrkant = driftplats med klarering</span>
+      <span>Ring = hållplats eller industri</span>
+      <span>Streckad ram = skuggbangård</span>
+      <span>Dubbla linjer = dubbelspår</span>
+      <span>Grå streckad = spår utan klarering i planen</span>
+      <span class="bla">Blå = vald</span>
+    </footer>
+  </section>
+  <aside class="kort vald" id="choice">
+    <p class="liten">Välj en sträcka eller en driftplats på kartan.</p>
+  </aside>
+</div>""",
         meet=meet,
+        scripts=("/static/bana.js",),
     )
 
 

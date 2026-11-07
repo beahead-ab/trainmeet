@@ -232,12 +232,14 @@ def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: Tes
     for label in ("Data", "Bana", "Graf", "Versioner", "Nu", "Klienter", "Logg"):
         assert f">{label}</a>" in data, label
     assert "aria-current=page>Data<" in data
+    bana = anonymous.get(f"/planering/{MEET}/bana").text
+    assert "/static/bana.js" in bana and 'id="map"' in bana and 'id="choice"' in bana
     graph = anonymous.get(f"/planering/{MEET}/graf").text
     assert "/static/graf.js" in graph and 'id="graph"' in graph and 'id="print-line"' in graph
     assert "aria-current=page>Versioner<" in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="publish"' in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="new-meet"' not in anonymous.get("/planering").text
-    assert planned.get(f"/planering/{MEET}/underlag").status_code == 422
+    assert planned.get(f"/planering/{MEET}/underlag").status_code == 404
     assert planned.get("/planering/..%2Fx").status_code in {404, 422}
     assert 'href="/planering"' in planned.get("/").text
     assert 'id="new-choice"' in planned.get("/drift").text

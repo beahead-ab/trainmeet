@@ -233,6 +233,52 @@ input.cell { width: 8em; }
   border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
 .kostnad span { color: var(--mute); font-size: 13.5px; }
 
+/* Bana: the map, and the chosen section or place beside. */
+.notis { background: #fbf5e6; border: 1px solid #ecdcae; border-radius: 12px; padding: 12px 16px;
+  margin: 0 0 18px; color: var(--text-2); }
+.notis b { color: var(--amber); }
+.bana-yta { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px;
+  align-items: start; }
+.karta-kort { padding: 0; overflow: hidden; }
+.kort-rubrik { display: flex; gap: 10px; align-items: baseline; padding: 16px 20px;
+  border-bottom: 1px solid var(--line); }
+.kort-rubrik h2 { margin: 0; }
+.karta-yta { overflow: auto; padding: 12px; background-color: var(--step);
+  background-image: linear-gradient(var(--step-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--step-2) 1px, transparent 1px);
+  background-size: 24px 24px; }
+.karta { display: block; max-width: none; }
+.forklaring { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.forklaring .bla { color: var(--blue); }
+.lank path { fill: none; }
+.lank .enkel { stroke: #6b7280; stroke-width: 3; }
+.lank .yttre { stroke: #6b7280; stroke-width: 8; }
+.lank .inre { stroke: var(--step); stroke-width: 3; }
+.lank.utan .enkel { stroke: #b8b8b2; stroke-width: 2; stroke-dasharray: 6 5; }
+.lank.osaker .enkel, .lank.osaker .yttre { stroke: var(--amber); stroke-dasharray: 7 5; }
+.lank.vald .enkel, .lank.vald .yttre { stroke: var(--blue); }
+.lank .traff { stroke: transparent; stroke-width: 18; cursor: pointer; }
+.lank.utan .traff { cursor: default; }
+.lank:not(.utan):hover .enkel, .lank:not(.utan):hover .yttre { stroke: #374151; }
+.lank.vald:hover .enkel, .lank.vald:hover .yttre { stroke: var(--blue); }
+.strackanamn { font: 600 11px "JetBrains Mono", monospace; fill: var(--mute); text-anchor: middle; }
+.strackanamn.vald { fill: var(--blue); }
+.plats { cursor: pointer; }
+.plats .ruta { fill: var(--panel); stroke: var(--text); stroke-width: 2; }
+.plats.shadow_yard .ruta { stroke-dasharray: 5 4; stroke: var(--text-2); }
+.plats.remote .ruta, .plats.unmanned .ruta { stroke: var(--text-2); }
+.plats .ring { fill: var(--panel); stroke: var(--text-2); stroke-width: 2.5; }
+.plats.vald .ruta, .plats.vald .ring { stroke: var(--blue); stroke-width: 3; }
+.plats text { text-anchor: middle; }
+.plats .kod { font: 600 14px "JetBrains Mono", monospace; fill: var(--text); }
+.plats .namn { font: 600 13px Inter, sans-serif; fill: var(--text); }
+.plats .namn.under { font-weight: 500; fill: var(--text-2); }
+.plats .not { font: 12px Inter, sans-serif; fill: var(--mute); }
+.plats:focus { outline: none; }
+.plats:focus-visible .ruta, .plats:focus-visible .ring { stroke: var(--blue); }
+.bana-yta .vald { border-left: 0; padding: 0 22px 20px; }
+.bana-yta .vald > .liten { padding-top: 18px; }
+
 /* Graf: the train graph, the places fixed on the left and the day scrolling sideways. */
 .segment { display: inline-flex; background: var(--step-2); border-radius: 10px; padding: 3px;
   gap: 2px; }
@@ -309,7 +355,7 @@ text.plats.halt { font-weight: 400; fill: var(--mute); }
 }
 
 @media (max-width: 1100px) {
-  .graf-yta { grid-template-columns: minmax(0, 1fr); }
+  .graf-yta, .bana-yta { grid-template-columns: minmax(0, 1fr); }
   .flikar .grupp, .sidhuvud .namn { display: none; }
   .data-yta:has(.vald:not([hidden])) { grid-template-columns: minmax(0, 1fr); }
   .vald { border-left: 0; border-top: 1px solid var(--line); }
