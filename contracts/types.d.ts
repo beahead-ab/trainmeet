@@ -885,7 +885,10 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** GraphPage */
+        /**
+         * GraphPage
+         * @description Grafens linje: one sheet of the train graph, the places in order along it.
+         */
         "trainmeet.meet-1.GraphPage": {
             /** Id */
             id: string;
@@ -893,6 +896,23 @@ export interface components {
             name: string;
             /** Places */
             places: string[];
+            /**
+             * Number
+             * @description Linjens nummer i planen.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Distances
+             * @description Avståndet från första platsen, en per plats och i ordning. Tomt: grafen använder den typiska gångtiden.
+             * @default null
+             */
+            distances: number[] | null;
+            /**
+             * Color
+             * @default null
+             */
+            color: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4401,7 +4421,10 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** GraphPage */
+        /**
+         * GraphPage
+         * @description Grafens linje: one sheet of the train graph, the places in order along it.
+         */
         "trainmeet.planning-1.import.GraphPage": {
             /** Id */
             id: string;
@@ -4409,6 +4432,23 @@ export interface components {
             name: string;
             /** Places */
             places: string[];
+            /**
+             * Number
+             * @description Linjens nummer i planen.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Distances
+             * @description Avståndet från första platsen, en per plats och i ordning. Tomt: grafen använder den typiska gångtiden.
+             * @default null
+             */
+            distances: number[] | null;
+            /**
+             * Color
+             * @default null
+             */
+            color: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -5291,7 +5331,10 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** GraphPage */
+        /**
+         * GraphPage
+         * @description Grafens linje: one sheet of the train graph, the places in order along it.
+         */
         "trainmeet.planning-1.draft.GraphPage": {
             /** Id */
             id: string;
@@ -5299,6 +5342,23 @@ export interface components {
             name: string;
             /** Places */
             places: string[];
+            /**
+             * Number
+             * @description Linjens nummer i planen.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Distances
+             * @description Avståndet från första platsen, en per plats och i ordning. Tomt: grafen använder den typiska gångtiden.
+             * @default null
+             */
+            distances: number[] | null;
+            /**
+             * Color
+             * @default null
+             */
+            color: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -6136,6 +6196,8 @@ export interface components {
             places?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
             sections?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
             trains?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
+            /** @description Grafens linjer. */
+            lines?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
             /**
              * Times
              * @description Tider som ändras i tågbesök som finns kvar.

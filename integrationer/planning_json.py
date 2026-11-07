@@ -42,8 +42,10 @@ from contracts.meet import (
     About,
     Call,
     Clock,
+    Display,
     Duty,
     DutyLeg,
+    GraphPage,
     Meet,
     MeetPackage,
     Place,
@@ -354,6 +356,7 @@ class _Importer:
         try:
             package = MeetPackage(
                 meet=meet,
+                display=Display(graph_pages=self._graph_pages()),
                 clock=clock_settings,
                 places=self.places,
                 sections=sections,
@@ -845,6 +848,70 @@ class _Importer:
         if empty:
             self.reading.left_out.append(f"{empty} omlopp har inga tåg i tidtabellen.")
         return turns
+
+    # --- The graph's lines -------------------------------------------------------------------
+
+    def _graph_pages(self) -> list[GraphPage]:
+        """The plan's graph lines (TimetableStretches): the organiser's sheets of the train
+        graph, with number, name, colour and the distance along the line."""
+        stretches = self.plan.items(self.layout, "TimetableStretches") or self.plan.items(
+            self.timetable, "TimetableStretches"
+        )
+        pages: list[GraphPage] = []
+        for line in stretches:
+            plan_id = line.get("Id")
+            ordered = self._path(self.plan.items(line, "Stretches"))
+            number = _plain(line.get("Number"), 40)
+            name = _plain(line.get("Description")) or (f"Linje {number}" if number else "")
+            if plan_id is None or ordered is None or not name:
+                self.reading.left_out.append(
+                    f"Grafens linje {number or plan_id} går inte att följa och lästes inte."
+                )
+                continue
+            places, distances = ordered
+            color = _plain(line.get("Color"), 20)
+            page_id = f"g{_id(plan_id)}"
+            self.reading.fact(f"graph:{page_id}", f"TimetableStretches Id {plan_id}")
+            pages.append(
+                GraphPage(
+                    id=page_id,
+                    name=name,
+                    number=number or None,
+                    places=places,
+                    distances=distances,
+                    color=color if _COLOR.fullmatch(color) else None,
+                )
+            )
+        return pages
+
+    def _path(self, stretches: list[dict[str, Any]]) -> tuple[list[str], list[float]] | None:
+        """The places along the stretches in order, and the distance from the first, or None
+        when they do not make one line."""
+        steps: dict[str, list[tuple[str, float]]] = defaultdict(list)
+        for stretch in stretches:
+            a = self.place_ids.get(stretch.get("StartId"))
+            b = self.place_ids.get(stretch.get("EndId"))
+            if a is None or b is None or a == b:
+                return None
+            length = max(_float(stretch.get("Distance")), 0.0)
+            steps[a].append((b, length))
+            steps[b].append((a, length))
+        if not steps or any(len(way) > 2 for way in steps.values()):
+            return None
+        ends = [place for place, way in steps.items() if len(way) == 1]
+        if len(ends) != 2:
+            return None
+        first = self.place_ids.get(stretches[0].get("StartId"))
+        start = first if first in ends else ends[0]
+        places, distances, previous = [start], [0.0], None
+        while len(places) <= len(steps):
+            onward = [(b, length) for b, length in steps[places[-1]] if b != previous]
+            if not onward:
+                break
+            previous = places[-1]
+            places.append(onward[0][0])
+            distances.append(round(distances[-1] + onward[0][1], 3))
+        return (places, distances) if len(places) == len(steps) else None
 
     # --- The rulebook ------------------------------------------------------------------------
 

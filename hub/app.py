@@ -121,10 +121,16 @@ def create_app(
     ) -> str:
         return planering_pages.render_versions(current(), meet, logged_in(session, authorization))
 
+    @app.get("/planering/{meet}/graf", response_class=HTMLResponse)
+    def graph_page(
+        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
+    ) -> str:
+        return planering_pages.render_graph(current(), meet, logged_in(session, authorization))
+
     @app.get("/planering/{meet}/{page}", response_class=HTMLResponse)
     def coming_page(
         meet: Id,
-        page: Literal["bana", "graf"],
+        page: Literal["bana"],
         session: hubben.SessionCookie = None,
         authorization: hubben.Authorization = None,
     ) -> str:

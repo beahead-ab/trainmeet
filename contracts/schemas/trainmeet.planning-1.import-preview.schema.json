@@ -218,6 +218,10 @@
     "trains": {
       "$ref": "#/$defs/Difference"
     },
+    "lines": {
+      "$ref": "#/$defs/Difference",
+      "description": "Grafens linjer."
+    },
     "times": {
       "default": 0,
       "description": "Tider som ändras i tågbesök som finns kvar.",
