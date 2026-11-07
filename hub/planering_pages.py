@@ -51,7 +51,16 @@ def _header(meet: str, page: str, logged_in: bool) -> str:
 </header>"""
 
 
-def _document(info: BuildInfo, page: str, logged_in: bool, content: str, *, meet: str = "") -> str:
+def _document(
+    info: BuildInfo,
+    page: str,
+    logged_in: bool,
+    content: str,
+    *,
+    meet: str = "",
+    scripts: tuple[str, ...] = (),
+) -> str:
+    extra = "".join(f'<script src="{src}" defer></script>\n' for src in scripts)
     return f"""<!doctype html>
 <html lang="sv">
 <head>
@@ -60,7 +69,7 @@ def _document(info: BuildInfo, page: str, logged_in: bool, content: str, *, meet
 <title>Planering · TrainMeet Hub · {escape(info.hub_name)}</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/planering.css">
-<script src="/static/planering.js" defer></script>
+{extra}<script src="/static/planering.js" defer></script>
 </head>
 <body data-page="{page}" data-meet="{escape(meet)}" data-admin="{"ja" if logged_in else "nej"}">
 {_header(meet, page, logged_in)}
@@ -202,11 +211,57 @@ def render_data(info: BuildInfo, meet: str, logged_in: bool) -> str:
     )
 
 
+def render_graph(info: BuildInfo, meet: str, logged_in: bool) -> str:
+    """Graf: the day's trains along one line, with the traffic check's findings numbered."""
+    return _document(
+        info,
+        "graf",
+        logged_in,
+        """<div class="sidrubrik">
+  <h1>Graf</h1><span class="under">dygnets tåg, med kontrollens fynd</span>
+</div>
+<section class="kort" id="empty" hidden>
+  <p class="liten">Lägg till underlag under Data först.</p>
+</section>
+<div class="graf-yta" id="graph-page" hidden>
+  <section class="kort graf-kort">
+    <div class="graf-rad">
+      <div id="days" class="segment" role="group" aria-label="Trafikdag"></div>
+      <label class="valj">Linje <select id="line"></select></label>
+      <span class="fyll"></span>
+      <div class="segment" role="group" aria-label="Skala">
+        <button type="button" id="zoom-out" aria-label="Visa mer av dygnet">&minus;</button>
+        <button type="button" id="zoom-in" aria-label="Visa mindre av dygnet">+</button>
+      </div>
+    </div>
+    <div id="graph" class="graf"></div>
+    <footer class="graf-fot">
+      <span id="graph-count" class="liten"></span><span class="fyll"></span>
+      <span class="teckning resande">resande</span><span class="teckning gods">gods</span>
+      <span class="teckning tjanst">tjänst</span><span class="teckning okand">okänt slag</span>
+    </footer>
+  </section>
+  <aside class="kort graf-sida">
+    <h2>I grafen <span class="liten">trafikkontrollen</span></h2>
+    <ol id="graph-findings" class="numrerade"></ol>
+    <p class="overrubrik">Skriv ut</p>
+    <p class="liten">PDF på A3 liggande, hela dygnet. Välj Spara som PDF i utskriften.</p>
+    <div class="rad">
+      <button type="button" id="print-line">Den här linjen</button>
+      <button type="button" id="print-all" class="lank">Alla linjer</button>
+    </div>
+  </aside>
+</div>
+<div id="print" class="utskrift" aria-hidden="true"></div>""",
+        meet=meet,
+        scripts=("/static/graf.js",),
+    )
+
+
 def render_coming(info: BuildInfo, meet: str, page: str, logged_in: bool) -> str:
-    """Bana and Graf, until they are built (4b)."""
+    """Bana, until it is built (4b)."""
     title, text = {
         "bana": ("Bana", "Kartan med driftplatser och klareringssträckor kommer i 4b."),
-        "graf": ("Graf", "Tågdiagrammet per linje och trafikdag kommer i 4b."),
     }[page]
     return _document(
         info,

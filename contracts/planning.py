@@ -270,6 +270,7 @@ class ImportPreview(Contract):
     places: Difference = Field(default_factory=Difference)
     sections: Difference = Field(default_factory=Difference)
     trains: Difference = Field(default_factory=Difference)
+    lines: Difference = Field(default_factory=Difference, description="Grafens linjer.")
     times: int = Field(default=0, ge=0, description="Tider som ändras i tågbesök som finns kvar.")
     tracks: int = Field(default=0, ge=0, description="Spår som ändras i tågbesök som finns kvar.")
     questions: int = Field(default=0, ge=0)

@@ -571,6 +571,7 @@
     },
     "GraphPage": {
       "additionalProperties": true,
+      "description": "Grafens linje: one sheet of the train graph, the places in order along it.",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -591,6 +592,50 @@
           "minItems": 2,
           "title": "Places",
           "type": "array"
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Linjens nummer i planen.",
+          "title": "Number"
+        },
+        "distances": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Avståndet från första platsen, en per plats och i ordning. Tomt: grafen använder den typiska gångtiden.",
+          "title": "Distances"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color"
         }
       },
       "required": [

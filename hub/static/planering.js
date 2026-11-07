@@ -829,9 +829,9 @@ function closeDrawer() {
 function describe(preview) {
   const parts = [];
   const things = [["trains", "tåg", "tåg"], ["places", "driftplats", "driftplatser"],
-    ["sections", "sträcka", "sträckor"]];
+    ["sections", "sträcka", "sträckor"], ["lines", "linje i grafen", "linjer i grafen"]];
   if (preview.first) {
-    return "Allt är nytt: " + things.map(([key, one, many]) =>
+    return "Allt är nytt: " + things.filter(([key]) => preview[key].added).map(([key, one, many]) =>
       plural(preview[key].added, one, many)).join(", ") + ".";
   }
   for (const [key, one, many] of things) {
@@ -965,6 +965,132 @@ function setUpVersions() {
   });
 }
 
+// --- Graf ---------------------------------------------------------------------------------
+
+const DAY_FULL = { mon: "Måndag", tue: "Tisdag", wed: "Onsdag", thu: "Torsdag", fri: "Fredag",
+  sat: "Lördag", sun: "Söndag" };
+const ZOOM = [1, 2, 3, 4, 6, 8];
+const graph = { line: null, day: null, zoom: 3, lines: [], kinds: new Map(), marks: [] };
+
+/** The check's findings as marks in the graph: a ring at a moment, or a band between places. */
+function graphMarks(found) {
+  const calls = new Map();
+  for (const train of draft.package.trains) {
+    for (const call of train.calls) calls.set(call.id, { train, call });
+  }
+  return found.map((finding, index) => {
+    const mark = { number: index + 1, severity: finding.severity, finding };
+    if (finding.code === "no_section") {
+      mark.from = finding.refs[0];
+      mark.to = finding.refs[1];
+    } else if (finding.code === "track_conflict") {
+      const hit = calls.get(finding.refs[1]);
+      const { arrival, departure } = TrainMeetGraph.times(hit?.call ?? {});
+      mark.place = finding.refs[0];
+      mark.minute = arrival ?? departure;
+      mark.days = hit?.train.days ?? [];
+    }
+    return mark;
+  });
+}
+
+function onLine(mark, line) {
+  if (mark.from !== undefined) return line.places.includes(mark.from) && line.places.includes(mark.to);
+  return mark.place !== undefined && line.places.includes(mark.place);
+}
+
+function drawGraph(keepTime = null) {
+  const line = graph.lines.find(item => item.id === graph.line);
+  const scroll = document.querySelector(".graf-rulla");
+  const middle = keepTime ?? (scroll && graph.drawnZoom
+    ? (scroll.scrollLeft + scroll.clientWidth / 2) / graph.drawnZoom : null);
+  const marks = graph.marks.filter(mark => !mark.days || mark.days.includes(graph.day));
+  const drawn = TrainMeetGraph.draw($("graph"), draft.package,
+    { line, day: graph.day, kinds: graph.kinds, marks, perMinute: ZOOM[graph.zoom] });
+  graph.drawnZoom = ZOOM[graph.zoom];
+  const area = document.querySelector(".graf-rulla");
+  const start = TrainMeetGraph.minutes(draft.package.clock.start_time) ?? 360;
+  // First time: the clock's start, where the game begins (the night before stands to the left).
+  const target = middle ?? Math.max(0, start - 30) + area.clientWidth / 2 / ZOOM[graph.zoom];
+  area.scrollLeft = Math.max(0, target * ZOOM[graph.zoom] - area.clientWidth / 2);
+  $("graph-count").textContent = `${plural(drawn.trains, "tåg", "tåg")} på ` +
+    `${DAY_FULL[graph.day].toLowerCase()} på ${line.name} · dra i sidled för resten av dygnet`;
+  $("graph-findings").replaceChildren(...(graph.marks.length
+    ? graph.marks.map(mark => el("li", { class: onLine(mark, line) ? "" : "annan" },
+      el("span", { class: "pill " + mark.severity },
+        mark.severity === "conflict" ? "Konflikt" : "Iakttagelse"),
+      el("p", {}, mark.finding.message),
+      onLine(mark, line) ? null : el("p", { class: "liten" }, "Inte på den här linjen.")))
+    : [el("li", { class: "tom" }, "Inga fynd.")]));
+}
+
+function graphControls() {
+  $("days").replaceChildren(...TrainMeetGraph.trafficDays(draft.package).map(day =>
+    el("button", { type: "button", "aria-pressed": day === graph.day ? "true" : "false",
+      onclick: () => { graph.day = day; graphControls(); drawGraph(); } }, DAY_FULL[day])));
+}
+
+function printGraph(lines) {
+  const host = $("print");
+  host.replaceChildren();
+  for (const line of lines) {
+    const page = el("section", { class: "utskriftssida" },
+      el("h1", {}, `${draft.meet.name} · ${line.name} · ${DAY_FULL[graph.day]}`));
+    const sheet = el("div");
+    page.append(sheet);
+    host.append(page);
+    TrainMeetGraph.draw(sheet, draft.package, { line, day: graph.day, kinds: graph.kinds,
+      marks: graph.marks.filter(mark => !mark.days || mark.days.includes(graph.day)),
+      perMinute: 1, compact: true, height: 780 });
+  }
+  window.print();
+}
+
+async function setUpGraph() {
+  if (!draft.package) {
+    $("empty").hidden = false;
+    return;
+  }
+  $("graph-page").hidden = false;
+  graph.lines = TrainMeetGraph.lines(draft.package);
+  graph.line = graph.lines[0].id;
+  graph.day = TrainMeetGraph.trafficDays(draft.package)[0];
+  graph.kinds = new Map(draft.rulebook.train_types.map(rule => [rule.code, rule.content]));
+  try {
+    graph.marks = graphMarks((await api(`${API}/meets/${meetId}/check`)).findings);
+  } catch (error) {
+    graph.marks = [];
+  }
+  $("line").replaceChildren(...graph.lines.map(line => el("option", { value: line.id }, line.name)));
+  $("line").addEventListener("change", () => { graph.line = $("line").value; drawGraph(); });
+  $("zoom-in").addEventListener("click", () => {
+    graph.zoom = Math.min(graph.zoom + 1, ZOOM.length - 1);
+    drawGraph();
+  });
+  $("zoom-out").addEventListener("click", () => {
+    graph.zoom = Math.max(graph.zoom - 1, 0);
+    drawGraph();
+  });
+  $("print-line").addEventListener("click",
+    () => printGraph(graph.lines.filter(line => line.id === graph.line)));
+  $("print-all").addEventListener("click", () => printGraph(graph.lines));
+  graphControls();
+  drawGraph(null);
+  // Drag the sheet sideways with the mouse, as in the old graph.
+  const area = document.querySelector("#graph");
+  let dragging = null;
+  area.addEventListener("pointerdown", event => {
+    const scroll = document.querySelector(".graf-rulla");
+    if (!scroll || event.button !== 0) return;
+    dragging = { x: event.clientX, left: scroll.scrollLeft };
+  });
+  window.addEventListener("pointermove", event => {
+    if (!dragging) return;
+    document.querySelector(".graf-rulla").scrollLeft = dragging.left - (event.clientX - dragging.x);
+  });
+  window.addEventListener("pointerup", () => { dragging = null; });
+}
+
 // --- Start --------------------------------------------------------------------------------
 
 $("logout")?.addEventListener("click", async () => {
@@ -979,5 +1105,6 @@ $("logout")?.addEventListener("click", async () => {
   }
   if (!(await loadDraft())) return;
   if (page === "data") setUpData();
+  else if (page === "graf") setUpGraph();
   else if (page === "versioner") setUpVersions();
 })();

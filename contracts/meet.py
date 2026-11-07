@@ -257,9 +257,18 @@ class Shunting(Contract):
 
 
 class GraphPage(Contract):
+    """Grafens linje: one sheet of the train graph, the places in order along it."""
+
     id: Id
     name: Text
     places: list[Id] = Field(min_length=2)
+    number: Text | None = Field(default=None, description="Linjens nummer i planen.")
+    distances: list[float] | None = Field(
+        default=None,
+        description="Avståndet från första platsen, en per plats och i ordning. Tomt: grafen "
+        "använder den typiska gångtiden.",
+    )
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
 class Display(Contract):
@@ -421,6 +430,8 @@ def _structural_problems(package: MeetPackage) -> list[str]:
     for page in package.display.graph_pages:
         for ref in page.places:
             place_ref(ref, f"Grafsidan {page.id}")
+        if page.distances is not None and len(page.distances) != len(page.places):
+            problems.append(f"Grafsidan {page.id} har inte ett avstånd per plats.")
     for face in package.clock.faces:
         if face not in attachments:
             problems.append(f"Urtavlan {face} finns inte bland bilagorna.")

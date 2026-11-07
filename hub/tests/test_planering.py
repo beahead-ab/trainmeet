@@ -131,6 +131,7 @@ def test_a_source_waits_until_it_is_laid_in(hub: TestClient) -> None:
     preview = planning.ImportPreview.model_validate(upload(hub).json())
     assert preview.first and preview.report.level == 4
     assert (preview.trains.added, preview.places.added, preview.sections.added) == (228, 31, 17)
+    assert preview.lines.added == 9, "the graph's lines from the plan"
     draft = planning.Draft.model_validate(hub.get(f"{API}/meets/{MEET}").json())
     assert draft.package is None, "nothing changes before Lägg in i utkastet"
     wrong = hub.post(f"{API}/meets/{MEET}/sources/u-other/apply")
@@ -231,6 +232,8 @@ def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: Tes
     for label in ("Data", "Bana", "Graf", "Versioner", "Nu", "Klienter", "Logg"):
         assert f">{label}</a>" in data, label
     assert "aria-current=page>Data<" in data
+    graph = anonymous.get(f"/planering/{MEET}/graf").text
+    assert "/static/graf.js" in graph and 'id="graph"' in graph and 'id="print-line"' in graph
     assert "aria-current=page>Versioner<" in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="publish"' in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="new-meet"' not in anonymous.get("/planering").text

@@ -44,6 +44,9 @@ def preview(draft: Draft, fresh: Draft, source: Source, result: ImportResult) ->
         places=_difference(before.places if before else [], after.places, lambda p: p.id),
         sections=_difference(before.sections if before else [], after.sections, lambda s: s.id),
         trains=_difference(before.trains if before else [], after.trains, lambda t: t.id),
+        lines=_difference(
+            before.display.graph_pages if before else [], after.display.graph_pages, lambda g: g.id
+        ),
         times=times,
         tracks=tracks,
         questions=sum(q.answer is None for q in fresh.questions),

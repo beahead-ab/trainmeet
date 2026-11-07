@@ -142,3 +142,13 @@ def test_everything_is_sure_and_nothing_personal_comes_in(result: ImportResult) 
 
 def test_the_same_file_again_gives_the_same_draft(result: ImportResult) -> None:
     assert load() == result
+
+
+def test_the_graphs_lines_come_from_the_plan(result: ImportResult) -> None:
+    pages = result.package.display.graph_pages
+    assert [page.number for page in pages] == ["1", "5", "3", "7", "8", "9", "2", "6", "4"]
+    codes = {place.id: place.code for place in result.package.places}
+    main = next(page for page in pages if page.name == "Huvudlinje i Sverige")
+    assert [codes[ref] for ref in main.places] == ["Mkd", "Lek", "Gdö", "Tby", "R", "Nlu", "Mot"]
+    assert main.distances == [0, 12, 24, 28, 37, 55, 67]
+    assert main.color == "#1a3a5c"

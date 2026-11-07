@@ -21,6 +21,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Planspår | `place.tracks[].name` | Spårets namn i planen. Tågbesöket behåller det. |
 | Spårtabell | `station.track_map` | Översätter planens spårnamn till stationens spår-id. |
 | Sträcka | `section` | Planens klareringssträcka mellan två driftplatser, från infartssignal till infartssignal. Tåget får klart en gång för hela sträckan. |
+| Grafens linje | `display.graph_pages` | Ett blad i tågdiagrammet: platserna i ordning längs linjen, med avstånd, nummer och färg ur planen. |
 | Delsträcka | `section.parts` | Den fysiska biten mellan två platser längs en sträcka. Används för karta, graf och detektering. |
 | Klareringsläge | `clearance_mode` | Bara `requested` (begärd) eller `direct` (direkt). Träffen har ett grundläge, och en sträcka kan ha det andra. |
 | Tåg | `train` | Ett tågnummer med sina tågbesök. Numret är för inmatning och visning, aldrig en nyckel. |
