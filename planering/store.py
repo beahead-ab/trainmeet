@@ -22,18 +22,22 @@ from contracts.planning import (
     PLANNER,
     Answer,
     Certainty,
+    Change,
     Check,
     Draft,
     Fact,
+    ImportPreview,
     ImportResult,
     MeetSummary,
     NewMeet,
     Origin,
     PlaceChange,
     SectionChange,
+    SectionTracksChange,
     Source,
     Version,
 )
+from planering import compare
 from planering.check import check
 
 RESERVED: Final = {"provbanan"}
@@ -48,6 +52,10 @@ CREATE TABLE IF NOT EXISTS source_file (
     meet_id TEXT NOT NULL REFERENCES meet(id) ON DELETE CASCADE,
     source_id TEXT NOT NULL, body BLOB NOT NULL,
     PRIMARY KEY (meet_id, source_id)
+);
+CREATE TABLE IF NOT EXISTS pending (
+    meet_id TEXT PRIMARY KEY REFERENCES meet(id) ON DELETE CASCADE,
+    source TEXT NOT NULL, body BLOB NOT NULL, result TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS version (
     meet_id TEXT NOT NULL REFERENCES meet(id),
@@ -172,58 +180,73 @@ class Planning:
             )
             return draft
 
-    def add_source(self, meet_id: str, source: Source, body: bytes, result: ImportResult) -> Draft:
-        """A source read by Integrationer comes into the draft. A new planning file takes the
-        place of the one before; the planner's changes and answers stay (principle 7)."""
+    def preview(
+        self, meet_id: str, source: Source, body: bytes, result: ImportResult
+    ) -> ImportPreview:
+        """Lägg till underlag, first step: what the source would change. Nothing changes in the
+        draft; the source waits until it is laid in (one per meet, the newest)."""
         with self._transaction() as db:
             draft = self._draft(db, meet_id)
-            meet = draft.meet.model_copy(
-                update={
-                    "traffic_week": result.package.meet.traffic_week,
-                    "first_date": draft.meet.first_date or result.package.meet.first_date,
-                    "last_date": draft.meet.last_date or result.package.meet.last_date,
-                }
-            )
-            replaced = [s for s in draft.sources if s.kind == source.kind]
-            for old in replaced:
-                db.execute(
-                    "DELETE FROM source_file WHERE meet_id=? AND source_id=?", (meet_id, old.id)
-                )
             db.execute(
-                "INSERT OR REPLACE INTO source_file VALUES (?, ?, ?)", (meet_id, source.id, body)
+                "INSERT OR REPLACE INTO pending VALUES (?, ?, ?, ?)",
+                (meet_id, source.model_dump_json(), body, result.model_dump_json()),
             )
-            answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
-            fresh = Draft(
-                meet=meet,
-                package=result.package.model_copy(update={"meet": meet}),
-                facts=result.facts,
-                rulebook=result.rulebook,
-                sources=[s for s in draft.sources if s.kind != source.kind] + [source],
-                questions=result.questions,
-                report=result.report,
-                changes=draft.changes,
-            )
-            fresh = _replay(fresh, answers)
-            self._save(db, fresh)
-            return fresh
+            return compare.preview(draft, _laid_in(draft, source, result), source, result)
 
-    def change(self, meet_id: str, change: PlaceChange | SectionChange) -> Draft:
+    def apply(self, meet_id: str, source_id: str) -> Draft:
+        """Lägg in i utkastet: the waiting source comes into the draft."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT source, body, result FROM pending WHERE meet_id=?", (meet_id,)
+            ).fetchone()
+            if row is None or Source.model_validate_json(row[0]).id != source_id:
+                self._draft(db, meet_id)
+                raise PlanningError("Underlaget väntar inte längre. Lägg till det igen.")
+            db.execute("DELETE FROM pending WHERE meet_id=?", (meet_id,))
+            source = Source.model_validate_json(row[0])
+            result = ImportResult.model_validate_json(row[2])
+            return self._add(db, meet_id, source, bytes(row[1]), result)
+
+    def add_source(self, meet_id: str, source: Source, body: bytes, result: ImportResult) -> Draft:
+        """A source read by Integrationer comes into the draft at once."""
+        with self._transaction() as db:
+            return self._add(db, meet_id, source, body, result)
+
+    def _add(
+        self,
+        db: sqlite3.Connection,
+        meet_id: str,
+        source: Source,
+        body: bytes,
+        result: ImportResult,
+    ) -> Draft:
+        """A new planning file takes the place of the one before; the planner's changes and
+        answers stay (principle 7)."""
+        draft = self._draft(db, meet_id)
+        for old in [s for s in draft.sources if s.kind == source.kind]:
+            db.execute("DELETE FROM source_file WHERE meet_id=? AND source_id=?", (meet_id, old.id))
+        db.execute(
+            "INSERT OR REPLACE INTO source_file VALUES (?, ?, ?)", (meet_id, source.id, body)
+        )
+        fresh = _laid_in(draft, source, result)
+        self._save(db, fresh)
+        return fresh
+
+    def change(self, meet_id: str, *changes: Change) -> Draft:
+        """The planner's changes, kept in order; the last change per field counts."""
         with self._transaction() as db:
             draft = self._draft(db, meet_id)
             if draft.package is None:
                 raise PlanningError("Lägg till underlag först.")
-            known = (
-                {p.id for p in draft.package.places}
-                if isinstance(change, PlaceChange)
-                else {s.id for s in draft.package.sections}
-            )
-            target = _target(change)
-            if target not in known:
-                raise PlanningError("Det finns inte i utkastet.")
-            changes = [
-                c for c in draft.changes if _target(c) != target or type(c) is not type(change)
-            ]
-            draft = draft.model_copy(update={"changes": [*changes, change]})
+            places = {p.id for p in draft.package.places}
+            sections = {s.id for s in draft.package.sections}
+            kept = list(draft.changes)
+            for change in changes:
+                kind, target = _target(change)
+                if target not in (places if kind == "place" else sections):
+                    raise PlanningError("Det finns inte i utkastet.")
+                kept = [c for c in kept if _target(c) != (kind, target)] + [change]
+            draft = draft.model_copy(update={"changes": kept})
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
             draft = _replay(draft, answers)
             self._save(db, draft)
@@ -312,8 +335,37 @@ def _summary(draft: Draft) -> str:
     ).model_dump_json()
 
 
-def _target(change: PlaceChange | SectionChange) -> Id:
-    return change.place if isinstance(change, PlaceChange) else change.section
+def _target(change: Change) -> tuple[str, Id]:
+    """Which field of which thing a change sets."""
+    if isinstance(change, PlaceChange):
+        return "place", change.place
+    if isinstance(change, SectionTracksChange):
+        return "tracks", change.section
+    return "section", change.section
+
+
+def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
+    """The draft with the source in it, the meet's own name and dates kept, and the planner's
+    changes and answers on top."""
+    meet = draft.meet.model_copy(
+        update={
+            "traffic_week": result.package.meet.traffic_week,
+            "first_date": draft.meet.first_date or result.package.meet.first_date,
+            "last_date": draft.meet.last_date or result.package.meet.last_date,
+        }
+    )
+    answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
+    fresh = Draft(
+        meet=meet,
+        package=result.package.model_copy(update={"meet": meet}),
+        facts=result.facts,
+        rulebook=result.rulebook,
+        sources=[s for s in draft.sources if s.kind != source.kind] + [source],
+        questions=result.questions,
+        report=result.report,
+        changes=draft.changes,
+    )
+    return _replay(fresh, answers)
 
 
 def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
@@ -329,6 +381,11 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
         if isinstance(change, PlaceChange) and change.place in places:
             places[change.place] = places[change.place].model_copy(update={"phone": change.phone})
             ref = f"place:{change.place}.phone"
+        elif isinstance(change, SectionTracksChange) and change.section in sections:
+            sections[change.section] = sections[change.section].model_copy(
+                update={"tracks": change.tracks}
+            )
+            ref = f"section:{change.section}.tracks"
         elif isinstance(change, SectionChange) and change.section in sections:
             sections[change.section] = sections[change.section].model_copy(
                 update={"clearance_mode": change.clearance_mode}

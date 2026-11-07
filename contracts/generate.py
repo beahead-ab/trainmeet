@@ -62,8 +62,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.draft": planning.Draft,
     "trainmeet.planning-1.new-meet": planning.NewMeet,
     "trainmeet.planning-1.meet-summary": planning.MeetSummary,
-    "trainmeet.planning-1.place-change": planning.PlaceChange,
-    "trainmeet.planning-1.section-change": planning.SectionChange,
+    "trainmeet.planning-1.changes": planning.Changes,
+    "trainmeet.planning-1.import-preview": planning.ImportPreview,
     "trainmeet.planning-1.answer": planning.Answer,
     "trainmeet.planning-1.check": planning.Check,
     "trainmeet.planning-1.version": planning.Version,
@@ -284,29 +284,15 @@ def openapi() -> str:
     route("get", m, "planningMeets", p + "meet-summary", many=True)
     route("post", m, "newMeet", p + "draft", p + "new-meet", bearer=True)
     route("get", m + "/{meet}", "planningDraft", p + "draft")
-    route(
-        "post",
-        m + "/{meet}/places",
-        "changePlace",
-        "trainmeet.meet-1.Place",
-        p + "place-change",
-        bearer=True,
-    )
-    route(
-        "post",
-        m + "/{meet}/sections",
-        "changeSection",
-        "trainmeet.meet-1.Section",
-        p + "section-change",
-        bearer=True,
-    )
+    route("post", m + "/{meet}/changes", "changeDraft", p + "draft", p + "changes", bearer=True)
     route("post", m + "/{meet}/answers", "answerQuestion", p + "draft", p + "answer", bearer=True)
     route("get", m + "/{meet}/check", "planningCheck", p + "check")
     route("get", m + "/{meet}/versions", "planningVersions", p + "version", many=True)
     route("post", m + "/{meet}/versions", "publish", p + "version", bearer=True)
     route("get", m + "/{meet}/versions/{number}", "planningVersion", "trainmeet.meet-1")
     # Lägg till underlag: the file's own bytes, its name in the address.
-    route("post", m + "/{meet}/sources", "addSource", p + "draft", bearer=True)
+    route("post", m + "/{meet}/sources", "addSource", p + "import-preview", bearer=True)
+    route("post", m + "/{meet}/sources/{source}/apply", "applySource", p + "draft", bearer=True)
     upload = paths[m + "/{meet}/sources"]["post"]
     upload["requestBody"] = {
         "required": True,

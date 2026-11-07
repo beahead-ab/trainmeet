@@ -452,7 +452,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/planering/1/meets/{meet}/places": {
+    "/api/planering/1/meets/{meet}/changes": {
         parameters: {
             query?: never;
             header?: never;
@@ -461,23 +461,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["changePlace"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/planering/1/meets/{meet}/sections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["changeSection"];
+        post: operations["changeDraft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -558,6 +542,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["addSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/sources/{source}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["applySource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4965,7 +4965,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"])[];
         } & {
             [key: string]: unknown;
         };
@@ -5651,6 +5651,17 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * SectionTracksChange
+         * @description Enkel- eller dubbelspår for one section in the draft.
+         */
+        "trainmeet.planning-1.draft.SectionTracksChange": {
+            /** Section */
+            section: string;
+            tracks: components["schemas"]["trainmeet.planning-1.draft.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Severity
          * @description A published package carries no structural errors: those stop publishing.
          * @enum {string}
@@ -6050,10 +6061,27 @@ export interface components {
          */
         "trainmeet.planning-1.meet-summary.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
+         * Changes
+         * @description Several changes saved at once (Spara in Data). They are kept in order.
+         */
+        "trainmeet.planning-1.changes": {
+            /** Changes */
+            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"])[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.changes.ClearanceMode": "requested" | "direct";
+        /**
          * PlaceChange
          * @description A change to one place in the draft. Only the fields sent are changed.
          */
-        "trainmeet.planning-1.place-change": {
+        "trainmeet.planning-1.changes.PlaceChange": {
             /** Place */
             place: string;
             /**
@@ -6068,21 +6096,199 @@ export interface components {
          * SectionChange
          * @description A change to one section in the draft. Clearance mode empty follows the meet.
          */
-        "trainmeet.planning-1.section-change": {
+        "trainmeet.planning-1.changes.SectionChange": {
             /** Section */
             section: string;
             /** @default null */
-            clearance_mode: components["schemas"]["trainmeet.planning-1.section-change.ClearanceMode"] | null;
+            clearance_mode: components["schemas"]["trainmeet.planning-1.changes.ClearanceMode"] | null;
         } & {
             [key: string]: unknown;
         };
         /**
-         * ClearanceMode
-         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
-         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * SectionTracksChange
+         * @description Enkel- eller dubbelspår for one section in the draft.
+         */
+        "trainmeet.planning-1.changes.SectionTracksChange": {
+            /** Section */
+            section: string;
+            tracks: components["schemas"]["trainmeet.planning-1.changes.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackKind
          * @enum {string}
          */
-        "trainmeet.planning-1.section-change.ClearanceMode": "requested" | "direct";
+        "trainmeet.planning-1.changes.TrackKind": "single" | "double";
+        /**
+         * ImportPreview
+         * @description Lägg till underlag before anything changes: the level, what the source gave and exactly
+         *     what changes in the draft. Laid in with Lägg in i utkastet.
+         */
+        "trainmeet.planning-1.import-preview": {
+            source: components["schemas"]["trainmeet.planning-1.import-preview.Source"];
+            report: components["schemas"]["trainmeet.planning-1.import-preview.ImportReport"];
+            /**
+             * First
+             * @description Sant när utkastet inte har något underlag än.
+             */
+            first: boolean;
+            places?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
+            sections?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
+            trains?: components["schemas"]["trainmeet.planning-1.import-preview.Difference"];
+            /**
+             * Times
+             * @description Tider som ändras i tågbesök som finns kvar.
+             * @default 0
+             */
+            times: number;
+            /**
+             * Tracks
+             * @description Spår som ändras i tågbesök som finns kvar.
+             * @default 0
+             */
+            tracks: number;
+            /**
+             * Questions
+             * @default 0
+             */
+            questions: number;
+            /**
+             * Kept
+             * @description Planerarens ändringar som står kvar.
+             * @default 0
+             */
+            kept: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Difference
+         * @description What one kind of thing does in the draft if a source is laid in.
+         */
+        "trainmeet.planning-1.import-preview.Difference": {
+            /**
+             * Added
+             * @default 0
+             */
+            added: number;
+            /**
+             * Removed
+             * @default 0
+             */
+            removed: number;
+            /**
+             * Changed
+             * @default 0
+             */
+            changed: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ImportReport
+         * @description Importrapporten: the level, what the source gave, what rules decided, what was left out.
+         */
+        "trainmeet.planning-1.import-preview.ImportReport": {
+            /** Source */
+            source: string;
+            /** Level */
+            level: number;
+            /** Places */
+            places?: {
+                [key: string]: number;
+            };
+            /**
+             * Sections
+             * @default 0
+             */
+            sections: number;
+            /**
+             * Parts
+             * @default 0
+             */
+            parts: number;
+            /**
+             * Trains
+             * @default 0
+             */
+            trains: number;
+            /**
+             * Calls
+             * @default 0
+             */
+            calls: number;
+            /**
+             * Duties
+             * @default 0
+             */
+            duties: number;
+            /**
+             * Turns
+             * @default 0
+             */
+            turns: number;
+            /**
+             * Shunting
+             * @default 0
+             */
+            shunting: number;
+            /**
+             * Train Types
+             * @default 0
+             */
+            train_types: number;
+            /**
+             * Notes
+             * @description Vad reglerna bestämde, i klartext.
+             */
+            notes?: string[];
+            /**
+             * Left Out
+             * @description Det som inte lästes in, och varför.
+             */
+            left_out?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PlaceKind
+         * @description Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.
+         * @enum {string}
+         */
+        "trainmeet.planning-1.import-preview.PlaceKind": "manned" | "remote" | "unmanned" | "shadow_yard" | "halt";
+        /**
+         * Source
+         * @description Underlag: a file added to the meet. Kept as it came, so it can be read again.
+         */
+        "trainmeet.planning-1.import-preview.Source": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.planning-1.import-preview.SourceKind"];
+            /** Filename */
+            filename: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+            /**
+             * Level
+             * @description Underlagsnivån filen ger (import 4).
+             */
+            level: number;
+            /**
+             * Added
+             * Format: date-time
+             */
+            added: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SourceKind
+         * @enum {string}
+         */
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.
@@ -6813,7 +7019,7 @@ export interface operations {
             };
         };
     };
-    changePlace: {
+    changeDraft: {
         parameters: {
             query?: never;
             header?: never;
@@ -6824,7 +7030,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["trainmeet.planning-1.place-change"];
+                "application/json": components["schemas"]["trainmeet.planning-1.changes"];
             };
         };
         responses: {
@@ -6834,33 +7040,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["trainmeet.meet-1.Place"];
-                };
-            };
-        };
-    };
-    changeSection: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                meet: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["trainmeet.planning-1.section-change"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["trainmeet.meet-1.Section"];
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
                 };
             };
         };
@@ -6996,6 +7176,29 @@ export interface operations {
                 "application/octet-stream": string;
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.import-preview"];
+                };
+            };
+        };
+    };
+    applySource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

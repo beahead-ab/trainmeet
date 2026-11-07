@@ -234,3 +234,36 @@ def test_halts_are_not_where_sections_end(tmp_path: Path) -> None:
     assert {p.kind for p in plan.places} >= {PlaceKind.HALT}
     assert check(Draft(meet=plan.meet, package=plan)) == []
     assert json.loads(EXAMPLE.read_text(encoding="utf-8"))["meet"]["id"] == "provbanan"
+
+
+def test_a_preview_counts_what_would_change_and_changes_nothing(planning: Planning) -> None:
+    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    first = source(digest="a")
+    planning.add_source(meet.id, first, b"1", result(first))
+    planning.change(meet.id, PlaceChange(place="asn", phone="211"))
+    second = source("ny.json", digest="b")
+    later = result(second)
+    trains = list(later.package.trains)
+    moved = trains[0].calls[1].model_copy(update={"departure": "06:30", "track": "2"})
+    calls = [trains[0].calls[0], moved, *trains[0].calls[2:]]
+    trains[0] = trains[0].model_copy(update={"calls": calls})
+    later = later.model_copy(
+        update={"package": later.package.model_copy(update={"trains": trains[:-1]})}
+    )
+    preview = planning.preview(meet.id, second, b"2", later)
+    assert not preview.first
+    assert (preview.trains.removed, preview.trains.changed, preview.times, preview.tracks) == (
+        1,
+        1,
+        1,
+        1,
+    )
+    assert preview.places.changed == 0, "the planner's phone stays, so the place is the same"
+    assert (preview.kept, preview.questions) == (1, 1)
+    assert len(planning.draft(meet.id).package.trains) == 10  # type: ignore[union-attr]
+    with pytest.raises(PlanningError, match="väntar inte"):
+        planning.apply(meet.id, first.id)
+    draft = planning.apply(meet.id, second.id)
+    assert draft.package is not None and len(draft.package.trains) == 9
+    with pytest.raises(PlanningError, match="väntar inte"):
+        planning.apply(meet.id, second.id)

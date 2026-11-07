@@ -808,16 +808,16 @@
         ]
       }
     },
-    "/api/planering/1/meets/{meet}/places": {
+    "/api/planering/1/meets/{meet}/changes": {
       "post": {
-        "operationId": "changePlace",
+        "operationId": "changeDraft",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/trainmeet.meet-1.Place"
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
                 }
               }
             }
@@ -828,49 +828,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/trainmeet.planning-1.place-change"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "clientKey": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "meet",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ]
-      }
-    },
-    "/api/planering/1/meets/{meet}/sections": {
-      "post": {
-        "operationId": "changeSection",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/trainmeet.meet-1.Section"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/trainmeet.planning-1.section-change"
+                "$ref": "#/components/schemas/trainmeet.planning-1.changes"
               }
             }
           }
@@ -1065,7 +1023,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                  "$ref": "#/components/schemas/trainmeet.planning-1.import-preview"
                 }
               }
             }
@@ -1105,6 +1063,46 @@
             }
           }
         }
+      }
+    },
+    "/api/planering/1/meets/{meet}/sources/{source}/apply": {
+      "post": {
+        "operationId": "applySource",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     }
   },
@@ -10741,9 +10739,12 @@
           "changes": {
             "description": "Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
             "items": {
-              "anyOf": [
+              "oneOf": [
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.draft.PlaceChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.SectionTracksChange"
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.draft.SectionChange"
@@ -12140,6 +12141,26 @@
         "title": "SectionPart",
         "type": "object"
       },
+      "trainmeet.planning-1.draft.SectionTracksChange": {
+        "additionalProperties": true,
+        "description": "Enkel- eller dubbelspår for one section in the draft.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.draft.TrackKind"
+          }
+        },
+        "required": [
+          "section",
+          "tracks"
+        ],
+        "title": "SectionTracksChange",
+        "type": "object"
+      },
       "trainmeet.planning-1.draft.Severity": {
         "description": "A published package carries no structural errors: those stop publishing.",
         "enum": [
@@ -12883,7 +12904,46 @@
         "title": "Weekday",
         "type": "string"
       },
-      "trainmeet.planning-1.place-change": {
+      "trainmeet.planning-1.changes": {
+        "additionalProperties": true,
+        "description": "Several changes saved at once (Spara in Data). They are kept in order.",
+        "properties": {
+          "changes": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.PlaceChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.SectionTracksChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.SectionChange"
+                }
+              ]
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "Changes",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.planning-1.changes.PlaceChange": {
         "additionalProperties": true,
         "description": "A change to one place in the draft. Only the fields sent are changed.",
         "properties": {
@@ -12913,7 +12973,7 @@
         "title": "PlaceChange",
         "type": "object"
       },
-      "trainmeet.planning-1.section-change": {
+      "trainmeet.planning-1.changes.SectionChange": {
         "additionalProperties": true,
         "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
         "properties": {
@@ -12925,7 +12985,7 @@
           "clearance_mode": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/trainmeet.planning-1.section-change.ClearanceMode"
+                "$ref": "#/components/schemas/trainmeet.planning-1.changes.ClearanceMode"
               },
               {
                 "type": "null"
@@ -12940,13 +13000,283 @@
         "title": "SectionChange",
         "type": "object"
       },
-      "trainmeet.planning-1.section-change.ClearanceMode": {
-        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
-        "enum": [
-          "requested",
-          "direct"
+      "trainmeet.planning-1.changes.SectionTracksChange": {
+        "additionalProperties": true,
+        "description": "Enkel- eller dubbelspår for one section in the draft.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.changes.TrackKind"
+          }
+        },
+        "required": [
+          "section",
+          "tracks"
         ],
-        "title": "ClearanceMode",
+        "title": "SectionTracksChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.planning-1.import-preview": {
+        "additionalProperties": true,
+        "description": "Lägg till underlag before anything changes: the level, what the source gave and exactly\nwhat changes in the draft. Laid in with Lägg in i utkastet.",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.Source"
+          },
+          "report": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.ImportReport"
+          },
+          "first": {
+            "description": "Sant när utkastet inte har något underlag än.",
+            "title": "First",
+            "type": "boolean"
+          },
+          "places": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.Difference"
+          },
+          "sections": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.Difference"
+          },
+          "trains": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.Difference"
+          },
+          "times": {
+            "default": 0,
+            "description": "Tider som ändras i tågbesök som finns kvar.",
+            "minimum": 0,
+            "title": "Times",
+            "type": "integer"
+          },
+          "tracks": {
+            "default": 0,
+            "description": "Spår som ändras i tågbesök som finns kvar.",
+            "minimum": 0,
+            "title": "Tracks",
+            "type": "integer"
+          },
+          "questions": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Questions",
+            "type": "integer"
+          },
+          "kept": {
+            "default": 0,
+            "description": "Planerarens ändringar som står kvar.",
+            "minimum": 0,
+            "title": "Kept",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "report",
+          "first"
+        ],
+        "title": "ImportPreview",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import-preview.Difference": {
+        "additionalProperties": true,
+        "description": "What one kind of thing does in the draft if a source is laid in.",
+        "properties": {
+          "added": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Added",
+            "type": "integer"
+          },
+          "removed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Removed",
+            "type": "integer"
+          },
+          "changed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Changed",
+            "type": "integer"
+          }
+        },
+        "title": "Difference",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import-preview.ImportReport": {
+        "additionalProperties": true,
+        "description": "Importrapporten: the level, what the source gave, what rules decided, what was left out.",
+        "properties": {
+          "source": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "level": {
+            "maximum": 4,
+            "minimum": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "places": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.PlaceKind"
+            },
+            "title": "Places",
+            "type": "object"
+          },
+          "sections": {
+            "default": 0,
+            "title": "Sections",
+            "type": "integer"
+          },
+          "parts": {
+            "default": 0,
+            "title": "Parts",
+            "type": "integer"
+          },
+          "trains": {
+            "default": 0,
+            "title": "Trains",
+            "type": "integer"
+          },
+          "calls": {
+            "default": 0,
+            "title": "Calls",
+            "type": "integer"
+          },
+          "duties": {
+            "default": 0,
+            "title": "Duties",
+            "type": "integer"
+          },
+          "turns": {
+            "default": 0,
+            "title": "Turns",
+            "type": "integer"
+          },
+          "shunting": {
+            "default": 0,
+            "title": "Shunting",
+            "type": "integer"
+          },
+          "train_types": {
+            "default": 0,
+            "title": "Train Types",
+            "type": "integer"
+          },
+          "notes": {
+            "description": "Vad reglerna bestämde, i klartext.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "left_out": {
+            "description": "Det som inte lästes in, och varför.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Left Out",
+            "type": "array"
+          }
+        },
+        "required": [
+          "source",
+          "level"
+        ],
+        "title": "ImportReport",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import-preview.PlaceKind": {
+        "description": "Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.",
+        "enum": [
+          "manned",
+          "remote",
+          "unmanned",
+          "shadow_yard",
+          "halt"
+        ],
+        "title": "PlaceKind",
+        "type": "string"
+      },
+      "trainmeet.planning-1.import-preview.Source": {
+        "additionalProperties": true,
+        "description": "Underlag: a file added to the meet. Kept as it came, so it can be read again.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.SourceKind"
+          },
+          "filename": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "size": {
+            "minimum": 0,
+            "title": "Size",
+            "type": "integer"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "level": {
+            "description": "Underlagsnivån filen ger (import 4).",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "added": {
+            "format": "date-time",
+            "title": "Added",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "filename",
+          "size",
+          "sha256",
+          "level",
+          "added"
+        ],
+        "title": "Source",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import-preview.SourceKind": {
+        "enum": [
+          "planning_json"
+        ],
+        "title": "SourceKind",
         "type": "string"
       },
       "trainmeet.planning-1.answer": {

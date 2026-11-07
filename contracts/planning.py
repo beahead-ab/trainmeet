@@ -14,12 +14,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Any, Final, Literal
 
-from pydantic import Field
+from pydantic import Discriminator, Field, Tag
 
 from contracts.common import Contract, Id, Text
-from contracts.meet import ClearanceMode, Finding, Meet, MeetPackage, PlaceKind
+from contracts.meet import ClearanceMode, Finding, Meet, MeetPackage, PlaceKind, TrackKind
 
 FORMAT: Final = "trainmeet.planning/1"
 PLANNER: Final = "planner"
@@ -192,6 +192,36 @@ class SectionChange(Contract):
     clearance_mode: ClearanceMode | None = None
 
 
+class SectionTracksChange(Contract):
+    """Enkel- eller dubbelspår for one section in the draft."""
+
+    section: Id
+    tracks: TrackKind
+
+
+def _change_kind(value: Any) -> str:
+    """Which change it is, from its fields: a place, a section's tracks or its clearance."""
+    if isinstance(value, dict):
+        return "place" if "place" in value else "tracks" if "tracks" in value else "section"
+    if isinstance(value, PlaceChange):
+        return "place"
+    return "tracks" if isinstance(value, SectionTracksChange) else "section"
+
+
+Change = Annotated[
+    Annotated[PlaceChange, Tag("place")]
+    | Annotated[SectionTracksChange, Tag("tracks")]
+    | Annotated[SectionChange, Tag("section")],
+    Discriminator(_change_kind),
+]
+
+
+class Changes(Contract):
+    """Several changes saved at once (Spara in Data). They are kept in order."""
+
+    changes: list[Change] = Field(min_length=1, max_length=500)
+
+
 class Answer(Contract):
     """The planner's answer to a question: one of its alternatives."""
 
@@ -210,7 +240,7 @@ class Draft(Contract):
     sources: list[Source] = Field(default_factory=list)
     questions: list[Question] = Field(default_factory=list)
     report: ImportReport | None = None
-    changes: list[PlaceChange | SectionChange] = Field(
+    changes: list[Change] = Field(
         default_factory=list,
         description="Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
     )
@@ -220,3 +250,27 @@ class Check(Contract):
     """Trafikkontrollen of the draft: what publishing would carry in its findings."""
 
     findings: list[Finding] = Field(default_factory=list)
+
+
+class Difference(Contract):
+    """What one kind of thing does in the draft if a source is laid in."""
+
+    added: int = Field(default=0, ge=0)
+    removed: int = Field(default=0, ge=0)
+    changed: int = Field(default=0, ge=0)
+
+
+class ImportPreview(Contract):
+    """Lägg till underlag before anything changes: the level, what the source gave and exactly
+    what changes in the draft. Laid in with Lägg in i utkastet."""
+
+    source: Source
+    report: ImportReport
+    first: bool = Field(description="Sant när utkastet inte har något underlag än.")
+    places: Difference = Field(default_factory=Difference)
+    sections: Difference = Field(default_factory=Difference)
+    trains: Difference = Field(default_factory=Difference)
+    times: int = Field(default=0, ge=0, description="Tider som ändras i tågbesök som finns kvar.")
+    tracks: int = Field(default=0, ge=0, description="Spår som ändras i tågbesök som finns kvar.")
+    questions: int = Field(default=0, ge=0)
+    kept: int = Field(default=0, ge=0, description="Planerarens ändringar som står kvar.")
