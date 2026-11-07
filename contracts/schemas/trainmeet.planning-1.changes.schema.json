@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.changes.schema.json",
+  "title": "trainmeet.planning-1.changes",
+  "$defs": {
+    "ClearanceMode": {
+      "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+      "enum": [
+        "requested",
+        "direct"
+      ],
+      "title": "ClearanceMode",
+      "type": "string"
+    },
+    "PlaceChange": {
+      "additionalProperties": true,
+      "description": "A change to one place in the draft. Only the fields sent are changed.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "place"
+      ],
+      "title": "PlaceChange",
+      "type": "object"
+    },
+    "SectionChange": {
+      "additionalProperties": true,
+      "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "clearance_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClearanceMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "section"
+      ],
+      "title": "SectionChange",
+      "type": "object"
+    },
+    "SectionTracksChange": {
+      "additionalProperties": true,
+      "description": "Enkel- eller dubbelspår for one section in the draft.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "tracks": {
+          "$ref": "#/$defs/TrackKind"
+        }
+      },
+      "required": [
+        "section",
+        "tracks"
+      ],
+      "title": "SectionTracksChange",
+      "type": "object"
+    },
+    "TrackKind": {
+      "enum": [
+        "single",
+        "double"
+      ],
+      "title": "TrackKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Several changes saved at once (Spara in Data). They are kept in order.",
+  "properties": {
+    "changes": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/PlaceChange"
+          },
+          {
+            "$ref": "#/$defs/SectionTracksChange"
+          },
+          {
+            "$ref": "#/$defs/SectionChange"
+          }
+        ]
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Changes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "changes"
+  ],
+  "type": "object"
+}

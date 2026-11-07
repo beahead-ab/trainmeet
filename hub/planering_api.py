@@ -79,7 +79,8 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
-        """Lägg till underlag: the file's bytes in the body, its name in the address."""
+        """Lägg till underlag: the file's bytes in the body, its name in the address. The file
+        is read and what it would change is shown; nothing changes until it is laid in."""
         response.headers["Cache-Control"] = "no-store"
         await run_in_threadpool(admin, session, authorization)
         chunks: list[bytes] = []
@@ -119,7 +120,23 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except planning_json.PlanError as error:
             raise HTTPException(422, str(error)) from error
         try:
-            return store.add_source(meet, source, data, result).model_dump(mode="json")
+            return store.preview(meet, source, data, result).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
+    @routes.post("/meets/{meet}/sources/{source}/apply")
+    def apply(
+        meet: str,
+        source: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Lägg in i utkastet: the source that waits comes into the draft."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.apply(meet, source).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
 
@@ -144,41 +161,21 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             },
         )
 
-    @routes.post("/meets/{meet}/places")
-    def change_place(
+    @routes.post("/meets/{meet}/changes")
+    def change(
         meet: str,
-        change: planning.PlaceChange,
+        given: planning.Changes,
         response: Response,
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
+        """Spara: the planner's changes from Data, in order."""
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            draft = store.change(meet, change)
+            return store.change(meet, *given.changes).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
-        places = draft.package.places if draft.package else []
-        place = next(p for p in places if p.id == change.place)
-        return place.model_dump(mode="json")
-
-    @routes.post("/meets/{meet}/sections")
-    def change_section(
-        meet: str,
-        change: planning.SectionChange,
-        response: Response,
-        session: SessionCookie = None,
-        authorization: Authorization = None,
-    ) -> dict[str, Any]:
-        response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
-        try:
-            draft = store.change(meet, change)
-        except PlanningError as error:
-            _fail(error)
-        sections = draft.package.sections if draft.package else []
-        section = next(s for s in sections if s.id == change.section)
-        return section.model_dump(mode="json")
 
     @routes.post("/meets/{meet}/answers")
     def answer(

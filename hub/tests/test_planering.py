@@ -61,6 +61,9 @@ def planned(hub: TestClient) -> TestClient:
     assert created.status_code == 201, created.text
     response = upload(hub)
     assert response.status_code == 201, response.text
+    source = response.json()["source"]["id"]
+    applied = hub.post(f"{API}/meets/{MEET}/sources/{source}/apply")
+    assert applied.status_code == 200, applied.text
     return hub
 
 
@@ -68,10 +71,9 @@ def test_only_the_administrator_changes_and_everyone_may_look(planned: TestClien
     anonymous = TestClient(planned.app)
     assert anonymous.post(API + "/meets", json={"name": "X"}).status_code == 401
     assert anonymous.post(f"{API}/meets/{MEET}/versions").status_code == 401
-    assert (
-        anonymous.post(f"{API}/meets/{MEET}/places", json={"place": "p2", "phone": "1"}).status_code
-        == 401
-    )
+    change = {"changes": [{"place": "p2", "phone": "1"}]}
+    assert anonymous.post(f"{API}/meets/{MEET}/changes", json=change).status_code == 401
+    assert anonymous.post(f"{API}/meets/{MEET}/sources/u-x/apply").status_code == 401
     [summary] = anonymous.get(API + "/meets").json()
     assert (summary["meet"]["id"], summary["level"], summary["trains"]) == (MEET, 4, 228)
     draft = planning.Draft.model_validate(anonymous.get(f"{API}/meets/{MEET}").json())
@@ -99,15 +101,54 @@ def test_files_that_are_not_a_plan_are_refused(planned: TestClient) -> None:
     assert missing.status_code == 404
 
 
-def test_the_planner_changes_a_phone_and_a_clearance_mode(planned: TestClient) -> None:
-    place = planned.post(f"{API}/meets/{MEET}/places", json={"place": "p2", "phone": "241"})
-    assert (place.status_code, place.json()["phone"]) == (200, "241")
-    section = planned.post(
-        f"{API}/meets/{MEET}/sections", json={"section": "d2", "clearance_mode": "direct"}
+def test_the_planner_saves_several_changes_at_once(planned: TestClient) -> None:
+    saved = planned.post(
+        f"{API}/meets/{MEET}/changes",
+        json={
+            "changes": [
+                {"place": "p2", "phone": "241"},
+                {"section": "d2", "clearance_mode": "direct"},
+                {"section": "d2", "tracks": "double"},
+                {"place": "p2", "phone": "242"},
+            ]
+        },
     )
-    assert (section.status_code, section.json()["clearance_mode"]) == (200, "direct")
-    unknown = planned.post(f"{API}/meets/{MEET}/places", json={"place": "p999", "phone": "1"})
+    assert saved.status_code == 200, saved.text
+    draft = planning.Draft.model_validate(saved.json())
+    assert draft.package is not None
+    assert next(p.phone for p in draft.package.places if p.id == "p2") == "242"
+    section = next(s for s in draft.package.sections if s.id == "d2")
+    assert (section.clearance_mode, section.tracks) == ("direct", "double")
+    assert len(draft.changes) == 3, "the last change per field counts"
+    unknown = planned.post(
+        f"{API}/meets/{MEET}/changes", json={"changes": [{"place": "p999", "phone": "1"}]}
+    )
     assert unknown.status_code == 409
+
+
+def test_a_source_waits_until_it_is_laid_in(hub: TestClient) -> None:
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    preview = planning.ImportPreview.model_validate(upload(hub).json())
+    assert preview.first and preview.report.level == 4
+    assert (preview.trains.added, preview.places.added, preview.sections.added) == (228, 31, 17)
+    draft = planning.Draft.model_validate(hub.get(f"{API}/meets/{MEET}").json())
+    assert draft.package is None, "nothing changes before Lägg in i utkastet"
+    wrong = hub.post(f"{API}/meets/{MEET}/sources/u-other/apply")
+    assert wrong.status_code == 409
+    hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply")
+    hub.post(f"{API}/meets/{MEET}/changes", json={"changes": [{"place": "p2", "phone": "241"}]})
+    # The same file again changes nothing, and the planner's change stays.
+    again = planning.ImportPreview.model_validate(upload(hub).json())
+    assert not again.first and again.kept == 1
+    assert (again.trains, again.places, again.times, again.tracks) == (
+        planning.Difference(),
+        planning.Difference(),
+        0,
+        0,
+    )
+    gone = hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply")
+    assert gone.status_code == 200
+    assert hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply").status_code == 409
 
 
 def test_the_check_and_publishing(planned: TestClient) -> None:
@@ -176,16 +217,24 @@ def test_the_running_meet_survives_a_restart(planned: TestClient, tmp_path: Path
     assert (seen.meet_id, seen.version) == (MEET, 1)
 
 
-def test_the_pages_are_light_and_the_buttons_need_the_administrator(planned: TestClient) -> None:
+def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: TestClient) -> None:
+    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data."""
     anonymous = TestClient(planned.app)
-    for path in ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data"):
+    pages = ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data")
+    for path in (*pages, f"/planering/{MEET}/bana", f"/planering/{MEET}/graf"):
         page = anonymous.get(path)
-        assert page.status_code == 200 and "/static/planering.css" in page.text
-    assert 'id="upload"' in planned.get(f"/planering/{MEET}").text
-    assert 'id="upload"' not in anonymous.get(f"/planering/{MEET}").text
+        assert page.status_code == 200 and "/static/planering.css" in page.text, path
+    data = planned.get(f"/planering/{MEET}").text
+    assert 'id="add-source"' in data and 'id="drawer"' in data and 'id="save"' in data
+    looking = anonymous.get(f"/planering/{MEET}").text
+    assert 'id="add-source"' not in looking and 'id="save"' not in looking
+    for label in ("Data", "Bana", "Graf", "Versioner", "Nu", "Klienter", "Logg"):
+        assert f">{label}</a>" in data, label
+    assert "aria-current=page>Data<" in data
+    assert "aria-current=page>Versioner<" in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="publish"' in planned.get(f"/planering/{MEET}/versioner").text
     assert 'id="new-meet"' not in anonymous.get("/planering").text
-    assert "aria-current=page>Data<" in planned.get(f"/planering/{MEET}/data").text
+    assert planned.get(f"/planering/{MEET}/underlag").status_code == 422
     assert planned.get("/planering/..%2Fx").status_code in {404, 422}
     assert 'href="/planering"' in planned.get("/").text
     assert 'id="new-choice"' in planned.get("/drift").text

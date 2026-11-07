@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.import-preview.schema.json",
+  "title": "trainmeet.planning-1.import-preview",
+  "$defs": {
+    "Difference": {
+      "additionalProperties": true,
+      "description": "What one kind of thing does in the draft if a source is laid in.",
+      "properties": {
+        "added": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Added",
+          "type": "integer"
+        },
+        "removed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Removed",
+          "type": "integer"
+        },
+        "changed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Changed",
+          "type": "integer"
+        }
+      },
+      "title": "Difference",
+      "type": "object"
+    },
+    "ImportReport": {
+      "additionalProperties": true,
+      "description": "Importrapporten: the level, what the source gave, what rules decided, what was left out.",
+      "properties": {
+        "source": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Source",
+          "type": "string"
+        },
+        "level": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "places": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/PlaceKind"
+          },
+          "title": "Places",
+          "type": "object"
+        },
+        "sections": {
+          "default": 0,
+          "title": "Sections",
+          "type": "integer"
+        },
+        "parts": {
+          "default": 0,
+          "title": "Parts",
+          "type": "integer"
+        },
+        "trains": {
+          "default": 0,
+          "title": "Trains",
+          "type": "integer"
+        },
+        "calls": {
+          "default": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "duties": {
+          "default": 0,
+          "title": "Duties",
+          "type": "integer"
+        },
+        "turns": {
+          "default": 0,
+          "title": "Turns",
+          "type": "integer"
+        },
+        "shunting": {
+          "default": 0,
+          "title": "Shunting",
+          "type": "integer"
+        },
+        "train_types": {
+          "default": 0,
+          "title": "Train Types",
+          "type": "integer"
+        },
+        "notes": {
+          "description": "Vad reglerna bestämde, i klartext.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "left_out": {
+          "description": "Det som inte lästes in, och varför.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Left Out",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "level"
+      ],
+      "title": "ImportReport",
+      "type": "object"
+    },
+    "PlaceKind": {
+      "description": "Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.",
+      "enum": [
+        "manned",
+        "remote",
+        "unmanned",
+        "shadow_yard",
+        "halt"
+      ],
+      "title": "PlaceKind",
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": true,
+      "description": "Underlag: a file added to the meet. Kept as it came, so it can be read again.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "filename": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "size": {
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "level": {
+          "description": "Underlagsnivån filen ger (import 4).",
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "added": {
+          "format": "date-time",
+          "title": "Added",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "filename",
+        "size",
+        "sha256",
+        "level",
+        "added"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "planning_json"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lägg till underlag before anything changes: the level, what the source gave and exactly\nwhat changes in the draft. Laid in with Lägg in i utkastet.",
+  "properties": {
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "report": {
+      "$ref": "#/$defs/ImportReport"
+    },
+    "first": {
+      "description": "Sant när utkastet inte har något underlag än.",
+      "title": "First",
+      "type": "boolean"
+    },
+    "places": {
+      "$ref": "#/$defs/Difference"
+    },
+    "sections": {
+      "$ref": "#/$defs/Difference"
+    },
+    "trains": {
+      "$ref": "#/$defs/Difference"
+    },
+    "times": {
+      "default": 0,
+      "description": "Tider som ändras i tågbesök som finns kvar.",
+      "minimum": 0,
+      "title": "Times",
+      "type": "integer"
+    },
+    "tracks": {
+      "default": 0,
+      "description": "Spår som ändras i tågbesök som finns kvar.",
+      "minimum": 0,
+      "title": "Tracks",
+      "type": "integer"
+    },
+    "questions": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Questions",
+      "type": "integer"
+    },
+    "kept": {
+      "default": 0,
+      "description": "Planerarens ändringar som står kvar.",
+      "minimum": 0,
+      "title": "Kept",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source",
+    "report",
+    "first"
+  ],
+  "type": "object"
+}

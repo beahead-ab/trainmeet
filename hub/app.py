@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -108,11 +109,6 @@ def create_app(
         return planering_pages.render_meets(current(), logged_in(session, authorization))
 
     @app.get("/planering/{meet}", response_class=HTMLResponse)
-    def sources_page(
-        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_sources(current(), meet, logged_in(session, authorization))
-
     @app.get("/planering/{meet}/data", response_class=HTMLResponse)
     def data_page(
         meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
@@ -124,6 +120,17 @@ def create_app(
         meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
     ) -> str:
         return planering_pages.render_versions(current(), meet, logged_in(session, authorization))
+
+    @app.get("/planering/{meet}/{page}", response_class=HTMLResponse)
+    def coming_page(
+        meet: Id,
+        page: Literal["bana", "graf"],
+        session: hubben.SessionCookie = None,
+        authorization: hubben.Authorization = None,
+    ) -> str:
+        return planering_pages.render_coming(
+            current(), meet, page, logged_in(session, authorization)
+        )
 
     @app.get("/healthz", response_class=PlainTextResponse)
     def healthz() -> str:

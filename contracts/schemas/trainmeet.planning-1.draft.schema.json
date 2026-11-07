@@ -1383,6 +1383,26 @@
       "title": "SectionPart",
       "type": "object"
     },
+    "SectionTracksChange": {
+      "additionalProperties": true,
+      "description": "Enkel- eller dubbelspår for one section in the draft.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "tracks": {
+          "$ref": "#/$defs/TrackKind"
+        }
+      },
+      "required": [
+        "section",
+        "tracks"
+      ],
+      "title": "SectionTracksChange",
+      "type": "object"
+    },
     "Severity": {
       "description": "A published package carries no structural errors: those stop publishing.",
       "enum": [
@@ -1907,9 +1927,12 @@
     "changes": {
       "description": "Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
       "items": {
-        "anyOf": [
+        "oneOf": [
           {
             "$ref": "#/$defs/PlaceChange"
+          },
+          {
+            "$ref": "#/$defs/SectionTracksChange"
           },
           {
             "$ref": "#/$defs/SectionChange"
