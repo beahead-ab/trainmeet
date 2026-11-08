@@ -7,7 +7,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
 - Specen TrainMeet Platform ligger i repot `beahead-ab/trainmeet-spec` (privat) och visas på platform.trainmeet.app bakom en läskod.
 - Besluten står i beslutsregistret, `src/data.py`. Underlagen står i `docs/`. Läs först `docs/trainmeet-stacken.md` och `docs/trainmeet-hub-definition.md`.
 - Säger koden och specen olika saker: fråga Casper, eller föreslå en ändring i specen i ett PR i trainmeet-spec. Gissa aldrig.
-- Byggstatusen i specen (`BUILD` i `src/data.py`, kapitlet sist i specen) har fyra steg: Design, Utvecklat, Testat och Klart. Testat betyder att testerna är gröna och att Casper har provat det i testmiljön. När ett PR här flyttar en modul följer ett PR i trainmeet-spec med nytt läge, en rad under Läget och nytt datum, i samma veva.
+- Byggstatusen i specen (`BUILD` i `src/data.py`, kapitlet först i specen) har fyra steg: Design, Utvecklat, Testat och Klart. Testat betyder att testerna är gröna och att Casper eller en av vännerna har provat det i testmiljön. Går något nytt att prova läggs det i `TRY` i samma fil, med adressen i testmiljön och en kort instruktion, så att vännerna kan prova det. När ett PR här flyttar en modul följer ett PR i trainmeet-spec med nytt läge, en rad under Läget och nytt datum, i samma veva.
 
 ## Casper
 
