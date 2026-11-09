@@ -109,6 +109,42 @@ def render_nu(info: BuildInfo, logged_in: bool) -> str:
         if logged_in
         else ""
     )
+    # Automatiken (F14): who works each place, leave and take back, and its settings (H42).
+    automation = (
+        """<details id="automatiken" class="kort">
+    <summary>Automatiken <span id="auto-summary" class="liten"></span></summary>
+    <p class="liten">En driftplats som ingen box eller TKL arbetar med sköts av automatiken:
+      den ger klart när spåret är ledigt, skickar sina tåg och tar emot dem. Den första box
+      eller TKL som arbetar med platsen gör den bemannad.</p>
+    <div class="ram"><table class="tabell">
+      <thead><tr><th>Driftplats</th><th>Läge</th><th></th></tr></thead>
+      <tbody id="auto-places"></tbody>
+    </table></div>
+    <h3>Automatiken väntar med <span id="auto-count" class="antal">0</span></h3>
+    <ul id="auto-trains" class="lista"></ul>
+    <h3>Inställningar</h3>
+    <div class="rad"><span class="etikett">Automatiken</span>
+      <div class="chips" id="auto-enabled"></div></div>
+    <div class="rad"><span class="etikett">Tar över efter Kontakt saknas</span>
+      <div class="chips" id="auto-lost"></div></div>
+    <div class="rad"><span class="etikett">Störningar</span>
+      <div class="chips" id="auto-disturbance"></div>
+      <div class="chips" id="auto-where"></div></div>
+    <div class="rad">
+      <label>Klartecken efter <input id="auto-answer" type="number" min="0" max="30"
+        class="tal"> s</label>
+      <label>Försenat tåg står <input id="auto-late" type="number" min="1" max="10"
+        class="tal"> min</label>
+      <label><input id="auto-stabling" type="checkbox"> Undanställning efter
+        <input id="auto-stabling-minutes" type="number" min="1" max="60" class="tal">
+        min</label>
+      <label>Scenarionyckel <input id="auto-seed" maxlength="40" class="kort-falt"></label>
+      <button id="auto-save" type="button">Spara</button>
+    </div>
+  </details>"""
+        if logged_in
+        else ""
+    )
     start = (
         f"""<div class="rad"><label>Träff <select id="first-choice" class="val"></select></label>
       <label>Trafikdag <select id="first-day">{_days()}</select></label>
@@ -132,6 +168,7 @@ def render_nu(info: BuildInfo, logged_in: bool) -> str:
     <p id="subtitle" class="liten"></p>
   </div>
   {controls}
+  {automation}
   <h2>Öppna klareringar <span id="case-count" class="antal">0</span></h2>
   <ul id="cases" class="lista"></ul>
   <h2>Tågen</h2>

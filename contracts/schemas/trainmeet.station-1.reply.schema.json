@@ -18,7 +18,9 @@
         "line.available.publish",
         "line.available.acknowledge",
         "section.occupancy",
-        "signal.exit"
+        "signal.exit",
+        "place.leave",
+        "place.take_back"
       ],
       "title": "Action",
       "type": "string"
@@ -583,7 +585,11 @@
         "train_not_departed",
         "unknown_line_message",
         "already_acknowledged",
-        "not_level_3"
+        "not_level_3",
+        "station_automatic",
+        "automatic_station_manned",
+        "automation_off",
+        "client_not_present"
       ],
       "title": "Reason",
       "type": "string"
@@ -788,6 +794,12 @@
           },
           "title": "All Places",
           "type": "array"
+        },
+        "automatic": {
+          "default": false,
+          "description": "Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+          "title": "Automatic",
+          "type": "boolean"
         }
       },
       "required": [

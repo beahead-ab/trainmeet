@@ -68,6 +68,7 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
         ],
         neighbours=neighbours,
         all_places=[_neighbour(p) for p in drift.package.places if p.kind != PlaceKind.HALT],
+        automatic=drift.left_here(place),
     )
 
 

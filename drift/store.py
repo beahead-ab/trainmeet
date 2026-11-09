@@ -19,6 +19,7 @@ from contracts.common import Weekday, checksum
 from contracts.meet import MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.terminal import DisplaySize
+from drift.automatik import Automatik
 from drift.engine import Drift, Outcome, Refused, model_time, now_utc
 from drift.snapshot import snapshot
 from drift.terminal import Box, Boxes
@@ -132,6 +133,7 @@ class PreviewStore:
         max_actions: int = MAX_ACTIONS,
         version: int = 1,
         package_key: str | None = None,
+        automation: bool = True,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
@@ -145,9 +147,13 @@ class PreviewStore:
         # Which package a run belongs to. A published version brings the checksum it was
         # published with, so a run keeps its package when the contracts gain a field.
         self.package_key = package_key or checksum(package.model_dump(mode="json"))
+        # Provbanan's runs per browser have no one ticking the automation, so it starts off.
+        self.automation_on = automation
         self.boot = token_hex(16)
         self._ready = False
         self._lock = Lock()
+        # The automation of each run (F14): what it knows of contact lives in memory.
+        self._automatik: dict[str, Automatik] = {}
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
@@ -217,6 +223,8 @@ class PreviewStore:
                     db.execute(f"DELETE FROM {table} WHERE run_id!=?", (run_id,))
             drift = Drift(self.package, [], now=now, version=self.version)
             drift.start(now, traffic_day, game_day)
+            if not self.automation_on:
+                drift.set_automation(events.AutomationSettings(enabled=False), now)
             self._save(db, run_id, drift.history)
         return run_id
 
@@ -326,8 +334,26 @@ class PreviewStore:
         ).fetchall()
         return {str(cid): (Box.from_json(state), str(state)) for cid, state in rows}
 
+    def automatik(self, run_id: str) -> Automatik:
+        if run_id not in self._automatik:
+            self._automatik[run_id] = Automatik()
+        return self._automatik[run_id]
+
+    def _heard(
+        self, run_id: str, drift: Drift, client: str, place: str | None, now: datetime
+    ) -> None:
+        """A box or TKL at work: in contact now, and the first one at a place mans it."""
+        if place is None:
+            return
+        self.automatik(run_id).observe(client, place)
+        drift.man(place, client, now)
+
     def _with_boxes(
-        self, db: sqlite3.Connection, run_id: str, operation: Callable[[Boxes], T]
+        self,
+        db: sqlite3.Connection,
+        run_id: str,
+        operation: Callable[[Boxes], T],
+        heard: str | None = None,
     ) -> T:
         now = now_utc()
         drift = self._load(db, run_id, now)
@@ -337,6 +363,8 @@ class PreviewStore:
             drift, {cid: box for cid, (box, _) in stored.items()}, epoch=epoch_of(run_id), now=now
         )
         boxes.catch_up()
+        if heard is not None and heard in boxes.boxes:
+            self._heard(run_id, drift, heard, boxes.boxes[heard].place, now)
         result = operation(boxes)
         self._save(db, run_id, drift.history[size:])
         for client_id, place, key, message in boxes.refusals:
@@ -360,7 +388,9 @@ class PreviewStore:
     def box_frame(self, key: str) -> dict[str, Any]:
         with self._transaction() as db:
             client_id, run_id = self._box_run(db, key)
-            return self._with_boxes(db, run_id, lambda b: b.frame(b.boxes[client_id]))
+            return self._with_boxes(
+                db, run_id, lambda b: b.frame(b.boxes[client_id]), heard=client_id
+            )
 
     def box_press(self, key: str, body: dict[str, Any]) -> dict[str, Any]:
         with self._transaction() as db:
@@ -370,7 +400,9 @@ class PreviewStore:
             ).fetchone()[0]
             if size >= self.max_actions:
                 raise RunLimit()
-            return self._with_boxes(db, run_id, lambda b: b.press(b.boxes[client_id], body))
+            return self._with_boxes(
+                db, run_id, lambda b: b.press(b.boxes[client_id], body), heard=client_id
+            )
 
     def clients(self, run_id: str) -> list[dict[str, Any]]:
         """The boxes and station clients of the run, waiting ones first, as the Client
@@ -527,19 +559,24 @@ class PreviewStore:
 
     def place_snapshot(self, key: str, place: str) -> station.Snapshot:
         with self._transaction() as db:
-            _, run_id, places = self._approved(db, key)
+            client_id, run_id, places = self._approved(db, key)
             if place not in places:
                 raise NotApproved()
             now = now_utc()
-            return snapshot(self._load(db, run_id, now), place, now)
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            self._heard(run_id, drift, client_id, place, now)
+            self._save(db, run_id, drift.history[size:])
+            return snapshot(drift, place, now)
 
     def place_revision(self, key: str, place: str) -> int:
         """For the event stream: the number that moves when the place's snapshot changes."""
         with self._transaction() as db:
-            _, run_id, places = self._approved(db, key)
+            client_id, run_id, places = self._approved(db, key)
             if place not in places:
                 raise NotApproved()
             drift = self._load(db, run_id, now_utc())
+            self.automatik(run_id).observe(client_id, place)
             return drift.place_revision.get(place, 0)
 
     def station_command(self, key: str, command: station.Command) -> station.Reply:
@@ -557,6 +594,9 @@ class PreviewStore:
                 (run_id, client_id, command.message_id),
             ).fetchone()
             drift = self._load(db, run_id, now)
+            heard = len(drift.history)
+            self._heard(run_id, drift, client_id, command.place, now)
+            self._save(db, run_id, drift.history[heard:])
             if earlier is not None:
                 if earlier[0] != signature:
                     raise NotApproved()  # One message id, one command.
@@ -617,6 +657,59 @@ class PreviewStore:
             return station.Reply.model_validate(
                 {**answer, "snapshot": snapshot(drift, command.place, now).model_dump(mode="json")}
             )
+
+    # --- The automation (F14) -------------------------------------------------------------
+
+    def tick(self, run_id: str) -> None:
+        """One round of the automation, every second or so, while the hub runs."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            if not drift.automation.enabled or not drift.clock.running:
+                return
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            self.automatik(run_id).tick(drift, now)
+            self._save(db, run_id, drift.history[size:])
+
+    def automation(self, run_id: str) -> events.AutomationStatus:
+        with self._transaction() as db:
+            drift = self._load(db, run_id, now_utc())
+            return self.automatik(run_id).status(drift)
+
+    def set_automation(
+        self, run_id: str, settings: events.AutomationSettings
+    ) -> events.AutomationStatus:
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if settings != drift.automation:
+                drift.set_automation(settings, now)
+            self._save(db, run_id, drift.history[size:])
+            return self.automatik(run_id).status(drift)
+
+    def automation_place(
+        self, run_id: str, change: events.AutomationPlace
+    ) -> events.AutomationStatus:
+        """Trafikledningen leaves a place to the automation, or gives it back to a box or
+        TKL in contact there (the one heard last, unless one is named)."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            automatik = self.automatik(run_id)
+            size = len(drift.history)
+            if change.action == "leave":
+                drift.leave(change.place, events.LeftBy.DISPATCHER, now)
+            else:
+                present = automatik.present(change.place)
+                client = change.client_id or (present[0] if present else None)
+                if client is None or client not in present:
+                    raise Refused(Reason.CLIENT_NOT_PRESENT)
+                drift.take_back(change.place, client, "dispatcher", now)
+            self._save(db, run_id, drift.history[size:])
+            return automatik.status(drift)
 
     # --- The hub's own meet ---------------------------------------------------------------
 

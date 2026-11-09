@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
+from threading import Event, Thread
+from typing import Final
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from contracts.common import Id
-from drift.store import PreviewStore
+from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
     drift_api,
@@ -30,6 +35,26 @@ from hub.stores import AnyRun
 from planering.store import Planning
 
 STATIC_DIR = Path(__file__).parent / "static"
+# The automation takes a step about once a second while the hub runs (F14).
+TICK_SECONDS: Final = 1.0
+LOGGER = logging.getLogger("hub.automatik")
+
+
+def tick_once(running: Running) -> None:
+    """One round of the automation for the hub's meet, if one is started."""
+    store = running.store
+    try:
+        store.tick(store.current())
+    except MissingRun:
+        return
+
+
+def _ticker(running: Running, stop: Event) -> None:
+    while not stop.wait(TICK_SECONDS):
+        try:
+            tick_once(running)
+        except Exception:
+            LOGGER.exception("Automatiken kunde inte ta sitt steg")
 
 
 def create_app(
@@ -42,13 +67,28 @@ def create_app(
     data_dir = preview_path.parent
     login = LocalLogin(data_dir / "hubben.sqlite3", info.hub_name)
     package = provbanan.package()
-    preview = PreviewStore(preview_path, package, package_key=provbanan.package_key())
+    # Provbanan's runs per browser: the automation starts off, since only the hub's meet
+    # is ticked (F14).
+    preview = PreviewStore(
+        preview_path, package, package_key=provbanan.package_key(), automation=False
+    )
     plans = Planning(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
     running = Running(data_dir, package, provbanan.package_key(), plans)
 
     def current() -> build_info.BuildInfo:
         return replace(info, hub_name=login.state().name)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        stop = Event()
+        thread = Thread(target=_ticker, args=(running, stop), name="automatiken", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join(timeout=5)
 
     # The interactive API pages are off: they load scripts from another site. The contracts
     # get their own readable pages in step 1, part 2.
@@ -58,7 +98,9 @@ def create_app(
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=lifespan,
     )
+    app.state.running = running
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(info, preview, lambda: login.state().name))

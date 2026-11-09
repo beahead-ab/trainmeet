@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.automation-settings.schema.json",
+  "title": "trainmeet.drift-1.automation-settings",
+  "$defs": {
+    "Disturbance": {
+      "enum": [
+        "off",
+        "normal",
+        "disrupted"
+      ],
+      "title": "Disturbance",
+      "type": "string"
+    },
+    "DisturbanceWhere": {
+      "enum": [
+        "both",
+        "station",
+        "line"
+      ],
+      "title": "DisturbanceWhere",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Trafikledningens val för automatiken, med gamla Servers förval (H42).",
+  "properties": {
+    "enabled": {
+      "default": true,
+      "description": "Av: automatiken rör ingenting.",
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "lost_contact_minutes": {
+      "default": 0,
+      "description": "Övertag efter Kontakt saknas; 0 är aldrig.",
+      "enum": [
+        0,
+        2,
+        5,
+        10
+      ],
+      "title": "Lost Contact Minutes",
+      "type": "integer"
+    },
+    "disturbance": {
+      "$ref": "#/$defs/Disturbance",
+      "default": "off"
+    },
+    "where": {
+      "$ref": "#/$defs/DisturbanceWhere",
+      "default": "both"
+    },
+    "seed": {
+      "default": "",
+      "description": "Scenarionyckel.",
+      "maxLength": 40,
+      "title": "Seed",
+      "type": "string"
+    },
+    "stabling": {
+      "default": true,
+      "description": "Undanställning vid slutstationen.",
+      "title": "Stabling",
+      "type": "boolean"
+    },
+    "stabling_minutes": {
+      "default": 5,
+      "description": "Spelminuter.",
+      "maximum": 60,
+      "minimum": 1,
+      "title": "Stabling Minutes",
+      "type": "integer"
+    },
+    "late_stop_minutes": {
+      "default": 2,
+      "description": "Ett försenat tåg står så här länge (spelminuter).",
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Late Stop Minutes",
+      "type": "integer"
+    },
+    "answer_seconds": {
+      "default": 3,
+      "description": "Klartecken efter så här många verkliga sekunder.",
+      "maximum": 30,
+      "minimum": 0,
+      "title": "Answer Seconds",
+      "type": "integer"
+    }
+  },
+  "type": "object"
+}

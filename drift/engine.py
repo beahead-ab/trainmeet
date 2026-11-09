@@ -20,6 +20,12 @@ from contracts.reasons import Reason
 
 VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
+# The automation acts through the same station commands as a box, under its own name (F14).
+AUTOMATION: Final = "automatik"
+# What a box or TKL may still do at a place left to the automation: look, and take it back.
+_ALLOWED_WHEN_LEFT: Final = frozenset(
+    {station.Action.TRAIN_LOOKUP, station.Action.PLACE_LEAVE, station.Action.PLACE_TAKE_BACK}
+)
 
 
 _AT_ARRIVAL: Final = frozenset(
@@ -146,6 +152,14 @@ class Drift:
         self.call_revision: dict[str, int] = {}
         self.place_revision: dict[str, int] = {}
         self.calls: dict[str, tuple[Train, Call]] = {}
+        # The automation (F14): who works each place, the places left to it, its settings,
+        # when it first ran (model seconds), and the model time each train left and came in.
+        self.manned: dict[str, str] = {}
+        self.left: dict[str, events.PlaceLeft] = {}
+        self.automation = events.AutomationSettings()
+        self.first_run: float | None = None
+        self.departed_seconds: dict[str, float] = {}
+        self.arrived_seconds: dict[str, float] = {}
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -191,6 +205,8 @@ class Drift:
         leg: Leg | None = None,
         seconds: float | None = None,
         call: str | None = None,
+        place: str | None = None,
+        actor: events.Actor | None = None,
     ) -> None:
         if call is not None:
             train: str | None = self.calls[call][0].id if call in self.calls else None
@@ -209,16 +225,22 @@ class Drift:
                 model_time=model_time(self.clock.at(now) if seconds is None else seconds),
                 wall_time=now,
                 kind=kind,
-                actor=events.Actor(kind=events.ActorKind.CLIENT, id=command.client_id)
-                if command
-                else events.Actor(kind=events.ActorKind.SYSTEM),
+                actor=actor or self._actor(command),
                 message_id=command.message_id if command else None,
-                place=command.place if command else None,
+                place=command.place if command else place,
                 train=train,
                 call=call,
                 data=data,
             )
         )
+
+    @staticmethod
+    def _actor(command: station.Command | None) -> events.Actor:
+        if command is None:
+            return events.Actor(kind=events.ActorKind.SYSTEM)
+        if command.client_id == AUTOMATION:
+            return events.Actor(kind=events.ActorKind.AUTOMATION, id=AUTOMATION)
+        return events.Actor(kind=events.ActorKind.CLIENT, id=command.client_id)
 
     def start(self, now: datetime, traffic_day: Weekday | None = None, game_day: int = 1) -> None:
         """The meet starts on a traffic day (F8: the package's first by default) and a game
@@ -274,6 +296,8 @@ class Drift:
                     self.clock.running and event.kind == events.EventKind.CLOCK_SPEED
                 )
                 self.clock = Clock(clock.seconds, clock.speed, running, event.wall_time)
+                if running and self.first_run is None and self.automation.enabled:
+                    self.first_run = clock.seconds
                 self._touch_places(*{call.place for _, call in self.calls.values()})
             case events.EventKind.CLEARANCE_REQUESTED:
                 requested = events.ClearanceRequested.model_validate(event.data)
@@ -306,6 +330,7 @@ class Drift:
                 case = self.cases[events.ClearanceRef.model_validate(event.data).clearance_id]
                 self.cases[case.id] = replace(case, departed=True, revision=case.revision + 1)
                 self.departed_at[case.id] = event.model_time
+                self.departed_seconds[case.leg.departure.id] = self.clock.at(event.wall_time)
                 self._touch(case.leg)
             case events.EventKind.TRAIN_ARRIVED:
                 arrival = events.TrainArrived.model_validate(event.data)
@@ -314,11 +339,15 @@ class Drift:
                     case, departed=True, arrived=True, revision=case.revision + 1
                 )
                 self._arrive(case.leg, arrival.track)
+                self.arrived_seconds[case.leg.departure.id] = self.clock.at(event.wall_time)
                 self._touch(case.leg)
             case events.EventKind.TRAIN_MOVED_HERE:
                 assert event.call is not None
                 moved = events.TrainMovedHere.model_validate(event.data)
                 self._arrive(self.by_arrival[event.call], moved.track)
+                self.arrived_seconds[self.by_arrival[event.call].departure.id] = self.clock.at(
+                    event.wall_time
+                )
                 self._touch(self.by_arrival[event.call])
             case events.EventKind.TRAIN_SET_ASIDE:
                 assert event.call is not None
@@ -355,9 +384,109 @@ class Drift:
                 line = self.lines[events.LineAcknowledged.model_validate(event.data).message_id]
                 line.acknowledged = True
                 self._touch_places(line.from_place, line.to_place)
+            case events.EventKind.PLACE_MANNED:
+                assert event.place is not None
+                self.manned[event.place] = events.PlaceManned.model_validate(event.data).client_id
+                self._touch_places(event.place)
+            case events.EventKind.PLACE_LEFT:
+                assert event.place is not None
+                self.left[event.place] = events.PlaceLeft.model_validate(event.data)
+                self.manned.pop(event.place, None)
+                self._touch_places(event.place)
+            case events.EventKind.PLACE_TAKEN_BACK:
+                assert event.place is not None
+                back = events.PlaceTakenBack.model_validate(event.data)
+                self.left.pop(event.place, None)
+                self.manned[event.place] = back.client_id
+                self._touch_places(event.place)
+            case events.EventKind.AUTOMATION_SET:
+                self.automation = events.AutomationSettings.model_validate(event.data)
+                if self.automation.enabled and self.first_run is None and self.clock.running:
+                    # Trains planned before the automation first ran are history.
+                    self.first_run = self.clock.at(event.wall_time)
+                self._touch_places(*self.stops())
             case _:
                 raise ValueError(f"Okänd händelse i Provbanans logg: {event.kind}")
         self.history.append(event)
+
+    # --- The automation's state (F14): who works a place --------------------------------
+
+    def stops(self) -> list[str]:
+        return [p.id for p in self.package.places if p.kind != PlaceKind.HALT]
+
+    def automatic(self, place: str) -> bool:
+        """Does the automation work the place? Left to it, or never worked by a box or TKL.
+        A manned place out of contact is still manned: it waits for its operator."""
+        return place in self.left or place not in self.manned
+
+    def left_here(self, place: str) -> bool:
+        """What a box or TKL at the place goes by: the automation is on and someone left
+        this place to it. A place nobody has worked yet is automatic too, but the first box
+        or TKL there simply mans it."""
+        return self.automation.enabled and place in self.left
+
+    def man(self, place: str, client: str, now: datetime) -> bool:
+        """The first box or TKL that works a place mans it. Not a place left to the
+        automation: whoever is there takes it back first."""
+        if place in self.manned or place in self.left or place not in self.stops():
+            return False
+        self._record(
+            events.EventKind.PLACE_MANNED,
+            {"client_id": client},
+            now,
+            place=place,
+            actor=events.Actor(kind=events.ActorKind.CLIENT, id=client),
+        )
+        return True
+
+    def leave(
+        self, place: str, by: events.LeftBy, now: datetime, client: str | None = None
+    ) -> bool:
+        """Lämna till automatiken: until someone takes it back, also over a new day."""
+        if place not in self.stops():
+            raise Refused(Reason.WRONG_PLACE)
+        if by == events.LeftBy.OPERATOR and not self.automation.enabled:
+            raise Refused(Reason.AUTOMATION_OFF)
+        if place in self.left:
+            return False
+        actor = (
+            events.Actor(kind=events.ActorKind.DISPATCHER)
+            if by == events.LeftBy.DISPATCHER
+            else events.Actor(kind=events.ActorKind.AUTOMATION, id=AUTOMATION)
+            if by == events.LeftBy.LOST_CONTACT
+            else events.Actor(kind=events.ActorKind.CLIENT, id=client)
+        )
+        owner = client or self.manned.get(place)
+        data: dict[str, object] = {"by": by.value}
+        if owner:
+            data["client_id"] = owner
+        self._record(events.EventKind.PLACE_LEFT, data, now, place=place, actor=actor)
+        return True
+
+    def take_back(self, place: str, client: str, by: str, now: datetime) -> None:
+        """Ta tillbaka: a box or TKL in contact at the place works it again."""
+        if place not in self.stops():
+            raise Refused(Reason.WRONG_PLACE)
+        actor = (
+            events.Actor(kind=events.ActorKind.DISPATCHER)
+            if by == "dispatcher"
+            else events.Actor(kind=events.ActorKind.CLIENT, id=client)
+        )
+        self._record(
+            events.EventKind.PLACE_TAKEN_BACK,
+            {"by": by, "client_id": client},
+            now,
+            place=place,
+            actor=actor,
+        )
+
+    def set_automation(self, settings: events.AutomationSettings, now: datetime) -> None:
+        self._record(
+            events.EventKind.AUTOMATION_SET,
+            settings.model_dump(mode="json"),
+            now,
+            actor=events.Actor(kind=events.ActorKind.DISPATCHER),
+        )
 
     def _arrive(self, leg: Leg, track: str | None) -> None:
         self.arrived.add(leg.departure.id)
@@ -788,6 +917,12 @@ class Drift:
         """Carry out one station command, or refuse it with a reason and change nothing."""
         if command.context != self.context:
             raise Refused(Reason.STALE_MEET_CONTEXT)
+        if command.client_id == AUTOMATION:
+            if not self.automatic(command.place):
+                raise Refused(Reason.PLACE_MANNED)
+        elif self.left_here(command.place) and command.action not in _ALLOWED_WHEN_LEFT:
+            # Ask first: the operator takes the place back, then acts (Casper, 2026-10-10).
+            raise Refused(Reason.PLACE_AUTOMATIC)
         self._check_revision(command)
         call: str | None = None
         case_id: str | None = None
@@ -825,6 +960,13 @@ class Drift:
             case station.Action.LINE_AVAILABLE_ACKNOWLEDGE:
                 line = self._line_acknowledge(command, now)
                 return Outcome(revision=self._line_revision(line))
+            case station.Action.PLACE_LEAVE:
+                self.leave(command.place, events.LeftBy.OPERATOR, now, command.client_id)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.PLACE_TAKE_BACK:
+                if command.place in self.left:
+                    self.take_back(command.place, command.client_id, "operator", now)
+                return Outcome(revision=self._place_revision(command.place))
             case station.Action.SECTION_OCCUPANCY | station.Action.SIGNAL_EXIT:
                 raise Refused(Reason.NOT_LEVEL_3)  # Detection comes with TKL level 3.
             case _:
@@ -841,6 +983,11 @@ class Drift:
             revision=station.Revision(
                 scope=station.RevisionScope.CALL, key=call, value=self.call_revision.get(call, 0)
             )
+        )
+
+    def _place_revision(self, place: str) -> station.Revision:
+        return station.Revision(
+            scope=station.RevisionScope.PLACE, key=place, value=self.place_revision.get(place, 0)
         )
 
     def _line_revision(self, message_id: str) -> station.Revision:

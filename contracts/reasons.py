@@ -47,6 +47,11 @@ class Reason(StrEnum):
     ALREADY_ACKNOWLEDGED = "already_acknowledged"
     # Detection and signals (TKL level 3)
     NOT_LEVEL_3 = "not_level_3"
+    # The automation (F14)
+    PLACE_AUTOMATIC = "station_automatic"
+    PLACE_MANNED = "automatic_station_manned"
+    AUTOMATION_OFF = "automation_off"
+    CLIENT_NOT_PRESENT = "client_not_present"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -78,4 +83,8 @@ TEXT_SV: dict[Reason, str] = {
     Reason.UNKNOWN_LINE_MESSAGE: "Beskedet om ledig linje finns inte.",
     Reason.ALREADY_ACKNOWLEDGED: "Beskedet är redan kvitterat.",
     Reason.NOT_LEVEL_3: "Beläggning tas bara emot från en station på nivå 3.",
+    Reason.PLACE_AUTOMATIC: "Automatiken sköter driftplatsen. Ta tillbaka den först.",
+    Reason.PLACE_MANNED: "Driftplatsen är bemannad.",
+    Reason.AUTOMATION_OFF: "Automatiken är avstängd av trafikledningen.",
+    Reason.CLIENT_NOT_PRESENT: "Klienten måste vara ansluten till driftplatsen.",
 }

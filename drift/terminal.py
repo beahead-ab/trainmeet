@@ -9,7 +9,9 @@ not redesigned (decided 1 November).
 Also ported: another arrival track (B:Sp, UPPT SPÅR), FLYTTA HIT for a train nobody sent,
 a through train asked for while on its way in, putting away a train that ended here, the
 box's side (ANNAN SIDA), the 20×4 display and the five languages (drift/terminal_text.py).
-Not yet: the automation, which comes after step 2.
+Also the automation's part (F14, issue 18): * on the start screen leaves the place to the
+automation (AUTOMATIK?), and while it works the place the start screen says AUTOMATIK and
+# takes it back (TA TILLBAKA?). A traffic key there asks to take the place back first.
 
 The boxes of a run share one Drift: what one box does, the others see. What a box was told
 is worked out from Drift's events, so a box that was away catches up on its next picture.
@@ -66,12 +68,18 @@ NAVIGATION_ACTIONS: Final = frozenset(
         "tracks",
         "next_track",
         "previous_track",
+        "automatic_view",
+        "takeback_view",
     }
 )
 
 # The word a phone keypad prints under a key, by the button's label (old SHORT_LABELS).
 SHORT_LABELS: Final = {
     "Stäng meddelande": "STÄNG",
+    "Lämna till automatiken…": "AUTOMATIK",
+    "Lämna till automatiken": "AUTOMATIK",
+    "Ta tillbaka stationen…": "AKTIV",
+    "Ta tillbaka stationen": "AKTIV",
     "Tillbaka": "TILLBAKA",
     "OK": "OK",
     "Visa väntande förfrågningar": "VISA KÖ",
@@ -422,6 +430,8 @@ class Boxes:
         receiver = leg.arrival.place == box.place
         if not (sender or receiver) or not self._on_side(box, leg):
             return  # The box for the other side is not told (Casper, 2026-10-01).
+        if self._automatic_here(box):
+            return  # The automation works the place: the box stays on AUTOMATIK.
         match event.kind:
             case events.EventKind.CLEARANCE_REQUESTED if receiver:
                 if self._state(key) != LineState.REQUESTED:
@@ -505,6 +515,12 @@ class Boxes:
             return {"#": ("home", "Stäng meddelande"), "*": ("home", "Tillbaka")}
         if box.notice:
             return {"#": ("back", "OK"), "*": ("back", "Tillbaka")}
+        # Going to the toilet: * on the start screen leaves the place to the automation, #
+        # takes it back. Each asks first (Casper, 2026-10-10).
+        if box.screen == "auto_confirm":
+            return {"#": ("automatic_on", "Lämna till automatiken"), "*": ("back", "Tillbaka")}
+        if box.screen == "takeback":
+            return {"#": ("take_back", "Ta tillbaka stationen"), "*": ("back", "Tillbaka")}
         if box.screen == "overview":
             active = self._active_trains(box)
             primary = (
@@ -512,7 +528,7 @@ class Boxes:
                 if self._requests(box)
                 else ("browse", "Visa kommande tåg")
             )
-            return {
+            buttons: Buttons = {
                 "#": primary,
                 "C": ("previous_active", "Föregående aktiva tåg")
                 if active
@@ -520,7 +536,12 @@ class Boxes:
                 "D": ("next_active", "Nästa aktiva tåg") if active else ("next", "Nästa tåg"),
                 "B": ("active", "Visa aktiva tåg"),
             }
-        buttons: Buttons = {"*": ("back", "Tillbaka")}
+            if self._automatic_here(box):
+                buttons["#"] = ("takeback_view", "Ta tillbaka stationen…")
+            elif self.drift.automation.enabled:
+                buttons["*"] = ("automatic_view", "Lämna till automatiken…")
+            return buttons
+        buttons = {"*": ("back", "Tillbaka")}
         if box.screen == "requests":
             buttons["B"] = ("home", "Översikt utan trafikändring")
             if self._requests(box):
@@ -610,6 +631,10 @@ class Boxes:
         return buttons
 
     # --- The picture -----------------------------------------------------------------------
+
+    def _automatic_here(self, box: Box) -> bool:
+        """Does the automation work this box's place? Only when someone left it to it."""
+        return box.place is not None and self.drift.left_here(box.place)
 
     def _overview(self, box: Box) -> str:
         assert box.place is not None
@@ -765,11 +790,18 @@ class Boxes:
             hint = t("A:K{count} B:Akt", count=compact(len(requests))) if active else "A:Kö #Visa"
             if len(lcd.cells(hint)) > room:
                 hint = t("A{count} B:Akt", count=compact(len(requests)))
+        automatic = self._automatic_here(box)
         if box.notice:
             first = row_(terminal_text.notice(language, box.notice))
             hint = box.notice_hint
             named = self._place_named(box.notice_hint)
             middle = [self._name_row(named, width)] if named is not None else None
+        elif box.screen == "auto_confirm":
+            first, hint = row_(t("AUTOMATIK?")), "#Ja *Nej"
+        elif box.screen == "takeback":
+            first, hint = row_(t("TA TILLBAKA?")), "#Ja *Nej"
+        elif box.screen == "overview" and automatic and box.place is not None:
+            first, hint = row_(t("AUTOMATIK"), self.places[box.place].code), "#Aktiv"
         elif box.screen == "requests":
             if position and selected is not None:
                 middle = self._leg_rows(box, selected, t)
@@ -903,7 +935,13 @@ class Boxes:
         t: Translate,
     ) -> str:
         status = t("Skriv tågnummer direkt, eller bläddra med C/D")
-        if selected is not None and box.screen != "overview":
+        if box.screen == "auto_confirm":
+            status = t("Automatiken sköter stationen medan du är borta. # bekräftar, * ångrar.")
+        elif box.screen == "takeback":
+            status = t("Ta tillbaka stationen från automatiken? # bekräftar, * ångrar.")
+        elif self._automatic_here(box):
+            status = t("Automatiken sköter stationen. # på startbilden tar tillbaka den.")
+        if selected is not None and box.screen not in {"overview", "auto_confirm", "takeback"}:
             schedule = self._schedule(box, selected)
             direction = "Avgång till" if schedule["kind"] == "departure" else "Ankomst från"
             status = t(
@@ -1149,10 +1187,16 @@ class Boxes:
         box.notice, box.notice_hint, box.notice_until = "", "", None
         if action == "back":
             box.screen = (
-                box.return_screen if box.screen in {"cancel", "reject", "tracks"} else "overview"
+                box.return_screen
+                if box.screen in {"cancel", "reject", "tracks", "takeback"}
+                else "overview"
             )
         elif action == "home":
             box.screen = "overview"
+        elif action == "automatic_view":
+            box.screen = "auto_confirm"
+        elif action == "takeback_view":
+            box.return_screen, box.screen = "overview", "takeback"
         elif action in {"requests", "next_request", "previous_request"}:
             step = {"requests": 0, "next_request": 1, "previous_request": -1}[action]
             self._open_requests(box, step)
@@ -1277,7 +1321,27 @@ class Boxes:
             return error.reason
         return None
 
+    def _automation(self, box: Box, action: str) -> str:
+        """Lämna till automatiken, or ta tillbaka, as the station command TKL sends too."""
+        leave = action == "automatic_on"
+        what = station.Action.PLACE_LEAVE if leave else station.Action.PLACE_TAKE_BACK
+        reason = self._command(box, what, {}, None)
+        if reason is not None:
+            return TEXT_SV[reason]
+        box.screen = (
+            box.return_screen
+            if not leave and box.selected in self.legs and box.return_screen != "overview"
+            else "overview"
+        )
+        return ""
+
     def _traffic(self, box: Box, action: str) -> str:
+        if action in {"automatic_on", "take_back"}:
+            return self._automation(box, action)
+        if self._automatic_here(box):
+            # Ask first: the operator takes the place back, then acts (Casper, 2026-10-10).
+            box.return_screen, box.screen = box.screen, "takeback"
+            return ""
         leg = self.legs.get(box.selected or "")
         if leg is None:
             return "Läget har ändrats. Välj tåget igen."

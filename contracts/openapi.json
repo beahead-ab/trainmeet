@@ -554,6 +554,90 @@
         ]
       }
     },
+    "/api/drift/1/automation": {
+      "get": {
+        "operationId": "driftAutomation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.automation"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "driftAutomationSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.automation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.automation-settings"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/automation/place": {
+      "post": {
+        "operationId": "driftAutomationPlace",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.automation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.automation-place"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/events": {
       "get": {
         "operationId": "driftEvents",
@@ -3308,6 +3392,36 @@
               "action",
               "payload"
             ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "place.leave",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.PlaceOnly"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "place.take_back",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.PlaceOnly"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
           }
         ]
       },
@@ -3326,7 +3440,9 @@
           "line.available.publish",
           "line.available.acknowledge",
           "section.occupancy",
-          "signal.exit"
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
         ],
         "title": "Action",
         "type": "string"
@@ -3681,6 +3797,13 @@
         "title": "ExitSignal",
         "type": "object"
       },
+      "trainmeet.station-1.command.PlaceOnly": {
+        "additionalProperties": true,
+        "description": "Lämna or ta tillbaka: the command's own place, nothing more.",
+        "properties": {},
+        "title": "PlaceOnly",
+        "type": "object"
+      },
       "trainmeet.station-1.reply": {
         "additionalProperties": true,
         "properties": {
@@ -3806,7 +3929,9 @@
           "line.available.publish",
           "line.available.acknowledge",
           "section.occupancy",
-          "signal.exit"
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
         ],
         "title": "Action",
         "type": "string"
@@ -4371,7 +4496,11 @@
           "train_not_departed",
           "unknown_line_message",
           "already_acknowledged",
-          "not_level_3"
+          "not_level_3",
+          "station_automatic",
+          "automatic_station_manned",
+          "automation_off",
+          "client_not_present"
         ],
         "title": "Reason",
         "type": "string"
@@ -4576,6 +4705,12 @@
             },
             "title": "All Places",
             "type": "array"
+          },
+          "automatic": {
+            "default": false,
+            "description": "Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+            "title": "Automatic",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4746,6 +4881,12 @@
             },
             "title": "All Places",
             "type": "array"
+          },
+          "automatic": {
+            "default": false,
+            "description": "Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+            "title": "Automatic",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4772,7 +4913,9 @@
           "line.available.publish",
           "line.available.acknowledge",
           "section.occupancy",
-          "signal.exit"
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
         ],
         "title": "Action",
         "type": "string"
@@ -7861,6 +8004,66 @@
           {
             "properties": {
               "kind": {
+                "const": "place.manned",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PlaceManned"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "place.left",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PlaceLeft"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "place.taken_back",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PlaceTakenBack"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "automation.set",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.AutomationSettings"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "not": {
                   "enum": [
                     "meet.started",
@@ -7879,7 +8082,11 @@
                     "train.crew_ready",
                     "clearance.invalidated",
                     "line.available",
-                    "line.acknowledged"
+                    "line.acknowledged",
+                    "place.manned",
+                    "place.left",
+                    "place.taken_back",
+                    "automation.set"
                   ]
                 }
               }
@@ -7971,7 +8178,11 @@
           "line.available",
           "line.acknowledged",
           "section.occupancy",
-          "signal.exit"
+          "signal.exit",
+          "place.manned",
+          "place.left",
+          "place.taken_back",
+          "automation.set"
         ],
         "title": "EventKind",
         "type": "string"
@@ -8233,6 +8444,171 @@
           "message_id"
         ],
         "title": "LineAcknowledged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.PlaceManned": {
+        "additionalProperties": true,
+        "description": "The first box or TKL that works a place mans it (F14).",
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id"
+        ],
+        "title": "PlaceManned",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.LeftBy": {
+        "enum": [
+          "dispatcher",
+          "operator",
+          "lost_contact"
+        ],
+        "title": "LeftBy",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.PlaceLeft": {
+        "additionalProperties": true,
+        "description": "Lämnad till automatiken, until someone takes it back, also over a new day.",
+        "properties": {
+          "by": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.LeftBy"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Id"
+          }
+        },
+        "required": [
+          "by"
+        ],
+        "title": "PlaceLeft",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.PlaceTakenBack": {
+        "additionalProperties": true,
+        "properties": {
+          "by": {
+            "enum": [
+              "dispatcher",
+              "operator"
+            ],
+            "title": "By",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "client_id"
+        ],
+        "title": "PlaceTakenBack",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.Disturbance": {
+        "enum": [
+          "off",
+          "normal",
+          "disrupted"
+        ],
+        "title": "Disturbance",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.DisturbanceWhere": {
+        "enum": [
+          "both",
+          "station",
+          "line"
+        ],
+        "title": "DisturbanceWhere",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.AutomationSettings": {
+        "additionalProperties": true,
+        "description": "Trafikledningens val för automatiken, med gamla Servers förval (H42).",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Av: automatiken rör ingenting.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lost_contact_minutes": {
+            "default": 0,
+            "description": "Övertag efter Kontakt saknas; 0 är aldrig.",
+            "enum": [
+              0,
+              2,
+              5,
+              10
+            ],
+            "title": "Lost Contact Minutes",
+            "type": "integer"
+          },
+          "disturbance": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.Disturbance",
+            "default": "off"
+          },
+          "where": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.DisturbanceWhere",
+            "default": "both"
+          },
+          "seed": {
+            "default": "",
+            "description": "Scenarionyckel.",
+            "maxLength": 40,
+            "title": "Seed",
+            "type": "string"
+          },
+          "stabling": {
+            "default": true,
+            "description": "Undanställning vid slutstationen.",
+            "title": "Stabling",
+            "type": "boolean"
+          },
+          "stabling_minutes": {
+            "default": 5,
+            "description": "Spelminuter.",
+            "maximum": 60,
+            "minimum": 1,
+            "title": "Stabling Minutes",
+            "type": "integer"
+          },
+          "late_stop_minutes": {
+            "default": 2,
+            "description": "Ett försenat tåg står så här länge (spelminuter).",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Late Stop Minutes",
+            "type": "integer"
+          },
+          "answer_seconds": {
+            "default": 3,
+            "description": "Klartecken efter så här många verkliga sekunder.",
+            "maximum": 30,
+            "minimum": 0,
+            "title": "Answer Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "AutomationSettings",
         "type": "object"
       },
       "trainmeet.drift-1.now": {
@@ -8692,6 +9068,389 @@
         ],
         "title": "Refusal",
         "type": "object"
+      },
+      "trainmeet.drift-1.automation-settings": {
+        "additionalProperties": true,
+        "description": "Trafikledningens val för automatiken, med gamla Servers förval (H42).",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Av: automatiken rör ingenting.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lost_contact_minutes": {
+            "default": 0,
+            "description": "Övertag efter Kontakt saknas; 0 är aldrig.",
+            "enum": [
+              0,
+              2,
+              5,
+              10
+            ],
+            "title": "Lost Contact Minutes",
+            "type": "integer"
+          },
+          "disturbance": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation-settings.Disturbance",
+            "default": "off"
+          },
+          "where": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation-settings.DisturbanceWhere",
+            "default": "both"
+          },
+          "seed": {
+            "default": "",
+            "description": "Scenarionyckel.",
+            "maxLength": 40,
+            "title": "Seed",
+            "type": "string"
+          },
+          "stabling": {
+            "default": true,
+            "description": "Undanställning vid slutstationen.",
+            "title": "Stabling",
+            "type": "boolean"
+          },
+          "stabling_minutes": {
+            "default": 5,
+            "description": "Spelminuter.",
+            "maximum": 60,
+            "minimum": 1,
+            "title": "Stabling Minutes",
+            "type": "integer"
+          },
+          "late_stop_minutes": {
+            "default": 2,
+            "description": "Ett försenat tåg står så här länge (spelminuter).",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Late Stop Minutes",
+            "type": "integer"
+          },
+          "answer_seconds": {
+            "default": 3,
+            "description": "Klartecken efter så här många verkliga sekunder.",
+            "maximum": 30,
+            "minimum": 0,
+            "title": "Answer Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "AutomationSettings",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation-settings.Disturbance": {
+        "enum": [
+          "off",
+          "normal",
+          "disrupted"
+        ],
+        "title": "Disturbance",
+        "type": "string"
+      },
+      "trainmeet.drift-1.automation-settings.DisturbanceWhere": {
+        "enum": [
+          "both",
+          "station",
+          "line"
+        ],
+        "title": "DisturbanceWhere",
+        "type": "string"
+      },
+      "trainmeet.drift-1.automation-place": {
+        "additionalProperties": true,
+        "description": "Trafikledningen lämnar en plats till automatiken eller ger den till en ansluten klient.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "leave",
+              "take_back"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vid take_back: klienten som tar den.",
+            "title": "Client Id"
+          }
+        },
+        "required": [
+          "place",
+          "action"
+        ],
+        "title": "AutomationPlace",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation": {
+        "additionalProperties": true,
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation.AutomationSettings"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.automation.AutomationPlaceStatus"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "trains": {
+            "description": "Tåg som automatiken väntar med, och varför.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.automation.AutomationTrain"
+            },
+            "title": "Trains",
+            "type": "array"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "AutomationStatus",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation.AutomationPlaceStatus": {
+        "additionalProperties": true,
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation.PlaceMode"
+          },
+          "left_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.automation.LeftBy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "takes_over_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sekunder tills automatiken tar över; null är aldrig.",
+            "title": "Takes Over In"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator"
+          },
+          "present": {
+            "description": "Klienter i kontakt här.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Present",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "name",
+          "code",
+          "mode"
+        ],
+        "title": "AutomationPlaceStatus",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation.AutomationSettings": {
+        "additionalProperties": true,
+        "description": "Trafikledningens val för automatiken, med gamla Servers förval (H42).",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Av: automatiken rör ingenting.",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lost_contact_minutes": {
+            "default": 0,
+            "description": "Övertag efter Kontakt saknas; 0 är aldrig.",
+            "enum": [
+              0,
+              2,
+              5,
+              10
+            ],
+            "title": "Lost Contact Minutes",
+            "type": "integer"
+          },
+          "disturbance": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation.Disturbance",
+            "default": "off"
+          },
+          "where": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.automation.DisturbanceWhere",
+            "default": "both"
+          },
+          "seed": {
+            "default": "",
+            "description": "Scenarionyckel.",
+            "maxLength": 40,
+            "title": "Seed",
+            "type": "string"
+          },
+          "stabling": {
+            "default": true,
+            "description": "Undanställning vid slutstationen.",
+            "title": "Stabling",
+            "type": "boolean"
+          },
+          "stabling_minutes": {
+            "default": 5,
+            "description": "Spelminuter.",
+            "maximum": 60,
+            "minimum": 1,
+            "title": "Stabling Minutes",
+            "type": "integer"
+          },
+          "late_stop_minutes": {
+            "default": 2,
+            "description": "Ett försenat tåg står så här länge (spelminuter).",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Late Stop Minutes",
+            "type": "integer"
+          },
+          "answer_seconds": {
+            "default": 3,
+            "description": "Klartecken efter så här många verkliga sekunder.",
+            "maximum": 30,
+            "minimum": 0,
+            "title": "Answer Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "AutomationSettings",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation.AutomationTrain": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "train",
+          "from_place",
+          "to_place",
+          "reason"
+        ],
+        "title": "AutomationTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.automation.Disturbance": {
+        "enum": [
+          "off",
+          "normal",
+          "disrupted"
+        ],
+        "title": "Disturbance",
+        "type": "string"
+      },
+      "trainmeet.drift-1.automation.DisturbanceWhere": {
+        "enum": [
+          "both",
+          "station",
+          "line"
+        ],
+        "title": "DisturbanceWhere",
+        "type": "string"
+      },
+      "trainmeet.drift-1.automation.LeftBy": {
+        "enum": [
+          "dispatcher",
+          "operator",
+          "lost_contact"
+        ],
+        "title": "LeftBy",
+        "type": "string"
+      },
+      "trainmeet.drift-1.automation.PlaceMode": {
+        "enum": [
+          "manned",
+          "no_contact",
+          "automatic"
+        ],
+        "title": "PlaceMode",
+        "type": "string"
       },
       "trainmeet.screen-1.login": {
         "additionalProperties": true,

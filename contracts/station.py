@@ -106,6 +106,8 @@ class Action(StrEnum):
     LINE_AVAILABLE_ACKNOWLEDGE = "line.available.acknowledge"
     SECTION_OCCUPANCY = "section.occupancy"
     SIGNAL_EXIT = "signal.exit"
+    PLACE_LEAVE = "place.leave"  # lämna till automatiken (F14)
+    PLACE_TAKE_BACK = "place.take_back"  # ta tillbaka från automatiken
 
 
 class RevisionScope(StrEnum):
@@ -163,6 +165,10 @@ class TrackChange(Contract):
 
 class CallOnly(Contract):
     call: Id
+
+
+class PlaceOnly(Contract):
+    """Lämna or ta tillbaka: the command's own place, nothing more."""
 
 
 class Arrival(Contract):
@@ -237,6 +243,8 @@ PAYLOADS: dict[Action, type[Contract]] = {
     Action.LINE_AVAILABLE_ACKNOWLEDGE: LineAcknowledge,
     Action.SECTION_OCCUPANCY: SectionOccupancy,
     Action.SIGNAL_EXIT: ExitSignal,
+    Action.PLACE_LEAVE: PlaceOnly,
+    Action.PLACE_TAKE_BACK: PlaceOnly,
 }
 
 
@@ -366,6 +374,10 @@ class Snapshot(Contract):
     line_messages: list[LineMessage] = Field(default_factory=list)
     neighbours: list[Neighbour] = Field(default_factory=list)
     all_places: list[Neighbour] = Field(default_factory=list)
+    automatic: bool = Field(
+        default=False,
+        description="Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+    )
 
 
 # --- The reply and the events -------------------------------------------------------------

@@ -50,6 +50,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.now": drift.Now,
     "trainmeet.drift-1.joining": drift.Joining,
     "trainmeet.drift-1.refusal": drift.Refusal,
+    "trainmeet.drift-1.automation-settings": drift.AutomationSettings,
+    "trainmeet.drift-1.automation-place": drift.AutomationPlace,
+    "trainmeet.drift-1.automation": drift.AutomationStatus,
     "trainmeet.screen-1.login": screen.ScreenLogin,
     "trainmeet.screen-1.session": screen.ScreenSession,
     "trainmeet.screen-1.show": screen.ShowView,
@@ -270,6 +273,23 @@ def openapi() -> str:
     route("get", "/api/drift/1/connect", "driftJoining", d + "joining", bearer=True)
     route("get", "/api/drift/1/log", "driftLog", d + "event", bearer=True, many=True)
     route("get", "/api/drift/1/refusals", "driftRefusals", d + "refusal", bearer=True, many=True)
+    route("get", "/api/drift/1/automation", "driftAutomation", d + "automation", bearer=True)
+    route(
+        "post",
+        "/api/drift/1/automation",
+        "driftAutomationSettings",
+        d + "automation",
+        d + "automation-settings",
+        bearer=True,
+    )
+    route(
+        "post",
+        "/api/drift/1/automation/place",
+        "driftAutomationPlace",
+        d + "automation",
+        d + "automation-place",
+        bearer=True,
+    )
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
     v = "trainmeet.screen-1."
     route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")

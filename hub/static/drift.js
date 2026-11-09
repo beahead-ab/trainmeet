@@ -38,7 +38,20 @@ const EVENTS = {
   "train.track_changed": "Spårbyte", "train.positioned": "Uppställd",
   "train.crew_ready": "Föraren på plats", "line.available": "Ledig linje",
   "line.acknowledged": "Ledig linje kvitterad",
+  "place.manned": "Platsen bemannad", "place.left": "Lämnad till automatiken",
+  "place.taken_back": "Tagen tillbaka från automatiken",
+  "automation.set": "Automatikens inställningar ändrade",
 };
+// Automatiken (F14): the place's mode, who left it, and the choices (F15, H42).
+const MODES = { manned: "Bemannad", no_contact: "Kontakt saknas", automatic: "Automatiken" };
+const LEFT_BY = { dispatcher: "lämnad av trafikledningen", operator: "lämnad av boxen eller TKL",
+  lost_contact: "tog över efter Kontakt saknas" };
+// What the automation waits with as it should is not listed: only what may need someone.
+const ORDINARY = new Set(["Väntar på föregående ankomst", "På väg"]);
+const LOST = [[0, "Aldrig"], [2, "2 min"], [5, "5 min"], [10, "10 min"]];
+const DISTURBANCES = { off: "Av", normal: "Normal", disrupted: "Störd trafik" };
+const WHERE = { both: "Station och linje", station: "Bara station", line: "Bara linje" };
+let automation = null;
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -181,6 +194,111 @@ function drawNu() {
     el("td", {}, leg.track ?? "–"))));
 }
 
+// --- Automatiken (F14) ------------------------------------------------------------------
+
+function clientName(id) {
+  return clients.find(client => client.client_id === id)?.name ?? id;
+}
+
+async function refreshAutomation() {
+  if (!admin || page !== "nu" || !now) return;
+  try {
+    automation = await api(API + "/automation");
+  } catch {
+    automation = null;
+  }
+  drawAutomation();
+}
+
+async function automationCall(path, body) {
+  try {
+    automation = await api(API + path, body);
+    say("");
+    drawAutomation(true);
+  } catch (error) {
+    say(error.message);
+  }
+}
+
+function settingsWith(change) {
+  return { ...automation.settings, ...change };
+}
+
+function modeText(place) {
+  let text = MODES[place.mode] ?? place.mode;
+  if (place.mode === "automatic" && place.left_by) text += " · " + LEFT_BY[place.left_by];
+  if (place.takes_over_in !== null) {
+    text += ` · automatiken tar över om ${Math.ceil(place.takes_over_in / 60)} min`;
+  }
+  if (place.operator && place.mode !== "automatic") text += " · " + clientName(place.operator);
+  return text;
+}
+
+function placeButton(place) {
+  if (place.mode !== "automatic") {
+    return el("button", { type: "button", onclick: () => automationCall("/automation/place",
+      { place: place.place, action: "leave" }) }, "Lämna till automatiken");
+  }
+  if (!place.present.length) return el("span", { class: "liten" }, "Ingen box eller TKL ansluten");
+  const to = place.present[0];
+  return el("button", { type: "button", onclick: () => automationCall("/automation/place",
+    { place: place.place, action: "take_back", client_id: to }) }, `Ge till ${clientName(to)}`);
+}
+
+function drawAutomation(fresh = false) {
+  const card = $("automatiken");
+  if (!card || !automation) return;
+  const settings = automation.settings;
+  const counts = { manned: 0, no_contact: 0, automatic: 0 };
+  for (const place of automation.places) counts[place.mode] += 1;
+  $("auto-summary").textContent = settings.enabled
+    ? ` · ${counts.automatic} automatiska, ${counts.manned} bemannade`
+      + (counts.no_contact ? `, ${counts.no_contact} utan kontakt` : "")
+    : " · avstängd";
+  $("auto-places").replaceChildren(...automation.places.map(place => el("tr", {},
+    el("td", {}, `${place.name} (${place.code})`),
+    el("td", {}, el("span", { class: "pill " + place.mode }, modeText(place))),
+    el("td", {}, placeButton(place)))));
+  const trains = automation.trains.filter(train => !ORDINARY.has(train.reason));
+  $("auto-count").textContent = trains.length;
+  $("auto-trains").replaceChildren(...(trains.length
+    ? trains.slice(0, 12).map(train => el("li", {}, el("div", { class: "vem" },
+      el("b", {}, `${train.train} · ${placeCode(train.from_place)} → ${placeCode(train.to_place)}`),
+      el("span", { class: "liten" }, train.reason))))
+    : [el("li", { class: "tom" }, settings.enabled
+      ? "Inga tåg väntar." : "Automatiken är avstängd.")]));
+  const save = change => automationCall("/automation", settingsWith(change));
+  $("auto-enabled").replaceChildren(
+    chip("På", settings.enabled, () => save({ enabled: true })),
+    chip("Av", !settings.enabled, () => save({ enabled: false })));
+  $("auto-lost").replaceChildren(...LOST.map(([minutes, label]) => chip(label,
+    settings.lost_contact_minutes === minutes, () => save({ lost_contact_minutes: minutes }))));
+  $("auto-disturbance").replaceChildren(...Object.entries(DISTURBANCES).map(([key, label]) =>
+    chip(label, settings.disturbance === key, () => save({ disturbance: key }))));
+  $("auto-where").replaceChildren(...Object.entries(WHERE).map(([key, label]) =>
+    chip(label, settings.where === key, () => save({ where: key }))));
+  // The fields are filled when the card is drawn first or saved, not while someone types.
+  if (fresh || !card.dataset.filled) {
+    card.dataset.filled = "ja";
+    $("auto-answer").value = settings.answer_seconds;
+    $("auto-late").value = settings.late_stop_minutes;
+    $("auto-stabling").checked = settings.stabling;
+    $("auto-stabling-minutes").value = settings.stabling_minutes;
+    $("auto-seed").value = settings.seed;
+  }
+}
+
+function saveAutomationFields() {
+  if (!automation) return;
+  automationCall("/automation", settingsWith({
+    answer_seconds: Number($("auto-answer").value),
+    late_stop_minutes: Number($("auto-late").value),
+    stabling: $("auto-stabling").checked,
+    stabling_minutes: Number($("auto-stabling-minutes").value),
+    seed: $("auto-seed").value.trim(),
+  }));
+}
+
 async function clockControl(control) {
   try {
     await api(API + "/clock", control);
@@ -259,6 +377,8 @@ function setUpNu() {
     startMeet($("new-day").value, chosen("new-choice"));
   });
   if (location.hash === "#ny-traff") $("ny-traff").open = true;
+  $("auto-save").addEventListener("click", saveAutomationFields);
+  if (location.hash === "#automatiken") $("automatiken").open = true;
 }
 
 // --- Klienter (S3) ---------------------------------------------------------------------
@@ -385,6 +505,7 @@ async function drawLog() {
 // Who did it: the client's name if it is still connected, else its id; the hub itself.
 function actor(who) {
   if (!who || who.kind === "system") return "Hubben";
+  if (who.kind === "automation") return "Automatiken";
   if (who.kind === "dispatcher") return "Trafikledningen";
   const known = clients.find(client => client.client_id === who.id);
   return known ? known.name : (who.id ?? who.kind);
@@ -420,9 +541,11 @@ if (page === "logg" && admin) {
 (async () => {
   await refreshNow();
   await refreshWaiting();
+  await refreshAutomation();
   if (page === "logg" && admin) await drawLog();
   setInterval(drawClock, 1000);
   setInterval(refreshNow, 2000);
   setInterval(refreshWaiting, 3000);
+  if (page === "nu" && admin) setInterval(refreshAutomation, 3000);
   if (page === "logg" && admin) setInterval(drawLog, 5000);
 })();

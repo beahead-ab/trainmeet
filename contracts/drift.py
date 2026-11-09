@@ -9,6 +9,9 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
     POST /api/drift/1/clients/approve    Approve -> Client    TKL and the app (H31)
     POST /api/drift/1/clients/revoke     Revoke -> Client
     POST /api/drift/1/clients/assign     Assign -> Client     TMBoxes: place and side
+    GET  /api/drift/1/automation         AutomationStatus     who works which place (F14)
+    POST /api/drift/1/automation         AutomationSettings -> AutomationStatus
+    POST /api/drift/1/automation/place   AutomationPlace -> AutomationStatus  leave or take back
     GET  /api/drift/1/log?place=&train=  DriftEvent list       the event log, filtered (F27)
     GET  /api/drift/1/events             DriftEvent stream    live, for Nu and Logg
 
@@ -126,6 +129,11 @@ class EventKind(StrEnum):
     LINE_ACKNOWLEDGED = "line.acknowledged"
     SECTION_OCCUPANCY = "section.occupancy"
     EXIT_SIGNAL = "signal.exit"
+    # Automatiken (F14): who works a place, and the dispatcher's settings for it.
+    PLACE_MANNED = "place.manned"  # the first box or TKL that works the place
+    PLACE_LEFT = "place.left"  # lämnad till automatiken
+    PLACE_TAKEN_BACK = "place.taken_back"  # tagen tillbaka från automatiken
+    AUTOMATION_SET = "automation.set"
 
 
 class ActorKind(StrEnum):
@@ -204,6 +212,110 @@ class LineAcknowledged(Contract):
     message_id: Id
 
 
+# --- Automatiken (F14, F15, H41, H42; gamla Servers automatic.py) ---------------------------
+
+PRESENCE_SECONDS: Final = 45
+
+
+class LeftBy(StrEnum):
+    DISPATCHER = "dispatcher"  # trafikledningen
+    OPERATOR = "operator"  # boxen eller TKL på platsen ("går på toaletten")
+    LOST_CONTACT = "lost_contact"  # automatiken, efter vald tid utan kontakt
+
+
+class Disturbance(StrEnum):
+    OFF = "off"  # av
+    NORMAL = "normal"  # vart fjärde tåg 1–4 min
+    DISRUPTED = "disrupted"  # två av tre tåg 1–12 min
+
+
+class DisturbanceWhere(StrEnum):
+    BOTH = "both"
+    STATION = "station"  # stationsarbete före avgången
+    LINE = "line"  # längre gångtid före ankomsten
+
+
+class AutomationSettings(Contract):
+    """Trafikledningens val för automatiken, med gamla Servers förval (H42)."""
+
+    enabled: bool = Field(default=True, description="Av: automatiken rör ingenting.")
+    lost_contact_minutes: Literal[0, 2, 5, 10] = Field(
+        default=0, description="Övertag efter Kontakt saknas; 0 är aldrig."
+    )
+    disturbance: Disturbance = Disturbance.OFF
+    where: DisturbanceWhere = DisturbanceWhere.BOTH
+    seed: str = Field(default="", max_length=40, description="Scenarionyckel.")
+    stabling: bool = Field(default=True, description="Undanställning vid slutstationen.")
+    stabling_minutes: int = Field(default=5, ge=1, le=60, description="Spelminuter.")
+    late_stop_minutes: int = Field(
+        default=2, ge=1, le=10, description="Ett försenat tåg står så här länge (spelminuter)."
+    )
+    answer_seconds: int = Field(
+        default=3, ge=0, le=30, description="Klartecken efter så här många verkliga sekunder."
+    )
+
+
+class PlaceManned(Contract):
+    """The first box or TKL that works a place mans it (F14)."""
+
+    client_id: Id
+
+
+class PlaceLeft(Contract):
+    """Lämnad till automatiken, until someone takes it back, also over a new day."""
+
+    by: LeftBy
+    client_id: Id | None = None
+
+
+class PlaceTakenBack(Contract):
+    by: Literal["dispatcher", "operator"]
+    client_id: Id
+
+
+class AutomationPlace(Contract):
+    """Trafikledningen lämnar en plats till automatiken eller ger den till en ansluten klient."""
+
+    place: Id
+    action: Literal["leave", "take_back"]
+    client_id: Id | None = Field(default=None, description="Vid take_back: klienten som tar den.")
+
+
+class PlaceMode(StrEnum):
+    MANNED = "manned"  # bemannad
+    NO_CONTACT = "no_contact"  # Kontakt saknas
+    AUTOMATIC = "automatic"  # automatiken sköter den
+
+
+class AutomationPlaceStatus(Contract):
+    place: Id
+    name: Text
+    code: Text
+    mode: PlaceMode
+    left_by: LeftBy | None = None
+    takes_over_in: int | None = Field(
+        default=None, description="Sekunder tills automatiken tar över; null är aldrig."
+    )
+    operator: Id | None = None
+    present: list[Id] = Field(default_factory=list, description="Klienter i kontakt här.")
+
+
+class AutomationTrain(Contract):
+    call: Id
+    train: Text
+    from_place: Id
+    to_place: Id
+    reason: Text
+
+
+class AutomationStatus(Contract):
+    settings: AutomationSettings
+    places: list[AutomationPlaceStatus] = Field(default_factory=list)
+    trains: list[AutomationTrain] = Field(
+        default_factory=list, description="Tåg som automatiken väntar med, och varför."
+    )
+
+
 EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.MEET_STARTED: MeetStarted,
     EventKind.CLOCK_STARTED: ClockChanged,
@@ -222,11 +334,18 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLEARANCE_INVALIDATED: ClearanceRef,
     EventKind.LINE_AVAILABLE: LineAvailableSent,
     EventKind.LINE_ACKNOWLEDGED: LineAcknowledged,
+    EventKind.PLACE_MANNED: PlaceManned,
+    EventKind.PLACE_LEFT: PlaceLeft,
+    EventKind.PLACE_TAKEN_BACK: PlaceTakenBack,
+    EventKind.AUTOMATION_SET: AutomationSettings,
 }
 
 
 _ON_A_CALL: Final = frozenset(
     {EventKind.TRAIN_TRACK_CHANGED, EventKind.TRAIN_POSITIONED, EventKind.TRAIN_CREW_READY}
+)
+_ON_A_PLACE: Final = frozenset(
+    {EventKind.PLACE_MANNED, EventKind.PLACE_LEFT, EventKind.PLACE_TAKEN_BACK}
 )
 
 
@@ -255,6 +374,8 @@ class DriftEvent(Contract):
             raise ValueError("Händelsen måste ange ankomstens tågbesök.")
         if self.kind in _ON_A_CALL and not self.call:
             raise ValueError("Händelsen måste ange tågbesöket.")
+        if self.kind in _ON_A_PLACE and not self.place:
+            raise ValueError("Händelsen måste ange driftplatsen.")
         model = EVENT_PAYLOADS.get(self.kind)
         if model is not None:
             model.model_validate(self.data)

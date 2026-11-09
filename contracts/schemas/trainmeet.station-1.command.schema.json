@@ -18,7 +18,9 @@
         "line.available.publish",
         "line.available.acknowledge",
         "section.occupancy",
-        "signal.exit"
+        "signal.exit",
+        "place.leave",
+        "place.take_back"
       ],
       "title": "Action",
       "type": "string"
@@ -372,6 +374,13 @@
       ],
       "title": "ExitSignal",
       "type": "object"
+    },
+    "PlaceOnly": {
+      "additionalProperties": true,
+      "description": "Lämna or ta tillbaka: the command's own place, nothing more.",
+      "properties": {},
+      "title": "PlaceOnly",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -634,6 +643,36 @@
         },
         "payload": {
           "$ref": "#/$defs/ExitSignal"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "place.leave",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/PlaceOnly"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "place.take_back",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/PlaceOnly"
         }
       },
       "required": [
