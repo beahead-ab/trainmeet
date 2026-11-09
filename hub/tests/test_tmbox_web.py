@@ -276,3 +276,13 @@ def test_the_box_is_built_as_the_old_web_box() -> None:
     script = (ROOT / "hub" / "static" / "tmbox.js").read_text(encoding="utf-8")
     assert '"lcd-row"' in script and '"lcd-cell"' in script
     assert '"key" + (/[A-D]/.test(key) ? " function" : "")' in script
+
+
+def test_the_box_page_says_where_the_code_comes_from(hub: TestClient) -> None:
+    """On /box the box joins the hub's meet with the code from Anslut; on /provbanan/box a
+    Provbanan run's (found in the step 4 trial, issue 27)."""
+    meet = hub.get("/box").text
+    assert '<a href="/">← Hubben</a>' in meet and "under Anslut" in meet
+    trial = hub.get("/provbanan/box").text
+    assert '<a href="/provbanan">← Provbanan</a>' in trial and "under Boxar" in trial
+    assert 'pattern="[0-9]{6}"' in meet and 'pattern="[0-9]{6}"' in trial
