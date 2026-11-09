@@ -236,19 +236,30 @@ def render_preview(info: BuildInfo) -> str:
     )
 
 
-def render_box(info: BuildInfo) -> str:
-    """TMBox web: one box per tab. The tab logs in with the run's code and waits to be assigned."""
+def render_box(info: BuildInfo, *, provbanan: bool = True) -> str:
+    """TMBox web: one box per tab. The tab logs in with the run's code and waits to be assigned.
+    On /box it joins the hub's meet, with the code Trafikledningen shows under Anslut."""
+    back, joining = (
+        (
+            '<a href="/provbanan">← Provbanan</a>',
+            "en provkörning med koden som står på Provbanan\n      under Boxar",
+        )
+        if provbanan
+        else (
+            '<a href="/">← Hubben</a>',
+            "träffen med koden som trafikledningen visar\n      under Anslut",
+        )
+    )
     return _document(
         info,
-        """<main class="tmbox">
-  <a href="/provbanan">← Provbanan</a>
+        f"""<main class="tmbox">
+  {back}
   <section id="login" class="kort" hidden>
     <h1>TMBox</h1>
-    <p class="ingress">Anslut boxen till en provkörning med koden som står på Provbanan
-      under Boxar. Varje flik blir en egen box.</p>
+    <p class="ingress">Anslut boxen till {joining}. Varje flik blir en egen box.</p>
     <form id="login-form" class="falt">
       <label>Boxens namn <input id="name" maxlength="40" required autocomplete="off"></label>
-      <label>Kod <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+      <label>Kod <input id="code" inputmode="numeric" pattern="[0-9]{{6}}" maxlength="6"
         required autocomplete="off"></label>
       <label>Display <select id="display">
         <option value="2x16">16 × 2, som de flesta boxar</option>

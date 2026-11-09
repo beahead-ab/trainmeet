@@ -52,9 +52,13 @@ def router(store: AnyRun, info: Callable[[], BuildInfo]) -> APIRouter:
     routes = APIRouter()
 
     @routes.get("/box", response_class=HTMLResponse)
-    @routes.get("/provbanan/box", response_class=HTMLResponse)
     def box_page() -> str:
-        """The box: the meet's code or a Provbanan run's code decides which it joins."""
+        """The box for the hub's meet. The code decides which it joins, so a Provbanan code
+        works here too."""
+        return page.render_box(info(), provbanan=False)
+
+    @routes.get("/provbanan/box", response_class=HTMLResponse)
+    def provbanan_box_page() -> str:
         return page.render_box(info())
 
     @routes.post("/api/terminal/session", status_code=201)
