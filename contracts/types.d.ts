@@ -308,6 +308,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/automation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driftAutomation"];
+        put?: never;
+        post: operations["driftAutomationSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/automation/place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driftAutomationPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/events": {
         parameters: {
             query?: never;
@@ -1610,12 +1642,20 @@ export interface components {
             /** @constant */
             action: "signal.exit";
             payload: components["schemas"]["trainmeet.station-1.command.ExitSignal"];
+        } | {
+            /** @constant */
+            action: "place.leave";
+            payload: components["schemas"]["trainmeet.station-1.command.PlaceOnly"];
+        } | {
+            /** @constant */
+            action: "place.take_back";
+            payload: components["schemas"]["trainmeet.station-1.command.PlaceOnly"];
         });
         /**
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
         /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
@@ -1785,6 +1825,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * PlaceOnly
+         * @description Lämna or ta tillbaka: the command's own place, nothing more.
+         */
+        "trainmeet.station-1.command.PlaceOnly": {
+            [key: string]: unknown;
+        };
         /** Reply */
         "trainmeet.station-1.reply": ({
             /**
@@ -1828,7 +1875,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
         /**
          * ArrivalState
          * @enum {string}
@@ -2082,7 +2129,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present";
         /**
          * ReplyStatus
          * @enum {string}
@@ -2174,6 +2221,12 @@ export interface components {
             neighbours?: components["schemas"]["trainmeet.station-1.reply.Neighbour"][];
             /** All Places */
             all_places?: components["schemas"]["trainmeet.station-1.reply.Neighbour"][];
+            /**
+             * Automatic
+             * @description Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).
+             * @default false
+             */
+            automatic: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2249,6 +2302,12 @@ export interface components {
             neighbours?: components["schemas"]["trainmeet.station-1.snapshot.Neighbour"][];
             /** All Places */
             all_places?: components["schemas"]["trainmeet.station-1.snapshot.Neighbour"][];
+            /**
+             * Automatic
+             * @description Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).
+             * @default false
+             */
+            automatic: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2256,7 +2315,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit";
+        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
         /**
          * ArrivalState
          * @enum {string}
@@ -3583,6 +3642,22 @@ export interface components {
             kind: "line.acknowledged";
             data: components["schemas"]["trainmeet.drift-1.event.LineAcknowledged"];
         } | {
+            /** @constant */
+            kind: "place.manned";
+            data: components["schemas"]["trainmeet.drift-1.event.PlaceManned"];
+        } | {
+            /** @constant */
+            kind: "place.left";
+            data: components["schemas"]["trainmeet.drift-1.event.PlaceLeft"];
+        } | {
+            /** @constant */
+            kind: "place.taken_back";
+            data: components["schemas"]["trainmeet.drift-1.event.PlaceTakenBack"];
+        } | {
+            /** @constant */
+            kind: "automation.set";
+            data: components["schemas"]["trainmeet.drift-1.event.AutomationSettings"];
+        } | {
             kind?: unknown;
         });
         /** Actor */
@@ -3605,7 +3680,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -3735,6 +3810,112 @@ export interface components {
         "trainmeet.drift-1.event.LineAcknowledged": {
             /** Message Id */
             message_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PlaceManned
+         * @description The first box or TKL that works a place mans it (F14).
+         */
+        "trainmeet.drift-1.event.PlaceManned": {
+            /** Client Id */
+            client_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LeftBy
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.LeftBy": "dispatcher" | "operator" | "lost_contact";
+        /**
+         * PlaceLeft
+         * @description Lämnad till automatiken, until someone takes it back, also over a new day.
+         */
+        "trainmeet.drift-1.event.PlaceLeft": {
+            by: components["schemas"]["trainmeet.drift-1.event.LeftBy"];
+            /**
+             * Client Id
+             * @default null
+             */
+            client_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PlaceTakenBack */
+        "trainmeet.drift-1.event.PlaceTakenBack": {
+            /**
+             * By
+             * @enum {string}
+             */
+            by: "dispatcher" | "operator";
+            /** Client Id */
+            client_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Disturbance
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.Disturbance": "off" | "normal" | "disrupted";
+        /**
+         * DisturbanceWhere
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.DisturbanceWhere": "both" | "station" | "line";
+        /**
+         * AutomationSettings
+         * @description Trafikledningens val för automatiken, med gamla Servers förval (H42).
+         */
+        "trainmeet.drift-1.event.AutomationSettings": {
+            /**
+             * Enabled
+             * @description Av: automatiken rör ingenting.
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Lost Contact Minutes
+             * @description Övertag efter Kontakt saknas; 0 är aldrig.
+             * @default 0
+             * @enum {integer}
+             */
+            lost_contact_minutes: 0 | 2 | 5 | 10;
+            /** @default off */
+            disturbance: components["schemas"]["trainmeet.drift-1.event.Disturbance"];
+            /** @default both */
+            where: components["schemas"]["trainmeet.drift-1.event.DisturbanceWhere"];
+            /**
+             * Seed
+             * @description Scenarionyckel.
+             * @default
+             */
+            seed: string;
+            /**
+             * Stabling
+             * @description Undanställning vid slutstationen.
+             * @default true
+             */
+            stabling: boolean;
+            /**
+             * Stabling Minutes
+             * @description Spelminuter.
+             * @default 5
+             */
+            stabling_minutes: number;
+            /**
+             * Late Stop Minutes
+             * @description Ett försenat tåg står så här länge (spelminuter).
+             * @default 2
+             */
+            late_stop_minutes: number;
+            /**
+             * Answer Seconds
+             * @description Klartecken efter så här många verkliga sekunder.
+             * @default 3
+             */
+            answer_seconds: number;
         } & {
             [key: string]: unknown;
         };
@@ -3946,6 +4127,225 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * AutomationSettings
+         * @description Trafikledningens val för automatiken, med gamla Servers förval (H42).
+         */
+        "trainmeet.drift-1.automation-settings": {
+            /**
+             * Enabled
+             * @description Av: automatiken rör ingenting.
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Lost Contact Minutes
+             * @description Övertag efter Kontakt saknas; 0 är aldrig.
+             * @default 0
+             * @enum {integer}
+             */
+            lost_contact_minutes: 0 | 2 | 5 | 10;
+            /** @default off */
+            disturbance: components["schemas"]["trainmeet.drift-1.automation-settings.Disturbance"];
+            /** @default both */
+            where: components["schemas"]["trainmeet.drift-1.automation-settings.DisturbanceWhere"];
+            /**
+             * Seed
+             * @description Scenarionyckel.
+             * @default
+             */
+            seed: string;
+            /**
+             * Stabling
+             * @description Undanställning vid slutstationen.
+             * @default true
+             */
+            stabling: boolean;
+            /**
+             * Stabling Minutes
+             * @description Spelminuter.
+             * @default 5
+             */
+            stabling_minutes: number;
+            /**
+             * Late Stop Minutes
+             * @description Ett försenat tåg står så här länge (spelminuter).
+             * @default 2
+             */
+            late_stop_minutes: number;
+            /**
+             * Answer Seconds
+             * @description Klartecken efter så här många verkliga sekunder.
+             * @default 3
+             */
+            answer_seconds: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Disturbance
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation-settings.Disturbance": "off" | "normal" | "disrupted";
+        /**
+         * DisturbanceWhere
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation-settings.DisturbanceWhere": "both" | "station" | "line";
+        /**
+         * AutomationPlace
+         * @description Trafikledningen lämnar en plats till automatiken eller ger den till en ansluten klient.
+         */
+        "trainmeet.drift-1.automation-place": {
+            /** Place */
+            place: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "leave" | "take_back";
+            /**
+             * Client Id
+             * @description Vid take_back: klienten som tar den.
+             * @default null
+             */
+            client_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** AutomationStatus */
+        "trainmeet.drift-1.automation": {
+            settings: components["schemas"]["trainmeet.drift-1.automation.AutomationSettings"];
+            /** Places */
+            places?: components["schemas"]["trainmeet.drift-1.automation.AutomationPlaceStatus"][];
+            /**
+             * Trains
+             * @description Tåg som automatiken väntar med, och varför.
+             */
+            trains?: components["schemas"]["trainmeet.drift-1.automation.AutomationTrain"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** AutomationPlaceStatus */
+        "trainmeet.drift-1.automation.AutomationPlaceStatus": {
+            /** Place */
+            place: string;
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+            mode: components["schemas"]["trainmeet.drift-1.automation.PlaceMode"];
+            /** @default null */
+            left_by: components["schemas"]["trainmeet.drift-1.automation.LeftBy"] | null;
+            /**
+             * Takes Over In
+             * @description Sekunder tills automatiken tar över; null är aldrig.
+             * @default null
+             */
+            takes_over_in: number | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /**
+             * Present
+             * @description Klienter i kontakt här.
+             */
+            present?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AutomationSettings
+         * @description Trafikledningens val för automatiken, med gamla Servers förval (H42).
+         */
+        "trainmeet.drift-1.automation.AutomationSettings": {
+            /**
+             * Enabled
+             * @description Av: automatiken rör ingenting.
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Lost Contact Minutes
+             * @description Övertag efter Kontakt saknas; 0 är aldrig.
+             * @default 0
+             * @enum {integer}
+             */
+            lost_contact_minutes: 0 | 2 | 5 | 10;
+            /** @default off */
+            disturbance: components["schemas"]["trainmeet.drift-1.automation.Disturbance"];
+            /** @default both */
+            where: components["schemas"]["trainmeet.drift-1.automation.DisturbanceWhere"];
+            /**
+             * Seed
+             * @description Scenarionyckel.
+             * @default
+             */
+            seed: string;
+            /**
+             * Stabling
+             * @description Undanställning vid slutstationen.
+             * @default true
+             */
+            stabling: boolean;
+            /**
+             * Stabling Minutes
+             * @description Spelminuter.
+             * @default 5
+             */
+            stabling_minutes: number;
+            /**
+             * Late Stop Minutes
+             * @description Ett försenat tåg står så här länge (spelminuter).
+             * @default 2
+             */
+            late_stop_minutes: number;
+            /**
+             * Answer Seconds
+             * @description Klartecken efter så här många verkliga sekunder.
+             * @default 3
+             */
+            answer_seconds: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** AutomationTrain */
+        "trainmeet.drift-1.automation.AutomationTrain": {
+            /** Call */
+            call: string;
+            /** Train */
+            train: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            /** Reason */
+            reason: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Disturbance
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation.Disturbance": "off" | "normal" | "disrupted";
+        /**
+         * DisturbanceWhere
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation.DisturbanceWhere": "both" | "station" | "line";
+        /**
+         * LeftBy
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation.LeftBy": "dispatcher" | "operator" | "lost_contact";
+        /**
+         * PlaceMode
+         * @enum {string}
+         */
+        "trainmeet.drift-1.automation.PlaceMode": "manned" | "no_contact" | "automatic";
         /** ScreenLogin */
         "trainmeet.screen-1.login": {
             /** Name */
@@ -6855,6 +7255,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.drift-1.refusal"][];
+                };
+            };
+        };
+    };
+    driftAutomation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.automation"];
+                };
+            };
+        };
+    };
+    driftAutomationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.automation-settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.automation"];
+                };
+            };
+        };
+    };
+    driftAutomationPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.automation-place"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.automation"];
                 };
             };
         };

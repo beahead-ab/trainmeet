@@ -144,6 +144,18 @@ AKTIVA|ACTIVE|AKTIVE|AKTIVE|AKTIV
 SÖK|FIND|SØG|SØK|SUCHEN
 AVBRYT|CANCEL|ANNULLER|AVBRYT|ABBRECHEN
 SUDDA|ERASE|SLET|SLETT|LÖSCHEN
+AUTOMATIK|AUTOMATIC|AUTOMATIK|AUTOMATIKK|AUTOMATIK
+AUTOMATIK?|AUTOMATIC?|AUTOMATIK?|AUTOMATIKK?|AUTOMATIK?
+TA TILLBAKA?|TAKE BACK?|TAG TILBAGE?|TA TILBAKE?|ZURÜCKNEHMEN?
+#Aktiv|#Active|#Aktiv|#Aktiv|#Aktiv
+AKTIV|ACTIVE|AKTIV|AKTIV|AKTIV
+Lämna till automatiken…|Leave to the automation…|Overlad til automatikken…|Overlat til automatikken…|Der Automatik überlassen…
+Lämna till automatiken|Leave to the automation|Overlad til automatikken|Overlat til automatikken|Der Automatik überlassen
+Ta tillbaka stationen…|Take the station back…|Tag stationen tilbage…|Ta tilbake stasjonen…|Bahnhof zurücknehmen…
+Ta tillbaka stationen|Take the station back|Tag stationen tilbage|Ta tilbake stasjonen|Bahnhof zurücknehmen
+Automatiken sköter stationen medan du är borta. # bekräftar, * ångrar.|The automation runs the station while you are away. # confirms, * cancels.|Automatikken passer stationen, mens du er væk. # bekræfter, * fortryder.|Automatikken styrer stasjonen mens du er borte. # bekrefter, * angrer.|Die Automatik führt den Bahnhof, während du weg bist. # bestätigt, * bricht ab.
+Ta tillbaka stationen från automatiken? # bekräftar, * ångrar.|Take the station back from the automation? # confirms, * cancels.|Tag stationen tilbage fra automatikken? # bekræfter, * fortryder.|Ta stasjonen tilbake fra automatikken? # bekrefter, * angrer.|Bahnhof von der Automatik zurücknehmen? # bestätigt, * bricht ab.
+Automatiken sköter stationen. # på startbilden tar tillbaka den.|The automation runs the station. # on the start screen takes it back.|Automatikken passer stationen. # på startbilledet tager den tilbage.|Automatikken styrer stasjonen. # på startbildet tar den tilbake.|Die Automatik führt den Bahnhof. # auf dem Startbild nimmt ihn zurück.
 Tåg {number} mottaget i {station}. Meddelandet försvinner automatiskt.|Train {number} arrived at {station}. This message closes automatically.|Tog {number} ankommet til {station}. Beskeden lukkes automatisk.|Tog {number} ankommet i {station}. Meldingen lukkes automatisk.|Zug {number} in {station} angekommen. Meldung schließt automatisch.
 {number} SLUTAR HÄR|{number} ENDS HERE|{number} ENDER HER|{number} ENDER HER|{number} ENDET HIER
 #Undan|#Stable|#Hensæt|#Hensett|#Abstell

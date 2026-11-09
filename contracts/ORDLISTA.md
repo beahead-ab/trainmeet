@@ -46,6 +46,12 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Flytta hit | `train.moved_here` | Ett tåg ingen skickat tas in här ändå, så spelet går vidare (FLYTTA HIT). |
 | Genomgående tåg | `Leg.previous` | Ett tåg som kommer in och går vidare med samma nummer. Nästa sträcka kan begäras innan det kommit, och tåget hoppar hit när det skickas vidare. |
 | Ställa undan | `train.set_aside` | Ett tåg som slutat här ställs undan, och spåret blir fritt. |
+| Automatiken | `drift.AutomationSettings`, `actor.kind = automation` | Sköter de driftplatser som ingen box eller TKL arbetar med: ger klart när spåret är ledigt, skickar sina tåg och tar emot dem. Gör det genom samma stationskommandon som en box (F14). |
+| Bemannad | `place.manned` | Den första box eller TKL som arbetar med en driftplats gör den bemannad. Inte samma sak som platstypen `manned` i planen. |
+| Kontakt saknas | `PlaceMode.no_contact` | En bemannad driftplats som inte hörts av på 45 sekunder. Automatiken tar över efter den tid trafikledningen valt, förval aldrig. |
+| Lämna till automatiken | `place.left`, `place.leave` | Boxen, TKL eller trafikledningen lämnar driftplatsen åt automatiken, tills någon tar tillbaka den. |
+| Ta tillbaka | `place.taken_back`, `place.take_back` | En ansluten box eller TKL arbetar med driftplatsen igen. |
+| Störningar | `AutomationSettings.disturbance` | Påhittade förseningar som automatiken lägger in: av, normal eller störd trafik (F15). |
 | På väg hit, har lämnat | `on_the_way`, `have_left` | Tåg på sträckan, från avgången hos grannen till ankomsten här, och tvärtom. Drift räknar fram båda. |
 | Bild | `terminal.Frame` | Det en TMBox visar. Drift ritar den; boxen skickar bara knapptryck. |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |

@@ -18,7 +18,9 @@
         "line.available.publish",
         "line.available.acknowledge",
         "section.occupancy",
-        "signal.exit"
+        "signal.exit",
+        "place.leave",
+        "place.take_back"
       ],
       "title": "Action",
       "type": "string"
@@ -713,6 +715,12 @@
       },
       "title": "All Places",
       "type": "array"
+    },
+    "automatic": {
+      "default": false,
+      "description": "Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+      "title": "Automatic",
+      "type": "boolean"
     }
   },
   "required": [

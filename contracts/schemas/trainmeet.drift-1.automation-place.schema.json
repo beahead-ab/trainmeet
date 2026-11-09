@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.automation-place.schema.json",
+  "title": "trainmeet.drift-1.automation-place",
+  "additionalProperties": true,
+  "description": "Trafikledningen lämnar en plats till automatiken eller ger den till en ansluten klient.",
+  "properties": {
+    "place": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Place",
+      "type": "string"
+    },
+    "action": {
+      "enum": [
+        "leave",
+        "take_back"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "client_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vid take_back: klienten som tar den.",
+      "title": "Client Id"
+    }
+  },
+  "required": [
+    "place",
+    "action"
+  ],
+  "type": "object"
+}

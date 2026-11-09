@@ -170,6 +170,48 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         except failures as error:
             _error(error)
 
+    @routes.get("/automation")
+    def automation(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Who works which place, the automation's settings and the trains it waits with
+        (F14)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.automation(run_id).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/automation")
+    def automation_settings(
+        settings: drift.AutomationSettings,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.set_automation(run_id, settings).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/automation/place")
+    def automation_place(
+        change: drift.AutomationPlace,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Lämna en plats till automatiken, eller ge den tillbaka till en klient där."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.automation_place(run_id, change).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
     @routes.get("/log")
     def log(
         response: Response,

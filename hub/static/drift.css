@@ -96,6 +96,12 @@ td.tag { font-weight: 700; }
 .pill.cleared::before { background: var(--blue); }
 .pill.on_the_way::before { background: var(--green); }
 .pill.arrived { color: var(--mute); }
+.pill.manned::before { background: var(--green); }
+.pill.no_contact::before { background: var(--red); }
+.pill.automatic::before { background: var(--blue); }
+#automatiken h3 { font-size: 14px; margin: 18px 0 6px; }
+.etikett { color: var(--mute); font-size: 13px; min-width: 200px; }
+input.tal { width: 4.5em; }
 
 .lista { list-style: none; margin: 0; padding: 0; }
 .lista li { display: flex; gap: 12px; align-items: center; justify-content: space-between;
