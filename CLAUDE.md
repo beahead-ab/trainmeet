@@ -1,6 +1,6 @@
 # Arbetsregler för Claude i trainmeet
 
-Gäller alla chattar som arbetar i repot: Hub, ID, TKL och CAD.
+Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Specen är facit
 

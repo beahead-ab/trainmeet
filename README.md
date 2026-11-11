@@ -18,7 +18,7 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 
 Mapparna kommer till i den ordning delarna byggs. Först kommer Grunden (kontrakten, de automatiska testerna och testmiljön), sedan Drift.
 
-TrainCatalog, TMBox-firmwaren och TMBox-appen för iPhone utvecklas i sina egna repon.
+TMBox-firmwaren och TMBox-appen för iPhone utvecklas i sina egna repon. TrainMeet Catalog skrivs om som en egen del i det här repot, `catalog/`, när den byggs (beslut C14 och C16 i specen); gamla TrainCatalog ligger kvar i sitt eget repo som facit.
 
 ## Arbetssätt
 
