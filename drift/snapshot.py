@@ -123,6 +123,7 @@ def clearance_of(drift: Drift, case: Case) -> station.Clearance:
         status=case.status,
         departed=case.departed,
         requested_at=drift.requested_at.get(case.id, "00:00"),
+        reminders=case.reminders,
         revision=case.revision,
     )
 

@@ -86,6 +86,7 @@ def test_a_cleared_train_never_reported_departed_can_be_taken_in(drift: Drift) -
     send(drift, "asn", station.Action.CLEARANCE_RESPONSE, clearance_id=clearance, approved=True)
     send(drift, "asn", station.Action.TRAIN_ARRIVED, call="t101-asn", track="2")
     assert kinds(drift)[-1] == "train.arrived"
+    assert drift.history[-1].data["forward"] is True, "the departure was never reported"
     assert drift.tracks["t101-nby"] == "2"
     assert drift.planned_track(drift.legs["t101-nby"]) == "1", "the plan is kept"
     assert drift.active_case("t101-nby") is None
@@ -144,6 +145,10 @@ def test_the_jump_ends_a_case_still_open_on_the_way_in(drift: Drift) -> None:
     assert kinds(drift)[-3:] == ["clearance.answered", "train.arrived", "train.departed"]
     assert drift.active_case("t101-nby") is None
     assert "t101-nby" in drift.arrived
+    # What was forgotten is marked as moved forward, so Logg can say so (DRIFT-42).
+    answered, arrived, departed = drift.history[-3:]
+    assert answered.data["forward"] is True and arrived.data["forward"] is True
+    assert "forward" not in departed.data
 
 
 def test_a_train_that_ended_here_is_put_away_and_frees_its_track(drift: Drift) -> None:

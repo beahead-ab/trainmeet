@@ -238,6 +238,7 @@ def test_an_arriving_train_frees_the_line_it_was_granted(drift: Drift) -> None:
     assert [t.call for t in snapshot(drift, "nby", NOW).have_left] == ["t101-asn"]
     assert next(s for s in seen.sections if s.section == "s-nby-asn").occupied
     send(drift, "asn", Action.TRAIN_ARRIVED, call="t101-asn")
+    assert "forward" not in drift.history[-1].data, "an ordinary arrival is not moved forward"
     seen = snapshot(drift, "asn", NOW)
     assert seen.clearances == [] and seen.on_the_way == []
     assert call_here(drift, "asn", "t101-asn").arrival_state == station.ArrivalState.ARRIVED
