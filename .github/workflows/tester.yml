@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PROV: ${{ runner.temp }}/testmiljo
+      PROV: /tmp/catalog-testmiljo
     steps:
       - uses: actions/checkout@v4
 
