@@ -16,8 +16,13 @@ umask 077
 test -s catalog.env || { echo "catalog.env saknas på servern." >&2; exit 1; }
 test -s id.env || { echo "id.env saknas på servern." >&2; exit 1; }
 mkdir -p id-vault
+# Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
+# then (CAT-214, #66).
+TRIAL=on
+if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
 {
   printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\n' "$TAG" "$DOMAIN"
+  printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'ID_TAG=%s\nID_DOMAIN=%s\nHOST_UID=%s\n' "$TAG" "$ID_DOMAIN" "$(id -u)"
   cat catalog.env id.env

@@ -132,7 +132,13 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "image: postgres:17-alpine" in compose
     assert "catalog-db:/var/lib/postgresql/data" in compose
     assert "127.0.0.1:8081:8080" in compose
-    assert 'CATALOG_TRIAL_LOGIN: "on"' in compose
+    assert "CATALOG_TRIAL_LOGIN: ${CATALOG_TRIAL_LOGIN:?" in compose
+    # The trial login goes when TrainMeet ID can send its codes (#66).
+    assert "if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi" in up
+    assert "CATALOG_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet" in compose
+    assert "CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet" in compose
+    assert "CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}" in compose
+    assert "CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}" in compose
     assert 'CATALOG_SIMULATED_TAGS: "on"' in compose
     assert "CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/" in compose
     assert "CATALOG_MIGRATE: check" in compose

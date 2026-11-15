@@ -2,7 +2,7 @@
 
 The session key is random and shown to the browser once, as an HttpOnly cookie. Only its
 SHA-256 is stored, so a copy of the database logs no one in. TrainMeet ID replaces the trial
-login in #49; the session stays the same.
+login (#66, catalog/id_login.py); the session stays the same.
 
 The trial login's accounts are fixed, and hold no personal data. Anyone who can open the test
 environment can log in as them, so the test environment holds only test data.
@@ -47,8 +47,10 @@ class Sessions:
     def __init__(self, db: Database) -> None:
         self.db = db
 
-    def start(self, account: Account) -> str:
-        """Log the account in. Its owner row is made the first time (the empty fleet)."""
+    def start(self, account: Account, id_token: str | None = None) -> str:
+        """Log the account in. Its owner row is made the first time (the empty fleet, CAT-42).
+
+        ID's token is kept only to log out of ID too, and goes with the session."""
         key = secrets.token_urlsafe(32)
         with self.db.transaction() as conn:
             conn.execute("DELETE FROM login_session WHERE expires_at < now()")
@@ -58,9 +60,9 @@ class Sessions:
                 (account.id, account.name),
             )
             conn.execute(
-                "INSERT INTO login_session (key_hash, owner_id, expires_at) "
-                "VALUES (%s, %s, now() + %s)",
-                (key_hash(key), account.id, SESSION_LIFETIME),
+                "INSERT INTO login_session (key_hash, owner_id, expires_at, id_token) "
+                "VALUES (%s, %s, now() + %s, %s)",
+                (key_hash(key), account.id, SESSION_LIFETIME, id_token),
             )
         return key
 
@@ -80,8 +82,13 @@ class Sessions:
         name = str(row["name"])
         return Account(id=row["id"], name=name, initials=initials(name))
 
-    def end(self, key: str | None) -> None:
+    def end(self, key: str | None) -> str | None:
+        """Log out here. Gives ID's token, if the session came from ID, to log out there too."""
         if not key or len(key) > 200:
-            return
+            return None
         with self.db.transaction() as conn:
-            conn.execute("DELETE FROM login_session WHERE key_hash = %s", (key_hash(key),))
+            row = conn.execute(
+                "DELETE FROM login_session WHERE key_hash = %s RETURNING id_token",
+                (key_hash(key),),
+            ).fetchone()
+        return str(row["id_token"]) if row is not None and row["id_token"] else None

@@ -76,6 +76,11 @@ const P = "/api/catalog/1/places";
 const T = "/api/catalog/1/tags";
 const tagPath = (uid: string) => `${T}/${encodeURIComponent(uid)}`;
 
+/** TrainMeet ID's login: the browser goes there itself, and comes back to `next` (#66). */
+export function idLoginHref(next: string, language: string): string {
+  return `/api/catalog/1/id/login?${new URLSearchParams({ next, lang: language })}`;
+}
+
 export const api = {
   version: () => call<CatalogVersion>("GET", "/api/version"),
   session: () => call<Session>("GET", "/api/catalog/1/session"),

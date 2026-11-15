@@ -436,6 +436,31 @@ def catalog_openapi() -> str:
     route("delete", "/api/catalog/1/session", "catalogLogOut", "session")
     route("get", "/api/catalog/1/trial/accounts", "trialAccounts", "account", many=True)
     route("post", "/api/catalog/1/trial/login", "trialLogIn", "session", "trial-login")
+
+    def redirect(path: str, operation: str, summary: str, query: tuple[str, ...]) -> None:
+        """An address the browser opens itself; the answer sends it on (#66)."""
+        paths.setdefault(path, {})["get"] = {
+            "operationId": operation,
+            "summary": summary,
+            "parameters": [
+                {"name": name, "in": "query", "schema": {"type": "string"}} for name in query
+            ],
+            "responses": {"303": {"description": "Vidare, med Location."}},
+        }
+
+    redirect(
+        "/api/catalog/1/id/login",
+        "idLogIn",
+        "Till TrainMeet ID för att logga in. next är sidan att komma tillbaka till, lang sv/en.",
+        ("next", "lang"),
+    )
+    redirect(
+        "/api/catalog/1/id/callback",
+        "idCallback",
+        "Tillbaka från TrainMeet ID: sessionen startar och webbläsaren går till next, "
+        "eller till /logga-in?inloggning=fel.",
+        ("code", "state", "error"),
+    )
     v = "/api/catalog/1/vehicles"
     text: JsonSchemaValue = {"type": "string"}
     kinds: JsonSchemaValue = {"type": "array", "items": {"type": "string"}}

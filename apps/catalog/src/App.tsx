@@ -1,6 +1,6 @@
 import { AccountMenu, AppSwitcher, BottomNav, Header, linkClick, type App as SwitcherApp, type Navigate } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { api, type Account, type CatalogVersion, type Session } from "./api";
+import { api, idLoginHref, type Account, type CatalogVersion, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import type { Ctx } from "./common";
@@ -59,6 +59,8 @@ export type ShellProps = {
   onLogOut?: () => void;
   onLogIn?: (account: Account) => Promise<boolean>;
   trialAccounts?: Account[] | null;
+  /** The address's query, for the login page: ?next= and ?inloggning=fel. */
+  search?: string;
   /** False shows the empty fleet without fetching (tests of the shell). */
   fleet?: boolean;
 };
@@ -268,14 +270,27 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
   }
 }
 
-function LoginPage({ t, session, account, trialAccounts, onLogIn }: ShellProps & { t: T; account: Account | null }) {
+function LoginPage({ t, session, account, trialAccounts, onLogIn, search = "", language }: ShellProps & { t: T; account: Account | null }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   if (session?.login !== "trial") {
+    // TrainMeet ID (#66): the browser goes to ID and comes back logged in, or with ?inloggning=fel.
+    const cameBackFailed = new URLSearchParams(search).get("inloggning") === "fel";
     return (
       <>
         <h1>{t("logIn")}</h1>
-        <Empty title={t("loginIdComing")} />
+        <section className="tm-kort cat-inloggning">
+          {cameBackFailed ? (
+            <p className="cat-fel" role="alert">
+              {t("loginFailed")}
+            </p>
+          ) : null}
+          {account ? <p>{t("loggedInAs", { name: account.name })}</p> : null}
+          <p>{t("loginIdIntro")}</p>
+          <a className="tm-knapp primar" href={idLoginHref(nextAfterLogin(search), language)}>
+            {t("loginWithId")}
+          </a>
+        </section>
       </>
     );
   }
@@ -384,13 +399,18 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       navigate={navigate}
       replace={replace}
       trialAccounts={trialAccounts}
+      search={window.location.search}
       onLanguage={() => {
         const next: Language = language === "sv" ? "en" : "sv";
         setLanguage(next);
         storeLanguage(next);
       }}
       onLogOut={() => {
-        api.logOut().then(setSession, () => setOffline(true));
+        api.logOut().then((after) => {
+          // Logged in with ID: ID logs out too, and sends the browser back here (KONTO-01).
+          if (after.logout_url) window.location.assign(after.logout_url);
+          else setSession(after);
+        }, () => setOffline(true));
       }}
       onLogIn={async (account) => {
         try {

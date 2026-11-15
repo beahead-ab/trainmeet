@@ -1,11 +1,15 @@
 """Provar inloggningen i TrainMeet ID från början till slut, som en webbläsare och Catalog gör.
 
-    python -m id.prov_inloggning <ID-adress> <mejlfil> <klienthemlighet> <Catalogs adress>
+    python -m id.prov_inloggning <ID> <mejlfil> <klienthemlighet> <Catalog> [--catalog]
 
 Skapa konto med namn och e-post, koden ur mejlet, sedan Catalogs utbyte av koden mot en token
 med verifierad e-post (KONTO-10, KONTO-27). Sedan en ny inloggning med samma e-post utan namn, och
 en första inloggning utan namn, som frågar efter namnet efter koden. Mejlen läses ur en fil som en
 låtsad mejlserver skriver; inget skickas på riktigt.
+
+Med --catalog körs Catalog på sin adress, och provet loggar in där som en webbläsare: genom ID med
+en kod till e-posten och tillbaka in i Catalog med samma konto (KONTO-27), sedan in i Catalog utan
+ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och ID.
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -192,12 +196,98 @@ def run(base: str, mails: Path, secret: str, catalog: str) -> None:
     print("Fel adress: ok")
 
 
+class Browser:
+    """One browser: ID's cookies (Secure, see Login.keep) and Catalog's in their own jars."""
+
+    def __init__(self, base: str, catalog: str) -> None:
+        self.id = Login(base, catalog)
+        self.catalog = httpx.Client(
+            base_url=catalog.rstrip("/"), follow_redirects=False, timeout=20
+        )
+
+    def open(self, address: str) -> httpx.Response:
+        """Opens an address and follows the redirects between Catalog and ID."""
+        for _ in range(10):
+            if address.startswith(str(self.catalog.base_url)) or address.startswith("/"):
+                answer = self.catalog.get(address.removeprefix(str(self.catalog.base_url)))
+            else:
+                answer = self.id.keep(self.id.client.get(address))
+            if answer.status_code not in (301, 302, 303, 307):
+                return answer
+            address = answer.headers["location"]
+        raise ProvFel("För många omdirigeringar.")
+
+    def follow(self, answer: httpx.Response) -> httpx.Response:
+        if answer.status_code in (302, 303):
+            return self.open(answer.headers["location"])
+        return answer
+
+    def session(self) -> dict[str, object]:
+        data: dict[str, object] = self.catalog.get("/api/catalog/1/session").json()
+        return data
+
+
+def run_catalog(base: str, mails: Path, catalog: str) -> None:
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    browser = Browser(base, catalog)
+    check(browser.session()["login"] == "id", "Catalog loggar inte in med ID.")
+
+    # Från Catalogs inloggning, genom ID med en kod till e-posten, och tillbaka in i Catalog.
+    page = browser.open("/api/catalog/1/id/login?next=%2Fplatser&lang=sv")
+    check(page.status_code == 200 and "Skicka en kod" in page.text, "ID:s sida kom inte.")
+    create = browser.id.post(page.text, {"create": "1"}).text
+    seen = mail_count(mails)
+    sent = browser.id.post(
+        create, {"creating": "1", "name": "Provare Tre", "email": address, "send": "1"}
+    )
+    code, seen = code_from(mails, address, seen)
+    back = browser.id.post(sent.text, {"code": code})
+    check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
+    check(back.headers["location"].startswith(catalog.rstrip("/")), "Inte tillbaka till Catalog.")
+    landed = browser.catalog.get(back.headers["location"].removeprefix(catalog.rstrip("/")))
+    check(
+        landed.headers.get("location") == "/platser", "Catalog gick inte till sidan man kom från."
+    )
+    account = browser.session()["account"]
+    check(isinstance(account, dict) and account.get("name") == "Provare Tre", "Inte inloggad.")
+    assert isinstance(account, dict)
+    check(browser.catalog.get("/api/catalog/1/vehicles").status_code == 200, "Ingen vagnpark.")
+    print("In i Catalog med en kod till e-posten: ok")
+
+    # Ut ur Catalog, och in igen utan kod: inloggad i ID sedan förut (KONTO-01).
+    out = browser.catalog.delete("/api/catalog/1/session").json()
+    check(browser.session()["account"] is None, "Fortfarande inloggad i Catalog.")
+    seen = mail_count(mails)
+    again = browser.open("/api/catalog/1/id/login?next=%2Ffordon")
+    check(again.status_code == 200, f"Tillbaka in svarade {again.status_code}.")
+    same = browser.session()["account"]
+    check(isinstance(same, dict) and same.get("id") == account["id"], "Inte samma konto.")
+    check(mail_count(mails) == seen, "En ny kod skickades fast man redan var inloggad i ID.")
+    print("In igen utan ny kod, samma konto: ok")
+
+    # Ut ur både Catalog och ID.
+    out = browser.catalog.delete("/api/catalog/1/session").json()
+    logout = out.get("logout_url")
+    check(isinstance(logout, str), "Utloggningen sa inte var ID loggar ut.")
+    assert isinstance(logout, str)
+    home = browser.open(logout)
+    check(home.status_code == 200, f"Utloggningen i ID svarade {home.status_code}.")
+    check(browser.session()["account"] is None, "Fortfarande inloggad i Catalog.")
+    page = browser.open("/api/catalog/1/id/login?next=%2Ffordon")
+    check("Skicka en kod" in page.text, "Fortfarande inloggad i ID efter utloggningen.")
+    print("Ut ur Catalog och ID: ok")
+
+
 def main(argv: list[str]) -> int:
+    through_catalog = "--catalog" in argv
+    argv = [arg for arg in argv if arg != "--catalog"]
     if len(argv) != 5:
         print(__doc__)
         return 2
     try:
         run(argv[1], Path(argv[2]), argv[3], argv[4])
+        if through_catalog:
+            run_catalog(argv[1], Path(argv[2]), argv[4])
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

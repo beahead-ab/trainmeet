@@ -118,6 +118,7 @@ def test_without_the_trial_login_there_is_no_way_in(database_url: str, web_dir: 
             "account": None,
             "login": "id",
             "simulated_tags": False,
+            "logout_url": None,
         }
         assert client.get(API + "/trial/accounts").status_code == 404
         answer = client.post(API + "/trial/login", json={"account": str(TRIAL_ACCOUNTS[0].id)})

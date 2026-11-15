@@ -125,6 +125,7 @@ jobs:
             echo "CATALOG_DOMAIN=localhost"
             echo "CATALOG_DB_PASSWORD=$(openssl rand -hex 24)"
             echo "CATALOG_BACKUP_KEY=$(openssl rand -hex 32)"
+            echo "CATALOG_TRIAL_LOGIN=on"
             # Compose-filen har ID också; provet här startar det inte, men namnen ska finnas.
             echo "ID_TAG=prov"
             echo "ID_DOMAIN=localhost"
@@ -187,7 +188,8 @@ jobs:
   # Lägger ut hubben på test.hub.trainmeet.app när en ändring har slagits ihop med main
   # och båda kontrollerna är gröna. Servern skapas första gången (deploy/testmiljo.py).
   # TrainMeet ID: tilläggets tester körs när bilden byggs. Sedan provas inloggningen med en kod
-  # till e-posten mot en riktig Keycloak och PostgreSQL, med en låtsad mejlserver (#66).
+  # till e-posten mot en riktig Keycloak och PostgreSQL, med en låtsad mejlserver, och genom
+  # Catalog in med samma konto (#66).
   id:
     name: ID:s bild
     runs-on: ubuntu-latest
@@ -228,16 +230,28 @@ jobs:
           curl -fsS http://127.0.0.1:9000/health/ready
           docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' id | grep -qx "${{ github.sha }}"
 
-      - name: Logga in med en kod till e-posten
+      - name: Starta Catalog mot ID
+        run: |
+          docker exec id-db createdb -U keycloak catalog
+          CATALOG_DATABASE_URL=postgresql://keycloak:prov@127.0.0.1:5432/catalog CATALOG_MIGRATE=auto \
+          CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_ID_SECRET=prov-hemlighet \
+          CATALOG_PUBLIC_URL=http://localhost:8001 \
+            nohup uv run uvicorn catalog.app:app --port 8001 --no-access-log > "$RUNNER_TEMP/catalog.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8001/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8001/healthz
+
+      # Från ID:s sida som Catalog, och sedan genom Catalog som en webbläsare (KONTO-27).
+      - name: Logga in med en kod till e-posten, också i Catalog
         run: >
           uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt"
-          prov-hemlighet http://localhost:8001
+          prov-hemlighet http://localhost:8001 --catalog
 
       - name: Visa loggen om något gick fel
         if: failure()
         run: |
           docker logs id 2>&1 | tail -100 || true
           cat "$RUNNER_TEMP/postlada.log" || true
+          cat "$RUNNER_TEMP/catalog.log" || true
 
   testmiljon:
     name: Testmiljön

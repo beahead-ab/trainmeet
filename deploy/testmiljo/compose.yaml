@@ -44,8 +44,15 @@ services:
       CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@catalog-db:5432/catalog
       # The database is migrated by up.sh after the backup; Catalog only checks it (CAT-39).
       CATALOG_MIGRATE: check
-      # The trial login, until TrainMeet ID (C21, CAT-214). Only in the test environment.
-      CATALOG_TRIAL_LOGIN: "on"
+      # The trial login, until TrainMeet ID can send its codes (C21, CAT-214): up.sh turns it
+      # off when ID has its mail key. Only in the test environment.
+      CATALOG_TRIAL_LOGIN: ${CATALOG_TRIAL_LOGIN:?CATALOG_TRIAL_LOGIN saknas}
+      # The login with TrainMeet ID (#66, KONTO-27). The browser goes to ID's address, and
+      # Catalog itself reaches ID next to it.
+      CATALOG_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
+      CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet
+      CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}
+      CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}
       # The test environment's tags point here, so they can be tapped here, and simulated tags
       # try the flows without hardware (CAT-96). Real tags carry trainmeet.app/t/ (C9).
       CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/
