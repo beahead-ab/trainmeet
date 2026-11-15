@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.trial-login.schema.json",
+  "title": "trainmeet.catalog-1.trial-login",
+  "additionalProperties": true,
+  "description": "Log in as one of the trial login's fixed accounts (GET /api/catalog/1/trial/accounts).",
+  "properties": {
+    "account": {
+      "format": "uuid",
+      "title": "Account",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account"
+  ],
+  "type": "object"
+}

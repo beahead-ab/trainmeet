@@ -13,8 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # Which other parts each part may import. Drift, Planering, Synk and Integrationer are the
 # Hub's four parts; they share the domain model in core/ but never import each other.
-# ID, TKL and CAD only see the contracts. hub/ is the start program that brings the Hub's
-# parts together.
+# ID, TKL, CAD and TrainMeet Catalog only see the contracts (CAT-34). hub/ is the start
+# program that brings the Hub's parts together; it never sees Catalog, and Catalog never sees
+# it (K7, CAT-37).
 HUB_PARTS = {"drift", "planering", "synk", "integrationer"}
 ALLOWED: dict[str, set[str]] = {
     "contracts": set(),
@@ -23,6 +24,7 @@ ALLOWED: dict[str, set[str]] = {
     "id": {"contracts"},
     "tkl": {"contracts"},
     "cad": {"contracts"},
+    "catalog": {"contracts"},
     "hub": {"contracts", "core", *HUB_PARTS},
 }
 PARTS = set(ALLOWED)
@@ -62,8 +64,15 @@ def test_the_rule_catches_a_violation(tmp_path: Path) -> None:
     (tmp_path / "drift" / "bad.py").write_text("from planering.drafts import Draft\n")
     (tmp_path / "tkl").mkdir()
     (tmp_path / "tkl" / "bad.py").write_text("import drift.engine\n")
+    (tmp_path / "catalog").mkdir()
+    (tmp_path / "catalog" / "ok.py").write_text("from contracts.catalog import Account\n")
+    (tmp_path / "catalog" / "bad.py").write_text("from hub import build_info\n")
+    (tmp_path / "hub").mkdir()
+    (tmp_path / "hub" / "bad.py").write_text("import catalog.app\n")
     assert violations(tmp_path) == [
+        "catalog/bad.py importerar hub",
         "drift/bad.py importerar planering",
+        "hub/bad.py importerar catalog",
         "tkl/bad.py importerar drift",
     ]
 

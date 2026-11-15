@@ -1,10 +1,11 @@
-# Caddy framför testhubben. Certifikatet hämtas automatiskt från Let's Encrypt när
-# DNS-raden för HUB_DOMAIN pekar på servern.
+# Caddy framför testhubben och Catalog. Certifikaten hämtas automatiskt från Let's Encrypt
+# när DNS-raderna för HUB_DOMAIN och CATALOG_DOMAIN pekar på servern. Saknas en rad väntar
+# den adressen; den andra fungerar ändå.
 {
 	admin off
 }
 
-{$HUB_DOMAIN} {
+(skydd) {
 	encode zstd gzip
 
 	header {
@@ -14,6 +15,16 @@
 		X-Frame-Options DENY
 		-Server
 	}
+}
 
+{$HUB_DOMAIN} {
+	import skydd
 	reverse_proxy hub:8080
+}
+
+# TrainMeet Catalog (C35, CAT-218). Catalog sets its own Content-Security-Policy.
+{$CATALOG_DOMAIN} {
+	import skydd
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy catalog:8080
 }

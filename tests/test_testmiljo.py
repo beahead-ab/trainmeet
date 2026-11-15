@@ -109,6 +109,69 @@ def test_the_server_files_agree_on_the_names() -> None:
     assert "127.0.0.1:8080:8080" in compose
 
 
+def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    backup = (folder / "catalog-backup.sh").read_text()
+    assert "image: trainmeet-catalog:${CATALOG_TAG" in compose
+    assert "image: postgres:17-alpine" in compose
+    assert "catalog-db:/var/lib/postgresql/data" in compose
+    assert "127.0.0.1:8081:8080" in compose
+    assert 'CATALOG_TRIAL_LOGIN: "on"' in compose
+    assert "CATALOG_MIGRATE: check" in compose
+    assert "{$CATALOG_DOMAIN}" in caddyfile
+    assert "reverse_proxy catalog:8080" in caddyfile
+    assert "CATALOG_TAG=%s\\nCATALOG_DOMAIN=%s" in up
+    # The backup is taken and verified before the migration, and every night (CAT-39).
+    backup_at = up.index("catalog-backup.sh fore-migrering")
+    assert backup_at < up.index("python -m catalog.migrate")
+    assert "catalog-backup.sh natt" in up
+    assert "pg_restore" in backup
+    assert "-pass env:CATALOG_BACKUP_KEY" in backup
+    # Only the database's own network reaches it: no port is published.
+    database = compose.split("  catalog-db:")[1].split("\n  catalog:")[0]
+    assert "ports:" not in database
+
+
+def test_catalog_secrets_survive_secret_manager_and_stay_private(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    made = testmiljo.generate_catalog_secrets()
+    assert testmiljo.CatalogSecrets.from_json(made.to_json()) == made
+    assert len(made.backup_key) == 64
+    assert made.db_password != made.backup_key
+    monkeypatch.setenv("TESTMILJO_SSH_DIR", str(tmp_path))
+    path = testmiljo.write_catalog_env(made)
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert path.read_text() == (
+        f"CATALOG_DB_PASSWORD={made.db_password}\nCATALOG_BACKUP_KEY={made.backup_key}\n"
+    )
+
+
+def test_a_secret_is_made_once_and_then_read_back() -> None:
+    stored: dict[str, str] = {}
+
+    def list_secrets(**_: object) -> SimpleNamespace:
+        found = [SimpleNamespace(id="s1", name="x", version_count=1)] if stored else []
+        return SimpleNamespace(secrets=found)
+
+    def create_secret_version(secret_id: str, data: str) -> None:
+        stored["data"] = data
+
+    api = Mock()
+    api.list_secrets.side_effect = list_secrets
+    api.create_secret.return_value = SimpleNamespace(id="s1", name="x", version_count=0)
+    api.create_secret_version.side_effect = create_secret_version
+    api.access_secret_version.side_effect = lambda **_: SimpleNamespace(data=stored["data"])
+    made = Mock(side_effect=["första", "andra"])
+
+    assert testmiljo.ensure_secret(api, "p", "x", "beskrivning", made) == ("första", True)
+    assert testmiljo.ensure_secret(api, "p", "x", "beskrivning", made) == ("första", False)
+    assert made.call_count == 1
+
+
 def test_security_group_sends_uppercase_protocols_to_instance_v1() -> None:
     instance = Mock(spec=InstanceUtilsV1API)
     group = SimpleNamespace(name=testmiljo.NAME, id="group")

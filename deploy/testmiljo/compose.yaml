@@ -1,5 +1,7 @@
 # Testmiljön på servern, i /srv/trainmeet. Läggs dit av jobbet "Testmiljön" vid varje
-# ändring på main, tillsammans med Caddyfile och en .env med HUB_TAG och HUB_DOMAIN.
+# ändring på main, tillsammans med Caddyfile, catalog-backup.sh och en .env med HUB_TAG,
+# HUB_DOMAIN, CATALOG_TAG, CATALOG_DOMAIN och Catalogs två hemligheter (catalog.env).
+# Hubben och Catalog delar server och Caddy, men inget annat (C35, CAT-218).
 services:
   hub:
     image: trainmeet-hub:${HUB_TAG:?HUB_TAG saknas}
@@ -15,13 +17,48 @@ services:
       # Reachable from the server itself for the deploy check, never from outside.
       - "127.0.0.1:8080:8080"
 
+  # TrainMeet Catalog's own PostgreSQL. No port outside: only Catalog reaches it, on
+  # compose's own network. The data lives in the volume catalog-db.
+  catalog-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: catalog
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:?CATALOG_DB_PASSWORD saknas}
+    volumes:
+      - catalog-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog -d catalog"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  catalog:
+    image: trainmeet-catalog:${CATALOG_TAG:?CATALOG_TAG saknas}
+    restart: unless-stopped
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    environment:
+      CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@catalog-db:5432/catalog
+      # The database is migrated by up.sh after the backup; Catalog only checks it (CAT-39).
+      CATALOG_MIGRATE: check
+      # The trial login, until TrainMeet ID (C21, CAT-214). Only in the test environment.
+      CATALOG_TRIAL_LOGIN: "on"
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:8081:8080"
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
       - hub
+      - catalog
     environment:
       HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN saknas}
+      CATALOG_DOMAIN: ${CATALOG_DOMAIN:?CATALOG_DOMAIN saknas}
     ports:
       - "80:80"
       - "443:443"
@@ -34,3 +71,4 @@ services:
 volumes:
   caddy-data:
   caddy-config:
+  catalog-db:

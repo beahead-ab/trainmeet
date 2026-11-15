@@ -17,7 +17,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 ## Grenar och pull requests
 
 - En gren per uppgift och ett PR mot `main`. Ingen pushar direkt till `main`.
-- Claude slår ihop sitt eget PR när båda kontrollerna är gröna och ändringen är provad (Casper, 6 november). Casper behöver inte göra något på GitHub för att en ändring ska komma ut. Sammanslagningen lägger ut hubben i testmiljön; följ jobbet "Testmiljön" och säg till Casper om det blir rött.
+- Claude slår ihop sitt eget PR när kontrollerna är gröna och ändringen är provad (Casper, 6 november). Casper behöver inte göra något på GitHub för att en ändring ska komma ut. Sammanslagningen lägger ut hubben och Catalog i testmiljön; följ jobbet "Testmiljön" och säg till Casper om det blir rött.
 - Varje PR säger på svenska vad som ändras och hur det är provat.
 
 ## Kontrakten först
@@ -25,13 +25,13 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 - `contracts/` är den enda vägen mellan delarna. Ingen del importerar en annan dels inre kod.
 - Ändras ett kontrakt ändras alla som använder det i samma PR.
 - Modellerna i `contracts/` är källan. JSON-schemana skapas med `uv run python -m contracts.generate` och checkas in; testerna jämför dem. Orden står i `contracts/ORDLISTA.md`, ett namn per begrepp.
-- Gränserna kontrolleras av `tests/test_boundaries.py`. Hubbens fyra delar (drift, planering, synk, integrationer) får använda `contracts` och `core` men aldrig varandra. ID, TKL och CAD får bara använda `contracts`. `hub/` är startprogrammet och får dra igång Hubbens delar.
+- Gränserna kontrolleras av `tests/test_boundaries.py`. Hubbens fyra delar (drift, planering, synk, integrationer) får använda `contracts` och `core` men aldrig varandra. ID, TKL, CAD och Catalog får bara använda `contracts`. `hub/` är startprogrammet och får dra igång Hubbens delar, men aldrig Catalog.
 
 ## Tester
 
-- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest) och "Hubbens bild" (bilden byggs och provas). Båda ska vara gröna.
+- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest), "Hubbens bild" (bilden byggs och provas) och "Catalogs bild" (webbappens typer och tester, bilden, och ett prov med testmiljöns databas och säkerhetskopia). Alla tre ska vara gröna.
 - Gamla Servers tester är facit. Ett beteende som portas tar med sitt test.
-- Kör samma sak lokalt: `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`. Python 3.12, beroendena låsta i `uv.lock`.
+- Kör samma sak lokalt: `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`. Python 3.12, beroendena låsta i `uv.lock`. Catalogs databastester behöver en PostgreSQL i `CATALOG_TEST_DATABASE_URL`. Webbapparna: `npm ci`, `npm run check`, `npm test`, Node 22, beroendena låsta i `package-lock.json`.
 - Ett nytt beroende läggs bara till om det är välkänt och behövs; nämn det i PR-texten.
 
 ## Hemligheter och personuppgifter
@@ -41,7 +41,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Testmiljön
 
-- test.hub.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
+- test.hub.trainmeet.app och test.catalog.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`, på samma server bakom samma Caddy. Catalog har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
 - Behöver hubben nya inställningar eller hemligheter i testmiljön läggs de i `deploy/testmiljo/compose.yaml` som variabler, aldrig som värden i koden.
 
 ## Gamla repon

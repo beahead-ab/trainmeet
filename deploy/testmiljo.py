@@ -9,6 +9,9 @@ hundrade gången:
 - En säkerhetsgrupp som bara släpper in SSH, HTTP och HTTPS.
 - En fast IPv4-adress, så att DNS-raden för test.hub.trainmeet.app står still.
 - En server (DEV1-S med Ubuntu 24.04) med Docker, som cloud-init sätter upp vid första start.
+- TrainMeet Catalogs två hemligheter i testmiljön (C35): lösenordet till databasen och
+  nyckeln som säkerhetskopiorna krypteras med (CAT-39). De skapas här en gång, sparas i
+  Secret Manager och skrivs till en fil som jobbet lägger på servern; de skrivs aldrig ut.
 
     python deploy/testmiljo.py ensure
 
@@ -17,7 +20,7 @@ Miljön (secrets i GitHub):
 Valfritt:
     TESTMILJO_TYPE      servertyp, förval DEV1-S
     TESTMILJO_SSH_DIR   var nyckelfilerna skrivs för jobbets ssh, förval ~/.ssh
-Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, created.
+Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, created.
 """
 
 from __future__ import annotations
@@ -25,10 +28,12 @@ from __future__ import annotations
 import base64
 import json
 import os
+import secrets as random_secrets
 import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, NoReturn, cast
@@ -61,6 +66,7 @@ REGION = "nl-ams"
 NAME = "trainmeet-testhub"
 TAG = "trainmeet-testmiljo"
 SECRET_NAME = "trainmeet-testmiljo-ssh"
+CATALOG_SECRET_NAME = "trainmeet-testmiljo-catalog"
 DEFAULT_TYPE = "DEV1-S"
 IMAGE_LABEL = "ubuntu_noble"
 DEPLOY_USER = "deploy"
@@ -92,6 +98,32 @@ class Keys:
     def from_json(cls, text: str) -> Keys:
         data = json.loads(text)
         return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+
+@dataclass(frozen=True)
+class CatalogSecrets:
+    """Catalog's database password and backup key in the test environment."""
+
+    db_password: str
+    backup_key: str
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> CatalogSecrets:
+        data = json.loads(text)
+        return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+    def env_file(self) -> str:
+        """The lines up.sh puts in .env on the server. Hex only, so no quoting is needed."""
+        return f"CATALOG_DB_PASSWORD={self.db_password}\nCATALOG_BACKUP_KEY={self.backup_key}\n"
+
+
+def generate_catalog_secrets() -> CatalogSecrets:
+    return CatalogSecrets(
+        db_password=random_secrets.token_hex(24), backup_key=random_secrets.token_hex(32)
+    )
 
 
 def fail(message: str) -> NoReturn:
@@ -175,29 +207,57 @@ def known_hosts_line(address: str, host_public: str) -> str:
     return f"{address} {key_type} {key}\n"
 
 
-def ensure_keys(secrets: SecretV1Beta1API, project_id: str) -> Keys:
+def ensure_secret(
+    secrets: SecretV1Beta1API,
+    project_id: str,
+    name: str,
+    description: str,
+    new: Callable[[], str],
+) -> tuple[str, bool]:
+    """The latest version of a secret, made with `new` the first time. (text, created)"""
     existing = secrets.list_secrets(
-        project_id=project_id, name=SECRET_NAME, scheduled_for_deletion=False
+        project_id=project_id, name=name, scheduled_for_deletion=False
     ).secrets
-    secret = next((s for s in existing if s.name == SECRET_NAME), None)
+    secret = next((s for s in existing if s.name == name), None)
     if secret is not None and secret.version_count > 0:
         version = secrets.access_secret_version(secret_id=secret.id, revision="latest")
-        return Keys.from_json(base64.b64decode(version.data).decode())
+        return base64.b64decode(version.data).decode(), False
 
     if secret is None:
         secret = secrets.create_secret(
-            name=SECRET_NAME,
-            protected=False,
-            project_id=project_id,
-            tags=[TAG],
-            description="SSH-nycklarna för testmiljön. Skapas av deploy/testmiljo.py.",
+            name=name, protected=False, project_id=project_id, tags=[TAG], description=description
         )
-    keys = generate_keys()
+    text = new()
     secrets.create_secret_version(
-        secret_id=secret.id, data=base64.b64encode(keys.to_json().encode()).decode()
+        secret_id=secret.id, data=base64.b64encode(text.encode()).decode()
     )
-    print("Nya SSH-nycklar skapade och sparade i Secret Manager.")
-    return keys
+    return text, True
+
+
+def ensure_keys(secrets: SecretV1Beta1API, project_id: str) -> Keys:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        SECRET_NAME,
+        "SSH-nycklarna för testmiljön. Skapas av deploy/testmiljo.py.",
+        lambda: generate_keys().to_json(),
+    )
+    if created:
+        print("Nya SSH-nycklar skapade och sparade i Secret Manager.")
+    return Keys.from_json(text)
+
+
+def ensure_catalog_secrets(secrets: SecretV1Beta1API, project_id: str) -> CatalogSecrets:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        CATALOG_SECRET_NAME,
+        "Catalogs databaslösenord och backupnyckel i testmiljön. Skapas av deploy/testmiljo.py.",
+        lambda: generate_catalog_secrets().to_json(),
+    )
+    if created:
+        print("Catalogs hemligheter skapade och sparade i Secret Manager.")
+    return CatalogSecrets.from_json(text)
 
 
 # --- Nätet -----------------------------------------------------------------------------
@@ -364,6 +424,17 @@ def write_ssh_files(keys: Keys, address: str) -> tuple[Path, Path]:
     return key_file, known_hosts
 
 
+def write_catalog_env(catalog: CatalogSecrets) -> Path:
+    """Catalog's secrets as a private file, for the deploy to put on the server."""
+    folder = Path(os.environ.get("TESTMILJO_SSH_DIR") or Path.home() / ".ssh")
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = folder / "testmiljo_catalog.env"
+    path.touch(mode=0o600, exist_ok=True)
+    path.chmod(0o600)
+    path.write_text(catalog.env_file())
+    return path
+
+
 def explain(status: int | None, body: str, commercial_type: str) -> str:
     """Scaleway's answer, with what to do about it when it is the account and not the code."""
     if "quotas_exceeded" in body:
@@ -448,6 +519,7 @@ def main(argv: list[str]) -> int:
 
     try:
         keys = ensure_keys(secrets, project_id)
+        catalog = ensure_catalog_secrets(secrets, project_id)
         security_group_id = ensure_security_group(instance, project_id)
         ip = ensure_ip(instance, project_id)
         _, created = ensure_server(
@@ -469,6 +541,7 @@ def main(argv: list[str]) -> int:
     output("user", DEPLOY_USER)
     output("key_file", str(key_file))
     output("known_hosts", str(known_hosts))
+    output("catalog_env", str(write_catalog_env(catalog)))
     output("created", "true" if created else "false")
     return 0
 

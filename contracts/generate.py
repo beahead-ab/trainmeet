@@ -4,6 +4,8 @@
     uv run python -m contracts.generate --check  # exit 1 if a schema is out of date
 
 The tests run the check, so a model and its schema can never disagree on main.
+The Hub's HTTP API is described in openapi.json and TrainMeet Catalog's in
+catalog.openapi.json, since Catalog is a service of its own (C16).
 """
 
 from __future__ import annotations
@@ -15,10 +17,22 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaValue
 
-from contracts import drift, hub, meet, planning, screen, station, station_outside, terminal
+from contracts import (
+    catalog,
+    drift,
+    hub,
+    meet,
+    planning,
+    screen,
+    station,
+    station_outside,
+    terminal,
+)
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 OPENAPI = SCHEMA_DIR.parent / "openapi.json"
+CATALOG_OPENAPI = SCHEMA_DIR.parent / "catalog.openapi.json"
+CATALOG_PREFIX = "trainmeet.catalog-"
 BASE_URL = "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/"
 
 # File stem -> model. The stem says the contract, its version and the message.
@@ -70,6 +84,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.answer": planning.Answer,
     "trainmeet.planning-1.check": planning.Check,
     "trainmeet.planning-1.version": planning.Version,
+    "trainmeet.catalog-1.version": catalog.CatalogVersion,
+    "trainmeet.catalog-1.account": catalog.Account,
+    "trainmeet.catalog-1.session": catalog.Session,
+    "trainmeet.catalog-1.trial-login": catalog.TrialLogin,
 }
 
 
@@ -171,20 +189,26 @@ def openapi_ref(stem: str) -> JsonSchemaValue:
     return {"$ref": f"#/components/schemas/{stem}"}
 
 
-def openapi() -> str:
-    components: dict[str, JsonSchemaValue] = {}
-    for stem, model in CONTRACTS.items():
-        schema = model_schema(model)
+def components(stems: list[str]) -> dict[str, JsonSchemaValue]:
+    """The contracts as OpenAPI components, with Pydantic's local names made distinct."""
+    found: dict[str, JsonSchemaValue] = {}
+    for stem in stems:
+        schema = model_schema(CONTRACTS[stem])
         definitions = schema.pop("$defs", {})
         # Pydantic's definition names are local. Keep them distinct across contracts.
         for name, item in [
             (stem, schema),
             *((f"{stem}.{key}", value) for key, value in definitions.items()),
         ]:
-            components[name] = json.loads(
+            found[name] = json.loads(
                 json.dumps(item).replace("#/$defs/", f"#/components/schemas/{stem}.")
             )
+    return found
 
+
+def openapi() -> str:
+    """The Hub's HTTP API."""
+    hub_components = components([s for s in CONTRACTS if not s.startswith(CATALOG_PREFIX)])
     paths: dict[str, dict[str, JsonSchemaValue]] = {}
 
     def route(
@@ -328,7 +352,7 @@ def openapi() -> str:
                 "info": {"title": "TrainMeet Hub · kontrakten", "version": "1"},
                 "paths": paths,
                 "components": {
-                    "schemas": components,
+                    "schemas": hub_components,
                     "securitySchemes": {"clientKey": {"type": "http", "scheme": "bearer"}},
                 },
             },
@@ -337,6 +361,65 @@ def openapi() -> str:
         )
         + "\n"
     )
+
+
+def catalog_openapi() -> str:
+    """TrainMeet Catalog's HTTP API (CAT-36). The session is a cookie set by the login."""
+    paths: dict[str, dict[str, JsonSchemaValue]] = {}
+    c = "trainmeet.catalog-1."
+
+    def route(
+        method: str,
+        path: str,
+        operation: str,
+        response: str,
+        request: str | None = None,
+        *,
+        many: bool = False,
+    ) -> None:
+        body = openapi_ref(c + response)
+        if many:
+            body = {"type": "array", "items": body}
+        entry: JsonSchemaValue = {
+            "operationId": operation,
+            "responses": {
+                "200": {"description": "OK", "content": {"application/json": {"schema": body}}}
+            },
+        }
+        if request:
+            entry["requestBody"] = {
+                "required": True,
+                "content": {"application/json": {"schema": openapi_ref(c + request)}},
+            }
+        paths.setdefault(path, {})[method] = entry
+
+    route("get", "/api/version", "catalogVersion", "version")
+    route("get", "/api/catalog/1/session", "catalogSession", "session")
+    route("delete", "/api/catalog/1/session", "catalogLogOut", "session")
+    route("get", "/api/catalog/1/trial/accounts", "trialAccounts", "account", many=True)
+    route("post", "/api/catalog/1/trial/login", "trialLogIn", "session", "trial-login")
+    return (
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "info": {"title": "TrainMeet Catalog · kontrakten", "version": "1"},
+                "paths": paths,
+                "components": {
+                    "schemas": components([s for s in CONTRACTS if s.startswith(CATALOG_PREFIX)]),
+                    "securitySchemes": {
+                        "session": {"type": "apiKey", "in": "cookie", "name": "catalog_session"}
+                    },
+                },
+                "security": [{"session": []}],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+OPENAPI_FILES = {OPENAPI: openapi, CATALOG_OPENAPI: catalog_openapi}
 
 
 def main(argv: list[str]) -> int:
@@ -350,8 +433,9 @@ def main(argv: list[str]) -> int:
             if name not in present or (SCHEMA_DIR / name).read_text(encoding="utf-8") != text
         )
         extra = sorted(present - set(expected))
-        if not OPENAPI.exists() or OPENAPI.read_text(encoding="utf-8") != openapi():
-            stale.append(OPENAPI.name)
+        for path, write in OPENAPI_FILES.items():
+            if not path.exists() or path.read_text(encoding="utf-8") != write():
+                stale.append(path.name)
         if stale or extra:
             print("Inaktuella scheman: " + ", ".join(stale + extra), file=sys.stderr)
             print("Kör: uv run python -m contracts.generate", file=sys.stderr)
@@ -363,7 +447,8 @@ def main(argv: list[str]) -> int:
             old.unlink()
     for name, text in expected.items():
         (SCHEMA_DIR / name).write_text(text, encoding="utf-8")
-    OPENAPI.write_text(openapi(), encoding="utf-8")
+    for path, write in OPENAPI_FILES.items():
+        path.write_text(write(), encoding="utf-8")
     print(f"Skrev {len(expected)} scheman i contracts/schemas/")
     return 0
 

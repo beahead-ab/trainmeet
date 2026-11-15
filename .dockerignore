@@ -10,3 +10,5 @@
 tests
 .env
 .env.*
+**/node_modules
+apps/*/dist

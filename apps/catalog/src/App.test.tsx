@@ -1,0 +1,86 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import type { Session } from "./api";
+import { Shell, switcherApps, type ShellProps } from "./App";
+import { text } from "./i18n";
+
+const account = { id: "8a3e1f0c-1111-5222-8333-944455556666", name: "Provkonto A", initials: "PA" };
+const version = { product: "TrainMeet Catalog" as const, version: "0.1.0", commit: "abcdef1234", pr: 101, title: "Grunden", built: null };
+
+function render(overrides: Partial<ShellProps> = {}): string {
+  const session: Session = { account: null, login: "trial" };
+  return renderToStaticMarkup(
+    <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} {...overrides} />,
+  );
+}
+
+describe("an empty Catalog", () => {
+  it("shows its version and the change it came from", () => {
+    const html = render();
+    expect(html).toContain("TrainMeet Catalog · Version 0.1.0");
+    expect(html).toContain('href="https://github.com/beahead-ab/trainmeet/pull/101"');
+    expect(html).toContain("abcdef1");
+  });
+
+  it("has three tabs, the phone's bottom menu and the address in the header", () => {
+    const html = render();
+    for (const label of ["Fordon", "Träffar", "Förebilder", "Blippa"]) expect(html).toContain(`>${label}<`);
+    expect(html).toContain('href="/fordon" aria-current="page"');
+    expect(html).toContain("test.catalog.trainmeet.app");
+    expect(html).toContain('aria-label="TrainMeet Catalog"');
+  });
+
+  it("asks a visitor to log in, and shows the empty fleet to the one logged in", () => {
+    expect(render()).toContain("Logga in för att se din vagnpark.");
+    const html = render({ session: { account, login: "trial" } });
+    expect(html).toContain("Vagnparken · Provkonto A");
+    expect(html).toContain("Vagnparken är tom.");
+    expect(html).toContain('aria-label="PA, Kontomenyn, Provkonto A"');
+    expect(html).toContain("Provinloggning i testmiljön");
+    expect(html).toContain("Hjälp och fel");
+    expect(html).toContain("Logga ut");
+  });
+
+  it("lists the trial accounts on the login page", () => {
+    const html = render({ page: "login", trialAccounts: [account] });
+    expect(html).toContain("Välj ett provkonto");
+    expect(html).toContain("Provkonto A");
+  });
+
+  it("says that ID is coming when there is no trial login", () => {
+    expect(render({ page: "login", session: { account: null, login: "id" } })).toContain("TrainMeet ID kommer snart");
+  });
+
+  it("speaks English too, and offers Swedish back", () => {
+    const html = render({ language: "en", session: { account, login: "trial" } });
+    expect(html).toContain("Your fleet is empty.");
+    expect(html).toContain(">Vehicles<");
+    expect(html).toContain('lang="sv"');
+    expect(html).toContain(">Svenska<");
+  });
+
+  it("says so when Catalog does not answer", () => {
+    expect(render({ offline: true, session: null })).toContain('role="alert"');
+  });
+
+  it("has a skip link to the main area", () => {
+    const html = render();
+    expect(html).toContain('href="#innehall"');
+    expect(html).toContain('<main id="innehall"');
+  });
+});
+
+describe("the app switcher", () => {
+  const t = (key: Parameters<typeof text>[1]) => text("sv", key);
+
+  it("has the seven apps as drawn, with the Hub's test environment from the test environment", () => {
+    const apps = switcherApps(t, "test.catalog.trainmeet.app");
+    expect(apps.map((app) => app.product)).toEqual(["HUB", "TKL", "CAD", "CATALOG", "TMBOX", "LOKFÖRAREN", "ID"]);
+    expect(apps[0]?.href).toBe("https://test.hub.trainmeet.app");
+    expect(apps.filter((app) => app.href)).toHaveLength(1);
+  });
+
+  it("links to nothing that is not built yet", () => {
+    expect(switcherApps(t, "catalog.trainmeet.app").filter((app) => app.href)).toHaveLength(0);
+  });
+});
