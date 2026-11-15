@@ -115,13 +115,6 @@ def create_app(
     def logged_in(session: str | None, authorization: str | None) -> bool:
         return login.valid(hubben.session_of(session, authorization))
 
-    @app.get("/planering/{meet}", response_class=HTMLResponse)
-    @app.get("/planering/{meet}/data", response_class=HTMLResponse)
-    def data_page(
-        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_data(current(), meet, logged_in(session, authorization))
-
     @app.get("/planering/{meet}/graf", response_class=HTMLResponse)
     def graph_page(
         meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None

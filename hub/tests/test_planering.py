@@ -219,26 +219,19 @@ def test_the_running_meet_survives_a_restart(planned: TestClient, tmp_path: Path
 
 
 def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: TestClient) -> None:
-    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data. Data,
-    Bana and Graf are drawn by the hub until they move into apps/planering (#68)."""
+    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data. Bana
+    and Graf are drawn by the hub until they move into apps/planering (#68)."""
     anonymous = TestClient(planned.app)
-    pages = (f"/planering/{MEET}", f"/planering/{MEET}/data")
-    for path in (*pages, f"/planering/{MEET}/bana", f"/planering/{MEET}/graf"):
+    for path in (f"/planering/{MEET}/bana", f"/planering/{MEET}/graf"):
         page = anonymous.get(path)
         assert page.status_code == 200 and "/static/planering.css" in page.text, path
-    data = planned.get(f"/planering/{MEET}").text
-    assert 'id="add-source"' in data and 'id="drawer"' in data and 'id="save"' in data
-    looking = anonymous.get(f"/planering/{MEET}").text
-    assert 'id="add-source"' not in looking and 'id="save"' not in looking
-    for label in ("Data", "Bana", "Graf", "Versioner", "Nu", "Klienter", "Logg"):
-        assert f">{label}</a>" in data, label
-    assert "aria-current=page>Data<" in data
     bana = anonymous.get(f"/planering/{MEET}/bana").text
     assert "/static/bana.js" in bana and 'id="map"' in bana and 'id="choice"' in bana
     graph = anonymous.get(f"/planering/{MEET}/graf").text
     assert "/static/graf.js" in graph and 'id="graph"' in graph and 'id="print-line"' in graph
-    # Träffar and Versioner are apps/planering (#68); what they show is tested in the app.
-    for path in ("/planering", f"/planering/{MEET}/versioner", f"/planering/{MEET}/underlag"):
+    # Träffar, Data and Versioner are apps/planering (#68); what they show is tested there.
+    addresses = ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data")
+    for path in (*addresses, f"/planering/{MEET}/versioner", f"/planering/{MEET}/underlag"):
         page = anonymous.get(path)
         assert page.status_code == 200 and "Planering" in page.text, path
         assert "/static/planering.css" not in page.text, path
