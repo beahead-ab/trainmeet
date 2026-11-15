@@ -7,7 +7,7 @@ import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice }
 // the meet clock, Anslut and Väntar; logged in, one also gets the buttons (S1). Planering and
 // Drift are tabs side by side, as in the spec's picture of the header.
 
-export type Page = "start" | "nu" | "klienter" | "logg" | "provbanan";
+export type Page = "start" | "nu" | "klienter" | "logg" | "provbanan" | "installningar";
 
 export const DRIFT_TABS: [Page, string, string][] = [
   ["nu", "Nu", "/drift"],
@@ -101,6 +101,10 @@ export function Sidhuvud(props: HeaderProps) {
             {now && <span className="not">{clockNote(now)}</span>}
             <span className="osynlig">{now ? (now.clock.running ? " Klockan går." : " Klockan står still.") : " Ingen träff är startad."}</span>
           </span>
+          {/* Inställningar, always to the left of the account (TRAFIK-30, H48). */}
+          <a id="gear" className="hknapp kugge" href="/installningar" aria-label="Inställningar" title="Inställningar" aria-current={page === "installningar" ? "page" : undefined} onClick={linkClick(navigate, "/installningar")}>
+            <Gear />
+          </a>
           {admin ? (
             <>
               <button id="connect" type="button" className="hknapp" aria-expanded={menu === "anslut"} aria-controls="connect-panel" onClick={() => toggle("anslut")}>
@@ -123,6 +127,15 @@ export function Sidhuvud(props: HeaderProps) {
       {admin && menu === "anslut" && <Anslut joining={props.joining} at={props.joinedAt} />}
       {isDrift(page) && <BottomNav items={drift} label="Drift" navigate={navigate} />}
     </>
+  );
+}
+
+function Gear() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </svg>
   );
 }
 

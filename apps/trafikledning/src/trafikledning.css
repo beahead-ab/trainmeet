@@ -664,3 +664,117 @@ input.tal {
     padding: 6px 5px;
   }
 }
+
+/* The gear (TRAFIK-30): always to the left of the account, also on the phone. */
+.kugge {
+  padding: 8px;
+  width: 40px;
+  justify-content: center;
+}
+.kugge svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.kugge[aria-current="page"] {
+  border-color: var(--tm-head-tab);
+}
+
+/* Inställningar: the three heaps to the left, the cards to the right (H50). */
+main.installningssida {
+  max-width: 1200px;
+}
+.installningar {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.hogar {
+  position: sticky;
+  top: 72px;
+  padding: 16px 12px;
+}
+.hog + .hog {
+  margin-top: 16px;
+}
+.hogrubrik {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+  display: grid;
+}
+.hogrubrik span {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 13px;
+}
+.hog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hog a {
+  display: block;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--tm-text);
+  text-decoration: none;
+}
+.hog a:hover {
+  background: var(--tm-panel-2);
+}
+.kortlista .kort h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+.kortlista .bygge {
+  margin: 16px 0;
+}
+.installning {
+  display: grid;
+  grid-template-columns: 220px auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.installning .rad {
+  margin: 0;
+}
+.installning .liten {
+  margin: 0;
+}
+.installningsfot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 0 6px;
+}
+main button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@media (max-width: 860px) {
+  .installningar {
+    grid-template-columns: 1fr;
+  }
+  .hogar {
+    position: static;
+  }
+  .installning {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

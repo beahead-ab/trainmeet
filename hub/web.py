@@ -52,12 +52,13 @@ APPS: Final = (
     WebApp(prefixes=("/skarm",), folder="skarmar", title="Träffens skärmar"),
     # TMBox web joins the hub's meet on /box and a Provbanan run on /provbanan/box (BOXWEB-10).
     WebApp(prefixes=("/box", "/provbanan/box"), folder="tmbox-webb", title="TMBox"),
-    # Trafikledningen (TRAFIK-21): the start page, Provbanan, and Nu, Klienter and Logg.
+    # Trafikledningen (TRAFIK-21): the start page, Provbanan, Inställningar under the gear, and
+    # Nu, Klienter and Logg.
     WebApp(
         prefixes=("/drift",),
         folder="trafikledning",
         title="Trafikledningen",
-        pages=("/", "/provbanan"),
+        pages=("/", "/provbanan", "/installningar"),
     ),
 )
 

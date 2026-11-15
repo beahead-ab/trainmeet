@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Automation, AutomationSettings, ChangePlace, Client, ClockControl, Leg, Now, Weekday } from "./api";
-import { CASES, DISTURBANCES, LOST, ORDINARY, SPEEDS, STATES, WEEKDAYS, WHERE, dayName, modeText, placeCode, placeName, type MeetChoice } from "./drift";
+import type { Automation, ChangePlace, Client, ClockControl, Leg, Now, Weekday } from "./api";
+import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, dayName, modeText, placeCode, placeName, type MeetChoice } from "./drift";
 import { Chip, Chips } from "./ui";
 
 // Nu (S6, TRAFIK-01): the meet, its clock, the open clearances and the trains. Everyone sees
@@ -13,12 +13,9 @@ export type NuProps = {
   choices: MeetChoice[];
   asked: string | null;
   automation: Automation | null;
-  /** Changes when Automatiken's settings were saved, so that its fields are filled again. */
-  automationSaved: number;
   openAutomation?: boolean;
   onClock?: (control: ClockControl) => void;
   onStart?: (choice: MeetChoice, day: Weekday) => void;
-  onAutomation?: (settings: AutomationSettings) => void;
   onPlace?: (change: ChangePlace) => void;
 };
 
@@ -168,31 +165,14 @@ function Meet(props: NuProps & { now: Now }) {
   );
 }
 
-type Fields = Pick<AutomationSettings, "answer_seconds" | "late_stop_minutes" | "stabling" | "stabling_minutes" | "seed">;
-
-const fieldsOf = (settings: AutomationSettings): Fields => ({
-  answer_seconds: settings.answer_seconds,
-  late_stop_minutes: settings.late_stop_minutes,
-  stabling: settings.stabling,
-  stabling_minutes: settings.stabling_minutes,
-  seed: settings.seed,
-});
-
-/** Automatiken (F14): who works each place, leave and take back, and its settings (H42). */
-function Automatiken({ now, clients, automation, automationSaved, openAutomation, onAutomation, onPlace }: NuProps & { now: Now; automation: Automation }) {
+/** Automatiken (F14): who works each place, leave and take back; its settings are under the
+ * gear (H48, H50). */
+function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuProps & { now: Now; automation: Automation }) {
   const settings = automation.settings;
-  // The fields are filled when the card is drawn first or saved, not while someone types.
-  const [fields, setFields] = useState<Fields>(() => fieldsOf(settings));
-  const [filledAt, setFilledAt] = useState(automationSaved);
-  if (filledAt !== automationSaved) {
-    setFilledAt(automationSaved);
-    setFields(fieldsOf(settings));
-  }
   const counts: Record<string, number> = { manned: 0, no_contact: 0, automatic: 0 };
   const places = automation.places ?? [];
   for (const place of places) counts[place.mode] = (counts[place.mode] ?? 0) + 1;
   const clientName = (id: string) => clients.find((client) => client.client_id === id)?.name ?? id;
-  const save = (change: Partial<AutomationSettings>) => onAutomation?.({ ...settings, ...change });
   const trains = (automation.trains ?? []).filter((train) => !ORDINARY.has(train.reason));
   const summary = settings.enabled
     ? ` · ${counts["automatic"]} automatiska, ${counts["manned"]} bemannade` + (counts["no_contact"] ? `, ${counts["no_contact"]} utan kontakt` : "")
@@ -266,53 +246,9 @@ function Automatiken({ now, clients, automation, automationSaved, openAutomation
           <li className="tom">{settings.enabled ? "Inga tåg väntar." : "Automatiken är avstängd."}</li>
         )}
       </ul>
-      <h3>Inställningar</h3>
-      <div className="rad">
-        <span className="etikett">Automatiken</span>
-        <Chips label="Automatiken">
-          <Chip label="På" pressed={settings.enabled} onClick={() => save({ enabled: true })} />
-          <Chip label="Av" pressed={!settings.enabled} onClick={() => save({ enabled: false })} />
-        </Chips>
-      </div>
-      <div className="rad">
-        <span className="etikett">Tar över efter Kontakt saknas</span>
-        <Chips label="Tar över efter Kontakt saknas">
-          {LOST.map(([minutes, label]) => (
-            <Chip key={minutes} label={label} pressed={settings.lost_contact_minutes === minutes} onClick={() => save({ lost_contact_minutes: minutes })} />
-          ))}
-        </Chips>
-      </div>
-      <div className="rad">
-        <span className="etikett">Störningar</span>
-        <Chips label="Störningar">
-          {Object.entries(DISTURBANCES).map(([key, label]) => (
-            <Chip key={key} label={label} pressed={settings.disturbance === key} onClick={() => save({ disturbance: key as AutomationSettings["disturbance"] })} />
-          ))}
-        </Chips>
-        <Chips label="Var">
-          {Object.entries(WHERE).map(([key, label]) => (
-            <Chip key={key} label={label} pressed={settings.where === key} onClick={() => save({ where: key as AutomationSettings["where"] })} />
-          ))}
-        </Chips>
-      </div>
-      <div className="rad">
-        <label>
-          Klartecken efter <input id="auto-answer" type="number" min={0} max={30} className="tal" value={fields.answer_seconds} onChange={(event) => setFields({ ...fields, answer_seconds: Number(event.target.value) })} /> s
-        </label>
-        <label>
-          Försenat tåg står <input id="auto-late" type="number" min={1} max={10} className="tal" value={fields.late_stop_minutes} onChange={(event) => setFields({ ...fields, late_stop_minutes: Number(event.target.value) })} /> min
-        </label>
-        <label>
-          <input id="auto-stabling" type="checkbox" checked={fields.stabling} onChange={(event) => setFields({ ...fields, stabling: event.target.checked })} /> Undanställning efter{" "}
-          <input id="auto-stabling-minutes" type="number" min={1} max={60} className="tal" aria-label="Undanställning efter minuter" value={fields.stabling_minutes} onChange={(event) => setFields({ ...fields, stabling_minutes: Number(event.target.value) })} /> min
-        </label>
-        <label>
-          Scenarionyckel <input id="auto-seed" maxLength={40} value={fields.seed} onChange={(event) => setFields({ ...fields, seed: event.target.value })} />
-        </label>
-        <button id="auto-save" type="button" onClick={() => save({ ...fields, seed: fields.seed.trim() })}>
-          Spara
-        </button>
-      </div>
+      <p className="liten">
+        Automatikens inställningar finns under kugghjulet, i <a href="/installningar#automatik">Inställningar</a>.
+      </p>
     </details>
   );
 }
