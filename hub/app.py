@@ -11,18 +11,15 @@ from threading import Event, Thread
 from typing import Any, Final
 
 from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 
 from contracts import hub
-from contracts.common import Id
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
     drift_api,
     hubben,
     planering_api,
-    planering_pages,
     provbanan,
     screen_web,
     station_api,
@@ -34,7 +31,6 @@ from hub.running import Running
 from hub.stores import AnyRun
 from planering.store import Planning
 
-STATIC_DIR = Path(__file__).parent / "static"
 # The automation takes a step about once a second while the hub runs (F14).
 TICK_SECONDS: Final = 1.0
 LOGGER = logging.getLogger("hub.automatik")
@@ -102,7 +98,6 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.running = running
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
@@ -112,23 +107,7 @@ def create_app(
     app.include_router(station_api.router(runs))
     app.include_router(screen_web.router(runs))
 
-    def logged_in(session: str | None, authorization: str | None) -> bool:
-        return login.valid(hubben.session_of(session, authorization))
-
-    @app.get("/planering/{meet}/graf", response_class=HTMLResponse)
-    def graph_page(
-        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_graph(current(), meet, logged_in(session, authorization))
-
-    @app.get("/planering/{meet}/bana", response_class=HTMLResponse)
-    def map_page(
-        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_map(current(), meet, logged_in(session, authorization))
-
-    # The pages rebuilt in React under apps/ (H62, GRUND-36). They come after the hub's own
-    # pages, so that Planering's Data, Bana and Graf are drawn here until they move too.
+    # The pages, built in React under apps/ (H62, GRUND-36).
     app.include_router(web.router(web_root))
 
     @app.get("/healthz", response_class=PlainTextResponse)

@@ -97,8 +97,9 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -d '{"version":1}' \
             http://localhost:8080/api/provbanan/start | grep -q '"meet_id":"provbanan"'
           curl -fsS http://localhost:8080/api/version | grep -q '"product":"TrainMeet Hub"'
-          curl -fsS -o /dev/null http://localhost:8080/static/skylt.svg
-          curl -fsS -o /dev/null http://localhost:8080/static/fonts/inter.woff2
+          curl -fsS http://localhost:8080/planering/provbanan/graf | grep -q "<title>Planering · TrainMeet Hub</title>"
+          curl -fsS "http://localhost:8080$PLAN" | grep -q "Lägg till underlag"
+          curl -fsS "http://localhost:8080$PLAN" | grep -q "dra i sidled för resten av dygnet"
           docker inspect --format '{{.Config.User}}' hub | grep -qx hub
           # Sidorna i React (H62): appen och dess egna filer, på sin adress och på en av sina sidor.
           curl -fsS http://localhost:8080/skarm | grep -q "TrainMeet · Skärm"
