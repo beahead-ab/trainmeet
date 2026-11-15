@@ -1,5 +1,6 @@
-"""Trafikledningens sidor (steg 3): the same pages for everyone, the buttons only when logged
-in (S1); the header with the meet, the clock, Anslut and Väntar (S2); Nu, Klienter, Logg (S6)."""
+"""Trafikledningen (TRAFIK-21): the start page and Nu, Klienter and Logg are the app
+apps/trafikledning, served by the hub; what the pages show is tested in the app. Here: the
+addresses, and what Logg reads from Driftens API (B15)."""
 
 from __future__ import annotations
 
@@ -26,29 +27,28 @@ def hub(tmp_path: Path) -> TestClient:
     return client
 
 
-def test_everyone_sees_nu_and_only_the_administrator_the_buttons(hub: TestClient) -> None:
-    looking = TestClient(hub.app).get("/drift").text
-    assert 'data-admin="nej"' in looking and 'id="clock-toggle"' not in looking
-    assert 'id="connect"' not in looking and 'id="waiting"' not in looking
-    assert 'href="/">Logga in' in looking
-    running = hub.get("/drift").text
-    assert 'data-admin="ja"' in running
-    for part in ('id="clock-toggle"', 'id="connect"', 'id="waiting"', 'id="logout"', "Byt träff"):
-        assert part in running, part
-    assert "Hubben &lt;i&gt;Väst&lt;/i&gt;" in running, "the hub's name is never markup"
-
-
-@pytest.mark.parametrize("path", ["/drift/klienter", "/drift/logg"])
-def test_klienter_and_logg_ask_for_the_login(hub: TestClient, path: str) -> None:
-    looking = TestClient(hub.app).get(path).text
-    assert "Logga in med" in looking and 'id="clients"' not in looking and 'id="log"' not in looking
-    assert ('id="clients"' in hub.get(path).text) or ('id="log"' in hub.get(path).text)
-
-
-def test_the_tabs_mark_the_page(hub: TestClient) -> None:
-    for path in ("/drift", "/drift/klienter", "/drift/logg"):
-        text = hub.get(path).text
-        assert f'<a href="{path}" aria-current=page>' in text
+def test_trafikledning_is_the_app_on_its_addresses(tmp_path: Path) -> None:
+    """/ and Drift's pages get the app's index.html; Provbanan, its boxes, Planering and the API
+    keep their own addresses."""
+    built = tmp_path / "web"
+    for folder, title in (("trafikledning", "Trafikledningen"), ("tmbox-webb", "TMBox")):
+        (built / folder).mkdir(parents=True)
+        (built / folder / "index.html").write_text(f"<!doctype html><title>{title}</title>")
+    hub = TestClient(
+        create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=built)
+    )
+    for address in ("/", "/drift", "/drift/", "/drift/klienter", "/drift/logg"):
+        page = hub.get(address)
+        assert page.status_code == 200 and "Trafikledningen" in page.text, address
+        assert "script-src 'self'" in page.headers["content-security-policy"]
+    assert "Starta provkörning" in hub.get("/provbanan").text
+    assert "TMBox" in hub.get("/provbanan/box").text
+    assert hub.get("/planering").status_code == 200
+    assert "Trafikledningen" not in hub.get("/planering").text
+    assert hub.get("/api/hub").json()["set_up"] is False
+    assert hub.get("/healthz").text == "ok"
+    for old in ("/static/drift.js", "/static/drift.css", "/static/hubben.js"):
+        assert hub.get(old).status_code == 404, old  # the old pages are gone
 
 
 def test_a_box_refused_a_press_is_in_the_log(hub: TestClient) -> None:
@@ -78,8 +78,3 @@ def test_a_tkl_refused_a_command_is_in_the_log_with_the_reason(hub: TestClient) 
     (refusal,) = hub.get(API + "/refusals").json()
     assert (refusal["what"], refusal["reason"]) == ("train.departed", "departure_not_reserved")
     assert refusal["message"] == "Tåget saknar beviljad klarering."
-
-
-def test_the_start_page_leads_to_the_meet(hub: TestClient) -> None:
-    assert 'href="/drift">Kör träffen' in hub.get("/").text
-    assert 'href="/drift">Se träffen' in TestClient(hub.app).get("/").text

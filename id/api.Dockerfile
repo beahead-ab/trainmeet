@@ -11,6 +11,7 @@ COPY apps/catalog/package.json apps/catalog/
 COPY apps/id/package.json apps/id/
 COPY apps/skarmar/package.json apps/skarmar/
 COPY apps/tmbox-webb/package.json apps/tmbox-webb/
+COPY apps/trafikledning/package.json apps/trafikledning/
 RUN npm ci --no-audit --no-fund
 COPY contracts/id.d.ts contracts/
 COPY apps/design apps/design

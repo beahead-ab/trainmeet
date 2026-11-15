@@ -8,7 +8,8 @@
     "apps/catalog",
     "apps/id",
     "apps/skarmar",
-    "apps/tmbox-webb"
+    "apps/tmbox-webb",
+    "apps/trafikledning"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",

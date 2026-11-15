@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.version.schema.json",
+  "title": "trainmeet.hub-1.version",
+  "additionalProperties": true,
+  "description": "What runs (GET /api/version): the version, the hub's name and the change it was built\nfrom. A local build has no commit and no pull request.",
+  "properties": {
+    "product": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Product",
+      "type": "string"
+    },
+    "version": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "hub_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Hub Name",
+      "type": "string"
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{7,40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Commit"
+    },
+    "pr": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pr"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Title"
+    },
+    "built": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Built"
+    },
+    "pr_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ändringen på GitHub.",
+      "title": "Pr Url"
+    },
+    "commit_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Committen på GitHub.",
+      "title": "Commit Url"
+    }
+  },
+  "required": [
+    "product",
+    "version",
+    "hub_name"
+  ],
+  "type": "object"
+}

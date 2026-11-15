@@ -1,11 +1,14 @@
-"""The empty hub: what Casper sees on test.hub.trainmeet.app after step 1."""
+"""What runs on the hub: /api/version, the health check and the brand files. The start page
+itself is apps/trafikledning (TRAFIK-21) and is tested there."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from contracts import hub as contract
 from hub.app import create_app
 from hub.build_info import BuildInfo
 
@@ -23,54 +26,6 @@ def client(info: BuildInfo) -> TestClient:
     return TestClient(create_app(info))
 
 
-def test_start_page_shows_an_empty_hub_with_its_version() -> None:
-    response = client(DEPLOYED).get("/")
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/html")
-    html = response.text
-    assert "Prova Drift" in html
-    assert "<dd>0.1.0</dd>" in html
-    assert '<span class="sida">Testhubben</span>' in html
-
-
-def test_start_page_shows_the_change_that_runs() -> None:
-    html = client(DEPLOYED).get("/").text
-    assert 'href="https://github.com/beahead-ab/trainmeet/pull/3"' in html
-    assert "#3 Grundstommen" in html
-    assert ">29b7bb2</a>" in html
-    assert "2026-11-06 07:12 UTC" in html
-
-
-def test_a_local_build_says_so() -> None:
-    html = client(BuildInfo(version="0.1.0")).get("/").text
-    assert "Lokalt bygge" in html
-    assert '<span class="sida">Hubben</span>' in html
-
-
-def test_the_pull_request_title_cannot_inject_html() -> None:
-    info = BuildInfo(version="0.1.0", pr=4, title="<script>alert(1)</script>")
-    html = client(info).get("/").text
-    assert "<script>" not in html
-    assert "&lt;script&gt;" in html
-
-
-def test_the_header_has_the_sign_the_dots_and_the_page_name() -> None:
-    html = client(DEPLOYED).get("/").text
-    sign = html.index('src="/static/skylt.svg"')
-    dots = html.index('aria-label="Hub"')
-    line = html.index('class="streck"')
-    name = html.index('class="sida"')
-    assert sign < dots < line < name
-
-
-def test_the_page_fetches_nothing_from_other_sites() -> None:
-    html = client(DEPLOYED).get("/").text
-    for tag in ("<script", "<link"):
-        for part in html.split(tag)[1:]:
-            assert "https://" not in part.split(">")[0]
-    assert "url(http" not in html
-
-
 def test_healthz() -> None:
     response = client(DEPLOYED).get("/healthz")
     assert response.status_code == 200
@@ -86,8 +41,19 @@ def test_api_version() -> None:
         "commit": "29b7bb260a50b27c29f5147bcb43ccd469f41431",
         "pr": 3,
         "title": "Grundstommen",
-        "built": "2026-11-06T07:12:00+00:00",
+        "built": "2026-11-06T07:12:00Z",
+        "pr_url": "https://github.com/beahead-ab/trainmeet/pull/3",
+        "commit_url": "https://github.com/beahead-ab/trainmeet/commit/29b7bb260a50b27c29f5147bcb43ccd469f41431",
     }
+    assert contract.Version.model_validate(body).pr == 3
+
+
+def test_api_version_has_the_name_from_first_start(tmp_path: Path) -> None:
+    hub = TestClient(create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db"))
+    local = hub.get("/api/version").json()
+    assert (local["hub_name"], local["commit"], local["pr_url"]) == ("Hubben", None, None)
+    hub.post("/api/hub/setup", json={"name": "Hubben Väst", "pin": "482915"})
+    assert hub.get("/api/version").json()["hub_name"] == "Hubben Väst"
 
 
 def test_the_brand_files_are_served() -> None:

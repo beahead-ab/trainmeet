@@ -7,6 +7,8 @@ Drift API.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import Field
 
 from contracts.common import Contract, Text
@@ -35,3 +37,18 @@ class Session(Contract):
     session_key: Text = Field(
         description="Visas en gång. Gäller 12 timmar, eller tills utloggning."
     )
+
+
+class Version(Contract):
+    """What runs (GET /api/version): the version, the hub's name and the change it was built
+    from. A local build has no commit and no pull request."""
+
+    product: Text
+    version: Text
+    hub_name: Text
+    commit: str | None = Field(default=None, pattern=r"^[0-9a-f]{7,40}$")
+    pr: int | None = Field(default=None, ge=1)
+    title: str | None = Field(default=None, max_length=500)
+    built: datetime | None = None
+    pr_url: str | None = Field(default=None, description="Ändringen på GitHub.")
+    commit_url: str | None = Field(default=None, description="Committen på GitHub.")
