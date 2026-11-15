@@ -30,9 +30,10 @@ import httpx
 import jwt
 
 from catalog.db import Database
+from catalog.fleet import Refused
 from catalog.login import initials, key_hash
 from catalog.settings import IdSettings
-from contracts.catalog import Account
+from contracts.catalog import Account, ProblemCode
 
 LOGGER = logging.getLogger("catalog.id")
 
@@ -43,6 +44,8 @@ LOGIN_PAGE = "/logga-in"
 NO_NAME = "Utan namn"
 LANGUAGES = ("sv", "en")
 _KEYS_AGAIN_AFTER = 60.0
+ID_CALLER = "id"
+"""ID's own client in the realm: the only caller of Catalog's routes for ID (KONTO-31, CAT-193)."""
 
 
 class LoginFailed(Exception):
@@ -257,6 +260,30 @@ class IdLogin:
                 self._keys = keys
                 self._keys_read = time.monotonic()
             return self._keys[kid]
+
+    # --- Calls from ID itself (KONTO-31, CAT-193) ---------------------------------------------
+
+    def check_caller(self, authorization: str | None) -> None:
+        """A call from TrainMeet ID's own API: a token from Keycloak's client credentials for the
+        client "id", signed by ID and not expired. Anything else is refused."""
+        scheme, _, token = (authorization or "").partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            raise Refused(401, ProblemCode.LOGIN, "Bara TrainMeet ID får fråga här.")
+        try:
+            header = jwt.get_unverified_header(token.strip())
+            key = self._key(str(header.get("kid", "")))
+            claims: dict[str, Any] = jwt.decode(
+                token.strip(),
+                key=key,
+                algorithms=[key.algorithm_name],
+                issuer=self.settings.issuer,
+                leeway=30,
+                options={"require": ["exp", "iat", "iss"], "verify_aud": False},
+            )
+        except (jwt.PyJWTError, httpx.HTTPError, LookupError) as error:
+            raise Refused(401, ProblemCode.LOGIN, "Bara TrainMeet ID får fråga här.") from error
+        if claims.get("azp") != ID_CALLER:
+            raise Refused(403, ProblemCode.FORBIDDEN, "Bara TrainMeet ID får fråga här.")
 
     # --- Logging out ------------------------------------------------------------------------
 

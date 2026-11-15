@@ -274,3 +274,53 @@
   resize: vertical;
   line-height: 1.5;
 }
+.id-steg {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6em;
+  margin-right: 6px;
+  color: var(--tm-blue-text);
+  font-size: 0.8em;
+}
+.id-steg.fara {
+  color: #b42318;
+}
+.id-appruta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+.id-appruta > div {
+  padding: 12px 16px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+}
+.id-appruta p {
+  margin: 0;
+}
+.id-oppet {
+  border-color: #e0b84c;
+  background: #fffaeb;
+}
+.tm-knapp.fara-fylld {
+  border-color: #b42318;
+  background: #b42318;
+  color: #fff;
+}
+.tm-knapp.fara-fylld:disabled {
+  opacity: 0.55;
+}
+@media (prefers-color-scheme: dark) {
+  .id-steg.fara {
+    color: #ff8a80;
+  }
+  .id-oppet {
+    border-color: #7a5b12;
+    background: #2a2210;
+  }
+  .tm-knapp.fara-fylld {
+    border-color: #ff8a80;
+    background: #8f1d14;
+  }
+}

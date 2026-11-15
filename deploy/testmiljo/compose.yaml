@@ -142,6 +142,8 @@ services:
       ID_SMTP_FROM: konto@trainmeet.se
       # Hjälp och fel goes here (KONTO-06, ID9, ID12): a setting, not in the code.
       ID_SUPPORT_ADDRESS: ${ID_SUPPORT_ADDRESS:-support@trainmeet.se}
+      # The person's file and the removal of an account reach Catalog here (KONTO-31, CAT-193).
+      ID_API_CATALOG: http://catalog:8080
       ID_SMTP_PASSWORD_FILE: /vault/trainmeet_smtp-password
       FORWARDED_ALLOW_IPS: "*"
     volumes:

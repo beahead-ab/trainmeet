@@ -182,6 +182,7 @@ def test_help_goes_to_the_support_address_from_the_settings() -> None:
     compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
     api = compose.split("\n  id-api:")[1].split("\n  caddy:")[0]
     assert "ID_SUPPORT_ADDRESS: ${ID_SUPPORT_ADDRESS:-support@trainmeet.se}" in api
+    assert "ID_API_CATALOG: http://catalog:8080" in api  # KONTO-31, CAT-193
     for code in (ROOT / "id").glob("*.py"):
         assert "support@trainmeet.se" not in code.read_text(), code.name
 

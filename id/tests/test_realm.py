@@ -154,7 +154,9 @@ def test_ids_own_web_app_logs_in_like_catalog_in_the_file_and_the_update() -> No
     assert 'setAttribute("pkce.code.challenge.method", "S256")' in updates
     scopes = re.search(r"SCOPES = List.of\(([^)]*)\)", updates)
     assert scopes is not None
-    assert re.findall(r'"([a-z-]+)"', scopes.group(1)) == client["defaultClientScopes"]
+    # Update 5 adds Keycloak's own kc-admin-api, for the admin API (KONTO-31).
+    scope_names = re.findall(r'"([a-z-]+)"', scopes.group(1))
+    assert [*scope_names, "kc-admin-api"] == client["defaultClientScopes"]
 
 
 def test_catalog_asks_ids_api_with_a_token_of_its_own() -> None:
@@ -164,6 +166,30 @@ def test_catalog_asks_ids_api_with_a_token_of_its_own() -> None:
     updates = UPDATES.read_text(encoding="utf-8")
     assert "RealmUpdates::catalogAsks" in updates
     assert "enableServiceAccount(client)" in updates
+
+
+def test_ids_api_may_remove_accounts_and_nothing_more() -> None:
+    """KONTO-31, ID7: the client "id" has a service account with the one role manage-users, in
+    the file and in update 5."""
+    client = next(c for c in realm()["clients"] if c["clientId"] == "id")
+    assert client["serviceAccountsEnabled"] is True
+    users = realm()["users"]
+    assert users == [
+        {
+            "username": "service-account-id",
+            "enabled": True,
+            "serviceAccountClientId": "id",
+            "clientRoles": {"realm-management": ["manage-users"]},
+        }
+    ]
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert "RealmUpdates::idRemovesAccounts" in updates
+    assert "management.getRole(AdminRoles.MANAGE_USERS)" in updates
+    assert "account.grantRole(manage)" in updates
+    # Keycloak 26.8 lets only a token with its scope kc-admin-api into the admin API.
+    assert 'ADMIN_API_SCOPE = "kc-admin-api"' in updates
+    assert "client.addClientScope(scope, true)" in updates
+    assert "kc-admin-api" in client["defaultClientScopes"] and "protocolMappers" not in client
 
 
 def test_there_is_one_update_for_every_number_after_the_first() -> None:

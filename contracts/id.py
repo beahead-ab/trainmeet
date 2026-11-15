@@ -16,6 +16,7 @@ For the person, with ID's session cookie (the web app at id.trainmeet.app):
     GET    /api/id/1/clubs/{club}                         ClubPage, with the club's meets
     POST   /api/id/1/clubs/{club}/meets                   NewMeet -> Meet; the admin (ID10)
     POST   /api/id/1/clubs/{club}/invitations             Invite -> Invitation
+    PUT    /api/id/1/clubs/{club}/members/{person}        ClubRoleChange -> ClubPage; the admin
     DELETE /api/id/1/clubs/{club}/members/{person}        ClubPage; admin removes, member leaves
     GET    /api/id/1/fleets/{owner}                       FleetPage; the owner's sharing
     POST   /api/id/1/fleets/{owner}/invitations           FleetInvite -> Invitation
@@ -26,6 +27,9 @@ For the person, with ID's session cookie (the web app at id.trainmeet.app):
     POST   /api/id/1/meets/{meet}/grants                  MeetGrant -> MeetPage (KONTO-36)
     DELETE /api/id/1/grants/{grant}                       Removed; stop sharing, takes a role
     POST   /api/id/1/help                                 HelpRequest -> HelpSent (KONTO-06, ID9)
+    GET    /api/id/1/account/removal                      RemovalPlan: what goes with the account
+    GET    /api/id/1/account/export                       AccountExport, as a file (KONTO-31)
+    POST   /api/id/1/account/remove                       RemoveAccount -> Session (KONTO-31, ID7)
     GET    /api/id/1/invitations                          [Invitation] to the person
     POST   /api/id/1/invitations/{invitation}/answer      Answer -> Invitation
     DELETE /api/id/1/invitations/{invitation}             Removed; the inviter takes it back
@@ -52,6 +56,7 @@ from uuid import UUID
 
 from pydantic import Field, StringConstraints, model_validator
 
+from contracts.catalog import CatalogExport
 from contracts.common import AppKey, Contract, Text
 
 Email = Annotated[
@@ -299,6 +304,13 @@ class ClubPage(Contract):
     meets: list[Meet] = Field(default_factory=list, description="The club's meets (ID10).")
 
 
+class ClubRoleChange(Contract):
+    """The admin gives a member the admin's role, or takes it back. A club always keeps an
+    admin (KONTO-02, KONTO-35)."""
+
+    role: ClubRole
+
+
 class Invite(Contract):
     """Invite someone to the club with their e-mail address (KONTO-35)."""
 
@@ -386,3 +398,38 @@ class ProblemCode(StrEnum):
 class Problem(Contract):
     code: ProblemCode
     message: Text
+
+
+class ClubBrief(Contract):
+    id: UUID
+    name: ClubNameText
+
+
+class RemovalPlan(Contract):
+    """What removing the account takes with it (KONTO-31, ID7, ID13). A club where the person
+    is the only member goes too, with its meets and its fleet. A club where the person is the
+    only admin among other members stops the removal until someone else has the role."""
+
+    clubs_removed: list[ClubBrief]
+    clubs_blocking: list[ClubBrief]
+
+
+class RemoveAccount(Contract):
+    """The person has typed the word that confirms (TA BORT)."""
+
+    confirm: Literal[True]
+
+
+class AccountExport(Contract):
+    """Everything TrainMeet holds for the person, as one file before the account is removed
+    (KONTO-31, ID7): ID's own, and Catalog's."""
+
+    made_at: datetime
+    account: Account
+    clubs: list[Club]
+    roles: list[Grant]
+    invitations: list[Invitation]
+    meets: list[Meet]
+    catalog: CatalogExport | None = Field(
+        default=None, description="Catalog's data, where Catalog runs beside ID."
+    )

@@ -209,3 +209,39 @@ describe("Hjälp och fel and the app switcher (KONTO-06, KONTO-38)", () => {
     expect(switcherApps(t, "test.id.trainmeet.app", [])).toHaveLength(6);
   });
 });
+
+describe("removing the account (KONTO-31, ID7, ID13)", () => {
+  const plan = { clubs_removed: [{ id: club.id, name: "Kims egen bana" }], clubs_blocking: [] };
+
+  it("offers the file first, says what goes, and asks for the word", () => {
+    const html = render({ route: { page: "remove" }, data: { removal: plan } });
+    expect(html).toContain("Ta bort mitt konto");
+    expect(html).toContain('href="/api/id/1/account/export" download=""');
+    expect(html).toContain("Klubbarna där du är ensam tas också bort, med sina träffar och sin vagnpark: Kims egen bana.");
+    expect(html).toContain("avgörs i frågan om GDPR");
+    expect(html).toContain("Skriv TA BORT för att bekräfta");
+    expect(html.match(/<button[^>]*type="submit"[^>]*>Ta bort mitt konto/)?.[0]).toContain("disabled");
+  });
+
+  it("stops while the person is a club's only administrator among others", () => {
+    const html = render({ route: { page: "remove" }, data: { removal: { clubs_removed: [], clubs_blocking: [{ id: club.id, name: "Västby MJK" }] } } });
+    expect(html).toContain("Ge administratörsrollen till någon annan först i: Västby MJK.");
+    expect(html).toContain('role="alert"');
+  });
+
+  it("lets the admin give the role to a member, and says when the account is gone", () => {
+    const page: ClubPage = {
+      club,
+      members: [
+        { person: { id: kim.id, name: "Kim Ek", initials: "KE" }, role: "admin", since: at },
+        { person: sara, role: "member", since: at },
+      ],
+      invitations: [],
+    };
+    const html = render({ route: { page: "club", id: club.id }, data: { club: page } });
+    expect(html).toContain('aria-label="Gör Sara Holm till administratör"');
+    expect(html).not.toContain("Gör Kim Ek");
+    const gone = render({ session: { account: null, logout_url: null, apps: [] }, search: "?borttaget=1" });
+    expect(gone).toContain("Ditt konto är borttaget");
+  });
+});

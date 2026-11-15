@@ -6,6 +6,7 @@ keeps the invitations. The database is a fresh PostgreSQL per test, as Catalog's
 
 from __future__ import annotations
 
+import json
 import os
 import time
 import uuid
@@ -63,6 +64,8 @@ class PretendKeycloak:
     )
     claims: dict[str, Any] = field(default_factory=dict)
     nonce: str = ""
+    removed: list[str] = field(default_factory=list)
+    admin_down: bool = False
 
     def sign(self, claims: dict[str, Any]) -> str:
         now = int(time.time())
@@ -77,8 +80,48 @@ class PretendKeycloak:
             public = jwt.algorithms.RSAAlgorithm.to_jwk(self.key.public_key(), as_dict=True)
             return httpx.Response(200, json={"keys": [{**public, "kid": "k1", "alg": "RS256"}]})
         if request.url.path.endswith("/token"):
+            if b"grant_type=client_credentials" in request.content:
+                assert request.headers["authorization"].startswith("Basic ")
+                return httpx.Response(200, json={"access_token": "id-egen", "expires_in": 300})
             claims = {"aud": "id", "azp": "id", "nonce": self.nonce, **self.claims}
             return httpx.Response(200, json={"id_token": self.sign(claims)})
+        if request.url.path.startswith("/admin/realms/trainmeet/users/"):
+            assert request.method == "DELETE"
+            assert request.headers["authorization"] == "Bearer id-egen"
+            if self.admin_down:
+                return httpx.Response(503)
+            self.removed.append(request.url.path.rsplit("/", 1)[1])
+            return httpx.Response(204)
+        return httpx.Response(404)
+
+
+@dataclass
+class PretendCatalog:
+    """Catalog as ID's API sees it: the person's data, and the owners to remove (CAT-193)."""
+
+    removed: list[list[str]] = field(default_factory=list)
+    down: bool = False
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer id-egen"
+        if self.down:
+            raise httpx.ConnectError("nere", request=request)
+        if request.url.path == "/api/catalog/1/id/export":
+            person = request.url.params["person"]
+            return httpx.Response(
+                200,
+                json={
+                    "owner": person,
+                    "vehicles": [],
+                    "history": [],
+                    "places": [{"id": person, "name": "Låda 3", "vehicles_home": 0, "vehicles": 0}],
+                    "settings": {"show_name": False},
+                },
+            )
+        if request.url.path == "/api/catalog/1/id/removed":
+            owners = json.loads(request.content)["owners"]
+            self.removed.append(owners)
+            return httpx.Response(200, json={"removed": len(owners)})
         return httpx.Response(404)
 
 
@@ -100,6 +143,7 @@ class World:
     keycloak: PretendKeycloak
     mail: PretendMail
     app: Any
+    catalog: PretendCatalog = field(default_factory=PretendCatalog)
 
     def browser(self) -> TestClient:
         return TestClient(self.app, base_url=PUBLIC, follow_redirects=False)
@@ -107,7 +151,7 @@ class World:
 
 @pytest.fixture
 def world(database_url: str, tmp_path: Path) -> Iterator[World]:
-    keycloak, mail = PretendKeycloak(), PretendMail()
+    keycloak, mail, catalog = PretendKeycloak(), PretendMail(), PretendCatalog()
     settings = Settings(
         database_url=database_url,
         issuer=ISSUER,
@@ -118,11 +162,18 @@ def world(database_url: str, tmp_path: Path) -> Iterator[World]:
         apps=("catalog",),
         web_dir=tmp_path,
         support="support@example.test",
+        catalog="http://catalog:8080",
     )
-    http = httpx.Client(transport=httpx.MockTransport(keycloak.handle))
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "catalog":
+            return catalog.handle(request)
+        return keycloak.handle(request)
+
+    http = httpx.Client(transport=httpx.MockTransport(handle))
     app = create_app(settings, http=http, mailer=mail)
     with TestClient(app):  # runs the migrations once
-        yield World(database_url, keycloak, mail, app)
+        yield World(database_url, keycloak, mail, app, catalog)
 
 
 @dataclass
@@ -634,3 +685,91 @@ def test_the_app_switcher_shows_the_apps_the_person_has_something_in(world: Worl
         "apps": ["hub", "catalog", "driver", "id"]
     }
     assert world.browser().get(f"{API}/session").json()["apps"] == []
+
+
+def test_the_admin_gives_the_role_to_another_and_a_club_keeps_an_admin(world: World) -> None:
+    """KONTO-02: the admin makes a member admin, and the last admin cannot step down."""
+    kim, club, people = club_with(world, ("Sara Holm", "sara@example.com"))
+    sara = people["Sara Holm"]
+    members = f"{API}/clubs/{club}/members"
+    assert sara.client.put(f"{members}/{kim.id}", json={"role": "member"}).status_code == 403
+    assert kim.client.put(f"{members}/{kim.id}", json={"role": "member"}).status_code == 409
+    made = kim.client.put(f"{members}/{sara.id}", json={"role": "admin"})
+    assert [m["role"] for m in made.json()["members"]] == ["admin", "admin"]
+    stepped = kim.client.put(f"{members}/{kim.id}", json={"role": "member"})
+    assert stepped.json()["club"]["role"] == "member"
+    assert sara.client.get(f"{API}/clubs/{club}").json()["club"]["role"] == "admin"
+
+
+def test_the_file_has_what_id_and_catalog_hold_for_the_person(world: World) -> None:
+    """KONTO-31, ID7: one file, from ID and Catalog, fetched before the account goes."""
+    kim, club, _ = club_with(world, ("Sara Holm", "sara@example.com"))
+    kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN)
+    file = kim.client.get(f"{API}/account/export")
+    assert file.status_code == 200, file.text
+    assert "attachment" in file.headers["content-disposition"]
+    body = file.json()
+    assert body["account"]["email"] == "kim@example.com"
+    assert [c["name"] for c in body["clubs"]] == ["Västby MJK"]
+    assert {g["role"] for g in body["roles"]} == {"admin", "organizer"}
+    assert [m["name"] for m in body["meets"]] == ["Höstträffen"]
+    assert body["catalog"]["places"][0]["name"] == "Låda 3"
+    assert world.browser().get(f"{API}/account/export").status_code == 401
+    world.catalog.down = True
+    assert kim.client.get(f"{API}/account/export").status_code == 503
+
+
+def test_removing_the_account_removes_it_in_catalog_keycloak_and_id(world: World) -> None:
+    """KONTO-31, CAT-193, ID13: an admin among other members gives the role away first; a club
+    where the person is alone goes with the account, its meets and its fleet too."""
+    kim, club, people = club_with(world, ("Sara Holm", "sara@example.com"))
+    sara = people["Sara Holm"]
+    alone = kim.client.post(f"{API}/clubs", json={"name": "Kims egen bana"}).json()["id"]
+    kim.client.post(f"{API}/clubs/{alone}/meets", json=AUTUMN)
+    kim.client.post(
+        f"{API}/fleets/{kim.id}/invitations", json={"email": "sara@example.com", "role": "viewer"}
+    )
+    sara_waits = sara.client.get(f"{API}/invitations").json()
+    assert len(sara_waits) == 1
+
+    plan = kim.client.get(f"{API}/account/removal").json()
+    assert [c["name"] for c in plan["clubs_removed"]] == ["Kims egen bana"]
+    assert [c["name"] for c in plan["clubs_blocking"]] == ["Västby MJK"]
+    blocked = kim.client.post(f"{API}/account/remove", json={"confirm": True})
+    assert (blocked.status_code, "Västby MJK" in blocked.json()["message"]) == (409, True)
+    assert kim.client.post(f"{API}/account/remove", json={"confirm": False}).status_code == 422
+
+    kim.client.put(f"{API}/clubs/{club}/members/{sara.id}", json={"role": "admin"})
+    world.catalog.down = True
+    assert kim.client.post(f"{API}/account/remove", json={"confirm": True}).status_code == 503
+    assert world.keycloak.removed == []  # nothing more was done
+    world.catalog.down = False
+    world.keycloak.admin_down = True
+    assert kim.client.post(f"{API}/account/remove", json={"confirm": True}).status_code == 503
+    world.keycloak.admin_down = False
+
+    gone = kim.client.post(f"{API}/account/remove", json={"confirm": True})
+    assert gone.status_code == 200, gone.text
+    assert gone.json()["account"] is None
+    assert world.catalog.removed[-1] == [kim.id, alone]
+    assert world.keycloak.removed == [kim.id]
+    assert kim.client.get(f"{API}/session").json()["account"] is None
+    # The shared club stays with its members; the club Kim was alone in is gone, with its meet.
+    page = sara.client.get(f"{API}/clubs/{club}").json()
+    assert [m["person"]["name"] for m in page["members"]] == ["Sara Holm"]
+    assert sara.client.get(f"{API}/invitations").json() == []
+    assert apps(world, "fleets", person=sara.id).json() == [
+        {
+            "owner": {"kind": "fleet", "id": club},
+            "title": "Vagnparken · Västby MJK",
+            "role": "owner",
+        }
+    ]
+    with psycopg.connect(world.url) as conn:
+        for table, where in (("club", "id::text = %s"), ("meet", "club_id::text = %s")):
+            assert conn.execute(
+                f"SELECT count(*) FROM {table} WHERE {where}", (alone,)
+            ).fetchone() == (0,)
+        assert conn.execute(
+            "SELECT count(*) FROM person WHERE id::text = %s", (kim.id,)
+        ).fetchone() == (0,)

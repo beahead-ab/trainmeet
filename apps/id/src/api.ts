@@ -22,6 +22,11 @@ export type NewMeet = Schemas["trainmeet.id-1.new-meet"];
 export type HelpRequest = Schemas["trainmeet.id-1.help-request"];
 export type AppKey = HelpRequest["app"];
 export type Version = Schemas["trainmeet.id-1.version"];
+export type RemovalPlan = Schemas["trainmeet.id-1.removal-plan"];
+export type ClubRole = Schemas["trainmeet.id-1.club-role-change"]["role"];
+
+/** The person's file, from ID and Catalog (KONTO-31). The browser fetches it itself. */
+export const EXPORT_HREF = "/api/id/1/account/export";
 
 /** ID said no, with a code the web app has a text for, or something else went wrong. */
 export class ApiError extends Error {
@@ -81,6 +86,9 @@ export const api = {
   withdraw: (invitation: string) => call<{ id: string }>("DELETE", `${A}/invitations/${invitation}`),
   version: () => call<Version>("GET", "/api/version"),
   help: (request: HelpRequest) => call<{ sent: true }>("POST", `${A}/help`, request),
+  removalPlan: () => call<RemovalPlan>("GET", `${A}/account/removal`),
+  removeAccount: () => call<Session>("POST", `${A}/account/remove`, { confirm: true }),
+  changeRole: (club: string, person: string, role: ClubRole) => call<ClubPage>("PUT", `${A}/clubs/${club}/members/${person}`, { role }),
   meets: () => call<Meet[]>("GET", `${A}/meets`),
   meet: (id: string) => call<MeetPage>("GET", `${A}/meets/${id}`),
   createMeet: (club: string, meet: NewMeet) => call<Meet>("POST", `${A}/clubs/${club}/meets`, meet),

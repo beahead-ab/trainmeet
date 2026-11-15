@@ -115,6 +115,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.tell": catalog.Tell,
     "trainmeet.catalog-1.told": catalog.Told,
     "trainmeet.catalog-1.settings": catalog.OwnerSettings,
+    "trainmeet.catalog-1.vehicle-history": catalog.VehicleHistory,
+    "trainmeet.catalog-1.catalog-export": catalog.CatalogExport,
+    "trainmeet.catalog-1.owners-removed": catalog.OwnersRemoved,
+    "trainmeet.catalog-1.removed-count": catalog.RemovedCount,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -133,6 +137,11 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.removed": id_api.Removed,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
+    "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
+    "trainmeet.id-1.club-brief": id_api.ClubBrief,
+    "trainmeet.id-1.removal-plan": id_api.RemovalPlan,
+    "trainmeet.id-1.remove-account": id_api.RemoveAccount,
+    "trainmeet.id-1.account-export": id_api.AccountExport,
     "trainmeet.id-1.help-request": id_api.HelpRequest,
     "trainmeet.id-1.help-sent": id_api.HelpSent,
     "trainmeet.id-1.switcher": id_api.Switcher,
@@ -469,6 +478,23 @@ def catalog_openapi() -> str:
     route("get", "/api/catalog/1/trial/accounts", "trialAccounts", "account", many=True)
     route("post", "/api/catalog/1/trial/login", "trialLogIn", "session", "trial-login")
     route("get", "/api/catalog/1/fleets", "fleets", "fleet-choice", many=True, problems=(401, 503))
+    # Only TrainMeet ID's own API calls these, with a token for its client (KONTO-31, CAT-193).
+    route(
+        "get",
+        "/api/catalog/1/id/export",
+        "exportForId",
+        "catalog-export",
+        query=(("person", {"type": "string", "format": "uuid"}),),
+        problems=(401, 403, 404),
+    )
+    route(
+        "post",
+        "/api/catalog/1/id/removed",
+        "removedById",
+        "removed-count",
+        "owners-removed",
+        problems=(401, 403, 404, 422),
+    )
 
     def redirect(path: str, operation: str, summary: str, query: tuple[str, ...]) -> None:
         """An address the browser opens itself; the answer sends it on (#66)."""
@@ -687,11 +713,29 @@ def id_openapi() -> str:
         problems=(*write, 503),
     )
     route(
+        "put",
+        a + "/clubs/{club}/members/{member}",
+        "changeClubRole",
+        "club-page",
+        "club-role-change",
+        problems=write,
+    )
+    route(
         "delete",
         a + "/clubs/{club}/members/{member}",
         "removeMember",
         "club-page",
         problems=write,
+    )
+    route("get", a + "/account/removal", "removalPlan", "removal-plan", problems=(401,))
+    route("get", a + "/account/export", "exportAccount", "account-export", problems=(401, 503))
+    route(
+        "post",
+        a + "/account/remove",
+        "removeAccount",
+        "session",
+        "remove-account",
+        problems=(401, 409, 422, 503),
     )
     route("get", a + "/fleets/{owner}", "fleetPage", "fleet-page", problems=(401, 403, 404))
     route(

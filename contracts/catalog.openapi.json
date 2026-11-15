@@ -141,6 +141,130 @@
         }
       }
     },
+    "/api/catalog/1/id/export": {
+      "get": {
+        "operationId": "exportForId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/id/removed": {
+      "post": {
+        "operationId": "removedById",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.removed-count"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.owners-removed"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/catalog/1/id/login": {
       "get": {
         "operationId": "idLogIn",
@@ -4580,6 +4704,728 @@
           }
         },
         "title": "OwnerSettings",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-history": {
+        "additionalProperties": true,
+        "description": "One vehicle's events, in the file with the person's data.",
+        "properties": {
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-history.VehicleEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vehicle",
+          "events"
+        ],
+        "title": "VehicleHistory",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-history.VehicleEvent": {
+        "additionalProperties": true,
+        "description": "A change of state or place, with its time. Only the owner sees them (CAT-77).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-history.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lent_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lent To"
+          }
+        },
+        "required": [
+          "at",
+          "state"
+        ],
+        "title": "VehicleEvent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-history.VehicleState": {
+        "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+        "enum": [
+          "home",
+          "packed",
+          "at_meet",
+          "lent"
+        ],
+        "title": "VehicleState",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export": {
+        "additionalProperties": true,
+        "description": "Everything Catalog holds for one owner, for the file the person fetches before removing the\naccount (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.",
+        "properties": {
+          "owner": {
+            "format": "uuid",
+            "title": "Owner",
+            "type": "string"
+          },
+          "vehicles": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Vehicle"
+            },
+            "title": "Vehicles",
+            "type": "array"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleHistory"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.OwnerSettings"
+          }
+        },
+        "required": [
+          "owner",
+          "vehicles",
+          "history",
+          "places",
+          "settings"
+        ],
+        "title": "CatalogExport",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.EvnParts": {
+        "additionalProperties": true,
+        "description": "The EVN read from the number (CAT-57). Derived every time, never stored.",
+        "properties": {
+          "text": {
+            "description": "For example 21 74 245 2 253-0, with the computed check digit.",
+            "title": "Text",
+            "type": "string"
+          },
+          "interop": {
+            "title": "Interop",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_letters": {
+            "description": "For example S for 74. Empty when unknown.",
+            "title": "Country Letters",
+            "type": "string"
+          },
+          "serial": {
+            "title": "Serial",
+            "type": "string"
+          },
+          "check": {
+            "title": "Check",
+            "type": "integer"
+          },
+          "given": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The painted check digit, or null when not painted.",
+            "title": "Given"
+          },
+          "valid": {
+            "description": "False only when the painted check digit is wrong (CAT-59).",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "interop",
+          "country",
+          "country_letters",
+          "serial",
+          "check",
+          "given",
+          "valid"
+        ],
+        "title": "EvnParts",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.FieldSource": {
+        "description": "Where a core field's value came from (CAT-64).",
+        "enum": [
+          "owner",
+          "ai",
+          "prototype",
+          "import"
+        ],
+        "title": "FieldSource",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.Lending": {
+        "additionalProperties": true,
+        "description": "Who has the vehicle: the owner's own note (CAT-74, CAT-75).",
+        "properties": {
+          "to": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "to",
+          "since"
+        ],
+        "title": "Lending",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.Notice": {
+        "additionalProperties": true,
+        "description": "Någon sa till: where someone saw the vehicle, without who said it (CAT-113).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "at"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.OwnerSettings": {
+        "additionalProperties": true,
+        "description": "Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).",
+        "properties": {
+          "show_name": {
+            "default": false,
+            "title": "Show Name",
+            "type": "boolean"
+          }
+        },
+        "title": "OwnerSettings",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.Place": {
+        "additionalProperties": true,
+        "description": "A named place at home: a box or a shelf (CAT-71).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "vehicles_home": {
+            "description": "How many vehicles are at home here now.",
+            "title": "Vehicles Home",
+            "type": "integer"
+          },
+          "vehicles": {
+            "description": "How many vehicles live here, wherever they are now.",
+            "title": "Vehicles",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "vehicles_home",
+          "vehicles"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.TagKind": {
+        "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+        "enum": [
+          "nfc",
+          "qr",
+          "sim"
+        ],
+        "title": "TagKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.Vehicle": {
+        "additionalProperties": true,
+        "description": "A vehicle as its owner sees it.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          },
+          "id": {
+            "description": "Permanent, never reused, kept when the tag changes (CAT-52).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Lending"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "evn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.EvnParts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "field_sources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.FieldSource"
+            },
+            "title": "Field Sources",
+            "type": "object"
+          },
+          "tags": {
+            "description": "At most one NFC, one QR. Only the owner sees them.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleTag"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "tagged": {
+            "default": false,
+            "description": "The vehicle has a tag: what someone it is shared with sees (CAT-47).",
+            "title": "Tagged",
+            "type": "boolean"
+          },
+          "notices": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Notice"
+            },
+            "title": "Notices",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Vehicle",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleEvent": {
+        "additionalProperties": true,
+        "description": "A change of state or place, with its time. Only the owner sees them (CAT-77).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lent_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lent To"
+          }
+        },
+        "required": [
+          "at",
+          "state"
+        ],
+        "title": "VehicleEvent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleHistory": {
+        "additionalProperties": true,
+        "description": "One vehicle's events, in the file with the person's data.",
+        "properties": {
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vehicle",
+          "events"
+        ],
+        "title": "VehicleHistory",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleState": {
+        "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+        "enum": [
+          "home",
+          "packed",
+          "at_meet",
+          "lent"
+        ],
+        "title": "VehicleState",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.VehicleTag": {
+        "additionalProperties": true,
+        "description": "A tag on the vehicle, as the card shows it (CAT-97).",
+        "properties": {
+          "assignment": {
+            "description": "The link. A change carries it (CAT-89).",
+            "format": "uuid",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "tag": {
+            "format": "uuid",
+            "title": "Tag",
+            "type": "string"
+          },
+          "uid": {
+            "description": "What stands after /t/ in the address.",
+            "title": "Uid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagKind"
+          },
+          "address": {
+            "description": "For example https://trainmeet.app/t/04a1b2c3d4e5f6.",
+            "title": "Address",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignment",
+          "tag",
+          "uid",
+          "name",
+          "kind",
+          "address",
+          "linked_at"
+        ],
+        "title": "VehicleTag",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.owners-removed": {
+        "additionalProperties": true,
+        "description": "TrainMeet ID says that these owners are gone: a removed account, and the clubs that went\nwith it (CAT-193, ID13). Catalog removes their vehicles, places, tags and the rest.",
+        "properties": {
+          "owners": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Owners",
+            "type": "array"
+          }
+        },
+        "required": [
+          "owners"
+        ],
+        "title": "OwnersRemoved",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.removed-count": {
+        "additionalProperties": true,
+        "properties": {
+          "removed": {
+            "description": "How many of the owners Catalog had.",
+            "title": "Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "title": "RemovedCount",
         "type": "object"
       }
     },

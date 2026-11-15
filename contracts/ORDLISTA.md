@@ -119,4 +119,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | App | `AppKey` | En av TrainMeets appar: `hub`, `tkl`, `cad`, `catalog`, `driver` (Lokföraren) och `id`. |
 | Appväxlaren | `Switcher`, `Session.apps` | Apparna personen har något i (KONTO-38, ID11): Catalog och ID för alla, Hubben med en roll på en träff eller som klubbens administratör, Lokföraren som lokledare. |
 | Hjälp och fel | `HelpRequest`, `HelpKind` | Hjälp (`help`) eller fel (`fault`) från kontomenyn i alla appar, som ett mejl till supportadressen med appen, sidan och versionen (KONTO-06, ID9, ID12). |
+| Klubbroll ändras | `ClubRoleChange` | Administratören gör en medlem till administratör eller tillbaka. En klubb har alltid en administratör (KONTO-02). |
+| Ta bort kontot | `RemovalPlan`, `RemoveAccount` | Kontot tas bort i Catalog, Keycloak och ID (KONTO-31, ID7). En klubb där personen är ensam tas bort med kontot; en klubb där personen är enda administratören bland andra stoppar tills någon annan har rollen (ID13). |
+| Uppgifterna som fil | `AccountExport`, `CatalogExport` | Allt TrainMeet har om personen, från ID och Catalog, i en fil före borttagningen (KONTO-31). |
+| Ägare borttagna | `OwnersRemoved` | ID säger till Catalog vilka ägare som är borta, och Catalog tar bort deras vagnparker (CAT-193). Bara ID:s egen klient får anropa. |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |

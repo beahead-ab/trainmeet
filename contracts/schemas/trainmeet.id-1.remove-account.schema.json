@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.remove-account.schema.json",
+  "title": "trainmeet.id-1.remove-account",
+  "additionalProperties": true,
+  "description": "The person has typed the word that confirms (TA BORT).",
+  "properties": {
+    "confirm": {
+      "const": true,
+      "title": "Confirm",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "confirm"
+  ],
+  "type": "object"
+}

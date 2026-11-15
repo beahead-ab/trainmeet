@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.owners-removed.schema.json",
+  "title": "trainmeet.catalog-1.owners-removed",
+  "additionalProperties": true,
+  "description": "TrainMeet ID says that these owners are gone: a removed account, and the clubs that went\nwith it (CAT-193, ID13). Catalog removes their vehicles, places, tags and the rest.",
+  "properties": {
+    "owners": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Owners",
+      "type": "array"
+    }
+  },
+  "required": [
+    "owners"
+  ],
+  "type": "object"
+}

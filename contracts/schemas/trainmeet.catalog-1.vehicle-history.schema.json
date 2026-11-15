@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.vehicle-history.schema.json",
+  "title": "trainmeet.catalog-1.vehicle-history",
+  "$defs": {
+    "VehicleEvent": {
+      "additionalProperties": true,
+      "description": "A change of state or place, with its time. Only the owner sees them (CAT-77).",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/VehicleState"
+        },
+        "place_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place Name"
+        },
+        "lent_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lent To"
+        }
+      },
+      "required": [
+        "at",
+        "state"
+      ],
+      "title": "VehicleEvent",
+      "type": "object"
+    },
+    "VehicleState": {
+      "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+      "enum": [
+        "home",
+        "packed",
+        "at_meet",
+        "lent"
+      ],
+      "title": "VehicleState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "One vehicle's events, in the file with the person's data.",
+  "properties": {
+    "vehicle": {
+      "format": "uuid",
+      "title": "Vehicle",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/VehicleEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    }
+  },
+  "required": [
+    "vehicle",
+    "events"
+  ],
+  "type": "object"
+}
