@@ -1,0 +1,27 @@
+{
+  "name": "@trainmeet/tmbox-webb",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TMBox web in the Hub: the 16×2 box in the browser over HTTP and SSE (BOXWEB-10). Served by hub/ at /box and /provbanan/box.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@trainmeet/design": "0.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

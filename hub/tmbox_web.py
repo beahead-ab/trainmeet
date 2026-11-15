@@ -1,4 +1,6 @@
-"""TMBox web on the test hub: the 16×2 box in the browser, joined to a Provbanan run.
+"""TMBox web on the test hub: the 16×2 box in the browser, joined to a Provbanan run or the
+hub's meet. The page is the app apps/tmbox-webb, served at /box and /provbanan/box by
+hub/web.py (BOXWEB-10); this module is its API.
 
 As the terminal contract says (contracts/terminal.py): each tab logs in with the run's code
 and becomes its own box under Väntar. The dispatcher assigns it a place on Provbanan. The tab
@@ -10,17 +12,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from typing import Annotated, Any, NoReturn
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from contracts import terminal
 from drift.store import MissingRun, RunLimit, UnknownBox
-from hub import page
-from hub.build_info import BuildInfo
 from hub.stores import AnyRun
 
 STREAM_SECONDS = 300
@@ -48,18 +48,8 @@ def _changed(old: dict[str, Any], new: dict[str, Any]) -> bool:
     return any(old.get(name) != new.get(name) for name in fields)
 
 
-def router(store: AnyRun, info: Callable[[], BuildInfo]) -> APIRouter:
+def router(store: AnyRun) -> APIRouter:
     routes = APIRouter()
-
-    @routes.get("/box", response_class=HTMLResponse)
-    def box_page() -> str:
-        """The box for the hub's meet. The code decides which it joins, so a Provbanan code
-        works here too."""
-        return page.render_box(info(), provbanan=False)
-
-    @routes.get("/provbanan/box", response_class=HTMLResponse)
-    def provbanan_box_page() -> str:
-        return page.render_box(info())
 
     @routes.post("/api/terminal/session", status_code=201)
     def session(login: terminal.WebLogin, response: Response) -> dict[str, str]:

@@ -229,16 +229,6 @@ def test_the_event_stream_sends_the_picture(
     assert frame["lines"][0].strip() == "Norrby"
 
 
-def test_the_box_page_keeps_the_key_out_of_addresses(hub: TestClient) -> None:
-    page = hub.get("/provbanan/box")
-    assert page.status_code == 200
-    assert 'src="/static/tmbox.js"' in page.text
-    script = hub.get("/static/tmbox.js").text
-    assert "sessionStorage" in script
-    assert "Authorization" in script
-    assert "?key=" not in script and "session_key=" not in script
-
-
 ROOT = Path(__file__).resolve().parents[2]
 FROZEN_START = "/* ===== FRUSET: TMBox-skalet. Ändra inte. ===== */"
 FROZEN_END = "/* ===== slut FRUSET ===== */"
@@ -248,7 +238,7 @@ def test_the_tmbox_case_is_the_old_servers_frozen_block() -> None:
     """The pink case, the blue display and the keypad look exactly like the physical TMBox.
     The block is the old Server's (terminal16_web/style.css), checked against the same
     golden file. Change it only on a deliberate change to the hardware."""
-    css = (ROOT / "hub" / "static" / "tmbox.css").read_text(encoding="utf-8")
+    css = (ROOT / "apps" / "tmbox-webb" / "src" / "tmbox.css").read_text(encoding="utf-8")
     start, end = css.index(FROZEN_START), css.index(FROZEN_END)
     golden = (ROOT / "hub" / "tests" / "tmbox_case_golden.css").read_text(encoding="utf-8")
     assert css[start:end].strip() == golden.strip()
@@ -268,21 +258,31 @@ def test_the_old_palette() -> None:
     }
 
 
-def test_the_box_is_built_as_the_old_web_box() -> None:
-    """tmbox-case > lcd-frame > lcd, and keypad > key ×16 with A–D as function keys."""
-    html = (ROOT / "hub" / "page.py").read_text(encoding="utf-8")
-    assert '<div class="tmbox-case">' in html
-    assert '<div class="lcd-frame"><div id="lcd" class="lcd" role="img"></div></div>' in html
-    script = (ROOT / "hub" / "static" / "tmbox.js").read_text(encoding="utf-8")
-    assert '"lcd-row"' in script and '"lcd-cell"' in script
-    assert '"key" + (/[A-D]/.test(key) ? " function" : "")' in script
+def test_the_box_keeps_its_key_out_of_addresses() -> None:
+    """The tab keeps the key in sessionStorage and sends it as Authorization: Bearer for the
+    picture, the keys and the stream; never in an address (apps/tmbox-webb)."""
+    source = "".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "apps" / "tmbox-webb" / "src").glob("*.ts*")
+        if ".test." not in path.name
+    )
+    assert "sessionStorage" in source and "Authorization" in source
+    assert "?key=" not in source and "session_key=" not in source
 
 
-def test_the_box_page_says_where_the_code_comes_from(hub: TestClient) -> None:
-    """On /box the box joins the hub's meet with the code from Anslut; on /provbanan/box a
-    Provbanan run's (found in the step 4 trial, issue 27)."""
-    meet = hub.get("/box").text
-    assert '<a href="/">← Hubben</a>' in meet and "under Anslut" in meet
-    trial = hub.get("/provbanan/box").text
-    assert '<a href="/provbanan">← Provbanan</a>' in trial and "under Boxar" in trial
-    assert 'pattern="[0-9]{6}"' in meet and 'pattern="[0-9]{6}"' in trial
+def test_the_box_is_the_app_on_both_addresses(tmp_path: Path) -> None:
+    """/box joins the hub's meet and /provbanan/box a Provbanan run (BOXWEB-10); both are the
+    app apps/tmbox-webb, which tells them apart by the address."""
+    built = tmp_path / "web" / "tmbox-webb"
+    built.mkdir(parents=True)
+    (built / "index.html").write_text("<!doctype html><title>TrainMeet Hub · TMBox</title>")
+    hub = TestClient(
+        create_app(
+            BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=tmp_path / "web"
+        )
+    )
+    for address in ("/box", "/provbanan/box"):
+        page = hub.get(address)
+        assert page.status_code == 200 and "TMBox" in page.text, address
+        assert "script-src 'self'" in page.headers["content-security-policy"]
+    assert hub.get("/static/tmbox.js").status_code == 404  # the old page is gone

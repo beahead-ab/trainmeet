@@ -7,7 +7,8 @@
     "apps/design",
     "apps/catalog",
     "apps/id",
-    "apps/skarmar"
+    "apps/skarmar",
+    "apps/tmbox-webb"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
