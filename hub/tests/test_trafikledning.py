@@ -28,8 +28,8 @@ def hub(tmp_path: Path) -> TestClient:
 
 
 def test_trafikledning_is_the_app_on_its_addresses(tmp_path: Path) -> None:
-    """/ and Drift's pages get the app's index.html; Provbanan, its boxes, Planering and the API
-    keep their own addresses."""
+    """/, Provbanan and Drift's pages get the app's index.html; Provbanan's boxes, Planering and
+    the API keep their own addresses."""
     built = tmp_path / "web"
     for folder, title in (("trafikledning", "Trafikledningen"), ("tmbox-webb", "TMBox")):
         (built / folder).mkdir(parents=True)
@@ -37,17 +37,16 @@ def test_trafikledning_is_the_app_on_its_addresses(tmp_path: Path) -> None:
     hub = TestClient(
         create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=built)
     )
-    for address in ("/", "/drift", "/drift/", "/drift/klienter", "/drift/logg"):
+    for address in ("/", "/provbanan", "/drift", "/drift/", "/drift/klienter", "/drift/logg"):
         page = hub.get(address)
         assert page.status_code == 200 and "Trafikledningen" in page.text, address
         assert "script-src 'self'" in page.headers["content-security-policy"]
-    assert "Starta provkörning" in hub.get("/provbanan").text
     assert "TMBox" in hub.get("/provbanan/box").text
     assert hub.get("/planering").status_code == 200
     assert "Trafikledningen" not in hub.get("/planering").text
     assert hub.get("/api/hub").json()["set_up"] is False
     assert hub.get("/healthz").text == "ok"
-    for old in ("/static/drift.js", "/static/drift.css", "/static/hubben.js"):
+    for old in ("/static/drift.js", "/static/hubben.js", "/static/provbanan.js"):
         assert hub.get(old).status_code == 404, old  # the old pages are gone
 
 

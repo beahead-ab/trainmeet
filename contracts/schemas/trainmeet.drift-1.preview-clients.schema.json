@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.preview-clients.schema.json",
+  "title": "trainmeet.drift-1.preview-clients",
+  "$defs": {
+    "ApprovalStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "refused",
+        "revoked"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    },
+    "Client": {
+      "additionalProperties": true,
+      "properties": {
+        "client_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Client Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "tkl",
+            "tmbox_app",
+            "dispatch",
+            "tmbox_web",
+            "tmbox",
+            "screen"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus"
+        },
+        "places": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "side": {
+          "default": "both",
+          "enum": [
+            "both",
+            "left",
+            "right"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "enum": [
+                "sv",
+                "en",
+                "da",
+                "nb",
+                "de"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara för TMBoxar.",
+          "title": "Language"
+        },
+        "display": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DisplaySize"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara för TMBoxar."
+        },
+        "view": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara för skärmar: vyn den visar.",
+          "title": "View"
+        }
+      },
+      "required": [
+        "client_id",
+        "name",
+        "kind",
+        "status"
+      ],
+      "title": "Client",
+      "type": "object"
+    },
+    "DisplaySize": {
+      "additionalProperties": true,
+      "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
+      "properties": {
+        "rows": {
+          "default": 2,
+          "enum": [
+            2,
+            4
+          ],
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "default": 16,
+          "enum": [
+            16,
+            20
+          ],
+          "title": "Cols",
+          "type": "integer"
+        }
+      },
+      "title": "DisplaySize",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The run's code and its clients: boxes, TKL and the TMBox app (H31).",
+  "properties": {
+    "code": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "clients": {
+      "items": {
+        "$ref": "#/$defs/Client"
+      },
+      "title": "Clients",
+      "type": "array"
+    }
+  },
+  "required": [
+    "code",
+    "clients"
+  ],
+  "type": "object"
+}

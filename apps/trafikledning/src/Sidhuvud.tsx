@@ -7,7 +7,7 @@ import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice }
 // the meet clock, Anslut and Väntar; logged in, one also gets the buttons (S1). Planering and
 // Drift are tabs side by side, as in the spec's picture of the header.
 
-export type Page = "start" | "nu" | "klienter" | "logg";
+export type Page = "start" | "nu" | "klienter" | "logg" | "provbanan";
 
 export const DRIFT_TABS: [Page, string, string][] = [
   ["nu", "Nu", "/drift"],
@@ -26,6 +26,9 @@ export function planningTabs(now: Now | null): [string, string][] {
     ["Versioner", `${meet}/versioner`],
   ];
 }
+
+/** Nu, Klienter and Logg: Drift's own pages, in Kontrollrummet. */
+export const isDrift = (page: Page) => page === "nu" || page === "klienter" || page === "logg";
 
 export type Menu = "byt" | "anslut" | null;
 
@@ -118,7 +121,7 @@ export function Sidhuvud(props: HeaderProps) {
         </div>
       </header>
       {admin && menu === "anslut" && <Anslut joining={props.joining} at={props.joinedAt} />}
-      {page !== "start" && <BottomNav items={drift} label="Drift" navigate={navigate} />}
+      {isDrift(page) && <BottomNav items={drift} label="Drift" navigate={navigate} />}
     </>
   );
 }

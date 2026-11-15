@@ -70,6 +70,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.automation-settings": drift.AutomationSettings,
     "trainmeet.drift-1.automation-place": drift.AutomationPlace,
     "trainmeet.drift-1.automation": drift.AutomationStatus,
+    "trainmeet.drift-1.preview": drift.Preview,
+    "trainmeet.drift-1.preview-clients": drift.PreviewClients,
     "trainmeet.screen-1.login": screen.ScreenLogin,
     "trainmeet.screen-1.session": screen.ScreenSession,
     "trainmeet.screen-1.show": screen.ShowView,
@@ -380,6 +382,21 @@ def openapi() -> str:
         bearer=True,
     )
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
+    # Provbanan: one run per browser, in a cookie of its own (H51).
+    pv = "/api/provbanan"
+    route("get", pv, "preview", d + "preview")
+    route("post", pv + "/start", "previewStart", d + "preview", d + "start")
+    route("post", pv + "/clock", "previewClock", d + "preview", d + "clock")
+    route("post", pv + "/command", "previewCommand", d + "preview", s + "command")
+    route("get", pv + "/clients", "previewClients", d + "preview-clients")
+    for action in ("approve", "revoke", "assign"):
+        route(
+            "post",
+            f"{pv}/clients/{action}",
+            f"{action}PreviewClient",
+            d + "preview-clients",
+            d + action,
+        )
     v = "trainmeet.screen-1."
     route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")
     route("get", "/api/screen/picture", "screenPicture", v + "picture", bearer=True)

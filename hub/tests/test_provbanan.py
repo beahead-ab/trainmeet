@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
 
+from contracts import drift
 from drift import store
 from hub import provbanan
 from hub.app import create_app
@@ -84,15 +85,17 @@ def reply(
     )
 
 
-def test_provbanan_is_linked_and_each_browser_has_its_own_run(tmp_path: Path) -> None:
+def test_each_browser_has_its_own_run_by_the_contract(tmp_path: Path) -> None:
     app = create_app(preview_db=tmp_path / "drift.sqlite3")
     a, b = TestClient(app), TestClient(app)
-    assert "Starta provkörning" in a.get("/provbanan").text
-    assert a.get("/static/provbanan.js").status_code == 200
+    assert a.get("/static/provbanan.js").status_code == 404  # the page is apps/trafikledning
     assert a.get(API).status_code == 404
     first = start(a)
     second = start(b)
     assert len({leg["train"] for leg in first["legs"]}) == 10
+    assert drift.Preview.model_validate(first).context.meet_id == "provbanan"
+    listed = drift.PreviewClients.model_validate(a.get(API + "/clients").json())
+    assert len(listed.code) == 6 and listed.clients == []
     assert first["traffic_day"] == "mon"
     assert not first["clock"]["running"]
     assert request(a, first, "t101-nby", "norrby-1").status_code == 200

@@ -89,7 +89,8 @@ jobs:
           curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Öppna Provbanan"
           curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Ingen träff är startad"
           curl -fsS http://localhost:8080/api/version | grep -q '"hub_name":"Hubben"'
-          curl -fsS http://localhost:8080/provbanan | grep -q "Starta provkörning"
+          curl -fsS http://localhost:8080/provbanan | grep -q "<title>TrainMeet Hub</title>"
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Starta provkörning"
           curl -fsS -H 'Content-Type: application/json' -d '{"version":1}' \
             http://localhost:8080/api/provbanan/start | grep -q '"meet_id":"provbanan"'
           curl -fsS http://localhost:8080/api/version | grep -q '"product":"TrainMeet Hub"'

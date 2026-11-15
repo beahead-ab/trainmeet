@@ -1,4 +1,4 @@
-"""HTTP entry points for the isolated Provbanan preview on the Hub."""
+"""Provbanan's API on the Hub: each browser's own run of the made-up meet (steg 2, H51)."""
 
 from __future__ import annotations
 
@@ -6,13 +6,11 @@ import json
 import os
 import tempfile
 from collections.abc import Callable
-from dataclasses import replace
 from importlib.resources import files
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse
 
 from contracts import drift, station
 from contracts.common import checksum
@@ -27,8 +25,6 @@ from drift.store import (
     UnknownBox,
     UnknownClient,
 )
-from hub import page
-from hub.build_info import BuildInfo
 
 COOKIE = "trainmeet_provbanan"
 RunCookie = Annotated[str | None, Cookie(alias=COOKIE, max_length=48)]
@@ -67,15 +63,8 @@ def package_key() -> str:
     return checksum(json.loads(_fixture()))
 
 
-def router(
-    info: BuildInfo,
-    store: PreviewStore,
-    hub_name: Callable[[], str] | None = None,
-) -> APIRouter:
-    def current() -> BuildInfo:
-        """The build, with the name the hub got at first start (H52)."""
-        return replace(info, hub_name=hub_name()) if hub_name else info
-
+def router(store: PreviewStore) -> APIRouter:
+    """Provbanan's API; the page is apps/trafikledning at /provbanan."""
     routes = APIRouter()
 
     def snapshot(
@@ -90,11 +79,7 @@ def router(
             engine = operation(run_id)
         except (MissingRun, RunLimit, Refused) as error:
             _error(error)
-        return engine.preview(now_utc())
-
-    @routes.get("/provbanan", response_class=HTMLResponse)
-    def preview() -> str:
-        return page.render_preview(current())
+        return drift.Preview.model_validate(engine.preview(now_utc())).model_dump(mode="json")
 
     @routes.get("/api/provbanan")
     def state(response: Response, run: RunCookie = None) -> dict[str, Any]:
@@ -159,7 +144,9 @@ def router(
             raise HTTPException(404, "Boxen finns inte i provkörningen.") from error
         except UnknownClient as error:
             raise HTTPException(404, "Klienten finns inte i provkörningen.") from error
-        return {"code": code, "clients": listed}
+        return drift.PreviewClients.model_validate({"code": code, "clients": listed}).model_dump(
+            mode="json"
+        )
 
     @routes.get("/api/provbanan/clients")
     def clients(response: Response, run: RunCookie = None) -> dict[str, Any]:

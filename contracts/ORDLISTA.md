@@ -33,6 +33,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Trafikdag | `train.days`, `Weekday` | Tidtabellens veckodag. |
 | Speldygn | `traffic_week` | Dag 1…N på träffen. Inte samma sak som trafikdag: en åttadagarsträff har två måndagar. |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
+| Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |
 | Omlopp | `turn` | Tågen som samma fordon kör, i ordning. |
 | Växlingsuppdrag | `shunting` | Växling på en driftplats. |
