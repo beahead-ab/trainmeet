@@ -253,6 +253,15 @@ jobs:
           cat "$RUNNER_TEMP/postlada.log" || true
           cat "$RUNNER_TEMP/catalog.log" || true
 
+      # Mejlservern och Catalog körs genom uv och håller uv:s cache låst. De stängs av före
+      # jobbets egen städning, som annars väntar på låset tills den ger upp.
+      - name: Stäng av provets program
+        if: always()
+        run: |
+          pkill -f "id/postlada.py" || true
+          pkill -f "uvicorn catalog.app" || true
+          for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app" >/dev/null || break; sleep 1; done
+
   testmiljon:
     name: Testmiljön
     needs: [tester, bilden, catalog, id]

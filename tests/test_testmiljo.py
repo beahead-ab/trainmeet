@@ -313,3 +313,19 @@ def test_id_secrets_survive_secret_manager_and_stay_private(
         f"ID_ADMIN_PASSWORD={made.admin_password}",
         f"ID_CATALOG_SECRET={made.catalog_secret}",
     ]
+
+
+def test_the_id_check_stops_its_background_programs() -> None:
+    """Programs started through uv hold uv's cache locked; setup-uv's own cleanup after the
+    job then waits for the lock and fails the check (it happened on main, 15 November)."""
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    job = workflow.split("\n  id:\n")[1].split("\n  testmiljon:\n")[0]
+    started = re.findall(
+        r"nohup uvx? (?:--from \S+ )?(?:run )?python (\S+)|nohup uv run (uvicorn \S+)", job
+    )
+    assert started, "the check starts nothing in the background?"
+    stop = job.split("- name: Stäng av provets program")[1]
+    assert "if: always()" in stop
+    stopped = re.findall(r'pkill -f "([^"]+)"', stop)
+    for script, server in started:
+        assert any(pattern in (script or server) for pattern in stopped), script or server
