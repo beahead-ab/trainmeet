@@ -28,6 +28,7 @@ from hub import (
     screen_web,
     station_api,
     tmbox_web,
+    web,
 )
 from hub.local import LocalLogin
 from hub.running import Running
@@ -61,6 +62,7 @@ def create_app(
     info: build_info.BuildInfo | None = None,
     *,
     preview_db: Path | None = None,
+    web_root: Path | None = None,
 ) -> FastAPI:
     info = info if info is not None else build_info.from_env()
     preview_path = provbanan.database_path(preview_db)
@@ -110,6 +112,8 @@ def create_app(
     app.include_router(tmbox_web.router(runs, current))
     app.include_router(station_api.router(runs))
     app.include_router(screen_web.router(runs))
+    # The pages rebuilt in React under apps/ (H62, GRUND-36).
+    app.include_router(web.router(web_root))
 
     @app.get("/", response_class=HTMLResponse)
     def start_page(

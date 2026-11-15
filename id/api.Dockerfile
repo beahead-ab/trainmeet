@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 COPY apps/design/package.json apps/design/
 COPY apps/catalog/package.json apps/catalog/
 COPY apps/id/package.json apps/id/
+COPY apps/skarmar/package.json apps/skarmar/
 RUN npm ci --no-audit --no-fund
 COPY contracts/id.d.ts contracts/
 COPY apps/design apps/design

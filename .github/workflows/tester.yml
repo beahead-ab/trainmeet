@@ -91,6 +91,11 @@ jobs:
           curl -fsS -o /dev/null http://localhost:8080/static/skylt.svg
           curl -fsS -o /dev/null http://localhost:8080/static/fonts/inter.woff2
           docker inspect --format '{{.Config.User}}' hub | grep -qx hub
+          # Sidorna i React (H62): appen och dess egna filer, på sin adress och på en av sina sidor.
+          curl -fsS http://localhost:8080/skarm | grep -q "TrainMeet · Skärm"
+          curl -fsSI http://localhost:8080/skarm/ansluten | grep -qi "content-security-policy: default-src 'self'"
+          SCRIPT=$(curl -fsS http://localhost:8080/skarm | grep -o '/skarm/assets/[^"]*\.js' | head -1)
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Anslut skärmen"
 
       - name: Visa loggen om något gick fel
         if: failure()

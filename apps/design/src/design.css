@@ -1,18 +1,7 @@
 /* TrainMeet's design system: Inter and JetBrains Mono, Kontrollrummets colours in light and
    dark. The header is dark in both; the menus are light in every app. Numbers in JetBrains
    Mono (CAT-198). Colours are chosen for WCAG 2.2 AA contrast (ST13). */
-@font-face {
-  font-family: Inter;
-  src: url("./fonts/inter.woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("./fonts/jetbrains-mono.woff2") format("woff2");
-  font-weight: 100 800;
-  font-display: swap;
-}
+@import "./fonts.css";
 
 :root {
   color-scheme: light dark;
