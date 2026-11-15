@@ -28,6 +28,8 @@ from contracts.catalog import (
     FieldSource,
     Lend,
     Lending,
+    Notice,
+    OwnerSettings,
     Place,
     ProblemCode,
     Return,
@@ -108,7 +110,9 @@ def _evn(number: str) -> EvnParts | None:
     )
 
 
-def to_vehicle(row: DictRow, tags: list[VehicleTag] | None = None) -> Vehicle:
+def to_vehicle(
+    row: DictRow, tags: list[VehicleTag] | None = None, notices: list[Notice] | None = None
+) -> Vehicle:
     lending = None
     if row["state"] == VehicleState.LENT and row["lent_to"] and row["lent_since"]:
         lending = Lending(to=row["lent_to"], since=row["lent_since"], until=row["lent_until"])
@@ -134,6 +138,7 @@ def to_vehicle(row: DictRow, tags: list[VehicleTag] | None = None) -> Vehicle:
         evn=_evn(row["number"]),
         field_sources={k: FieldSource(v) for k, v in row["field_sources"].items()},
         tags=tags or [],
+        notices=notices or [],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -234,8 +239,19 @@ class Fleet:
         return found
 
     def _with_tags(self, conn: Connection[DictRow], rows: list[DictRow]) -> list[Vehicle]:
-        tags = self._tags(conn, [r["id"] for r in rows])
-        return [to_vehicle(r, tags.get(r["id"])) for r in rows]
+        ids = [r["id"] for r in rows]
+        tags = self._tags(conn, ids)
+        notices: dict[UUID, list[Notice]] = {}
+        if ids:
+            for n in conn.execute(
+                "SELECT id, vehicle_id, text, at FROM vehicle_notice "
+                "WHERE vehicle_id = ANY(%s) ORDER BY at DESC",
+                (ids,),
+            ).fetchall():
+                notices.setdefault(n["vehicle_id"], []).append(
+                    Notice(id=n["id"], text=n["text"], at=n["at"])
+                )
+        return [to_vehicle(r, tags.get(r["id"]), notices.get(r["id"])) for r in rows]
 
     def _read(self, conn: Connection[DictRow], owner: UUID, vehicle: UUID) -> Vehicle:
         row = conn.execute(
@@ -480,6 +496,31 @@ class Fleet:
             )
             _event(conn, vehicle, VehicleState.HOME, current.place_name)
             return self._read(conn, owner, vehicle)
+
+    def clear_notice(self, owner: UUID, vehicle: UUID, notice: UUID) -> None:
+        """The owner has read what someone said (CAT-113)."""
+        with self.db.owner_transaction(owner) as conn:
+            self._read(conn, owner, vehicle)
+            removed = conn.execute(
+                "DELETE FROM vehicle_notice WHERE id = %s AND vehicle_id = %s", (notice, vehicle)
+            )
+            if removed.rowcount == 0:
+                raise Refused(404, ProblemCode.NOT_FOUND, "Beskedet finns inte.")
+
+    # --- The owner's settings ----------------------------------------------------------------
+
+    def settings(self, owner: UUID) -> OwnerSettings:
+        with self.db.transaction() as conn:
+            row = conn.execute("SELECT show_name FROM owner WHERE id = %s", (owner,)).fetchone()
+        return OwnerSettings(show_name=bool(row and row["show_name"]))
+
+    def change_settings(self, owner: UUID, settings: OwnerSettings) -> OwnerSettings:
+        """Visa mitt namn när någon blippar mina fordon (CAT-101)."""
+        with self.db.owner_transaction(owner) as conn:
+            conn.execute(
+                "UPDATE owner SET show_name = %s WHERE id = %s", (settings.show_name, owner)
+            )
+        return self.settings(owner)
 
     # --- The places at home -------------------------------------------------------------
 

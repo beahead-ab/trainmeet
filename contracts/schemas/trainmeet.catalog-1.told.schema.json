@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.told.schema.json",
+  "title": "trainmeet.catalog-1.told",
+  "additionalProperties": true,
+  "description": "The notice is with the owner. Nothing about who the owner is.",
+  "properties": {
+    "told": {
+      "const": true,
+      "default": true,
+      "title": "Told",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

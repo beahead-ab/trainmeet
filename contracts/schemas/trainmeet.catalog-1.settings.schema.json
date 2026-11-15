@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.settings.schema.json",
+  "title": "trainmeet.catalog-1.settings",
+  "additionalProperties": true,
+  "description": "Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).",
+  "properties": {
+    "show_name": {
+      "default": false,
+      "title": "Show Name",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

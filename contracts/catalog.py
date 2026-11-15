@@ -214,6 +214,14 @@ class VehicleTag(Contract):
     linked_at: datetime
 
 
+class Notice(Contract):
+    """Någon sa till: where someone saw the vehicle, without who said it (CAT-113)."""
+
+    id: UUID
+    text: str
+    at: datetime
+
+
 class Vehicle(VehicleFields):
     """A vehicle as its owner sees it."""
 
@@ -225,6 +233,7 @@ class Vehicle(VehicleFields):
     evn: EvnParts | None = None
     field_sources: dict[str, FieldSource] = Field(default_factory=dict)
     tags: list[VehicleTag] = Field(default_factory=list, description="At most one NFC, one QR.")
+    notices: list[Notice] = Field(default_factory=list, description="Newest first.")
     created_at: datetime
     updated_at: datetime
 
@@ -332,6 +341,10 @@ class Problem(Contract):
 #     GET    /api/catalog/1/tags/pending                PendingState: the vehicle waiting for a tag
 #     POST   /api/catalog/1/tags/pending                NewPending -> PendingState (CAT-94)
 #     DELETE /api/catalog/1/tags/pending                PendingState, nothing waiting
+#     POST   /api/catalog/1/tags/{uid}/notice           Tell -> Told: Säg till ägaren (CAT-113)
+#     DELETE /api/catalog/1/vehicles/{id}/notices/{n}   Removed: the owner clears a notice
+#     GET    /api/catalog/1/settings                    OwnerSettings
+#     PUT    /api/catalog/1/settings                    OwnerSettings -> OwnerSettings
 #     POST   /api/catalog/1/vehicles/{id}/tags/qr       NewLabel -> Vehicle, a new QR label
 #     POST   /api/catalog/1/vehicles/{id}/tags/unlink   TagUnlink -> Vehicle
 #
@@ -474,3 +487,21 @@ class PendingLink(Contract):
 
 class PendingState(Contract):
     pending: PendingLink | None
+
+
+class Tell(Contract):
+    """Säg till ägaren: where the vehicle stands, in a line (CAT-113)."""
+
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
+class Told(Contract):
+    """The notice is with the owner. Nothing about who the owner is."""
+
+    told: Literal[True] = True
+
+
+class OwnerSettings(Contract):
+    """Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101)."""
+
+    show_name: bool = False

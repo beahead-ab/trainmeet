@@ -108,6 +108,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.tag-event": catalog.TagEvent,
     "trainmeet.catalog-1.new-pending": catalog.NewPending,
     "trainmeet.catalog-1.pending": catalog.PendingState,
+    "trainmeet.catalog-1.tell": catalog.Tell,
+    "trainmeet.catalog-1.told": catalog.Told,
+    "trainmeet.catalog-1.settings": catalog.OwnerSettings,
 }
 
 
@@ -474,6 +477,13 @@ def catalog_openapi() -> str:
     route("post", t + "/{uid}/link", "linkTag", "vehicle", "tag-link", problems=write)
     route("get", t + "/{uid}/events", "tagEvents", "tag-event", many=True, problems=(401, 422))
     route("post", v + "/{vehicle}/tags/qr", "newLabel", "vehicle", "new-label", problems=write)
+    route(
+        "post", t + "/{uid}/notice", "tellTheOwner", "told", "tell", problems=(401, 404, 422, 429)
+    )
+    route("delete", v + "/{vehicle}/notices/{notice}", "clearNotice", "removed", problems=write)
+    s_ = "/api/catalog/1/settings"
+    route("get", s_, "ownerSettings", "settings", problems=(401,))
+    route("put", s_, "changeOwnerSettings", "settings", "settings", problems=(401, 422))
     route(
         "post", v + "/{vehicle}/tags/unlink", "unlinkTag", "vehicle", "tag-unlink", problems=write
     )

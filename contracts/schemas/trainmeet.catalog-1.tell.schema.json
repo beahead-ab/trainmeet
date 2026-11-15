@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tell.schema.json",
+  "title": "trainmeet.catalog-1.tell",
+  "additionalProperties": true,
+  "description": "Säg till ägaren: where the vehicle stands, in a line (CAT-113).",
+  "properties": {
+    "text": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "text"
+  ],
+  "type": "object"
+}

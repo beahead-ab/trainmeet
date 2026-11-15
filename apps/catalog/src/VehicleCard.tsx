@@ -4,6 +4,7 @@ import { linkClick } from "@trainmeet/design";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
 import { Crumbs, dateText, Dialog, ErrorLine, kindText, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
+import { nfcSupported, writeAddress } from "./nfc";
 import { editPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
 
@@ -114,6 +115,51 @@ export function TagSection({
   );
 }
 
+/** Android writes the address on the tag when it is linked, so an iPhone can tap it too (CAT-118). */
+export function WritePanel({ t, address, state, onWrite }: { t: T; address: string; state: "ready" | "done" | "failed"; onWrite?: () => void }) {
+  return (
+    <section className="tm-kort cat-avsnitt cat-skriv" aria-labelledby="skriv-rubrik" aria-live="polite">
+      <h2 id="skriv-rubrik">{t("writeTitle")}</h2>
+      {state === "done" ? (
+        <p role="status">{t("writeDone")}</p>
+      ) : (
+        <>
+          <p>{t("writeIntro")}</p>
+          <p className="tm-mono cat-adress">{address.replace(/^https:\/\//, "")}</p>
+          <button type="button" className="tm-knapp primar" onClick={onWrite}>
+            {t("writeButton")}
+          </button>
+          {state === "failed" ? <p className="cat-fel">{t("writeFailed")}</p> : null}
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Någon sa till: where others saw the vehicle, without who said it (CAT-113). */
+export function Notices({ ctx, vehicle, onClear }: { ctx: Ctx; vehicle: Vehicle; onClear?: (id: string) => void }) {
+  const { t, language } = ctx;
+  const notices = vehicle.notices ?? [];
+  if (notices.length === 0) return null;
+  return (
+    <section className="tm-kort cat-avsnitt cat-besked" aria-labelledby="besked-rubrik">
+      <h2 id="besked-rubrik">{t("noticesTitle")}</h2>
+      <ul className="cat-handelser">
+        {notices.map((notice) => (
+          <li key={notice.id}>
+            <span>
+              «{notice.text}» <time className="cat-under" dateTime={notice.at}>{timeText(language, notice.at)}</time>
+            </span>
+            <button type="button" className="tm-knapp" aria-label={`${t("noticeRemove")}: ${notice.text}`} onClick={() => onClear?.(notice.id)}>
+              {t("removeYes")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export type CardViewProps = {
   ctx: Ctx;
   vehicle: Vehicle;
@@ -127,6 +173,9 @@ export type CardViewProps = {
   onStopWaiting?: () => void;
   onUnlink?: (tag: VehicleTag) => void;
   onNewLabel?: (replace: VehicleTag | null) => void;
+  onClearNotice?: (id: string) => void;
+  writing?: { address: string; state: "ready" | "done" | "failed" } | null;
+  onWrite?: () => void;
 };
 
 export function CardView(props: CardViewProps) {
@@ -147,6 +196,7 @@ export function CardView(props: CardViewProps) {
       </h1>
       <p className="cat-ingress">{subtitle(t, vehicle)}</p>
       <ErrorLine text={error} />
+      {props.writing ? <WritePanel t={t} address={props.writing.address} state={props.writing.state} onWrite={props.onWrite} /> : null}
       <div className="cat-kortet">
         <section className="tm-kort" aria-labelledby="kortet-rubrik">
           <div className="cat-kortrubrik">
@@ -182,6 +232,7 @@ export function CardView(props: CardViewProps) {
         </section>
 
         <div className="cat-sidokolumn">
+          <Notices ctx={ctx} vehicle={vehicle} onClear={props.onClearNotice} />
           <section className={`tm-kort cat-laget cat-laget-${vehicle.state}`} aria-labelledby="laget-rubrik">
             <StatePill t={t} state={vehicle.state} />
             <h2 id="laget-rubrik">
@@ -263,6 +314,9 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
   const [removing, setRemoving] = useState(false);
   const [pending, setPending] = useState<PendingState["pending"]>(null);
   const [unlinking, setUnlinking] = useState<VehicleTag | null>(null);
+  // ?skriv=<uid>: just linked on Android, so offer to write the address on the tag (CAT-118).
+  const [writeUid] = useState(() => (nfcSupported() ? new URLSearchParams(window.location.search).get("skriv") : null));
+  const [written, setWritten] = useState<"ready" | "done" | "failed">("ready");
 
   const load = () => {
     api.vehicle(id).then(setVehicle, (failure) => setError(problemText(t, failure)));
@@ -302,6 +356,21 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
         onStopWaiting={() => act(() => api.stopWaiting())}
         onUnlink={setUnlinking}
         onNewLabel={(replace) => act(() => api.newLabel(vehicle.id, replace?.assignment ?? null))}
+        onClearNotice={(notice) => act(() => api.clearNotice(vehicle.id, notice))}
+        writing={(() => {
+          const tag = writeUid ? (vehicle.tags ?? []).find((each) => each.uid === writeUid.toLowerCase().replace(/[:-]/g, "")) : undefined;
+          return tag ? { address: tag.address, state: written } : null;
+        })()}
+        onWrite={async () => {
+          const tag = (vehicle.tags ?? []).find((each) => each.uid === (writeUid ?? "").toLowerCase().replace(/[:-]/g, ""));
+          if (!tag) return;
+          try {
+            await writeAddress(tag.address);
+            setWritten("done");
+          } catch {
+            setWritten("failed");
+          }
+        }}
       />
       <Dialog open={unlinking !== null} title={t("unlinkTag")} onClose={() => setUnlinking(null)}>
         <p>{unlinking ? t("unlinkConfirm", { tag: unlinking.name, name: title(t, vehicle) }) : ""}</p>

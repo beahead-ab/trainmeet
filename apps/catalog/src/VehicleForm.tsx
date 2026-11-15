@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, ApiError, ENGINES, fieldsOf, KINDS, statusFor, type Place, type Vehicle, type VehicleFields } from "./api";
 import { Crumbs, Dialog, ErrorLine, kindText, problemText, title, type Ctx } from "./common";
 import { PATHS, vehiclePath } from "./routes";
+import { afterLinking } from "./TagPage";
 
 export const EMPTY: VehicleFields = {
   status: "draft",
@@ -286,6 +287,8 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
             if (!offer || !tag) return;
             try {
               await api.link(tag, { vehicle: offer.id, confirm: true, replace: null, move_from: null });
+              ctx.navigate?.(afterLinking(offer.id, tag));
+              return;
             } catch (failure) {
               setError(problemText(t, failure));
             }
