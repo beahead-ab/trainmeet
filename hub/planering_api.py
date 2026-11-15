@@ -99,7 +99,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         lower = name.casefold()
         if not (lower.endswith((".json", ".json.gz", ".gz")) or data[:2] == b"\x1f\x8b"):
             raise HTTPException(
-                415, "Den filtypen läses inte än. Lägg till Stefans planeringsfil (JSON)."
+                415, "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON)."
             )
         try:
             current = store.draft(meet)

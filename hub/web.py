@@ -60,6 +60,9 @@ APPS: Final = (
         title="Trafikledningen",
         pages=("/", "/provbanan", "/installningar"),
     ),
+    # Planering (PLAN-23): Träffar and Versioner; Data, Bana and Graf are still drawn by the
+    # hub, whose routes come first (hub/app.py).
+    WebApp(prefixes=("/planering",), folder="planering", title="Planering"),
 )
 
 

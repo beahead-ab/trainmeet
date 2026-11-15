@@ -111,17 +111,9 @@ def create_app(
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))
     app.include_router(screen_web.router(runs))
-    # The pages rebuilt in React under apps/ (H62, GRUND-36): Trafikledningen owns / and /drift.
-    app.include_router(web.router(web_root))
 
     def logged_in(session: str | None, authorization: str | None) -> bool:
         return login.valid(hubben.session_of(session, authorization))
-
-    @app.get("/planering", response_class=HTMLResponse)
-    def planning_page(
-        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_meets(current(), logged_in(session, authorization))
 
     @app.get("/planering/{meet}", response_class=HTMLResponse)
     @app.get("/planering/{meet}/data", response_class=HTMLResponse)
@@ -129,12 +121,6 @@ def create_app(
         meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
     ) -> str:
         return planering_pages.render_data(current(), meet, logged_in(session, authorization))
-
-    @app.get("/planering/{meet}/versioner", response_class=HTMLResponse)
-    def versions_page(
-        meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return planering_pages.render_versions(current(), meet, logged_in(session, authorization))
 
     @app.get("/planering/{meet}/graf", response_class=HTMLResponse)
     def graph_page(
@@ -147,6 +133,10 @@ def create_app(
         meet: Id, session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
     ) -> str:
         return planering_pages.render_map(current(), meet, logged_in(session, authorization))
+
+    # The pages rebuilt in React under apps/ (H62, GRUND-36). They come after the hub's own
+    # pages, so that Planering's Data, Bana and Graf are drawn here until they move too.
+    app.include_router(web.router(web_root))
 
     @app.get("/healthz", response_class=PlainTextResponse)
     def healthz() -> str:

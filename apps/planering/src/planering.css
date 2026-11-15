@@ -1,0 +1,252 @@
+/* Planering in Biblioteket (light): dark when one runs, light when one plans (H53). The header
+   is dark in both (@trainmeet/hubben). TrainMeet's design system (design.css). */
+
+body.biblioteket {
+  color-scheme: light;
+  --tm-bg: #f6f5f2;
+  --tm-panel: #ffffff;
+  --tm-panel-2: #f0efec;
+  --tm-line: #e5e5e2;
+  --tm-text: #0a0a0a;
+  --tm-mute: #6b6b66;
+  --tm-blue: #2256c3;
+  --tm-blue-text: #1d47b0;
+  --tm-blue-soft: #e8eefc;
+  --tm-on-blue: #ffffff;
+  --tm-focus: #2453c7;
+  --gron: #15803d;
+  --gul: #a16207;
+  --rod: #b42318;
+  --skugga: 0 1px 2px rgb(10 10 10 / 4%), 0 2px 8px rgb(10 10 10 / 4%);
+  font-size: 15px;
+}
+main.planering {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+main.planering a {
+  color: var(--tm-blue);
+  text-decoration: none;
+}
+main.planering a:hover {
+  text-decoration: underline;
+}
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 0;
+  font-weight: 700;
+}
+h2 {
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+.liten {
+  color: var(--tm-mute);
+  font-size: 13.5px;
+  margin: 2px 0 0;
+}
+.overrubrik {
+  color: var(--tm-blue);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.kod {
+  font-family: var(--tm-mono);
+  font-size: 13px;
+}
+.antal {
+  color: var(--tm-mute);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.svag {
+  color: var(--tm-mute);
+}
+.sidrubrik {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.sidrubrik .under {
+  color: var(--tm-mute);
+  font-size: 15px;
+}
+.kort {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin: 0 0 18px;
+  box-shadow: var(--skugga);
+}
+.lista-kort {
+  padding: 8px 0 4px;
+  overflow-x: auto;
+}
+.lista-kort > h2,
+.lista-kort > p {
+  padding: 12px 24px 0;
+}
+.lista-kort > p {
+  padding-bottom: 8px;
+}
+.rad {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+}
+.formular {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+main.planering label {
+  color: var(--tm-mute);
+  font-size: 13px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.formular > label {
+  max-width: 420px;
+}
+main.planering input,
+main.planering select {
+  font: inherit;
+  color: var(--tm-text);
+  background: var(--tm-panel);
+  border: 1px solid #c9c8c2;
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-height: 36px;
+}
+main.planering button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--tm-text);
+  background: var(--tm-panel);
+  border: 1px solid #c9c8c2;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  justify-self: start;
+}
+main.planering button.primar {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: #ffffff;
+  min-height: 40px;
+}
+main.planering button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.meddelande {
+  color: var(--rod);
+  min-height: 1.5em;
+  margin: 12px 0 0;
+}
+.meddelande.ok {
+  color: var(--gron);
+}
+
+.tabell {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.tabell th {
+  text-align: left;
+  color: var(--tm-mute);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--tm-line);
+  white-space: nowrap;
+}
+.tabell td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tm-panel-2);
+  vertical-align: top;
+}
+.tabell tr:last-child td {
+  border-bottom: 0;
+}
+.tabell th:first-child,
+.tabell td:first-child {
+  padding-left: 24px;
+}
+.tabell th:last-child,
+.tabell td:last-child {
+  padding-right: 24px;
+}
+.tabell .tal {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabell td.tom {
+  color: var(--tm-mute);
+}
+.niva {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gron);
+  background: #ecf6ef;
+  border: 1px solid #cfe7d6;
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+.niva.ingen {
+  color: var(--tm-mute);
+  background: var(--tm-panel-2);
+  border-color: var(--tm-line);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pill.conflict {
+  color: var(--rod);
+}
+.pill.observation {
+  color: var(--gul);
+}
+.fynd {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.fynd li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+.fynd li.tom {
+  color: var(--tm-mute);
+}

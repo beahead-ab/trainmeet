@@ -1,4 +1,4 @@
-"""Steg 4a through the hub: a meet in Planering, Stefan's file as its source, the check, a
+"""Steg 4a through the hub: a meet in Planering, Tellurian's file as its source, the check, a
 version, and Drift running that version with web boxes (Caspers prov, as a test).
 
 Värnamo Moduldagar is the key (H54).
@@ -219,9 +219,10 @@ def test_the_running_meet_survives_a_restart(planned: TestClient, tmp_path: Path
 
 
 def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: TestClient) -> None:
-    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data."""
+    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data. Data,
+    Bana and Graf are drawn by the hub until they move into apps/planering (#68)."""
     anonymous = TestClient(planned.app)
-    pages = ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data")
+    pages = (f"/planering/{MEET}", f"/planering/{MEET}/data")
     for path in (*pages, f"/planering/{MEET}/bana", f"/planering/{MEET}/graf"):
         page = anonymous.get(path)
         assert page.status_code == 200 and "/static/planering.css" in page.text, path
@@ -236,11 +237,15 @@ def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: Tes
     assert "/static/bana.js" in bana and 'id="map"' in bana and 'id="choice"' in bana
     graph = anonymous.get(f"/planering/{MEET}/graf").text
     assert "/static/graf.js" in graph and 'id="graph"' in graph and 'id="print-line"' in graph
-    assert "aria-current=page>Versioner<" in planned.get(f"/planering/{MEET}/versioner").text
-    assert 'id="publish"' in planned.get(f"/planering/{MEET}/versioner").text
-    assert 'id="new-meet"' not in anonymous.get("/planering").text
-    assert planned.get(f"/planering/{MEET}/underlag").status_code == 404
-    assert planned.get("/planering/..%2Fx").status_code in {404, 422}
+    # Träffar and Versioner are apps/planering (#68); what they show is tested in the app.
+    for path in ("/planering", f"/planering/{MEET}/versioner", f"/planering/{MEET}/underlag"):
+        page = anonymous.get(path)
+        assert page.status_code == 200 and "Planering" in page.text, path
+        assert "/static/planering.css" not in page.text, path
+    # A path out of the folder never gives a file: at most the app's own page.
+    outside = planned.get("/planering/..%2Fx")
+    assert outside.status_code in {200, 404, 422}
+    assert outside.status_code != 200 or "Planering" in outside.text
 
 
 def test_a_run_keeps_its_package_when_the_contracts_gain_a_field(

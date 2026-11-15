@@ -43,8 +43,8 @@ def test_trafikledning_is_the_app_on_its_addresses(tmp_path: Path) -> None:
         assert page.status_code == 200 and "Trafikledningen" in page.text, address
         assert "script-src 'self'" in page.headers["content-security-policy"]
     assert "TMBox" in hub.get("/provbanan/box").text
-    assert hub.get("/planering").status_code == 200
-    assert "Trafikledningen" not in hub.get("/planering").text
+    assert hub.get("/planering/varnamo/data").status_code == 200
+    assert "Trafikledningen" not in hub.get("/planering/varnamo/data").text
     assert hub.get("/api/hub").json()["set_up"] is False
     assert hub.get("/healthz").text == "ok"
     for old in ("/static/drift.js", "/static/hubben.js", "/static/provbanan.js"):

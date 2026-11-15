@@ -1,6 +1,7 @@
 // What Trafikledningen says, and the small rules behind it, without React: the same words and
 // choices as the old pages (hub/static/drift.js), so they can be tested on their own.
-import type { Actor, AutomationPlace, Client, DriftEvent, Leg, MeetSummary, Now, Weekday } from "./api";
+import type { Actor, AutomationPlace, Client, DriftEvent, Leg, Now } from "./api";
+export { dayName, WEEKDAYS } from "@trainmeet/hubben";
 
 export const STATES: Record<Leg["state"], string> = {
   planned: "Ej begärd",
@@ -23,17 +24,6 @@ export const SIDES: Record<Client["side"], string> = { both: "Båda sidor", left
 export const LANGUAGES: Record<string, string> = { sv: "Svenska", en: "English", da: "Dansk", nb: "Norsk", de: "Deutsch" };
 export const SPEEDS = [1, 2, 3, 4, 6, 8, 12];
 export const VIEWS: Record<string, string> = { clock: "Klocka" };
-export const WEEKDAYS: [Weekday, string][] = [
-  ["mon", "Måndag"],
-  ["tue", "Tisdag"],
-  ["wed", "Onsdag"],
-  ["thu", "Torsdag"],
-  ["fri", "Fredag"],
-  ["sat", "Lördag"],
-  ["sun", "Söndag"],
-];
-const SHORT_DAYS: Record<Weekday, string> = { mon: "mån", tue: "tis", wed: "ons", thu: "tor", fri: "fre", sat: "lör", sun: "sön" };
-
 export const EVENTS: Record<string, string> = {
   "meet.started": "Träffen startade",
   "clock.started": "Klockan startade",
@@ -76,59 +66,8 @@ export const LOST: [0 | 2 | 5 | 10, string][] = [
 export const DISTURBANCES: Record<string, string> = { off: "Av", normal: "Normal", disrupted: "Störd trafik" };
 export const WHERE: Record<string, string> = { both: "Station och linje", station: "Bara station", line: "Bara linje" };
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-/** The meet clock: it runs on between the hub's answers, at the meet's speed, over midnight. */
-export function clockText(now: Now | null, elapsedMs: number): string {
-  if (!now) return "--:--";
-  const { clock } = now;
-  const passed = clock.running ? (elapsedMs / 1000) * clock.speed : 0;
-  const minutes = Math.floor((clock.seconds + passed) / 60) % 1440;
-  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
-}
-
-/** The small text after the clock in the header: the traffic day and the speed. */
-export const clockNote = (now: Now) => `${SHORT_DAYS[now.traffic_day]} · ×${now.clock.speed}`;
-
-export const dayName = (day: Weekday) => (WEEKDAYS.find(([key]) => key === day)?.[1] ?? day).toLowerCase();
-
-/** The meet's name in the header: Provbanan as it is, a meet from Planering with its version. */
-export const meetTitle = (now: Now) => (now.meet_id === "provbanan" ? now.name : `${now.name} · version ${now.version}`);
-
 export const placeName = (now: Now | null, id: string) => now?.places.find((place) => place.place === id)?.name ?? id;
 export const placeCode = (now: Now | null, id: string) => now?.places.find((place) => place.place === id)?.code ?? id;
-
-/** One meet the hub can run: a published version from Planering, or Provbanan (steg 4a). */
-export type MeetChoice = { value: string; meet: string; version: number; name: string; note: string };
-
-export const PROVBANAN: MeetChoice = { value: "provbanan:1", meet: "provbanan", version: 1, name: "Provbanan", note: "för prov" };
-
-export function meetChoices(meets: MeetSummary[]): MeetChoice[] {
-  const choices: MeetChoice[] = [];
-  for (const summary of meets) {
-    for (const version of (summary.versions ?? []).slice().reverse()) {
-      choices.push({
-        value: `${summary.meet.id}:${version.number}`,
-        meet: summary.meet.id,
-        version: version.number,
-        name: summary.meet.name,
-        note: `version ${version.number}`,
-      });
-    }
-  }
-  return [...choices, PROVBANAN];
-}
-
-/** The meet asked for in the address (Kör i Drift in Planering), if the hub has it. */
-export function askedChoice(search: string, choices: MeetChoice[]): string | null {
-  const wanted = new URLSearchParams(search);
-  const meet = wanted.get("traff");
-  if (!meet) return null;
-  const value = `${meet}:${wanted.get("version") ?? ""}`;
-  return choices.some((choice) => choice.value === value) ? value : null;
-}
-
-export const runningChoice = (now: Now | null) => (now ? `${now.meet_id}:${now.version}` : null);
 
 /** What a client row says about the client, after its name. */
 export function clientDetails(client: Client, now: Now | null): string {
@@ -149,8 +88,6 @@ export const CLIENT_GROUPS: [ClientGroup, string, (client: Client) => boolean][]
   ["stations", "TKL", (client) => client.kind === "tkl"],
   ["screens", "Skärmar", (client) => client.kind === "screen"],
 ];
-
-export const waitingCount = (clients: Client[]) => clients.filter((client) => client.status === "waiting").length;
 
 /** Who did it: the client's name if it is still connected, else its id; the hub itself. */
 export function actorName(who: Actor | null | undefined, clients: Client[]): string {

@@ -1,4 +1,5 @@
 import "@trainmeet/design/design.css";
+import "@trainmeet/hubben/hubben.css";
 import "./trafikledning.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

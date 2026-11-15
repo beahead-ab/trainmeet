@@ -82,46 +82,6 @@ def _document(
 """
 
 
-def render_meets(info: BuildInfo, logged_in: bool) -> str:
-    new = (
-        """<section class="kort" id="ny">
-  <h2>Ny träff</h2>
-  <form id="new-meet" class="formular">
-    <label>Namn <input id="new-name" maxlength="120" required autocomplete="off"
-      placeholder="Värnamo Moduldagar"></label>
-    <div class="rad">
-      <label>Första dagen <input id="new-first" type="date"></label>
-      <label>Sista dagen <input id="new-last" type="date"></label>
-      <label>Land <select id="new-country">
-        <option value="se">Sverige</option><option value="dk">Danmark</option>
-        <option value="no">Norge</option><option value="de">Tyskland</option>
-      </select></label>
-    </div>
-    <button type="submit" class="primar">Skapa träffen</button>
-  </form>
-</section>"""
-        if logged_in
-        else '<p class="liten">Logga in för att skapa en träff.</p>'
-    )
-    return _document(
-        info,
-        "traffar",
-        logged_in,
-        f"""<div class="sidrubrik">
-  <h1>Träffar <span id="meet-count" class="antal"></span></h1>
-  <span class="under">planeras här och körs i Drift</span>
-</div>
-<section class="kort lista-kort">
-  <table class="tabell">
-    <thead><tr><th>Träff</th><th>Datum</th><th>Nivå</th><th class="tal">Tåg</th>
-      <th>Senaste version</th><th class="tal">Frågor</th></tr></thead>
-    <tbody id="meets"><tr><td colspan="6" class="tom">Hämtar träffarna …</td></tr></tbody>
-  </table>
-</section>
-{new}""",
-    )
-
-
 def render_data(info: BuildInfo, meet: str, logged_in: bool) -> str:
     admin = logged_in
     edit = (
@@ -150,7 +110,7 @@ def render_data(info: BuildInfo, meet: str, logged_in: bool) -> str:
       <label class="slapp" id="drop">
         <input id="file" type="file" accept=".json,.gz,application/json" hidden>
         <b>Släpp filen här</b>
-        <span>eller välj den. Stefans planeringsfil (JSON). Stationstidtabeller, grafen och
+        <span>eller välj den. Tellurians planeringsfil (JSON). Stationstidtabeller, grafen och
           en bild av banan kommer i nästa del (4c).</span>
       </label>
       <ul id="files" class="filer"></ul>
@@ -184,7 +144,7 @@ def render_data(info: BuildInfo, meet: str, logged_in: bool) -> str:
 </div>
 <section class="kort data-kort" id="empty" hidden>
   <h2>Inget underlag än</h2>
-  <p class="liten">Lägg till Stefans planeringsfil. Den läses med kod, utan AI, och allt i den
+  <p class="liten">Lägg till Tellurians planeringsfil. Den läses med kod, utan AI, och allt i den
     får sitt ursprung och sin säkerhet.</p>
   <div class="rad">{add.replace('id="add-source"', 'id="add-first"')}</div>
 </section>
@@ -202,7 +162,7 @@ def render_data(info: BuildInfo, meet: str, logged_in: bool) -> str:
     <div id="tables" class="tabeller"></div>
     <aside id="detail" class="vald" hidden></aside>
   </div>
-  <p class="forklaring"><span class="kalla">JSON</span> Stefans plan
+  <p class="forklaring"><span class="kalla">JSON</span> Tellurians plan
     <span class="kalla andrad">PLAN</span> ändrat i Planering
     <span class="kalla regel">REGEL</span> regelboken</p>
 </section>
@@ -290,39 +250,4 @@ def render_map(info: BuildInfo, meet: str, logged_in: bool) -> str:
 </div>""",
         meet=meet,
         scripts=("/static/bana.js",),
-    )
-
-
-def render_versions(info: BuildInfo, meet: str, logged_in: bool) -> str:
-    publish = (
-        """<div class="rad">
-    <button id="publish" type="button" class="primar">Publicera</button>
-    <span class="liten" id="publish-text"></span>
-  </div>"""
-        if logged_in
-        else ""
-    )
-    return _document(
-        info,
-        "versioner",
-        logged_in,
-        f"""<div class="sidrubrik">
-  <h1>Versioner</h1><span class="under">trafikkontrollen och det som publicerats</span>
-</div>
-<section class="kort">
-  <h2>Trafikkontroll</h2>
-  <p class="liten">Fynden följer med versionen. De stoppar inte publiceringen.</p>
-  <ul id="findings" class="fynd"><li class="tom">Kontrollerar …</li></ul>
-  {publish}
-</section>
-<section class="kort lista-kort">
-  <h2>Versioner</h2>
-  <p class="liten">En version ändras aldrig och tas aldrig bort. Drift kör en version.</p>
-  <table class="tabell">
-    <thead><tr><th>Version</th><th>Publicerad</th><th class="tal">Konflikter</th>
-      <th class="tal">Iakttagelser</th><th>Kontrollsumma</th><th></th></tr></thead>
-    <tbody id="versions"></tbody>
-  </table>
-</section>""",
-        meet=meet,
     )

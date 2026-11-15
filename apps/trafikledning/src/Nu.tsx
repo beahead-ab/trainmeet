@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Automation, ChangePlace, Client, ClockControl, Leg, Now, Weekday } from "./api";
-import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, dayName, modeText, placeCode, placeName, type MeetChoice } from "./drift";
+import type { MeetChoice } from "@trainmeet/hubben";
+import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, dayName, modeText, placeCode, placeName } from "./drift";
 import { Chip, Chips } from "./ui";
 
 // Nu (S6, TRAFIK-01): the meet, its clock, the open clearances and the trains. Everyone sees

@@ -1,24 +1,24 @@
 import { BottomNav, linkClick, ProductName, Skylt, type NavItem } from "@trainmeet/design";
 import { useState } from "react";
 import { connectPicture, type Joining, type Now, type Weekday } from "./api";
-import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice } from "./drift";
+import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice } from "./traff";
 
 // The header (S2, TRAFIK-12): the same for everyone. It always has the meet with Byt träff,
 // the meet clock, Anslut and Väntar; logged in, one also gets the buttons (S1). Planering and
 // Drift are tabs side by side, as in the spec's picture of the header.
 
-export type Page = "start" | "nu" | "klienter" | "logg" | "provbanan" | "installningar";
-
-export const DRIFT_TABS: [Page, string, string][] = [
-  ["nu", "Nu", "/drift"],
-  ["klienter", "Klienter", "/drift/klienter"],
-  ["logg", "Logg", "/drift/logg"],
+export const DRIFT_TABS: [string, string][] = [
+  ["Nu", "/drift"],
+  ["Klienter", "/drift/klienter"],
+  ["Logg", "/drift/logg"],
 ];
 
-/** Planering's tabs for the meet that runs; Provbanan has no plan, only the list of meets. */
-export function planningTabs(now: Now | null): [string, string][] {
-  if (!now || now.meet_id === "provbanan") return [["Träffar", "/planering"]];
-  const meet = `/planering/${encodeURIComponent(now.meet_id)}`;
+/** Planering's tabs for the meet in view (null: the list of meets is in view), or else the
+ * meet that runs; without one (or on Provbanan, which has no plan) only the list of meets. */
+export function planningTabs(now: Now | null, viewed?: string | null): [string, string][] {
+  const id = viewed !== undefined ? viewed : now && now.meet_id !== "provbanan" ? now.meet_id : null;
+  if (!id) return [["Träffar", "/planering"]];
+  const meet = `/planering/${encodeURIComponent(id)}`;
   return [
     ["Data", `${meet}/data`],
     ["Bana", `${meet}/bana`],
@@ -27,13 +27,16 @@ export function planningTabs(now: Now | null): [string, string][] {
   ];
 }
 
-/** Nu, Klienter and Logg: Drift's own pages, in Kontrollrummet. */
-export const isDrift = (page: Page) => page === "nu" || page === "klienter" || page === "logg";
-
 export type Menu = "byt" | "anslut" | null;
 
 export type HeaderProps = {
-  page: Page;
+  /** The address of the page shown, which marks its tab and the gear. */
+  current: string;
+  /** The meet Planering shows, for Planering's tabs (null on the list of meets); left out, the
+   * meet that runs. */
+  viewed?: string | null;
+  /** The tabs at the bottom on the phone, if the page has them. */
+  bottom?: { label: string; items: NavItem[] };
   hubName: string;
   admin: boolean;
   now: Now | null;
@@ -52,9 +55,9 @@ export type HeaderProps = {
 };
 
 export function Sidhuvud(props: HeaderProps) {
-  const { page, hubName, admin, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
+  const { current, viewed, bottom, hubName, admin, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
   const toggle = (which: Menu) => onMenu(menu === which ? null : which);
-  const drift: NavItem[] = DRIFT_TABS.map(([key, label, href]) => ({ href, label, current: key === page }));
+  const tab = (href: string) => ({ "aria-current": href === current ? ("page" as const) : undefined, onClick: linkClick(navigate, href) });
   return (
     <>
       <a className="tm-hoppa" href="#innehall">
@@ -81,15 +84,15 @@ export function Sidhuvud(props: HeaderProps) {
         )}
         <nav className="tm-flikar" aria-label="Hubben">
           <span className="grupp">Planering</span>
-          {planningTabs(now).map(([label, href]) => (
-            <a key={href} href={href}>
+          {planningTabs(now, viewed).map(([label, href]) => (
+            <a key={href} href={href} {...tab(href)}>
               {label}
             </a>
           ))}
           <span className="grupp">Drift</span>
-          {drift.map((tab) => (
-            <a key={tab.href} href={tab.href} aria-current={tab.current ? "page" : undefined} onClick={linkClick(navigate, tab.href)}>
-              {tab.label}
+          {DRIFT_TABS.map(([label, href]) => (
+            <a key={href} href={href} {...tab(href)}>
+              {label}
             </a>
           ))}
         </nav>
@@ -102,7 +105,7 @@ export function Sidhuvud(props: HeaderProps) {
             <span className="osynlig">{now ? (now.clock.running ? " Klockan går." : " Klockan står still.") : " Ingen träff är startad."}</span>
           </span>
           {/* Inställningar, always to the left of the account (TRAFIK-30, H48). */}
-          <a id="gear" className="hknapp kugge" href="/installningar" aria-label="Inställningar" title="Inställningar" aria-current={page === "installningar" ? "page" : undefined} onClick={linkClick(navigate, "/installningar")}>
+          <a id="gear" className="hknapp kugge" href="/installningar" aria-label="Inställningar" title="Inställningar" {...tab("/installningar")}>
             <Gear />
           </a>
           {admin ? (
@@ -125,7 +128,7 @@ export function Sidhuvud(props: HeaderProps) {
         </div>
       </header>
       {admin && menu === "anslut" && <Anslut joining={props.joining} at={props.joinedAt} />}
-      {isDrift(page) && <BottomNav items={drift} label="Drift" navigate={navigate} />}
+      {bottom && <BottomNav items={bottom.items} label={bottom.label} navigate={navigate} />}
     </>
   );
 }

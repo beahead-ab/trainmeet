@@ -59,7 +59,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
 | Nivå | – | Bara i TKL: hur mycket av ställverket en station har (0–3). |
 | Underlagsnivå | `source.level` | Bara i importen: hur bra underlaget är (1–4). |
-| Underlag | `source` | En fil som lagts till träffen, till exempel Stefans planeringsfil. Sparas som den kom. |
+| Underlag | `source` | En fil som lagts till träffen, till exempel Tellurians planeringsfil. Sparas som den kom. |
 | Utkast | `trainmeet.planning/1`, `Draft` | Det Planering arbetar med tills det publiceras som en version. |
 | Faktum | `fact` | Det utkastet vet om en sak, med ursprung och säkerhet. |
 | Ursprung | `origin` | Var i vilket underlag ett faktum står, eller `planner` för en ändring i Planering. |
