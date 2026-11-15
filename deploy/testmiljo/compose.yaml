@@ -104,11 +104,45 @@ services:
       ID_SMTP_FROM: konto@trainmeet.se
       ID_CATALOG_SECRET: ${ID_CATALOG_SECRET:?ID_CATALOG_SECRET saknas}
       ID_CATALOG_URL: https://${CATALOG_DOMAIN}
+      # ID's own web app (#67), a client of its own in the realm.
+      ID_APP_SECRET: ${ID_APP_SECRET:?ID_APP_SECRET saknas}
+      ID_PUBLIC_URL: https://${ID_DOMAIN}
     volumes:
       - ./id-vault:/opt/keycloak/vault:ro
     ports:
       - "127.0.0.1:8082:8080"
       - "127.0.0.1:9082:9000"
+
+  # ID's API and web app (#67): clubs, members and the roles per resource, beside Keycloak at
+  # the same address. Its own database, idapi, in ID's PostgreSQL; up.sh makes it.
+  id-api:
+    image: trainmeet-idapi:${ID_TAG}
+    restart: unless-stopped
+    # Reads the mail key in id-vault for the invitations, like Keycloak.
+    user: "${HOST_UID}:0"
+    depends_on:
+      id-db:
+        condition: service_healthy
+    environment:
+      ID_API_DATABASE_URL: postgresql://keycloak:${ID_DB_PASSWORD}@id-db:5432/idapi
+      ID_API_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
+      ID_API_INTERNAL: http://id:8080/realms/trainmeet
+      ID_API_SECRET: ${ID_APP_SECRET}
+      ID_API_PUBLIC_URL: https://${ID_DOMAIN}
+      ID_API_APPS: catalog
+      ID_SMTP_HOST: smtp.tem.scaleway.com
+      ID_SMTP_PORT: "465"
+      ID_SMTP_SSL: "true"
+      ID_SMTP_STARTTLS: "false"
+      ID_SMTP_AUTH: "true"
+      ID_SMTP_USER: ${TEM_PROJECT_ID:-}
+      ID_SMTP_FROM: konto@trainmeet.se
+      ID_SMTP_PASSWORD_FILE: /vault/trainmeet_smtp-password
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - ./id-vault:/vault:ro
+    ports:
+      - "127.0.0.1:8083:8080"
 
   caddy:
     image: caddy:2

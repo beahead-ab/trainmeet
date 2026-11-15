@@ -1,0 +1,38 @@
+# ID's API and web app (#67) as a container image, beside Keycloak (id/Dockerfile). Build from
+# the repo root:
+#   docker build -f id/api.Dockerfile -t trainmeet-idapi .
+# Secrets never go in the image; they come from the environment when it starts (id/settings.py).
+
+FROM python:3.12-slim AS build
+RUN pip install --no-cache-dir "uv>=0.11,<0.12"
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+WORKDIR /src
+COPY pyproject.toml uv.lock README.md LICENSE ./
+RUN uv sync --locked --no-default-groups --group id --no-install-project
+COPY contracts ./contracts
+COPY id/__init__.py id/app.py id/db.py id/login.py id/mail.py id/migrate.py id/roles.py id/settings.py ./id/
+COPY id/migrations ./id/migrations
+RUN uv sync --locked --no-default-groups --group id --no-editable
+
+FROM python:3.12-slim
+RUN useradd --system --uid 10003 --home-dir /app --shell /usr/sbin/nologin idapi
+COPY --from=build /app/.venv /app/.venv
+WORKDIR /app
+
+ARG TRAINMEET_COMMIT=""
+LABEL org.opencontainers.image.title="TrainMeet ID:s API" \
+      org.opencontainers.image.revision=$TRAINMEET_COMMIT \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    TRAINMEET_COMMIT=$TRAINMEET_COMMIT
+
+USER idapi
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"]
+# No access log: the login's return address holds a code.
+CMD ["uvicorn", "id.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--no-access-log"]

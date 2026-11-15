@@ -82,3 +82,17 @@ def test_clients_and_hub_reject_the_same_incomplete_messages(stem: str, change: 
     assert not Draft202012Validator(schema).is_valid(message)
     with pytest.raises(ValidationError):
         CONTRACTS[stem].model_validate(message)
+
+
+def test_each_service_publishes_only_its_own_contracts() -> None:
+    """The Hub, Catalog and ID are services of their own (C16, #67): none of them publishes
+    the others' messages in its OpenAPI file."""
+    from contracts.generate import CATALOG_OPENAPI, ID_OPENAPI, OPENAPI
+
+    def names(path: Path) -> set[str]:
+        return set(json.loads(path.read_text(encoding="utf-8"))["components"]["schemas"])
+
+    hub, catalog, identity = names(OPENAPI), names(CATALOG_OPENAPI), names(ID_OPENAPI)
+    assert not any(n.startswith(("trainmeet.catalog-", "trainmeet.id-")) for n in hub)
+    assert all(n.startswith("trainmeet.catalog-") for n in catalog)
+    assert all(n.startswith("trainmeet.id-") for n in identity)

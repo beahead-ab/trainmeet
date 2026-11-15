@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.version.schema.json",
+  "title": "trainmeet.id-1.version",
+  "additionalProperties": true,
+  "description": "What is running, so a tester can see which change the test environment has.",
+  "properties": {
+    "product": {
+      "default": "TrainMeet ID",
+      "title": "Product",
+      "type": "string"
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The git commit, or null locally.",
+      "title": "Commit"
+    }
+  },
+  "type": "object"
+}

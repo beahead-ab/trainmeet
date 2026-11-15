@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.access.schema.json",
+  "title": "trainmeet.id-1.access",
+  "$defs": {
+    "Resource": {
+      "additionalProperties": true,
+      "description": "One thing a role applies to: its kind and its id in the app that owns it.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ResourceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Resource",
+      "type": "object"
+    },
+    "ResourceKind": {
+      "description": "What a role applies to (KONTO-03). ID only holds the reference, never the thing.",
+      "enum": [
+        "club",
+        "fleet",
+        "meet",
+        "station",
+        "module",
+        "hub",
+        "catalog"
+      ],
+      "title": "ResourceKind",
+      "type": "string"
+    },
+    "Role": {
+      "description": "The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).",
+      "enum": [
+        "admin",
+        "member",
+        "organizer",
+        "reader",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer",
+        "reviewer",
+        "viewer",
+        "editor"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.",
+  "properties": {
+    "person": {
+      "format": "uuid",
+      "title": "Person",
+      "type": "string"
+    },
+    "resource": {
+      "$ref": "#/$defs/Resource"
+    },
+    "roles": {
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "title": "Roles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "person",
+    "resource",
+    "roles"
+  ],
+  "type": "object"
+}

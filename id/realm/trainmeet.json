@@ -115,9 +115,41 @@
         "profile",
         "email"
       ]
+    },
+    {
+      "clientId": "id",
+      "name": "TrainMeet ID",
+      "description": "ID:s egen webbapp: klubbar, medlemmar och roller (#67).",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ID_APP_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${ID_PUBLIC_URL}/api/id/1/login/callback"
+      ],
+      "webOrigins": [
+        "${ID_PUBLIC_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ID_PUBLIC_URL}/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "basic",
+        "profile",
+        "email"
+      ]
     }
   ],
   "attributes": {
-    "trainmeetVersion": "2"
+    "trainmeetVersion": "3"
   }
 }

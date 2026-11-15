@@ -20,6 +20,12 @@ catalog = [
     "psycopg[binary,pool]>=3.2",
     "pyjwt[crypto]>=2.10",
 ]
+# TrainMeet ID's own API (id/, #67): PostgreSQL, Keycloak's tokens and keys. Not in the hub's image.
+id = [
+    "httpx>=0.27",
+    "psycopg[binary,pool]>=3.2",
+    "pyjwt[crypto]>=2.10",
+]
 dev = [
     "httpx>=0.27",
     # Checks the examples against the published JSON Schemas, as other readers will.
@@ -32,7 +38,7 @@ dev = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "catalog"]
+default-groups = ["dev", "catalog", "id"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
@@ -40,8 +46,16 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 # One package per part. New parts (contracts, core, drift, ...) are added here as they are built.
-packages = ["catalog", "contracts", "drift", "hub", "integrationer", "planering"]
-exclude = ["**/tests", "hub/Dockerfile", "catalog/Dockerfile"]
+packages = ["catalog", "contracts", "drift", "hub", "id", "integrationer", "planering"]
+exclude = [
+    "**/tests",
+    "hub/Dockerfile",
+    "catalog/Dockerfile",
+    "id/Dockerfile",
+    "id/api.Dockerfile",
+    "id/email-code",
+    "id/realm",
+]
 
 [tool.ruff]
 line-length = 100

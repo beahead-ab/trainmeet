@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.answer.schema.json",
+  "title": "trainmeet.id-1.answer",
+  "additionalProperties": true,
+  "properties": {
+    "accept": {
+      "title": "Accept",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "accept"
+  ],
+  "type": "object"
+}

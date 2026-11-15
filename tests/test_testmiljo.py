@@ -315,6 +315,15 @@ def test_id_secrets_survive_secret_manager_and_stay_private(
     ]
 
 
+def test_the_id_api_has_a_secret_of_its_own(tmp_path: Path) -> None:
+    """#67: a new secret beside the one from #66, so that one is never rewritten."""
+    made = testmiljo.generate_id_api_secrets()
+    assert testmiljo.IdApiSecrets.from_json(made.to_json()) == made
+    assert len(made.app_secret) == 64
+    assert made.env_file() == f"ID_APP_SECRET={made.app_secret}\n"
+    assert testmiljo.ID_API_SECRET_NAME != testmiljo.ID_SECRET_NAME
+
+
 def test_the_id_check_stops_its_background_programs() -> None:
     """Programs started through uv hold uv's cache locked; setup-uv's own cleanup after the
     job then waits for the lock and fails the check (it happened on main, 15 November)."""
@@ -329,3 +338,23 @@ def test_the_id_check_stops_its_background_programs() -> None:
     stopped = re.findall(r'pkill -f "([^"]+)"', stop)
     for script, server in started:
         assert any(pattern in (script or server) for pattern in stopped), script or server
+
+
+def test_ids_api_runs_beside_keycloak_at_the_same_address() -> None:
+    """#67: Keycloak answers /realms/ and /resources/, ID's API and web app the rest."""
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    assert "image: trainmeet-idapi:${ID_TAG}" in compose
+    assert (
+        "ID_API_DATABASE_URL: postgresql://keycloak:${ID_DB_PASSWORD}@id-db:5432/idapi" in compose
+    )
+    assert "ID_API_SECRET: ${ID_APP_SECRET}" in compose
+    assert "ID_APP_SECRET: ${ID_APP_SECRET:?" in compose  # Keycloak's client "id" (update 3)
+    assert "@keycloak path /realms/* /resources/*" in caddyfile
+    assert "reverse_proxy id-api:8080" in caddyfile
+    assert "createdb -U keycloak idapi" in up
+    assert "id-api:8083" in up
+    service = compose.split("  id-api:")[1].split("\n  caddy:")[0]
+    assert '"127.0.0.1:8083:8080"' in service  # only on the server itself

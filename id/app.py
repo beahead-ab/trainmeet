@@ -1,0 +1,318 @@
+"""ID's API and web app (#67), next to Keycloak at the same address.
+
+    uv run uvicorn id.app:app --port 8002     (settings in id/settings.py)
+
+Keycloak answers /realms/ and /resources/; everything else at the address comes here: the API
+under /api/id/1 (contracts/id.py) and the web app's pages (apps/id).
+"""
+
+# No "from __future__ import annotations": FastAPI must see the local Person and App aliases.
+import logging
+import os
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import Annotated, Final
+from uuid import UUID
+
+import httpx
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from contracts.id import (
+    Access,
+    Answer,
+    Club,
+    ClubName,
+    ClubPage,
+    FleetAccess,
+    FleetInvite,
+    FleetPage,
+    Invitation,
+    Invite,
+    Problem,
+    ProblemCode,
+    Removed,
+    Resource,
+    ResourceKind,
+    Session,
+    Version,
+)
+from id import login as id_login
+from id import migrate
+from id.db import Database
+from id.mail import SmtpMailer
+from id.roles import Asker, Mailer, Refused, Roles
+from id.settings import Settings, from_env
+
+LOGGER = logging.getLogger("id")
+API = "/api/id/1"
+
+CONTENT_SECURITY_POLICY: Final = (
+    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+    "font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; "
+    "frame-ancestors 'none'; object-src 'none'"
+)
+SECURITY_HEADERS: Final = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+}
+NO_WEB_APP = """<!doctype html>
+<html lang="sv"><meta charset="utf-8"><title>TrainMeet ID</title>
+<h1>TrainMeet ID</h1><p>Webbappen är inte byggd. Kör <code>npm run build</code>.</p>
+</html>
+"""
+
+SessionCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
+AttemptCookie = Annotated[str | None, Cookie(alias=id_login.ATTEMPT_COOKIE)]
+
+
+class SecurityHeaders(BaseHTTPMiddleware):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        for key, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(key, value)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
+
+def create_app(
+    settings: Settings | None = None,
+    *,
+    http: httpx.Client | None = None,
+    mailer: Mailer | None = None,
+) -> FastAPI:
+    """The app. The tests give a pretend Keycloak (http) and a pretend mail server."""
+    settings = settings if settings is not None else from_env()
+    db = Database(settings.database_url)
+    login = id_login.Login(db, settings, http)
+    roles = Roles(
+        db, mailer if mailer is not None else SmtpMailer(settings.smtp), settings.public_url
+    )
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if settings.migrate == "auto":
+            migrate.migrate(settings.database_url)
+        elif missing := migrate.check(settings.database_url):
+            names = ", ".join(f"{m.version:04d}_{m.name}" for m in missing)
+            raise migrate.MigrationError(f"Databasen saknar migrationer: {names}.")
+        db.open()
+        LOGGER.info("ID:s API startar.")
+        try:
+            yield
+        finally:
+            db.close()
+
+    app = FastAPI(
+        title="TrainMeet ID",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+    )
+    app.add_middleware(SecurityHeaders)
+
+    @app.exception_handler(Refused)
+    def refused(_: Request, error: Refused) -> JSONResponse:
+        problem = Problem(code=error.code, message=error.message)
+        return JSONResponse(problem.model_dump(mode="json"), status_code=error.status)
+
+    def asker(session: SessionCookie = None) -> Asker:
+        account = login.account(session)
+        if account is None:
+            raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
+        return Asker(id=account.id, email=account.email)
+
+    Person = Annotated[Asker, Depends(asker)]
+
+    def app_client(authorization: Annotated[str | None, Header()] = None) -> str:
+        app_name = login.app(authorization)
+        if app_name is None:
+            raise Refused(401, ProblemCode.LOGIN, "En app frågar med sin token från ID.")
+        return app_name
+
+    App = Annotated[str, Depends(app_client)]
+
+    @app.get("/api/version")
+    def version() -> Version:
+        commit = os.environ.get("TRAINMEET_COMMIT", "").strip().lower()
+        return Version(commit=commit if re.fullmatch(r"[0-9a-f]{7,40}", commit) else None)
+
+    @app.get("/healthz", response_class=PlainTextResponse)
+    def healthz() -> PlainTextResponse:
+        if not db.ping():
+            return PlainTextResponse("databasen svarar inte", status_code=503)
+        return PlainTextResponse("ok")
+
+    # --- The session ------------------------------------------------------------------------
+
+    @app.get(API + "/session")
+    def get_session(session: SessionCookie = None) -> Session:
+        return Session(account=login.account(session))
+
+    @app.delete(API + "/session")
+    def log_out(response: Response, session: SessionCookie = None) -> Session:
+        id_token = login.end_session(session)
+        response.delete_cookie(id_login.COOKIE, path="/")
+        return Session(logout_url=login.logout_address(id_token) if id_token else None)
+
+    @app.get(API + "/login", response_class=RedirectResponse, status_code=303)
+    def log_in(request: Request, next: str | None = None, lang: str | None = None) -> Response:
+        started = login.start(id_login.safe_next(next), lang)
+        response = RedirectResponse(started.address, status_code=303)
+        response.set_cookie(
+            id_login.ATTEMPT_COOKIE,
+            started.key,
+            max_age=id_login.ATTEMPT_SECONDS,
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="lax",
+            path=id_login.ATTEMPT_PATH,
+        )
+        return response
+
+    @app.get(API + "/login/callback", response_class=RedirectResponse, status_code=303)
+    def login_callback(
+        request: Request,
+        attempt: AttemptCookie = None,
+        code: str | None = None,
+        state: str | None = None,
+        error: str | None = None,
+    ) -> Response:
+        try:
+            account, id_token, next_path = login.finish(attempt, state, code, error)
+        except id_login.LoginFailed as failed:
+            LOGGER.warning("Inloggningen gick inte: %s", failed)
+            response = RedirectResponse(failed.back, status_code=303)
+        else:
+            roles.seen(account)
+            response = RedirectResponse(next_path, status_code=303)
+            response.set_cookie(
+                id_login.COOKIE,
+                login.start_session(account, id_token),
+                max_age=int(id_login.SESSION_LIFETIME.total_seconds()),
+                httponly=True,
+                secure=request.url.scheme == "https",
+                samesite="lax",
+                path="/",
+            )
+        response.delete_cookie(id_login.ATTEMPT_COOKIE, path=id_login.ATTEMPT_PATH)
+        return response
+
+    # --- Clubs (KONTO-02, KONTO-35) -----------------------------------------------------------
+
+    @app.get(API + "/clubs")
+    def clubs(person: Person) -> list[Club]:
+        return roles.clubs(person)
+
+    @app.post(API + "/clubs", status_code=201)
+    def create_club(body: ClubName, person: Person) -> Club:
+        return roles.create_club(person, body.name)
+
+    @app.get(API + "/clubs/{club}")
+    def club_page(club: UUID, person: Person) -> ClubPage:
+        return roles.club_page(person, club)
+
+    @app.post(API + "/clubs/{club}/invitations", status_code=201)
+    def invite_to_club(club: UUID, body: Invite, person: Person) -> Invitation:
+        return roles.invite_to_club(person, club, body.email)
+
+    @app.delete(API + "/clubs/{club}/members/{member}", response_model=None)
+    def remove_member(club: UUID, member: UUID, person: Person) -> ClubPage | Response:
+        page = roles.remove_member(person, club, member)
+        return page if page is not None else Response(status_code=204)
+
+    # --- Fleets (CAT-44, KONTO-29) ------------------------------------------------------------
+
+    @app.get(API + "/fleets/{owner}")
+    def fleet_page(owner: UUID, person: Person) -> FleetPage:
+        return roles.fleet_page(person, owner)
+
+    @app.post(API + "/fleets/{owner}/invitations", status_code=201)
+    def invite_to_fleet(owner: UUID, body: FleetInvite, person: Person) -> Invitation:
+        return roles.invite_to_fleet(person, owner, body.email, body.role)
+
+    @app.delete(API + "/grants/{grant}")
+    def remove_grant(grant: UUID, person: Person) -> Removed:
+        return roles.remove_grant(person, grant)
+
+    # --- Invitations --------------------------------------------------------------------------
+
+    @app.get(API + "/invitations")
+    def invitations(person: Person) -> list[Invitation]:
+        return roles.invitations_for(person)
+
+    @app.post(API + "/invitations/{invitation}/answer")
+    def answer(invitation: UUID, body: Answer, person: Person) -> Invitation:
+        return roles.answer(person, invitation, body.accept)
+
+    @app.delete(API + "/invitations/{invitation}")
+    def withdraw(invitation: UUID, person: Person) -> Removed:
+        return roles.withdraw(person, invitation)
+
+    # --- The apps (KONTO-34) ------------------------------------------------------------------
+
+    @app.get(API + "/apps/access")
+    def access(person: UUID, resource: str, _: App) -> Access:
+        kind, _sep, ident = resource.partition(":")
+        try:
+            wanted = Resource(kind=ResourceKind(kind), id=ident)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail="resource är kind:id.") from error
+        return roles.access(person, wanted)
+
+    @app.get(API + "/apps/fleets")
+    def fleets(person: UUID, _: App) -> list[FleetAccess]:
+        return roles.fleets_for(person)
+
+    @app.api_route(
+        "/api/{rest:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        include_in_schema=False,
+    )
+    def unknown_api(rest: str) -> JSONResponse:
+        return JSONResponse({"detail": "Finns inte."}, status_code=404)
+
+    @app.api_route(
+        "/{path:path}", methods=["GET", "HEAD"], response_model=None, include_in_schema=False
+    )
+    def web_app(path: str) -> Response:
+        root = settings.web_dir.resolve()
+        if path:
+            candidate = (root / path).resolve()
+            if candidate.is_relative_to(root) and candidate.is_file():
+                cache = (
+                    "public, max-age=31536000, immutable"
+                    if path.startswith("assets/")
+                    else "public, max-age=3600"
+                )
+                return FileResponse(candidate, headers={"Cache-Control": cache})
+            if "." in path.rsplit("/", 1)[-1]:
+                return PlainTextResponse("Finns inte.", status_code=404)
+        index = root / "index.html"
+        if not index.is_file():
+            return HTMLResponse(NO_WEB_APP)
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+    return app
+
+
+def __getattr__(name: str) -> FastAPI:
+    if name == "app":
+        built = create_app()
+        globals()["app"] = built
+        return built
+    raise AttributeError(name)
