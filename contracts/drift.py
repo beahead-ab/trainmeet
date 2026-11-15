@@ -31,7 +31,9 @@ from typing import Final, Literal
 from pydantic import Field, model_validator
 
 from contracts.common import BoxLanguage, Contract, Id, Text, TimeOfDay, Weekday
-from contracts.station import ApprovalStatus, Clearance, Clock
+from contracts.meet import Call, ClearanceMode
+from contracts.reasons import Reason
+from contracts.station import ApprovalStatus, Clearance, ClearanceStatus, Clock, MeetContext
 from contracts.terminal import DisplaySize
 
 PROTOCOL: Final = "trainmeet.drift/1"
@@ -444,3 +446,63 @@ class Refusal(Contract):
     what: Text = Field(description="Åtgärden, eller knappen på en box.")
     reason: Text | None = Field(default=None, description="Skälet som kod, när Drift sa nej.")
     message: Text
+
+
+# --- Provbanan (steg 2) -------------------------------------------------------------------
+# A run of Provbanan per browser, kept for a day (H51): the page acts from each place in turn.
+
+
+class PreviewClock(Contract):
+    seconds: float = Field(ge=0, description="Sekunder sedan speldygnets midnatt.")
+    time: TimeOfDay
+    speed: float = Field(gt=0, le=60)
+    running: bool
+
+
+class PreviewLeg(Contract):
+    """A leg of the timetable: from one call to the next, over one section."""
+
+    train: Text = Field(description="Tågnumret, för visning.")
+    departure: Call
+    arrival: Call
+    section: Id
+    blocked: Reason | None = Field(
+        default=None, description="Varför klarering inte kan begäras nu."
+    )
+    complete: bool = Field(description="Tåget har kommit fram på sträckan.")
+
+
+class PreviewCase(Contract):
+    """A clearance in the run, from the request to the arrival."""
+
+    id: Id
+    train: Text
+    departure: Id
+    arrival: Id
+    from_place: Id
+    to_place: Id
+    status: ClearanceStatus
+    departed: bool
+    arrived: bool
+    revision: int = Field(ge=0)
+
+
+class Preview(Contract):
+    """The run as the Provbanan page sees it (GET /api/provbanan)."""
+
+    revision: int = Field(ge=0, description="Ändras när något har hänt i körningen.")
+    context: MeetContext
+    traffic_day: Weekday
+    places: dict[Id, Text] = Field(description="Driftplatsernas namn.")
+    stations: list[Id] = Field(description="Driftplatserna en box eller TKL kan få.")
+    sections: dict[Id, ClearanceMode] = Field(description="Klareringsläget per sträcka.")
+    clock: PreviewClock
+    legs: list[PreviewLeg]
+    cases: list[PreviewCase]
+
+
+class PreviewClients(Contract):
+    """The run's code and its clients: boxes, TKL and the TMBox app (H31)."""
+
+    code: Text
+    clients: list[Client]

@@ -28,7 +28,9 @@ export function StartPage(props: StartProps) {
         <h1>Prova Drift</h1>
         <p className="ingress">Här kan du prova Drift med en påhittad träff på Provbanan.</p>
         <p className="lankar">
-          <a href="/provbanan">Öppna Provbanan →</a>
+          <a href="/provbanan" onClick={linkClick(navigate, "/provbanan")}>
+            Öppna Provbanan →
+          </a>
           <a href="/planering">Planering →</a>
           <a href="/drift" onClick={linkClick(navigate, "/drift")}>
             Se träffen →

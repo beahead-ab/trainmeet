@@ -38,7 +38,6 @@ def test_first_start_names_the_hub_and_logs_in(hub: TestClient) -> None:
     assert "HttpOnly" in cookie and "SameSite=strict" in cookie and "Max-Age=43200" in cookie
     assert info(hub) == contract.HubInfo(name="Testhubben Väst", set_up=True, logged_in=True)
     assert hub.get("/api/version").json()["hub_name"] == "Testhubben Väst"
-    assert "Testhubben Väst" in hub.get("/provbanan").text, "every page has the name"
     # The key works as Bearer too, for the Drift API.
     other = TestClient(hub.app)
     headers = {"Authorization": "Bearer " + session.session_key}

@@ -163,10 +163,11 @@ describe("the start page (S1, H52)", () => {
 });
 
 describe("the addresses", () => {
-  it("draws / and Drift's pages, and leaves Planering and Provbanan to their own", () => {
-    expect([pageOf("/"), pageOf("/drift"), pageOf("/drift/"), pageOf("/drift/klienter"), pageOf("/drift/logg")]).toEqual(["start", "nu", "nu", "klienter", "logg"]);
+  it("draws /, Provbanan and Drift's pages, and leaves Planering and the boxes to their own", () => {
+    expect([pageOf("/"), pageOf("/provbanan"), pageOf("/drift"), pageOf("/drift/"), pageOf("/drift/klienter"), pageOf("/drift/logg")]).toEqual(["start", "provbanan", "nu", "nu", "klienter", "logg"]);
     expect(isOwn("/drift/logg")).toBe(true);
+    expect(isOwn("/provbanan")).toBe(true);
     expect(isOwn("/planering")).toBe(false);
-    expect(isOwn("/provbanan")).toBe(false);
+    expect(isOwn("/provbanan/box")).toBe(false);
   });
 });

@@ -104,7 +104,7 @@ def create_app(
     app.state.running = running
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(hubben.router(login))
-    app.include_router(provbanan.router(info, preview, lambda: login.state().name))
+    app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
     app.include_router(planering_api.router(plans, login))
     runs = AnyRun(lambda: running.store, lambda: preview)

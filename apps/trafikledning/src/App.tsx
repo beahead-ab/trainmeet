@@ -4,7 +4,8 @@ import { askedChoice, meetChoices, waitingCount, type MeetChoice } from "./drift
 import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
-import { Sidhuvud, type Menu, type Page } from "./Sidhuvud";
+import { ProvbananPage } from "./Provbanan";
+import { isDrift, Sidhuvud, type Menu, type Page } from "./Sidhuvud";
 import { StartPage } from "./StartPage";
 
 // Trafikledningen (TRAFIK-21): the start page, and Nu, Klienter and Logg, under the same
@@ -16,11 +17,12 @@ export function pageOf(path: string): Page {
   if (clean === "/drift/klienter") return "klienter";
   if (clean === "/drift/logg") return "logg";
   if (clean === "/drift" || clean.startsWith("/drift/")) return "nu";
+  if (clean === "/provbanan") return "provbanan";
   return "start";
 }
 
-/** The addresses this app draws itself; the rest (Planering, Provbanan) are other pages. */
-export const isOwn = (path: string) => path === "/" || path === "/drift" || path.startsWith("/drift/");
+/** The addresses this app draws itself; the rest (Planering, the boxes) are other pages. */
+export const isOwn = (path: string) => path === "/" || path === "/provbanan" || path === "/drift" || path.startsWith("/drift/");
 
 export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
@@ -127,7 +129,7 @@ export function App() {
 
   useEffect(() => {
     document.title = `TrainMeet Hub · ${info?.name ?? "Hubben"}`;
-    document.body.classList.toggle("kontrollrummet", page !== "start");
+    document.body.classList.toggle("kontrollrummet", isDrift(page));
   }, [info, page]);
 
   const navigate = useCallback((href: string) => {
@@ -240,7 +242,7 @@ export function App() {
         onStart={(choice, day) => void onStart(choice, day)}
         onLogOut={() => void onLogOut()}
       />
-      <main id="innehall" className={page === "start" ? "startsida" : "drift"}>
+      <main id="innehall" className={page === "start" ? "startsida" : page === "provbanan" ? "provsida" : "drift"}>
         {page === "start" && (
           <StartPage
             info={info}
@@ -271,7 +273,8 @@ export function App() {
         )}
         {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} />}
         {page === "logg" && <LoggPage admin={admin} now={now} clients={clients} navigate={navigate} onMessage={setMessage} />}
-        {page !== "start" && (
+        {page === "provbanan" && <ProvbananPage />}
+        {isDrift(page) && (
           <p id="message" className="meddelande" role="alert">
             {message}
           </p>

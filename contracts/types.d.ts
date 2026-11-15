@@ -356,6 +356,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/provbanan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewClock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/command": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["previewClients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clients/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approvePreviewClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clients/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokePreviewClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clients/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assignPreviewClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/screen/session": {
         parameters: {
             query?: never;
@@ -4362,6 +4490,286 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.automation.PlaceMode": "manned" | "no_contact" | "automatic";
+        /**
+         * Preview
+         * @description The run as the Provbanan page sees it (GET /api/provbanan).
+         */
+        "trainmeet.drift-1.preview": {
+            /**
+             * Revision
+             * @description Ändras när något har hänt i körningen.
+             */
+            revision: number;
+            context: components["schemas"]["trainmeet.drift-1.preview.MeetContext"];
+            traffic_day: components["schemas"]["trainmeet.drift-1.preview.Weekday"];
+            /**
+             * Places
+             * @description Driftplatsernas namn.
+             */
+            places: {
+                [key: string]: string;
+            };
+            /**
+             * Stations
+             * @description Driftplatserna en box eller TKL kan få.
+             */
+            stations: string[];
+            /**
+             * Sections
+             * @description Klareringsläget per sträcka.
+             */
+            sections: {
+                [key: string]: components["schemas"]["trainmeet.drift-1.preview.ClearanceMode"];
+            };
+            clock: components["schemas"]["trainmeet.drift-1.preview.PreviewClock"];
+            /** Legs */
+            legs: components["schemas"]["trainmeet.drift-1.preview.PreviewLeg"][];
+            /** Cases */
+            cases: components["schemas"]["trainmeet.drift-1.preview.PreviewCase"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Call
+         * @description Tågbesök: what Drift keeps track of. A train number alone is never a key (A1).
+         */
+        "trainmeet.drift-1.preview.Call": {
+            /** Id */
+            id: string;
+            /** Place */
+            place: string;
+            /**
+             * Track
+             * @description Planens spårnamn.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Day Offset
+             * @description Speldygn efter tågets första.
+             * @default 0
+             */
+            day_offset: number;
+            /**
+             * Stops
+             * @description Falskt för ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Exchange
+             * @description Falskt för uppehåll utan utbyte: tåget står men lastar inte.
+             * @default true
+             */
+            exchange: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview.ClearanceMode": "requested" | "direct";
+        /**
+         * ClearanceStatus
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview.ClearanceStatus": "waiting" | "approved" | "rejected" | "cancelled" | "invalidated";
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.drift-1.preview.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PreviewCase
+         * @description A clearance in the run, from the request to the arrival.
+         */
+        "trainmeet.drift-1.preview.PreviewCase": {
+            /** Id */
+            id: string;
+            /** Train */
+            train: string;
+            /** Departure */
+            departure: string;
+            /** Arrival */
+            arrival: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            status: components["schemas"]["trainmeet.drift-1.preview.ClearanceStatus"];
+            /** Departed */
+            departed: boolean;
+            /** Arrived */
+            arrived: boolean;
+            /** Revision */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PreviewClock */
+        "trainmeet.drift-1.preview.PreviewClock": {
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt.
+             */
+            seconds: number;
+            /** Time */
+            time: string;
+            /** Speed */
+            speed: number;
+            /** Running */
+            running: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PreviewLeg
+         * @description A leg of the timetable: from one call to the next, over one section.
+         */
+        "trainmeet.drift-1.preview.PreviewLeg": {
+            /**
+             * Train
+             * @description Tågnumret, för visning.
+             */
+            train: string;
+            departure: components["schemas"]["trainmeet.drift-1.preview.Call"];
+            arrival: components["schemas"]["trainmeet.drift-1.preview.Call"];
+            /** Section */
+            section: string;
+            /**
+             * @description Varför klarering inte kan begäras nu.
+             * @default null
+             */
+            blocked: components["schemas"]["trainmeet.drift-1.preview.Reason"] | null;
+            /**
+             * Complete
+             * @description Tåget har kommit fram på sträckan.
+             */
+            complete: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Reason
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present";
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * PreviewClients
+         * @description The run's code and its clients: boxes, TKL and the TMBox app (H31).
+         */
+        "trainmeet.drift-1.preview-clients": {
+            /** Code */
+            code: string;
+            /** Clients */
+            clients: components["schemas"]["trainmeet.drift-1.preview-clients.Client"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ApprovalStatus
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview-clients.ApprovalStatus": "waiting" | "approved" | "refused" | "revoked";
+        /** Client */
+        "trainmeet.drift-1.preview-clients.Client": {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "tkl" | "tmbox_app" | "dispatch" | "tmbox_web" | "tmbox" | "screen";
+            status: components["schemas"]["trainmeet.drift-1.preview-clients.ApprovalStatus"];
+            /** Places */
+            places?: string[];
+            /**
+             * Side
+             * @default both
+             * @enum {string}
+             */
+            side: "both" | "left" | "right";
+            /**
+             * Language
+             * @description Bara för TMBoxar.
+             * @default null
+             */
+            language: ("sv" | "en" | "da" | "nb" | "de") | null;
+            /**
+             * @description Bara för TMBoxar.
+             * @default null
+             */
+            display: components["schemas"]["trainmeet.drift-1.preview-clients.DisplaySize"] | null;
+            /**
+             * View
+             * @description Bara för skärmar: vyn den visar.
+             * @default null
+             */
+            view: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DisplaySize
+         * @description 16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.
+         */
+        "trainmeet.drift-1.preview-clients.DisplaySize": {
+            /**
+             * Rows
+             * @default 2
+             * @enum {integer}
+             */
+            rows: 2 | 4;
+            /**
+             * Cols
+             * @default 16
+             * @enum {integer}
+             */
+            cols: 16 | 20;
+        } & {
+            [key: string]: unknown;
+        };
         /** ScreenLogin */
         "trainmeet.screen-1.login": {
             /** Name */
@@ -7406,6 +7814,190 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview"];
+                };
+            };
+        };
+    };
+    previewStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.start"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview"];
+                };
+            };
+        };
+    };
+    previewClock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.clock"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview"];
+                };
+            };
+        };
+    };
+    previewCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.station-1.command"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview"];
+                };
+            };
+        };
+    };
+    previewClients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview-clients"];
+                };
+            };
+        };
+    };
+    approvePreviewClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.approve"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview-clients"];
+                };
+            };
+        };
+    };
+    revokePreviewClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.revoke"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview-clients"];
+                };
+            };
+        };
+    };
+    assignPreviewClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.assign"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview-clients"];
                 };
             };
         };
