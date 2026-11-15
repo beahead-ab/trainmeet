@@ -20,7 +20,7 @@ Orden står i [ORDLISTA.md](ORDLISTA.md).
 ## Reglerna
 
 - **Modellerna är källan.** JSON-schemana skapas ur dem med `uv run python -m contracts.generate`. Testerna blir röda om ett schema inte stämmer med sin modell.
-- Kör sedan `npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts` och `npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts` för att uppdatera klienttyperna.
+- Kör sedan `npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts` , `npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts` och `npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts` för att uppdatera klienttyperna.
 - **Okända fält sparas och ignoreras**, så att en äldre läsare aldrig går sönder på en nyare skrivare.
 - **Nya fält läggs till utan nytt nummer.** Tas ett fält bort, eller ändras vad det betyder, får formatet nytt nummer (`trainmeet.meet/2`).
 - **Id:n är stabila mellan versioner.** En driftplats, sträcka, ett tåg och ett tågbesök behåller sitt id.

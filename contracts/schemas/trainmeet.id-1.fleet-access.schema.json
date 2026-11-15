@@ -3,12 +3,14 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.fleet-access.schema.json",
   "title": "trainmeet.id-1.fleet-access",
   "$defs": {
-    "FleetRole": {
+    "FleetAccessRole": {
+      "description": "How a person may work in a fleet that is not their own.",
       "enum": [
         "viewer",
-        "editor"
+        "editor",
+        "owner"
       ],
-      "title": "FleetRole",
+      "title": "FleetAccessRole",
       "type": "string"
     },
     "Resource": {
@@ -47,7 +49,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "A fleet that is shared with the person, and how (CAT-50).",
+  "description": "A fleet the person may work in besides their own: shared with them, or their club's\n(CAT-50, CAT-51).",
   "properties": {
     "owner": {
       "$ref": "#/$defs/Resource",
@@ -61,7 +63,7 @@
       "type": "string"
     },
     "role": {
-      "$ref": "#/$defs/FleetRole"
+      "$ref": "#/$defs/FleetAccessRole"
     }
   },
   "required": [

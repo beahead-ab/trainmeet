@@ -199,9 +199,45 @@ export function TagPage({ ctx, uid, account }: { ctx: Ctx; uid: string; account:
   const [told, setTold] = useState(false);
 
   useEffect(() => {
-    api.lookup(uid).then(setFound, (failure) => setError(problemText(t, failure)));
-    if (account) api.pending().then((state) => setPending(state.pending), () => setPending(null));
-  }, [uid, account, t]);
+    api.lookup(uid).then(
+      (answer) => {
+        // The card opens in the fleet it is in: the person's own, or the one shared (#49).
+        if (answer.outcome === "mine") ctx.workIn?.(null);
+        if (answer.outcome === "fleet") ctx.workIn?.(answer.owner);
+        setFound(answer);
+      },
+      (failure) => setError(problemText(t, failure)),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per tag
+  }, [uid, t]);
+
+  // An unknown tag can be waited for in the person's own fleet or in a club's where they have
+  // the owner's right (C39). The latest wait wins, and its fleet is worked in.
+  const tagFleets = (ctx.fleets ?? []).slice(1).filter((f) => f.right === "owner").map((f) => f.owner);
+  const fleetKey = tagFleets.join(",");
+  const unknown = found?.outcome === "unknown";
+  useEffect(() => {
+    if (!account || !unknown) return;
+    let gone = false;
+    const asks = [null, ...tagFleets].map((fleet) =>
+      api.pending(fleet).then(
+        (state) => (state.pending ? { fleet, pending: state.pending } : null),
+        () => null,
+      ),
+    );
+    Promise.all(asks).then((answers) => {
+      if (gone) return;
+      const latest = answers
+        .filter((answer) => answer !== null)
+        .sort((a, b) => b.pending.expires_at.localeCompare(a.pending.expires_at))[0];
+      if (latest) ctx.workIn?.(latest.fleet);
+      setPending(latest?.pending ?? null);
+    });
+    return () => {
+      gone = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- per person and their fleets
+  }, [account, unknown, fleetKey]);
 
   useEffect(() => {
     // Mine: the card opens directly (CAT-99), at its own address, in place of the tag's.

@@ -860,6 +860,9 @@ export interface components {
         /**
          * Access
          * @description What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.
+         *
+         *     For a club's fleet the club's roles count too (CAT-51, C36): its administrators have admin,
+         *     which is the owner's right, and its members viewer.
          */
         "trainmeet.id-1.access": {
             /**
@@ -898,7 +901,8 @@ export interface components {
         "trainmeet.id-1.access.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * FleetAccess
-         * @description A fleet that is shared with the person, and how (CAT-50).
+         * @description A fleet the person may work in besides their own: shared with them, or their club's
+         *     (CAT-50, CAT-51).
          */
         "trainmeet.id-1.fleet-access": {
             /** @description Kind fleet: the owner's id, a person's or a club's. */
@@ -908,15 +912,16 @@ export interface components {
              * @description Whose fleet it is, as the owner shows it.
              */
             title: string;
-            role: components["schemas"]["trainmeet.id-1.fleet-access.FleetRole"];
+            role: components["schemas"]["trainmeet.id-1.fleet-access.FleetAccessRole"];
         } & {
             [key: string]: unknown;
         };
         /**
-         * FleetRole
+         * FleetAccessRole
+         * @description How a person may work in a fleet that is not their own.
          * @enum {string}
          */
-        "trainmeet.id-1.fleet-access.FleetRole": "viewer" | "editor";
+        "trainmeet.id-1.fleet-access.FleetAccessRole": "viewer" | "editor" | "owner";
         /**
          * Resource
          * @description One thing a role applies to: its kind and its id in the app that owns it.

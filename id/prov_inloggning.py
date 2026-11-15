@@ -16,7 +16,8 @@ en kod till e-posten och tillbaka in i Catalog med samma konto (KONTO-27), sedan
 ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och ID.
 
 Med --id-app körs ID:s API och webbapp på den adressen (#67): en klubb skapas, en medlem
-bjuds in med mejl och svarar ja.
+bjuds in med mejl och svarar ja. Med båda delas en vagnpark i ID och syns i Catalog (#49), och
+klubbens vagnpark provas: administratören gör ägarens saker, medlemmen tittar (CAT-51, C39).
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -552,6 +553,61 @@ def run_sharing(base: str, mails: Path, catalog: str, id_app: str) -> None:
     print("Sluta dela gäller direkt: ok")
 
 
+def run_club_fleet(base: str, mails: Path, catalog: str, id_app: str) -> None:
+    """#49, CAT-51, C39: a club's fleet in Catalog. The administrator does the owner's things,
+    a QR label too, and a member only looks."""
+    kim, sara = Browser(base, catalog), Browser(base, catalog)
+    sara_address = f"prov-{secrets.token_hex(4)}@example.com"
+    log_in_to_app(
+        kim,
+        mails,
+        f"prov-{secrets.token_hex(4)}@example.com",
+        "Provare Admin",
+        "/api/catalog/1/id/login",
+    )
+    log_in_to_app(sara, mails, sara_address, "Provare Medlem", "/api/catalog/1/id/login")
+    kim_id, sara_id = (Browser(base, id_app, "/api/id/1/session") for _ in range(2))
+    for browser, catalog_browser in ((kim_id, kim), (sara_id, sara)):
+        browser.id.client.cookies = catalog_browser.id.client.cookies
+        browser.open("/api/id/1/login")
+    club = kim_id.app.post("/api/id/1/clubs", json={"name": "Provklubbens bana"}).json()["id"]
+    kim_id.app.post(f"/api/id/1/clubs/{club}/invitations", json={"email": sara_address})
+    waiting = sara_id.app.get("/api/id/1/invitations").json()
+    sara_id.app.post(f"/api/id/1/invitations/{waiting[0]['id']}/answer", json={"accept": True})
+
+    rights = {f["owner"]: f["right"] for f in kim.app.get("/api/catalog/1/fleets").json()}
+    check(rights.get(club) == "owner", f"Administratören har inte ägarens rätt: {rights}")
+    in_club = f"fleet={club}"
+    box = kim.app.post(f"/api/catalog/1/places?{in_club}", json={"name": "Klubblådan"})
+    check(box.status_code == 201, f"Platsen i klubbens vagnpark svarade {box.status_code}.")
+    car = {"status": "ready", "kind": "freight_wagon", "litt": "Hbis", "number": "7"}
+    made = kim.app.post(f"/api/catalog/1/vehicles?{in_club}", json=car)
+    check(made.status_code == 201, f"Fordonet i klubbens vagnpark svarade {made.status_code}.")
+    label = kim.app.post(
+        f"/api/catalog/1/vehicles/{made.json()['id']}/tags/qr?{in_club}", json={"replace": None}
+    )
+    check(label.status_code == 200 and label.json()["tags"], "Ingen QR-etikett i klubben.")
+    uid = label.json()["tags"][0]["uid"]
+    found = kim.app.get(f"/api/catalog/1/tags/{uid}").json()
+    check(
+        (found.get("outcome"), found.get("owner")) == ("fleet", club),
+        f"Taggen öppnar inte kortet i klubbens vagnpark: {found}",
+    )
+    check(kim.app.get("/api/catalog/1/vehicles").json()["total"] == 0, "Fordonet hamnade hos Kim.")
+    print("Klubbens vagnpark: administratören med plats, fordon och QR-etikett: ok")
+
+    rights = {f["owner"]: f["right"] for f in sara.app.get("/api/catalog/1/fleets").json()}
+    check(rights.get(club) == "view", f"Medlemmen ser inte klubbens vagnpark: {rights}")
+    seen = sara.app.get(f"/api/catalog/1/vehicles?{in_club}").json()["vehicles"]
+    check(
+        [(v["tagged"], v["tags"]) for v in seen] == [(True, [])],
+        "Medlemmen ser fel om taggen.",
+    )
+    refused = sara.app.post(f"/api/catalog/1/vehicles?{in_club}", json=car)
+    check(refused.status_code == 403, "En medlem kunde lägga till i klubbens vagnpark.")
+    print("Klubbens vagnpark: medlemmen tittar: ok")
+
+
 def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
     id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
@@ -567,6 +623,7 @@ def main(argv: list[str]) -> int:
             run_id_api(argv[1], Path(argv[2]), id_app)
         if id_app and through_catalog:
             run_sharing(argv[1], Path(argv[2]), argv[4], id_app)
+            run_club_fleet(argv[1], Path(argv[2]), argv[4], id_app)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

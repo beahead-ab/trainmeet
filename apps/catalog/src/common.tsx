@@ -1,7 +1,7 @@
 // What the pages share: the texts for a vehicle, the dialog and the error line.
 import { linkClick, type Navigate } from "@trainmeet/design";
 import { useEffect, useRef, type ReactNode } from "react";
-import { ApiError, type FleetRight, type Vehicle, type VehicleKind, type VehicleState } from "./api";
+import { ApiError, type FleetChoice, type FleetRight, type Vehicle, type VehicleKind, type VehicleState } from "./api";
 import type { Language, TextKey } from "./i18n";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
@@ -16,8 +16,10 @@ export type Ctx = {
   fleetTitle?: string;
   /** Where the owner shares the fleet in TrainMeet ID (CAT-44). */
   shareUrl?: string | null;
-  /** Work in another fleet: null for the person's own (CAT-50). */
+  /** Work in another fleet, on the same page: null for the person's own (CAT-50). */
   workIn?: (owner: string | null) => void;
+  /** The fleets the person can work in: their own first (CAT-50). */
+  fleets?: FleetChoice[] | null;
 };
 
 /** The owner may do everything; someone the fleet is shared with less (CAT-46). */

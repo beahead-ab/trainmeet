@@ -81,10 +81,10 @@ let working: string | null = null;
 export function workIn(owner: string | null): void {
   working = owner;
 }
-/** A fleet address, in the fleet the person works in. */
-function inFleet(path: string): string {
-  if (working === null) return path;
-  return `${path}${path.includes("?") ? "&" : "?"}fleet=${encodeURIComponent(working)}`;
+/** A fleet address, in the fleet the person works in unless another is named. */
+function inFleet(path: string, fleet: string | null = working): string {
+  if (fleet === null) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}fleet=${encodeURIComponent(fleet)}`;
 }
 const T = "/api/catalog/1/tags";
 const tagPath = (uid: string) => `${T}/${encodeURIComponent(uid)}`;
@@ -116,21 +116,21 @@ export const api = {
   renamePlace: (id: string, name: string) => call<Place>("PUT", inFleet(`${P}/${id}`), { name }),
   removePlace: (id: string) => call<{ id: string }>("DELETE", inFleet(`${P}/${id}`)),
   lookup: (uid: string) => call<Lookup>("GET", tagPath(uid)),
-  link: (uid: string, link: TagLink) => call<Vehicle>("POST", `${tagPath(uid)}/link`, link),
-  unlink: (vehicle: string, assignment: string) => call<Vehicle>("POST", `${V}/${vehicle}/tags/unlink`, { assignment, confirm: true }),
-  newLabel: (vehicle: string, replace: string | null) => call<Vehicle>("POST", `${V}/${vehicle}/tags/qr`, { replace }),
-  newSimulated: () => call<Tag>("POST", `${T}/simulated`),
-  tagEvents: (uid: string) => call<TagEvent[]>("GET", `${tagPath(uid)}/events`),
-  pending: () => call<PendingState>("GET", `${T}/pending`),
-  waitForTag: (vehicle: string, replace: string | null) => call<PendingState>("POST", `${T}/pending`, { vehicle, replace }),
-  stopWaiting: () => call<PendingState>("DELETE", `${T}/pending`),
+  link: (uid: string, link: TagLink) => call<Vehicle>("POST", inFleet(`${tagPath(uid)}/link`), link),
+  unlink: (vehicle: string, assignment: string) => call<Vehicle>("POST", inFleet(`${V}/${vehicle}/tags/unlink`), { assignment, confirm: true }),
+  newLabel: (vehicle: string, replace: string | null) => call<Vehicle>("POST", inFleet(`${V}/${vehicle}/tags/qr`), { replace }),
+  newSimulated: () => call<Tag>("POST", inFleet(`${T}/simulated`)),
+  tagEvents: (uid: string) => call<TagEvent[]>("GET", inFleet(`${tagPath(uid)}/events`)),
+  pending: (fleet: string | null = working) => call<PendingState>("GET", inFleet(`${T}/pending`, fleet)),
+  waitForTag: (vehicle: string, replace: string | null) => call<PendingState>("POST", inFleet(`${T}/pending`), { vehicle, replace }),
+  stopWaiting: () => call<PendingState>("DELETE", inFleet(`${T}/pending`)),
   tell: (uid: string, text: string) => call<{ told: true }>("POST", `${tagPath(uid)}/notice`, { text }),
   clearNotice: (vehicle: string, notice: string) => call<{ id: string }>("DELETE", inFleet(`${V}/${vehicle}/notices/${notice}`)),
   settings: () => call<{ show_name: boolean }>("GET", "/api/catalog/1/settings"),
   changeSettings: (show_name: boolean) => call<{ show_name: boolean }>("PUT", "/api/catalog/1/settings", { show_name }),
 };
 
-export const qrAddress = (uid: string) => `${tagPath(uid)}/qr.svg`;
+export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);
 
 /** The fields a change carries: everything the owner writes, from a vehicle as it was read. */
 export function fieldsOf(vehicle: Vehicle): VehicleFields {

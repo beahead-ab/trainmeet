@@ -2080,7 +2080,7 @@
       },
       "trainmeet.id-1.access": {
         "additionalProperties": true,
-        "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.",
+        "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.\n\nFor a club's fleet the club's roles count too (CAT-51, C36): its administrators have admin,\nwhich is the owner's right, and its members viewer.",
         "properties": {
           "person": {
             "format": "uuid",
@@ -2159,7 +2159,7 @@
       },
       "trainmeet.id-1.fleet-access": {
         "additionalProperties": true,
-        "description": "A fleet that is shared with the person, and how (CAT-50).",
+        "description": "A fleet the person may work in besides their own: shared with them, or their club's\n(CAT-50, CAT-51).",
         "properties": {
           "owner": {
             "$ref": "#/components/schemas/trainmeet.id-1.fleet-access.Resource",
@@ -2173,7 +2173,7 @@
             "type": "string"
           },
           "role": {
-            "$ref": "#/components/schemas/trainmeet.id-1.fleet-access.FleetRole"
+            "$ref": "#/components/schemas/trainmeet.id-1.fleet-access.FleetAccessRole"
           }
         },
         "required": [
@@ -2184,12 +2184,14 @@
         "title": "FleetAccess",
         "type": "object"
       },
-      "trainmeet.id-1.fleet-access.FleetRole": {
+      "trainmeet.id-1.fleet-access.FleetAccessRole": {
+        "description": "How a person may work in a fleet that is not their own.",
         "enum": [
           "viewer",
-          "editor"
+          "editor",
+          "owner"
         ],
-        "title": "FleetRole",
+        "title": "FleetAccessRole",
         "type": "string"
       },
       "trainmeet.id-1.fleet-access.Resource": {

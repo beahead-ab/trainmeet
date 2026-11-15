@@ -67,13 +67,16 @@ export type ShellProps = {
   fleets?: FleetChoice[] | null;
   /** The fleet the person works in now: null for their own (#49). */
   working?: string | null;
+  /** Work in another fleet, on the same page (a tag in it was tapped). */
   onWorkIn?: (owner: string | null) => void;
+  /** Choose a fleet in the picker: its list opens. */
+  onChooseFleet?: (owner: string | null) => void;
 };
 
-/** The fleet worked in now, if it is someone else's. */
+/** The fleet worked in now, if it is someone else's: shared with the person, or a club's. */
 function otherFleet(props: ShellProps): FleetChoice | null {
   if (!props.working) return null;
-  return props.fleets?.find((f) => f.owner === props.working && f.right !== "owner") ?? null;
+  return props.fleets?.find((f) => f.owner === props.working) ?? null;
 }
 
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
@@ -204,7 +207,7 @@ function FleetPicker(props: ShellProps & { t: T }) {
   return (
     <div className="cat-vagnparksval">
       <label htmlFor="vagnpark">{t("chooseFleet")}</label>
-      <select id="vagnpark" value={props.working ?? fleets[0]?.owner ?? ""} onChange={(event) => props.onWorkIn?.(event.target.value === fleets[0]?.owner ? null : event.target.value)}>
+      <select id="vagnpark" value={props.working ?? fleets[0]?.owner ?? ""} onChange={(event) => props.onChooseFleet?.(event.target.value === fleets[0]?.owner ? null : event.target.value)}>
         {fleets.map((choice) => (
           <option key={choice.owner} value={choice.owner}>
             {choice.title}
@@ -237,10 +240,12 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     language,
     navigate,
     replace: props.replace,
-    right: other?.right ?? "owner",
+    // Until the fleets are known, someone else's fleet is only looked at.
+    right: props.working ? (other?.right ?? "view") : "owner",
     fleetTitle: other?.title,
-    shareUrl: props.session?.share_url ?? null,
+    shareUrl: props.working ? (other?.share_url ?? null) : (props.session?.share_url ?? null),
     workIn: props.onWorkIn,
+    fleets: props.fleets,
   };
   const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places"];
   if (fleetPages.includes(page) && !account) {
@@ -434,20 +439,32 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     }
   }, [page, session, trialAccounts]);
 
-  useEffect(() => {
-    // The fleets shared with the person, from ID through Catalog (CAT-50). ID down: only the own.
-    if (session?.account) api.fleets().then(setFleets, () => setFleets(null));
-    else setFleets(null);
-  }, [session]);
+  const workingNow = useRef<string | null>(null);
+  const switchFleet = useCallback((owner: string | null) => {
+    workIn(owner);
+    workingNow.current = owner;
+    setWorking(owner);
+  }, []);
 
-  const changeFleet = useCallback(
+  const chooseFleet = useCallback(
     (owner: string | null) => {
-      workIn(owner);
-      setWorking(owner);
+      switchFleet(owner);
       navigate(PATHS.vehicles);
     },
-    [navigate],
+    [navigate, switchFleet],
   );
+
+  useEffect(() => {
+    // The fleets shared with the person, from ID through Catalog (CAT-50). Without an answer
+    // only the own: a fleet no longer shared is left at once (CAT-48).
+    const keep = (found: FleetChoice[] | null) => {
+      setFleets(found);
+      const now = workingNow.current;
+      if (now && !found?.some((f) => f.owner === now)) switchFleet(null);
+    };
+    if (session?.account) api.fleets().then(keep, () => keep(null));
+    else setFleets(null);
+  }, [session, switchFleet]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -474,7 +491,8 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       search={window.location.search}
       fleets={fleets}
       working={working}
-      onWorkIn={changeFleet}
+      onWorkIn={switchFleet}
+      onChooseFleet={chooseFleet}
       onLanguage={() => {
         const next: Language = language === "sv" ? "en" : "sv";
         setLanguage(next);

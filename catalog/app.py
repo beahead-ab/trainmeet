@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Final
+from uuid import UUID
 
 import httpx
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
@@ -155,13 +156,13 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     def logged_in(session: SessionCookie = None) -> Account | None:
         return sessions.account(session)
 
+    def share_address(owner: UUID) -> str | None:
+        """Where a fleet is shared in TrainMeet ID (CAT-44)."""
+        return f"{id_api.id_public}/vagnparker/{owner}" if id_api is not None else None
+
     def session_of(key: str | None) -> Session:
         account = sessions.account(key)
-        share = (
-            f"{id_api.id_public}/vagnparker/{account.id}"
-            if account is not None and id_api is not None
-            else None
-        )
+        share = share_address(account.id) if account is not None else None
         return Session(
             account=account,
             login=login_kind,
@@ -278,22 +279,29 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         if account is None:
             raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
         mine = FleetChoice(
-            owner=account.id, title=f"Vagnparken · {account.name}", right=FleetRight.OWNER
+            owner=account.id,
+            title=f"Vagnparken · {account.name}",
+            right=FleetRight.OWNER,
+            share_url=share_address(account.id),
         )
         if access.roles is None:
             return [mine]
+        rights = {"owner": FleetRight.OWNER, "editor": FleetRight.EDIT}
         shared = [
             FleetChoice(
                 owner=found.owner,
                 title=found.title,
-                right=FleetRight.EDIT if found.role == "editor" else FleetRight.VIEW,
+                right=rights.get(found.role, FleetRight.VIEW),
+                share_url=share_address(found.owner) if found.role == "owner" else None,
             )
             for found in access.roles.shared_fleets(account.id)
         ]
+        # A club's fleet has an owner in Catalog from the first time someone opens it (CAT-51).
+        fleet.ensure_owners([(f.owner, f.title.removeprefix("Vagnparken · ")) for f in shared])
         return [mine, *shared]
 
     app.include_router(fleet_api.router(fleet, logged_in, access))
-    app.include_router(tags_api.router(fleet, tags, logged_in))
+    app.include_router(tags_api.router(fleet, tags, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

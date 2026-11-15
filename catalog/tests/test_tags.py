@@ -185,6 +185,7 @@ def test_a_shared_fleet_gets_the_card_with_the_sharings_right(
         "outcome": "fleet",
         "vehicle_id": car["id"],
         "right": "view",
+        "owner": str(TRIAL_ACCOUNTS[0].id),
     }
 
 

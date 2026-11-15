@@ -33,6 +33,7 @@ class PretendId:
     """Who has which role to whose fleet, as ID says now."""
 
     roles: dict[tuple[str, str], str] = field(default_factory=dict)
+    titles: dict[str, str] = field(default_factory=dict)
     down: bool = False
     tokens: int = 0
     asked: int = 0
@@ -59,8 +60,8 @@ class PretendId:
             shared = [
                 {
                     "owner": {"kind": "fleet", "id": o},
-                    "title": "Vagnparken · Provkonto A",
-                    "role": r,
+                    "title": self.titles.get(o, "Vagnparken · Provkonto A"),
+                    "role": "owner" if r == "admin" else r,
                 }
                 for (p, o), r in self.roles.items()
                 if p == person
@@ -211,7 +212,9 @@ def test_a_tag_in_a_shared_fleet_opens_the_card_with_the_right(world: World) -> 
     world.a.post(f"{API}/tags/{tag}/link", json={"vehicle": car["id"], "confirm": True})
     world.id.roles[(B, A)] = "editor"
     found = world.b.get(f"{API}/tags/{tag}").json()
-    assert found == {"outcome": "fleet", "vehicle_id": car["id"], "right": "edit"}
+    assert found == {"outcome": "fleet", "vehicle_id": car["id"], "right": "edit", "owner": A}
+    # The card opens in the owner's fleet, which the answer names (#49).
+    assert world.b.get(f"{API}/vehicles/{car['id']}", params={"fleet": A}).status_code == 200
 
 
 def test_the_token_is_kept_and_renewed_once_when_id_says_it_is_old(world: World) -> None:
@@ -245,3 +248,53 @@ def test_the_share_button_goes_to_ids_web_app_where_it_is() -> None:
     assert same is not None and same.id_public == "https://test.id.trainmeet.app"
     apart = from_env({**base, "CATALOG_ID_WEB": "http://localhost:8002"}).id
     assert apart is not None and apart.id_public == "http://localhost:8002"
+
+
+CLUB = "0f0e0d0c-3333-4444-8555-966677778888"
+
+
+def test_a_clubs_administrators_have_the_owners_right_to_the_clubs_fleet(world: World) -> None:
+    """CAT-51, C36, C39: the club's fleet gets an owner in Catalog when it is first listed, the
+    administrators do the owner's things in it, and the members only look."""
+    world.id.roles[(B, CLUB)] = "admin"
+    world.id.roles[(A, CLUB)] = "viewer"
+    world.id.titles[CLUB] = "Vagnparken · Västby MJK"
+    fleets = world.b.get(f"{API}/fleets").json()
+    club = next(f for f in fleets if f["owner"] == CLUB)
+    assert (club["right"], club["title"]) == ("owner", "Vagnparken · Västby MJK")
+    assert club["share_url"] == f"https://id.example.test/vagnparker/{CLUB}"
+
+    in_club = f"fleet={CLUB}"
+    box = world.b.post(f"{API}/places?{in_club}", json={"name": "Klubblådan"})
+    assert box.status_code == 201, box.text
+    car = world.b.post(f"{API}/vehicles?{in_club}", json={**HBIS, "place": box.json()["id"]})
+    assert car.status_code == 201 and car.json()["place"] == box.json()["id"]
+    tag = world.b.post(f"{API}/tags/simulated?{in_club}").json()["uid"]
+    linked = world.b.post(
+        f"{API}/tags/{tag}/link?{in_club}", json={"vehicle": car.json()["id"], "confirm": True}
+    )
+    assert linked.status_code == 200, linked.text
+    assert linked.json()["tags"] != []  # the administrators see the tag
+    assert world.b.get(f"{API}/vehicles").json()["total"] == 0  # not in B's own fleet
+
+    # A member looks: the vehicle, but not the tag, and no tag work (CAT-46, CAT-47).
+    seen = world.a.get(f"{API}/vehicles?{in_club}").json()["vehicles"][0]
+    assert (seen["tagged"], seen["tags"]) == (True, [])
+    unlink = world.a.post(
+        f"{API}/vehicles/{car.json()['id']}/tags/unlink?{in_club}",
+        json={"assignment": "00000000-0000-4000-8000-000000000000", "confirm": True},
+    )
+    assert unlink.status_code == 403
+    assert world.a.post(f"{API}/vehicles?{in_club}", json=HBIS).status_code == 403
+
+    # Tapped, the tag opens the card in the club's fleet (#49), with each one's right.
+    found = world.b.get(f"{API}/tags/{tag}").json()
+    assert (found["outcome"], found["owner"], found["right"]) == ("fleet", CLUB, "edit")
+    assert world.a.get(f"{API}/tags/{tag}").json()["right"] == "view"
+    # A tag is waited for in the club's fleet, where the next tap finds it (CAT-89, C39).
+    waiting = world.b.post(
+        f"{API}/tags/pending?{in_club}", json={"vehicle": car.json()["id"], "replace": None}
+    )
+    assert waiting.status_code == 200, waiting.text
+    assert world.b.get(f"{API}/tags/pending?{in_club}").json()["pending"] is not None
+    assert world.b.get(f"{API}/tags/pending").json()["pending"] is None
