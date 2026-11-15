@@ -10,7 +10,7 @@ const version = { product: "TrainMeet Catalog" as const, version: "0.1.0", commi
 function render(overrides: Partial<ShellProps> = {}): string {
   const session: Session = { account: null, login: "trial" };
   return renderToStaticMarkup(
-    <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} {...overrides} />,
+    <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} fleet={false} {...overrides} />,
   );
 }
 

@@ -68,6 +68,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/vehicles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vehicles"];
+        put?: never;
+        post: operations["addVehicle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moveVehicles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vehicle"];
+        put: operations["changeVehicle"];
+        post?: never;
+        delete: operations["removeVehicle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/lend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lendVehicle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["returnVehicle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vehicleEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["places"];
+        put?: never;
+        post: operations["addPlace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/places/{place}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["renamePlace"];
+        post?: never;
+        delete: operations["removePlace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -191,6 +319,732 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * VehicleFields
+         * @description The core fields the owner writes (CAT-53). Images, tag and prototype come later.
+         */
+        "trainmeet.catalog-1.vehicle-fields": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.vehicle-fields.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle-fields.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.vehicle-fields.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.vehicle-fields.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-fields.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-fields.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleChange
+         * @description A change: all the core fields, and the version the change was built on.
+         */
+        "trainmeet.catalog-1.vehicle-change": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.vehicle-change.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle-change.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.vehicle-change.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /** Version */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.vehicle-change.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-change.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-change.VehicleStatus": "draft" | "ready";
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.catalog-1.vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.vehicle.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.catalog-1.vehicle.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.catalog-1.vehicle.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.vehicle.FieldSource"];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.vehicle.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.catalog-1.vehicle.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.catalog-1.vehicle.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleList
+         * @description The fleet, filtered, with the count per state over the whole fleet.
+         */
+        "trainmeet.catalog-1.vehicle-list": {
+            /** Vehicles */
+            vehicles: components["schemas"]["trainmeet.catalog-1.vehicle-list.Vehicle"][];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Total */
+            total: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.vehicle-list.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.catalog-1.vehicle-list.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-list.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.catalog-1.vehicle-list.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.catalog-1.vehicle-list.Vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.vehicle-list.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.catalog-1.vehicle-list.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.catalog-1.vehicle-list.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.vehicle-list.FieldSource"];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-list.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-list.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-list.VehicleStatus": "draft" | "ready";
+        /**
+         * Move
+         * @description Move several vehicles to a place at home at once (CAT-73). Null: home without a place.
+         */
+        "trainmeet.catalog-1.move": {
+            /** Vehicles */
+            vehicles: string[];
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Lend */
+        "trainmeet.catalog-1.lend": {
+            /** Version */
+            version: number;
+            /** To */
+            to: string;
+            /**
+             * Until
+             * @description Back at the latest, if the owner wants.
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Return
+         * @description The vehicle is back: it gets its earlier place (CAT-76).
+         */
+        "trainmeet.catalog-1.return": {
+            /** Version */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleEvent
+         * @description A change of state or place, with its time. Only the owner sees them (CAT-77).
+         */
+        "trainmeet.catalog-1.vehicle-event": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            state: components["schemas"]["trainmeet.catalog-1.vehicle-event.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Lent To
+             * @default null
+             */
+            lent_to: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-event.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * Place
+         * @description A named place at home: a box or a shelf (CAT-71).
+         */
+        "trainmeet.catalog-1.place": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Vehicles Home
+             * @description How many vehicles are at home here now.
+             */
+            vehicles_home: number;
+            /**
+             * Vehicles
+             * @description How many vehicles live here, wherever they are now.
+             */
+            vehicles: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PlaceName */
+        "trainmeet.catalog-1.place-name": {
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Removed */
+        "trainmeet.catalog-1.removed": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Problem
+         * @description The answer when Catalog says no: 401, 404, 409 or 422.
+         */
+        "trainmeet.catalog-1.problem": {
+            code: components["schemas"]["trainmeet.catalog-1.problem.ProblemCode"];
+            /**
+             * Message
+             * @description The same in Swedish, for logs and other readers.
+             */
+            message: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ProblemCode
+         * @description Why Catalog said no. The web app has the text for each in Swedish and English.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login";
     };
     responses: never;
     parameters: never;
@@ -300,6 +1154,687 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.catalog-1.session"];
+                };
+            };
+        };
+    };
+    vehicles: {
+        parameters: {
+            query?: {
+                q?: string;
+                kind?: string[];
+                scale?: string;
+                state?: string;
+                place?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-list"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    addVehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-fields"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    moveVehicles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.move"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-list"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    vehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    changeVehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removeVehicle: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    lendVehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.lend"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    returnVehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.return"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    vehicleEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-event"][];
+                };
+            };
+        };
+    };
+    places: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.place"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    addPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.place-name"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.place"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    renamePlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.place-name"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.place"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removePlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
         };

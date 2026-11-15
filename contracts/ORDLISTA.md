@@ -76,5 +76,17 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Konto | `Account` | Den som är inloggad, med id från inloggningen, namn och initialer. |
 | Inloggning | `Session`, `LoginKind` | Vem som är inloggad, och hur man loggar in här: `trial` eller `id`. |
 | Provinloggning | `LoginKind.TRIAL`, `TrialLogin` | Inloggningen i testmiljön tills TrainMeet ID finns, med fasta provkonton utan personuppgifter (CAT-214). |
-| Vagnpark | – | En ägares alla fordon. Kommer i kontrakten med fordonen (#50). |
+| Vagnpark | `VehicleList` | En ägares alla fordon. |
+| Fordon | `Vehicle` | Ett fysiskt exemplar med ett permanent id (CAT-52). |
+| Kärnfält | `VehicleFields` | De få fält ett fordon har: slag, littera, nummer, bolag, epok, skala, modell, anteckning, och för lok DCC-adress och funktioner (CAT-53). |
+| Slag | `kind` | `locomotive` lok, `freight_wagon` godsvagn, `passenger_coach` personvagn, `multiple_unit` motorvagn eller tågsätt, `other` övrigt. |
+| Nummer | `number` | Text precis som det står på fordonet. EVN räknas fram ur det och skrivs aldrig tillbaka (CAT-55, CAT-58). |
+| EVN | `EvnParts` | Interoperabilitetskod, landnummer, löpnummer och kontrollsiffra, framräknade ur numret. |
+| Utkast, klart | `status`: `draft`, `ready` | Klart kräver slag och littera eller nummer (CAT-62). |
+| Läge | `state` | `home` hemma, `packed` packat, `at_meet` på träffen, `lent` utlånat (CAT-70). |
+| Plats | `Place` | En namngiven plats hemma, till exempel Låda 1 eller Hyllan (CAT-71). |
+| Lån | `Lending`, `Lend` | Vem som har fordonet: ägarens egen anteckning (CAT-74, CAT-75). |
+| Händelse | `VehicleEvent` | Ett byte av läge eller plats, med tid (CAT-77). |
+| Källa | `field_sources`, `FieldSource` | Var ett kärnfälts värde kom ifrån: ägaren, AI:n, förebilden eller en import (CAT-64). |
+| Besked | `Problem`, `ProblemCode` | Varför Catalog sa nej, med en kod som webbappen har text för. |
 | Ägare | – | Den som äger en vagnpark: en person, och senare en klubb. Varje skrivning låser ägarens rad först (CAT-40). |

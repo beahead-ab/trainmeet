@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -192,3 +193,22 @@ def test_the_settings_come_from_the_environment() -> None:
 def test_wrong_settings_stop_the_start(env: dict[str, str], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         from_env(env)
+
+
+def test_the_published_contract_lists_exactly_the_apps_api(
+    database_url: str, web_dir: Path
+) -> None:
+    """contracts/catalog.openapi.json and the app agree on every address and method (CAT-36)."""
+    from contracts.generate import CATALOG_OPENAPI
+
+    def addresses(paths: dict[str, dict[str, object]]) -> set[tuple[str, str]]:
+        return {
+            (method.upper(), path)
+            for path, methods in paths.items()
+            if path.startswith("/api/") and "{rest" not in path
+            for method in methods
+        }
+
+    published = json.loads(CATALOG_OPENAPI.read_text(encoding="utf-8"))["paths"]
+    served = create_app(settings_for(database_url, web_dir)).openapi()["paths"]
+    assert addresses(served) == addresses(published)

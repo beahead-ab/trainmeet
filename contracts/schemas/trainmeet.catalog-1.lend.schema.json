@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.lend.schema.json",
+  "title": "trainmeet.catalog-1.lend",
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "to": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "To",
+      "type": "string"
+    },
+    "until": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Back at the latest, if the owner wants.",
+      "title": "Until"
+    }
+  },
+  "required": [
+    "version",
+    "to"
+  ],
+  "type": "object"
+}

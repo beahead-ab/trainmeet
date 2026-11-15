@@ -18,10 +18,19 @@ from fastapi import Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from catalog import login, migrate
-from catalog.db import Database
+from catalog import fleet_api, login, migrate
+from catalog.db import Database, UnknownOwner
+from catalog.fleet import Fleet, Refused
 from catalog.settings import Settings, from_env
-from contracts.catalog import Account, CatalogVersion, LoginKind, Session, TrialLogin
+from contracts.catalog import (
+    Account,
+    CatalogVersion,
+    LoginKind,
+    Problem,
+    ProblemCode,
+    Session,
+    TrialLogin,
+)
 
 LOGGER = logging.getLogger("catalog")
 API = "/api/catalog/1"
@@ -113,6 +122,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeaders)
     app.state.db = db
 
+    @app.exception_handler(Refused)
+    def refused(_: Request, error: Refused) -> JSONResponse:
+        problem = Problem(code=error.code, message=error.message)
+        return JSONResponse(problem.model_dump(mode="json"), status_code=error.status)
+
+    @app.exception_handler(UnknownOwner)
+    def unknown_owner(_: Request, __: UnknownOwner) -> JSONResponse:
+        # A session whose owner is gone: log in again.
+        problem = Problem(code=ProblemCode.LOGIN, message="Logga in igen.")
+        return JSONResponse(problem.model_dump(mode="json"), status_code=401)
+
+    def logged_in(session: SessionCookie = None) -> Account | None:
+        return sessions.account(session)
+
     def session_of(key: str | None) -> Session:
         return Session(account=sessions.account(key), login=login_kind)
 
@@ -166,11 +189,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         set_cookie(response, request, key)
         return Session(account=account, login=login_kind)
 
-    @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+    app.include_router(fleet_api.router(Fleet(db), logged_in))
+
+    @app.api_route(
+        "/api/{rest:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        include_in_schema=False,
+    )
     def unknown_api(rest: str) -> JSONResponse:
         return JSONResponse({"detail": "Finns inte."}, status_code=404)
 
-    @app.api_route("/{path:path}", methods=["GET", "HEAD"], response_model=None)
+    @app.api_route(
+        "/{path:path}", methods=["GET", "HEAD"], response_model=None, include_in_schema=False
+    )
     def web_app(path: str) -> Response:
         """The web app's files, and index.html for every page address."""
         found = _web_file(settings.web_dir, path)

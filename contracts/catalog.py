@@ -2,8 +2,9 @@
 
 Catalog is its own service with its own database (C16, CAT-30). It never calls the Hub and
 the Hub never calls it (K7, CAT-37). Step 1 (#48) has the version, the session and the trial
-login. The vehicle, the mini card, the tag, the lookup and the prototype come with their steps
-(#50, #54 and #53), in this file.
+login, and #50 the vehicles and the places at home. The mini card, the tag, the lookup and the
+prototype come with their steps (#54 and #53), in this file. A meet's vehicles wait for the
+link to the Hub (CAT-189, VILAR).
 
 Addresses:
     GET    /api/version                       CatalogVersion
@@ -20,12 +21,12 @@ Rules:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from contracts.common import Contract, Text
 
@@ -69,3 +70,217 @@ class TrialLogin(Contract):
     """Log in as one of the trial login's fixed accounts (GET /api/catalog/1/trial/accounts)."""
 
     account: UUID
+
+
+# --- The vehicles (#50) -----------------------------------------------------------------
+#
+#     GET    /api/catalog/1/vehicles                 VehicleList; ?q= kind= scale= state= place=
+#     POST   /api/catalog/1/vehicles                 VehicleFields -> Vehicle
+#     GET    /api/catalog/1/vehicles/{id}            Vehicle
+#     PUT    /api/catalog/1/vehicles/{id}            VehicleChange -> Vehicle
+#     DELETE /api/catalog/1/vehicles/{id}?version=   Removed
+#     POST   /api/catalog/1/vehicles/move            Move -> VehicleList
+#     POST   /api/catalog/1/vehicles/{id}/lend       Lend -> Vehicle
+#     POST   /api/catalog/1/vehicles/{id}/return     Return -> Vehicle
+#     GET    /api/catalog/1/vehicles/{id}/events     [VehicleEvent]
+#     GET    /api/catalog/1/places                   [Place]
+#     POST   /api/catalog/1/places                   PlaceName -> Place
+#     PUT    /api/catalog/1/places/{id}              PlaceName -> Place
+#     DELETE /api/catalog/1/places/{id}              Removed
+#
+# Rules:
+# - Only the owner sees and changes the fleet in this step. Sharing comes with ID (#49).
+# - A vehicle that is not visible answers 404 (CAT-50).
+# - Every change raises the version. A change built on an older version is refused with 409
+#   and a message, instead of overwriting (CAT-63).
+# - The number is text exactly as painted; the EVN is derived and never stored (CAT-55, CAT-58).
+
+Short = Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)]
+"""A short field that may be empty."""
+
+
+class VehicleKind(StrEnum):
+    """The kinds of vehicle (CAT-54)."""
+
+    LOCOMOTIVE = "locomotive"
+    FREIGHT_WAGON = "freight_wagon"
+    PASSENGER_COACH = "passenger_coach"
+    MULTIPLE_UNIT = "multiple_unit"
+    """Motorvagn eller tågsätt."""
+    OTHER = "other"
+
+
+class VehicleStatus(StrEnum):
+    """A draft, or ready: ready needs a kind and a litt or number (CAT-62)."""
+
+    DRAFT = "draft"
+    READY = "ready"
+
+
+class VehicleState(StrEnum):
+    """Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55)."""
+
+    HOME = "home"
+    PACKED = "packed"
+    AT_MEET = "at_meet"
+    LENT = "lent"
+
+
+class FieldSource(StrEnum):
+    """Where a core field's value came from (CAT-64)."""
+
+    OWNER = "owner"
+    AI = "ai"
+    PROTOTYPE = "prototype"
+    IMPORT = "import"
+
+
+class DccFunction(Contract):
+    """A locomotive's function: F0 light, F2 horn ... (CAT-66)."""
+
+    number: int = Field(ge=0, le=68)
+    name: Short
+
+
+class VehicleFields(Contract):
+    """The core fields the owner writes (CAT-53). Images, tag and prototype come later."""
+
+    status: VehicleStatus = VehicleStatus.DRAFT
+    kind: VehicleKind | None = None
+    litt: Short = ""
+    number: Short = Field(default="", description="As painted: leading zeros, spaces, dashes kept.")
+    operator: Short = Field(default="", description="The operator as text. No logos (CAT-61).")
+    epoch: Annotated[str, StringConstraints(strip_whitespace=True, max_length=12)] = ""
+    scale: Annotated[str, StringConstraints(strip_whitespace=True, max_length=12)] = ""
+    maker: Short = Field(default="", description="The model's maker.")
+    article_number: Short = ""
+    note: Annotated[str, StringConstraints(max_length=2000)] = Field(
+        default="", description="Private. Never in a mini card or an export to others (CAT-191)."
+    )
+    dcc_address: Annotated[str, StringConstraints(strip_whitespace=True, max_length=8)] = Field(
+        default="", description="Locomotives and multiple units: the DCC address as text."
+    )
+    functions: list[DccFunction] = Field(default_factory=list, max_length=69)
+    place: UUID | None = Field(default=None, description="The place at home.")
+
+
+class VehicleChange(VehicleFields):
+    """A change: all the core fields, and the version the change was built on."""
+
+    version: int = Field(ge=1)
+
+
+class EvnParts(Contract):
+    """The EVN read from the number (CAT-57). Derived every time, never stored."""
+
+    text: str = Field(description="For example 21 74 245 2 253-0, with the computed check digit.")
+    interop: str
+    country: str
+    country_letters: str = Field(description="For example S for 74. Empty when unknown.")
+    serial: str
+    check: int
+    given: int | None = Field(description="The painted check digit, or null when not painted.")
+    valid: bool = Field(description="False only when the painted check digit is wrong (CAT-59).")
+
+
+class Lending(Contract):
+    """Who has the vehicle: the owner's own note (CAT-74, CAT-75)."""
+
+    to: Text
+    since: datetime
+    until: date | None = None
+
+
+class Vehicle(VehicleFields):
+    """A vehicle as its owner sees it."""
+
+    id: UUID = Field(description="Permanent, never reused, kept when the tag changes (CAT-52).")
+    version: int
+    state: VehicleState
+    place_name: str | None = None
+    lending: Lending | None = None
+    evn: EvnParts | None = None
+    field_sources: dict[str, FieldSource] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class VehicleList(Contract):
+    """The fleet, filtered, with the count per state over the whole fleet."""
+
+    vehicles: list[Vehicle]
+    counts: dict[VehicleState, int]
+    total: int
+
+
+class Move(Contract):
+    """Move several vehicles to a place at home at once (CAT-73). Null: home without a place."""
+
+    vehicles: list[UUID] = Field(min_length=1, max_length=500)
+    place: UUID | None = None
+
+
+class Lend(Contract):
+    version: int = Field(ge=1)
+    to: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    until: date | None = Field(default=None, description="Back at the latest, if the owner wants.")
+
+
+class Return(Contract):
+    """The vehicle is back: it gets its earlier place (CAT-76)."""
+
+    version: int = Field(ge=1)
+
+
+class VehicleEvent(Contract):
+    """A change of state or place, with its time. Only the owner sees them (CAT-77)."""
+
+    at: datetime
+    state: VehicleState
+    place_name: str | None = None
+    lent_to: str | None = None
+
+
+class Place(Contract):
+    """A named place at home: a box or a shelf (CAT-71)."""
+
+    id: UUID
+    name: Text
+    vehicles_home: int = Field(description="How many vehicles are at home here now.")
+    vehicles: int = Field(description="How many vehicles live here, wherever they are now.")
+
+
+class PlaceName(Contract):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+class Removed(Contract):
+    id: UUID
+
+
+class ProblemCode(StrEnum):
+    """Why Catalog said no. The web app has the text for each in Swedish and English."""
+
+    NOT_FOUND = "not_found"
+    """The vehicle or place does not exist, or is not visible to the one asking (CAT-50)."""
+    CHANGED = "changed"
+    """It was changed since it was read: open it again (CAT-63)."""
+    NOT_READY = "not_ready"
+    """Ready needs a kind and a litt or number (CAT-62); lending needs a ready vehicle."""
+    DCC_ONLY_ENGINES = "dcc_only_engines"
+    """The DCC address and the functions are only for locomotives and multiple units."""
+    PLACE_EXISTS = "place_exists"
+    """There is already a place with that name."""
+    NOT_HOME = "not_home"
+    """Only a vehicle at home can be lent."""
+    NOT_LENT = "not_lent"
+    """Only a lent vehicle can come back."""
+    LOGIN = "login"
+    """Not logged in."""
+
+
+class Problem(Contract):
+    """The answer when Catalog says no: 401, 404, 409 or 422."""
+
+    code: ProblemCode
+    message: str = Field(description="The same in Swedish, for logs and other readers.")

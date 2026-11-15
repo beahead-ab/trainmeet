@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.vehicle-list.schema.json",
+  "title": "trainmeet.catalog-1.vehicle-list",
+  "$defs": {
+    "DccFunction": {
+      "additionalProperties": true,
+      "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+      "properties": {
+        "number": {
+          "maximum": 68,
+          "minimum": 0,
+          "title": "Number",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 80,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "number",
+        "name"
+      ],
+      "title": "DccFunction",
+      "type": "object"
+    },
+    "EvnParts": {
+      "additionalProperties": true,
+      "description": "The EVN read from the number (CAT-57). Derived every time, never stored.",
+      "properties": {
+        "text": {
+          "description": "For example 21 74 245 2 253-0, with the computed check digit.",
+          "title": "Text",
+          "type": "string"
+        },
+        "interop": {
+          "title": "Interop",
+          "type": "string"
+        },
+        "country": {
+          "title": "Country",
+          "type": "string"
+        },
+        "country_letters": {
+          "description": "For example S for 74. Empty when unknown.",
+          "title": "Country Letters",
+          "type": "string"
+        },
+        "serial": {
+          "title": "Serial",
+          "type": "string"
+        },
+        "check": {
+          "title": "Check",
+          "type": "integer"
+        },
+        "given": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The painted check digit, or null when not painted.",
+          "title": "Given"
+        },
+        "valid": {
+          "description": "False only when the painted check digit is wrong (CAT-59).",
+          "title": "Valid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text",
+        "interop",
+        "country",
+        "country_letters",
+        "serial",
+        "check",
+        "given",
+        "valid"
+      ],
+      "title": "EvnParts",
+      "type": "object"
+    },
+    "FieldSource": {
+      "description": "Where a core field's value came from (CAT-64).",
+      "enum": [
+        "owner",
+        "ai",
+        "prototype",
+        "import"
+      ],
+      "title": "FieldSource",
+      "type": "string"
+    },
+    "Lending": {
+      "additionalProperties": true,
+      "description": "Who has the vehicle: the owner's own note (CAT-74, CAT-75).",
+      "properties": {
+        "to": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "To",
+          "type": "string"
+        },
+        "since": {
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Until"
+        }
+      },
+      "required": [
+        "to",
+        "since"
+      ],
+      "title": "Lending",
+      "type": "object"
+    },
+    "Vehicle": {
+      "additionalProperties": true,
+      "description": "A vehicle as its owner sees it.",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/VehicleStatus",
+          "default": "draft"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "litt": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Litt",
+          "type": "string"
+        },
+        "number": {
+          "default": "",
+          "description": "As painted: leading zeros, spaces, dashes kept.",
+          "maxLength": 80,
+          "title": "Number",
+          "type": "string"
+        },
+        "operator": {
+          "default": "",
+          "description": "The operator as text. No logos (CAT-61).",
+          "maxLength": 80,
+          "title": "Operator",
+          "type": "string"
+        },
+        "epoch": {
+          "default": "",
+          "maxLength": 12,
+          "title": "Epoch",
+          "type": "string"
+        },
+        "scale": {
+          "default": "",
+          "maxLength": 12,
+          "title": "Scale",
+          "type": "string"
+        },
+        "maker": {
+          "default": "",
+          "description": "The model's maker.",
+          "maxLength": 80,
+          "title": "Maker",
+          "type": "string"
+        },
+        "article_number": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Article Number",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "description": "Private. Never in a mini card or an export to others (CAT-191).",
+          "maxLength": 2000,
+          "title": "Note",
+          "type": "string"
+        },
+        "dcc_address": {
+          "default": "",
+          "description": "Locomotives and multiple units: the DCC address as text.",
+          "maxLength": 8,
+          "title": "Dcc Address",
+          "type": "string"
+        },
+        "functions": {
+          "items": {
+            "$ref": "#/$defs/DccFunction"
+          },
+          "maxItems": 69,
+          "title": "Functions",
+          "type": "array"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The place at home.",
+          "title": "Place"
+        },
+        "id": {
+          "description": "Permanent, never reused, kept when the tag changes (CAT-52).",
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/VehicleState"
+        },
+        "place_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place Name"
+        },
+        "lending": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Lending"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evn": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvnParts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "field_sources": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FieldSource"
+          },
+          "title": "Field Sources",
+          "type": "object"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "state",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Vehicle",
+      "type": "object"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    },
+    "VehicleState": {
+      "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+      "enum": [
+        "home",
+        "packed",
+        "at_meet",
+        "lent"
+      ],
+      "title": "VehicleState",
+      "type": "string"
+    },
+    "VehicleStatus": {
+      "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+      "enum": [
+        "draft",
+        "ready"
+      ],
+      "title": "VehicleStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The fleet, filtered, with the count per state over the whole fleet.",
+  "properties": {
+    "vehicles": {
+      "items": {
+        "$ref": "#/$defs/Vehicle"
+      },
+      "title": "Vehicles",
+      "type": "array"
+    },
+    "counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/VehicleState"
+      },
+      "title": "Counts",
+      "type": "object"
+    },
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "vehicles",
+    "counts",
+    "total"
+  ],
+  "type": "object"
+}
