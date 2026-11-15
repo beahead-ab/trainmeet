@@ -678,6 +678,417 @@
         ]
       }
     },
+    "/api/id/1/clubs/{club}/meets": {
+      "post": {
+        "operationId": "createMeet",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.meet"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.new-meet"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/id/1/meets": {
+      "get": {
+        "operationId": "meets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.meet"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/meets/{meet}": {
+      "get": {
+        "operationId": "meetPage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.meet-page"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "changeMeet",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.meet-page"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.new-meet"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "removeMeet",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/id/1/meets/{meet}/grants": {
+      "post": {
+        "operationId": "giveAtMeet",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.meet-page"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.meet-grant"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/id/1/invitations": {
       "get": {
         "operationId": "invitations",
@@ -1227,6 +1638,14 @@
             },
             "title": "Invitations",
             "type": "array"
+          },
+          "meets": {
+            "description": "The club's meets (ID10).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.club-page.Meet"
+            },
+            "title": "Meets",
+            "type": "array"
           }
         },
         "required": [
@@ -1331,6 +1750,73 @@
           "declined"
         ],
         "title": "InvitationState",
+        "type": "string"
+      },
+      "trainmeet.id-1.club-page.Meet": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "club": {
+            "format": "uuid",
+            "title": "Club",
+            "type": "string"
+          },
+          "club_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Club Name",
+            "type": "string"
+          },
+          "roles": {
+            "description": "The person's own roles at the meet.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.club-page.MeetRole"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on",
+          "id",
+          "club",
+          "club_name",
+          "roles"
+        ],
+        "title": "Meet",
+        "type": "object"
+      },
+      "trainmeet.id-1.club-page.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
         "type": "string"
       },
       "trainmeet.id-1.club-page.Member": {
@@ -2226,6 +2712,366 @@
           "catalog"
         ],
         "title": "ResourceKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.new-meet": {
+        "additionalProperties": true,
+        "description": "A meet as ID holds it: a reference with name, dates and club (ID10). The meet itself, its\nplan and its traffic, belongs to the Hub (KONTO-09).",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "NewMeet",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "club": {
+            "format": "uuid",
+            "title": "Club",
+            "type": "string"
+          },
+          "club_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Club Name",
+            "type": "string"
+          },
+          "roles": {
+            "description": "The person's own roles at the meet.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meet.MeetRole"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on",
+          "id",
+          "club",
+          "club_name",
+          "roles"
+        ],
+        "title": "Meet",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
+        "type": "string"
+      },
+      "trainmeet.id-1.meet-page": {
+        "additionalProperties": true,
+        "description": "A meet's roles, as the club's members see them (ID10). Whoever may hand out roles also\ngets the club's members to choose from (KONTO-17: clubs are kept apart).",
+        "properties": {
+          "meet": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Meet"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Grant"
+            },
+            "title": "Grants",
+            "type": "array"
+          },
+          "may_give": {
+            "description": "The roles the person may hand out here: the club's admin all of them, the organizer Trafikledare and Lokledare (KONTO-36).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meet-page.MeetRole"
+            },
+            "title": "May Give",
+            "type": "array"
+          },
+          "may_change": {
+            "description": "May change the name and the dates.",
+            "title": "May Change",
+            "type": "boolean"
+          },
+          "may_remove": {
+            "description": "May remove the meet: the club's admin.",
+            "title": "May Remove",
+            "type": "boolean"
+          },
+          "members": {
+            "description": "The club's members, when the person may hand out.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Person"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "meet",
+          "grants",
+          "may_give",
+          "may_change",
+          "may_remove"
+        ],
+        "title": "MeetPage",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-page.Grant": {
+        "additionalProperties": true,
+        "description": "A role someone has for a resource.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "person": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Person"
+          },
+          "role": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Role"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-page.Resource"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "person",
+          "role",
+          "resource",
+          "at"
+        ],
+        "title": "Grant",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-page.Meet": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "club": {
+            "format": "uuid",
+            "title": "Club",
+            "type": "string"
+          },
+          "club_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Club Name",
+            "type": "string"
+          },
+          "roles": {
+            "description": "The person's own roles at the meet.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meet-page.MeetRole"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on",
+          "id",
+          "club",
+          "club_name",
+          "roles"
+        ],
+        "title": "Meet",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-page.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
+        "type": "string"
+      },
+      "trainmeet.id-1.meet-page.Person": {
+        "additionalProperties": true,
+        "description": "Someone else, as a member or someone with a role: never their address.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "initials": {
+            "maxLength": 3,
+            "minLength": 1,
+            "title": "Initials",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials"
+        ],
+        "title": "Person",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-page.Resource": {
+        "additionalProperties": true,
+        "description": "One thing a role applies to: its kind and its id in the app that owns it.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-page.ResourceKind"
+          },
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "Resource",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-page.ResourceKind": {
+        "description": "What a role applies to (KONTO-03). ID only holds the reference, never the thing.",
+        "enum": [
+          "club",
+          "fleet",
+          "meet",
+          "station",
+          "module",
+          "hub",
+          "catalog"
+        ],
+        "title": "ResourceKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.meet-page.Role": {
+        "description": "The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).",
+        "enum": [
+          "admin",
+          "member",
+          "organizer",
+          "reader",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer",
+          "reviewer",
+          "viewer",
+          "editor"
+        ],
+        "title": "Role",
+        "type": "string"
+      },
+      "trainmeet.id-1.meet-grant": {
+        "additionalProperties": true,
+        "description": "Hand out a role at the meet to one of the club's members.",
+        "properties": {
+          "person": {
+            "format": "uuid",
+            "title": "Person",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meet-grant.MeetRole"
+          }
+        },
+        "required": [
+          "person",
+          "role"
+        ],
+        "title": "MeetGrant",
+        "type": "object"
+      },
+      "trainmeet.id-1.meet-grant.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
         "type": "string"
       },
       "trainmeet.id-1.problem": {

@@ -9,6 +9,10 @@ The rules (KONTO-03, KONTO-29, KONTO-35, KONTO-36, CAT-44, CAT-45):
   look at or to edit. The sharing applies when that person has said yes.
 - An invitation gives nothing until it is answered by someone logged in with the very address
   it was sent to, verified by ID (KONTO-10).
+- A meet is a reference with name, dates and club (ID10); the Hub owns the meet itself. The
+  club's admin makes it and becomes its organizer, and hands out every role at it; the organizer
+  hands out Trafikledare and Lokledare (KONTO-36). Roles at a meet go to the club's members, and
+  go with the membership (KONTO-17).
 - Whoever may not see a resource gets 404, and whoever sees it but may not do this gets 403.
 """
 
@@ -37,7 +41,12 @@ from contracts.id import (
     Grant,
     Invitation,
     InvitationState,
+    Meet,
+    MeetGrant,
+    MeetPage,
+    MeetRole,
     Member,
+    NewMeet,
     Person,
     ProblemCode,
     Removed,
@@ -163,9 +172,11 @@ class Roles:
     def club_page(self, asker: Asker, club: UUID) -> ClubPage:
         with self.db.transaction() as conn:
             role = self._club_role(conn, asker, club)
-            return self._club_page(conn, club, role)
+            return self._club_page(conn, club, role, asker.id)
 
-    def _club_page(self, conn: Connection[DictRow], club: UUID, role: Role) -> ClubPage:
+    def _club_page(
+        self, conn: Connection[DictRow], club: UUID, role: Role, person: UUID
+    ) -> ClubPage:
         row = conn.execute("SELECT id, name FROM club WHERE id = %s", (club,)).fetchone()
         if row is None:
             raise not_found()
@@ -195,6 +206,7 @@ class Roles:
             club=Club(id=row["id"], name=row["name"], role=ClubRole(role.value)),
             members=listed,
             invitations=invitations,
+            meets=self._meets(conn, person, club=club),
         )
 
     def invite_to_club(self, asker: Asker, club: UUID, email: str) -> Invitation:
@@ -234,9 +246,15 @@ class Roles:
             ).fetchall()
             if not gone:
                 raise not_found()
+            # The roles at the club's meets go with the membership (KONTO-17, ID10).
+            conn.execute(
+                "DELETE FROM role_grant WHERE resource_kind = 'meet' AND person_id = %s "
+                "AND resource_id IN (SELECT id::text FROM meet WHERE club_id = %s)",
+                (member, club),
+            )
             if member == asker.id:
                 return None
-            return self._club_page(conn, club, role)
+            return self._club_page(conn, club, role, asker.id)
 
     # --- Fleets (CAT-44, KONTO-29) -----------------------------------------------------------
 
@@ -285,12 +303,177 @@ class Roles:
             ).fetchone()
             if row is None:
                 raise not_found()
-            if row["resource_kind"] != "fleet":
+            if row["resource_kind"] not in ("fleet", "meet"):
                 raise forbidden("Den här rollen tas bort där den delades ut.")
             if row["person_id"] != asker.id:
-                self._fleet_title(conn, asker, UUID(row["resource_id"]))
+                if row["resource_kind"] == "fleet":
+                    self._fleet_title(conn, asker, UUID(row["resource_id"]))
+                else:
+                    meet = self._meet_row(conn, UUID(row["resource_id"]))
+                    if MeetRole(row["role"]) not in self._may_give(conn, asker, meet):
+                        raise forbidden("Den här rollen delar du inte ut.")
             conn.execute("DELETE FROM role_grant WHERE id = %s", (grant,))
         return Removed(id=grant)
+
+    # --- Meets (ID10, KONTO-28, KONTO-36) -----------------------------------------------------
+
+    _MEET = (
+        "SELECT m.id, m.club_id, c.name AS club_name, m.name, m.starts_on, m.ends_on "
+        "FROM meet m JOIN club c ON c.id = m.club_id "
+    )
+
+    def _meet_out(self, conn: Connection[DictRow], row: dict[str, Any], person: UUID) -> Meet:
+        roles = conn.execute(
+            "SELECT role FROM role_grant WHERE resource_kind = 'meet' AND resource_id = %s "
+            "AND person_id = %s",
+            (str(row["id"]), person),
+        ).fetchall()
+        order = list(MeetRole)
+        return Meet(
+            id=row["id"],
+            club=row["club_id"],
+            club_name=row["club_name"],
+            name=row["name"],
+            starts_on=row["starts_on"],
+            ends_on=row["ends_on"],
+            roles=sorted((MeetRole(r["role"]) for r in roles), key=order.index),
+        )
+
+    def _meets(
+        self, conn: Connection[DictRow], person: UUID, club: UUID | None = None
+    ) -> list[Meet]:
+        """A club's meets, or every meet of the clubs the person is a member of, with the
+        person's own roles at each."""
+        if club is not None:
+            rows = conn.execute(
+                self._MEET + "WHERE m.club_id = %s ORDER BY m.starts_on, lower(m.name)", (club,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                self._MEET + "WHERE m.club_id::text IN (SELECT resource_id FROM role_grant "
+                "WHERE resource_kind = 'club' AND person_id = %s AND role IN ('admin', 'member')) "
+                "ORDER BY m.starts_on, lower(m.name)",
+                (person,),
+            ).fetchall()
+        return [self._meet_out(conn, row, person) for row in rows]
+
+    def _meet_row(self, conn: Connection[DictRow], meet: UUID) -> dict[str, Any]:
+        row = conn.execute(self._MEET + "WHERE m.id = %s", (meet,)).fetchone()
+        if row is None:
+            raise not_found()
+        return dict(row)
+
+    def _may_give(
+        self, conn: Connection[DictRow], asker: Asker, meet: dict[str, Any]
+    ) -> list[MeetRole]:
+        """What the asker hands out at the meet, or 404 for whoever is not in the club."""
+        club_role = self._club_role(conn, asker, meet["club_id"])
+        if club_role == Role.ADMIN:
+            return list(MeetRole)
+        organizer = conn.execute(
+            "SELECT 1 FROM role_grant WHERE resource_kind = 'meet' AND resource_id = %s "
+            "AND person_id = %s AND role = 'organizer'",
+            (str(meet["id"]), asker.id),
+        ).fetchone()
+        return [MeetRole.DISPATCHER, MeetRole.LOCO_LEAD] if organizer else []
+
+    def meets(self, asker: Asker) -> list[Meet]:
+        with self.db.transaction() as conn:
+            return self._meets(conn, asker.id)
+
+    def create_meet(self, asker: Asker, club: UUID, new: NewMeet) -> Meet:
+        meet = uuid.uuid4()
+        with self.db.transaction() as conn:
+            if self._club_role(conn, asker, club) != Role.ADMIN:
+                raise forbidden("Bara klubbens administratör lägger till träffar.")
+            conn.execute(
+                "INSERT INTO meet (id, club_id, name, starts_on, ends_on, created_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (meet, club, new.name, new.starts_on, new.ends_on, asker.id),
+            )
+            # The one who makes the meet arranges it, until someone else is given the role.
+            self._grant(
+                conn,
+                asker.id,
+                Role.ORGANIZER,
+                Resource(kind=ResourceKind.MEET, id=str(meet)),
+                asker.id,
+            )
+            return self._meet_out(conn, self._meet_row(conn, meet), asker.id)
+
+    def meet_page(self, asker: Asker, meet: UUID) -> MeetPage:
+        with self.db.transaction() as conn:
+            return self._meet_page(conn, asker, self._meet_row(conn, meet))
+
+    def _meet_page(self, conn: Connection[DictRow], asker: Asker, row: dict[str, Any]) -> MeetPage:
+        may_give = self._may_give(conn, asker, row)
+        admin = len(may_give) == len(MeetRole)
+        organizer = Role.ORGANIZER.value
+        resource = Resource(kind=ResourceKind.MEET, id=str(row["id"]))
+        grants = self._grants(conn, resource)
+        order = [role.value for role in MeetRole]
+        grants.sort(key=lambda g: (g.person.name.lower(), order.index(g.role.value)))
+        mine = {g.role.value for g in grants if g.person.id == asker.id}
+        members: list[Person] = []
+        if may_give:
+            found = conn.execute(
+                "SELECT DISTINCT person.id, person.name FROM role_grant g "
+                "JOIN person ON person.id = g.person_id WHERE g.resource_kind = 'club' "
+                "AND g.resource_id = %s AND g.role IN ('admin', 'member') "
+                "ORDER BY person.name",
+                (str(row["club_id"]),),
+            ).fetchall()
+            members = sorted((self._person(m) for m in found), key=lambda p: p.name.lower())
+        return MeetPage(
+            meet=self._meet_out(conn, row, asker.id),
+            grants=grants,
+            may_give=may_give,
+            may_change=admin or organizer in mine,
+            may_remove=admin,
+            members=members,
+        )
+
+    def change_meet(self, asker: Asker, meet: UUID, new: NewMeet) -> MeetPage:
+        with self.db.transaction() as conn:
+            row = self._meet_row(conn, meet)
+            page = self._meet_page(conn, asker, row)
+            if not page.may_change:
+                raise forbidden("Bara klubbens administratör och arrangören ändrar träffen.")
+            conn.execute(
+                "UPDATE meet SET name = %s, starts_on = %s, ends_on = %s WHERE id = %s",
+                (new.name, new.starts_on, new.ends_on, meet),
+            )
+            return self._meet_page(conn, asker, self._meet_row(conn, meet))
+
+    def remove_meet(self, asker: Asker, meet: UUID) -> Removed:
+        with self.db.transaction() as conn:
+            row = self._meet_row(conn, meet)
+            if self._club_role(conn, asker, row["club_id"]) != Role.ADMIN:
+                raise forbidden("Bara klubbens administratör tar bort träffen.")
+            conn.execute(
+                "DELETE FROM role_grant WHERE resource_kind = 'meet' AND resource_id = %s",
+                (str(meet),),
+            )
+            conn.execute("DELETE FROM meet WHERE id = %s", (meet,))
+        return Removed(id=meet)
+
+    def give_at_meet(self, asker: Asker, meet: UUID, given: MeetGrant) -> MeetPage:
+        with self.db.transaction() as conn:
+            row = self._meet_row(conn, meet)
+            if given.role not in self._may_give(conn, asker, row):
+                raise forbidden("Den rollen delar du inte ut på träffen.")
+            member = conn.execute(
+                "SELECT 1 FROM role_grant WHERE resource_kind = 'club' AND resource_id = %s "
+                "AND person_id = %s AND role IN ('admin', 'member')",
+                (str(row["club_id"]), given.person),
+            ).fetchone()
+            if member is None:
+                raise Refused(
+                    422, ProblemCode.INVALID, "Roller på träffen går till klubbens medlemmar."
+                )
+            resource = Resource(kind=ResourceKind.MEET, id=str(meet))
+            self._grant(conn, given.person, Role(given.role.value), resource, asker.id)
+            return self._meet_page(conn, asker, row)
 
     # --- Invitations --------------------------------------------------------------------------
 
@@ -465,6 +648,16 @@ class Roles:
                 (person, resource.kind.value, resource.id),
             ).fetchall()
             roles = {Role(r["role"]) for r in rows}
+            if resource.kind == ResourceKind.MEET:
+                # The club's admin has the admin's say at the club's meets (KONTO-36).
+                admin = conn.execute(
+                    "SELECT 1 FROM meet m JOIN role_grant g ON g.resource_kind = 'club' "
+                    "AND g.resource_id = m.club_id::text WHERE m.id::text = %s "
+                    "AND g.person_id = %s AND g.role = 'admin'",
+                    (resource.id, person),
+                ).fetchone()
+                if admin is not None:
+                    roles.add(Role.ADMIN)
             if resource.kind == ResourceKind.FLEET:
                 # A club's fleet: the club's roles count (CAT-51, C36).
                 club = conn.execute(

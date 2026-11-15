@@ -180,6 +180,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/clubs/{club}/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createMeet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["meets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/meets/{meet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["meetPage"];
+        put: operations["changeMeet"];
+        post?: never;
+        delete: operations["removeMeet"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/meets/{meet}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["giveAtMeet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/invitations": {
         parameters: {
             query?: never;
@@ -396,6 +460,11 @@ export interface components {
             members: components["schemas"]["trainmeet.id-1.club-page.Member"][];
             /** Invitations */
             invitations?: components["schemas"]["trainmeet.id-1.club-page.Invitation"][];
+            /**
+             * Meets
+             * @description The club's meets (ID10).
+             */
+            meets?: components["schemas"]["trainmeet.id-1.club-page.Meet"][];
         } & {
             [key: string]: unknown;
         };
@@ -457,6 +526,46 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.club-page.InvitationState": "waiting" | "accepted" | "declined";
+        /** Meet */
+        "trainmeet.id-1.club-page.Meet": {
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Club
+             * Format: uuid
+             */
+            club: string;
+            /** Club Name */
+            club_name: string;
+            /**
+             * Roles
+             * @description The person's own roles at the meet.
+             */
+            roles: components["schemas"]["trainmeet.id-1.club-page.MeetRole"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.id-1.club-page.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
         /** Member */
         "trainmeet.id-1.club-page.Member": {
             person: components["schemas"]["trainmeet.id-1.club-page.Person"];
@@ -939,6 +1048,220 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.fleet-access.ResourceKind": "club" | "fleet" | "meet" | "station" | "module" | "hub" | "catalog";
+        /**
+         * NewMeet
+         * @description A meet as ID holds it: a reference with name, dates and club (ID10). The meet itself, its
+         *     plan and its traffic, belongs to the Hub (KONTO-09).
+         */
+        "trainmeet.id-1.new-meet": {
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Meet */
+        "trainmeet.id-1.meet": {
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Club
+             * Format: uuid
+             */
+            club: string;
+            /** Club Name */
+            club_name: string;
+            /**
+             * Roles
+             * @description The person's own roles at the meet.
+             */
+            roles: components["schemas"]["trainmeet.id-1.meet.MeetRole"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meet.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        /**
+         * MeetPage
+         * @description A meet's roles, as the club's members see them (ID10). Whoever may hand out roles also
+         *     gets the club's members to choose from (KONTO-17: clubs are kept apart).
+         */
+        "trainmeet.id-1.meet-page": {
+            meet: components["schemas"]["trainmeet.id-1.meet-page.Meet"];
+            /** Grants */
+            grants: components["schemas"]["trainmeet.id-1.meet-page.Grant"][];
+            /**
+             * May Give
+             * @description The roles the person may hand out here: the club's admin all of them, the organizer Trafikledare and Lokledare (KONTO-36).
+             */
+            may_give: components["schemas"]["trainmeet.id-1.meet-page.MeetRole"][];
+            /**
+             * May Change
+             * @description May change the name and the dates.
+             */
+            may_change: boolean;
+            /**
+             * May Remove
+             * @description May remove the meet: the club's admin.
+             */
+            may_remove: boolean;
+            /**
+             * Members
+             * @description The club's members, when the person may hand out.
+             */
+            members?: components["schemas"]["trainmeet.id-1.meet-page.Person"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Grant
+         * @description A role someone has for a resource.
+         */
+        "trainmeet.id-1.meet-page.Grant": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            person: components["schemas"]["trainmeet.id-1.meet-page.Person"];
+            role: components["schemas"]["trainmeet.id-1.meet-page.Role"];
+            resource: components["schemas"]["trainmeet.id-1.meet-page.Resource"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Meet */
+        "trainmeet.id-1.meet-page.Meet": {
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Club
+             * Format: uuid
+             */
+            club: string;
+            /** Club Name */
+            club_name: string;
+            /**
+             * Roles
+             * @description The person's own roles at the meet.
+             */
+            roles: components["schemas"]["trainmeet.id-1.meet-page.MeetRole"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meet-page.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        /**
+         * Person
+         * @description Someone else, as a member or someone with a role: never their address.
+         */
+        "trainmeet.id-1.meet-page.Person": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Initials */
+            initials: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Resource
+         * @description One thing a role applies to: its kind and its id in the app that owns it.
+         */
+        "trainmeet.id-1.meet-page.Resource": {
+            kind: components["schemas"]["trainmeet.id-1.meet-page.ResourceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ResourceKind
+         * @description What a role applies to (KONTO-03). ID only holds the reference, never the thing.
+         * @enum {string}
+         */
+        "trainmeet.id-1.meet-page.ResourceKind": "club" | "fleet" | "meet" | "station" | "module" | "hub" | "catalog";
+        /**
+         * Role
+         * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meet-page.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        /**
+         * MeetGrant
+         * @description Hand out a role at the meet to one of the club's members.
+         */
+        "trainmeet.id-1.meet-grant": {
+            /**
+             * Person
+             * Format: uuid
+             */
+            person: string;
+            role: components["schemas"]["trainmeet.id-1.meet-grant.MeetRole"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meet-grant.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
         /** Problem */
         "trainmeet.id-1.problem": {
             code: components["schemas"]["trainmeet.id-1.problem.ProblemCode"];
@@ -1497,6 +1820,355 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.id-1.removed"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    createMeet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.new-meet"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    meets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet"][];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    meetPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet-page"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    changeMeet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.new-meet"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet-page"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    removeMeet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.removed"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    giveAtMeet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.meet-grant"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet-page"];
                 };
             };
             /** @description ID säger nej */

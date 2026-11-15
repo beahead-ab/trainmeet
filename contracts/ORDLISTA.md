@@ -114,4 +114,6 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Roll | `Role`, `Grant` | En persons roll till en resurs (KONTO-28), utdelad av resursens ägare eller klubbens administratör (KONTO-36). |
 | Inbjudan | `Invitation` | Till en klubb eller en delad vagnpark. Ger ingenting förrän den som den skickades till har svarat ja (KONTO-29, KONTO-35). |
 | Delning | `FleetPage`, `FleetInvite`, `FleetRole` | Ägaren delar hela vagnparken med en person, att titta (`viewer`) eller redigera (`editor`) (CAT-44). |
+| Träff i ID | `Meet`, `NewMeet`, `MeetPage` | En referens till en träff med namn, datum och klubb (ID10). Själva träffen ägs av Hubben (KONTO-09), som kopplar sin träff hit i ärende 78. |
+| Roll på träffen | `MeetRole`, `MeetGrant` | `organizer` arrangör, `dispatcher` trafikledare, `loco_lead` lokledare och `remote_clearer` fjärrtågklarerare. Går till klubbens medlemmar; arrangören delar ut trafikledare och lokledare, klubbens administratör alla (KONTO-36). |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |

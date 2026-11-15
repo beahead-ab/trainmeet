@@ -9,11 +9,15 @@ import {
   type FleetPage,
   type FleetRole,
   type Invitation,
+  type Meet,
+  type MeetPage,
+  type MeetRole,
+  type NewMeet,
   type Session,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { AccountIcon, ClubsIcon, MeetsIcon, TokensIcon } from "./icons";
-import { clubPath, PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
+import { clubPath, meetPath, PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
 
@@ -35,6 +39,7 @@ const TITLES: Record<Page, TextKey> = {
   clubs: "clubs",
   club: "club",
   meets: "meets",
+  meet: "meet",
   tokens: "tokens",
   invitations: "invitations",
   fleet: "fleetTitle",
@@ -47,6 +52,8 @@ export type Data = {
   invitations?: Invitation[];
   club?: ClubPage;
   fleet?: FleetPage;
+  meets?: Meet[];
+  meet?: MeetPage;
 };
 
 export type Actions = {
@@ -57,6 +64,11 @@ export type Actions = {
   answer?: (invitation: string, accept: boolean) => Promise<string | null>;
   shareFleet?: (owner: string, email: string, role: FleetRole) => Promise<string | null>;
   stopSharing?: (grant: string) => Promise<string | null>;
+  createMeet?: (club: string, meet: NewMeet) => Promise<string | null>;
+  changeMeet?: (meet: string, change: NewMeet) => Promise<string | null>;
+  removeMeet?: (meet: string, club: string) => Promise<string | null>;
+  giveRole?: (meet: string, person: string, role: MeetRole) => Promise<string | null>;
+  takeRole?: (grant: string) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -77,6 +89,13 @@ export type ShellProps = {
 
 const date = (iso: string, language: Language) =>
   new Date(iso).toLocaleDateString(language === "sv" ? "sv-SE" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+/** A meet's days, as 13–15 november 2026. The dates are days, not moments. */
+export function days(meet: Pick<NewMeet, "starts_on" | "ends_on">, language: Language): string {
+  const day = (iso: string) => new Date(`${iso}T12:00:00`);
+  const format = new Intl.DateTimeFormat(language === "sv" ? "sv-SE" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return meet.starts_on === meet.ends_on ? format.format(day(meet.starts_on)) : format.formatRange(day(meet.starts_on), day(meet.ends_on));
+}
 
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
 export function Shell(props: ShellProps) {
@@ -209,16 +228,23 @@ function Content(props: ShellProps & { t: T }) {
         </div>
       );
     case "club":
-      return data.club ? <ClubView t={t} page={data.club} me={props.session?.account?.id ?? ""} actions={actions} language={language} /> : null;
+      return data.club ? <ClubView t={t} page={data.club} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "fleet":
       return data.fleet ? <FleetView t={t} page={data.fleet} actions={actions} language={language} /> : null;
     case "meets":
       return (
-        <section className="tm-kort">
-          <h1>{t("meets")}</h1>
-          <p>{t("meetsLater")}</p>
-        </section>
+        <div className="id-raster">
+          <div className="id-kolumn">
+            <h1>{t("meets")}</h1>
+            <MeetsCard t={t} meets={data.meets} navigate={navigate} language={language} empty="noMeetsYet" withClub />
+          </div>
+          <div className="id-kolumn">
+            <HubCard t={t} />
+          </div>
+        </div>
       );
+    case "meet":
+      return data.meet ? <MeetView t={t} page={data.meet} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "tokens":
       return <TokensCard t={t} heading={1} />;
     case "missing":
@@ -258,9 +284,227 @@ function AccountCard({ session, t }: ShellProps & { t: T }) {
   );
 }
 
+const ROLE_TEXTS = ["admin", "member", "viewer", "editor", "organizer", "dispatcher", "loco_lead", "remote_clearer"];
+
 function RoleChip({ t, role }: { t: T; role: string }) {
-  const key = (["admin", "member", "viewer", "editor"].includes(role) ? role : "member") as TextKey;
+  const key = (ROLE_TEXTS.includes(role) ? role : "member") as TextKey;
   return <span className={`id-chip id-chip-${role}`}>{t(key)}</span>;
+}
+
+/** Meets, a club's or the person's clubs', with the person's own roles at each (ID10). */
+function MeetsCard({ t, meets, navigate, language, empty, withClub = false, heading }: { t: T; meets?: Meet[]; navigate?: Navigate; language: Language; empty: TextKey; withClub?: boolean; heading?: ReactNode }) {
+  return (
+    <section className="tm-kort" aria-label={heading ? undefined : t("meets")} aria-labelledby={heading ? "traffar" : undefined}>
+      {heading}
+      {meets === undefined ? null : meets.length === 0 ? (
+        <p className="id-detalj">{t(empty)}</p>
+      ) : (
+        <ul className="id-lista">
+          {meets.map((meet) => (
+            <li key={meet.id}>
+              <div>
+                <a className="id-namn" href={meetPath(meet.id)} onClick={linkClick(navigate, meetPath(meet.id))}>
+                  {meet.name}
+                </a>
+                <p className="id-detalj">{withClub ? `${meet.club_name} · ${days(meet, language)}` : days(meet, language)}</p>
+              </div>
+              <div className="id-knappar">
+                {meet.roles.map((role) => (
+                  <RoleChip key={role} t={t} role={role} />
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function HubCard({ t }: { t: T }) {
+  return (
+    <section className="tm-kort">
+      <h2>{t("hubTitle")}</h2>
+      <p>{t("hubText")}</p>
+    </section>
+  );
+}
+
+/** Name and days of a meet, to make it or to change it. */
+function MeetForm({ t, id, initial, submitLabel, onSave }: { t: T; id: string; initial?: NewMeet; submitLabel: TextKey; onSave: (meet: NewMeet) => Promise<string | null> }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [starts, setStarts] = useState(initial?.starts_on ?? "");
+  const [ends, setEnds] = useState(initial?.ends_on ?? "");
+  const [busy, problem, run] = useAction();
+  const ready = name.trim() !== "" && starts !== "" && ends !== "";
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if ((await run(() => onSave({ name: name.trim(), starts_on: starts, ends_on: ends }))) && !initial) {
+      setName("");
+      setStarts("");
+      setEnds("");
+    }
+  };
+  return (
+    <form className="id-formular" onSubmit={submit}>
+      <label htmlFor={`${id}-namn`}>{t("meetName")}</label>
+      <input id={`${id}-namn`} value={name} maxLength={80} required onChange={(e) => setName(e.target.value)} />
+      <div className="id-datum">
+        <div>
+          <label htmlFor={`${id}-borjar`}>{t("startsOn")}</label>
+          <input id={`${id}-borjar`} type="date" value={starts} required onChange={(e) => setStarts(e.target.value)} />
+        </div>
+        <div>
+          <label htmlFor={`${id}-slutar`}>{t("endsOn")}</label>
+          <input id={`${id}-slutar`} type="date" value={ends} min={starts || undefined} required onChange={(e) => setEnds(e.target.value)} />
+        </div>
+      </div>
+      <button type="submit" className="tm-knapp primar" disabled={busy || !ready}>
+        {t(submitLabel)}
+      </button>
+      <Problem text={problem} />
+    </form>
+  );
+}
+
+/** One person's roles at the meet. Ändra shows what the person asking may take back. */
+function RolesRow({ t, name, grants, mayTake, me, busy, onTake }: { t: T; name: string; grants: MeetPage["grants"]; mayTake: (grant: MeetPage["grants"][number]) => boolean; me: boolean; busy: boolean; onTake: (grant: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const takeable = grants.filter(mayTake);
+  return (
+    <li className="id-rollrad">
+      <div className="id-rollrad-topp">
+        <p className="id-namn">{name}</p>
+        <div className="id-knappar">
+          {grants.map((grant) => (
+            <RoleChip key={grant.id} t={t} role={grant.role} />
+          ))}
+          {takeable.length > 0 ? (
+            <button type="button" className="tm-knapp" aria-expanded={open} aria-label={t("changeRolesNamed", { name })} onClick={() => setOpen(!open)}>
+              {open ? t("done") : t("change")}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {open ? (
+        <div className="id-knappar">
+          {takeable.map((grant) => (
+            <button
+              key={grant.id}
+              type="button"
+              className="tm-knapp"
+              disabled={busy}
+              aria-label={me ? undefined : t("removeRoleNamed", { role: t(grant.role as TextKey).toLowerCase(), name })}
+              onClick={() => onTake(grant.id)}
+            >
+              {t("removeRole", { role: t(grant.role as TextKey).toLowerCase() })}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function MeetView({ t, page, me, actions, language, navigate }: { t: T; page: MeetPage; me: string; actions: Actions; language: Language; navigate?: Navigate }) {
+  const meet = page.meet;
+  const members = page.members ?? [];
+  const [person, setPerson] = useState(members[0]?.id ?? "");
+  const [role, setRole] = useState<MeetRole | "">(page.may_give[0] ?? "");
+  const [sure, setSure] = useState(false);
+  const [busy, problem, run] = useAction();
+  const people = new Map<string, { name: string; grants: MeetPage["grants"] }>();
+  for (const grant of page.grants) {
+    const entry = people.get(grant.person.id) ?? { name: grant.person.name, grants: [] };
+    entry.grants.push(grant);
+    people.set(grant.person.id, entry);
+  }
+  const give = async (event: FormEvent) => {
+    event.preventDefault();
+    if (person && role) await run(() => actions.giveRole?.(meet.id, person, role) ?? Promise.resolve(null));
+  };
+  return (
+    <div className="id-raster">
+      <div className="id-kolumn">
+        <div>
+          <p className="id-overrubrik">{t("meetIn", { club: meet.club_name })}</p>
+          <h1>{meet.name}</h1>
+          <p>{days(meet, language)}</p>
+          <p>{t("meetIntro")}</p>
+        </div>
+        <section className="tm-kort" aria-labelledby="roller">
+          <h2 id="roller">{t("rolesAt", { name: meet.name })}</h2>
+          {people.size === 0 ? <p className="id-detalj">{t("noRoles")}</p> : null}
+          <ul className="id-lista">
+            {[...people.entries()].map(([id, entry]) => (
+              <RolesRow
+                key={id}
+                t={t}
+                name={entry.name}
+                grants={entry.grants}
+                me={id === me}
+                busy={busy}
+                mayTake={(grant) => grant.person.id === me || page.may_give.includes(grant.role as MeetRole)}
+                onTake={(grant) => void run(() => actions.takeRole?.(grant) ?? Promise.resolve(null))}
+              />
+            ))}
+          </ul>
+          <Problem text={problem} />
+        </section>
+      </div>
+      <div className="id-kolumn">
+        {page.may_give.length > 0 ? (
+          <section className="tm-kort" aria-labelledby="dela-ut">
+            <h2 id="dela-ut">{t("give")}</h2>
+            <form className="id-formular" onSubmit={give}>
+              <label htmlFor="roll-person">{t("person")}</label>
+              <select id="roll-person" value={person} onChange={(e) => setPerson(e.target.value)}>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} · {meet.club_name}
+                  </option>
+                ))}
+              </select>
+              <fieldset className="id-val">
+                <legend>{t("role")}</legend>
+                {page.may_give.map((choice) => (
+                  <label key={choice}>
+                    <input type="radio" name="roll" value={choice} checked={role === choice} onChange={() => setRole(choice)} /> {t(choice as TextKey)}
+                  </label>
+                ))}
+              </fieldset>
+              <button type="submit" className="tm-knapp primar" disabled={busy || !person || !role}>
+                {t("giveButton")}
+              </button>
+            </form>
+          </section>
+        ) : null}
+        {page.may_change ? (
+          <section className="tm-kort" aria-labelledby="andra-traffen">
+            <h2 id="andra-traffen">{t("changeMeet")}</h2>
+            <MeetForm key={`${meet.name}${meet.starts_on}${meet.ends_on}`} t={t} id="andra" initial={{ name: meet.name, starts_on: meet.starts_on, ends_on: meet.ends_on }} submitLabel="save" onSave={(change) => actions.changeMeet?.(meet.id, change) ?? Promise.resolve(null)} />
+            {page.may_remove ? (
+              <div className="id-knappar id-ta-bort">
+                {sure ? (
+                  <button type="button" className="tm-knapp fara" disabled={busy} onClick={() => void run(() => actions.removeMeet?.(meet.id, meet.club) ?? Promise.resolve(null))}>
+                    {t("removeMeetSure")}
+                  </button>
+                ) : (
+                  <button type="button" className="tm-knapp" onClick={() => setSure(true)}>
+                    {t("removeMeet")}
+                  </button>
+                )}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+        <HubCard t={t} />
+        <a href={clubPath(meet.club)} onClick={linkClick(navigate, clubPath(meet.club))}>
+          {meet.club_name}
+        </a>
+      </div>
+    </div>
+  );
 }
 
 function ClubsCard({ t, clubs, navigate }: { t: T; clubs?: Club[]; navigate?: Navigate }) {
@@ -402,7 +646,7 @@ function InviteForm({ t, submitLabel, onSend, children }: { t: T; submitLabel: T
   );
 }
 
-function ClubView({ t, page, me, actions, language }: { t: T; page: ClubPage; me: string; actions: Actions; language: Language }) {
+function ClubView({ t, page, me, actions, language, navigate }: { t: T; page: ClubPage; me: string; actions: Actions; language: Language; navigate?: Navigate }) {
   const admin = page.club.role === "admin";
   const [busy, problem, run] = useAction();
   return (
@@ -456,6 +700,13 @@ function ClubView({ t, page, me, actions, language }: { t: T; page: ClubPage; me
           <section className="tm-kort" aria-labelledby="bjud-in">
             <h2 id="bjud-in">{t("invite")}</h2>
             <InviteForm t={t} submitLabel="send" onSend={(email) => actions.invite?.(page.club.id, email) ?? Promise.resolve(null)} />
+          </section>
+        ) : null}
+        <MeetsCard t={t} meets={page.meets ?? []} navigate={navigate} language={language} empty="noMeets" heading={<h2 id="traffar">{t("clubMeets")}</h2>} />
+        {admin ? (
+          <section className="tm-kort" aria-labelledby="ny-traff">
+            <h2 id="ny-traff">{t("newMeet")}</h2>
+            <MeetForm t={t} id="ny-traff" submitLabel="add" onSave={(meet) => actions.createMeet?.(page.club.id, meet) ?? Promise.resolve(null)} />
           </section>
         ) : null}
       </div>
@@ -570,6 +821,12 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
         case "fleet":
           setData({ fleet: await api.fleet(route.id ?? "") });
           break;
+        case "meets":
+          setData({ meets: await api.meets() });
+          break;
+        case "meet":
+          setData({ meet: await api.meet(route.id ?? "") });
+          break;
         default:
           setData({});
       }
@@ -618,6 +875,11 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     answer: (invitation, accept) => act(() => api.answer(invitation, accept))(),
     shareFleet: (owner, email, role) => act(() => api.inviteToFleet(owner, email, role))(),
     stopSharing: (grant) => act(() => api.removeGrant(grant))(),
+    createMeet: (club, meet) => act(() => api.createMeet(club, meet), (made) => navigate(meetPath((made as Meet).id)))(),
+    changeMeet: (meet, change) => act(() => api.changeMeet(meet, change))(),
+    removeMeet: (meet, club) => act(() => api.removeMeet(meet), () => navigate(clubPath(club)))(),
+    giveRole: (meet, person, role) => act(() => api.giveAtMeet(meet, person, role))(),
+    takeRole: (grant) => act(() => api.removeGrant(grant))(),
   };
 
   return (

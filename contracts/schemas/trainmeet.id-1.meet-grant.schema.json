@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meet-grant.schema.json",
+  "title": "trainmeet.id-1.meet-grant",
+  "$defs": {
+    "MeetRole": {
+      "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+      "enum": [
+        "organizer",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer"
+      ],
+      "title": "MeetRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Hand out a role at the meet to one of the club's members.",
+  "properties": {
+    "person": {
+      "format": "uuid",
+      "title": "Person",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/MeetRole"
+    }
+  },
+  "required": [
+    "person",
+    "role"
+  ],
+  "type": "object"
+}

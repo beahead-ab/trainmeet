@@ -457,3 +457,118 @@ def test_a_clubs_fleet_follows_the_clubs_roles(world: World) -> None:
     # Out of the club: the club's right goes at once; the given right stays until taken.
     kim.client.delete(f"{API}/clubs/{club}/members/{ids['Sara Holm']}")
     assert roles("Sara Holm") == ["editor"]
+
+
+def club_with(world: World, *people: tuple[str, str]) -> tuple[Who, str, dict[str, Who]]:
+    """Kim's club, with the people as members who have said yes."""
+    kim = log_in(world, "Kim Ek", "kim@example.com")
+    club = kim.client.post(f"{API}/clubs", json={"name": "Västby MJK"}).json()["id"]
+    joined: dict[str, Who] = {}
+    for name, email in people:
+        invitation = kim.client.post(f"{API}/clubs/{club}/invitations", json={"email": email})
+        who = log_in(world, name, email)
+        answer = f"{API}/invitations/{invitation.json()['id']}/answer"
+        who.client.post(answer, json={"accept": True})
+        who.id = who.client.get(f"{API}/session").json()["account"]["id"]
+        joined[name] = who
+    kim.id = kim.client.get(f"{API}/session").json()["account"]["id"]
+    return kim, club, joined
+
+
+AUTUMN = {"name": "Höstträffen", "starts_on": "2026-11-13", "ends_on": "2026-11-15"}
+
+
+def test_a_meet_is_made_under_the_club_by_its_admin_who_arranges_it(world: World) -> None:
+    """ID10: the meet is a reference with name, dates and club, made with Ny träff."""
+    kim, club, people = club_with(world, ("Sara Holm", "sara@example.com"))
+    sara = people["Sara Holm"]
+    assert sara.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN).status_code == 403
+    made = kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN)
+    assert made.status_code == 201, made.text
+    meet = made.json()
+    assert (meet["name"], meet["club_name"], meet["roles"]) == (
+        "Höstträffen",
+        "Västby MJK",
+        ["organizer"],
+    )
+    backwards = {**AUTUMN, "ends_on": "2026-11-12"}
+    assert kim.client.post(f"{API}/clubs/{club}/meets", json=backwards).status_code == 422
+
+    # The club's members see the club's meets, on the club and under Träffar.
+    assert [m["name"] for m in sara.client.get(f"{API}/clubs/{club}").json()["meets"]] == [
+        "Höstträffen"
+    ]
+    assert sara.client.get(f"{API}/meets").json()[0]["roles"] == []
+    page = sara.client.get(f"{API}/meets/{meet['id']}").json()
+    assert (page["may_give"], page["may_change"], page["may_remove"], page["members"]) == (
+        [],
+        False,
+        False,
+        [],
+    )
+    assert [(g["person"]["name"], g["role"]) for g in page["grants"]] == [("Kim Ek", "organizer")]
+
+    # Clubs are kept apart (KONTO-17): someone outside sees nothing.
+    olle = log_in(world, "Olle Berg", "olle@example.com")
+    assert olle.client.get(f"{API}/meets/{meet['id']}").status_code == 404
+    assert olle.client.get(f"{API}/meets").json() == []
+
+
+def test_the_organizer_hands_out_dispatcher_and_loco_lead_and_the_admin_every_role(
+    world: World,
+) -> None:
+    """KONTO-36: the club's admin hands out every role at the meet, the organizer Trafikledare
+    and Lokledare. The roles go to the club's members, and what the apps ask follows."""
+    kim, club, people = club_with(
+        world, ("Sara Holm", "sara@example.com"), ("Jon Eriksson", "jon@example.com")
+    )
+    sara, jon = people["Sara Holm"], people["Jon Eriksson"]
+    meet = kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN).json()["id"]
+    grants = f"{API}/meets/{meet}/grants"
+
+    given = kim.client.post(grants, json={"person": sara.id, "role": "organizer"})
+    assert given.status_code == 200, given.text
+    page = sara.client.get(f"{API}/meets/{meet}").json()
+    assert page["may_give"] == ["dispatcher", "loco_lead"]
+    assert (page["may_change"], page["may_remove"]) == (True, False)
+    assert {p["name"] for p in page["members"]} == {"Kim Ek", "Sara Holm", "Jon Eriksson"}
+
+    assert sara.client.post(grants, json={"person": jon.id, "role": "loco_lead"}).status_code == 200
+    refused = sara.client.post(grants, json={"person": jon.id, "role": "remote_clearer"})
+    assert refused.status_code == 403
+    assert jon.client.post(grants, json={"person": jon.id, "role": "dispatcher"}).status_code == 403
+    olle = log_in(world, "Olle Berg", "olle@example.com")
+    olle_id = olle.client.get(f"{API}/session").json()["account"]["id"]
+    outside = kim.client.post(grants, json={"person": olle_id, "role": "dispatcher"})
+    assert outside.status_code == 422  # not a member of the club
+
+    resource = f"meet:{meet}"
+    assert apps(world, "access", person=jon.id, resource=resource).json()["roles"] == ["loco_lead"]
+    assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == [
+        "admin",
+        "organizer",
+    ]
+    assert apps(world, "access", person=olle_id, resource=resource).json()["roles"] == []
+
+    # The organizer changes the meet; only the admin removes it.
+    changed = sara.client.put(f"{API}/meets/{meet}", json={**AUTUMN, "name": "Höstträffen 2026"})
+    assert changed.json()["meet"]["name"] == "Höstträffen 2026"
+    assert jon.client.put(f"{API}/meets/{meet}", json=AUTUMN).status_code == 403
+    assert sara.client.delete(f"{API}/meets/{meet}").status_code == 403
+
+    # A role is taken back by whoever may hand it out, or dropped by its holder.
+    roles_now = kim.client.get(f"{API}/meets/{meet}").json()["grants"]
+    lead = next(g["id"] for g in roles_now if g["role"] == "loco_lead")
+    organizer = next(g["id"] for g in roles_now if g["person"]["id"] == sara.id)
+    assert jon.client.delete(f"{API}/grants/{organizer}").status_code == 403
+    assert sara.client.delete(f"{API}/grants/{lead}").status_code == 200
+    assert apps(world, "access", person=jon.id, resource=resource).json()["roles"] == []
+
+    # Leaving the club takes the roles at its meets with it (KONTO-17).
+    kim.client.delete(f"{API}/clubs/{club}/members/{sara.id}")
+    assert apps(world, "access", person=sara.id, resource=resource).json()["roles"] == []
+    assert sara.client.get(f"{API}/meets/{meet}").status_code == 404
+
+    assert kim.client.delete(f"{API}/meets/{meet}").status_code == 200
+    assert kim.client.get(f"{API}/clubs/{club}").json()["meets"] == []
+    assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == []

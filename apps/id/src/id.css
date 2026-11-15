@@ -106,9 +106,67 @@
   background: currentColor;
 }
 .id-chip-admin,
-.id-chip-editor {
+.id-chip-editor,
+.id-chip-organizer {
   background: var(--tm-blue-soft);
   color: var(--tm-blue-text);
+}
+.id-chip-dispatcher,
+.id-chip-loco_lead,
+.id-chip-remote_clearer {
+  background: #e3f4e8;
+  color: #11632f;
+}
+@media (prefers-color-scheme: dark) {
+  .id-chip-dispatcher,
+  .id-chip-loco_lead,
+  .id-chip-remote_clearer {
+    background: #15301e;
+    color: #7fd99c;
+  }
+}
+.id-lista li.id-rollrad {
+  display: grid;
+  gap: 8px;
+}
+.id-rollrad-topp {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+}
+.id-datum {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.id-datum > div {
+  display: grid;
+  gap: 8px;
+}
+.id-formular select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.id-ta-bort {
+  margin-top: 16px;
+}
+.tm-knapp.fara {
+  border-color: #b42318;
+  color: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  .tm-knapp.fara {
+    border-color: #ff8a80;
+    color: #ff8a80;
+  }
 }
 .id-chip-invited {
   background: #fdf1d8;

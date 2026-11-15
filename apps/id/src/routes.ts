@@ -2,7 +2,7 @@
 // gives index.html for each of them (id/app.py). The tabs are Konto, Klubbar, Träffar and
 // Tokens (KONTO-38).
 
-export type Page = "account" | "clubs" | "club" | "meets" | "tokens" | "invitations" | "fleet" | "missing";
+export type Page = "account" | "clubs" | "club" | "meets" | "meet" | "tokens" | "invitations" | "fleet" | "missing";
 export type Route = { page: Page; id?: string };
 
 export const PATHS = {
@@ -15,11 +15,13 @@ export const PATHS = {
 
 export const clubPath = (id: string) => `/klubbar/${id}`;
 export const fleetPath = (owner: string) => `/vagnparker/${owner}`;
+export const meetPath = (id: string) => `/traffar/${id}`;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATTERNS: [RegExp, Page][] = [
   [new RegExp(`^/klubbar/(${UUID})$`), "club"],
   [new RegExp(`^/vagnparker/(${UUID})$`), "fleet"],
+  [new RegExp(`^/traffar/(${UUID})$`), "meet"],
 ];
 
 export function routeFor(address: string): Route {
@@ -36,6 +38,7 @@ export function routeFor(address: string): Route {
 /** Which tab a page belongs to. */
 export function tabOf(page: Page): Page {
   if (page === "club") return "clubs";
+  if (page === "meet") return "meets";
   if (page === "invitations" || page === "fleet") return "account";
   return page;
 }
