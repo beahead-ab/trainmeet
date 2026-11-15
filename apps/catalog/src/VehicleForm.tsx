@@ -252,7 +252,7 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
 
   const name = vehicle ? title(t, vehicle) : t("newTitle");
   const addTo =
-    !id && !isOwner(ctx) ? (
+    !id && ctx.fleetTitle ? (
       <fieldset className="cat-val">
         <legend>{t("addTo")}</legend>
         <label>

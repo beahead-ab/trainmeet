@@ -95,6 +95,10 @@ class FleetChoice(Contract):
     owner: UUID
     title: Text = Field(description="Whose fleet it is.")
     right: FleetRight
+    share_url: str | None = Field(
+        default=None,
+        description="With the owner's right: where the fleet is shared in TrainMeet ID (CAT-44).",
+    )
 
 
 class TrialLogin(Contract):
@@ -447,6 +451,7 @@ class LookupFleet(Contract):
     outcome: Literal["fleet"] = "fleet"
     vehicle_id: UUID
     right: Literal["view", "edit"]
+    owner: UUID = Field(description="Whose fleet it is, as in ?fleet=: the card opens in it (#49).")
 
 
 class LookupUnknown(Contract):

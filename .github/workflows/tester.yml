@@ -61,6 +61,7 @@ jobs:
         run: |
           npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts --check
           npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts --check
+          npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts --check
 
   bilden:
     name: Hubbens bild

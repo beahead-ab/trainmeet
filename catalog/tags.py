@@ -197,7 +197,9 @@ class Tags:
         right = self.shared_with(asker, owner) if asker is not None else None
         if right in ("view", "edit"):
             return LookupFleet(
-                vehicle_id=row["vehicle_id"], right="edit" if right == "edit" else "view"
+                vehicle_id=row["vehicle_id"],
+                right="edit" if right == "edit" else "view",
+                owner=owner,
             )
         card = MiniCard(
             litt=row["litt"],

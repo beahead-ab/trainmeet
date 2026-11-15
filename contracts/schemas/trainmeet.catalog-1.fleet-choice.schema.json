@@ -31,6 +31,19 @@
     },
     "right": {
       "$ref": "#/$defs/FleetRight"
+    },
+    "share_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With the owner's right: where the fleet is shared in TrainMeet ID (CAT-44).",
+      "title": "Share Url"
     }
   },
   "required": [

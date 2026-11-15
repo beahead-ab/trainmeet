@@ -240,19 +240,32 @@ class Removed(Contract):
 
 
 class Access(Contract):
-    """What ID says now: the roles a person has for a resource (KONTO-34). Empty: none."""
+    """What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.
+
+    For a club's fleet the club's roles count too (CAT-51, C36): its administrators have admin,
+    which is the owner's right, and its members viewer."""
 
     person: UUID
     resource: Resource
     roles: list[Role]
 
 
+class FleetAccessRole(StrEnum):
+    """How a person may work in a fleet that is not their own."""
+
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    OWNER = "owner"
+    """A club's administrators have the owner's right to the club's fleet (C36, C39)."""
+
+
 class FleetAccess(Contract):
-    """A fleet that is shared with the person, and how (CAT-50)."""
+    """A fleet the person may work in besides their own: shared with them, or their club's
+    (CAT-50, CAT-51)."""
 
     owner: Resource = Field(description="Kind fleet: the owner's id, a person's or a club's.")
     title: Text = Field(description="Whose fleet it is, as the owner shows it.")
-    role: FleetRole
+    role: FleetAccessRole
 
 
 class ProblemCode(StrEnum):

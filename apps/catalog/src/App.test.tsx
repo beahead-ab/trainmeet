@@ -99,3 +99,19 @@ describe("the app switcher", () => {
     expect(switcherApps(t, "catalog.trainmeet.app").filter((app) => app.href)).toHaveLength(0);
   });
 });
+
+describe("a club's fleet (CAT-51, C39)", () => {
+  const club = "0f0e0d0c-3333-4444-8555-966677778888";
+  const session: Session = { account, login: "id", simulated_tags: false, share_url: "https://id.example/vagnparker/a", logout_url: null };
+  const fleets = [
+    { owner: account.id, title: "Vagnparken · Provkonto A", right: "owner" as const, share_url: "https://id.example/vagnparker/a" },
+    { owner: club, title: "Vagnparken · Västby MJK", right: "owner" as const, share_url: `https://id.example/vagnparker/${club}` },
+  ];
+
+  it("says whose fleet one works in, also with the owner's right", () => {
+    const html = render({ session, fleets, working: club });
+    expect(html).toContain("Du arbetar i Vagnparken · Västby MJK.");
+    expect(html).toContain("Till min egen vagnpark");
+    expect(render({ session, fleets, working: null })).not.toContain("Du arbetar i");
+  });
+});

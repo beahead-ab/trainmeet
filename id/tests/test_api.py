@@ -410,3 +410,50 @@ def test_the_one_a_fleet_is_shared_with_can_leave_it(world: World) -> None:
     grant = kim.client.get(f"{API}/fleets/{kim_id}").json()["grants"][0]["id"]
     assert sara.client.delete(f"{API}/grants/{grant}").status_code == 200
     assert kim.client.get(f"{API}/fleets/{kim_id}").json()["grants"] == []
+
+
+def test_a_clubs_fleet_follows_the_clubs_roles(world: World) -> None:
+    """CAT-51, C36, C39: the admins have the owner's right, the members look, and the admin can
+    give someone the right to edit. Leaving the club takes it away at once."""
+    kim = log_in(world, "Kim Ek", "kim@example.com")
+    club = kim.client.post(f"{API}/clubs", json={"name": "Västby MJK"}).json()["id"]
+    invitation = kim.client.post(
+        f"{API}/clubs/{club}/invitations", json={"email": "sara@example.com"}
+    ).json()
+    sara = log_in(world, "Sara Holm", "sara@example.com")
+    sara.client.post(f"{API}/invitations/{invitation['id']}/answer", json={"accept": True})
+    olle = log_in(world, "Olle Berg", "olle@example.com")
+    ids = {
+        who.name: who.client.get(f"{API}/session").json()["account"]["id"]
+        for who in (kim, sara, olle)
+    }
+    resource = f"fleet:{club}"
+
+    def roles(name: str) -> list[str]:
+        roles_now: list[str] = apps(world, "access", person=ids[name], resource=resource).json()[
+            "roles"
+        ]
+        return roles_now
+
+    assert (roles("Kim Ek"), roles("Sara Holm"), roles("Olle Berg")) == (["admin"], ["viewer"], [])
+    title = "Vagnparken · Västby MJK"
+    assert apps(world, "fleets", person=ids["Kim Ek"]).json() == [
+        {"owner": {"kind": "fleet", "id": club}, "title": title, "role": "owner"}
+    ]
+    assert apps(world, "fleets", person=ids["Sara Holm"]).json()[0]["role"] == "viewer"
+
+    # The admin gives a member the right to edit, through the club fleet's sharing.
+    shared = kim.client.post(
+        f"{API}/fleets/{club}/invitations", json={"email": "sara@example.com", "role": "editor"}
+    )
+    assert shared.status_code == 201, shared.text
+    assert shared.json()["title"] == title
+    sara.client.post(f"{API}/invitations/{shared.json()['id']}/answer", json={"accept": True})
+    assert roles("Sara Holm") == ["editor", "viewer"]
+    assert apps(world, "fleets", person=ids["Sara Holm"]).json()[0]["role"] == "editor"
+    # A member may not share the club's fleet.
+    assert sara.client.get(f"{API}/fleets/{club}").status_code == 403
+
+    # Out of the club: the club's right goes at once; the given right stays until taken.
+    kim.client.delete(f"{API}/clubs/{club}/members/{ids['Sara Holm']}")
+    assert roles("Sara Holm") == ["editor"]

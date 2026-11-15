@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { statusFor, type Vehicle, type VehicleList } from "./api";
+import { qrAddress, statusFor, workIn, type Vehicle, type VehicleList } from "./api";
 import type { Ctx } from "./common";
 import { title } from "./common";
 import { text } from "./i18n";
@@ -216,6 +216,24 @@ describe("a fleet shared with someone (#49)", () => {
     for (const owners of ["Låna ut", "Flytta", "Ta bort fordonet", "Händelser"]) expect(card).not.toContain(owners);
     const looking = renderToStaticMarkup(<CardView ctx={shared("view")} vehicle={vehicle()} events={[]} error={null} />);
     expect(looking).not.toContain(">Ändra<");
+  });
+
+  it("a club's fleet: the administrators do the owner's things and share it (C39)", () => {
+    const club: Ctx = { ...ctx(), right: "owner", fleetTitle: "Vagnparken · Västby MJK", shareUrl: "https://id.example/vagnparker/k" };
+    const html = renderToStaticMarkup(
+      <VehiclesView ctx={club} account={account} list={list([vehicle()])} q="" state={null} group="all" selected={new Set()} error={null} />,
+    );
+    expect(html).toContain('href="https://id.example/vagnparker/k"');
+    expect(html).toContain('type="checkbox"');
+    const card = renderToStaticMarkup(<CardView ctx={club} vehicle={vehicle()} events={[]} error={null} />);
+    for (const owners of [">Låna ut<", "Ta bort fordonet"]) expect(card).toContain(owners);
+  });
+
+  it("asks the club's fleet with the tag's work too", () => {
+    workIn("0f0e0d0c-3333-4444-8555-966677778888");
+    expect(qrAddress("04A1B2")).toBe("/api/catalog/1/tags/04A1B2/qr.svg?fleet=0f0e0d0c-3333-4444-8555-966677778888");
+    workIn(null);
+    expect(qrAddress("04A1B2")).toBe("/api/catalog/1/tags/04A1B2/qr.svg");
   });
 
   it("a new vehicle in someone else's fleet, or in one's own", () => {

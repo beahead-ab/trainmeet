@@ -580,6 +580,12 @@ export interface components {
              */
             title: string;
             right: components["schemas"]["trainmeet.catalog-1.fleet-choice.FleetRight"];
+            /**
+             * Share Url
+             * @description With the owner's right: where the fleet is shared in TrainMeet ID (CAT-44).
+             * @default null
+             */
+            share_url: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1525,6 +1531,12 @@ export interface components {
              * @enum {string}
              */
             right: "view" | "edit";
+            /**
+             * Owner
+             * Format: uuid
+             * @description Whose fleet it is, as in ?fleet=: the card opens in it (#49).
+             */
+            owner: string;
         } & {
             [key: string]: unknown;
         };

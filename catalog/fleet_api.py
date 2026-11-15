@@ -38,6 +38,22 @@ from contracts.catalog import (
 API = "/api/catalog/1"
 
 
+def needs(
+    access: Access, logged_in: Callable[..., Account | None], right: Right
+) -> Callable[..., Work]:
+    """A route's need: the person, the fleet from ?fleet=, and at least this right (CAT-49)."""
+
+    def check(
+        account: Annotated[Account | None, Depends(logged_in)],
+        fleet_owner: Annotated[UUID | None, Query(alias="fleet")] = None,
+    ) -> Work:
+        if account is None:
+            raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
+        return access.work(account.id, fleet_owner, right)
+
+    return check
+
+
 def router(fleet: Fleet, logged_in: Callable[..., Account | None], access: Access) -> APIRouter:
     def person(account: Annotated[Account | None, Depends(logged_in)]) -> UUID:
         if account is None:
@@ -45,17 +61,10 @@ def router(fleet: Fleet, logged_in: Callable[..., Account | None], access: Acces
         return account.id
 
     Person = Annotated[UUID, Depends(person)]
-    Fleet_ = Annotated[UUID | None, Query(alias="fleet")]
 
-    def needs(right: Right) -> Callable[..., Work]:
-        def check(me: Person, fleet_owner: Fleet_ = None) -> Work:
-            return access.work(me, fleet_owner, right)
-
-        return check
-
-    Look = Annotated[Work, Depends(needs(Right.LOOK))]
-    Edit = Annotated[Work, Depends(needs(Right.EDIT))]
-    Own = Annotated[Work, Depends(needs(Right.OWNER))]
+    Look = Annotated[Work, Depends(needs(access, logged_in, Right.LOOK))]
+    Edit = Annotated[Work, Depends(needs(access, logged_in, Right.EDIT))]
+    Own = Annotated[Work, Depends(needs(access, logged_in, Right.OWNER))]
     routes = APIRouter(prefix=API)
 
     @routes.get("/vehicles")

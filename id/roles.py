@@ -31,6 +31,7 @@ from contracts.id import (
     ClubPage,
     ClubRole,
     FleetAccess,
+    FleetAccessRole,
     FleetPage,
     FleetRole,
     Grant,
@@ -460,30 +461,48 @@ class Roles:
         with self.db.transaction() as conn:
             rows = conn.execute(
                 "SELECT DISTINCT role FROM role_grant WHERE person_id = %s "
-                "AND resource_kind = %s AND resource_id = %s ORDER BY role",
+                "AND resource_kind = %s AND resource_id = %s",
                 (person, resource.kind.value, resource.id),
             ).fetchall()
-        return Access(person=person, resource=resource, roles=[Role(r["role"]) for r in rows])
+            roles = {Role(r["role"]) for r in rows}
+            if resource.kind == ResourceKind.FLEET:
+                # A club's fleet: the club's roles count (CAT-51, C36).
+                club = conn.execute(
+                    "SELECT role FROM role_grant WHERE resource_kind = 'club' "
+                    "AND resource_id = %s AND person_id = %s AND role IN ('admin', 'member')",
+                    (resource.id, person),
+                ).fetchall()
+                for row in club:
+                    roles.add(Role.ADMIN if row["role"] == "admin" else Role.VIEWER)
+        return Access(person=person, resource=resource, roles=sorted(roles))
 
     def fleets_for(self, person: UUID) -> list[FleetAccess]:
-        """The fleets shared with the person, the stronger right first if both."""
+        """The fleets the person may work in besides their own: shared with them, and their
+        clubs' (CAT-50, CAT-51). The strongest right counts."""
+        strength = {FleetAccessRole.VIEWER: 1, FleetAccessRole.EDITOR: 2, FleetAccessRole.OWNER: 3}
         with self.db.transaction() as conn:
             rows = conn.execute(
-                "SELECT g.resource_id, g.role, coalesce(c.name, p.name) AS whose "
+                "SELECT g.resource_id AS owner, g.role, coalesce(c.name, p.name) AS whose "
                 "FROM role_grant g LEFT JOIN club c ON c.id::text = g.resource_id "
                 "LEFT JOIN person p ON p.id::text = g.resource_id "
                 "WHERE g.person_id = %s AND g.resource_kind = 'fleet' "
-                "AND g.role IN ('viewer', 'editor') ORDER BY whose, g.role",
-                (person,),
+                "AND g.role IN ('viewer', 'editor') "
+                "UNION ALL "
+                "SELECT c.id::text, "
+                "CASE g.role WHEN 'admin' THEN 'owner' ELSE 'viewer' END, c.name "
+                "FROM role_grant g JOIN club c ON c.id::text = g.resource_id "
+                "WHERE g.person_id = %s AND g.resource_kind = 'club' "
+                "AND g.role IN ('admin', 'member')",
+                (person, person),
             ).fetchall()
         found: dict[str, FleetAccess] = {}
         for row in rows:
-            role = FleetRole(row["role"])
-            current = found.get(row["resource_id"])
-            if current is None or role == FleetRole.EDITOR:
-                found[row["resource_id"]] = FleetAccess(
-                    owner=Resource(kind=ResourceKind.FLEET, id=row["resource_id"]),
+            role = FleetAccessRole(row["role"])
+            current = found.get(row["owner"])
+            if current is None or strength[role] > strength[current.role]:
+                found[row["owner"]] = FleetAccess(
+                    owner=Resource(kind=ResourceKind.FLEET, id=row["owner"]),
                     title=f"Vagnparken · {row['whose'] or 'okänd'}",
                     role=role,
                 )
-        return list(found.values())
+        return sorted(found.values(), key=lambda f: f.title.lower())

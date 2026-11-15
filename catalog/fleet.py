@@ -509,6 +509,18 @@ class Fleet:
 
     # --- The owner's settings ----------------------------------------------------------------
 
+    def ensure_owners(self, owners: list[tuple[UUID, str]]) -> None:
+        """Owners Catalog only knows through ID, such as a club (CAT-51): a row the first time,
+        with the name ID shows. A person's row is made when they log in."""
+        if not owners:
+            return
+        with self.db.transaction() as conn:
+            for owner, name in owners:
+                conn.execute(
+                    "INSERT INTO owner (id, name) VALUES (%s, %s) ON CONFLICT (id) DO NOTHING",
+                    (owner, (name.strip() or "Klubb")[:80]),
+                )
+
     def settings(self, owner: UUID) -> OwnerSettings:
         with self.db.transaction() as conn:
             row = conn.execute("SELECT show_name FROM owner WHERE id = %s", (owner,)).fetchone()

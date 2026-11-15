@@ -25,11 +25,18 @@
           ],
           "title": "Right",
           "type": "string"
+        },
+        "owner": {
+          "description": "Whose fleet it is, as in ?fleet=: the card opens in it (#49).",
+          "format": "uuid",
+          "title": "Owner",
+          "type": "string"
         }
       },
       "required": [
         "vehicle_id",
-        "right"
+        "right",
+        "owner"
       ],
       "title": "LookupFleet",
       "type": "object"

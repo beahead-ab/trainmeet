@@ -56,7 +56,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.",
+  "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.\n\nFor a club's fleet the club's roles count too (CAT-51, C36): its administrators have admin,\nwhich is the owner's right, and its members viewer.",
   "properties": {
     "person": {
       "format": "uuid",
