@@ -3,6 +3,25 @@
 # The deploy passes TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE and TRAINMEET_BUILT so the
 # start page can show which change runs. Secrets never go in the image; they come from the
 # environment when the container starts.
+#
+# The pages rebuilt in React (H62, GRUND-36) are built in the first stage and served by the hub
+# from HUB_WEB_DIR (hub/web.py).
+
+FROM node:22-slim AS web
+WORKDIR /src
+COPY package.json package-lock.json ./
+COPY apps/design/package.json apps/design/
+COPY apps/catalog/package.json apps/catalog/
+COPY apps/id/package.json apps/id/
+COPY apps/skarmar/package.json apps/skarmar/
+RUN npm ci --no-audit --no-fund
+COPY contracts/types.d.ts contracts/
+COPY apps/design apps/design
+COPY apps/skarmar apps/skarmar
+# Types and tests first: a red web app never becomes an image.
+RUN npm run check -w apps/design -w apps/skarmar \
+    && npm run test -w apps/design -w apps/skarmar \
+    && npm run build -w apps/skarmar
 
 FROM python:3.12-slim AS build
 RUN pip install --no-cache-dir "uv>=0.11,<0.12"
@@ -23,6 +42,7 @@ RUN uv sync --locked --no-default-groups --no-editable
 FROM python:3.12-slim
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin hub
 COPY --from=build /app/.venv /app/.venv
+COPY --from=web /src/apps/skarmar/dist /app/web/skarmar
 WORKDIR /app
 
 ARG TRAINMEET_COMMIT=""
@@ -31,6 +51,7 @@ ARG TRAINMEET_TITLE=""
 ARG TRAINMEET_BUILT=""
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
+    HUB_WEB_DIR=/app/web \
     TRAINMEET_COMMIT=$TRAINMEET_COMMIT \
     TRAINMEET_PR=$TRAINMEET_PR \
     TRAINMEET_TITLE=$TRAINMEET_TITLE \

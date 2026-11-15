@@ -6,7 +6,8 @@
   "workspaces": [
     "apps/design",
     "apps/catalog",
-    "apps/id"
+    "apps/id",
+    "apps/skarmar"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",

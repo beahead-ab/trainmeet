@@ -1,8 +1,8 @@
 """Träffens skärmar in the browser: a TV joins with the meet's code, waits under Väntar, and
 shows the view the dispatcher gives it in Klienter. Steg 3 has the clock (1920 × 1080).
 
-The screen keeps its key in sessionStorage and sends it as Authorization: Bearer; it is never
-in an address or a log.
+The page is the app apps/skarmar, served at /skarm by hub/web.py (SKARM-14). It keeps its key in
+sessionStorage and sends it as Authorization: Bearer; it is never in an address or a log.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Response
-from fastapi.responses import HTMLResponse
 
 from contracts import screen, station
 from drift.engine import model_time, now_utc
@@ -19,51 +18,9 @@ from hub.stores import AnyRun
 
 Authorization = Annotated[str | None, Header(max_length=200)]
 
-PAGE = """<!doctype html>
-<html lang="sv">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TrainMeet · Skärm</title>
-<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/skarm.css">
-<script src="/static/skarm.js" defer></script>
-</head>
-<body>
-<section id="login" class="anslut">
-  <img class="skylt" src="/static/skylt.svg" alt="TrainMeet">
-  <h1>Anslut skärmen</h1>
-  <p>Skriv träffens kod. Trafikledningen väljer sedan vad skärmen visar.</p>
-  <form id="login-form">
-    <label>Skärmens namn <input id="name" maxlength="40" required value="Skärm"
-      autocomplete="off"></label>
-    <label>Kod <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required
-      autocomplete="off"></label>
-    <button type="submit">Anslut</button>
-  </form>
-  <p id="message" role="alert"></p>
-</section>
-<section id="waiting" class="vantar" hidden>
-  <img class="skylt" src="/static/skylt.svg" alt="TrainMeet">
-  <h1>Väntar på en vy</h1>
-  <p><b id="screen-name"></b> är ansluten. Välj vad den ska visa under Klienter.</p>
-</section>
-<section id="clock-view" class="klocka" hidden>
-  <p id="meet" class="traff"></p>
-  <p id="time" class="tid">--:--</p>
-  <p id="state" class="lage"></p>
-</section>
-</body>
-</html>
-"""
-
 
 def router(runs: AnyRun) -> APIRouter:
     routes = APIRouter()
-
-    @routes.get("/skarm", response_class=HTMLResponse)
-    def page() -> str:
-        return PAGE
 
     @routes.post("/api/screen/session", status_code=201)
     def login(request: screen.ScreenLogin, response: Response) -> dict[str, Any]:

@@ -80,7 +80,32 @@ def test_a_new_meet_lets_the_screens_go(hub: TestClient) -> None:
     assert TestClient(hub.app).get("/api/screen/picture", headers=headers).status_code == 401
 
 
-def test_the_screen_page_is_there_and_keeps_the_key_out_of_the_address(hub: TestClient) -> None:
-    page = TestClient(hub.app).get("/skarm").text
-    assert 'id="login-form"' in page and 'id="clock-view"' in page
-    assert "/static/skarm.js" in page
+def test_the_screen_is_the_app_from_apps_skarmar(tmp_path: Path) -> None:
+    """SKARM-14: /skarm is the React app; its own addresses get its index.html, its files come
+    as they are, and it loads only its own files."""
+    built = tmp_path / "web" / "skarmar"
+    (built / "assets").mkdir(parents=True)
+    (built / "index.html").write_text("<!doctype html><title>TrainMeet · Skärm</title>")
+    (built / "assets" / "index-abc.js").write_text("console.log('skärm')")
+    hub = TestClient(
+        create_app(
+            BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=tmp_path / "web"
+        )
+    )
+    for address in ("/skarm", "/skarm/", "/skarm/vilken-sida-som-helst"):
+        page = hub.get(address)
+        assert page.status_code == 200 and "TrainMeet · Skärm" in page.text, address
+        assert "script-src 'self'" in page.headers["content-security-policy"]
+        assert page.headers["cache-control"] == "no-cache"
+    script = hub.get("/skarm/assets/index-abc.js")
+    assert "immutable" in script.headers["cache-control"]
+    assert hub.get("/skarm/assets/finns-inte.js").status_code == 404
+    assert hub.get("/skarm/../app.py").status_code == 404
+    assert hub.get("/static/skarm.js").status_code == 404  # the old page is gone
+
+
+def test_without_a_built_app_the_hub_says_so(tmp_path: Path) -> None:
+    hub = TestClient(
+        create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=tmp_path)
+    )
+    assert "npm run build" in hub.get("/skarm").text

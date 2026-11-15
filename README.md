@@ -15,7 +15,7 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 | `tkl/` | TrainMeet TKL, ställverket och Studio | Stationens dator eller i molnet |
 | `cad/` | TrainMeet CAD, modulbiblioteket | I molnet |
 | `catalog/` | TrainMeet Catalog: fordonen, taggarna och resan till träffen. En egen tjänst med egen PostgreSQL; använder bara `contracts/` | I molnet |
-| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`) och Catalogs webbapp (`apps/catalog`). Hubbens sidor flyttar hit (H62) | – |
+| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`), Catalogs (`apps/catalog`), ID:s (`apps/id`) och Hubbens. Hubbens sidor flyttar hit (H62): träffens skärmar finns i `apps/skarmar` | – |
 
 Mapparna kommer till i den ordning delarna byggs. Först kommer Grunden (kontrakten, de automatiska testerna och testmiljön), sedan Drift.
 
@@ -46,6 +46,7 @@ Catalog behöver en PostgreSQL och [Node 22](https://nodejs.org/) för webbappen
 
 ```sh
 npm ci && npm run build -w apps/catalog       # webbappen, till apps/catalog/dist
+npm run build -w apps/skarmar                  # Hubbens skärmar, som hubben serverar på /skarm
 CATALOG_DATABASE_URL=postgresql:///catalog CATALOG_MIGRATE=auto CATALOG_TRIAL_LOGIN=on \
   uv run uvicorn catalog.app:app --port 8001  # Catalog på http://127.0.0.1:8001
 npm run dev -w apps/catalog                   # eller webbappen med omladdning, mot port 8001
