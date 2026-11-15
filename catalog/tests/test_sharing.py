@@ -34,6 +34,7 @@ class PretendId:
 
     roles: dict[tuple[str, str], str] = field(default_factory=dict)
     titles: dict[str, str] = field(default_factory=dict)
+    apps: dict[str, list[str]] = field(default_factory=dict)
     down: bool = False
     tokens: int = 0
     asked: int = 0
@@ -56,6 +57,8 @@ class PretendId:
             owner = request.url.params["resource"].removeprefix("fleet:")
             role = self.roles.get((person, owner))
             return httpx.Response(200, json={"roles": [role] if role else []})
+        if request.url.path.endswith("/apps/switcher"):
+            return httpx.Response(200, json={"apps": self.apps.get(person, ["catalog", "id"])})
         if request.url.path.endswith("/apps/fleets"):
             shared = [
                 {
@@ -298,3 +301,14 @@ def test_a_clubs_administrators_have_the_owners_right_to_the_clubs_fleet(world: 
     assert waiting.status_code == 200, waiting.text
     assert world.b.get(f"{API}/tags/pending?{in_club}").json()["pending"] is not None
     assert world.b.get(f"{API}/tags/pending").json()["pending"] is None
+
+
+def test_the_session_has_the_apps_from_id_and_the_way_to_help(world: World) -> None:
+    """ID11: the app switcher shows what ID says the person has something in. KONTO-06: Hjälp
+    och fel is ID's page. Without an answer from ID the switcher shows every app."""
+    world.id.apps[A] = ["hub", "catalog", "driver", "id", "something-new"]
+    session = world.a.get(f"{API}/session").json()
+    assert session["apps"] == ["hub", "catalog", "driver", "id"]
+    assert session["help_url"] == "https://id.example.test/hjalp"
+    world.id.down = True
+    assert world.a.get(f"{API}/session").json()["apps"] is None

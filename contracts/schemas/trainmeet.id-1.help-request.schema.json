@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.help-request.schema.json",
+  "title": "trainmeet.id-1.help-request",
+  "$defs": {
+    "AppKey": {
+      "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+      "enum": [
+        "hub",
+        "tkl",
+        "cad",
+        "catalog",
+        "driver",
+        "id"
+      ],
+      "title": "AppKey",
+      "type": "string"
+    },
+    "HelpKind": {
+      "enum": [
+        "help",
+        "fault"
+      ],
+      "title": "HelpKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Hjälp och fel in the account menu of every app (KONTO-06). It goes as a mail to Beahead's\nsupport address, with the app, the page and the version, and the person's verified address\nto answer (ID9, ID12).",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/HelpKind"
+    },
+    "text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "app": {
+      "$ref": "#/$defs/AppKey"
+    },
+    "page": {
+      "default": "",
+      "maxLength": 300,
+      "title": "Page",
+      "type": "string"
+    },
+    "version": {
+      "default": "",
+      "maxLength": 80,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "text",
+    "app"
+  ],
+  "type": "object"
+}

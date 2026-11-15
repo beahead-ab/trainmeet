@@ -177,6 +177,15 @@ def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -
     assert "- name: Prova taggarnas adress" in workflow
 
 
+def test_help_goes_to_the_support_address_from_the_settings() -> None:
+    """ID12: support@trainmeet.se is a setting in the test environment, never in the code."""
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    api = compose.split("\n  id-api:")[1].split("\n  caddy:")[0]
+    assert "ID_SUPPORT_ADDRESS: ${ID_SUPPORT_ADDRESS:-support@trainmeet.se}" in api
+    for code in (ROOT / "id").glob("*.py"):
+        assert "support@trainmeet.se" not in code.read_text(), code.name
+
+
 def test_catalog_secrets_survive_secret_manager_and_stay_private(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -13,6 +13,8 @@ import {
   type MeetPage,
   type MeetRole,
   type NewMeet,
+  type AppKey,
+  type HelpRequest,
   type Session,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
@@ -21,10 +23,14 @@ import { clubPath, meetPath, PATHS, routeFor, tabOf, type Page, type Route } fro
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
 
-/** The other TrainMeet apps. Catalog has a test environment beside ID's. */
-export function switcherApps(t: T, host: string): SwitcherApp[] {
+const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
+const APP_NAMES: Record<AppKey, string> = { hub: "TrainMeet Hub", tkl: "TrainMeet TKL", cad: "TrainMeet CAD", catalog: "TrainMeet Catalog", driver: "Lokföraren", id: "TrainMeet ID" };
+
+/** The other TrainMeet apps. Catalog has a test environment beside ID's. With the person's
+ * apps from ID, only those they have something in (KONTO-38, ID11). */
+export function switcherApps(t: T, host: string, apps?: AppKey[] | null): SwitcherApp[] {
   const test = host.startsWith("test.") || host.startsWith("localhost") || host.startsWith("127.");
-  return [
+  const all = [
     { product: "HUB", label: "TrainMeet Hub", what: t("appHub"), href: test ? "https://test.hub.trainmeet.app" : undefined },
     { product: "TKL", label: "TrainMeet TKL", what: t("appTkl") },
     { product: "CAD", label: "TrainMeet CAD", what: t("appCad") },
@@ -32,6 +38,14 @@ export function switcherApps(t: T, host: string): SwitcherApp[] {
     { product: "LOKFÖRAREN", label: "Lokföraren", what: t("appDriver") },
     { product: "ID", label: "TrainMeet ID", what: t("appId") },
   ];
+  if (!apps?.length) return all;
+  const shown = new Set(apps.map((app) => PRODUCTS[app]));
+  return all.filter((app) => shown.has(app.product));
+}
+
+/** Hjälp och fel from this page (KONTO-06): ID's own help page, with the app and the page. */
+export function helpHref(path: string): string {
+  return `${PATHS.help}?${new URLSearchParams({ app: "id", sida: path })}`;
 }
 
 const TITLES: Record<Page, TextKey> = {
@@ -43,6 +57,7 @@ const TITLES: Record<Page, TextKey> = {
   tokens: "tokens",
   invitations: "invitations",
   fleet: "fleetTitle",
+  help: "help",
   missing: "notFound",
 };
 
@@ -54,6 +69,8 @@ export type Data = {
   fleet?: FleetPage;
   meets?: Meet[];
   meet?: MeetPage;
+  /** ID's own version, for Hjälp och fel from ID itself. */
+  version?: string;
 };
 
 export type Actions = {
@@ -69,6 +86,7 @@ export type Actions = {
   removeMeet?: (meet: string, club: string) => Promise<string | null>;
   giveRole?: (meet: string, person: string, role: MeetRole) => Promise<string | null>;
   takeRole?: (grant: string) => Promise<string | null>;
+  sendHelp?: (request: HelpRequest) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -122,20 +140,31 @@ export function Shell(props: ShellProps) {
         tabs={account ? [tab("account", "account"), tab("clubs", "clubs"), tab("meets", "meets"), tab("tokens", "tokens")] : []}
         navigate={navigate}
       >
-        <AppSwitcher apps={switcherApps(t, host)} current="ID" title={t("switcher")} sameAccount={t("sameAccount")} buttonLabel={t("switcherButton")} comingLabel={t("coming")} />
+        <AppSwitcher apps={switcherApps(t, host, session?.apps)} current="ID" title={t("switcher")} sameAccount={t("sameAccount")} buttonLabel={t("switcherButton")} comingLabel={t("coming")} />
         {account ? (
           <AccountMenu name={account.name} initials={account.initials} detail={account.email} buttonLabel={t("accountButton", { name: account.name })}>
             {(close) => (
-              <button
-                type="button"
-                className="neutral"
-                onClick={() => {
-                  close();
-                  props.onLogOut?.();
-                }}
-              >
-                {t("logOut")}
-              </button>
+              <>
+                <a
+                  href={helpHref(props.path ?? "/")}
+                  onClick={(event) => {
+                    linkClick(navigate, helpHref(props.path ?? "/"))(event);
+                    close();
+                  }}
+                >
+                  {t("help")}
+                </a>
+                <button
+                  type="button"
+                  className="neutral"
+                  onClick={() => {
+                    close();
+                    props.onLogOut?.();
+                  }}
+                >
+                  {t("logOut")}
+                </button>
+              </>
             )}
           </AccountMenu>
         ) : null}
@@ -247,6 +276,8 @@ function Content(props: ShellProps & { t: T }) {
       return data.meet ? <MeetView t={t} page={data.meet} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "tokens":
       return <TokensCard t={t} heading={1} />;
+    case "help":
+      return <HelpView t={t} email={props.session?.account?.email ?? ""} search={props.search ?? ""} version={data.version} send={actions.sendHelp} />;
     case "missing":
       return (
         <section className="tm-kort">
@@ -318,6 +349,63 @@ function MeetsCard({ t, meets, navigate, language, empty, withClub = false, head
         </ul>
       )}
     </section>
+  );
+}
+
+/** The app, the page and the version it is about come with the link from the app's menu. */
+export function helpAbout(search: string, ownVersion?: string): { app: AppKey; page: string; version: string } {
+  const query = new URLSearchParams(search);
+  const asked = query.get("app") ?? "id";
+  const app = (asked in APP_NAMES ? asked : "id") as AppKey;
+  const version = app === "id" ? (ownVersion ?? "") : (query.get("version") ?? "");
+  return { app, page: (query.get("sida") ?? "").slice(0, 300), version: version.slice(0, 80) };
+}
+
+function HelpView({ t, email, search, version, send }: { t: T; email: string; search: string; version?: string; send?: Actions["sendHelp"] }) {
+  const about = helpAbout(search, version);
+  const [kind, setKind] = useState<HelpRequest["kind"]>("help");
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, problem, run] = useAction();
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (await run(() => send?.({ kind, text: text.trim(), ...about }) ?? Promise.resolve(null))) setSent(true);
+  };
+  return (
+    <div className="id-kolumn">
+      <section className="tm-kort" aria-labelledby="hjalp">
+        <h1 id="hjalp">{t("help")}</h1>
+        {sent ? (
+          <>
+            <p role="status">{t("helpSent", { email })}</p>
+            <button type="button" className="tm-knapp" onClick={() => window.history.back()}>
+              {t("back")}
+            </button>
+          </>
+        ) : (
+          <form className="id-formular" onSubmit={submit}>
+            <p>{t("helpIntro", { email })}</p>
+            <fieldset className="id-val">
+              <legend>{t("helpKind")}</legend>
+              {(["help", "fault"] as const).map((choice) => (
+                <label key={choice}>
+                  <input type="radio" name="slag" value={choice} checked={kind === choice} onChange={() => setKind(choice)} /> {t(choice === "help" ? "helpAsk" : "helpFault")}
+                </label>
+              ))}
+            </fieldset>
+            <label htmlFor="hjalp-text">{t("helpText")}</label>
+            <textarea id="hjalp-text" rows={6} maxLength={4000} required value={text} onChange={(e) => setText(e.target.value)} />
+            <p className="id-detalj">
+              {t("helpWith", { app: APP_NAMES[about.app], page: about.page || t("unknown"), version: about.version || t("unknown") })}
+            </p>
+            <button type="submit" className="tm-knapp primar" disabled={busy || !text.trim()}>
+              {t("helpSend")}
+            </button>
+            <Problem text={problem} />
+          </form>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -827,6 +915,11 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
         case "meet":
           setData({ meet: await api.meet(route.id ?? "") });
           break;
+        case "help": {
+          const version = await api.version().catch(() => null);
+          setData({ version: version?.commit?.slice(0, 7) ?? undefined });
+          break;
+        }
         default:
           setData({});
       }
@@ -880,6 +973,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     removeMeet: (meet, club) => act(() => api.removeMeet(meet), () => navigate(clubPath(club)))(),
     giveRole: (meet, person, role) => act(() => api.giveAtMeet(meet, person, role))(),
     takeRole: (grant) => act(() => api.removeGrant(grant))(),
+    sendHelp: (request) => act(() => api.help(request))(),
   };
 
   return (
@@ -890,7 +984,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       session={session}
       offline={offline}
       search={window.location.search}
-      path={window.location.pathname}
+      path={window.location.pathname + window.location.search}
       data={data}
       actions={actions}
       navigate={navigate}

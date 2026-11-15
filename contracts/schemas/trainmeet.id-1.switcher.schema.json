@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.switcher.schema.json",
+  "title": "trainmeet.id-1.switcher",
+  "$defs": {
+    "AppKey": {
+      "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+      "enum": [
+        "hub",
+        "tkl",
+        "cad",
+        "catalog",
+        "driver",
+        "id"
+      ],
+      "title": "AppKey",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The apps the person has something in (KONTO-38, ID11): Catalog and ID for everyone who\nis logged in; the Hub with a role at a meet or as a club's admin, Lokföraren as Lokledare,\nTKL with a role at a station and CAD with a role on a module.",
+  "properties": {
+    "apps": {
+      "items": {
+        "$ref": "#/$defs/AppKey"
+      },
+      "title": "Apps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "apps"
+  ],
+  "type": "object"
+}

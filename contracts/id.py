@@ -25,6 +25,7 @@ For the person, with ID's session cookie (the web app at id.trainmeet.app):
     DELETE /api/id/1/meets/{meet}                         Removed; the club's admin
     POST   /api/id/1/meets/{meet}/grants                  MeetGrant -> MeetPage (KONTO-36)
     DELETE /api/id/1/grants/{grant}                       Removed; stop sharing, takes a role
+    POST   /api/id/1/help                                 HelpRequest -> HelpSent (KONTO-06, ID9)
     GET    /api/id/1/invitations                          [Invitation] to the person
     POST   /api/id/1/invitations/{invitation}/answer      Answer -> Invitation
     DELETE /api/id/1/invitations/{invitation}             Removed; the inviter takes it back
@@ -32,6 +33,7 @@ For the person, with ID's session cookie (the web app at id.trainmeet.app):
 For the apps, with an access token from Keycloak's client credentials (KONTO-34):
     GET    /api/id/1/apps/access?person=&resource=        Access
     GET    /api/id/1/apps/fleets?person=                  [FleetAccess], the fleets shared with
+    GET    /api/id/1/apps/switcher?person=                Switcher: the apps to show (ID11)
 
 Rules:
 - Every changing call checks on the server who asks (CAT-195 for ID).
@@ -45,12 +47,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import Field, StringConstraints, model_validator
 
-from contracts.common import Contract, Text
+from contracts.common import AppKey, Contract, Text
 
 Email = Annotated[
     str,
@@ -134,12 +136,46 @@ class Account(Contract):
     email: Email = Field(description="Verified by the code to it (KONTO-10).")
 
 
+class Switcher(Contract):
+    """The apps the person has something in (KONTO-38, ID11): Catalog and ID for everyone who
+    is logged in; the Hub with a role at a meet or as a club's admin, Lokföraren as Lokledare,
+    TKL with a role at a station and CAD with a role on a module."""
+
+    apps: list[AppKey]
+
+
 class Session(Contract):
     account: Account | None = None
     logout_url: str | None = Field(
         default=None,
         description="Only in the answer to logging out: where the browser goes next.",
     )
+    apps: list[AppKey] = Field(
+        default_factory=list, description="The app switcher's apps for the person (ID11)."
+    )
+
+
+class HelpKind(StrEnum):
+    HELP = "help"
+    """Be om hjälp."""
+    FAULT = "fault"
+    """Rapportera ett fel."""
+
+
+class HelpRequest(Contract):
+    """Hjälp och fel in the account menu of every app (KONTO-06). It goes as a mail to Beahead's
+    support address, with the app, the page and the version, and the person's verified address
+    to answer (ID9, ID12)."""
+
+    kind: HelpKind
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+    app: AppKey
+    page: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] = ""
+    version: Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)] = ""
+
+
+class HelpSent(Contract):
+    sent: Literal[True] = True
 
 
 class Person(Contract):
@@ -344,6 +380,7 @@ class ProblemCode(StrEnum):
     INVALID = "invalid"
     CONFLICT = "conflict"
     UNAVAILABLE = "unavailable"
+    TOO_MANY = "too_many"
 
 
 class Problem(Contract):

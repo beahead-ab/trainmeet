@@ -1,14 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Session } from "./api";
-import { Shell, switcherApps, type ShellProps } from "./App";
+import { helpHref, Shell, switcherApps, type ShellProps } from "./App";
 import { text } from "./i18n";
 
 const account = { id: "8a3e1f0c-1111-5222-8333-944455556666", name: "Provkonto A", initials: "PA" };
 const version = { product: "TrainMeet Catalog" as const, version: "0.1.0", commit: "abcdef1234", pr: 101, title: "Grunden", built: null };
 
 function render(overrides: Partial<ShellProps> = {}): string {
-  const session: Session = { account: null, login: "trial", simulated_tags: false, share_url: null, logout_url: null };
+  const session: Session = { account: null, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
   return renderToStaticMarkup(
     <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} fleet={false} {...overrides} />,
   );
@@ -32,7 +32,7 @@ describe("an empty Catalog", () => {
 
   it("asks a visitor to log in, and shows the empty fleet to the one logged in", () => {
     expect(render()).toContain("Logga in för att se din vagnpark.");
-    const html = render({ session: { account, login: "trial", simulated_tags: false, share_url: null, logout_url: null } });
+    const html = render({ session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null } });
     expect(html).toContain("Vagnparken · Provkonto A");
     expect(html).toContain("Vagnparken är tom.");
     expect(html).toContain('aria-label="PA, Kontomenyn, Provkonto A"');
@@ -48,7 +48,7 @@ describe("an empty Catalog", () => {
   });
 
   it("logs in with TrainMeet ID and comes back to the page one came from", () => {
-    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, logout_url: null };
+    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
     const html = render({ page: "login", session: id, search: "?next=%2Ft%2F04A1B2C3D4E5F6" });
     expect(html).toContain("Logga in med TrainMeet ID");
     expect(html).toContain('href="/api/catalog/1/id/login?next=%2Ft%2F04A1B2C3D4E5F6&amp;lang=sv"');
@@ -60,14 +60,14 @@ describe("an empty Catalog", () => {
   });
 
   it("says so when the login with ID did not go through", () => {
-    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, logout_url: null };
+    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
     const html = render({ page: "login", session: id, search: "?inloggning=fel" });
     expect(html).toContain('role="alert"');
     expect(html).toContain("Det gick inte att logga in");
   });
 
   it("speaks English too, and offers Swedish back", () => {
-    const html = render({ language: "en", session: { account, login: "trial", simulated_tags: false, share_url: null, logout_url: null } });
+    const html = render({ language: "en", session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null } });
     expect(html).toContain("Your fleet is empty.");
     expect(html).toContain(">Vehicles<");
     expect(html).toContain('lang="sv"');
@@ -88,21 +88,31 @@ describe("an empty Catalog", () => {
 describe("the app switcher", () => {
   const t = (key: Parameters<typeof text>[1]) => text("sv", key);
 
-  it("has the seven apps as drawn, with the Hub's test environment from the test environment", () => {
+  it("has the seven apps as drawn, with the Hub's and ID's test environments from the test environment", () => {
     const apps = switcherApps(t, "test.catalog.trainmeet.app");
     expect(apps.map((app) => app.product)).toEqual(["HUB", "TKL", "CAD", "CATALOG", "TMBOX", "LOKFÖRAREN", "ID"]);
-    expect(apps[0]?.href).toBe("https://test.hub.trainmeet.app");
-    expect(apps.filter((app) => app.href)).toHaveLength(1);
+    expect(apps.filter((app) => app.href).map((app) => app.href)).toEqual(["https://test.hub.trainmeet.app", "https://test.id.trainmeet.app"]);
   });
 
   it("links to nothing that is not built yet", () => {
     expect(switcherApps(t, "catalog.trainmeet.app").filter((app) => app.href)).toHaveLength(0);
   });
+
+  it("shows only the apps the person has something in, when ID says so (ID11)", () => {
+    const shown = switcherApps(t, "test.catalog.trainmeet.app", ["hub", "catalog", "id"]).map((app) => app.product);
+    expect(shown).toEqual(["HUB", "CATALOG", "ID"]);
+    expect(switcherApps(t, "test.catalog.trainmeet.app", null)).toHaveLength(7); // ID does not answer
+  });
+
+  it("sends Hjälp och fel to ID with the app, the page and the version (KONTO-06)", () => {
+    const href = helpHref("https://test.id.trainmeet.app/hjalp", "/fordon/1", version);
+    expect(href).toBe("https://test.id.trainmeet.app/hjalp?app=catalog&sida=%2Ffordon%2F1&version=0.1.0+%C2%B7+abcdef1");
+  });
 });
 
 describe("a club's fleet (CAT-51, C39)", () => {
   const club = "0f0e0d0c-3333-4444-8555-966677778888";
-  const session: Session = { account, login: "id", simulated_tags: false, share_url: "https://id.example/vagnparker/a", logout_url: null };
+  const session: Session = { account, login: "id", simulated_tags: false, share_url: "https://id.example/vagnparker/a", help_url: null, apps: null, logout_url: null };
   const fleets = [
     { owner: account.id, title: "Vagnparken · Provkonto A", right: "owner" as const, share_url: "https://id.example/vagnparker/a" },
     { owner: club, title: "Vagnparken · Västby MJK", right: "owner" as const, share_url: `https://id.example/vagnparker/${club}` },

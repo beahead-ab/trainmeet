@@ -13,6 +13,8 @@ ID_API_WEB_DIR        The built web app (apps/id/dist). Default: next to the rep
 ID_SMTP_HOST, ID_SMTP_PORT, ID_SMTP_SSL, ID_SMTP_STARTTLS, ID_SMTP_AUTH, ID_SMTP_USER,
 ID_SMTP_FROM          The mail server, the same as Keycloak's (#66).
 ID_SMTP_PASSWORD_FILE The mail server's password, a file in ID's vault. Read, never logged.
+ID_SUPPORT_ADDRESS    Where Hjälp och fel goes (KONTO-06, ID9, ID12). A setting, never in the code;
+                      without it the help form says it cannot send here.
 """
 
 from __future__ import annotations
@@ -60,6 +62,7 @@ class Settings:
     migrate: Literal["auto", "check"] = "auto"
     web_dir: Path = DEFAULT_WEB_DIR
     smtp: Smtp | None = None
+    support: str | None = None
 
     @property
     def redirect_uri(self) -> str:
@@ -128,4 +131,5 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         migrate="check" if migrate == "check" else "auto",
         web_dir=Path(web_dir) if web_dir else DEFAULT_WEB_DIR,
         smtp=smtp,
+        support=source.get("ID_SUPPORT_ADDRESS", "").strip() or None,
     )

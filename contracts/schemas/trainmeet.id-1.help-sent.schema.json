@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.help-sent.schema.json",
+  "title": "trainmeet.id-1.help-sent",
+  "additionalProperties": true,
+  "properties": {
+    "sent": {
+      "const": true,
+      "default": true,
+      "title": "Sent",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

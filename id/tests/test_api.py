@@ -85,9 +85,13 @@ class PretendKeycloak:
 @dataclass
 class PretendMail:
     sent: list[tuple[str, str, str, str]] = field(default_factory=list)
+    help_sent: list[tuple[str, str, str, str]] = field(default_factory=list)
 
     def invitation(self, to: str, title: str, sender: str, link: str) -> None:
         self.sent.append((to, title, sender, link))
+
+    def help(self, to: str, reply_to: str, subject: str, body: str) -> None:
+        self.help_sent.append((to, reply_to, subject, body))
 
 
 @dataclass
@@ -113,6 +117,7 @@ def world(database_url: str, tmp_path: Path) -> Iterator[World]:
         public_url=PUBLIC,
         apps=("catalog",),
         web_dir=tmp_path,
+        support="support@example.test",
     )
     http = httpx.Client(transport=httpx.MockTransport(keycloak.handle))
     app = create_app(settings, http=http, mailer=mail)
@@ -572,3 +577,60 @@ def test_the_organizer_hands_out_dispatcher_and_loco_lead_and_the_admin_every_ro
     assert kim.client.delete(f"{API}/meets/{meet}").status_code == 200
     assert kim.client.get(f"{API}/clubs/{club}").json()["meets"] == []
     assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == []
+
+
+def test_help_and_faults_go_to_support_with_the_app_page_and_version(world: World) -> None:
+    """KONTO-06, ID9, ID12: a mail to the support address, which the person can be answered at.
+    The person's text never goes in a header, and a few an hour is the most."""
+    kim = log_in(world, "Kim Ek", "kim@example.com")
+    report = {
+        "kind": "fault",
+        "text": "Kortet visar fel plats.\nSubject: injicerad",
+        "app": "catalog",
+        "page": "/fordon/1",
+        "version": "0.1.0 · abc1234",
+    }
+    sent = kim.client.post(f"{API}/help", json=report)
+    assert sent.status_code == 200, sent.text
+    to, reply_to, subject, body = world.mail.help_sent[0]
+    assert (to, reply_to) == ("support@example.test", "kim@example.com")
+    assert subject == "[TrainMeet Catalog] Fel från Kim Ek"
+    for line in ("Appen: TrainMeet Catalog", "Sidan: /fordon/1", "Versionen: 0.1.0 · abc1234"):
+        assert line in body
+    assert "Subject: injicerad" in body
+
+    assert world.browser().post(f"{API}/help", json=report).status_code == 401
+    assert kim.client.post(f"{API}/help", json={**report, "app": "okand"}).status_code == 422
+    for _ in range(4):
+        assert kim.client.post(f"{API}/help", json=report).status_code == 200
+    too_many = kim.client.post(f"{API}/help", json=report)
+    assert (too_many.status_code, too_many.json()["code"]) == (429, "too_many")
+
+
+def test_without_a_support_address_help_says_it_cannot_send() -> None:
+    from contracts.id import Account, HelpRequest
+    from id.help import HelpDesk
+    from id.roles import Refused
+
+    desk = HelpDesk(PretendMail(), None)
+    account = Account(id=uuid.uuid4(), name="Kim Ek", initials="KE", email="kim@example.com")
+    request = HelpRequest(kind="help", text="Hur delar jag?", app="id")  # type: ignore[arg-type]
+    with pytest.raises(Refused) as refused:
+        desk.send(account, request)
+    assert refused.value.status == 503
+
+
+def test_the_app_switcher_shows_the_apps_the_person_has_something_in(world: World) -> None:
+    """KONTO-38, ID11: Catalog and ID for everyone; the Hub with a meet or as a club's admin,
+    Lokföraren as Lokledare."""
+    kim, club, people = club_with(world, ("Jon Eriksson", "jon@example.com"))
+    jon = people["Jon Eriksson"]
+    session = jon.client.get(f"{API}/session").json()
+    assert session["apps"] == ["catalog", "id"]
+    assert kim.client.get(f"{API}/session").json()["apps"] == ["hub", "catalog", "id"]
+    meet = kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN).json()["id"]
+    kim.client.post(f"{API}/meets/{meet}/grants", json={"person": jon.id, "role": "loco_lead"})
+    assert apps(world, "switcher", person=jon.id).json() == {
+        "apps": ["hub", "catalog", "driver", "id"]
+    }
+    assert world.browser().get(f"{API}/session").json()["apps"] == []

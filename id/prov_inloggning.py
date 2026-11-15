@@ -518,6 +518,21 @@ def run_id_api(base: str, mails: Path, id_app: str) -> None:
     )
     print("ID:s webbapp: träffen och rollen Trafikledare: ok")
 
+    # Hjälp och fel (KONTO-06): ett mejl till supportadressen, med svar till personen.
+    seen = mail_count(mails)
+    report = {"kind": "fault", "text": "Provet rapporterar ett fel.", "app": "catalog"}
+    helped = kim.app.post("/api/id/1/help", json={**report, "page": "/fordon", "version": "prov"})
+    check(helped.status_code == 200, f"Hjälp och fel svarade {helped.status_code}: {helped.text}")
+    for _ in range(50):
+        text = mails.read_text(encoding="utf-8") if mails.exists() else ""
+        parts = [p for p in text.split("----\n") if p.strip()][seen:]
+        if any("[TrainMeet Catalog] Fel från Provare Klubb" in p for p in parts):
+            break
+        time.sleep(0.2)
+    else:
+        raise ProvFel("Inget mejl till supporten.")
+    print("ID:s webbapp: Hjälp och fel som mejl till supporten: ok")
+
 
 def run_sharing(base: str, mails: Path, catalog: str, id_app: str) -> None:
     """#49: Kim shares the fleet in ID, Sara sees it in Catalog, and it stops at once (CAT-48)."""

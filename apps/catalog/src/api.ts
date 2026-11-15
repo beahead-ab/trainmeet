@@ -5,6 +5,7 @@ import type { components } from "../../../contracts/catalog";
 type Schemas = components["schemas"];
 export type CatalogVersion = Schemas["trainmeet.catalog-1.version"];
 export type Session = Schemas["trainmeet.catalog-1.session"];
+export type AppKey = NonNullable<Session["apps"]>[number];
 export type Account = Schemas["trainmeet.catalog-1.account"];
 export type TrialLogin = Schemas["trainmeet.catalog-1.trial-login"];
 export type Vehicle = Schemas["trainmeet.catalog-1.vehicle"];

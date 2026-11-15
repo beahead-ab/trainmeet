@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sendHelp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/invitations": {
         parameters: {
             query?: never;
@@ -308,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/apps/switcher": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appSwitcher"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/apps/fleets": {
         parameters: {
             query?: never;
@@ -357,6 +389,11 @@ export interface components {
              * @default null
              */
             logout_url: string | null;
+            /**
+             * Apps
+             * @description The app switcher's apps for the person (ID11).
+             */
+            apps?: components["schemas"]["trainmeet.id-1.session.AppKey"][];
         } & {
             [key: string]: unknown;
         };
@@ -383,6 +420,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * AppKey
+         * @description The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).
+         * @enum {string}
+         */
+        "trainmeet.id-1.session.AppKey": "hub" | "tkl" | "cad" | "catalog" | "driver" | "id";
         /**
          * Account
          * @description The person who is logged in, as ID knows them.
@@ -1049,6 +1092,70 @@ export interface components {
          */
         "trainmeet.id-1.fleet-access.ResourceKind": "club" | "fleet" | "meet" | "station" | "module" | "hub" | "catalog";
         /**
+         * HelpRequest
+         * @description Hjälp och fel in the account menu of every app (KONTO-06). It goes as a mail to Beahead's
+         *     support address, with the app, the page and the version, and the person's verified address
+         *     to answer (ID9, ID12).
+         */
+        "trainmeet.id-1.help-request": {
+            kind: components["schemas"]["trainmeet.id-1.help-request.HelpKind"];
+            /** Text */
+            text: string;
+            app: components["schemas"]["trainmeet.id-1.help-request.AppKey"];
+            /**
+             * Page
+             * @default
+             */
+            page: string;
+            /**
+             * Version
+             * @default
+             */
+            version: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AppKey
+         * @description The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).
+         * @enum {string}
+         */
+        "trainmeet.id-1.help-request.AppKey": "hub" | "tkl" | "cad" | "catalog" | "driver" | "id";
+        /**
+         * HelpKind
+         * @enum {string}
+         */
+        "trainmeet.id-1.help-request.HelpKind": "help" | "fault";
+        /** HelpSent */
+        "trainmeet.id-1.help-sent": {
+            /**
+             * Sent
+             * @default true
+             * @constant
+             */
+            sent: true;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Switcher
+         * @description The apps the person has something in (KONTO-38, ID11): Catalog and ID for everyone who
+         *     is logged in; the Hub with a role at a meet or as a club's admin, Lokföraren as Lokledare,
+         *     TKL with a role at a station and CAD with a role on a module.
+         */
+        "trainmeet.id-1.switcher": {
+            /** Apps */
+            apps: components["schemas"]["trainmeet.id-1.switcher.AppKey"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AppKey
+         * @description The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).
+         * @enum {string}
+         */
+        "trainmeet.id-1.switcher.AppKey": "hub" | "tkl" | "cad" | "catalog" | "driver" | "id";
+        /**
          * NewMeet
          * @description A meet as ID holds it: a reference with name, dates and club (ID10). The meet itself, its
          *     plan and its traffic, belongs to the Hub (KONTO-09).
@@ -1274,7 +1381,7 @@ export interface components {
          * ProblemCode
          * @enum {string}
          */
-        "trainmeet.id-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "invalid" | "conflict" | "unavailable";
+        "trainmeet.id-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "invalid" | "conflict" | "unavailable" | "too_many";
     };
     responses: never;
     parameters: never;
@@ -2218,6 +2325,66 @@ export interface operations {
             };
         };
     };
+    sendHelp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.help-request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.help-sent"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
     invitations: {
         parameters: {
             query?: never;
@@ -2404,6 +2571,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.id-1.access"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appSwitcher: {
+        parameters: {
+            query: {
+                person: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.switcher"];
                 };
             };
             /** @description ID säger nej */

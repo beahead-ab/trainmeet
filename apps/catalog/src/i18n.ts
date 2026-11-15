@@ -46,6 +46,7 @@ const sv = {
   loggedInAs: "Du är inloggad som {name}.",
   helpText:
     "Hjälp och fel kommer med TrainMeet ID. Under provet säger du till den som bad dig prova.",
+  helpInId: "Skriv till supporten i TrainMeet ID",
   notFound: "Sidan finns inte.",
   toVehicles: "Till Fordon",
   loading: "Laddar …",
@@ -308,6 +309,7 @@ const en: Texts = {
   loggedInAs: "You are logged in as {name}.",
   helpText:
     "Help and errors comes with TrainMeet ID. During the trial, tell the person who asked you to try Catalog.",
+  helpInId: "Write to support in TrainMeet ID",
   notFound: "This page does not exist.",
   toVehicles: "Go to Vehicles",
   loading: "Loading …",

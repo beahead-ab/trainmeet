@@ -44,6 +44,7 @@ from contracts.catalog import (
     Session,
     TrialLogin,
 )
+from contracts.common import AppKey
 
 LOGGER = logging.getLogger("catalog")
 API = "/api/catalog/1"
@@ -160,6 +161,17 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         """Where a fleet is shared in TrainMeet ID (CAT-44)."""
         return f"{id_api.id_public}/vagnparker/{owner}" if id_api is not None else None
 
+    app_keys = {key.value for key in AppKey}
+
+    def apps_of(account: Account) -> list[AppKey] | None:
+        """The app switcher's apps from ID (ID11). Without an answer the switcher shows all."""
+        if access.roles is None:
+            return None
+        try:
+            return [AppKey(app) for app in access.roles.switcher(account.id) if app in app_keys]
+        except Refused:
+            return None
+
     def session_of(key: str | None) -> Session:
         account = sessions.account(key)
         share = share_address(account.id) if account is not None else None
@@ -168,6 +180,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
             login=login_kind,
             simulated_tags=settings.simulated_tags,
             share_url=share,
+            help_url=f"{settings.id.id_public}/hjalp" if settings.id is not None else None,
+            apps=apps_of(account) if account is not None else None,
         )
 
     def set_cookie(response: Response, request: Request, key: str) -> None:

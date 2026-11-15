@@ -1,4 +1,5 @@
-"""The mails ID's API sends: invitations to a club or a shared fleet (KONTO-29, KONTO-35).
+"""The mails ID's API sends: invitations to a club or a shared fleet (KONTO-29, KONTO-35), and
+Hjälp och fel to Beahead's support (KONTO-06, ID9).
 
 The same mail server as Keycloak's codes (#66): Scaleway's Transactional Email in the test
 environment, with the password from ID's vault. The address is never written to the log.
@@ -50,6 +51,26 @@ class SmtpMailer:
                 503,
                 ProblemCode.UNAVAILABLE,
                 "Inbjudan gick inte att skicka. Försök igen om en stund.",
+            ) from error
+
+    def help(self, to: str, reply_to: str, subject: str, body: str) -> None:
+        """Hjälp och fel to support (KONTO-06). Answers go to the person's verified address."""
+        if self.smtp is None:
+            raise Refused(503, ProblemCode.UNAVAILABLE, "ID kan inte skicka mejl här.")
+        message = EmailMessage()
+        message["From"] = f"TrainMeet <{self.smtp.sender}>"
+        message["To"] = to
+        message["Reply-To"] = reply_to
+        message["Subject"] = subject
+        message.set_content(body)
+        try:
+            self._send(message)
+        except (OSError, smtplib.SMTPException) as error:
+            LOGGER.warning("Hjälp och fel gick inte att skicka: %s", type(error).__name__)
+            raise Refused(
+                503,
+                ProblemCode.UNAVAILABLE,
+                "Det gick inte att skicka. Försök igen om en stund.",
             ) from error
 
     def _send(self, message: EmailMessage) -> None:

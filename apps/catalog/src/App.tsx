@@ -1,6 +1,6 @@
 import { AccountMenu, AppSwitcher, BottomNav, Header, linkClick, type App as SwitcherApp, type Navigate } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { api, idLoginHref, workIn, type Account, type CatalogVersion, type FleetChoice, type Session } from "./api";
+import { api, idLoginHref, workIn, type Account, type AppKey, type CatalogVersion, type FleetChoice, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import type { Ctx } from "./common";
@@ -16,7 +16,23 @@ import { VehiclesPage } from "./VehiclesPage";
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
 
 /** The other TrainMeet apps. Only the Hub has a test environment so far. */
-export function switcherApps(t: T, host: string): SwitcherApp[] {
+const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
+
+/** With the person's apps from ID, only those they have something in (KONTO-38, ID11). */
+export function switcherApps(t: T, host: string, apps?: AppKey[] | null): SwitcherApp[] {
+  const all = everyApp(t, host);
+  if (!apps?.length) return all;
+  const shown = new Set(apps.map((app) => PRODUCTS[app]));
+  return all.filter((app) => shown.has(app.product));
+}
+
+/** Hjälp och fel is TrainMeet ID's page, with this app, the page and the version (KONTO-06). */
+export function helpHref(helpUrl: string, path: string, version: CatalogVersion | null | undefined): string {
+  const built = version ? [version.version, version.commit?.slice(0, 7)].filter(Boolean).join(" · ") : "";
+  return `${helpUrl}?${new URLSearchParams({ app: "catalog", sida: path, version: built })}`;
+}
+
+function everyApp(t: T, host: string): SwitcherApp[] {
   const test = host.startsWith("test.") || host.startsWith("localhost") || host.startsWith("127.");
   return [
     { product: "HUB", label: "TrainMeet Hub", what: t("appHub"), href: test ? "https://test.hub.trainmeet.app" : undefined },
@@ -25,7 +41,7 @@ export function switcherApps(t: T, host: string): SwitcherApp[] {
     { product: "CATALOG", label: "TrainMeet Catalog", what: t("appCatalog") },
     { product: "TMBOX", label: "TMBox", what: t("appTmbox") },
     { product: "LOKFÖRAREN", label: "Lokföraren", what: t("appDriver") },
-    { product: "ID", label: "TrainMeet ID", what: t("appId") },
+    { product: "ID", label: "TrainMeet ID", what: t("appId"), href: test ? "https://test.id.trainmeet.app" : undefined },
   ];
 }
 
@@ -61,6 +77,8 @@ export type ShellProps = {
   trialAccounts?: Account[] | null;
   /** The address's query, for the login page: ?next= and ?inloggning=fel. */
   search?: string;
+  /** The page's address, for Hjälp och fel (KONTO-06). */
+  path?: string;
   /** False shows the empty fleet without fetching (tests of the shell). */
   fleet?: boolean;
   /** The fleets the person can work in: their own first, then the shared ones (CAT-50). */
@@ -106,7 +124,7 @@ export function Shell(props: ShellProps) {
         navigate={navigate}
       >
         <AppSwitcher
-          apps={switcherApps(t, host)}
+          apps={switcherApps(t, host, session?.apps)}
           current="CATALOG"
           title={t("switcher")}
           sameAccount={t("sameAccount")}
@@ -122,15 +140,19 @@ export function Shell(props: ShellProps) {
           >
             {(close) => (
               <>
-                <a
-                  href={PATHS.help}
-                  onClick={(event) => {
-                    linkClick(navigate, PATHS.help)(event);
-                    close();
-                  }}
-                >
-                  {t("help")}
-                </a>
+                {session?.help_url ? (
+                  <a href={helpHref(session.help_url, props.path ?? PATHS.vehicles, props.version)}>{t("help")}</a>
+                ) : (
+                  <a
+                    href={PATHS.help}
+                    onClick={(event) => {
+                      linkClick(navigate, PATHS.help)(event);
+                      close();
+                    }}
+                  >
+                    {t("help")}
+                  </a>
+                )}
                 <button
                   type="button"
                   className="neutral"
@@ -311,7 +333,15 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       return (
         <>
           <h1>{t("help")}</h1>
-          <Empty title={t("helpText")} />
+          {props.session?.help_url ? (
+            <p>
+              <a className="tm-knapp primar" href={helpHref(props.session.help_url, PATHS.help, props.version)}>
+                {t("helpInId")}
+              </a>
+            </p>
+          ) : (
+            <Empty title={t("helpText")} />
+          )}
         </>
       );
     case "login":
@@ -489,6 +519,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       replace={replace}
       trialAccounts={trialAccounts}
       search={window.location.search}
+      path={window.location.pathname}
       fleets={fleets}
       working={working}
       onWorkIn={switchFleet}

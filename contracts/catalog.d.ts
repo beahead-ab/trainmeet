@@ -513,6 +513,18 @@ export interface components {
              */
             share_url: string | null;
             /**
+             * Help Url
+             * @description Hjälp och fel in TrainMeet ID, which mails Beahead's support (KONTO-06).
+             * @default null
+             */
+            help_url: string | null;
+            /**
+             * Apps
+             * @description The app switcher's apps, as ID says (ID11); null when ID does not answer.
+             * @default null
+             */
+            apps: components["schemas"]["trainmeet.catalog-1.session.AppKey"][] | null;
+            /**
              * Logout Url
              * @description Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).
              * @default null
@@ -544,6 +556,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * AppKey
+         * @description The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.session.AppKey": "hub" | "tkl" | "cad" | "catalog" | "driver" | "id";
         /**
          * LoginKind
          * @description How people log in to this Catalog.

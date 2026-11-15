@@ -2388,6 +2388,35 @@
             "description": "Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).",
             "title": "Share Url"
           },
+          "help_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hjälp och fel in TrainMeet ID, which mails Beahead's support (KONTO-06).",
+            "title": "Help Url"
+          },
+          "apps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.session.AppKey"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The app switcher's apps, as ID says (ID11); null when ID does not answer.",
+            "title": "Apps"
+          },
           "logout_url": {
             "anyOf": [
               {
@@ -2439,6 +2468,19 @@
         ],
         "title": "Account",
         "type": "object"
+      },
+      "trainmeet.catalog-1.session.AppKey": {
+        "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+        "enum": [
+          "hub",
+          "tkl",
+          "cad",
+          "catalog",
+          "driver",
+          "id"
+        ],
+        "title": "AppKey",
+        "type": "string"
       },
       "trainmeet.catalog-1.session.LoginKind": {
         "description": "How people log in to this Catalog.",

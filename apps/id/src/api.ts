@@ -19,6 +19,9 @@ export type Meet = Schemas["trainmeet.id-1.meet"];
 export type MeetPage = Schemas["trainmeet.id-1.meet-page"];
 export type MeetRole = Schemas["trainmeet.id-1.meet-grant"]["role"];
 export type NewMeet = Schemas["trainmeet.id-1.new-meet"];
+export type HelpRequest = Schemas["trainmeet.id-1.help-request"];
+export type AppKey = HelpRequest["app"];
+export type Version = Schemas["trainmeet.id-1.version"];
 
 /** ID said no, with a code the web app has a text for, or something else went wrong. */
 export class ApiError extends Error {
@@ -76,6 +79,8 @@ export const api = {
   invitations: () => call<Invitation[]>("GET", `${A}/invitations`),
   answer: (invitation: string, accept: boolean) => call<Invitation>("POST", `${A}/invitations/${invitation}/answer`, { accept }),
   withdraw: (invitation: string) => call<{ id: string }>("DELETE", `${A}/invitations/${invitation}`),
+  version: () => call<Version>("GET", "/api/version"),
+  help: (request: HelpRequest) => call<{ sent: true }>("POST", `${A}/help`, request),
   meets: () => call<Meet[]>("GET", `${A}/meets`),
   meet: (id: string) => call<MeetPage>("GET", `${A}/meets/${id}`),
   createMeet: (club: string, meet: NewMeet) => call<Meet>("POST", `${A}/clubs/${club}/meets`, meet),
