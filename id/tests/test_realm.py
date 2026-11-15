@@ -16,6 +16,7 @@ REALM = ROOT / "realm" / "trainmeet.json"
 EXTENSION = ROOT / "email-code" / "src" / "main"
 THEME = EXTENSION / "resources" / "theme" / "trainmeet" / "login"
 JAVA = EXTENSION / "java" / "app" / "trainmeet" / "id" / "EmailCodeAuthenticator.java"
+UPDATES = JAVA.with_name("RealmUpdates.java")
 
 
 def realm() -> dict[str, Any]:
@@ -85,14 +86,56 @@ def test_every_text_the_pages_and_the_code_use_exists() -> None:
     used: set[str] = set()
     for page in THEME.glob("*.ftl"):
         used |= set(re.findall(r'msg\(\s*["\'](tm\w+)["\']', page.read_text(encoding="utf-8")))
-    # Every "tm..." string in the code is a text's key, except the page's own attribute.
-    used |= set(re.findall(r'"(tm[A-Z]\w+)"', JAVA.read_text(encoding="utf-8"))) - {"tmPage"}
+    # Every "tm..." string in the code is a text's key, except the page's attribute and the
+    # person's attribute that says when they were asked about a passkey.
+    names = set(re.findall(r'"(tm[A-Z]\w+)"', JAVA.read_text(encoding="utf-8")))
+    used |= names - {"tmPage", "tmPasskeyAsked"}
     assert used, "No texts found"
     assert used <= known, sorted(used - known)
 
 
 def test_the_pages_the_code_shows_exist() -> None:
     pages = set(re.findall(r'"(tm-\w+\.ftl)"', JAVA.read_text(encoding="utf-8")))
-    assert pages == {"tm-email.ftl", "tm-create.ftl", "tm-code.ftl", "tm-name.ftl"}
-    for page in pages:
+    assert pages == {
+        "tm-email.ftl",
+        "tm-create.ftl",
+        "tm-code.ftl",
+        "tm-name.ftl",
+        "tm-passkey.ftl",
+    }
+    # Keycloak's own pages for a passkey, in TrainMeet ID's look.
+    for page in pages | {"webauthn-register.ftl", "webauthn-error.ftl"}:
         assert (THEME / page).is_file(), page
+
+
+def test_passkey_is_the_option_beside_the_code() -> None:
+    """KONTO-33, ID5: a passkey found without the address, and verified by the person."""
+    data = realm()
+    assert data["webAuthnPolicyPasswordlessPasskeysEnabled"] is True
+    assert data["webAuthnPolicyPasswordlessResidentKey"] == "required"  # lower case, as WebAuthn
+    assert data["webAuthnPolicyPasswordlessUserVerificationRequirement"] == "required"
+    assert data["webAuthnPolicyPasswordlessRpEntityName"] == "TrainMeet"
+    actions = {a["alias"]: a for a in data["requiredActions"]}
+    register = actions["webauthn-register-passwordless"]
+    assert register["enabled"] is True and register["defaultAction"] is False
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "KC_FEATURES=passkeys" in dockerfile
+
+
+def test_an_existing_realm_is_updated_to_the_same_as_the_file() -> None:
+    """Keycloak reads the file only for a new realm, so RealmUpdates brings an existing one to
+    the same settings. The file says which update it already has."""
+    updates = UPDATES.read_text(encoding="utf-8")
+    latest = re.search(r"static final int LATEST = (\d+);", updates)
+    assert latest is not None
+    assert realm()["attributes"]["trainmeetVersion"] == latest.group(1)
+    data = realm()
+    # Update 2, passkeys: the same values as the file.
+    assert f'setRpEntityName("{data["webAuthnPolicyPasswordlessRpEntityName"]}")' in updates
+    assert f'setResidentKey("{data["webAuthnPolicyPasswordlessResidentKey"]}")' in updates
+    assert (
+        f'setUserVerificationRequirement("{data["webAuthnPolicyPasswordlessUserVerificationRequirement"]}")'
+        in updates
+    )
+    assert "setPasskeysEnabled(true)" in updates
+    assert 'PASSKEY_ACTION = "webauthn-register-passwordless"' in updates

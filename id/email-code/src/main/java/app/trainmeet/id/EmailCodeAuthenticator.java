@@ -12,13 +12,16 @@ import java.util.Properties;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.authenticators.browser.WebAuthnConditionalUIAuthenticator;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SingleUseObjectProvider;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.WebAuthnCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
@@ -30,6 +33,11 @@ import org.keycloak.theme.Theme;
  * behind. A code is sent whether or not there is an account, so the page never tells whether an
  * address has one. Someone who logs in for the first time without a name gives one after the code.
  * The address is verified by the code, so the token says email_verified (KONTO-10).
+ *
+ * <p>Passkey is the option (KONTO-33): the email page offers Logga in med passkey, and the
+ * browser suggests a passkey in the email field. Keycloak's own passkey login checks it. After a
+ * login with the code, someone without a passkey is asked once whether to add one; the answer is
+ * kept for 30 days.
  */
 public class EmailCodeAuthenticator implements Authenticator {
     private static final Logger LOG = Logger.getLogger(EmailCodeAuthenticator.class);
@@ -39,6 +47,11 @@ public class EmailCodeAuthenticator implements Authenticator {
     static final String CREATE_PAGE = "tm-create.ftl";
     static final String CODE_PAGE = "tm-code.ftl";
     static final String NAME_PAGE = "tm-name.ftl";
+    static final String PASSKEY_PAGE = "tm-passkey.ftl";
+
+    /** When the person last answered the question about a passkey, in epoch seconds. */
+    static final String PASSKEY_ASKED = "tmPasskeyAsked";
+    static final long ASK_AGAIN_AFTER_SECONDS = 30L * 24 * 3600;
 
     private static final String NOTE = "tm.code.";
     private static final String EMAIL = NOTE + "email";
@@ -50,6 +63,14 @@ public class EmailCodeAuthenticator implements Authenticator {
     private static final String SENDS = NOTE + "sends";
     private static final String LAST_SENT = NOTE + "last";
     private static final String VERIFIED = NOTE + "verified";
+    private static final String OFFERED = NOTE + "offered";
+
+    private final WebAuthnConditionalUIAuthenticator passkeys;
+
+    public EmailCodeAuthenticator(KeycloakSession session) {
+        // Keycloak's passkey login, shown on the email page, which also shows its errors.
+        this.passkeys = new WebAuthnConditionalUIAuthenticator(session, context -> show(context, EMAIL_PAGE, null));
+    }
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
@@ -60,7 +81,11 @@ public class EmailCodeAuthenticator implements Authenticator {
     public void action(AuthenticationFlowContext context) {
         MultivaluedMap<String, String> form = context.getHttpRequest().getDecodedFormParameters();
         AuthenticationSessionModel login = context.getAuthenticationSession();
-        if (form.containsKey("restart")) {
+        if (passkeys.isPasskeysEnabled() && (form.containsKey("authenticatorData") || form.containsKey("error"))) {
+            passkeys.action(context); // logs in, or shows the email page with the error
+        } else if (form.containsKey("passkey") && "true".equals(login.getAuthNote(OFFERED))) {
+            answer(context, form.getFirst("passkey"));
+        } else if (form.containsKey("restart")) {
             clear(login);
             context.challenge(show(context, EMAIL_PAGE, null));
         } else if (form.containsKey("create")) {
@@ -228,8 +253,49 @@ public class EmailCodeAuthenticator implements Authenticator {
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
         }
-        clear(context.getAuthenticationSession());
+        AuthenticationSessionModel login = context.getAuthenticationSession();
+        clear(login);
         context.setUser(user);
+        if (offerPasskey(user)) {
+            login.setAuthNote(OFFERED, "true");
+            context.challenge(show(context, PASSKEY_PAGE, null));
+            return;
+        }
+        context.success();
+    }
+
+    /** Ask about a passkey: passkeys are on, the person has none, and was not asked lately. */
+    private boolean offerPasskey(UserModel user) {
+        if (!passkeys.isPasskeysEnabled()) {
+            return false;
+        }
+        boolean hasOne = user.credentialManager()
+                .getStoredCredentialsByTypeStream(WebAuthnCredentialModel.TYPE_PASSWORDLESS)
+                .findAny()
+                .isPresent();
+        long asked = number(user.getFirstAttribute(PASSKEY_ASKED));
+        return !hasOne && Instant.now().getEpochSecond() - asked > ASK_AGAIN_AFTER_SECONDS;
+    }
+
+    /**
+     * Ja: Keycloak's own page for adding a passkey follows, as if the app had asked for it, so it
+     * can be skipped there too. Inte nu: not asked again for 30 days. A browser without passkeys
+     * answers nothing and is asked again next time.
+     */
+    private void answer(AuthenticationFlowContext context, String answer) {
+        AuthenticationSessionModel login = context.getAuthenticationSession();
+        login.removeAuthNote(OFFERED);
+        UserModel user = context.getUser();
+        if (user == null) {
+            context.challenge(show(context, EMAIL_PAGE, null));
+            return;
+        }
+        if ("yes".equals(answer) || "no".equals(answer)) {
+            user.setSingleAttribute(PASSKEY_ASKED, Long.toString(Instant.now().getEpochSecond()));
+        }
+        if ("yes".equals(answer)) {
+            login.setClientNote(Constants.KC_ACTION, RealmUpdates.PASSKEY_ACTION);
+        }
         context.success();
     }
 
@@ -244,7 +310,11 @@ public class EmailCodeAuthenticator implements Authenticator {
     }
 
     private LoginFormsProvider page(AuthenticationFlowContext context, String template, String errorKey) {
-        return form(context, errorKey).setAttribute("tmPage", template);
+        LoginFormsProvider form = form(context, errorKey).setAttribute("tmPage", template);
+        if (EMAIL_PAGE.equals(template) && passkeys.isPasskeysEnabled()) {
+            passkeys.fillContextForm(context); // a new challenge for Logga in med passkey
+        }
+        return form;
     }
 
     private Response show(AuthenticationFlowContext context, String template, String errorKey) {
@@ -303,7 +373,7 @@ public class EmailCodeAuthenticator implements Authenticator {
     }
 
     private static void clear(AuthenticationSessionModel login) {
-        for (String note : new String[] {EMAIL, NAME, HASH, SALT, EXPIRES, ATTEMPTS, SENDS, LAST_SENT, VERIFIED}) {
+        for (String note : new String[] {EMAIL, NAME, HASH, SALT, EXPIRES, ATTEMPTS, SENDS, LAST_SENT, VERIFIED, OFFERED}) {
             login.removeAuthNote(note);
         }
     }

@@ -7,6 +7,9 @@ med verifierad e-post (KONTO-10, KONTO-27). Sedan en ny inloggning med samma e-p
 en första inloggning utan namn, som frågar efter namnet efter koden. Mejlen läses ur en fil som en
 låtsad mejlserver skriver; inget skickas på riktigt.
 
+Passkey (KONTO-33) provas med en passkey i programmet, som en telefon: den läggs till när ID
+frågar efter den första inloggningen, och sedan loggar man in med den utan kod.
+
 Med --catalog körs Catalog på sin adress, och provet loggar in där som en webbläsare: genom ID med
 en kod till e-posten och tillbaka in i Catalog med samma konto (KONTO-27), sedan in i Catalog utan
 ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och ID.
@@ -28,6 +31,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
 
 REALM = "trainmeet"
 CLIENT = "catalog"
@@ -68,6 +73,108 @@ def code_from(mails: Path, address: str, seen: int) -> tuple[str, int]:
 def mail_count(mails: Path) -> int:
     text = mails.read_text(encoding="utf-8") if mails.exists() else ""
     return len([p for p in text.split("----\n") if p.strip()])
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def unb64url(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def cbor(value: object) -> bytes:
+    """Just enough CBOR for a passkey: integers, byte and text strings, and maps."""
+
+    def head(major: int, length: int) -> bytes:
+        if length < 24:
+            return bytes([major << 5 | length])
+        if length < 256:
+            return bytes([major << 5 | 24, length])
+        return bytes([major << 5 | 25]) + length.to_bytes(2, "big")
+
+    if isinstance(value, int):
+        return head(0, value) if value >= 0 else head(1, -1 - value)
+    if isinstance(value, bytes):
+        return head(2, len(value)) + value
+    if isinstance(value, str):
+        return head(3, len(value.encode())) + value.encode()
+    if isinstance(value, dict):
+        items = b"".join(cbor(k) + cbor(v) for k, v in value.items())
+        return head(5, len(value)) + items
+    raise TypeError(type(value))
+
+
+def script_value(page: str, name: str) -> str:
+    """A value the page gives Keycloak's passkey script, such as challenge or rpId."""
+    found = re.search(rf'\b{name}\s*:\s*"([^"]*)"', page)
+    check(found is not None, f"Sidan saknar {name} för passkey.")
+    assert found is not None
+    return found.group(1)
+
+
+class Passkey:
+    """A passkey like the one in a phone: an ES256 key that is found without an address."""
+
+    UP, UV, AT = 0x01, 0x04, 0x40
+
+    def __init__(self, origin: str) -> None:
+        self.origin = origin.rstrip("/")
+        self.key = ec.generate_private_key(ec.SECP256R1())
+        self.id = secrets.token_bytes(16)
+        self.user = b""
+        self.count = 0
+
+    def client_data(self, kind: str, challenge: str) -> bytes:
+        data = {"type": kind, "challenge": b64url(unb64url(challenge)), "origin": self.origin}
+        return json.dumps(data, separators=(",", ":")).encode()
+
+    def register(self, page: str) -> dict[str, str]:
+        """The answer to ID's page for adding a passkey."""
+        rp = script_value(page, "rpId")
+        self.user = unb64url(script_value(page, "userid"))
+        numbers = self.key.public_key().public_numbers()
+        cose = {
+            1: 2,
+            3: -7,
+            -1: 1,
+            -2: numbers.x.to_bytes(32, "big"),
+            -3: numbers.y.to_bytes(32, "big"),
+        }
+        credential = bytes(16) + len(self.id).to_bytes(2, "big") + self.id + cbor(cose)
+        flags = bytes([self.UP | self.UV | self.AT])
+        auth = hashlib.sha256(rp.encode()).digest() + flags + self.count.to_bytes(4, "big")
+        attestation = cbor({"fmt": "none", "attStmt": {}, "authData": auth + credential})
+        return {
+            "clientDataJSON": b64url(
+                self.client_data("webauthn.create", script_value(page, "challenge"))
+            ),
+            "attestationObject": b64url(attestation),
+            "publicKeyCredentialId": b64url(self.id),
+            "authenticatorLabel": "Prov",
+            "transports": "internal",
+            "authenticatorAttachment": "platform",
+        }
+
+    def sign_in(self, page: str) -> dict[str, str]:
+        """The answer to Logga in med passkey on ID's email page."""
+        self.count += 1
+        rp = script_value(page, "rpId")
+        client = self.client_data("webauthn.get", script_value(page, "challenge"))
+        auth = hashlib.sha256(rp.encode()).digest() + bytes([self.UP | self.UV])
+        auth += self.count.to_bytes(4, "big")
+        signed = auth + hashlib.sha256(client).digest()
+        return {
+            "clientDataJSON": b64url(client),
+            "authenticatorData": b64url(auth),
+            "signature": b64url(self.key.sign(signed, ec.ECDSA(hashes.SHA256()))),
+            "credentialId": b64url(self.id),
+            "userHandle": b64url(self.user),
+            "error": "",
+        }
+
+
+OFFER = "Logga in snabbare nästa gång?"
 
 
 class Login:
@@ -111,7 +218,16 @@ class Login:
         return answer
 
     def post(self, page: str, data: dict[str, str]) -> httpx.Response:
-        return self.keep(self.client.post(form_action(page), data=data))
+        return self.within_id(self.keep(self.client.post(form_action(page), data=data)))
+
+    def within_id(self, answer: httpx.Response) -> httpx.Response:
+        """Follows ID's own redirects, such as to the page for adding a passkey."""
+        for _ in range(5):
+            target = answer.headers.get("location", "")
+            if answer.status_code not in (302, 303) or not target.startswith(self.base):
+                break
+            answer = self.keep(self.client.get(target))
+        return answer
 
     def finish(self, answer: httpx.Response, secret: str) -> dict[str, object]:
         check(answer.status_code == 302, f"Inloggningen slutade med {answer.status_code}.")
@@ -156,12 +272,17 @@ def run(base: str, mails: Path, secret: str, catalog: str) -> None:
     code, seen = code_from(mails, address, seen)
     wrong = login.post(sent.text, {"code": "000000" if code != "000000" else "111111"})
     check("Koden stämmer inte" in wrong.text, "Fel kod sa inte ifrån.")
-    claims = login.finish(login.post(wrong.text, {"code": code[:3] + " " + code[3:]}), secret)
+    offer = login.post(wrong.text, {"code": code[:3] + " " + code[3:]})
+    check(OFFER in offer.text, "ID frågade inte om en passkey efter första inloggningen.")
+    adding = login.post(offer.text, {"passkey": "yes"})
+    check("Lägg till en passkey" in adding.text, "Sidan för att lägga till passkey kom inte.")
+    passkey = Passkey(base)
+    claims = login.finish(login.post(adding.text, passkey.register(adding.text)), secret)
     check(claims.get("email") == address, "Fel e-post i token.")
     check(claims.get("email_verified") is True, "E-posten är inte verifierad i token.")
     check(claims.get("name") == "Provare Ett", f"Fel namn i token: {claims.get('name')}")
     first = claims.get("sub")
-    print(f"Skapa konto: ok ({address})")
+    print(f"Skapa konto och lägg till passkey: ok ({address})")
 
     # Logga in igen med samma e-post: samma konto.
     again = Login(base, catalog)
@@ -171,7 +292,31 @@ def run(base: str, mails: Path, secret: str, catalog: str) -> None:
     code, seen = code_from(mails, address, seen)
     claims = again.finish(again.post(sent.text, {"code": code}), secret)
     check(claims.get("sub") == first, "Samma e-post gav ett annat konto.")
-    print("Logga in igen: ok, samma konto")
+    print("Logga in igen med kod: ok, samma konto, ingen fråga om passkey")
+
+    # Logga in med passkey, utan e-post och utan kod (KONTO-33).
+    seen = mail_count(mails)
+    quick = Login(base, catalog)
+    page = quick.start()
+    check("Logga in med passkey" in page, "Inloggningen erbjuder inte passkey.")
+    claims = quick.finish(quick.post(page, passkey.sign_in(page)), secret)
+    check(claims.get("sub") == first, "Passkey gav ett annat konto.")
+    check(mail_count(mails) == seen, "En kod skickades fast man loggade in med passkey.")
+    print("Logga in med passkey: ok, samma konto")
+
+    # En passkey som ID inte känner till släpper inte in någon.
+    stranger = Passkey(base)
+    stranger.user = passkey.user
+    odd = Login(base, catalog)
+    page = odd.start()
+    refused = odd.post(page, stranger.sign_in(page))
+    check(
+        refused.status_code == 200
+        and 'role="alert"' in refused.text
+        and "Skicka en kod" in refused.text,
+        "En okänd passkey släpptes in eller sa inte ifrån.",
+    )
+    print("Okänd passkey: ok, inte inne")
 
     # Första gången utan namn: namnet efter koden.
     other = f"prov-{secrets.token_hex(4)}@example.com"
@@ -182,9 +327,20 @@ def run(base: str, mails: Path, secret: str, catalog: str) -> None:
     code, seen = code_from(mails, other, seen)
     named = fresh.post(sent.text, {"code": code})
     check("Vad heter du?" in named.text, "Namnet efterfrågades inte.")
-    claims = fresh.finish(fresh.post(named.text, {"name": "Provare Två"}), secret)
+    offer = fresh.post(named.text, {"name": "Provare Två"})
+    check(OFFER in offer.text, "ID frågade inte om en passkey.")
+    claims = fresh.finish(fresh.post(offer.text, {"passkey": "no"}), secret)
     check(claims.get("name") == "Provare Två", "Namnet kom inte med.")
-    print("Första inloggningen utan namn: ok")
+    print("Första inloggningen utan namn, och Inte nu: ok")
+
+    # Inte nu: ingen fråga nästa gång.
+    later = Login(base, catalog)
+    page = later.start()
+    seen = mail_count(mails)
+    sent = later.post(page, {"email": other, "send": "1"})
+    code, seen = code_from(mails, other, seen)
+    later.finish(later.post(sent.text, {"code": code}), secret)
+    print("Ingen ny fråga efter Inte nu: ok")
 
     # En felaktig adress säger ifrån.
     bad = Login(base, catalog)
@@ -241,7 +397,9 @@ def run_catalog(base: str, mails: Path, catalog: str) -> None:
         create, {"creating": "1", "name": "Provare Tre", "email": address, "send": "1"}
     )
     code, seen = code_from(mails, address, seen)
-    back = browser.id.post(sent.text, {"code": code})
+    offer = browser.id.post(sent.text, {"code": code})
+    check(OFFER in offer.text, "ID frågade inte om en passkey.")
+    back = browser.id.post(offer.text, {"passkey": "no"})
     check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
     check(back.headers["location"].startswith(catalog.rstrip("/")), "Inte tillbaka till Catalog.")
     landed = browser.catalog.get(back.headers["location"].removeprefix(catalog.rstrip("/")))

@@ -58,7 +58,9 @@ Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Cat
 
 ### TrainMeet ID på egen dator
 
-TrainMeet ID är [Keycloak](https://www.keycloak.org/) med ett eget tillägg i `id/email-code`: inloggning och nytt konto med en kod till e-posten, utan lösenord, och inloggningssidorna i TrainMeets utseende på svenska och engelska (#66). Realmen ligger i `id/realm/trainmeet.json` och läses in första gången Keycloak startar; den har inga hemligheter, bara platshållare som fylls från miljön. Lösenordet till mejlservern läses ur Keycloaks valv, en fil.
+TrainMeet ID är [Keycloak](https://www.keycloak.org/) med ett eget tillägg i `id/email-code`: inloggning och nytt konto med en kod till e-posten, utan lösenord, passkey som tillval, och inloggningssidorna i TrainMeets utseende på svenska och engelska (#66). Realmen ligger i `id/realm/trainmeet.json` och läses in första gången Keycloak startar; den har inga hemligheter, bara platshållare som fylls från miljön. Lösenordet till mejlservern läses ur Keycloaks valv, en fil.
+
+Keycloak läser realmfilen bara när realmen inte finns. Ändras filen läggs därför också en numrerad uppdatering i `id/email-code/src/main/java/app/trainmeet/id/RealmUpdates.java`, och numret i filens `trainmeetVersion` höjs. Uppdateringen körs en gång när Keycloak startar mot en realm som redan finns, som i testmiljön. Testerna i `id/tests` ser till att filen och uppdateringen säger samma sak.
 
 ```sh
 docker build -f id/Dockerfile -t trainmeet-id .   # tilläggets tester körs när bilden byggs
