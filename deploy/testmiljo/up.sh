@@ -10,6 +10,10 @@ TAG="$1"
 DOMAIN="$2"
 CATALOG_DOMAIN="$3"
 ID_DOMAIN="$4"
+# The tags' address (C38): trainmeet.app answers /t/ once its DNS row points here, and the job
+# passes https://trainmeet.app/t/ as the tags' base then; until that, Catalog's own address.
+TAGS_DOMAIN="${5:-trainmeet.app}"
+TAG_BASE="${6:-https://$CATALOG_DOMAIN/t/}"
 cd /srv/trainmeet
 
 umask 077
@@ -24,6 +28,7 @@ if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
   printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\n' "$TAG" "$DOMAIN"
   printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
+  printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"
   printf 'ID_TAG=%s\nID_DOMAIN=%s\nHOST_UID=%s\n' "$TAG" "$ID_DOMAIN" "$(id -u)"
   cat catalog.env id.env
 } > .env

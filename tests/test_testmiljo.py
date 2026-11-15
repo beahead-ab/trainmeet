@@ -141,7 +141,7 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}" in compose
     assert "CATALOG_ID_API: http://id-api:8080" in compose  # shared fleets (#49)
     assert 'CATALOG_SIMULATED_TAGS: "on"' in compose
-    assert "CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/" in compose
+    assert "CATALOG_TAG_BASE: ${CATALOG_TAG_BASE:?" in compose
     assert "CATALOG_MIGRATE: check" in compose
     assert "{$CATALOG_DOMAIN}" in caddyfile
     assert "reverse_proxy catalog:8080" in caddyfile
@@ -155,6 +155,26 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     # Only the database's own network reaches it: no port is published.
     database = compose.split("  catalog-db:")[1].split("\n  catalog:")[0]
     assert "ports:" not in database
+
+
+def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -> None:
+    """C38: trainmeet.app/t/<uid> answers in the test environment, and the tags get that address
+    only once trainmeet.app points at the server, so no label carries an address that is dead."""
+    folder = ROOT / "deploy" / "testmiljo"
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    compose = (folder / "compose.yaml").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    site = caddyfile.split("{$TAGS_DOMAIN} {")[1].split("\n}")[0]
+    assert "redir /t/* https://{$CATALOG_DOMAIN}{uri} 302" in site
+    assert "redir https://trainmeet.se 302" in site
+    assert "TAGS_DOMAIN: ${TAGS_DOMAIN:?" in compose
+    assert 'TAG_BASE="${6:-https://$CATALOG_DOMAIN/t/}"' in up
+    assert "printf 'TAGS_DOMAIN=%s\\nCATALOG_TAG_BASE=%s\\n'" in up
+    assert "TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}" in workflow
+    assert 'TAG_BASE="https://$TAGS_DOMAIN/t/"' in workflow
+    assert '"$TAGS_DOMAIN" "$TAG_BASE" < deploy/testmiljo/up.sh' in workflow
+    assert "- name: Prova taggarnas adress" in workflow
 
 
 def test_catalog_secrets_survive_secret_manager_and_stay_private(
