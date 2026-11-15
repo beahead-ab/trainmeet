@@ -601,3 +601,88 @@
     padding-bottom: calc(168px + env(safe-area-inset-bottom));
   }
 }
+
+/* The tags (#54). */
+.cat-taggen {
+  display: grid;
+  gap: 12px;
+}
+.cat-tagg {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cat-tagg p {
+  margin: 0;
+}
+.cat-adress {
+  font-size: 14px;
+  word-break: break-all;
+}
+.cat-qr {
+  border-radius: 8px;
+  background: #ffffff;
+}
+.cat-pill-tagg-nfc {
+  background: #e3f3e6;
+  color: #17672c;
+}
+.cat-pill-tagg-qr {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+@media (prefers-color-scheme: dark) {
+  .cat-pill-tagg-nfc {
+    background: #163322;
+    color: #7fe0a0;
+  }
+}
+.cat-vantar {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--tm-blue-soft);
+}
+.cat-vantar p {
+  margin: 0;
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.cat-minikort .cat-ingress {
+  margin: 0 0 8px;
+}
+.cat-avsnitt {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-top: 16px;
+}
+.cat-avsnitt h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.cat-rad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  width: 100%;
+}
+.cat-rad label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+.cat-rad input {
+  flex: 1 1 260px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}

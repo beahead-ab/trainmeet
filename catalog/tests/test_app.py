@@ -114,7 +114,11 @@ def test_a_made_up_session_key_logs_no_one_in(client: TestClient) -> None:
 def test_without_the_trial_login_there_is_no_way_in(database_url: str, web_dir: Path) -> None:
     app = create_app(settings_for(database_url, web_dir, trial=False))
     with TestClient(app) as client:
-        assert client.get(API + "/session").json() == {"account": None, "login": "id"}
+        assert client.get(API + "/session").json() == {
+            "account": None,
+            "login": "id",
+            "simulated_tags": False,
+        }
         assert client.get(API + "/trial/accounts").status_code == 404
         answer = client.post(API + "/trial/login", json={"account": str(TRIAL_ACCOUNTS[0].id)})
         assert answer.status_code == 404

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.new-label.schema.json",
+  "title": "trainmeet.catalog-1.new-label",
+  "additionalProperties": true,
+  "description": "A new QR label for the vehicle (CAT-121). replace: its QR label as seen, if it has one.",
+  "properties": {
+    "replace": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Replace"
+    }
+  },
+  "type": "object"
+}

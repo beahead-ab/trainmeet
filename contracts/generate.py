@@ -100,6 +100,14 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.place-name": catalog.PlaceName,
     "trainmeet.catalog-1.removed": catalog.Removed,
     "trainmeet.catalog-1.problem": catalog.Problem,
+    "trainmeet.catalog-1.tag": catalog.Tag,
+    "trainmeet.catalog-1.lookup": catalog.Lookup,
+    "trainmeet.catalog-1.tag-link": catalog.TagLink,
+    "trainmeet.catalog-1.tag-unlink": catalog.TagUnlink,
+    "trainmeet.catalog-1.new-label": catalog.NewLabel,
+    "trainmeet.catalog-1.tag-event": catalog.TagEvent,
+    "trainmeet.catalog-1.new-pending": catalog.NewPending,
+    "trainmeet.catalog-1.pending": catalog.PendingState,
 }
 
 
@@ -457,6 +465,36 @@ def catalog_openapi() -> str:
     route("post", p, "addPlace", "place", "place-name", created=True, problems=write)
     route("put", p + "/{place}", "renamePlace", "place", "place-name", problems=write)
     route("delete", p + "/{place}", "removePlace", "removed", problems=write)
+    t = "/api/catalog/1/tags"
+    route("post", t + "/simulated", "newSimulatedTag", "tag", created=True, problems=(401, 403))
+    route("get", t + "/pending", "pendingLink", "pending", problems=(401,))
+    route("post", t + "/pending", "waitForTag", "pending", "new-pending", problems=write)
+    route("delete", t + "/pending", "stopWaiting", "pending", problems=(401,))
+    route("get", t + "/{uid}", "lookupTag", "lookup", problems=(422, 429))
+    route("post", t + "/{uid}/link", "linkTag", "vehicle", "tag-link", problems=write)
+    route("get", t + "/{uid}/events", "tagEvents", "tag-event", many=True, problems=(401, 422))
+    route("post", v + "/{vehicle}/tags/qr", "newLabel", "vehicle", "new-label", problems=write)
+    route(
+        "post", v + "/{vehicle}/tags/unlink", "unlinkTag", "vehicle", "tag-unlink", problems=write
+    )
+    paths[t + "/{uid}/qr.svg"] = {
+        "get": {
+            "operationId": "tagQrCode",
+            "parameters": [
+                {"name": "uid", "in": "path", "required": True, "schema": {"type": "string"}}
+            ],
+            "responses": {
+                "200": {
+                    "description": "The QR code with the tag's address, for its owner",
+                    "content": {"image/svg+xml": {"schema": {"type": "string"}}},
+                },
+                "404": {
+                    "description": "Catalog säger nej",
+                    "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+                },
+            },
+        }
+    }
     return (
         json.dumps(
             {

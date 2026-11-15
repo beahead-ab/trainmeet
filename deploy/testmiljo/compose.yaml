@@ -46,6 +46,10 @@ services:
       CATALOG_MIGRATE: check
       # The trial login, until TrainMeet ID (C21, CAT-214). Only in the test environment.
       CATALOG_TRIAL_LOGIN: "on"
+      # The test environment's tags point here, so they can be tapped here, and simulated tags
+      # try the flows without hardware (CAT-96). Real tags carry trainmeet.app/t/ (C9).
+      CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/
+      CATALOG_SIMULATED_TAGS: "on"
       FORWARDED_ALLOW_IPS: "*"
     ports:
       - "127.0.0.1:8081:8080"

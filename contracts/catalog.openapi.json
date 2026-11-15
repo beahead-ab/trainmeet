@@ -924,6 +924,525 @@
           }
         ]
       }
+    },
+    "/api/catalog/1/tags/simulated": {
+      "post": {
+        "operationId": "newSimulatedTag",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.tag"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/tags/pending": {
+      "get": {
+        "operationId": "pendingLink",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.pending"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "waitForTag",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.pending"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.new-pending"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "stopWaiting",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.pending"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/tags/{uid}": {
+      "get": {
+        "operationId": "lookupTag",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.lookup"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/tags/{uid}/link": {
+      "post": {
+        "operationId": "linkTag",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tag-link"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/tags/{uid}/events": {
+      "get": {
+        "operationId": "tagEvents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.tag-event"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/tags/qr": {
+      "post": {
+        "operationId": "newLabel",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.new-label"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/tags/unlink": {
+      "post": {
+        "operationId": "unlinkTag",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tag-unlink"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/tags/{uid}/qr.svg": {
+      "get": {
+        "operationId": "tagQrCode",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The QR code with the tag's address, for its owner",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1052,6 +1571,12 @@
           },
           "login": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.session.LoginKind"
+          },
+          "simulated_tags": {
+            "default": false,
+            "description": "Simulated tags can be made here: the test environment.",
+            "title": "Simulated Tags",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1575,6 +2100,14 @@
             "title": "Field Sources",
             "type": "object"
           },
+          "tags": {
+            "description": "At most one NFC, one QR.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleTag"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1727,6 +2260,16 @@
         "title": "Lending",
         "type": "object"
       },
+      "trainmeet.catalog-1.vehicle.TagKind": {
+        "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+        "enum": [
+          "nfc",
+          "qr",
+          "sim"
+        ],
+        "title": "TagKind",
+        "type": "string"
+      },
       "trainmeet.catalog-1.vehicle.VehicleKind": {
         "description": "The kinds of vehicle (CAT-54).",
         "enum": [
@@ -1758,6 +2301,56 @@
         ],
         "title": "VehicleStatus",
         "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle.VehicleTag": {
+        "additionalProperties": true,
+        "description": "A tag on the vehicle, as the card shows it (CAT-97).",
+        "properties": {
+          "assignment": {
+            "description": "The link. A change carries it (CAT-89).",
+            "format": "uuid",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "tag": {
+            "format": "uuid",
+            "title": "Tag",
+            "type": "string"
+          },
+          "uid": {
+            "description": "What stands after /t/ in the address.",
+            "title": "Uid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.TagKind"
+          },
+          "address": {
+            "description": "For example https://trainmeet.app/t/04a1b2c3d4e5f6.",
+            "title": "Address",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignment",
+          "tag",
+          "uid",
+          "name",
+          "kind",
+          "address",
+          "linked_at"
+        ],
+        "title": "VehicleTag",
+        "type": "object"
       },
       "trainmeet.catalog-1.vehicle-list": {
         "additionalProperties": true,
@@ -1924,6 +2517,16 @@
         "title": "Lending",
         "type": "object"
       },
+      "trainmeet.catalog-1.vehicle-list.TagKind": {
+        "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+        "enum": [
+          "nfc",
+          "qr",
+          "sim"
+        ],
+        "title": "TagKind",
+        "type": "string"
+      },
       "trainmeet.catalog-1.vehicle-list.Vehicle": {
         "additionalProperties": true,
         "description": "A vehicle as its owner sees it.",
@@ -2078,6 +2681,14 @@
             "title": "Field Sources",
             "type": "object"
           },
+          "tags": {
+            "description": "At most one NFC, one QR.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleTag"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2130,6 +2741,56 @@
         ],
         "title": "VehicleStatus",
         "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list.VehicleTag": {
+        "additionalProperties": true,
+        "description": "A tag on the vehicle, as the card shows it (CAT-97).",
+        "properties": {
+          "assignment": {
+            "description": "The link. A change carries it (CAT-89).",
+            "format": "uuid",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "tag": {
+            "format": "uuid",
+            "title": "Tag",
+            "type": "string"
+          },
+          "uid": {
+            "description": "What stands after /t/ in the address.",
+            "title": "Uid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.TagKind"
+          },
+          "address": {
+            "description": "For example https://trainmeet.app/t/04a1b2c3d4e5f6.",
+            "title": "Address",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignment",
+          "tag",
+          "uid",
+          "name",
+          "kind",
+          "address",
+          "linked_at"
+        ],
+        "title": "VehicleTag",
+        "type": "object"
       },
       "trainmeet.catalog-1.move": {
         "additionalProperties": true,
@@ -2368,10 +3029,507 @@
           "place_exists",
           "not_home",
           "not_lent",
-          "login"
+          "login",
+          "tag_taken",
+          "tag_on_other_vehicle",
+          "tag_changed",
+          "bad_tag",
+          "too_many",
+          "not_here"
         ],
         "title": "ProblemCode",
         "type": "string"
+      },
+      "trainmeet.catalog-1.tag": {
+        "additionalProperties": true,
+        "description": "A tag the owner has made: a simulated tag or a QR label.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tag.TagKind"
+          },
+          "address": {
+            "title": "Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "uid",
+          "name",
+          "kind",
+          "address"
+        ],
+        "title": "Tag",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tag.TagKind": {
+        "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+        "enum": [
+          "nfc",
+          "qr",
+          "sim"
+        ],
+        "title": "TagKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.lookup": {
+        "description": "What /t/<uid> answers: one of five outcomes, each with its own fields (CAT-98, CAT-209).",
+        "discriminator": {
+          "mapping": {
+            "fleet": "#/components/schemas/trainmeet.catalog-1.lookup.LookupFleet",
+            "mine": "#/components/schemas/trainmeet.catalog-1.lookup.LookupMine",
+            "private": "#/components/schemas/trainmeet.catalog-1.lookup.LookupPrivate",
+            "shared": "#/components/schemas/trainmeet.catalog-1.lookup.LookupShared",
+            "unknown": "#/components/schemas/trainmeet.catalog-1.lookup.LookupUnknown"
+          },
+          "propertyName": "outcome"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.LookupMine"
+          },
+          {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.LookupShared"
+          },
+          {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.LookupPrivate"
+          },
+          {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.LookupFleet"
+          },
+          {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.LookupUnknown"
+          }
+        ],
+        "title": "Lookup"
+      },
+      "trainmeet.catalog-1.lookup.LookupFleet": {
+        "additionalProperties": true,
+        "description": "A vehicle in a fleet shared with the asker: the card, with the sharing's right (CAT-104).\nSharing comes with TrainMeet ID (#49).",
+        "properties": {
+          "outcome": {
+            "const": "fleet",
+            "default": "fleet",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          },
+          "right": {
+            "enum": [
+              "view",
+              "edit"
+            ],
+            "title": "Right",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "right"
+        ],
+        "title": "LookupFleet",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.LookupMine": {
+        "additionalProperties": true,
+        "description": "My vehicle: the card opens (CAT-99).",
+        "properties": {
+          "outcome": {
+            "const": "mine",
+            "default": "mine",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id"
+        ],
+        "title": "LookupMine",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.LookupPrivate": {
+        "additionalProperties": true,
+        "description": "Someone else's vehicle without the owner's name, or anyone not logged in (CAT-100).",
+        "properties": {
+          "outcome": {
+            "const": "private",
+            "default": "private",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "card": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.MiniCard"
+          }
+        },
+        "required": [
+          "card"
+        ],
+        "title": "LookupPrivate",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.LookupShared": {
+        "additionalProperties": true,
+        "description": "Someone else's vehicle, whose owner shows their name to those logged in (CAT-101).",
+        "properties": {
+          "outcome": {
+            "const": "shared",
+            "default": "shared",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "owner_name": {
+            "title": "Owner Name",
+            "type": "string"
+          },
+          "card": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.MiniCard"
+          }
+        },
+        "required": [
+          "owner_name",
+          "card"
+        ],
+        "title": "LookupShared",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.LookupUnknown": {
+        "additionalProperties": true,
+        "description": "The tag is not linked. Logged in: its uid, to add or link a vehicle (CAT-105).\nLogged out: nothing more (CAT-106).",
+        "properties": {
+          "outcome": {
+            "const": "unknown",
+            "default": "unknown",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "tag_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tag Uid"
+          }
+        },
+        "title": "LookupUnknown",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.MiniCard": {
+        "additionalProperties": true,
+        "description": "What someone else sees: exactly litt and number, kind, operator, scale and thumbnail.\nNever place, note, model, DCC address or anything about the tag (CAT-100).",
+        "properties": {
+          "litt": {
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.lookup.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operator": {
+            "title": "Operator",
+            "type": "string"
+          },
+          "scale": {
+            "title": "Scale",
+            "type": "string"
+          },
+          "thumbnail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The thumbnail's address, checked on every fetch.",
+            "title": "Thumbnail"
+          }
+        },
+        "required": [
+          "litt",
+          "number",
+          "kind",
+          "operator",
+          "scale",
+          "thumbnail"
+        ],
+        "title": "MiniCard",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lookup.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tag-link": {
+        "additionalProperties": true,
+        "description": "Link the tag to one of one's own vehicles, after \"Ja, koppla\" (CAT-83).",
+        "properties": {
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "confirm": {
+            "const": true,
+            "description": "The explicit yes. Without it nothing happens.",
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "replace": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The vehicle's link of the same kind, as seen, to end it (CAT-88, CAT-89).",
+            "title": "Replace"
+          },
+          "move_from": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "This tag's link to another of one's own vehicles, as seen (CAT-87).",
+            "title": "Move From"
+          }
+        },
+        "required": [
+          "vehicle",
+          "confirm"
+        ],
+        "title": "TagLink",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tag-unlink": {
+        "additionalProperties": true,
+        "description": "Unlink after a confirmation; the history stays (CAT-90).",
+        "properties": {
+          "assignment": {
+            "format": "uuid",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "confirm": {
+            "const": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assignment",
+          "confirm"
+        ],
+        "title": "TagUnlink",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.new-label": {
+        "additionalProperties": true,
+        "description": "A new QR label for the vehicle (CAT-121). replace: its QR label as seen, if it has one.",
+        "properties": {
+          "replace": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replace"
+          }
+        },
+        "title": "NewLabel",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tag-event": {
+        "additionalProperties": true,
+        "description": "A link or unlink the asker made (CAT-93).",
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tag-event.TagEventKind"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "event",
+          "at",
+          "vehicle_id"
+        ],
+        "title": "TagEvent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tag-event.TagEventKind": {
+        "enum": [
+          "linked",
+          "unlinked"
+        ],
+        "title": "TagEventKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.new-pending": {
+        "additionalProperties": true,
+        "description": "Koppla tagg on the card: the vehicle waits 10 minutes for the next tag (CAT-94).",
+        "properties": {
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "replace": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The vehicle's link of the same kind, as seen, to replace it.",
+            "title": "Replace"
+          }
+        },
+        "required": [
+          "vehicle"
+        ],
+        "title": "NewPending",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.pending": {
+        "additionalProperties": true,
+        "properties": {
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.pending.PendingLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pending"
+        ],
+        "title": "PendingState",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.pending.PendingLink": {
+        "additionalProperties": true,
+        "properties": {
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          },
+          "title": {
+            "description": "Litt and number, to ask: Koppla taggen till Hbis 2253?",
+            "title": "Title",
+            "type": "string"
+          },
+          "replace": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replace"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "title",
+          "replace",
+          "expires_at"
+        ],
+        "title": "PendingLink",
+        "type": "object"
       }
     },
     "securitySchemes": {

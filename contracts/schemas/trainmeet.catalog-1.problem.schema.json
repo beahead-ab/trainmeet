@@ -13,7 +13,13 @@
         "place_exists",
         "not_home",
         "not_lent",
-        "login"
+        "login",
+        "tag_taken",
+        "tag_on_other_vehicle",
+        "tag_changed",
+        "bad_tag",
+        "too_many",
+        "not_here"
       ],
       "title": "ProblemCode",
       "type": "string"

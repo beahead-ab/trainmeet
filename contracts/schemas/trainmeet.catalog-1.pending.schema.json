@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.pending.schema.json",
+  "title": "trainmeet.catalog-1.pending",
+  "$defs": {
+    "PendingLink": {
+      "additionalProperties": true,
+      "properties": {
+        "vehicle_id": {
+          "format": "uuid",
+          "title": "Vehicle Id",
+          "type": "string"
+        },
+        "title": {
+          "description": "Litt and number, to ask: Koppla taggen till Hbis 2253?",
+          "title": "Title",
+          "type": "string"
+        },
+        "replace": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Replace"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vehicle_id",
+        "title",
+        "replace",
+        "expires_at"
+      ],
+      "title": "PendingLink",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "pending": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PendingLink"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "pending"
+  ],
+  "type": "object"
+}

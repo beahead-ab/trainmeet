@@ -18,10 +18,11 @@ from fastapi import Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from catalog import fleet_api, login, migrate
+from catalog import fleet_api, login, migrate, tags_api
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.settings import Settings, from_env
+from catalog.tags import Tags
 from contracts.catalog import (
     Account,
     CatalogVersion,
@@ -137,7 +138,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return sessions.account(session)
 
     def session_of(key: str | None) -> Session:
-        return Session(account=sessions.account(key), login=login_kind)
+        return Session(
+            account=sessions.account(key),
+            login=login_kind,
+            simulated_tags=settings.simulated_tags,
+        )
 
     def set_cookie(response: Response, request: Request, key: str) -> None:
         response.set_cookie(
@@ -168,7 +173,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def log_out(response: Response, session: SessionCookie = None) -> Session:
         sessions.end(session)
         response.delete_cookie(login.COOKIE, path="/")
-        return Session(account=None, login=login_kind)
+        return Session(account=None, login=login_kind, simulated_tags=settings.simulated_tags)
 
     def require_trial() -> None:
         if not settings.trial_login:
@@ -187,9 +192,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=422, detail="Det finns inget sådant provkonto.")
         key = sessions.start(account)
         set_cookie(response, request, key)
-        return Session(account=account, login=login_kind)
+        return Session(account=account, login=login_kind, simulated_tags=settings.simulated_tags)
 
-    app.include_router(fleet_api.router(Fleet(db), logged_in))
+    fleet = Fleet(db, tag_base=settings.tag_base)
+    tags = Tags(db, base=settings.tag_base, simulated=settings.simulated_tags)
+    app.include_router(fleet_api.router(fleet, logged_in))
+    app.include_router(tags_api.router(fleet, tags, logged_in))
 
     @app.api_route(
         "/api/{rest:path}",

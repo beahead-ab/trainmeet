@@ -2,7 +2,7 @@
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, ApiError, ENGINES, fieldsOf, KINDS, statusFor, type Place, type Vehicle, type VehicleFields } from "./api";
-import { Crumbs, ErrorLine, kindText, problemText, title, type Ctx } from "./common";
+import { Crumbs, Dialog, ErrorLine, kindText, problemText, title, type Ctx } from "./common";
 import { PATHS, vehiclePath } from "./routes";
 
 export const EMPTY: VehicleFields = {
@@ -226,6 +226,9 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [changed, setChanged] = useState(false);
+  // Lägg till nytt fordon med taggen (CAT-105): the tag is offered to the new vehicle.
+  const [tag] = useState(() => (id ? null : new URLSearchParams(window.location.search).get("tagg")));
+  const [offer, setOffer] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     api.places().then(setPlaces, () => setPlaces([]));
@@ -241,7 +244,9 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
   }, [id, t]);
 
   const name = vehicle ? title(t, vehicle) : t("newTitle");
+  const done = (saved: Vehicle) => ctx.navigate?.(vehiclePath(saved.id));
   return (
+    <>
     <FormView
       ctx={ctx}
       fields={fields}
@@ -258,7 +263,8 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
         setError(null);
         try {
           const saved = id && vehicle ? await api.changeVehicle(id, { ...outgoing(fields), version: vehicle.version }) : await api.addVehicle(outgoing(fields));
-          ctx.navigate?.(vehiclePath(saved.id));
+          if (tag && saved.status === "ready") setOffer(saved);
+          else done(saved);
         } catch (failure) {
           setError(problemText(t, failure));
           setChanged(failure instanceof ApiError && failure.code === "changed");
@@ -267,5 +273,29 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
         }
       }}
     />
+    <Dialog open={offer !== null} title={t("linkTag")} onClose={() => offer && done(offer)}>
+      <p>{offer ? t("tagOffer", { name: title(t, offer) }) : ""}</p>
+      <div className="cat-dialogknappar">
+        <button type="button" className="tm-knapp" onClick={() => offer && done(offer)}>
+          {t("cancel")}
+        </button>
+        <button
+          type="button"
+          className="tm-knapp primar"
+          onClick={async () => {
+            if (!offer || !tag) return;
+            try {
+              await api.link(tag, { vehicle: offer.id, confirm: true, replace: null, move_from: null });
+            } catch (failure) {
+              setError(problemText(t, failure));
+            }
+            done(offer);
+          }}
+        >
+          {t("linkYes")}
+        </button>
+      </div>
+    </Dialog>
+    </>
   );
 }

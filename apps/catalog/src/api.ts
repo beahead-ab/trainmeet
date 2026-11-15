@@ -18,6 +18,12 @@ export type Problem = Schemas["trainmeet.catalog-1.problem"];
 export type VehicleKind = Schemas["trainmeet.catalog-1.vehicle.VehicleKind"];
 export type VehicleState = Schemas["trainmeet.catalog-1.vehicle.VehicleState"];
 export type ProblemCode = Problem["code"];
+export type Tag = Schemas["trainmeet.catalog-1.tag"];
+export type VehicleTag = Vehicle["tags"] extends (infer T)[] | undefined ? T : never;
+export type Lookup = Schemas["trainmeet.catalog-1.lookup"];
+export type TagEvent = Schemas["trainmeet.catalog-1.tag-event"];
+export type PendingState = Schemas["trainmeet.catalog-1.pending"];
+export type TagLink = Schemas["trainmeet.catalog-1.tag-link"];
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
@@ -67,6 +73,8 @@ function query(filters: Filters): string {
 
 const V = "/api/catalog/1/vehicles";
 const P = "/api/catalog/1/places";
+const T = "/api/catalog/1/tags";
+const tagPath = (uid: string) => `${T}/${encodeURIComponent(uid)}`;
 
 export const api = {
   version: () => call<CatalogVersion>("GET", "/api/version"),
@@ -87,7 +95,18 @@ export const api = {
   addPlace: (name: string) => call<Place>("POST", P, { name }),
   renamePlace: (id: string, name: string) => call<Place>("PUT", `${P}/${id}`, { name }),
   removePlace: (id: string) => call<{ id: string }>("DELETE", `${P}/${id}`),
+  lookup: (uid: string) => call<Lookup>("GET", tagPath(uid)),
+  link: (uid: string, link: TagLink) => call<Vehicle>("POST", `${tagPath(uid)}/link`, link),
+  unlink: (vehicle: string, assignment: string) => call<Vehicle>("POST", `${V}/${vehicle}/tags/unlink`, { assignment, confirm: true }),
+  newLabel: (vehicle: string, replace: string | null) => call<Vehicle>("POST", `${V}/${vehicle}/tags/qr`, { replace }),
+  newSimulated: () => call<Tag>("POST", `${T}/simulated`),
+  tagEvents: (uid: string) => call<TagEvent[]>("GET", `${tagPath(uid)}/events`),
+  pending: () => call<PendingState>("GET", `${T}/pending`),
+  waitForTag: (vehicle: string, replace: string | null) => call<PendingState>("POST", `${T}/pending`, { vehicle, replace }),
+  stopWaiting: () => call<PendingState>("DELETE", `${T}/pending`),
 };
+
+export const qrAddress = (uid: string) => `${tagPath(uid)}/qr.svg`;
 
 /** The fields a change carries: everything the owner writes, from a vehicle as it was read. */
 export function fieldsOf(vehicle: Vehicle): VehicleFields {

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tag-event.schema.json",
+  "title": "trainmeet.catalog-1.tag-event",
+  "$defs": {
+    "TagEventKind": {
+      "enum": [
+        "linked",
+        "unlinked"
+      ],
+      "title": "TagEventKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A link or unlink the asker made (CAT-93).",
+  "properties": {
+    "event": {
+      "$ref": "#/$defs/TagEventKind"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "vehicle_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Vehicle Id"
+    }
+  },
+  "required": [
+    "event",
+    "at",
+    "vehicle_id"
+  ],
+  "type": "object"
+}

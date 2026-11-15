@@ -2,7 +2,7 @@
 // (CAT-53, CAT-57–CAT-60, CAT-68, CAT-72, CAT-76, CAT-77).
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, type Place, type Vehicle, type VehicleEvent } from "./api";
+import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
 import { Crumbs, dateText, Dialog, ErrorLine, kindText, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
 import { editPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
@@ -34,17 +34,103 @@ export function eventText(t: T, event: VehicleEvent): string {
   return t(`state_${event.state}`);
 }
 
+/** The tags on the card: kind, name, address and when linked, with Ersätt and Koppla bort (CAT-97). */
+export function TagSection({
+  ctx,
+  vehicle,
+  pending,
+  onWait,
+  onStopWaiting,
+  onUnlink,
+  onNewLabel,
+}: {
+  ctx: Ctx;
+  vehicle: Vehicle;
+  pending: PendingState["pending"];
+  onWait?: (replace: VehicleTag | null) => void;
+  onStopWaiting?: () => void;
+  onUnlink?: (tag: VehicleTag) => void;
+  onNewLabel?: (replace: VehicleTag | null) => void;
+}) {
+  const { t, language } = ctx;
+  const tags = vehicle.tags ?? [];
+  const nfc = tags.find((tag) => tag.kind !== "qr") ?? null;
+  const qr = tags.find((tag) => tag.kind === "qr") ?? null;
+  const waiting = pending?.vehicle_id === vehicle.id;
+  const ready = vehicle.status === "ready";
+  return (
+    <section className="tm-kort cat-taggen" aria-labelledby="taggen-rubrik">
+      <h2 id="taggen-rubrik">{t("tagSection")}</h2>
+      {tags.length === 0 ? <p className="cat-under">{t("noTag")}</p> : null}
+      {tags.map((tag) => (
+        <div key={tag.assignment} className="cat-tagg">
+          <span className={`cat-pill cat-pill-tagg-${tag.kind}`}>{t(`tagKind_${tag.kind}`)}</span>
+          <p>
+            <b>{tag.name}</b> <span className="cat-under">{t("linkedAt", { date: dateText(language, tag.linked_at) })}</span>
+          </p>
+          <p className="tm-mono cat-adress">{tag.address.replace(/^https:\/\//, "")}</p>
+          {tag.kind === "qr" ? <img className="cat-qr" src={qrAddress(tag.uid)} alt={t("qrAlt", { address: tag.address })} width={132} height={132} /> : null}
+          <div className="cat-knappar">
+            {tag.kind === "qr" ? (
+              <button type="button" className="tm-knapp" onClick={() => onNewLabel?.(tag)}>
+                {t("replaceLabel")}
+              </button>
+            ) : (
+              <button type="button" className="tm-knapp" onClick={() => onWait?.(tag)}>
+                {t("replaceTag")}
+              </button>
+            )}
+            <button type="button" className="tm-knapp" onClick={() => onUnlink?.(tag)}>
+              {t("unlinkTag")}
+            </button>
+          </div>
+        </div>
+      ))}
+      {waiting ? (
+        <div className="cat-vantar" role="status">
+          <p>{t("waitingFor", { name: title(t, vehicle) })}</p>
+          <button type="button" className="tm-knapp" onClick={onStopWaiting}>
+            {t("stopWaiting")}
+          </button>
+        </div>
+      ) : null}
+      {!ready ? (
+        <p className="cat-under">{t("draftNoTag")}</p>
+      ) : (
+        <div className="cat-knappar">
+          {!nfc && !waiting ? (
+            <button type="button" className="tm-knapp primar" onClick={() => onWait?.(null)}>
+              {t("linkTag")}
+            </button>
+          ) : null}
+          {!qr ? (
+            <button type="button" className="tm-knapp" onClick={() => onNewLabel?.(null)}>
+              {t("newLabel")}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export type CardViewProps = {
   ctx: Ctx;
   vehicle: Vehicle;
   events: VehicleEvent[];
   error: string | null;
+  pending?: PendingState["pending"];
   onMove?: () => void;
   onGiveBack?: () => void;
   onRemove?: () => void;
+  onWait?: (replace: VehicleTag | null) => void;
+  onStopWaiting?: () => void;
+  onUnlink?: (tag: VehicleTag) => void;
+  onNewLabel?: (replace: VehicleTag | null) => void;
 };
 
-export function CardView({ ctx, vehicle, events, error, onMove, onGiveBack, onRemove }: CardViewProps) {
+export function CardView(props: CardViewProps) {
+  const { ctx, vehicle, events, error, onMove, onGiveBack, onRemove } = props;
   const { t, language, navigate } = ctx;
   const name = title(t, vehicle);
   const missing = t("notFilled");
@@ -130,6 +216,16 @@ export function CardView({ ctx, vehicle, events, error, onMove, onGiveBack, onRe
             </div>
           </section>
 
+          <TagSection
+            ctx={ctx}
+            vehicle={vehicle}
+            pending={props.pending ?? null}
+            onWait={props.onWait}
+            onStopWaiting={props.onStopWaiting}
+            onUnlink={props.onUnlink}
+            onNewLabel={props.onNewLabel}
+          />
+
           <section className="tm-kort" aria-labelledby="handelser-rubrik">
             <h2 id="handelser-rubrik">{t("history")}</h2>
             {events.length === 0 ? (
@@ -165,10 +261,13 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [pending, setPending] = useState<PendingState["pending"]>(null);
+  const [unlinking, setUnlinking] = useState<VehicleTag | null>(null);
 
   const load = () => {
     api.vehicle(id).then(setVehicle, (failure) => setError(problemText(t, failure)));
     api.events(id).then(setEvents, () => setEvents([]));
+    api.pending().then((state) => setPending(state.pending), () => setPending(null));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- load reads only id
   useEffect(load, [id]);
@@ -180,7 +279,7 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
       await work();
     } catch (failure) {
       setError(problemText(t, failure));
-      if (failure instanceof ApiError && failure.code === "changed") load();
+      if (failure instanceof ApiError && (failure.code === "changed" || failure.code === "tag_changed")) load();
       return;
     }
     load();
@@ -198,7 +297,31 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
         }}
         onGiveBack={() => act(() => api.giveBack(vehicle.id, vehicle.version))}
         onRemove={() => setRemoving(true)}
+        pending={pending}
+        onWait={(replace) => act(() => api.waitForTag(vehicle.id, replace?.assignment ?? null))}
+        onStopWaiting={() => act(() => api.stopWaiting())}
+        onUnlink={setUnlinking}
+        onNewLabel={(replace) => act(() => api.newLabel(vehicle.id, replace?.assignment ?? null))}
       />
+      <Dialog open={unlinking !== null} title={t("unlinkTag")} onClose={() => setUnlinking(null)}>
+        <p>{unlinking ? t("unlinkConfirm", { tag: unlinking.name, name: title(t, vehicle) }) : ""}</p>
+        <div className="cat-dialogknappar">
+          <button type="button" className="tm-knapp" onClick={() => setUnlinking(null)}>
+            {t("cancel")}
+          </button>
+          <button
+            type="button"
+            className="tm-knapp primar"
+            onClick={async () => {
+              const tag = unlinking;
+              setUnlinking(null);
+              if (tag) await act(() => api.unlink(vehicle.id, tag.assignment));
+            }}
+          >
+            {t("unlinkTag")}
+          </button>
+        </div>
+      </Dialog>
       <MoveDialog
         ctx={ctx}
         open={moving}

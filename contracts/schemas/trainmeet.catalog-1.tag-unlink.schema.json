@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tag-unlink.schema.json",
+  "title": "trainmeet.catalog-1.tag-unlink",
+  "additionalProperties": true,
+  "description": "Unlink after a confirmation; the history stays (CAT-90).",
+  "properties": {
+    "assignment": {
+      "format": "uuid",
+      "title": "Assignment",
+      "type": "string"
+    },
+    "confirm": {
+      "const": true,
+      "title": "Confirm",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "assignment",
+    "confirm"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.lookup.schema.json",
+  "title": "trainmeet.catalog-1.lookup",
+  "$defs": {
+    "LookupFleet": {
+      "additionalProperties": true,
+      "description": "A vehicle in a fleet shared with the asker: the card, with the sharing's right (CAT-104).\nSharing comes with TrainMeet ID (#49).",
+      "properties": {
+        "outcome": {
+          "const": "fleet",
+          "default": "fleet",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "vehicle_id": {
+          "format": "uuid",
+          "title": "Vehicle Id",
+          "type": "string"
+        },
+        "right": {
+          "enum": [
+            "view",
+            "edit"
+          ],
+          "title": "Right",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vehicle_id",
+        "right"
+      ],
+      "title": "LookupFleet",
+      "type": "object"
+    },
+    "LookupMine": {
+      "additionalProperties": true,
+      "description": "My vehicle: the card opens (CAT-99).",
+      "properties": {
+        "outcome": {
+          "const": "mine",
+          "default": "mine",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "vehicle_id": {
+          "format": "uuid",
+          "title": "Vehicle Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vehicle_id"
+      ],
+      "title": "LookupMine",
+      "type": "object"
+    },
+    "LookupPrivate": {
+      "additionalProperties": true,
+      "description": "Someone else's vehicle without the owner's name, or anyone not logged in (CAT-100).",
+      "properties": {
+        "outcome": {
+          "const": "private",
+          "default": "private",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "card": {
+          "$ref": "#/$defs/MiniCard"
+        }
+      },
+      "required": [
+        "card"
+      ],
+      "title": "LookupPrivate",
+      "type": "object"
+    },
+    "LookupShared": {
+      "additionalProperties": true,
+      "description": "Someone else's vehicle, whose owner shows their name to those logged in (CAT-101).",
+      "properties": {
+        "outcome": {
+          "const": "shared",
+          "default": "shared",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "owner_name": {
+          "title": "Owner Name",
+          "type": "string"
+        },
+        "card": {
+          "$ref": "#/$defs/MiniCard"
+        }
+      },
+      "required": [
+        "owner_name",
+        "card"
+      ],
+      "title": "LookupShared",
+      "type": "object"
+    },
+    "LookupUnknown": {
+      "additionalProperties": true,
+      "description": "The tag is not linked. Logged in: its uid, to add or link a vehicle (CAT-105).\nLogged out: nothing more (CAT-106).",
+      "properties": {
+        "outcome": {
+          "const": "unknown",
+          "default": "unknown",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "tag_uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag Uid"
+        }
+      },
+      "title": "LookupUnknown",
+      "type": "object"
+    },
+    "MiniCard": {
+      "additionalProperties": true,
+      "description": "What someone else sees: exactly litt and number, kind, operator, scale and thumbnail.\nNever place, note, model, DCC address or anything about the tag (CAT-100).",
+      "properties": {
+        "litt": {
+          "title": "Litt",
+          "type": "string"
+        },
+        "number": {
+          "title": "Number",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operator": {
+          "title": "Operator",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "string"
+        },
+        "thumbnail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The thumbnail's address, checked on every fetch.",
+          "title": "Thumbnail"
+        }
+      },
+      "required": [
+        "litt",
+        "number",
+        "kind",
+        "operator",
+        "scale",
+        "thumbnail"
+      ],
+      "title": "MiniCard",
+      "type": "object"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "description": "What /t/<uid> answers: one of five outcomes, each with its own fields (CAT-98, CAT-209).",
+  "discriminator": {
+    "mapping": {
+      "fleet": "#/$defs/LookupFleet",
+      "mine": "#/$defs/LookupMine",
+      "private": "#/$defs/LookupPrivate",
+      "shared": "#/$defs/LookupShared",
+      "unknown": "#/$defs/LookupUnknown"
+    },
+    "propertyName": "outcome"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/LookupMine"
+    },
+    {
+      "$ref": "#/$defs/LookupShared"
+    },
+    {
+      "$ref": "#/$defs/LookupPrivate"
+    },
+    {
+      "$ref": "#/$defs/LookupFleet"
+    },
+    {
+      "$ref": "#/$defs/LookupUnknown"
+    }
+  ]
+}

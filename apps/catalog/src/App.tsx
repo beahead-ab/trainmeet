@@ -6,7 +6,9 @@ import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import type { Ctx } from "./common";
 import { LendPage } from "./LendPage";
 import { PlacesPage } from "./PlacesPage";
-import { PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
+import { TagPage } from "./TagPage";
+import { TapPage } from "./TapPage";
+import { nextAfterLogin, PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
 import { VehicleCardPage } from "./VehicleCard";
 import { VehicleFormPage } from "./VehicleForm";
 import { VehiclesPage } from "./VehiclesPage";
@@ -39,6 +41,7 @@ const TITLES: Record<Page, TextKey> = {
   tap: "tapTitle",
   login: "logIn",
   help: "help",
+  tag: "tagTitle",
   missing: "notFound",
 };
 
@@ -51,6 +54,7 @@ export type ShellProps = {
   version: CatalogVersion | null;
   offline: boolean;
   navigate?: Navigate;
+  replace?: Navigate;
   onLanguage?: () => void;
   onLogOut?: () => void;
   onLogIn?: (account: Account) => Promise<boolean>;
@@ -186,7 +190,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       {t("logIn")}
     </a>
   );
-  const ctx: Ctx = { t, language, navigate };
+  const ctx: Ctx = { t, language, navigate, replace: props.replace };
   const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places"];
   if (fleetPages.includes(page) && !account) {
     return (
@@ -208,6 +212,8 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       return <LendPage ctx={ctx} id={id ?? ""} />;
     case "places":
       return <PlacesPage ctx={ctx} />;
+    case "tag":
+      return <TagPage key={id} ctx={ctx} uid={id ?? ""} account={account} />;
     case "vehicles":
       return (
         <>
@@ -238,12 +244,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
         </>
       );
     case "tap":
-      return (
-        <>
-          <h1>{t("tapTitle")}</h1>
-          <Empty title={t("tapNotYet")} detail={t("tapDetail")} />
-        </>
-      );
+      return <TapPage ctx={ctx} account={account} simulated={props.session?.simulated_tags ?? false} />;
     case "help":
       return (
         <>
@@ -321,7 +322,7 @@ function LoginPage({ t, session, account, trialAccounts, onLogIn }: ShellProps &
 /** The web app: reads the version and the session, and follows the address. */
 export function App({ initialLanguage }: { initialLanguage: Language }) {
   const [language, setLanguage] = useState<Language>(initialLanguage);
-  const [route, setRoute] = useState<Route>(() => routeFor(window.location.pathname));
+  const [route, setRoute] = useState<Route>(() => routeFor(window.location.pathname + window.location.search));
   const page = route.page;
   const [session, setSession] = useState<Session | null>(null);
   const [version, setVersion] = useState<CatalogVersion | null>(null);
@@ -335,8 +336,13 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     setRoute(routeFor(href));
   }, []);
 
+  const replace = useCallback((href: string) => {
+    window.history.replaceState(null, "", href);
+    setRoute(routeFor(href));
+  }, []);
+
   useEffect(() => {
-    const onPop = () => setRoute(routeFor(window.location.pathname));
+    const onPop = () => setRoute(routeFor(window.location.pathname + window.location.search));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -376,6 +382,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       version={version}
       offline={offline}
       navigate={navigate}
+      replace={replace}
       trialAccounts={trialAccounts}
       onLanguage={() => {
         const next: Language = language === "sv" ? "en" : "sv";
@@ -388,7 +395,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       onLogIn={async (account) => {
         try {
           setSession(await api.trialLogIn({ account: account.id }));
-          navigate(PATHS.vehicles);
+          navigate(nextAfterLogin(window.location.search));
           return true;
         } catch {
           return false;

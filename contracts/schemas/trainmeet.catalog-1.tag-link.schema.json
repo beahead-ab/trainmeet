@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tag-link.schema.json",
+  "title": "trainmeet.catalog-1.tag-link",
+  "additionalProperties": true,
+  "description": "Link the tag to one of one's own vehicles, after \"Ja, koppla\" (CAT-83).",
+  "properties": {
+    "vehicle": {
+      "format": "uuid",
+      "title": "Vehicle",
+      "type": "string"
+    },
+    "confirm": {
+      "const": true,
+      "description": "The explicit yes. Without it nothing happens.",
+      "title": "Confirm",
+      "type": "boolean"
+    },
+    "replace": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The vehicle's link of the same kind, as seen, to end it (CAT-88, CAT-89).",
+      "title": "Replace"
+    },
+    "move_from": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "This tag's link to another of one's own vehicles, as seen (CAT-87).",
+      "title": "Move From"
+    }
+  },
+  "required": [
+    "vehicle",
+    "confirm"
+  ],
+  "type": "object"
+}

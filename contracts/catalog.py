@@ -26,7 +26,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, RootModel, StringConstraints
 
 from contracts.common import Contract, Text
 
@@ -64,6 +64,9 @@ class Session(Contract):
 
     account: Account | None = None
     login: LoginKind
+    simulated_tags: bool = Field(
+        default=False, description="Simulated tags can be made here: the test environment."
+    )
 
 
 class TrialLogin(Contract):
@@ -191,6 +194,26 @@ class Lending(Contract):
     until: date | None = None
 
 
+class TagKind(StrEnum):
+    """An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121)."""
+
+    NFC = "nfc"
+    QR = "qr"
+    SIM = "sim"
+
+
+class VehicleTag(Contract):
+    """A tag on the vehicle, as the card shows it (CAT-97)."""
+
+    assignment: UUID = Field(description="The link. A change carries it (CAT-89).")
+    tag: UUID
+    uid: str = Field(description="What stands after /t/ in the address.")
+    name: str
+    kind: TagKind
+    address: str = Field(description="For example https://trainmeet.app/t/04a1b2c3d4e5f6.")
+    linked_at: datetime
+
+
 class Vehicle(VehicleFields):
     """A vehicle as its owner sees it."""
 
@@ -201,6 +224,7 @@ class Vehicle(VehicleFields):
     lending: Lending | None = None
     evn: EvnParts | None = None
     field_sources: dict[str, FieldSource] = Field(default_factory=dict)
+    tags: list[VehicleTag] = Field(default_factory=list, description="At most one NFC, one QR.")
     created_at: datetime
     updated_at: datetime
 
@@ -277,6 +301,18 @@ class ProblemCode(StrEnum):
     """Only a lent vehicle can come back."""
     LOGIN = "login"
     """Not logged in."""
+    TAG_TAKEN = "tag_taken"
+    """The tag is on someone else's vehicle: its owner must unlink it first (CAT-86)."""
+    TAG_ON_OTHER_VEHICLE = "tag_on_other_vehicle"
+    """The tag is on another of one's own vehicles; it moves after a confirmation (CAT-87)."""
+    TAG_CHANGED = "tag_changed"
+    """The link changed since it was shown: open the card again (CAT-89)."""
+    BAD_TAG = "bad_tag"
+    """Not a tag's address: an NFC serial number in hex, a QR label or a simulated tag."""
+    TOO_MANY = "too_many"
+    """More than 30 lookups in a minute: try again in a minute (CAT-111, CAT-112)."""
+    NOT_HERE = "not_here"
+    """Simulated tags exist only in the test environment (CAT-96)."""
 
 
 class Problem(Contract):
@@ -284,3 +320,157 @@ class Problem(Contract):
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
+
+
+# --- The tags and the lookup (#54) ---------------------------------------------------------
+#
+#     GET    /api/catalog/1/tags/{uid}                  Lookup: one of five outcomes (CAT-98)
+#     POST   /api/catalog/1/tags/{uid}/link             TagLink -> Vehicle
+#     GET    /api/catalog/1/tags/{uid}/events           [TagEvent], the asker's own (CAT-93)
+#     GET    /api/catalog/1/tags/{uid}/qr.svg           the QR code, for the tag's owner
+#     POST   /api/catalog/1/tags/simulated              Tag, only in the test environment
+#     GET    /api/catalog/1/tags/pending                PendingState: the vehicle waiting for a tag
+#     POST   /api/catalog/1/tags/pending                NewPending -> PendingState (CAT-94)
+#     DELETE /api/catalog/1/tags/pending                PendingState, nothing waiting
+#     POST   /api/catalog/1/vehicles/{id}/tags/qr       NewLabel -> Vehicle, a new QR label
+#     POST   /api/catalog/1/vehicles/{id}/tags/unlink   TagUnlink -> Vehicle
+#
+# Rules:
+# - The address is /t/<uid>. Case and a trailing slash do not matter (CAT-80). An NFC tag's uid
+#   is its serial number in hex; Web NFC's colons are dropped (CAT-79).
+# - The lookup is built from an exact whitelist per outcome, never from the owner's vehicle
+#   (CAT-107), and is sent with Cache-Control: private, no-store (CAT-108). Nobody's taps are
+#   kept (CAT-110). At most 30 lookups a minute per person, or per address when logged out.
+# - Linking needs an explicit confirmation (CAT-83) and a ready vehicle (CAT-84). The same
+#   request twice gives the same result (CAT-92).
+
+
+class Tag(Contract):
+    """A tag the owner has made: a simulated tag or a QR label."""
+
+    id: UUID
+    uid: str
+    name: str
+    kind: TagKind
+    address: str
+
+
+class MiniCard(Contract):
+    """What someone else sees: exactly litt and number, kind, operator, scale and thumbnail.
+    Never place, note, model, DCC address or anything about the tag (CAT-100)."""
+
+    litt: str
+    number: str
+    kind: VehicleKind | None
+    operator: str
+    scale: str
+    thumbnail: str | None = Field(description="The thumbnail's address, checked on every fetch.")
+
+
+class LookupMine(Contract):
+    """My vehicle: the card opens (CAT-99)."""
+
+    outcome: Literal["mine"] = "mine"
+    vehicle_id: UUID
+
+
+class LookupShared(Contract):
+    """Someone else's vehicle, whose owner shows their name to those logged in (CAT-101)."""
+
+    outcome: Literal["shared"] = "shared"
+    owner_name: str
+    card: MiniCard
+
+
+class LookupPrivate(Contract):
+    """Someone else's vehicle without the owner's name, or anyone not logged in (CAT-100)."""
+
+    outcome: Literal["private"] = "private"
+    card: MiniCard
+
+
+class LookupFleet(Contract):
+    """A vehicle in a fleet shared with the asker: the card, with the sharing's right (CAT-104).
+    Sharing comes with TrainMeet ID (#49)."""
+
+    outcome: Literal["fleet"] = "fleet"
+    vehicle_id: UUID
+    right: Literal["view", "edit"]
+
+
+class LookupUnknown(Contract):
+    """The tag is not linked. Logged in: its uid, to add or link a vehicle (CAT-105).
+    Logged out: nothing more (CAT-106)."""
+
+    outcome: Literal["unknown"] = "unknown"
+    tag_uid: str | None = None
+
+
+class Lookup(RootModel[LookupMine | LookupShared | LookupPrivate | LookupFleet | LookupUnknown]):
+    """What /t/<uid> answers: one of five outcomes, each with its own fields (CAT-98, CAT-209)."""
+
+    root: Annotated[
+        LookupMine | LookupShared | LookupPrivate | LookupFleet | LookupUnknown,
+        Field(discriminator="outcome"),
+    ]
+
+
+class TagLink(Contract):
+    """Link the tag to one of one's own vehicles, after "Ja, koppla" (CAT-83)."""
+
+    vehicle: UUID
+    confirm: Literal[True] = Field(description="The explicit yes. Without it nothing happens.")
+    replace: UUID | None = Field(
+        default=None,
+        description="The vehicle's link of the same kind, as seen, to end it (CAT-88, CAT-89).",
+    )
+    move_from: UUID | None = Field(
+        default=None,
+        description="This tag's link to another of one's own vehicles, as seen (CAT-87).",
+    )
+
+
+class TagUnlink(Contract):
+    """Unlink after a confirmation; the history stays (CAT-90)."""
+
+    assignment: UUID
+    confirm: Literal[True]
+
+
+class NewLabel(Contract):
+    """A new QR label for the vehicle (CAT-121). replace: its QR label as seen, if it has one."""
+
+    replace: UUID | None = None
+
+
+class TagEventKind(StrEnum):
+    LINKED = "linked"
+    UNLINKED = "unlinked"
+
+
+class TagEvent(Contract):
+    """A link or unlink the asker made (CAT-93)."""
+
+    event: TagEventKind
+    at: datetime
+    vehicle_id: UUID | None
+
+
+class NewPending(Contract):
+    """Koppla tagg on the card: the vehicle waits 10 minutes for the next tag (CAT-94)."""
+
+    vehicle: UUID
+    replace: UUID | None = Field(
+        default=None, description="The vehicle's link of the same kind, as seen, to replace it."
+    )
+
+
+class PendingLink(Contract):
+    vehicle_id: UUID
+    title: str = Field(description="Litt and number, to ask: Koppla taggen till Hbis 2253?")
+    replace: UUID | None
+    expires_at: datetime
+
+
+class PendingState(Contract):
+    pending: PendingLink | None

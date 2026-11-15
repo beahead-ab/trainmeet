@@ -90,3 +90,11 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Källa | `field_sources`, `FieldSource` | Var ett kärnfälts värde kom ifrån: ägaren, AI:n, förebilden eller en import (CAT-64). |
 | Besked | `Problem`, `ProblemCode` | Varför Catalog sa nej, med en kod som webbappen har text för. |
 | Ägare | – | Den som äger en vagnpark: en person, och senare en klubb. Varje skrivning låser ägarens rad först (CAT-40). |
+| Tagg | `Tag`, `TagKind` | En NFC-tagg under fordonet, en QR-etikett eller en simulerad tagg, med ägare och namn (CAT-78). |
+| Identifierare | `uid` | Det som står efter /t/ i adressen: NFC-taggens serienummer i hex, QR-etikettens id eller den simulerade taggens UUID. Unikt i hela Catalog. |
+| Koppling | `VehicleTag.assignment` | En tagg på ett fordon, med start och slut. Ett byte eller en bortkoppling bär den koppling man såg (CAT-89). |
+| Blippa | – | Att hålla telefonen mot taggen eller skanna QR-koden. Öppnar /t/<uid>. |
+| Uppslag | `Lookup` | Det /t/<uid> svarar: `mine`, `shared`, `private`, `fleet` eller `unknown`, vart och ett med en egen vitlista (CAT-98). |
+| Minikort | `MiniCard` | Det en annan än ägaren ser: littera och nummer, slag, bolag, skala och miniatyr (CAT-100). |
+| Väntande koppling | `PendingLink` | Koppla tagg på kortet: fordonet väntar på nästa tagg i 10 minuter (CAT-94). |
+

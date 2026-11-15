@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.new-pending.schema.json",
+  "title": "trainmeet.catalog-1.new-pending",
+  "additionalProperties": true,
+  "description": "Koppla tagg on the card: the vehicle waits 10 minutes for the next tag (CAT-94).",
+  "properties": {
+    "vehicle": {
+      "format": "uuid",
+      "title": "Vehicle",
+      "type": "string"
+    },
+    "replace": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The vehicle's link of the same kind, as seen, to replace it.",
+      "title": "Replace"
+    }
+  },
+  "required": [
+    "vehicle"
+  ],
+  "type": "object"
+}
