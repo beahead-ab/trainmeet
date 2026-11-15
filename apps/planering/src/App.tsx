@@ -1,30 +1,33 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
 import { planning, type Check, type Draft, type MeetSummary, type NewMeet, type Version } from "./api";
+import { DataPage } from "./Data";
 import { TraffarPage } from "./Traffar";
 import { VersionerPage } from "./Versioner";
 
-// Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Versioner. Data, Bana
-// and Graf are still drawn by the hub and move here next (#68).
+// Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Data and Versioner.
+// Bana and Graf are still drawn by the hub and move here next (#68).
 
-export type Route = { page: "traffar" } | { page: "versioner"; meet: string };
+export type Route = { page: "traffar" } | { page: "data" | "versioner"; meet: string };
 
-const VERSIONS = /^\/planering\/([^/]+)\/versioner$/;
+const MEET = /^\/planering\/([^/]+)(?:\/(data|versioner))?$/;
 
 export function routeOf(path: string): Route {
-  const clean = path.replace(/\/+$/, "");
-  const found = clean.match(VERSIONS);
-  if (found?.[1]) return { page: "versioner", meet: decodeURIComponent(found[1]) };
-  return { page: "traffar" };
+  const found = path.replace(/\/+$/, "").match(MEET);
+  if (!found?.[1]) return { page: "traffar" };
+  return { page: found[2] === "versioner" ? "versioner" : "data", meet: decodeURIComponent(found[1]) };
 }
 
-/** The addresses this app draws itself; the rest (Data, Bana, Graf, Drift) are other pages. */
-export const isOwn = (path: string) => path.replace(/\/+$/, "") === "/planering" || VERSIONS.test(path.replace(/\/+$/, ""));
+/** The addresses this app draws itself; the rest (Bana, Graf, Drift) are other pages. */
+export const isOwn = (path: string) => {
+  const clean = path.replace(/\/+$/, "");
+  return clean === "/planering" || MEET.test(clean);
+};
 
 export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
   const route = routeOf(path);
-  const meet = route.page === "versioner" ? route.meet : null;
+  const meet = route.page === "traffar" ? null : route.meet;
   const hubState = useHub();
   const { admin, act, say, fail } = hubState;
   const [ok, setOk] = useState(false);
@@ -120,9 +123,24 @@ export function App() {
 
   return (
     <>
-      <Sidhuvud {...hubState.header({ current: path.replace(/\/+$/, "") || "/planering", viewed: meet, navigate })} />
+      <Sidhuvud {...hubState.header({ current: route.page === "traffar" ? "/planering" : `/planering/${encodeURIComponent(route.meet)}/${route.page}`, viewed: meet, navigate })} />
       <main id="innehall" className="planering">
         {route.page === "traffar" && <TraffarPage admin={admin} meets={meets} navigate={navigate} onCreate={(fresh) => void onCreate(fresh)} />}
+        {route.page === "data" && (
+          <DataPage
+            admin={admin}
+            meet={route.meet}
+            draft={draft}
+            findings={check?.findings ?? []}
+            versions={versions}
+            onDraft={(next) => {
+              setDraft(next);
+              void readVersions(route.meet);
+            }}
+            onTell={tell}
+            onFail={fail}
+          />
+        )}
         {route.page === "versioner" && <VersionerPage admin={admin} meet={route.meet} draft={draft} check={check} versions={versions} busy={busy} onPublish={() => void onPublish()} />}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">
           {hubState.message}

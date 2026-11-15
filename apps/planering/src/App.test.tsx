@@ -68,12 +68,15 @@ describe("Versioner (S6)", () => {
 });
 
 describe("the addresses", () => {
-  it("draws Träffar and Versioner, and leaves Data, Bana and Graf to the hub for now", () => {
+  it("draws Träffar, Data and Versioner, and leaves Bana and Graf to the hub for now", () => {
     expect(routeOf("/planering")).toEqual({ page: "traffar" });
+    expect(routeOf("/planering/varnamo")).toEqual({ page: "data", meet: "varnamo" });
+    expect(routeOf("/planering/varnamo/data")).toEqual({ page: "data", meet: "varnamo" });
     expect(routeOf("/planering/varnamo/versioner")).toEqual({ page: "versioner", meet: "varnamo" });
     expect(isOwn("/planering/")).toBe(true);
+    expect(isOwn("/planering/varnamo")).toBe(true);
     expect(isOwn("/planering/varnamo/versioner")).toBe(true);
-    expect(isOwn("/planering/varnamo/data")).toBe(false);
+    expect(isOwn("/planering/varnamo/bana")).toBe(false);
     expect(isOwn("/drift")).toBe(false);
   });
 });
