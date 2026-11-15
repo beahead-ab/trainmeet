@@ -54,7 +54,7 @@ CATALOG_TEST_DATABASE_URL=postgresql:///postgres uv run pytest catalog
 
 Catalogs bild byggs med `docker build -f catalog/Dockerfile -t trainmeet-catalog .`. Webbappens typer och tester körs när bilden byggs.
 
-Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Catalog in med TrainMeet ID i stället för provinloggningen (#66); se `catalog/settings.py`. Mot ett ID på egen dator, som nedan: `CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_PUBLIC_URL=http://localhost:8001` och klienthemligheten som ID startades med.
+Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Catalog in med TrainMeet ID i stället för provinloggningen (#66), och med `CATALOG_ID_API` frågar Catalog ID:s API om delade vagnparker vid varje anrop (#49); se `catalog/settings.py`. Mot ett ID på egen dator, som nedan: `CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_PUBLIC_URL=http://localhost:8001` och klienthemligheten som ID startades med.
 
 ### TrainMeet ID på egen dator
 

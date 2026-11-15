@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Annotated, Final
 
 import httpx
-from fastapi import Cookie, FastAPI, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -26,13 +26,17 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from catalog import fleet_api, id_login, login, migrate, tags_api
+from catalog.access import Access
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
+from catalog.id_roles import IdRoles
 from catalog.settings import Settings, from_env
 from catalog.tags import Tags
 from contracts.catalog import (
     Account,
     CatalogVersion,
+    FleetChoice,
+    FleetRight,
     LoginKind,
     Problem,
     ProblemCode,
@@ -95,7 +99,11 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     db = Database(settings.database_url)
     sessions = login.Sessions(db)
     login_kind = LoginKind.TRIAL if settings.trial_login else LoginKind.ID
-    with_id = id_login.IdLogin(db, settings.id, http=id_http) if settings.id is not None else None
+    http = id_http if id_http is not None else httpx.Client(timeout=10.0)
+    with_id = id_login.IdLogin(db, settings.id, http=http) if settings.id is not None else None
+    # Shared fleets: Catalog asks ID at every call (#49, KONTO-34). Without ID nothing is shared.
+    id_api = settings.id if settings.id is not None and settings.id.api else None
+    access = Access(IdRoles(id_api, http) if id_api is not None else None)
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
 
     @asynccontextmanager
@@ -148,10 +156,17 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         return sessions.account(session)
 
     def session_of(key: str | None) -> Session:
+        account = sessions.account(key)
+        share = (
+            f"{id_api.id_public}/vagnparker/{account.id}"
+            if account is not None and id_api is not None
+            else None
+        )
         return Session(
-            account=sessions.account(key),
+            account=account,
             login=login_kind,
             simulated_tags=settings.simulated_tags,
+            share_url=share,
         )
 
     def set_cookie(response: Response, request: Request, key: str) -> None:
@@ -250,8 +265,34 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         return Session(account=account, login=login_kind, simulated_tags=settings.simulated_tags)
 
     fleet = Fleet(db, tag_base=settings.tag_base)
-    tags = Tags(db, base=settings.tag_base, simulated=settings.simulated_tags)
-    app.include_router(fleet_api.router(fleet, logged_in))
+    tags = Tags(
+        db,
+        base=settings.tag_base,
+        simulated=settings.simulated_tags,
+        shared_with=access.shared_with,
+    )
+
+    @app.get(API + "/fleets")
+    def fleets(account: Account | None = Depends(logged_in)) -> list[FleetChoice]:  # noqa: B008
+        """The fleets the person can work in: their own, then the shared ones (CAT-50)."""
+        if account is None:
+            raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
+        mine = FleetChoice(
+            owner=account.id, title=f"Vagnparken · {account.name}", right=FleetRight.OWNER
+        )
+        if access.roles is None:
+            return [mine]
+        shared = [
+            FleetChoice(
+                owner=found.owner,
+                title=found.title,
+                right=FleetRight.EDIT if found.role == "editor" else FleetRight.VIEW,
+            )
+            for found in access.roles.shared_fleets(account.id)
+        ]
+        return [mine, *shared]
+
+    app.include_router(fleet_api.router(fleet, logged_in, access))
     app.include_router(tags_api.router(fleet, tags, logged_in))
 
     @app.api_route(

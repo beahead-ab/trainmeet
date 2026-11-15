@@ -19,14 +19,16 @@
         "tag_changed",
         "bad_tag",
         "too_many",
-        "not_here"
+        "not_here",
+        "forbidden",
+        "unavailable"
       ],
       "title": "ProblemCode",
       "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "The answer when Catalog says no: 401, 404, 409 or 422.",
+  "description": "The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.",
   "properties": {
     "code": {
       "$ref": "#/$defs/ProblemCode"

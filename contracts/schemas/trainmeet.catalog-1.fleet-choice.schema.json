@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.fleet-choice.schema.json",
+  "title": "trainmeet.catalog-1.fleet-choice",
+  "$defs": {
+    "FleetRight": {
+      "description": "The right to a fleet (CAT-44, CAT-46): the owner's, to edit, or to look.",
+      "enum": [
+        "owner",
+        "edit",
+        "view"
+      ],
+      "title": "FleetRight",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A fleet the person can work in: their own first, then the ones shared with them (CAT-50).\nThe vehicles' addresses take ?fleet=<owner> to work in someone else's.",
+  "properties": {
+    "owner": {
+      "format": "uuid",
+      "title": "Owner",
+      "type": "string"
+    },
+    "title": {
+      "description": "Whose fleet it is.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "right": {
+      "$ref": "#/$defs/FleetRight"
+    }
+  },
+  "required": [
+    "owner",
+    "title",
+    "right"
+  ],
+  "type": "object"
+}

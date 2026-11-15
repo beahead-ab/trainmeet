@@ -2,7 +2,7 @@
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState } from "react";
 import { api, STATES, type Account, type Place, type Vehicle, type VehicleKind, type VehicleList, type VehicleState } from "./api";
-import { Dialog, ErrorLine, problemText, StatePill, subtitle, title, type Ctx } from "./common";
+import { Dialog, ErrorLine, isOwner, mayEdit, problemText, StatePill, subtitle, title, type Ctx } from "./common";
 import { PATHS, vehiclePath } from "./routes";
 
 type KindGroup = "all" | "engines" | "wagons";
@@ -44,17 +44,26 @@ export function VehiclesView(props: VehiclesViewProps) {
     <>
       <div className="cat-rubrikrad">
         <div>
-          <p className="tm-overrubrik">{t("fleetOf", { name: account.name })}</p>
+          <p className="tm-overrubrik">{ctx.fleetTitle ?? t("fleetOf", { name: account.name })}</p>
           <h1>{t("vehicles")}</h1>
           {list ? <p className="cat-ingress">{total === 1 ? t("fleetSummaryOne") : t("fleetSummary", { n: total })}</p> : null}
         </div>
         <div className="cat-knappar">
-          <a className="tm-knapp" href={PATHS.places} onClick={linkClick(navigate, PATHS.places)}>
-            {t("places")}
-          </a>
-          <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
-            {t("addVehicle")}
-          </a>
+          {isOwner(ctx) && ctx.shareUrl ? (
+            <a className="tm-knapp" href={ctx.shareUrl}>
+              {t("shareFleet")}
+            </a>
+          ) : null}
+          {isOwner(ctx) ? (
+            <a className="tm-knapp" href={PATHS.places} onClick={linkClick(navigate, PATHS.places)}>
+              {t("places")}
+            </a>
+          ) : null}
+          {mayEdit(ctx) ? (
+            <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
+              {t("addVehicle")}
+            </a>
+          ) : null}
         </div>
       </div>
 
@@ -117,12 +126,14 @@ export function VehiclesView(props: VehiclesViewProps) {
               {list.vehicles.map((vehicle) => (
                 <tr key={vehicle.id}>
                   <td className="cat-val">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(vehicle.id)}
-                      aria-label={t("selectVehicle", { name: title(t, vehicle) })}
-                      onChange={(event) => props.onSelect?.(vehicle.id, event.target.checked)}
-                    />
+                    {isOwner(ctx) ? (
+                      <input
+                        type="checkbox"
+                        checked={selected.has(vehicle.id)}
+                        aria-label={t("selectVehicle", { name: title(t, vehicle) })}
+                        onChange={(event) => props.onSelect?.(vehicle.id, event.target.checked)}
+                      />
+                    ) : null}
                   </td>
                   <td>
                     <a className="cat-fordon" href={vehiclePath(vehicle.id)} onClick={linkClick(navigate, vehiclePath(vehicle.id))}>

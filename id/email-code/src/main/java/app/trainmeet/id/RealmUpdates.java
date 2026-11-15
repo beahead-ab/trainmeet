@@ -5,9 +5,13 @@ import java.util.Set;
 import org.jboss.logging.Logger;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.WebAuthnPolicy;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.services.managers.ClientManager;
+import org.keycloak.services.managers.RealmManager;
 
 /**
  * Brings a realm that already exists up to date with id/realm/trainmeet.json.
@@ -15,8 +19,8 @@ import org.keycloak.models.WebAuthnPolicy;
  * <p>Keycloak reads the realm file only the first time, when the realm does not exist. A change to
  * the file therefore also needs an update here, numbered like Catalog's migrations: the realm
  * keeps its number in the attribute trainmeetVersion, and every update above it runs once when
- * Keycloak starts. The file carries the latest number, so a new realm runs none. The check
- * "Tester" compares the two (id/tests/test_realm.py).
+ * Keycloak starts, each in a transaction of its own. The file carries the latest number, so a
+ * new realm runs none. The check "Tester" compares the two (id/tests/test_realm.py).
  */
 final class RealmUpdates {
     private static final Logger LOG = Logger.getLogger(RealmUpdates.class);
@@ -24,29 +28,49 @@ final class RealmUpdates {
     static final String REALM = "trainmeet";
     static final String VERSION = "trainmeetVersion";
     /** The latest update. The realm file says the same. */
-    static final int LATEST = 3;
+    static final int LATEST = 4;
 
     static final String PASSKEY_ACTION = "webauthn-register-passwordless";
 
     private RealmUpdates() {}
 
-    static void apply(KeycloakSession session) {
-        RealmModel realm = session.realms().getRealmByName(REALM);
-        if (realm == null) {
-            return; // made from the file, which is up to date
+    /** One update: the realm as it is, and the session it runs in. */
+    interface Step {
+        void run(KeycloakSession session, RealmModel realm);
+    }
+
+    /** The updates in order; the one at index i takes the realm from i + 1 to i + 2. */
+    static final List<Step> STEPS = List.of(
+            (session, realm) -> passkeys(realm),
+            (session, realm) -> idWebApp(realm),
+            RealmUpdates::catalogAsks);
+
+    /**
+     * Every update runs in a transaction of its own, together with the new number. One that fails
+     * is rolled back and logged, and the ones after it wait: Keycloak still starts, and the login
+     * still works, with the realm as it was.
+     */
+    static void apply(KeycloakSessionFactory factory) {
+        for (int step = 2; step <= LATEST; step++) {
+            int target = step;
+            try {
+                boolean ran = KeycloakModelUtils.runJobInTransactionWithResult(factory, session -> {
+                    RealmModel realm = session.realms().getRealmByName(REALM);
+                    if (realm == null || parse(realm.getAttribute(VERSION)) >= target) {
+                        return false; // made from the file, or already updated
+                    }
+                    STEPS.get(target - 2).run(session, realm);
+                    realm.setAttribute(VERSION, Integer.toString(target));
+                    return true;
+                });
+                if (ran) {
+                    LOG.infof("Realmen %s är uppdaterad till %d.", REALM, target);
+                }
+            } catch (RuntimeException e) {
+                LOG.errorf(e, "Uppdatering %d av realmen %s gick inte och väntar till nästa start.", target, REALM);
+                return;
+            }
         }
-        int version = parse(realm.getAttribute(VERSION));
-        if (version >= LATEST) {
-            return;
-        }
-        if (version < 2) {
-            passkeys(realm);
-        }
-        if (version < 3) {
-            idWebApp(realm);
-        }
-        realm.setAttribute(VERSION, Integer.toString(LATEST));
-        LOG.infof("Realmen %s är uppdaterad från %d till %d.", REALM, version, LATEST);
     }
 
     /** 2: passkey as an option beside the code to the email (KONTO-33, ID5). */
@@ -105,6 +129,24 @@ final class RealmUpdates {
         realm.getClientScopesStream()
                 .filter(scope -> SCOPES.contains(scope.getName()))
                 .forEach(scope -> client.addClientScope(scope, true));
+    }
+
+    static final String CATALOG_CLIENT = "catalog";
+
+    /**
+     * 4: Catalog asks ID's API about the roles with a token of its own, from client credentials
+     * (KONTO-34, #49). Its service account has no roles in Keycloak; ID's API knows it by the
+     * token's azp.
+     */
+    static void catalogAsks(KeycloakSession session, RealmModel realm) {
+        ClientModel client = realm.getClientByClientId(CATALOG_CLIENT);
+        if (client == null || client.isServiceAccountsEnabled()) {
+            return;
+        }
+        client.setServiceAccountsEnabled(true);
+        // Keycloak makes the service account in the realm the session works in.
+        session.getContext().setRealm(realm);
+        new ClientManager(new RealmManager(session)).enableServiceAccount(client);
     }
 
     private static int parse(String value) {

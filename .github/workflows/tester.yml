@@ -252,7 +252,8 @@ jobs:
           docker exec id-db createdb -U keycloak catalog
           CATALOG_DATABASE_URL=postgresql://keycloak:prov@127.0.0.1:5432/catalog CATALOG_MIGRATE=auto \
           CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_ID_SECRET=prov-hemlighet \
-          CATALOG_PUBLIC_URL=http://localhost:8001 \
+          CATALOG_PUBLIC_URL=http://localhost:8001 CATALOG_ID_API=http://127.0.0.1:8002 \
+          CATALOG_ID_WEB=http://localhost:8002 \
             nohup uv run uvicorn catalog.app:app --port 8001 --no-access-log > "$RUNNER_TEMP/catalog.log" 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8001/healthz >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://127.0.0.1:8001/healthz

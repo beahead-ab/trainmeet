@@ -24,6 +24,8 @@ export type Lookup = Schemas["trainmeet.catalog-1.lookup"];
 export type TagEvent = Schemas["trainmeet.catalog-1.tag-event"];
 export type PendingState = Schemas["trainmeet.catalog-1.pending"];
 export type TagLink = Schemas["trainmeet.catalog-1.tag-link"];
+export type FleetChoice = Schemas["trainmeet.catalog-1.fleet-choice"];
+export type FleetRight = FleetChoice["right"];
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
@@ -73,6 +75,17 @@ function query(filters: Filters): string {
 
 const V = "/api/catalog/1/vehicles";
 const P = "/api/catalog/1/places";
+
+/** The fleet the person works in: null for their own, otherwise the owner's id (CAT-50, #49). */
+let working: string | null = null;
+export function workIn(owner: string | null): void {
+  working = owner;
+}
+/** A fleet address, in the fleet the person works in. */
+function inFleet(path: string): string {
+  if (working === null) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}fleet=${encodeURIComponent(working)}`;
+}
 const T = "/api/catalog/1/tags";
 const tagPath = (uid: string) => `${T}/${encodeURIComponent(uid)}`;
 
@@ -84,22 +97,24 @@ export function idLoginHref(next: string, language: string): string {
 export const api = {
   version: () => call<CatalogVersion>("GET", "/api/version"),
   session: () => call<Session>("GET", "/api/catalog/1/session"),
+  fleets: () => call<FleetChoice[]>("GET", "/api/catalog/1/fleets"),
   logOut: () => call<Session>("DELETE", "/api/catalog/1/session"),
   trialAccounts: () => call<Account[]>("GET", "/api/catalog/1/trial/accounts"),
   trialLogIn: (login: TrialLogin) => call<Session>("POST", "/api/catalog/1/trial/login", login),
-  vehicles: (filters: Filters = {}) => call<VehicleList>("GET", V + query(filters)),
-  vehicle: (id: string) => call<Vehicle>("GET", `${V}/${id}`),
-  addVehicle: (fields: VehicleFields) => call<Vehicle>("POST", V, fields),
-  changeVehicle: (id: string, change: VehicleChange) => call<Vehicle>("PUT", `${V}/${id}`, change),
-  removeVehicle: (id: string, version: number) => call<{ id: string }>("DELETE", `${V}/${id}?version=${version}`),
-  move: (vehicles: string[], place: string | null) => call<VehicleList>("POST", `${V}/move`, { vehicles, place }),
-  lend: (id: string, lend: Lend) => call<Vehicle>("POST", `${V}/${id}/lend`, lend),
-  giveBack: (id: string, version: number) => call<Vehicle>("POST", `${V}/${id}/return`, { version }),
-  events: (id: string) => call<VehicleEvent[]>("GET", `${V}/${id}/events`),
-  places: () => call<Place[]>("GET", P),
-  addPlace: (name: string) => call<Place>("POST", P, { name }),
-  renamePlace: (id: string, name: string) => call<Place>("PUT", `${P}/${id}`, { name }),
-  removePlace: (id: string) => call<{ id: string }>("DELETE", `${P}/${id}`),
+  vehicles: (filters: Filters = {}) => call<VehicleList>("GET", inFleet(V + query(filters))),
+  vehicle: (id: string) => call<Vehicle>("GET", inFleet(`${V}/${id}`)),
+  /** A new vehicle goes in the fleet the person works in, or in their own (CAT-50). */
+  addVehicle: (fields: VehicleFields, own = false) => call<Vehicle>("POST", own ? V : inFleet(V), fields),
+  changeVehicle: (id: string, change: VehicleChange) => call<Vehicle>("PUT", inFleet(`${V}/${id}`), change),
+  removeVehicle: (id: string, version: number) => call<{ id: string }>("DELETE", inFleet(`${V}/${id}?version=${version}`)),
+  move: (vehicles: string[], place: string | null) => call<VehicleList>("POST", inFleet(`${V}/move`), { vehicles, place }),
+  lend: (id: string, lend: Lend) => call<Vehicle>("POST", inFleet(`${V}/${id}/lend`), lend),
+  giveBack: (id: string, version: number) => call<Vehicle>("POST", inFleet(`${V}/${id}/return`), { version }),
+  events: (id: string) => call<VehicleEvent[]>("GET", inFleet(`${V}/${id}/events`)),
+  places: () => call<Place[]>("GET", inFleet(P)),
+  addPlace: (name: string) => call<Place>("POST", inFleet(P), { name }),
+  renamePlace: (id: string, name: string) => call<Place>("PUT", inFleet(`${P}/${id}`), { name }),
+  removePlace: (id: string) => call<{ id: string }>("DELETE", inFleet(`${P}/${id}`)),
   lookup: (uid: string) => call<Lookup>("GET", tagPath(uid)),
   link: (uid: string, link: TagLink) => call<Vehicle>("POST", `${tagPath(uid)}/link`, link),
   unlink: (vehicle: string, assignment: string) => call<Vehicle>("POST", `${V}/${vehicle}/tags/unlink`, { assignment, confirm: true }),
@@ -110,7 +125,7 @@ export const api = {
   waitForTag: (vehicle: string, replace: string | null) => call<PendingState>("POST", `${T}/pending`, { vehicle, replace }),
   stopWaiting: () => call<PendingState>("DELETE", `${T}/pending`),
   tell: (uid: string, text: string) => call<{ told: true }>("POST", `${tagPath(uid)}/notice`, { text }),
-  clearNotice: (vehicle: string, notice: string) => call<{ id: string }>("DELETE", `${V}/${vehicle}/notices/${notice}`),
+  clearNotice: (vehicle: string, notice: string) => call<{ id: string }>("DELETE", inFleet(`${V}/${vehicle}/notices/${notice}`)),
   settings: () => call<{ show_name: boolean }>("GET", "/api/catalog/1/settings"),
   changeSettings: (show_name: boolean) => call<{ show_name: boolean }>("PUT", "/api/catalog/1/settings", { show_name }),
 };

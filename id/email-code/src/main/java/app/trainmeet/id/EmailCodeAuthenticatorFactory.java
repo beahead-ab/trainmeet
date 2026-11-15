@@ -7,7 +7,6 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.models.utils.PostMigrationEvent;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -72,7 +71,7 @@ public class EmailCodeAuthenticatorFactory implements AuthenticatorFactory {
     public void postInit(KeycloakSessionFactory factory) {
         factory.register(event -> {
             if (event instanceof PostMigrationEvent) {
-                KeycloakModelUtils.runJobInTransaction(factory, RealmUpdates::apply);
+                RealmUpdates.apply(factory);
             }
         });
     }

@@ -1,11 +1,28 @@
 // What the pages share: the texts for a vehicle, the dialog and the error line.
 import { linkClick, type Navigate } from "@trainmeet/design";
 import { useEffect, useRef, type ReactNode } from "react";
-import { ApiError, type Vehicle, type VehicleKind, type VehicleState } from "./api";
+import { ApiError, type FleetRight, type Vehicle, type VehicleKind, type VehicleState } from "./api";
 import type { Language, TextKey } from "./i18n";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
-export type Ctx = { t: T; language: Language; navigate?: Navigate; replace?: Navigate };
+export type Ctx = {
+  t: T;
+  language: Language;
+  navigate?: Navigate;
+  replace?: Navigate;
+  /** The right in the fleet the person works in (#49): their own unless shared with them. */
+  right?: FleetRight;
+  /** Whose fleet it is, when it is someone else's (CAT-50). */
+  fleetTitle?: string;
+  /** Where the owner shares the fleet in TrainMeet ID (CAT-44). */
+  shareUrl?: string | null;
+  /** Work in another fleet: null for the person's own (CAT-50). */
+  workIn?: (owner: string | null) => void;
+};
+
+/** The owner may do everything; someone the fleet is shared with less (CAT-46). */
+export const isOwner = (ctx: Ctx) => (ctx.right ?? "owner") === "owner";
+export const mayEdit = (ctx: Ctx) => (ctx.right ?? "owner") !== "view";
 
 export const kindText = (t: T, kind: VehicleKind | null | undefined) => (kind ? t(`kind_${kind}` as TextKey) : "");
 export const stateText = (t: T, state: VehicleState) => t(`state_${state}` as TextKey);

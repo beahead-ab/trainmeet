@@ -91,6 +91,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
     "trainmeet.catalog-1.trial-login": catalog.TrialLogin,
+    "trainmeet.catalog-1.fleet-choice": catalog.FleetChoice,
     "trainmeet.catalog-1.vehicle-fields": catalog.VehicleFields,
     "trainmeet.catalog-1.vehicle-change": catalog.VehicleChange,
     "trainmeet.catalog-1.vehicle": catalog.Vehicle,
@@ -460,6 +461,7 @@ def catalog_openapi() -> str:
     route("delete", "/api/catalog/1/session", "catalogLogOut", "session")
     route("get", "/api/catalog/1/trial/accounts", "trialAccounts", "account", many=True)
     route("post", "/api/catalog/1/trial/login", "trialLogIn", "session", "trial-login")
+    route("get", "/api/catalog/1/fleets", "fleets", "fleet-choice", many=True, problems=(401, 503))
 
     def redirect(path: str, operation: str, summary: str, query: tuple[str, ...]) -> None:
         """An address the browser opens itself; the answer sends it on (#66)."""
@@ -554,6 +556,24 @@ def catalog_openapi() -> str:
             },
         }
     }
+    # A fleet shared with the person (#49): ?fleet=<owner> works in it, with the right ID says
+    # now. 403 when only the owner may, 503 when ID does not answer (CAT-49, KONTO-34).
+    fleet_param: JsonSchemaValue = {
+        "name": "fleet",
+        "in": "query",
+        "description": "The owner's id, to work in a fleet shared with the person.",
+        "schema": {"type": "string", "format": "uuid"},
+    }
+    for path, methods in paths.items():
+        if not path.startswith(("/api/catalog/1/vehicles", "/api/catalog/1/places")):
+            continue
+        for entry in methods.values():
+            entry.setdefault("parameters", []).append(fleet_param)
+            for code in (403, 503):
+                entry["responses"][str(code)] = {
+                    "description": "Catalog säger nej",
+                    "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+                }
     return (
         json.dumps(
             {
