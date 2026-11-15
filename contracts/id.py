@@ -13,11 +13,17 @@ For the person, with ID's session cookie (the web app at id.trainmeet.app):
     DELETE /api/id/1/session                              Session, logged out
     GET    /api/id/1/clubs                                [Club], the person's own
     POST   /api/id/1/clubs                                ClubName -> Club; the creator is admin
-    GET    /api/id/1/clubs/{club}                         ClubPage
+    GET    /api/id/1/clubs/{club}                         ClubPage, with the club's meets
+    POST   /api/id/1/clubs/{club}/meets                   NewMeet -> Meet; the admin (ID10)
     POST   /api/id/1/clubs/{club}/invitations             Invite -> Invitation
     DELETE /api/id/1/clubs/{club}/members/{person}        ClubPage; admin removes, member leaves
     GET    /api/id/1/fleets/{owner}                       FleetPage; the owner's sharing
     POST   /api/id/1/fleets/{owner}/invitations           FleetInvite -> Invitation
+    GET    /api/id/1/meets                                [Meet], the person's clubs' (ID10)
+    GET    /api/id/1/meets/{meet}                         MeetPage: the roles at the meet
+    PUT    /api/id/1/meets/{meet}                         NewMeet -> MeetPage; admin, organizer
+    DELETE /api/id/1/meets/{meet}                         Removed; the club's admin
+    POST   /api/id/1/meets/{meet}/grants                  MeetGrant -> MeetPage (KONTO-36)
     DELETE /api/id/1/grants/{grant}                       Removed; stop sharing, takes a role
     GET    /api/id/1/invitations                          [Invitation] to the person
     POST   /api/id/1/invitations/{invitation}/answer      Answer -> Invitation
@@ -37,12 +43,12 @@ Rules:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, model_validator
 
 from contracts.common import Contract, Text
 
@@ -58,6 +64,7 @@ Email = Annotated[
 """An e-mail address, compared in lower case."""
 
 ClubNameText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+MeetNameText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 
 
 class ResourceKind(StrEnum):
@@ -186,12 +193,74 @@ class Invitation(Contract):
     at: datetime
 
 
+class MeetRole(StrEnum):
+    """The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28)."""
+
+    ORGANIZER = "organizer"
+    """Arrangör: hands out Trafikledare and Lokledare for the meet (KONTO-36)."""
+    DISPATCHER = "dispatcher"
+    """Trafikledare (ID3, KONTO-16)."""
+    LOCO_LEAD = "loco_lead"
+    """Lokledare: hands out duties, runs no traffic (LF17)."""
+    REMOTE_CLEARER = "remote_clearer"
+    """Fjärrtågklarerare."""
+
+
+class NewMeet(Contract):
+    """A meet as ID holds it: a reference with name, dates and club (ID10). The meet itself, its
+    plan and its traffic, belongs to the Hub (KONTO-09)."""
+
+    name: MeetNameText
+    starts_on: date
+    ends_on: date
+
+    @model_validator(mode="after")
+    def _in_order(self) -> Self:
+        if self.ends_on < self.starts_on:
+            raise ValueError("Träffen slutar innan den börjar.")
+        if (self.ends_on - self.starts_on).days > 30:
+            raise ValueError("En träff är högst en månad.")
+        return self
+
+
+class Meet(NewMeet):
+    id: UUID
+    club: UUID
+    club_name: ClubNameText
+    roles: list[MeetRole] = Field(description="The person's own roles at the meet.")
+
+
+class MeetPage(Contract):
+    """A meet's roles, as the club's members see them (ID10). Whoever may hand out roles also
+    gets the club's members to choose from (KONTO-17: clubs are kept apart)."""
+
+    meet: Meet
+    grants: list[Grant]
+    may_give: list[MeetRole] = Field(
+        description="The roles the person may hand out here: the club's admin all of them, "
+        "the organizer Trafikledare and Lokledare (KONTO-36)."
+    )
+    may_change: bool = Field(description="May change the name and the dates.")
+    may_remove: bool = Field(description="May remove the meet: the club's admin.")
+    members: list[Person] = Field(
+        default_factory=list, description="The club's members, when the person may hand out."
+    )
+
+
+class MeetGrant(Contract):
+    """Hand out a role at the meet to one of the club's members."""
+
+    person: UUID
+    role: MeetRole
+
+
 class ClubPage(Contract):
     """A club as its members see it. Only the admin sees the waiting invitations."""
 
     club: Club
     members: list[Member]
     invitations: list[Invitation] = Field(default_factory=list)
+    meets: list[Meet] = Field(default_factory=list, description="The club's meets (ID10).")
 
 
 class Invite(Contract):

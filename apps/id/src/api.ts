@@ -15,6 +15,10 @@ export type Problem = Schemas["trainmeet.id-1.problem"];
 export type ProblemCode = Problem["code"];
 export type Role = Invitation["role"];
 export type FleetRole = Schemas["trainmeet.id-1.fleet-invite"]["role"];
+export type Meet = Schemas["trainmeet.id-1.meet"];
+export type MeetPage = Schemas["trainmeet.id-1.meet-page"];
+export type MeetRole = Schemas["trainmeet.id-1.meet-grant"]["role"];
+export type NewMeet = Schemas["trainmeet.id-1.new-meet"];
 
 /** ID said no, with a code the web app has a text for, or something else went wrong. */
 export class ApiError extends Error {
@@ -72,4 +76,10 @@ export const api = {
   invitations: () => call<Invitation[]>("GET", `${A}/invitations`),
   answer: (invitation: string, accept: boolean) => call<Invitation>("POST", `${A}/invitations/${invitation}/answer`, { accept }),
   withdraw: (invitation: string) => call<{ id: string }>("DELETE", `${A}/invitations/${invitation}`),
+  meets: () => call<Meet[]>("GET", `${A}/meets`),
+  meet: (id: string) => call<MeetPage>("GET", `${A}/meets/${id}`),
+  createMeet: (club: string, meet: NewMeet) => call<Meet>("POST", `${A}/clubs/${club}/meets`, meet),
+  changeMeet: (id: string, meet: NewMeet) => call<MeetPage>("PUT", `${A}/meets/${id}`, meet),
+  removeMeet: (id: string) => call<{ id: string }>("DELETE", `${A}/meets/${id}`),
+  giveAtMeet: (id: string, person: string, role: MeetRole) => call<MeetPage>("POST", `${A}/meets/${id}/grants`, { person, role }),
 };

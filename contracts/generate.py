@@ -133,6 +133,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.removed": id_api.Removed,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
+    "trainmeet.id-1.new-meet": id_api.NewMeet,
+    "trainmeet.id-1.meet": id_api.Meet,
+    "trainmeet.id-1.meet-page": id_api.MeetPage,
+    "trainmeet.id-1.meet-grant": id_api.MeetGrant,
     "trainmeet.id-1.problem": id_api.Problem,
 }
 
@@ -697,6 +701,22 @@ def id_openapi() -> str:
         problems=(*write, 503),
     )
     route("delete", a + "/grants/{grant}", "removeGrant", "removed", problems=write)
+    route(
+        "post",
+        a + "/clubs/{club}/meets",
+        "createMeet",
+        "meet",
+        "new-meet",
+        created=True,
+        problems=write,
+    )
+    route("get", a + "/meets", "meets", "meet", many=True, problems=(401,))
+    route("get", a + "/meets/{meet}", "meetPage", "meet-page", problems=(401, 404))
+    route("put", a + "/meets/{meet}", "changeMeet", "meet-page", "new-meet", problems=write)
+    route("delete", a + "/meets/{meet}", "removeMeet", "removed", problems=write)
+    route(
+        "post", a + "/meets/{meet}/grants", "giveAtMeet", "meet-page", "meet-grant", problems=write
+    )
     route("get", a + "/invitations", "invitations", "invitation", many=True, problems=(401,))
     route(
         "post",

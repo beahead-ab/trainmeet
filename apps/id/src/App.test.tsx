@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ClubPage, FleetPage, Invitation, Session } from "./api";
-import { Shell, type ShellProps } from "./App";
+import type { ClubPage, FleetPage, Invitation, Meet, MeetPage, Session } from "./api";
+import { days, Shell, type ShellProps } from "./App";
 import { TEXTS } from "./i18n";
 import { routeFor } from "./routes";
 
@@ -114,5 +114,72 @@ describe("TrainMeet ID's web app", () => {
     expect(routeFor(`/klubbar/${club.id}`)).toEqual({ page: "club", id: club.id });
     expect(routeFor(`/vagnparker/${kim.id}/`)).toEqual({ page: "fleet", id: kim.id });
     expect(routeFor("/klubbar/inte-ett-id")).toEqual({ page: "missing" });
+    expect(routeFor(`/traffar/${club.id}`)).toEqual({ page: "meet", id: club.id });
+  });
+});
+
+describe("the meets in ID (ID10)", () => {
+  const autumn: Meet = { id: "cccccccc-6666-4777-8888-999900001111", club: club.id, club_name: "Västby MJK", name: "Höstträffen", starts_on: "2026-11-13", ends_on: "2026-11-15", roles: ["organizer"] };
+  const jon = { id: "dddddddd-7777-4888-8999-000011112222", name: "Jon Eriksson", initials: "JE" };
+  const grant = (id: string, person: typeof jon, role: string) => ({ id, person, role: role as "organizer", resource: { kind: "meet" as const, id: autumn.id }, at });
+  const page = (change: Partial<MeetPage> = {}): MeetPage => ({
+    meet: autumn,
+    grants: [grant("eeeeeeee-0000-4000-8000-000000000001", { id: kim.id, name: "Kim Ek", initials: "KE" }, "organizer"), grant("eeeeeeee-0000-4000-8000-000000000002", jon, "loco_lead")],
+    may_give: ["dispatcher", "loco_lead"],
+    may_change: true,
+    may_remove: false,
+    members: [{ id: kim.id, name: "Kim Ek", initials: "KE" }, jon, sara],
+    ...change,
+  });
+
+  it("writes a meet's days as one stretch", () => {
+    expect(days(autumn, "sv")).toBe("13–15 november 2026");
+    expect(days(autumn, "en")).toMatch(/^13\s?–\s?15 November 2026$/); // ICU spaces it in English
+    expect(days({ starts_on: "2026-10-31", ends_on: "2026-11-01" }, "sv")).toBe("31 oktober–1 november 2026");
+    expect(days({ starts_on: "2026-11-14", ends_on: "2026-11-14" }, "sv")).toBe("14 november 2026");
+  });
+
+  it("lists the club's meets with the person's roles, and the admin makes a new one", () => {
+    const clubPage: ClubPage = { club, members: [{ person: { id: kim.id, name: "Kim Ek", initials: "KE" }, role: "admin", since: at }], invitations: [], meets: [autumn] };
+    const admin = render({ route: { page: "club", id: club.id }, data: { club: clubPage } });
+    expect(admin).toContain("Klubbens träffar");
+    expect(admin).toContain(`href="/traffar/${autumn.id}"`);
+    expect(admin).toContain("13–15 november 2026");
+    expect(admin).toContain(">Arrangör<");
+    expect(admin).toContain("Ny träff");
+    expect(admin).toContain('type="date"');
+    const member = render({ route: { page: "club", id: club.id }, data: { club: { ...clubPage, club: { ...club, role: "member" } } } });
+    expect(member).not.toContain("Ny träff");
+
+    const tab = render({ route: { page: "meets" }, data: { meets: [autumn] } });
+    expect(tab).toContain("Västby MJK · 13–15 november 2026");
+    expect(render({ route: { page: "meets" }, data: { meets: [] } })).toContain("Inga träffar än. Klubbens administratör lägger till dem under Klubbar.");
+  });
+
+  it("lets the organizer hand out Trafikledare and Lokledare to the club's members", () => {
+    const html = render({ route: { page: "meet", id: autumn.id }, data: { meet: page() } });
+    expect(html).toContain("Träff · Västby MJK");
+    expect(html).toContain("Roller på Höstträffen");
+    expect(html).toContain(">Lokledare<");
+    expect(html).toContain("Dela ut en roll");
+    expect(html).toContain(">Jon Eriksson · Västby MJK</option>");
+    expect(html.match(/<input[^>]*value="dispatcher"[^>]*>/)?.[0]).toContain("checked");
+    expect(html).not.toContain('value="remote_clearer"');
+    expect(html).toContain('aria-label="Ändra rollerna för Jon Eriksson"');
+    expect(html).toContain("Ändra träffen");
+    expect(html).not.toContain("Ta bort träffen"); // only the club's admin
+  });
+
+  it("shows a member the roles, and nothing to hand out", () => {
+    const html = render({
+      route: { page: "meet", id: autumn.id },
+      session: { account: { ...kim, id: sara.id, name: "Sara Holm" }, logout_url: null },
+      data: { meet: page({ meet: { ...autumn, roles: [] }, may_give: [], may_change: false, members: [] }) },
+    });
+    expect(html).toContain("Roller på Höstträffen");
+    expect(html).not.toContain("Dela ut en roll");
+    expect(html).not.toContain("Ändra rollerna");
+    expect(html).not.toContain("Ändra träffen");
+    expect(html).toContain("Träffen i Hubben");
   });
 });

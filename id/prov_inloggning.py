@@ -16,8 +16,9 @@ en kod till e-posten och tillbaka in i Catalog med samma konto (KONTO-27), sedan
 ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och ID.
 
 Med --id-app körs ID:s API och webbapp på den adressen (#67): en klubb skapas, en medlem
-bjuds in med mejl och svarar ja. Med båda delas en vagnpark i ID och syns i Catalog (#49), och
-klubbens vagnpark provas: administratören gör ägarens saker, medlemmen tittar (CAT-51, C39).
+bjuds in med mejl och svarar ja, och klubben får en träff där medlemmen blir trafikledare
+(ID10). Med båda delas en vagnpark i ID och syns i Catalog (#49), och klubbens vagnpark provas:
+administratören gör ägarens saker, medlemmen tittar (CAT-51, C39).
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -499,6 +500,23 @@ def run_id_api(base: str, mails: Path, id_app: str) -> None:
         "Medlemmarna stämmer inte.",
     )
     print("ID:s webbapp: inbjudan besvarad, medlem i klubben: ok")
+
+    # Träffarna (ID10): administratören lägger till en träff och delar ut en roll till Sara.
+    autumn = {"name": "Provträffen", "starts_on": "2026-11-13", "ends_on": "2026-11-15"}
+    meet = kim.app.post(f"/api/id/1/clubs/{club}/meets", json=autumn)
+    check(meet.status_code == 201, f"Träffen svarade {meet.status_code}: {meet.text[:200]}")
+    sara_id = str(sara.session()["account"]["id"])  # type: ignore[index]
+    given = kim.app.post(
+        f"/api/id/1/meets/{meet.json()['id']}/grants",
+        json={"person": sara_id, "role": "dispatcher"},
+    )
+    check(given.status_code == 200, f"Rollen svarade {given.status_code}: {given.text[:200]}")
+    mine = sara.app.get("/api/id/1/meets").json()
+    check(
+        [(m["name"], m["roles"]) for m in mine] == [("Provträffen", ["dispatcher"])],
+        f"Sara ser inte sin roll på träffen: {mine}",
+    )
+    print("ID:s webbapp: träffen och rollen Trafikledare: ok")
 
 
 def run_sharing(base: str, mails: Path, catalog: str, id_app: str) -> None:

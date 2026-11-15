@@ -100,6 +100,73 @@
       "title": "InvitationState",
       "type": "string"
     },
+    "Meet": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "starts_on": {
+          "format": "date",
+          "title": "Starts On",
+          "type": "string"
+        },
+        "ends_on": {
+          "format": "date",
+          "title": "Ends On",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "club": {
+          "format": "uuid",
+          "title": "Club",
+          "type": "string"
+        },
+        "club_name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Club Name",
+          "type": "string"
+        },
+        "roles": {
+          "description": "The person's own roles at the meet.",
+          "items": {
+            "$ref": "#/$defs/MeetRole"
+          },
+          "title": "Roles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "starts_on",
+        "ends_on",
+        "id",
+        "club",
+        "club_name",
+        "roles"
+      ],
+      "title": "Meet",
+      "type": "object"
+    },
+    "MeetRole": {
+      "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+      "enum": [
+        "organizer",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer"
+      ],
+      "title": "MeetRole",
+      "type": "string"
+    },
     "Member": {
       "additionalProperties": true,
       "properties": {
@@ -223,6 +290,14 @@
         "$ref": "#/$defs/Invitation"
       },
       "title": "Invitations",
+      "type": "array"
+    },
+    "meets": {
+      "description": "The club's meets (ID10).",
+      "items": {
+        "$ref": "#/$defs/Meet"
+      },
+      "title": "Meets",
       "type": "array"
     }
   },

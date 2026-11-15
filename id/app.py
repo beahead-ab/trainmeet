@@ -37,6 +37,10 @@ from contracts.id import (
     FleetPage,
     Invitation,
     Invite,
+    Meet,
+    MeetGrant,
+    MeetPage,
+    NewMeet,
     Problem,
     ProblemCode,
     Removed,
@@ -248,6 +252,32 @@ def create_app(
     @app.delete(API + "/grants/{grant}")
     def remove_grant(grant: UUID, person: Person) -> Removed:
         return roles.remove_grant(person, grant)
+
+    # --- Meets (ID10) -------------------------------------------------------------------------
+
+    @app.post(API + "/clubs/{club}/meets", status_code=201)
+    def create_meet(club: UUID, body: NewMeet, person: Person) -> Meet:
+        return roles.create_meet(person, club, body)
+
+    @app.get(API + "/meets")
+    def meets(person: Person) -> list[Meet]:
+        return roles.meets(person)
+
+    @app.get(API + "/meets/{meet}")
+    def meet_page(meet: UUID, person: Person) -> MeetPage:
+        return roles.meet_page(person, meet)
+
+    @app.put(API + "/meets/{meet}")
+    def change_meet(meet: UUID, body: NewMeet, person: Person) -> MeetPage:
+        return roles.change_meet(person, meet, body)
+
+    @app.delete(API + "/meets/{meet}")
+    def remove_meet(meet: UUID, person: Person) -> Removed:
+        return roles.remove_meet(person, meet)
+
+    @app.post(API + "/meets/{meet}/grants")
+    def give_at_meet(meet: UUID, body: MeetGrant, person: Person) -> MeetPage:
+        return roles.give_at_meet(person, meet, body)
 
     # --- Invitations --------------------------------------------------------------------------
 
