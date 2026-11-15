@@ -175,3 +175,23 @@ def test_there_is_one_update_for_every_number_after_the_first() -> None:
     count = len(re.findall(r"\(session, realm\) ->|RealmUpdates::", steps.group(1)))
     assert count == int(latest.group(1)) - 1
     assert "runJobInTransactionWithResult" in updates
+
+
+def test_the_api_image_has_every_module_the_api_uses() -> None:
+    """id/api.Dockerfile names ID's files one by one, so a new module must be named there too.
+    It was missed once: id/help.py, and the image did not start (#108)."""
+    import re
+
+    folder = Path(__file__).resolve().parents[1]
+    copied = set(re.findall(r"id/(\w+)\.py", (folder / "api.Dockerfile").read_text()))
+    needed, todo = set(), ["app"]
+    while todo:
+        module = todo.pop()
+        if module in needed:
+            continue
+        needed.add(module)
+        text = (folder / f"{module}.py").read_text()
+        todo += re.findall(r"^from id\.(\w+) import", text, re.M)
+        for names in re.findall(r"^from id import (.+)$", text, re.M):
+            todo += [part.split()[0] for part in names.split(",")]  # "login as id_login"
+    assert needed <= copied, sorted(needed - copied)
