@@ -70,7 +70,7 @@ uv run python -m id.prov_inloggning http://127.0.0.1:8080 /tmp/mejl.txt <klienth
 
 Kontrollen *ID:s bild* startar bilden med en PostgreSQL och den låtsade mejlservern och kör provet av inloggningen; se jobbet `id` i `.github/workflows/tester.yml` för vilka inställningar Keycloak behöver.
 
-Bredvid Keycloak, på samma adress, finns ID:s eget API (#67): klubbarna och medlemmarna, rollerna per resurs och inbjudningarna, och frågan apparna ställer om vilken roll en person har (KONTO-34). Kontraktet står i `contracts/id.py` och `contracts/id.openapi.json`. Det körs med `uv run uvicorn id.app:app --port 8002` och inställningarna i `id/settings.py`, med en egen databas; bilden byggs med `docker build -f id/api.Dockerfile -t trainmeet-idapi .`. Testerna behöver en PostgreSQL i `ID_TEST_DATABASE_URL` eller `CATALOG_TEST_DATABASE_URL`.
+Bredvid Keycloak, på samma adress, finns ID:s eget API (#67): klubbarna och medlemmarna, rollerna per resurs och inbjudningarna, och frågan apparna ställer om vilken roll en person har (KONTO-34). Kontraktet står i `contracts/id.py` och `contracts/id.openapi.json`. Det körs med `uv run uvicorn id.app:app --port 8002` och inställningarna i `id/settings.py`, med en egen databas; bilden byggs med `docker build -f id/api.Dockerfile -t trainmeet-idapi .`. ID:s webbapp ligger i `apps/id` (React, med flikarna Konto, Klubbar, Träffar och Tokens) och byggs in i samma bild: `npm run build -w apps/id`, eller `npm run dev -w apps/id` mot ett API på port 8002. Testerna behöver en PostgreSQL i `ID_TEST_DATABASE_URL` eller `CATALOG_TEST_DATABASE_URL`.
 
 ## Testmiljön
 

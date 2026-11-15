@@ -3,6 +3,21 @@
 #   docker build -f id/api.Dockerfile -t trainmeet-idapi .
 # Secrets never go in the image; they come from the environment when it starts (id/settings.py).
 
+FROM node:22-slim AS web
+WORKDIR /src
+COPY package.json package-lock.json ./
+COPY apps/design/package.json apps/design/
+COPY apps/catalog/package.json apps/catalog/
+COPY apps/id/package.json apps/id/
+RUN npm ci --no-audit --no-fund
+COPY contracts/id.d.ts contracts/
+COPY apps/design apps/design
+COPY apps/id apps/id
+# Types and tests first: a red web app never becomes an image.
+RUN npm run check -w apps/design -w apps/id \
+    && npm run test -w apps/design -w apps/id \
+    && npm run build -w apps/id
+
 FROM python:3.12-slim AS build
 RUN pip install --no-cache-dir "uv>=0.11,<0.12"
 ENV UV_COMPILE_BYTECODE=1 \
@@ -20,6 +35,7 @@ RUN uv sync --locked --no-default-groups --group id --no-editable
 FROM python:3.12-slim
 RUN useradd --system --uid 10003 --home-dir /app --shell /usr/sbin/nologin idapi
 COPY --from=build /app/.venv /app/.venv
+COPY --from=web /src/apps/id/dist /app/web
 WORKDIR /app
 
 ARG TRAINMEET_COMMIT=""
@@ -28,6 +44,7 @@ LABEL org.opencontainers.image.title="TrainMeet ID:s API" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
+    ID_API_WEB_DIR=/app/web \
     TRAINMEET_COMMIT=$TRAINMEET_COMMIT
 
 USER idapi
