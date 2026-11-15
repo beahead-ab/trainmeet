@@ -1,0 +1,213 @@
+/* ID's own layout, on top of the design system (@trainmeet/design), after the drawings
+   Konto and Klubb: cards in two columns, chips for the roles, one primary button. */
+.id-sida {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 48px;
+  outline: none;
+}
+.id-sida h1 {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.15;
+}
+.id-sida .tm-kort h1,
+.id-sida .tm-kort h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+}
+.id-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.id-kolumn {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.id-overrubrik {
+  margin: 0 0 4px;
+  color: var(--tm-blue-text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.id-person {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.id-initialer {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-size: 26px;
+  font-weight: 700;
+  flex: none;
+}
+.id-namn {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.id-detalj {
+  margin: 4px 0 0;
+  color: var(--tm-mute);
+}
+.id-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.id-lista li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--tm-line);
+}
+.id-lista li:first-child {
+  border-top: 0;
+}
+.id-lista a {
+  font-weight: 600;
+}
+.id-knappar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+  font-weight: 600;
+  font-size: 15px;
+}
+.id-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.id-chip-admin,
+.id-chip-editor {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.id-chip-invited {
+  background: #fdf1d8;
+  color: #7a4b00;
+}
+@media (prefers-color-scheme: dark) {
+  .id-chip-invited {
+    background: #2e2412;
+    color: #f2c46d;
+  }
+}
+.id-formular {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+.id-formular label,
+.id-val legend {
+  color: var(--tm-mute);
+  font-weight: 600;
+}
+.id-formular input:not([type="radio"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.id-formular .tm-knapp {
+  justify-self: start;
+  margin-top: 8px;
+}
+.id-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+}
+.id-val label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.id-fel {
+  color: #b42318;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .id-fel {
+    color: #ff8a80;
+  }
+}
+.id-inloggning {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 560px;
+}
+.id-inloggning p {
+  margin: 0;
+}
+.id-fot {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 32px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  /* Four tabs in the phone's bottom menu (KONTO-38). */
+  .tm-bottenmeny {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .id-fot {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 860px) {
+  .id-sida {
+    padding: 24px 16px 40px;
+  }
+  .id-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .id-fot {
+    padding-top: 8px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

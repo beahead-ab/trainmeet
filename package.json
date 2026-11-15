@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-only",
   "workspaces": [
     "apps/design",
-    "apps/catalog"
+    "apps/catalog",
+    "apps/id"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",

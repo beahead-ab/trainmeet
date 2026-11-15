@@ -100,3 +100,16 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Väntande koppling | `PendingLink` | Koppla tagg på kortet: fordonet väntar på nästa tagg i 10 minuter (CAT-94). |
 | Säg till ägaren | `Tell`, `Notice` | Den som är inloggad och blippar någon annans fordon skriver var det står. Ägaren ser beskedet utan avsändare (CAT-113). |
 | Visa mitt namn | `OwnerSettings.show_name` | Ägarens namn på minikortet, för den som är inloggad. Av från början (CAT-101). |
+
+## TrainMeet ID
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| ID:s API | `trainmeet.id/1`, `contracts/id.py` | Det ID äger utöver kontona i Keycloak: klubbar, medlemmar, rollerna per resurs och inbjudningarna (KONTO-08). Beskrivs i `id.openapi.json`, med TypeScript-typerna i `id.d.ts`. |
+| Klubb | `Club`, `ClubPage` | En klubb med medlemmar. Den som skapar den blir administratör (KONTO-35). Klubbar är skilda åt (KONTO-17). |
+| Klubbroll | `ClubRole` | `admin` administratör eller `member` medlem. |
+| Resurs | `Resource`, `ResourceKind` | Det en roll gäller: en klubb, en vagnpark, en träff, en station, en modul, en hubb eller Catalog (KONTO-03). ID har bara referensen. |
+| Roll | `Role`, `Grant` | En persons roll till en resurs (KONTO-28), utdelad av resursens ägare eller klubbens administratör (KONTO-36). |
+| Inbjudan | `Invitation` | Till en klubb eller en delad vagnpark. Ger ingenting förrän den som den skickades till har svarat ja (KONTO-29, KONTO-35). |
+| Delning | `FleetPage`, `FleetInvite`, `FleetRole` | Ägaren delar hela vagnparken med en person, att titta (`viewer`) eller redigera (`editor`) (CAT-44). |
+| Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |
