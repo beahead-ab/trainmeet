@@ -88,6 +88,18 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
     "trainmeet.catalog-1.trial-login": catalog.TrialLogin,
+    "trainmeet.catalog-1.vehicle-fields": catalog.VehicleFields,
+    "trainmeet.catalog-1.vehicle-change": catalog.VehicleChange,
+    "trainmeet.catalog-1.vehicle": catalog.Vehicle,
+    "trainmeet.catalog-1.vehicle-list": catalog.VehicleList,
+    "trainmeet.catalog-1.move": catalog.Move,
+    "trainmeet.catalog-1.lend": catalog.Lend,
+    "trainmeet.catalog-1.return": catalog.Return,
+    "trainmeet.catalog-1.vehicle-event": catalog.VehicleEvent,
+    "trainmeet.catalog-1.place": catalog.Place,
+    "trainmeet.catalog-1.place-name": catalog.PlaceName,
+    "trainmeet.catalog-1.removed": catalog.Removed,
+    "trainmeet.catalog-1.problem": catalog.Problem,
 }
 
 
@@ -376,21 +388,36 @@ def catalog_openapi() -> str:
         request: str | None = None,
         *,
         many: bool = False,
+        created: bool = False,
+        query: tuple[tuple[str, JsonSchemaValue], ...] = (),
+        problems: tuple[int, ...] = (),
     ) -> None:
         body = openapi_ref(c + response)
         if many:
             body = {"type": "array", "items": body}
+        answer = {"description": "OK", "content": {"application/json": {"schema": body}}}
         entry: JsonSchemaValue = {
             "operationId": operation,
-            "responses": {
-                "200": {"description": "OK", "content": {"application/json": {"schema": body}}}
-            },
+            "responses": {"201" if created else "200": answer},
         }
+        for code in problems:
+            entry["responses"][str(code)] = {
+                "description": "Catalog säger nej",
+                "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+            }
         if request:
             entry["requestBody"] = {
                 "required": True,
                 "content": {"application/json": {"schema": openapi_ref(c + request)}},
             }
+        params = [
+            {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
+            for part in path.split("/")
+            if part.startswith("{")
+        ]
+        params += [{"name": name, "in": "query", "schema": schema} for name, schema in query]
+        if params:
+            entry["parameters"] = params
         paths.setdefault(path, {})[method] = entry
 
     route("get", "/api/version", "catalogVersion", "version")
@@ -398,6 +425,38 @@ def catalog_openapi() -> str:
     route("delete", "/api/catalog/1/session", "catalogLogOut", "session")
     route("get", "/api/catalog/1/trial/accounts", "trialAccounts", "account", many=True)
     route("post", "/api/catalog/1/trial/login", "trialLogIn", "session", "trial-login")
+    v = "/api/catalog/1/vehicles"
+    text: JsonSchemaValue = {"type": "string"}
+    kinds: JsonSchemaValue = {"type": "array", "items": {"type": "string"}}
+    write = (401, 404, 409, 422)
+    route(
+        "get",
+        v,
+        "vehicles",
+        "vehicle-list",
+        query=(("q", text), ("kind", kinds), ("scale", text), ("state", text), ("place", text)),
+        problems=(401, 422),
+    )
+    route("post", v, "addVehicle", "vehicle", "vehicle-fields", created=True, problems=write)
+    route("post", v + "/move", "moveVehicles", "vehicle-list", "move", problems=write)
+    route("get", v + "/{vehicle}", "vehicle", "vehicle", problems=(401, 404))
+    route("put", v + "/{vehicle}", "changeVehicle", "vehicle", "vehicle-change", problems=write)
+    route(
+        "delete",
+        v + "/{vehicle}",
+        "removeVehicle",
+        "removed",
+        query=(("version", {"type": "integer"}),),
+        problems=write,
+    )
+    route("post", v + "/{vehicle}/lend", "lendVehicle", "vehicle", "lend", problems=write)
+    route("post", v + "/{vehicle}/return", "returnVehicle", "vehicle", "return", problems=write)
+    route("get", v + "/{vehicle}/events", "vehicleEvents", "vehicle-event", many=True)
+    p = "/api/catalog/1/places"
+    route("get", p, "places", "place", many=True, problems=(401,))
+    route("post", p, "addPlace", "place", "place-name", created=True, problems=write)
+    route("put", p + "/{place}", "renamePlace", "place", "place-name", problems=write)
+    route("delete", p + "/{place}", "removePlace", "removed", problems=write)
     return (
         json.dumps(
             {

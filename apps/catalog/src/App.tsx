@@ -3,7 +3,13 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 import { api, type Account, type CatalogVersion, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
-import { PATHS, pageFor, type Page } from "./routes";
+import type { Ctx } from "./common";
+import { LendPage } from "./LendPage";
+import { PlacesPage } from "./PlacesPage";
+import { PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
+import { VehicleCardPage } from "./VehicleCard";
+import { VehicleFormPage } from "./VehicleForm";
+import { VehiclesPage } from "./VehiclesPage";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
 
@@ -23,6 +29,11 @@ export function switcherApps(t: T, host: string): SwitcherApp[] {
 
 const TITLES: Record<Page, TextKey> = {
   vehicles: "vehicles",
+  newVehicle: "newTitle",
+  vehicle: "cardEyebrow",
+  editVehicle: "edit",
+  lend: "lendTitle",
+  places: "places",
   meets: "meets",
   prototypes: "prototypes",
   tap: "tapTitle",
@@ -33,6 +44,7 @@ const TITLES: Record<Page, TextKey> = {
 
 export type ShellProps = {
   page: Page;
+  id?: string;
   language: Language;
   host: string;
   session: Session | null;
@@ -43,6 +55,8 @@ export type ShellProps = {
   onLogOut?: () => void;
   onLogIn?: (account: Account) => Promise<boolean>;
   trialAccounts?: Account[] | null;
+  /** False shows the empty fleet without fetching (tests of the shell). */
+  fleet?: boolean;
 };
 
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
@@ -50,10 +64,10 @@ export function Shell(props: ShellProps) {
   const { page, language, host, session, version, offline, navigate } = props;
   const t: T = (key, vars) => text(language, key, vars);
   const account = session?.account ?? null;
-  const tab = (target: Exclude<Page, "missing">, label: TextKey, icon?: ReactElement) => ({
+  const tab = (target: keyof typeof PATHS, label: TextKey, icon?: ReactElement) => ({
     href: PATHS[target],
     label: t(label),
-    current: page === target,
+    current: tabOf(page) === target,
     icon,
   });
 
@@ -166,13 +180,34 @@ function Empty({ title, detail }: { title: string; detail?: string }) {
 }
 
 function PageContent(props: ShellProps & { t: T; account: Account | null }) {
-  const { page, t, account, navigate } = props;
+  const { page, t, account, navigate, id, language } = props;
   const loginLink = (
     <a className="tm-knapp primar" href={PATHS.login} onClick={linkClick(navigate, PATHS.login)}>
       {t("logIn")}
     </a>
   );
+  const ctx: Ctx = { t, language, navigate };
+  const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places"];
+  if (fleetPages.includes(page) && !account) {
+    return (
+      <section className="tm-kort cat-tomt">
+        <p className="cat-tomt-rubrik">{t("loginForFleet")}</p>
+        {loginLink}
+      </section>
+    );
+  }
+  if (page === "vehicles" && account && props.fleet !== false) return <VehiclesPage ctx={ctx} account={account} />;
   switch (page) {
+    case "newVehicle":
+      return <VehicleFormPage ctx={ctx} />;
+    case "vehicle":
+      return <VehicleCardPage key={id} ctx={ctx} id={id ?? ""} />;
+    case "editVehicle":
+      return <VehicleFormPage key={id} ctx={ctx} id={id} />;
+    case "lend":
+      return <LendPage ctx={ctx} id={id ?? ""} />;
+    case "places":
+      return <PlacesPage ctx={ctx} />;
     case "vehicles":
       return (
         <>
@@ -286,7 +321,8 @@ function LoginPage({ t, session, account, trialAccounts, onLogIn }: ShellProps &
 /** The web app: reads the version and the session, and follows the address. */
 export function App({ initialLanguage }: { initialLanguage: Language }) {
   const [language, setLanguage] = useState<Language>(initialLanguage);
-  const [page, setPage] = useState<Page>(() => pageFor(window.location.pathname));
+  const [route, setRoute] = useState<Route>(() => routeFor(window.location.pathname));
+  const page = route.page;
   const [session, setSession] = useState<Session | null>(null);
   const [version, setVersion] = useState<CatalogVersion | null>(null);
   const [trialAccounts, setTrialAccounts] = useState<Account[] | null>(null);
@@ -296,11 +332,11 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
   const navigate = useCallback((href: string) => {
     window.history.pushState(null, "", href);
     moved.current = true;
-    setPage(pageFor(href));
+    setRoute(routeFor(href));
   }, []);
 
   useEffect(() => {
-    const onPop = () => setPage(pageFor(window.location.pathname));
+    const onPop = () => setRoute(routeFor(window.location.pathname));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -328,11 +364,12 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
   useEffect(() => {
     // After moving to another page, the screen reader starts at its heading (WCAG 2.4.3).
     if (moved.current) document.querySelector<HTMLElement>("#innehall")?.focus();
-  }, [page]);
+  }, [route]);
 
   return (
     <Shell
       page={page}
+      id={route.id}
       language={language}
       host={window.location.host}
       session={session}

@@ -100,6 +100,830 @@
           }
         }
       }
+    },
+    "/api/catalog/1/vehicles": {
+      "get": {
+        "operationId": "vehicles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "scale",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "addVehicle",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/vehicles/move": {
+      "post": {
+        "operationId": "moveVehicles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.move"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}": {
+      "get": {
+        "operationId": "vehicle",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "changeVehicle",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-change"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "removeVehicle",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/lend": {
+      "post": {
+        "operationId": "lendVehicle",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.lend"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/return": {
+      "post": {
+        "operationId": "returnVehicle",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.return"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/events": {
+      "get": {
+        "operationId": "vehicleEvents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/places": {
+      "get": {
+        "operationId": "places",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.place"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addPlace",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.place"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.place-name"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/places/{place}": {
+      "put": {
+        "operationId": "renamePlace",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.place"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.place-name"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "place",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "removePlace",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "place",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -292,6 +1116,1262 @@
         ],
         "title": "TrialLogin",
         "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-fields": {
+        "additionalProperties": true,
+        "description": "The core fields the owner writes (CAT-53). Images, tag and prototype come later.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          }
+        },
+        "title": "VehicleFields",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-fields.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-fields.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-fields.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-change": {
+        "additionalProperties": true,
+        "description": "A change: all the core fields, and the version the change was built on.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-change.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-change.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-change.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "VehicleChange",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-change.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-change.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-change.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle": {
+        "additionalProperties": true,
+        "description": "A vehicle as its owner sees it.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          },
+          "id": {
+            "description": "Permanent, never reused, kept when the tag changes (CAT-52).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.Lending"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "evn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.EvnParts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "field_sources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.FieldSource"
+            },
+            "title": "Field Sources",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Vehicle",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.EvnParts": {
+        "additionalProperties": true,
+        "description": "The EVN read from the number (CAT-57). Derived every time, never stored.",
+        "properties": {
+          "text": {
+            "description": "For example 21 74 245 2 253-0, with the computed check digit.",
+            "title": "Text",
+            "type": "string"
+          },
+          "interop": {
+            "title": "Interop",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_letters": {
+            "description": "For example S for 74. Empty when unknown.",
+            "title": "Country Letters",
+            "type": "string"
+          },
+          "serial": {
+            "title": "Serial",
+            "type": "string"
+          },
+          "check": {
+            "title": "Check",
+            "type": "integer"
+          },
+          "given": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The painted check digit, or null when not painted.",
+            "title": "Given"
+          },
+          "valid": {
+            "description": "False only when the painted check digit is wrong (CAT-59).",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "interop",
+          "country",
+          "country_letters",
+          "serial",
+          "check",
+          "given",
+          "valid"
+        ],
+        "title": "EvnParts",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.FieldSource": {
+        "description": "Where a core field's value came from (CAT-64).",
+        "enum": [
+          "owner",
+          "ai",
+          "prototype",
+          "import"
+        ],
+        "title": "FieldSource",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle.Lending": {
+        "additionalProperties": true,
+        "description": "Who has the vehicle: the owner's own note (CAT-74, CAT-75).",
+        "properties": {
+          "to": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "to",
+          "since"
+        ],
+        "title": "Lending",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle.VehicleState": {
+        "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+        "enum": [
+          "home",
+          "packed",
+          "at_meet",
+          "lent"
+        ],
+        "title": "VehicleState",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list": {
+        "additionalProperties": true,
+        "description": "The fleet, filtered, with the count per state over the whole fleet.",
+        "properties": {
+          "vehicles": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.Vehicle"
+            },
+            "title": "Vehicles",
+            "type": "array"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleState"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "vehicles",
+          "counts",
+          "total"
+        ],
+        "title": "VehicleList",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.EvnParts": {
+        "additionalProperties": true,
+        "description": "The EVN read from the number (CAT-57). Derived every time, never stored.",
+        "properties": {
+          "text": {
+            "description": "For example 21 74 245 2 253-0, with the computed check digit.",
+            "title": "Text",
+            "type": "string"
+          },
+          "interop": {
+            "title": "Interop",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_letters": {
+            "description": "For example S for 74. Empty when unknown.",
+            "title": "Country Letters",
+            "type": "string"
+          },
+          "serial": {
+            "title": "Serial",
+            "type": "string"
+          },
+          "check": {
+            "title": "Check",
+            "type": "integer"
+          },
+          "given": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The painted check digit, or null when not painted.",
+            "title": "Given"
+          },
+          "valid": {
+            "description": "False only when the painted check digit is wrong (CAT-59).",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "interop",
+          "country",
+          "country_letters",
+          "serial",
+          "check",
+          "given",
+          "valid"
+        ],
+        "title": "EvnParts",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.FieldSource": {
+        "description": "Where a core field's value came from (CAT-64).",
+        "enum": [
+          "owner",
+          "ai",
+          "prototype",
+          "import"
+        ],
+        "title": "FieldSource",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list.Lending": {
+        "additionalProperties": true,
+        "description": "Who has the vehicle: the owner's own note (CAT-74, CAT-75).",
+        "properties": {
+          "to": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "to",
+          "since"
+        ],
+        "title": "Lending",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.Vehicle": {
+        "additionalProperties": true,
+        "description": "A vehicle as its owner sees it.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          },
+          "id": {
+            "description": "Permanent, never reused, kept when the tag changes (CAT-52).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.Lending"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "evn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.EvnParts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "field_sources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.FieldSource"
+            },
+            "title": "Field Sources",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Vehicle",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list.VehicleState": {
+        "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+        "enum": [
+          "home",
+          "packed",
+          "at_meet",
+          "lent"
+        ],
+        "title": "VehicleState",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.move": {
+        "additionalProperties": true,
+        "description": "Move several vehicles to a place at home at once (CAT-73). Null: home without a place.",
+        "properties": {
+          "vehicles": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Vehicles",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          }
+        },
+        "required": [
+          "vehicles"
+        ],
+        "title": "Move",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.lend": {
+        "additionalProperties": true,
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "to": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Back at the latest, if the owner wants.",
+            "title": "Until"
+          }
+        },
+        "required": [
+          "version",
+          "to"
+        ],
+        "title": "Lend",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.return": {
+        "additionalProperties": true,
+        "description": "The vehicle is back: it gets its earlier place (CAT-76).",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Return",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-event": {
+        "additionalProperties": true,
+        "description": "A change of state or place, with its time. Only the owner sees them (CAT-77).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-event.VehicleState"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Name"
+          },
+          "lent_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lent To"
+          }
+        },
+        "required": [
+          "at",
+          "state"
+        ],
+        "title": "VehicleEvent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-event.VehicleState": {
+        "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
+        "enum": [
+          "home",
+          "packed",
+          "at_meet",
+          "lent"
+        ],
+        "title": "VehicleState",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.place": {
+        "additionalProperties": true,
+        "description": "A named place at home: a box or a shelf (CAT-71).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "vehicles_home": {
+            "description": "How many vehicles are at home here now.",
+            "title": "Vehicles Home",
+            "type": "integer"
+          },
+          "vehicles": {
+            "description": "How many vehicles live here, wherever they are now.",
+            "title": "Vehicles",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "vehicles_home",
+          "vehicles"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.place-name": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PlaceName",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.removed": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Removed",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.problem": {
+        "additionalProperties": true,
+        "description": "The answer when Catalog says no: 401, 404, 409 or 422.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.problem.ProblemCode"
+          },
+          "message": {
+            "description": "The same in Swedish, for logs and other readers.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.problem.ProblemCode": {
+        "description": "Why Catalog said no. The web app has the text for each in Swedish and English.",
+        "enum": [
+          "not_found",
+          "changed",
+          "not_ready",
+          "dcc_only_engines",
+          "place_exists",
+          "not_home",
+          "not_lent",
+          "login"
+        ],
+        "title": "ProblemCode",
+        "type": "string"
       }
     },
     "securitySchemes": {

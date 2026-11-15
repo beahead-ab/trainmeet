@@ -31,11 +31,12 @@ def test_a_badly_named_or_missing_migration_stops(tmp_path: Path) -> None:
 
 
 def test_migrate_runs_each_once_and_check_sees_nothing_missing(database_url: str) -> None:
-    assert [m.version for m in migrate.check(database_url)] == [1]
-    assert [m.name for m in migrate.migrate(database_url)] == ["grunden"]
+    everything = migrate.migrations()
+    assert migrate.check(database_url) == everything
+    assert migrate.migrate(database_url) == everything
     assert migrate.migrate(database_url) == []
     assert migrate.check(database_url) == []
-    assert migrate.current_version(database_url) == 1
+    assert migrate.current_version(database_url) == len(everything)
     with psycopg.connect(database_url) as conn:
         tables = {
             str(row[0])
@@ -43,7 +44,7 @@ def test_migrate_runs_each_once_and_check_sees_nothing_missing(database_url: str
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
             ).fetchall()
         }
-    assert {"owner", "login_session", "catalog_migration"} <= tables
+    assert {"owner", "login_session", "catalog_migration", "vehicle", "place"} <= tables
 
 
 def test_a_changed_migration_stops_the_start(database_url: str, tmp_path: Path) -> None:

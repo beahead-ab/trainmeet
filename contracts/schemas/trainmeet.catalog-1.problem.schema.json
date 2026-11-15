@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.problem.schema.json",
+  "title": "trainmeet.catalog-1.problem",
+  "$defs": {
+    "ProblemCode": {
+      "description": "Why Catalog said no. The web app has the text for each in Swedish and English.",
+      "enum": [
+        "not_found",
+        "changed",
+        "not_ready",
+        "dcc_only_engines",
+        "place_exists",
+        "not_home",
+        "not_lent",
+        "login"
+      ],
+      "title": "ProblemCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The answer when Catalog says no: 401, 404, 409 or 422.",
+  "properties": {
+    "code": {
+      "$ref": "#/$defs/ProblemCode"
+    },
+    "message": {
+      "description": "The same in Swedish, for logs and other readers.",
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.move.schema.json",
+  "title": "trainmeet.catalog-1.move",
+  "additionalProperties": true,
+  "description": "Move several vehicles to a place at home at once (CAT-73). Null: home without a place.",
+  "properties": {
+    "vehicles": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Vehicles",
+      "type": "array"
+    },
+    "place": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Place"
+    }
+  },
+  "required": [
+    "vehicles"
+  ],
+  "type": "object"
+}
