@@ -8,20 +8,19 @@ from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 from threading import Event, Thread
-from typing import Final
+from typing import Any, Final
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from contracts import hub
 from contracts.common import Id
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
     drift_api,
-    drift_pages,
     hubben,
-    page,
     planering_api,
     planering_pages,
     provbanan,
@@ -112,40 +111,11 @@ def create_app(
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))
     app.include_router(screen_web.router(runs))
-    # The pages rebuilt in React under apps/ (H62, GRUND-36).
+    # The pages rebuilt in React under apps/ (H62, GRUND-36): Trafikledningen owns / and /drift.
     app.include_router(web.router(web_root))
-
-    @app.get("/", response_class=HTMLResponse)
-    def start_page(
-        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        state = login.state()
-        return page.render_start_page(
-            replace(info, hub_name=state.name),
-            set_up=state.set_up,
-            logged_in=login.valid(hubben.session_of(session, authorization)),
-        )
 
     def logged_in(session: str | None, authorization: str | None) -> bool:
         return login.valid(hubben.session_of(session, authorization))
-
-    @app.get("/drift", response_class=HTMLResponse)
-    def nu_page(
-        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return drift_pages.render_nu(current(), logged_in(session, authorization))
-
-    @app.get("/drift/klienter", response_class=HTMLResponse)
-    def clients_page(
-        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return drift_pages.render_klienter(current(), logged_in(session, authorization))
-
-    @app.get("/drift/logg", response_class=HTMLResponse)
-    def log_page(
-        session: hubben.SessionCookie = None, authorization: hubben.Authorization = None
-    ) -> str:
-        return drift_pages.render_logg(current(), logged_in(session, authorization))
 
     @app.get("/planering", response_class=HTMLResponse)
     def planning_page(
@@ -183,8 +153,10 @@ def create_app(
         return "ok"
 
     @app.get("/api/version")
-    def api_version() -> dict[str, object]:
-        return info.as_dict()
+    def api_version(response: Response) -> dict[str, Any]:
+        """What runs, with the name the hub was given at first start."""
+        response.headers["Cache-Control"] = "no-store"
+        return hub.Version.model_validate(current().as_dict()).model_dump(mode="json")
 
     return app
 

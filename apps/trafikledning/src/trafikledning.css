@@ -1,0 +1,654 @@
+/* Trafikledningen in TrainMeet's design system (design.css). Drift is Kontrollrummet: dark
+   always, as the old pages were (H53). The start page follows the device. Times and train
+   numbers in Inter with tabular figures; Mono only for codes (S7). */
+
+body.kontrollrummet {
+  color-scheme: dark;
+  --tm-bg: #0e1114;
+  --tm-panel: #161a1e;
+  --tm-panel-2: #1b1f26;
+  --tm-line: #2a3038;
+  --tm-text: #e9ebef;
+  --tm-mute: #9aa1ad;
+  --tm-blue: #5aa9ff;
+  --tm-blue-text: #8cc3ff;
+  --tm-blue-soft: #18263a;
+  --tm-on-blue: #08121e;
+  --tm-focus: #8cc3ff;
+}
+:root {
+  --gron: #15803d;
+  --rod: #b42318;
+  --gul: #a16207;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gron: #46d36b;
+    --rod: #ff7a6e;
+    --gul: #f5c518;
+  }
+}
+body.kontrollrummet {
+  --gron: #46d36b;
+  --rod: #ff7a6e;
+  --gul: #f5c518;
+}
+body {
+  font-size: 15px;
+}
+.osynlig {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The header: Kontrollrummet's 44 px for the buttons, the meet with Byt träff, Planering and
+   Drift as tabs side by side, the meet clock, Anslut, Väntar and the account. */
+.hubbhuvud {
+  min-height: 56px;
+  gap: 12px;
+  padding: 0 16px;
+}
+.hubbhuvud .tm-skylt {
+  height: 28px;
+}
+.hubbhuvud .tm-namn {
+  height: 16px;
+}
+.traffval {
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--tm-head-text);
+  background: #1b1f26;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+span.traffval {
+  background: none;
+  border-color: transparent;
+}
+button.traffval {
+  cursor: pointer;
+}
+button.traffval[aria-expanded="true"] {
+  border-color: var(--tm-head-tab);
+}
+.hubbhuvud .tm-flikar {
+  margin-left: 4px;
+  gap: 2px;
+}
+.hubbhuvud .tm-flikar a {
+  padding: 0 10px;
+  font-size: 14px;
+}
+.hubbhuvud .grupp {
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 12px;
+  color: var(--tm-head-mute);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hubbhuvud .grupp:first-child {
+  padding-left: 4px;
+}
+.hubbhuvud .tm-hoger {
+  gap: 8px;
+}
+.klocka {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.klocka b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.klocka .not {
+  color: var(--tm-head-mute);
+  font-size: 13px;
+}
+.klocka .lampa {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7280;
+  align-self: center;
+}
+.klocka.gar .lampa {
+  background: #46d36b;
+}
+.hknapp {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-head-text);
+  background: #1b1f26;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-height: 40px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hknapp:hover {
+  border-color: #4a5260;
+}
+.hknapp[aria-expanded="true"] {
+  border-color: var(--tm-head-tab);
+}
+#waiting b {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #333944;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#waiting.har b {
+  background: #f5c518;
+  color: #121418;
+}
+.loggain {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+/* Byt träff: a light menu, as every menu (design.css), under the meet's name. */
+.bytpanel {
+  left: 0;
+  right: auto;
+  width: min(420px, calc(100vw - 32px));
+}
+.traffar {
+  list-style: none;
+  margin: 0 -8px 12px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.traff {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  color: var(--tm-panel-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.traff:hover:enabled,
+.traff.vald {
+  border-color: #2453c7;
+}
+.traff[aria-current="true"] {
+  background: #e8eefc;
+  cursor: default;
+}
+.traff .vad {
+  display: grid;
+}
+.traff .vad span {
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.traff .kor {
+  color: #15803d;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.traff .kor::before {
+  content: "● ";
+}
+.traff .prov {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #ecebe7;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bytpanel .dag {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.bytpanel select {
+  font: inherit;
+  color: var(--tm-panel-text);
+  background: #ffffff;
+  border: 1px solid #c9c8c2;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.bytpanel .liten {
+  color: var(--tm-panel-mute);
+}
+.panelfot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid #e2e1dc;
+  padding-top: 12px;
+}
+.panelfot a,
+.lankknapp {
+  color: #1d47b0;
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lankknapp.fara {
+  color: #b42318;
+}
+
+/* Anslut (S2): the code large, and the QR code that opens the box with it. */
+.anslut {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--tm-panel-2);
+  border-bottom: 1px solid var(--tm-line);
+}
+.etikett {
+  margin: 0;
+  color: var(--tm-mute);
+  font-size: 13px;
+}
+.anslutkod {
+  font-family: var(--tm-mono);
+  font-size: 40px;
+  letter-spacing: 0.12em;
+  margin: 4px 0;
+  font-weight: 700;
+}
+#connect-qr {
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* The pages. */
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+main.startsida {
+  max-width: 640px;
+  padding-top: 48px;
+}
+h1 {
+  font-size: 22px;
+  line-height: 1.25;
+  margin: 0;
+  font-weight: 700;
+}
+h2 {
+  font-size: 15px;
+  margin: 28px 0 10px;
+  font-weight: 650;
+}
+h3 {
+  font-size: 14px;
+  margin: 18px 0 6px;
+}
+.liten {
+  color: var(--tm-mute);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.ingress {
+  color: var(--tm-mute);
+  margin: 6px 0 16px;
+}
+.kort {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0 0 16px;
+}
+.startsida .kort {
+  padding: 24px;
+}
+.sidrubrik {
+  margin-bottom: 16px;
+}
+.rad {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+main label {
+  color: var(--tm-mute);
+  font-size: 13px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+main select,
+main input {
+  font: inherit;
+  color: var(--tm-text);
+  background: var(--tm-bg);
+  border: 1px solid var(--tm-mute);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+main button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--tm-text);
+  background: var(--tm-panel-2);
+  border: 1px solid var(--tm-mute);
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+main button.primar,
+main .tm-knapp.primar {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: var(--tm-on-blue);
+  min-height: 40px;
+  padding: 8px 16px;
+}
+main button.fara {
+  border-color: var(--rod);
+  color: var(--rod);
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+details.kort {
+  margin-top: 12px;
+}
+summary .sammanfattning {
+  display: inline;
+  margin: 0;
+  font-size: 15px;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+main .chip {
+  font-size: 13px;
+  color: var(--tm-mute);
+  background: transparent;
+  border: 1px solid var(--tm-line);
+  border-radius: 16px;
+  padding: 4px 12px;
+  min-height: 32px;
+}
+main .chip[aria-pressed="true"] {
+  color: var(--tm-text);
+  background: var(--tm-panel-2);
+  border-color: var(--tm-blue);
+}
+.chip .antal {
+  margin-left: 6px;
+}
+.antal {
+  color: var(--tm-mute);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ram {
+  overflow-x: auto;
+}
+.tabell {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.tabell th {
+  text-align: left;
+  color: var(--tm-mute);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--tm-line);
+}
+.tabell td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--tm-line);
+  vertical-align: top;
+}
+.tabell tr.klar td {
+  color: var(--tm-mute);
+}
+td.tag {
+  font-weight: 700;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 2px 9px;
+  border-radius: 11px;
+  border: 1px solid var(--tm-line);
+  white-space: nowrap;
+}
+.pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-mute);
+}
+.pill.requested::before {
+  background: var(--gul);
+}
+.pill.cleared::before,
+.pill.automatic::before {
+  background: var(--tm-blue);
+}
+.pill.on_the_way::before,
+.pill.manned::before {
+  background: var(--gron);
+}
+.pill.no_contact::before {
+  background: var(--rod);
+}
+.pill.arrived {
+  color: var(--tm-mute);
+}
+#automatiken .etikett {
+  min-width: 200px;
+}
+input.tal {
+  width: 4.5em;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.lista li.vantar {
+  border-color: var(--gul);
+}
+.lista .vem {
+  display: grid;
+  gap: 2px;
+}
+.lista .vem b {
+  font-weight: 650;
+}
+.kontroller {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tom {
+  color: var(--tm-mute);
+  padding: 10px 0;
+}
+.lista li.tom {
+  background: none;
+  border: 0;
+  padding: 10px 0;
+}
+.meddelande {
+  color: var(--gul);
+  min-height: 1.5em;
+  margin: 8px 0 0;
+}
+
+/* The start page, as before. */
+.lankar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.formular {
+  display: grid;
+  gap: 12px;
+  max-width: 320px;
+}
+.formular label {
+  display: grid;
+  gap: 4px;
+}
+.formular input {
+  padding: 8px 10px;
+}
+.formular button {
+  justify-self: start;
+}
+.bygge {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+.bygge dt {
+  color: var(--tm-mute);
+}
+.bygge dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gron);
+}
+.lokal {
+  color: var(--gul);
+}
+.fot {
+  margin-top: 16px;
+  color: var(--tm-mute);
+  font-size: 13px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1180px) {
+  .hubbhuvud .tm-flikar .grupp,
+  .klocka .not {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .hubbhuvud {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .hubbhuvud .tm-namn {
+    display: none;
+  }
+  .traffval {
+    max-width: 160px;
+  }
+  body.kontrollrummet main {
+    padding-bottom: 96px;
+  }
+  .anslut {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .tabell th:nth-child(6),
+  .tabell td:nth-child(6) {
+    display: none;
+  }
+  .tabell td,
+  .tabell th {
+    padding: 6px 5px;
+  }
+}

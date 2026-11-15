@@ -27,8 +27,6 @@ def info(hub: TestClient) -> contract.HubInfo:
 
 def test_a_new_hub_asks_for_a_name_and_a_pin(hub: TestClient) -> None:
     assert info(hub) == contract.HubInfo(name="Hubben", set_up=False, logged_in=False)
-    page = hub.get("/").text
-    assert 'id="setup-form"' in page and 'id="login-form"' not in page
     assert hub.post("/api/hub/login", json={"pin": PIN}).status_code == 409
 
 
@@ -39,7 +37,7 @@ def test_first_start_names_the_hub_and_logs_in(hub: TestClient) -> None:
     cookie = response.headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=strict" in cookie and "Max-Age=43200" in cookie
     assert info(hub) == contract.HubInfo(name="Testhubben Väst", set_up=True, logged_in=True)
-    assert "Testhubben Väst" in hub.get("/").text
+    assert hub.get("/api/version").json()["hub_name"] == "Testhubben Väst"
     assert "Testhubben Väst" in hub.get("/provbanan").text, "every page has the name"
     # The key works as Bearer too, for the Drift API.
     other = TestClient(hub.app)
@@ -64,12 +62,10 @@ def test_log_out_and_in_again(hub: TestClient) -> None:
     hub.post("/api/hub/setup", json={"name": "Hubben", "pin": PIN})
     assert hub.post("/api/hub/logout").status_code == 204
     assert info(hub).logged_in is False
-    assert 'id="login-form"' in hub.get("/").text
     assert hub.post("/api/hub/login", json={"pin": "000000"}).status_code == 401
     assert info(hub).logged_in is False
     assert hub.post("/api/hub/login", json={"pin": PIN}).status_code == 200
     assert info(hub).logged_in is True
-    assert 'id="logout"' in hub.get("/").text
 
 
 def test_a_logged_out_key_stops_working(hub: TestClient) -> None:

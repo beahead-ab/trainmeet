@@ -241,8 +241,6 @@ def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: Tes
     assert 'id="new-meet"' not in anonymous.get("/planering").text
     assert planned.get(f"/planering/{MEET}/underlag").status_code == 404
     assert planned.get("/planering/..%2Fx").status_code in {404, 422}
-    assert 'href="/planering"' in planned.get("/").text
-    assert 'id="new-choice"' in planned.get("/drift").text
 
 
 def test_a_run_keeps_its_package_when_the_contracts_gain_a_field(

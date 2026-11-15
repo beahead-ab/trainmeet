@@ -87,7 +87,6 @@ def reply(
 def test_provbanan_is_linked_and_each_browser_has_its_own_run(tmp_path: Path) -> None:
     app = create_app(preview_db=tmp_path / "drift.sqlite3")
     a, b = TestClient(app), TestClient(app)
-    assert 'href="/provbanan"' in a.get("/").text
     assert "Starta provkörning" in a.get("/provbanan").text
     assert a.get("/static/provbanan.js").status_code == 200
     assert a.get(API).status_code == 404

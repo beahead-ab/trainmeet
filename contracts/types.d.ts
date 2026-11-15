@@ -420,6 +420,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["hubVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/setup": {
         parameters: {
             query?: never;
@@ -4485,6 +4501,53 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * Version
+         * @description What runs (GET /api/version): the version, the hub's name and the change it was built
+         *     from. A local build has no commit and no pull request.
+         */
+        "trainmeet.hub-1.version": {
+            /** Product */
+            product: string;
+            /** Version */
+            version: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Commit
+             * @default null
+             */
+            commit: string | null;
+            /**
+             * Pr
+             * @default null
+             */
+            pr: number | null;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /**
+             * Built
+             * @default null
+             */
+            built: string | null;
+            /**
+             * Pr Url
+             * @description Ändringen på GitHub.
+             * @default null
+             */
+            pr_url: string | null;
+            /**
+             * Commit Url
+             * @description Committen på GitHub.
+             * @default null
+             */
+            commit_url: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ImportResult
          * @description What an import gives Planering: the package, its facts, rules, questions and report.
          */
@@ -7431,6 +7494,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.info"];
+                };
+            };
+        };
+    };
+    hubVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.version"];
                 };
             };
         };

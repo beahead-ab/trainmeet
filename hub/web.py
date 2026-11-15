@@ -36,17 +36,24 @@ HEADERS: Final = {
 
 @dataclass(frozen=True)
 class WebApp:
-    """One app: its addresses and its folder under apps/. The first address is Vite's base."""
+    """One app: its addresses and its folder under apps/. The first address is Vite's base.
+
+    A prefix serves the app's files and its pages below it; a page is one exact address that
+    gets the app's index.html, so that an app can own / without taking the addresses below it.
+    """
 
     prefixes: tuple[str, ...]
     folder: str
     title: str
+    pages: tuple[str, ...] = ()
 
 
 APPS: Final = (
     WebApp(prefixes=("/skarm",), folder="skarmar", title="Träffens skärmar"),
     # TMBox web joins the hub's meet on /box and a Provbanan run on /provbanan/box (BOXWEB-10).
     WebApp(prefixes=("/box", "/provbanan/box"), folder="tmbox-webb", title="TMBox"),
+    # Trafikledningen (TRAFIK-21): the start page, and Nu, Klienter and Logg under /drift.
+    WebApp(prefixes=("/drift",), folder="trafikledning", title="Trafikledningen", pages=("/",)),
 )
 
 
@@ -91,8 +98,13 @@ def _serve(routes: APIRouter, app: WebApp, folder: Path) -> None:
             return HTMLResponse(_not_built(app), headers=HEADERS)
         return FileResponse(index, headers={**HEADERS, "Cache-Control": "no-cache"})
 
+    def page() -> Response:
+        return serve()
+
     for prefix in app.prefixes:
         routes.add_api_route(prefix, serve, methods=["GET", "HEAD"], include_in_schema=False)
         routes.add_api_route(
             prefix + "/{path:path}", serve, methods=["GET", "HEAD"], include_in_schema=False
         )
+    for address in app.pages:
+        routes.add_api_route(address, page, methods=["GET", "HEAD"], include_in_schema=False)

@@ -61,6 +61,8 @@ class BuildInfo:
             "pr": self.pr,
             "title": self.title,
             "built": self.built.isoformat() if self.built else None,
+            "pr_url": self.pr_url,
+            "commit_url": self.commit_url,
         }
 
 

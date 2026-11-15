@@ -15,15 +15,17 @@ COPY apps/catalog/package.json apps/catalog/
 COPY apps/id/package.json apps/id/
 COPY apps/skarmar/package.json apps/skarmar/
 COPY apps/tmbox-webb/package.json apps/tmbox-webb/
+COPY apps/trafikledning/package.json apps/trafikledning/
 RUN npm ci --no-audit --no-fund
 COPY contracts/types.d.ts contracts/
 COPY apps/design apps/design
 COPY apps/skarmar apps/skarmar
 COPY apps/tmbox-webb apps/tmbox-webb
+COPY apps/trafikledning apps/trafikledning
 # Types and tests first: a red web app never becomes an image.
-RUN npm run check -w apps/design -w apps/skarmar -w apps/tmbox-webb \
-    && npm run test -w apps/design -w apps/skarmar -w apps/tmbox-webb \
-    && npm run build -w apps/skarmar -w apps/tmbox-webb
+RUN npm run check -w apps/design -w apps/skarmar -w apps/tmbox-webb -w apps/trafikledning \
+    && npm run test -w apps/design -w apps/skarmar -w apps/tmbox-webb -w apps/trafikledning \
+    && npm run build -w apps/skarmar -w apps/tmbox-webb -w apps/trafikledning
 
 FROM python:3.12-slim AS build
 RUN pip install --no-cache-dir "uv>=0.11,<0.12"
@@ -46,6 +48,7 @@ RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin hub
 COPY --from=build /app/.venv /app/.venv
 COPY --from=web /src/apps/skarmar/dist /app/web/skarmar
 COPY --from=web /src/apps/tmbox-webb/dist /app/web/tmbox-webb
+COPY --from=web /src/apps/trafikledning/dist /app/web/trafikledning
 WORKDIR /app
 
 ARG TRAINMEET_COMMIT=""
