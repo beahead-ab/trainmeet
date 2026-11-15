@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.member.schema.json",
+  "title": "trainmeet.id-1.member",
+  "$defs": {
+    "ClubRole": {
+      "description": "A person's role in a club (KONTO-35).",
+      "enum": [
+        "admin",
+        "member"
+      ],
+      "title": "ClubRole",
+      "type": "string"
+    },
+    "Person": {
+      "additionalProperties": true,
+      "description": "Someone else, as a member or someone with a role: never their address.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "initials": {
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "initials"
+      ],
+      "title": "Person",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "person": {
+      "$ref": "#/$defs/Person"
+    },
+    "role": {
+      "$ref": "#/$defs/ClubRole"
+    },
+    "since": {
+      "format": "date-time",
+      "title": "Since",
+      "type": "string"
+    }
+  },
+  "required": [
+    "person",
+    "role",
+    "since"
+  ],
+  "type": "object"
+}

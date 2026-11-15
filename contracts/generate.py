@@ -28,11 +28,14 @@ from contracts import (
     station_outside,
     terminal,
 )
+from contracts import id as id_api
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 OPENAPI = SCHEMA_DIR.parent / "openapi.json"
 CATALOG_OPENAPI = SCHEMA_DIR.parent / "catalog.openapi.json"
 CATALOG_PREFIX = "trainmeet.catalog-"
+ID_OPENAPI = SCHEMA_DIR.parent / "id.openapi.json"
+ID_PREFIX = "trainmeet.id-"
 BASE_URL = "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/"
 
 # File stem -> model. The stem says the contract, its version and the message.
@@ -111,6 +114,25 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.tell": catalog.Tell,
     "trainmeet.catalog-1.told": catalog.Told,
     "trainmeet.catalog-1.settings": catalog.OwnerSettings,
+    "trainmeet.id-1.version": id_api.Version,
+    "trainmeet.id-1.session": id_api.Session,
+    "trainmeet.id-1.account": id_api.Account,
+    "trainmeet.id-1.person": id_api.Person,
+    "trainmeet.id-1.club-name": id_api.ClubName,
+    "trainmeet.id-1.club": id_api.Club,
+    "trainmeet.id-1.club-page": id_api.ClubPage,
+    "trainmeet.id-1.member": id_api.Member,
+    "trainmeet.id-1.invite": id_api.Invite,
+    "trainmeet.id-1.invitation": id_api.Invitation,
+    "trainmeet.id-1.answer": id_api.Answer,
+    "trainmeet.id-1.fleet-invite": id_api.FleetInvite,
+    "trainmeet.id-1.fleet-page": id_api.FleetPage,
+    "trainmeet.id-1.grant": id_api.Grant,
+    "trainmeet.id-1.resource": id_api.Resource,
+    "trainmeet.id-1.removed": id_api.Removed,
+    "trainmeet.id-1.access": id_api.Access,
+    "trainmeet.id-1.fleet-access": id_api.FleetAccess,
+    "trainmeet.id-1.problem": id_api.Problem,
 }
 
 
@@ -231,7 +253,9 @@ def components(stems: list[str]) -> dict[str, JsonSchemaValue]:
 
 def openapi() -> str:
     """The Hub's HTTP API."""
-    hub_components = components([s for s in CONTRACTS if not s.startswith(CATALOG_PREFIX)])
+    hub_components = components(
+        [s for s in CONTRACTS if not s.startswith((CATALOG_PREFIX, ID_PREFIX))]
+    )
     paths: dict[str, dict[str, JsonSchemaValue]] = {}
 
     def route(
@@ -551,7 +575,162 @@ def catalog_openapi() -> str:
     )
 
 
-OPENAPI_FILES = {OPENAPI: openapi, CATALOG_OPENAPI: catalog_openapi}
+def id_openapi() -> str:
+    """TrainMeet ID's own API (#67, KONTO-34). The person's session is a cookie; an app asks
+    with an access token from Keycloak's client credentials."""
+    paths: dict[str, dict[str, JsonSchemaValue]] = {}
+    c = "trainmeet.id-1."
+
+    def route(
+        method: str,
+        path: str,
+        operation: str,
+        response: str | None,
+        request: str | None = None,
+        *,
+        many: bool = False,
+        created: bool = False,
+        query: tuple[str, ...] = (),
+        problems: tuple[int, ...] = (),
+        app: bool = False,
+    ) -> None:
+        responses: dict[str, JsonSchemaValue] = {}
+        if response is not None:
+            body = openapi_ref(c + response)
+            if many:
+                body = {"type": "array", "items": body}
+            responses["201" if created else "200"] = {
+                "description": "OK",
+                "content": {"application/json": {"schema": body}},
+            }
+        for code in problems:
+            responses[str(code)] = {
+                "description": "ID säger nej",
+                "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+            }
+        entry: JsonSchemaValue = {"operationId": operation, "responses": responses}
+        if request:
+            entry["requestBody"] = {
+                "required": True,
+                "content": {"application/json": {"schema": openapi_ref(c + request)}},
+            }
+        params = [
+            {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
+            for part in path.split("/")
+            if part.startswith("{")
+        ]
+        params += [
+            {"name": name, "in": "query", "required": app, "schema": {"type": "string"}}
+            for name in query
+        ]
+        if params:
+            entry["parameters"] = params
+        if app:
+            entry["security"] = [{"app": []}]
+        paths.setdefault(path, {})[method] = entry
+
+    a = "/api/id/1"
+    write = (401, 403, 404, 409, 422)
+    route("get", "/api/version", "idVersion", "version")
+    route("get", a + "/session", "idSession", "session")
+    route("delete", a + "/session", "idLogOut", "session")
+    for path, operation, query in (
+        (a + "/login", "idLogIn", ("next", "lang")),
+        (a + "/login/callback", "idLoginCallback", ("code", "state", "error")),
+    ):
+        paths[path] = {
+            "get": {
+                "operationId": operation,
+                "parameters": [
+                    {"name": name, "in": "query", "schema": {"type": "string"}} for name in query
+                ],
+                "responses": {"303": {"description": "Vidare, med Location."}},
+            }
+        }
+    route("get", a + "/clubs", "clubs", "club", many=True, problems=(401,))
+    route("post", a + "/clubs", "createClub", "club", "club-name", created=True, problems=write)
+    route("get", a + "/clubs/{club}", "clubPage", "club-page", problems=(401, 404))
+    route(
+        "post",
+        a + "/clubs/{club}/invitations",
+        "inviteToClub",
+        "invitation",
+        "invite",
+        created=True,
+        problems=(*write, 503),
+    )
+    route(
+        "delete",
+        a + "/clubs/{club}/members/{member}",
+        "removeMember",
+        "club-page",
+        problems=write,
+    )
+    route("get", a + "/fleets/{owner}", "fleetPage", "fleet-page", problems=(401, 403, 404))
+    route(
+        "post",
+        a + "/fleets/{owner}/invitations",
+        "inviteToFleet",
+        "invitation",
+        "fleet-invite",
+        created=True,
+        problems=(*write, 503),
+    )
+    route("delete", a + "/grants/{grant}", "removeGrant", "removed", problems=write)
+    route("get", a + "/invitations", "invitations", "invitation", many=True, problems=(401,))
+    route(
+        "post",
+        a + "/invitations/{invitation}/answer",
+        "answerInvitation",
+        "invitation",
+        "answer",
+        problems=write,
+    )
+    route(
+        "delete", a + "/invitations/{invitation}", "withdrawInvitation", "removed", problems=write
+    )
+    route(
+        "get",
+        a + "/apps/access",
+        "appAccess",
+        "access",
+        query=("person", "resource"),
+        problems=(401, 422),
+        app=True,
+    )
+    route(
+        "get",
+        a + "/apps/fleets",
+        "appFleets",
+        "fleet-access",
+        many=True,
+        query=("person",),
+        problems=(401, 422),
+        app=True,
+    )
+    return (
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "info": {"title": "TrainMeet ID · kontrakten", "version": "1"},
+                "paths": paths,
+                "components": {
+                    "schemas": components([s for s in CONTRACTS if s.startswith(ID_PREFIX)]),
+                    "securitySchemes": {
+                        "session": {"type": "apiKey", "in": "cookie", "name": "id_session"},
+                        "app": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
+                    },
+                },
+                "security": [{"session": []}],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+OPENAPI_FILES = {OPENAPI: openapi, CATALOG_OPENAPI: catalog_openapi, ID_OPENAPI: id_openapi}
 
 
 def main(argv: list[str]) -> int:

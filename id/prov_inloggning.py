@@ -1,6 +1,7 @@
 """Provar inloggningen i TrainMeet ID från början till slut, som en webbläsare och Catalog gör.
 
     python -m id.prov_inloggning <ID> <mejlfil> <klienthemlighet> <Catalog> [--catalog]
+        [--id-app=<ID:s webbapp>]
 
 Skapa konto med namn och e-post, koden ur mejlet, sedan Catalogs utbyte av koden mot en token
 med verifierad e-post (KONTO-10, KONTO-27). Sedan en ny inloggning med samma e-post utan namn, och
@@ -13,6 +14,9 @@ frågar efter den första inloggningen, och sedan loggar man in med den utan kod
 Med --catalog körs Catalog på sin adress, och provet loggar in där som en webbläsare: genom ID med
 en kod till e-posten och tillbaka in i Catalog med samma konto (KONTO-27), sedan in i Catalog utan
 ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och ID.
+
+Med --id-app körs ID:s API och webbapp på den adressen (#67): en klubb skapas, en medlem
+bjuds in med mejl och svarar ja.
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -353,19 +357,18 @@ def run(base: str, mails: Path, secret: str, catalog: str) -> None:
 
 
 class Browser:
-    """One browser: ID's cookies (Secure, see Login.keep) and Catalog's in their own jars."""
+    """One browser: ID's cookies (Secure, see Login.keep) and the app's in their own jars."""
 
-    def __init__(self, base: str, catalog: str) -> None:
+    def __init__(self, base: str, catalog: str, session: str = "/api/catalog/1/session") -> None:
         self.id = Login(base, catalog)
-        self.catalog = httpx.Client(
-            base_url=catalog.rstrip("/"), follow_redirects=False, timeout=20
-        )
+        self.session_path = session
+        self.app = httpx.Client(base_url=catalog.rstrip("/"), follow_redirects=False, timeout=20)
 
     def open(self, address: str) -> httpx.Response:
         """Opens an address and follows the redirects between Catalog and ID."""
         for _ in range(10):
-            if address.startswith(str(self.catalog.base_url)) or address.startswith("/"):
-                answer = self.catalog.get(address.removeprefix(str(self.catalog.base_url)))
+            if address.startswith(str(self.app.base_url)) or address.startswith("/"):
+                answer = self.app.get(address.removeprefix(str(self.app.base_url)))
             else:
                 answer = self.id.keep(self.id.client.get(address))
             if answer.status_code not in (301, 302, 303, 307):
@@ -379,7 +382,7 @@ class Browser:
         return answer
 
     def session(self) -> dict[str, object]:
-        data: dict[str, object] = self.catalog.get("/api/catalog/1/session").json()
+        data: dict[str, object] = self.app.get(self.session_path).json()
         return data
 
 
@@ -402,18 +405,18 @@ def run_catalog(base: str, mails: Path, catalog: str) -> None:
     back = browser.id.post(offer.text, {"passkey": "no"})
     check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
     check(back.headers["location"].startswith(catalog.rstrip("/")), "Inte tillbaka till Catalog.")
-    landed = browser.catalog.get(back.headers["location"].removeprefix(catalog.rstrip("/")))
+    landed = browser.app.get(back.headers["location"].removeprefix(catalog.rstrip("/")))
     check(
         landed.headers.get("location") == "/platser", "Catalog gick inte till sidan man kom från."
     )
     account = browser.session()["account"]
     check(isinstance(account, dict) and account.get("name") == "Provare Tre", "Inte inloggad.")
     assert isinstance(account, dict)
-    check(browser.catalog.get("/api/catalog/1/vehicles").status_code == 200, "Ingen vagnpark.")
+    check(browser.app.get("/api/catalog/1/vehicles").status_code == 200, "Ingen vagnpark.")
     print("In i Catalog med en kod till e-posten: ok")
 
     # Ut ur Catalog, och in igen utan kod: inloggad i ID sedan förut (KONTO-01).
-    out = browser.catalog.delete("/api/catalog/1/session").json()
+    out = browser.app.delete("/api/catalog/1/session").json()
     check(browser.session()["account"] is None, "Fortfarande inloggad i Catalog.")
     seen = mail_count(mails)
     again = browser.open("/api/catalog/1/id/login?next=%2Ffordon")
@@ -424,7 +427,7 @@ def run_catalog(base: str, mails: Path, catalog: str) -> None:
     print("In igen utan ny kod, samma konto: ok")
 
     # Ut ur både Catalog och ID.
-    out = browser.catalog.delete("/api/catalog/1/session").json()
+    out = browser.app.delete("/api/catalog/1/session").json()
     logout = out.get("logout_url")
     check(isinstance(logout, str), "Utloggningen sa inte var ID loggar ut.")
     assert isinstance(logout, str)
@@ -436,9 +439,71 @@ def run_catalog(base: str, mails: Path, catalog: str) -> None:
     print("Ut ur Catalog och ID: ok")
 
 
+def log_in_to_app(browser: Browser, mails: Path, address: str, name: str, start: str) -> None:
+    """A new account through the app's login, with the code, and back into the app."""
+    page = browser.open(start)
+    check(page.status_code == 200 and "Skicka en kod" in page.text, "ID:s sida kom inte.")
+    create = browser.id.post(page.text, {"create": "1"}).text
+    seen = mail_count(mails)
+    sent = browser.id.post(create, {"creating": "1", "name": name, "email": address, "send": "1"})
+    code, _ = code_from(mails, address, seen)
+    offer = browser.id.post(sent.text, {"code": code})
+    check(OFFER in offer.text, "ID frågade inte om en passkey.")
+    back = browser.id.post(offer.text, {"passkey": "no"})
+    check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
+    landed = browser.open(back.headers["location"])
+    check(landed.status_code == 200, f"Appen svarade {landed.status_code} efter inloggningen.")
+
+
+def run_id_api(base: str, mails: Path, id_app: str) -> None:
+    """ID's own web app and API (#67): a club, an invitation by mail, and a yes."""
+    kim = Browser(base, id_app, "/api/id/1/session")
+    check(kim.session()["account"] is None, "Inloggad i ID:s webbapp utan att ha loggat in.")
+    kim_address = f"prov-{secrets.token_hex(4)}@example.com"
+    log_in_to_app(kim, mails, kim_address, "Provare Klubb", "/api/id/1/login?next=%2Fklubbar")
+    account = kim.session()["account"]
+    check(
+        isinstance(account, dict) and account.get("email") == kim_address,
+        "ID:s webbapp vet inte vem som loggat in.",
+    )
+    made = kim.app.post("/api/id/1/clubs", json={"name": "Provklubben"})
+    check(made.status_code == 201 and made.json()["role"] == "admin", "Klubben skapades inte.")
+    club = made.json()["id"]
+    sara_address = f"prov-{secrets.token_hex(4)}@example.com"
+    seen = mail_count(mails)
+    invited = kim.app.post(f"/api/id/1/clubs/{club}/invitations", json={"email": sara_address})
+    check(
+        invited.status_code == 201, f"Inbjudan svarade {invited.status_code}: {invited.text[:200]}"
+    )
+    for _ in range(50):
+        text = mails.read_text(encoding="utf-8") if mails.exists() else ""
+        parts = [p for p in text.split("----\n") if p.strip()][seen:]
+        if any(sara_address in p.splitlines()[0] and "bjuder in dig" in p for p in parts):
+            break
+        time.sleep(0.2)
+    else:
+        raise ProvFel("Inget mejl med inbjudan.")
+    print("ID:s webbapp: inloggad, klubben skapad och inbjudan skickad: ok")
+
+    sara = Browser(base, id_app, "/api/id/1/session")
+    log_in_to_app(sara, mails, sara_address, "Provare Medlem", "/api/id/1/login")
+    waiting = sara.app.get("/api/id/1/invitations").json()
+    check([w["title"] for w in waiting] == ["Provklubben"], "Inbjudan syns inte för mottagaren.")
+    yes = sara.app.post(f"/api/id/1/invitations/{waiting[0]['id']}/answer", json={"accept": True})
+    check(yes.status_code == 200, f"Svaret gick inte: {yes.status_code}")
+    members = kim.app.get(f"/api/id/1/clubs/{club}").json()["members"]
+    check(
+        [(m["person"]["name"], m["role"]) for m in members]
+        == [("Provare Klubb", "admin"), ("Provare Medlem", "member")],
+        "Medlemmarna stämmer inte.",
+    )
+    print("ID:s webbapp: inbjudan besvarad, medlem i klubben: ok")
+
+
 def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
-    argv = [arg for arg in argv if arg != "--catalog"]
+    id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
+    argv = [arg for arg in argv if arg != "--catalog" and not arg.startswith("--id-app=")]
     if len(argv) != 5:
         print(__doc__)
         return 2
@@ -446,6 +511,8 @@ def main(argv: list[str]) -> int:
         run(argv[1], Path(argv[2]), argv[3], argv[4])
         if through_catalog:
             run_catalog(argv[1], Path(argv[2]), argv[4])
+        if id_app:
+            run_id_api(argv[1], Path(argv[2]), id_app)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

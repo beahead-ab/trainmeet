@@ -139,3 +139,19 @@ def test_an_existing_realm_is_updated_to_the_same_as_the_file() -> None:
     )
     assert "setPasskeysEnabled(true)" in updates
     assert 'PASSKEY_ACTION = "webauthn-register-passwordless"' in updates
+
+
+def test_ids_own_web_app_logs_in_like_catalog_in_the_file_and_the_update() -> None:
+    """#67: the client "id", the same in the realm file and in update 3."""
+    client = next(c for c in realm()["clients"] if c["clientId"] == "id")
+    assert client["publicClient"] is False and client["secret"] == "${ID_APP_SECRET}"
+    assert client["standardFlowEnabled"] is True
+    assert client["directAccessGrantsEnabled"] is False
+    assert client["attributes"]["pkce.code.challenge.method"] == "S256"
+    assert client["redirectUris"] == ["${ID_PUBLIC_URL}/api/id/1/login/callback"]
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert 'address + "/api/id/1/login/callback"' in updates
+    assert 'setAttribute("pkce.code.challenge.method", "S256")' in updates
+    scopes = re.search(r"SCOPES = List.of\(([^)]*)\)", updates)
+    assert scopes is not None
+    assert re.findall(r'"([a-z-]+)"', scopes.group(1)) == client["defaultClientScopes"]

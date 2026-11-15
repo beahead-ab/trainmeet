@@ -132,6 +132,7 @@ jobs:
             echo "ID_DB_PASSWORD=$(openssl rand -hex 24)"
             echo "ID_ADMIN_PASSWORD=$(openssl rand -hex 24)"
             echo "ID_CATALOG_SECRET=$(openssl rand -hex 32)"
+            echo "ID_APP_SECRET=$(openssl rand -hex 32)"
             echo "HOST_UID=$(id -u)"
           } > .env
           docker compose up -d --wait catalog-db
@@ -201,10 +202,10 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Bygg bilden
-        run: >
-          docker build -f id/Dockerfile -t trainmeet-id:prov
-          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+      - name: Bygg bilderna
+        run: |
+          docker build -f id/Dockerfile -t trainmeet-id:prov --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+          docker build -f id/api.Dockerfile -t trainmeet-idapi:prov --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
 
       - name: Starta ID med databas och en låtsad mejlserver
         run: |
@@ -225,10 +226,26 @@ jobs:
             -e ID_SMTP_HOST=127.0.0.1 -e ID_SMTP_PORT=2525 -e ID_SMTP_SSL=false -e ID_SMTP_STARTTLS=false \
             -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_FROM=konto@trainmeet.se \
             -e ID_CATALOG_SECRET=prov-hemlighet -e ID_CATALOG_URL=http://localhost:8001 \
+            -e ID_APP_SECRET=id-hemlighet -e ID_PUBLIC_URL=http://localhost:8002 \
             trainmeet-id:prov
           for i in $(seq 1 120); do curl -fsS http://127.0.0.1:9000/health/ready >/dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:9000/health/ready
           docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' id | grep -qx "${{ github.sha }}"
+
+      # ID:s API och webbapp (#67) ur sin egen bild, med en egen databas och samma mejlserver.
+      - name: Starta ID:s API
+        run: |
+          docker exec id-db createdb -U keycloak idapi
+          docker run -d --name id-api --network host -v "$RUNNER_TEMP/valv:/vault:ro" \
+            -e ID_API_DATABASE_URL=postgresql://keycloak:prov@127.0.0.1:5432/idapi \
+            -e ID_API_ISSUER=http://127.0.0.1:8080/realms/trainmeet -e ID_API_SECRET=id-hemlighet \
+            -e ID_API_PUBLIC_URL=http://localhost:8002 \
+            -e ID_SMTP_HOST=127.0.0.1 -e ID_SMTP_PORT=2525 -e ID_SMTP_SSL=false -e ID_SMTP_STARTTLS=false \
+            -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_PASSWORD_FILE=/vault/trainmeet_smtp-password \
+            --user "$(id -u):0" \
+            trainmeet-idapi:prov uvicorn id.app:app --host 127.0.0.1 --port 8002 --no-access-log
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8002/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8002/api/version | grep -q "\"commit\":\"${{ github.sha }}\""
 
       - name: Starta Catalog mot ID
         run: |
@@ -244,12 +261,13 @@ jobs:
       - name: Logga in med en kod till e-posten, också i Catalog
         run: >
           uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt"
-          prov-hemlighet http://localhost:8001 --catalog
+          prov-hemlighet http://localhost:8001 --catalog --id-app=http://localhost:8002
 
       - name: Visa loggen om något gick fel
         if: failure()
         run: |
           docker logs id 2>&1 | tail -100 || true
+          docker logs id-api 2>&1 | tail -50 || true
           cat "$RUNNER_TEMP/postlada.log" || true
           cat "$RUNNER_TEMP/catalog.log" || true
 
@@ -334,6 +352,7 @@ jobs:
               --build-arg TRAINMEET_TITLE="$TITLE" \
               --build-arg TRAINMEET_BUILT="$BUILT" .
           done
+          docker build -f id/api.Dockerfile -t "trainmeet-idapi:$TAG" --build-arg TRAINMEET_COMMIT="$TAG" .
 
       - name: Servern hos Scaleway
         id: server
@@ -380,7 +399,7 @@ jobs:
         env:
           TEM_SECRET_KEY: ${{ secrets.TEM_SECRET_KEY }}
         run: |
-          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
           cat deploy/testmiljo/catalog-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/catalog-backup.sh'
@@ -477,7 +496,8 @@ jobs:
           fi
           for i in $(seq 1 36); do
             if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
-            if curl -fsS "https://$ID_DOMAIN/realms/trainmeet/.well-known/openid-configuration" | grep -q "\"issuer\":\"https://$ID_DOMAIN/realms/trainmeet\""; then
+            if curl -fsS "https://$ID_DOMAIN/realms/trainmeet/.well-known/openid-configuration" | grep -q "\"issuer\":\"https://$ID_DOMAIN/realms/trainmeet\"" &&
+              curl -fsS "https://$ID_DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
               {
                 echo "### TrainMeet ID är ute"
                 echo ""

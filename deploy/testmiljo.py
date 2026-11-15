@@ -70,6 +70,7 @@ TAG = "trainmeet-testmiljo"
 SECRET_NAME = "trainmeet-testmiljo-ssh"
 CATALOG_SECRET_NAME = "trainmeet-testmiljo-catalog"
 ID_SECRET_NAME = "trainmeet-testmiljo-id"
+ID_API_SECRET_NAME = "trainmeet-testmiljo-id-api"
 DEFAULT_TYPE = "DEV1-S"
 IMAGE_LABEL = "ubuntu_noble"
 DEPLOY_USER = "deploy"
@@ -147,6 +148,29 @@ class IdSecrets:
             f"ID_ADMIN_PASSWORD={self.admin_password}\n"
             f"ID_CATALOG_SECRET={self.catalog_secret}\n"
         )
+
+
+@dataclass(frozen=True)
+class IdApiSecrets:
+    """ID's own API and web app in the test environment (#67): the secret it logs in to
+    Keycloak with. A secret of its own, so the one from #66 stays as it is."""
+
+    app_secret: str
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> IdApiSecrets:
+        data = json.loads(text)
+        return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+    def env_file(self) -> str:
+        return f"ID_APP_SECRET={self.app_secret}\n"
+
+
+def generate_id_api_secrets() -> IdApiSecrets:
+    return IdApiSecrets(app_secret=random_secrets.token_hex(32))
 
 
 def generate_id_secrets() -> IdSecrets:
@@ -491,6 +515,20 @@ def ensure_id_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdSecrets:
     return IdSecrets.from_json(text)
 
 
+def ensure_id_api_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdApiSecrets:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        ID_API_SECRET_NAME,
+        "Hemligheten som ID:s API och webbapp loggar in i Keycloak med i testmiljön. "
+        "Skapas av deploy/testmiljo.py.",
+        lambda: generate_id_api_secrets().to_json(),
+    )
+    if created:
+        print("Hemligheten för ID:s API skapad och sparad i Secret Manager.")
+    return IdApiSecrets.from_json(text)
+
+
 def explain(status: int | None, body: str, commercial_type: str) -> str:
     """Scaleway's answer, with what to do about it when it is the account and not the code."""
     if "quotas_exceeded" in body:
@@ -577,6 +615,7 @@ def main(argv: list[str]) -> int:
         keys = ensure_keys(secrets, project_id)
         catalog = ensure_catalog_secrets(secrets, project_id)
         id_secrets = ensure_id_secrets(secrets, project_id)
+        id_api_secrets = ensure_id_api_secrets(secrets, project_id)
         security_group_id = ensure_security_group(instance, project_id)
         ip = ensure_ip(instance, project_id)
         _, created = ensure_server(
@@ -601,7 +640,7 @@ def main(argv: list[str]) -> int:
     output("catalog_env", str(write_catalog_env(catalog)))
     # up.sh puts both files in .env, so Catalog reads ID_CATALOG_SECRET from there too.
     # ID sends its codes with Scaleway's Transactional Email in this project (#66).
-    id_env = id_secrets.env_file() + f"TEM_PROJECT_ID={project_id}\n"
+    id_env = id_secrets.env_file() + id_api_secrets.env_file() + f"TEM_PROJECT_ID={project_id}\n"
     output("id_env", str(write_private("testmiljo_id.env", id_env)))
     output("created", "true" if created else "false")
     return 0

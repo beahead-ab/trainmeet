@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.problem.schema.json",
+  "title": "trainmeet.id-1.problem",
+  "$defs": {
+    "ProblemCode": {
+      "enum": [
+        "login",
+        "not_found",
+        "forbidden",
+        "invalid",
+        "conflict",
+        "unavailable"
+      ],
+      "title": "ProblemCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "code": {
+      "$ref": "#/$defs/ProblemCode"
+    },
+    "message": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "type": "object"
+}

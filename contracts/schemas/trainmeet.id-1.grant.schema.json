@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.grant.schema.json",
+  "title": "trainmeet.id-1.grant",
+  "$defs": {
+    "Person": {
+      "additionalProperties": true,
+      "description": "Someone else, as a member or someone with a role: never their address.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "initials": {
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "initials"
+      ],
+      "title": "Person",
+      "type": "object"
+    },
+    "Resource": {
+      "additionalProperties": true,
+      "description": "One thing a role applies to: its kind and its id in the app that owns it.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ResourceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Resource",
+      "type": "object"
+    },
+    "ResourceKind": {
+      "description": "What a role applies to (KONTO-03). ID only holds the reference, never the thing.",
+      "enum": [
+        "club",
+        "fleet",
+        "meet",
+        "station",
+        "module",
+        "hub",
+        "catalog"
+      ],
+      "title": "ResourceKind",
+      "type": "string"
+    },
+    "Role": {
+      "description": "The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).",
+      "enum": [
+        "admin",
+        "member",
+        "organizer",
+        "reader",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer",
+        "reviewer",
+        "viewer",
+        "editor"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A role someone has for a resource.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "person": {
+      "$ref": "#/$defs/Person"
+    },
+    "role": {
+      "$ref": "#/$defs/Role"
+    },
+    "resource": {
+      "$ref": "#/$defs/Resource"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "person",
+    "role",
+    "resource",
+    "at"
+  ],
+  "type": "object"
+}

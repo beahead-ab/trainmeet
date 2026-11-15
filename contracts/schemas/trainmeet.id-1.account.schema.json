@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.account.schema.json",
+  "title": "trainmeet.id-1.account",
+  "additionalProperties": true,
+  "description": "The person who is logged in, as ID knows them.",
+  "properties": {
+    "id": {
+      "description": "The account's id, the same in every app (the token's sub).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "initials": {
+      "maxLength": 3,
+      "minLength": 1,
+      "title": "Initials",
+      "type": "string"
+    },
+    "email": {
+      "description": "Verified by the code to it (KONTO-10).",
+      "maxLength": 254,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "title": "Email",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "initials",
+    "email"
+  ],
+  "type": "object"
+}

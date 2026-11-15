@@ -29,8 +29,9 @@
 	reverse_proxy catalog:8080
 }
 
-# TrainMeet ID (#66). Keycloak sets its own headers for its pages; its admin pages and
-# management are not reachable from outside.
+# TrainMeet ID (#66, #67). Keycloak answers /realms/ and /resources/ and sets its own headers
+# for its pages; its admin pages and management are not reachable from outside. Everything else
+# is ID's API and web app.
 {$ID_DOMAIN} {
 	encode zstd gzip
 	header {
@@ -41,5 +42,11 @@
 	}
 	respond /admin* 404
 	respond /realms/master* 404
-	reverse_proxy id:8080
+	@keycloak path /realms/* /resources/*
+	handle @keycloak {
+		reverse_proxy id:8080
+	}
+	handle {
+		reverse_proxy id-api:8080
+	}
 }

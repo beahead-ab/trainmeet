@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.fleet-invite.schema.json",
+  "title": "trainmeet.id-1.fleet-invite",
+  "$defs": {
+    "FleetRole": {
+      "enum": [
+        "viewer",
+        "editor"
+      ],
+      "title": "FleetRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Share the whole fleet with one person, to look at or to edit (CAT-44, KONTO-29).",
+  "properties": {
+    "email": {
+      "maxLength": 254,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "title": "Email",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/FleetRole"
+    }
+  },
+  "required": [
+    "email",
+    "role"
+  ],
+  "type": "object"
+}

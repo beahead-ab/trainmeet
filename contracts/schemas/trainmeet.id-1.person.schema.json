@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.person.schema.json",
+  "title": "trainmeet.id-1.person",
+  "additionalProperties": true,
+  "description": "Someone else, as a member or someone with a role: never their address.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "initials": {
+      "maxLength": 3,
+      "minLength": 1,
+      "title": "Initials",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "initials"
+  ],
+  "type": "object"
+}

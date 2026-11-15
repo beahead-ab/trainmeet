@@ -1,6 +1,6 @@
 #!/bin/sh
 # Körs på servern av jobbet "Testmiljön", efter att bilderna trainmeet-hub:$1,
-# trainmeet-catalog:$1 och trainmeet-id:$1 har laddats in och catalog.env, id.env,
+# trainmeet-catalog:$1, trainmeet-id:$1 och trainmeet-idapi:$1 har laddats in och catalog.env, id.env,
 # id-vault/ och catalog-backup.sh har lagts dit.
 # Startar de nya versionerna, provar dem och städar bort gamla versioner (de tre senaste blir
 # kvar). Catalogs databas säkerhetskopieras och provas före migreringen (CAT-39).
@@ -44,6 +44,23 @@ done
 sh ./catalog-backup.sh fore-migrering
 docker compose run --rm --no-deps catalog python -m catalog.migrate
 
+# ID's API has a database of its own, idapi, beside Keycloak's in ID's PostgreSQL (#67).
+docker compose up -d id-db
+i=0
+until docker compose exec -T id-db pg_isready -U keycloak -d keycloak >/dev/null 2>&1; do
+  i=$((i + 1))
+  if [ "$i" -ge 60 ]; then
+    echo "ID:s databas startar inte." >&2
+    docker compose logs --tail 50 id-db >&2
+    exit 1
+  fi
+  sleep 1
+done
+if ! docker compose exec -T id-db psql -U keycloak -d keycloak -tAc \
+  "SELECT 1 FROM pg_database WHERE datname = 'idapi'" | grep -q 1; then
+  docker compose exec -T id-db createdb -U keycloak idapi
+fi
+
 docker compose up -d --remove-orphans
 
 # Caddy runs without its admin API, so a changed Caddyfile needs a restart.
@@ -86,7 +103,7 @@ if [ ! -s id-vault/trainmeet_smtp-password ]; then
 fi
 
 # The new versions must answer on the server itself, with the right commit.
-for service in hub:8080 catalog:8081; do
+for service in hub:8080 catalog:8081 id-api:8083; do
   name="${service%%:*}"
   port="${service##*:}"
   i=0
@@ -102,7 +119,7 @@ for service in hub:8080 catalog:8081; do
   echo "$name svarar med version $TAG."
 done
 
-for image in trainmeet-hub trainmeet-catalog trainmeet-id; do
+for image in trainmeet-hub trainmeet-catalog trainmeet-id trainmeet-idapi; do
   docker images "$image" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +4 | cut -f2 |
     while read -r old; do
       [ "$old" = "$TAG" ] || docker image rm "$image:$old" >/dev/null 2>&1 || true
