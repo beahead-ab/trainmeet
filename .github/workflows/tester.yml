@@ -125,6 +125,13 @@ jobs:
             echo "CATALOG_DOMAIN=localhost"
             echo "CATALOG_DB_PASSWORD=$(openssl rand -hex 24)"
             echo "CATALOG_BACKUP_KEY=$(openssl rand -hex 32)"
+            # Compose-filen har ID också; provet här startar det inte, men namnen ska finnas.
+            echo "ID_TAG=prov"
+            echo "ID_DOMAIN=localhost"
+            echo "ID_DB_PASSWORD=$(openssl rand -hex 24)"
+            echo "ID_ADMIN_PASSWORD=$(openssl rand -hex 24)"
+            echo "ID_CATALOG_SECRET=$(openssl rand -hex 32)"
+            echo "HOST_UID=$(id -u)"
           } > .env
           docker compose up -d --wait catalog-db
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -107,6 +108,18 @@ def test_the_server_files_agree_on_the_names() -> None:
     assert "{$HUB_DOMAIN}" in caddyfile
     assert "HUB_TAG=%s\\nHUB_DOMAIN=%s" in up
     assert "127.0.0.1:8080:8080" in compose
+
+
+def test_the_catalog_check_gives_compose_every_name_it_requires() -> None:
+    """The check "Catalogs bild" runs the test environment's compose file, so every variable
+    the file requires must be in the check's .env too, or compose refuses to start."""
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    required = set(re.findall(r"\$\{([A-Z_]+):\?", compose))
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    job = workflow.split("\n  catalog:\n")[1].split("\n  id:\n")[0]
+    given = set(re.findall(r'echo "([A-Z_]+)=', job.split("} > .env")[0]))
+    assert required, "compose.yaml requires nothing?"
+    assert required <= given, sorted(required - given)
 
 
 def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
