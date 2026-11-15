@@ -29,7 +29,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Tester
 
-- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest), "Hubbens bild" (bilden byggs och provas) och "Catalogs bild" (webbappens typer och tester, bilden, och ett prov med testmiljöns databas och säkerhetskopia). Alla tre ska vara gröna.
+- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest), "Hubbens bild" (bilden byggs och provas) "Catalogs bild" (webbappens typer och tester, bilden, och ett prov med testmiljöns databas och säkerhetskopia) och "ID:s bild" (tilläggets tester, bilden, och ett prov av inloggningen med en kod till e-posten). Alla fyra ska vara gröna.
 - Gamla Servers tester är facit. Ett beteende som portas tar med sitt test.
 - Kör samma sak lokalt: `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`. Python 3.12, beroendena låsta i `uv.lock`. Catalogs databastester behöver en PostgreSQL i `CATALOG_TEST_DATABASE_URL`. Webbapparna: `npm ci`, `npm run check`, `npm test`, Node 22, beroendena låsta i `package-lock.json`.
 - Ett nytt beroende läggs bara till om det är välkänt och behövs; nämn det i PR-texten.
@@ -41,7 +41,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Testmiljön
 
-- test.hub.trainmeet.app och test.catalog.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`, på samma server bakom samma Caddy. Catalog har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
+- test.hub.trainmeet.app, test.catalog.trainmeet.app och test.id.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`, på samma server bakom samma Caddy. Catalog har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt. TrainMeet ID är Keycloak med vårt eget tillägg i `id/`, med en egen PostgreSQL; nyckeln till mejlen ligger i GitHub som `TEM_SECRET_KEY` och läggs i ID:s valv på servern. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
 - Behöver hubben nya inställningar eller hemligheter i testmiljön läggs de i `deploy/testmiljo/compose.yaml` som variabler, aldrig som värden i koden.
 
 ## Gamla repon

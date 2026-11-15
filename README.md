@@ -54,9 +54,21 @@ CATALOG_TEST_DATABASE_URL=postgresql:///postgres uv run pytest catalog
 
 Catalogs bild byggs med `docker build -f catalog/Dockerfile -t trainmeet-catalog .`. Webbappens typer och tester körs när bilden byggs.
 
+### TrainMeet ID på egen dator
+
+TrainMeet ID är [Keycloak](https://www.keycloak.org/) med ett eget tillägg i `id/email-code`: inloggning och nytt konto med en kod till e-posten, utan lösenord, och inloggningssidorna i TrainMeets utseende på svenska och engelska (#66). Realmen ligger i `id/realm/trainmeet.json` och läses in första gången Keycloak startar; den har inga hemligheter, bara platshållare som fylls från miljön. Lösenordet till mejlservern läses ur Keycloaks valv, en fil.
+
+```sh
+docker build -f id/Dockerfile -t trainmeet-id .   # tilläggets tester körs när bilden byggs
+uvx --from aiosmtpd python id/postlada.py /tmp/mejl.txt 2525   # en låtsad mejlserver
+uv run python -m id.prov_inloggning http://127.0.0.1:8080 /tmp/mejl.txt <klienthemlighet> http://localhost:8001
+```
+
+Kontrollen *ID:s bild* startar bilden med en PostgreSQL och den låtsade mejlservern och kör provet av inloggningen; se jobbet `id` i `.github/workflows/tester.yml` för vilka inställningar Keycloak behöver.
+
 ## Testmiljön
 
-https://test.hub.trainmeet.app och https://test.catalog.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
+https://test.hub.trainmeet.app, https://test.catalog.trainmeet.app och https://test.id.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
 
 [Öppna Provbanan](https://test.hub.trainmeet.app/provbanan) och starta en provkörning. Prova tåg 101 från Norrby för begärd klarering och tåg 102 från Sjövik för direktklarering. Du kan starta och stoppa klockan, svara från nästa driftplats och följa tåget till ankomst. Provkörningen är separat för varje webbläsare och sparas i ett dygn.
 
@@ -64,11 +76,13 @@ Hubben kör också en riktig träff (steg 3). Den som först öppnade testhubben
 
 [Catalog](https://test.catalog.trainmeet.app) har en provinloggning tills TrainMeet ID finns (C21): välj ett av provkontona under *Logga in*. Under *Fordon* lägger man in fordon för hand, söker och flyttar dem mellan platserna, och lånar ut dem (#50). Under *Blippa* skapar man en simulerad tagg och kopplar den till ett fordon; taggarna i testmiljön har adressen test.catalog.trainmeet.app/t/, och riktiga taggar får trainmeet.app/t/ (#54). Med Chrome på en Android-telefon blippar man riktiga NFC-taggar under *Blippa*, och Catalog skriver adressen på taggen när den kopplas. Provkontona är gemensamma för alla som provar, och allt där är testdata. Catalog har en egen PostgreSQL i en container på samma server. Före varje migrering och varje natt tas en krypterad säkerhetskopia, som provas genom att läsas in i en tom databas (CAT-39); de 14 senaste av varje slag ligger i `/srv/trainmeet/catalog-backup`. Lösenordet till databasen och nyckeln till säkerhetskopiorna skapas av `deploy/testmiljo.py` och ligger i Scaleways Secret Manager.
 
+TrainMeet ID ligger på samma server med en egen PostgreSQL. Lösenorden till databasen och administratören och Catalogs klienthemlighet skapas av `deploy/testmiljo.py` och ligger i Scaleways Secret Manager. Mejlen med koderna skickas med Scaleways Transactional Email från konto@trainmeet.se; nyckeln ligger i GitHub som `TEM_SECRET_KEY` och skrivs till ID:s valv på servern. Utan nyckeln startar ID ändå, men inga koder kommer fram. Administrationen av Keycloak går inte att nå utifrån.
+
 Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff, lägger till Stefans planeringsfil (JSON, nivå 4), läser importrapporten, rättar telefon och klareringsläge under *Data* och publicerar en version under *Versioner* (steg 4a). Drift kör sedan versionen: välj den under *Byt träff*. Värnamos planeringsfil finns som testdata i `integrationer/tests/fixtures/varnamo.json.gz`.
 
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
-- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
+- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app), `TESTID_DOMAIN` (förval test.id.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
 - **Kvoten:** Scaleway låter ett konto skapa servrar först när betalsättet är verifierat, och fler typer när identiteten är verifierad. Säger jobbet att kvoten är slut, listar det vilka servertyper kontot får skapa (om applikationen har behörigheten `IAMReadOnly`), annars se *Organization → Quotas* i Scaleways konsol.
 
 ### Engångsuppsättningen
@@ -79,7 +93,8 @@ Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff
    - *IAM → API keys → Generate API key* för applikationen, med `trainmeet` som standardprojekt. Spara *Secret Key* direkt; den visas bara en gång.
 2. **Fyra secrets i GitHub** (*Settings → Secrets and variables → Actions → New repository secret*): `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID` (projektets id under projektets *Settings*) och `SCW_DEFAULT_ORGANIZATION_ID` (under *Organization settings*).
 3. **Kör jobbet:** *Actions → Tester → Run workflow* på `main`. Första gången skapas servern. Sammanfattningen av körningen visar serverns adress.
-4. **DNS-raderna i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). För Catalog typ **CNAME**, namn **test.catalog**, mål **test.hub.trainmeet.app**, proxy **av**. Kör jobbet en gång till. Då hämtar Caddy certifikaten, och sidorna är ute.
+4. **DNS-raderna i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). För Catalog typ **CNAME**, namn **test.catalog**, mål **test.hub.trainmeet.app**, proxy **av**, och likadant för ID med namnet **test.id**. Kör jobbet en gång till.
+5. **Nyckeln till mejlen** (#66): i Scaleways konsol *IAM → Applications → Create application* med namnet `trainmeet-mejl`, en policy med behörigheten `TransactionalEmailFullAccess` i projektet `trainmeet`, och en API-nyckel för applikationen. Lägg *Secret Key* som secret `TEM_SECRET_KEY` i GitHub. Domänen trainmeet.se ska vara verifierad under *Transactional Email*. Då hämtar Caddy certifikaten, och sidorna är ute.
 
 Utan nyckeln hoppar jobbet över utläggningen och säger det, så att `main` ändå blir grön.
 

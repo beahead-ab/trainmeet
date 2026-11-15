@@ -21,3 +21,6 @@ dist/
 # Web apps
 node_modules/
 apps/*/dist/
+
+# TrainMeet ID: the extension is built by id/Dockerfile
+id/email-code/target/

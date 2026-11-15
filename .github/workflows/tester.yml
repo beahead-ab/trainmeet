@@ -1,6 +1,6 @@
-# Körs på varje PR och varje ändring på main: kodstil, typer, testerna, Hubbens bild och
-# Catalogs bild. Alla tre kontrollerna, "Tester", "Hubbens bild" och "Catalogs bild", ska
-# vara gröna innan en PR slås ihop.
+# Körs på varje PR och varje ändring på main: kodstil, typer, testerna och bilderna för
+# Hubben, Catalog och TrainMeet ID. Alla fyra kontrollerna, "Tester", "Hubbens bild",
+# "Catalogs bild" och "ID:s bild", ska vara gröna innan en PR slås ihop.
 name: Tester
 
 on:
@@ -179,9 +179,62 @@ jobs:
 
   # Lägger ut hubben på test.hub.trainmeet.app när en ändring har slagits ihop med main
   # och båda kontrollerna är gröna. Servern skapas första gången (deploy/testmiljo.py).
+  # TrainMeet ID: tilläggets tester körs när bilden byggs. Sedan provas inloggningen med en kod
+  # till e-posten mot en riktig Keycloak och PostgreSQL, med en låtsad mejlserver (#66).
+  id:
+    name: ID:s bild
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Bygg bilden
+        run: >
+          docker build -f id/Dockerfile -t trainmeet-id:prov
+          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+
+      - name: Starta ID med databas och en låtsad mejlserver
+        run: |
+          uv sync --locked
+          # Mejlservern kräver inloggning, som Scaleways, med ett lösenord som ID läser ur valvet.
+          mkdir -p "$RUNNER_TEMP/valv"
+          LOSEN=$(openssl rand -hex 16)
+          printf '%s' "$LOSEN" > "$RUNNER_TEMP/valv/trainmeet_smtp-password"
+          POSTLADA_ANVANDARE=prov-projekt POSTLADA_LOSENORD="$LOSEN" \
+            nohup uvx --from aiosmtpd python id/postlada.py "$RUNNER_TEMP/mejl.txt" 2525 > "$RUNNER_TEMP/postlada.log" 2>&1 &
+          docker run -d --name id-db --network host -e POSTGRES_DB=keycloak -e POSTGRES_USER=keycloak \
+            -e POSTGRES_PASSWORD=prov postgres:17-alpine
+          for i in $(seq 1 30); do docker exec id-db pg_isready -U keycloak >/dev/null 2>&1 && break; sleep 1; done
+          docker run -d --name id --network host -v "$RUNNER_TEMP/valv:/opt/keycloak/vault:ro" \
+            -e KC_DB_URL=jdbc:postgresql://127.0.0.1:5432/keycloak -e KC_DB_USERNAME=keycloak -e KC_DB_PASSWORD=prov \
+            -e KC_HOSTNAME=http://127.0.0.1:8080 -e KC_BOOTSTRAP_ADMIN_USERNAME=tm-admin \
+            -e KC_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 16)" \
+            -e ID_SMTP_HOST=127.0.0.1 -e ID_SMTP_PORT=2525 -e ID_SMTP_SSL=false -e ID_SMTP_STARTTLS=false \
+            -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_FROM=konto@trainmeet.se \
+            -e ID_CATALOG_SECRET=prov-hemlighet -e ID_CATALOG_URL=http://localhost:8001 \
+            trainmeet-id:prov
+          for i in $(seq 1 120); do curl -fsS http://127.0.0.1:9000/health/ready >/dev/null 2>&1 && break; sleep 2; done
+          curl -fsS http://127.0.0.1:9000/health/ready
+          docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' id | grep -qx "${{ github.sha }}"
+
+      - name: Logga in med en kod till e-posten
+        run: >
+          uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt"
+          prov-hemlighet http://localhost:8001
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: |
+          docker logs id 2>&1 | tail -100 || true
+          cat "$RUNNER_TEMP/postlada.log" || true
+
   testmiljon:
     name: Testmiljön
-    needs: [tester, bilden, catalog]
+    needs: [tester, bilden, catalog, id]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -199,6 +252,7 @@ jobs:
       TESTMILJO_TYPE: ${{ vars.TESTMILJO_TYPE }}
       DOMAIN: ${{ vars.TESTHUB_DOMAIN || 'test.hub.trainmeet.app' }}
       CATALOG_DOMAIN: ${{ vars.TESTCATALOG_DOMAIN || 'test.catalog.trainmeet.app' }}
+      ID_DOMAIN: ${{ vars.TESTID_DOMAIN || 'test.id.trainmeet.app' }}
       TAG: ${{ github.sha }}
     steps:
       - name: Finns Scaleway-nyckeln?
@@ -243,7 +297,7 @@ jobs:
       - name: Bygg bilderna
         if: steps.nyckel.outputs.finns == 'true'
         run: |
-          for part in hub catalog; do
+          for part in hub catalog id; do
             docker build -f "$part/Dockerfile" -t "trainmeet-$part:$TAG" \
               --build-arg TRAINMEET_COMMIT="$TAG" \
               --build-arg TRAINMEET_PR="$PR" \
@@ -266,8 +320,10 @@ jobs:
           KEY: ${{ steps.server.outputs.key_file }}
           KNOWN: ${{ steps.server.outputs.known_hosts }}
           CATALOG_ENV: ${{ steps.server.outputs.catalog_env }}
+          ID_ENV: ${{ steps.server.outputs.id_env }}
         run: |
           echo "CATALOG_ENV=$CATALOG_ENV" >> "$GITHUB_ENV"
+          echo "ID_ENV=$ID_ENV" >> "$GITHUB_ENV"
           SSH="ssh -i $KEY -o UserKnownHostsFile=$KNOWN -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes"
           echo "SSH=$SSH" >> "$GITHUB_ENV"
           echo "TARGET=$SSH_USER@$IP" >> "$GITHUB_ENV"
@@ -289,16 +345,23 @@ jobs:
             docker compose version --short
           '
 
-      - name: Lägg ut hubben och Catalog
+      - name: Lägg ut hubben, Catalog och ID
         if: steps.nyckel.outputs.finns == 'true'
+        env:
+          TEM_SECRET_KEY: ${{ secrets.TEM_SECRET_KEY }}
         run: |
-          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
           cat deploy/testmiljo/catalog-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/catalog-backup.sh'
           # Catalogs hemligheter går direkt från Secret Manager till servern och skrivs aldrig ut.
           $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/catalog.env' < "$CATALOG_ENV"
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" < deploy/testmiljo/up.sh
+          $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/id.env' < "$ID_ENV"
+          # Mejlnyckeln (#66) går från GitHub direkt till ID:s valv på servern och skrivs aldrig ut.
+          if [ -n "$TEM_SECRET_KEY" ]; then
+            printf '%s' "$TEM_SECRET_KEY" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_smtp-password'
+          fi
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" < deploy/testmiljo/up.sh
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
@@ -365,4 +428,34 @@ jobs:
             sleep 5
           done
           echo "::error::https://$CATALOG_DOMAIN svarar inte med den nya versionen."
+          exit 1
+
+      - name: Prova ID:s adress
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$ID_DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$ID_DOMAIN pekar inte på servern än. Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### TrainMeet ID är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **CNAME**, namn **${ID_DOMAIN%%.trainmeet.app}**, mål **$DOMAIN**, proxy **av** (grått moln)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$ID_DOMAIN/realms/trainmeet/.well-known/openid-configuration" | grep -q "\"issuer\":\"https://$ID_DOMAIN/realms/trainmeet\""; then
+              {
+                echo "### TrainMeet ID är ute"
+                echo ""
+                echo "- https://$ID_DOMAIN"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$ID_DOMAIN svarar inte."
           exit 1
