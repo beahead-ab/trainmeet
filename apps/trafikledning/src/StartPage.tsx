@@ -47,7 +47,7 @@ export function StartPage(props: StartProps) {
   );
 }
 
-function Built({ version }: { version: Version }) {
+export function Built({ version }: { version: Version }) {
   const local = !version.commit && !version.pr;
   const built = version.built ? builtText(version.built) : "–";
   return (

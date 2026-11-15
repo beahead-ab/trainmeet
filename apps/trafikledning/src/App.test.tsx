@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "./drift";
+import { heaps, newSeed, SettingsPage } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
@@ -36,6 +37,7 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(looking).not.toContain('id="waiting"');
     expect(looking).not.toContain("Byt träff");
     expect(looking).toContain('href="/">Logga in</a>');
+    expect(looking).toContain('id="gear" class="hknapp kugge" href="/installningar" aria-label="Inställningar"');
     const running = header({ admin: true, waiting: 2 });
     for (const part of ['id="connect"', 'id="waiting"', 'id="logout"', "Byt träff", 'id="waiting-count">2<']) expect(running).toContain(part);
     expect(running).toContain('class="hknapp har"');
@@ -79,20 +81,20 @@ describe("the header (S2, TRAFIK-12)", () => {
 
 describe("Nu, Klienter and Logg (S6)", () => {
   it("shows everyone Nu, and the administrator the clock's buttons", () => {
-    const looking = renderToStaticMarkup(<NuPage admin={false} now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} automationSaved={0} />);
+    const looking = renderToStaticMarkup(<NuPage admin={false} now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
     expect(looking).toContain("Trafikdag måndag · dag 1 · klockan står still");
     expect(looking).not.toContain('id="clock-toggle"');
-    const running = renderToStaticMarkup(<NuPage admin now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} automationSaved={0} />);
+    const running = renderToStaticMarkup(<NuPage admin now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
     expect(running).toContain('id="clock-toggle"');
     expect(running).toContain(">Starta klockan<");
     expect(running).toContain('aria-pressed="true">4×</button>');
   });
 
   it("asks to start a meet when none runs, and to log in first when looking", () => {
-    const html = renderToStaticMarkup(<NuPage admin now={null} clients={[]} choices={meetChoices([])} asked={null} automation={null} automationSaved={0} />);
+    const html = renderToStaticMarkup(<NuPage admin now={null} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
     expect(html).toContain("Ingen träff är startad");
     expect(html).toContain('id="start-meet"');
-    expect(renderToStaticMarkup(<NuPage admin={false} now={null} clients={[]} choices={[]} asked={null} automation={null} automationSaved={0} />)).toContain("Logga in för att starta en träff.");
+    expect(renderToStaticMarkup(<NuPage admin={false} now={null} clients={[]} choices={[]} asked={null} automation={null} />)).toContain("Logga in för att starta en träff.");
   });
 
   it("asks for the login on Klienter and Logg", () => {
@@ -167,7 +169,49 @@ describe("the addresses", () => {
     expect([pageOf("/"), pageOf("/provbanan"), pageOf("/drift"), pageOf("/drift/"), pageOf("/drift/klienter"), pageOf("/drift/logg")]).toEqual(["start", "provbanan", "nu", "nu", "klienter", "logg"]);
     expect(isOwn("/drift/logg")).toBe(true);
     expect(isOwn("/provbanan")).toBe(true);
+    expect(pageOf("/installningar")).toBe("installningar");
+    expect(isOwn("/installningar")).toBe(true);
     expect(isOwn("/planering")).toBe(false);
     expect(isOwn("/provbanan/box")).toBe(false);
+  });
+});
+
+describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
+  const automation = {
+    settings: { enabled: true, lost_contact_minutes: 0, disturbance: "off", where: "both", seed: "", stabling: true, stabling_minutes: 5, late_stop_minutes: 2, answer_seconds: 3 },
+    places: [],
+    trains: [],
+  } as never;
+  const settings = (admin: boolean, running: Now | null) =>
+    renderToStaticMarkup(<SettingsPage admin={admin} now={running} hubName="Testhubben" version={null} automation={admin ? automation : null} automationSaved={0} />);
+
+  it("shows the three heaps inside a meet, and only Den här hubben outside one", () => {
+    expect(heaps(now).map((heap) => heap.label)).toEqual(["I paketet", "Under träffen", "Den här hubben"]);
+    expect(heaps(null).map((heap) => heap.label)).toEqual(["Den här hubben"]);
+    const outside = settings(true, null);
+    expect(outside).toContain("Namn och version");
+    expect(outside).not.toContain('id="automatik"');
+    expect(outside).toContain("<dd>Testhubben</dd>");
+  });
+
+  it("lets the administrator change Automatiken and save it whole, and asks others to log in", () => {
+    const html = settings(true, now);
+    expect(html).toContain('id="traffen"');
+    expect(html).toContain("<dd>Provbanan, för prov</dd>");
+    expect(html).toContain('id="set-lost"');
+    expect(html).toContain("Inget ändrat");
+    expect(html).toContain('id="settings-save" type="button" class="primar" disabled=""');
+    expect(settings(false, now)).toContain("Logga in med hubbens PIN-kod för att se och ändra automatiken.");
+  });
+
+  it("makes a new scenario key of two groups of four", () => {
+    expect(newSeed()).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    expect(newSeed(() => 0)).toBe("AAAA-AAAA");
+  });
+
+  it("leaves Automatiken's settings out of Nu and points to the gear", () => {
+    const html = renderToStaticMarkup(<NuPage admin now={now} clients={[]} choices={meetChoices([])} asked={null} automation={automation} />);
+    expect(html).toContain('href="/installningar#automatik"');
+    expect(html).not.toContain('id="auto-save"');
   });
 });

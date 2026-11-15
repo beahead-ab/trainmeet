@@ -3,6 +3,7 @@ import { api, Problem, type Automation, type AutomationSettings, type ChangePlac
 import { askedChoice, meetChoices, waitingCount, type MeetChoice } from "./drift";
 import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
+import { SettingsPage } from "./Installningar";
 import { NuPage } from "./Nu";
 import { ProvbananPage } from "./Provbanan";
 import { isDrift, Sidhuvud, type Menu, type Page } from "./Sidhuvud";
@@ -18,11 +19,12 @@ export function pageOf(path: string): Page {
   if (clean === "/drift/logg") return "logg";
   if (clean === "/drift" || clean.startsWith("/drift/")) return "nu";
   if (clean === "/provbanan") return "provbanan";
+  if (clean === "/installningar") return "installningar";
   return "start";
 }
 
 /** The addresses this app draws itself; the rest (Planering, the boxes) are other pages. */
-export const isOwn = (path: string) => path === "/" || path === "/provbanan" || path === "/drift" || path.startsWith("/drift/");
+export const isOwn = (path: string) => ["/", "/provbanan", "/installningar", "/drift"].includes(path) || path.startsWith("/drift/");
 
 export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
@@ -116,7 +118,7 @@ export function App() {
 
   const running = now !== null;
   useEffect(() => {
-    if (!admin || page !== "nu" || !running) return setAutomation(null);
+    if (!admin || (page !== "nu" && page !== "installningar") || !running) return setAutomation(null);
     void readAutomation();
     const timer = window.setInterval(() => void readAutomation(), 3000);
     return () => window.clearInterval(timer);
@@ -242,7 +244,7 @@ export function App() {
         onStart={(choice, day) => void onStart(choice, day)}
         onLogOut={() => void onLogOut()}
       />
-      <main id="innehall" className={page === "start" ? "startsida" : page === "provbanan" ? "provsida" : "drift"}>
+      <main id="innehall" className={page === "start" ? "startsida" : page === "provbanan" ? "provsida" : page === "installningar" ? "installningssida" : "drift"}>
         {page === "start" && (
           <StartPage
             info={info}
@@ -263,18 +265,19 @@ export function App() {
             choices={choices}
             asked={asked}
             automation={automation}
-            automationSaved={automationSaved}
             openAutomation={window.location.hash === "#automatiken"}
             onClock={(control) => void onClock(control)}
             onStart={(choice, day) => void onStart(choice, day)}
-            onAutomation={(settings) => void onAutomation(settings)}
             onPlace={(change) => void onPlace(change)}
           />
         )}
         {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} />}
         {page === "logg" && <LoggPage admin={admin} now={now} clients={clients} navigate={navigate} onMessage={setMessage} />}
         {page === "provbanan" && <ProvbananPage />}
-        {isDrift(page) && (
+        {page === "installningar" && (
+          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} />
+        )}
+        {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">
             {message}
           </p>

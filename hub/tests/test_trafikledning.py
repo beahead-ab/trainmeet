@@ -37,7 +37,8 @@ def test_trafikledning_is_the_app_on_its_addresses(tmp_path: Path) -> None:
     hub = TestClient(
         create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=built)
     )
-    for address in ("/", "/provbanan", "/drift", "/drift/", "/drift/klienter", "/drift/logg"):
+    addresses = ("/", "/provbanan", "/installningar", "/drift", "/drift/klienter", "/drift/logg")
+    for address in (*addresses, "/drift/"):
         page = hub.get(address)
         assert page.status_code == 200 and "Trafikledningen" in page.text, address
         assert "script-src 'self'" in page.headers["content-security-policy"]
