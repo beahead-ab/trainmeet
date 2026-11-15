@@ -1,5 +1,6 @@
 # Caddy framför testhubben, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt från
-# Let's Encrypt när DNS-raderna för HUB_DOMAIN, CATALOG_DOMAIN och ID_DOMAIN pekar på servern.
+# Let's Encrypt när DNS-raderna för HUB_DOMAIN, CATALOG_DOMAIN, ID_DOMAIN och TAGS_DOMAIN pekar
+# på servern.
 # Saknas en rad väntar den adressen; de andra fungerar ändå.
 {
 	admin off
@@ -49,4 +50,13 @@
 	handle {
 		reverse_proxy id-api:8080
 	}
+}
+
+# trainmeet.app (C38): the tags' final address answers already. /t/<uid> goes on to Catalog in
+# the test environment until production exists; everything else goes to the website.
+{$TAGS_DOMAIN} {
+	import skydd
+	header X-Robots-Tag "noindex, nofollow"
+	redir /t/* https://{$CATALOG_DOMAIN}{uri} 302
+	redir https://trainmeet.se 302
 }

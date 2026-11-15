@@ -57,7 +57,8 @@ services:
       CATALOG_ID_API: http://id-api:8080
       # The test environment's tags point here, so they can be tapped here, and simulated tags
       # try the flows without hardware (CAT-96). Real tags carry trainmeet.app/t/ (C9).
-      CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/
+      # trainmeet.app/t/ once its DNS row points here, else Catalog's own address (C38).
+      CATALOG_TAG_BASE: ${CATALOG_TAG_BASE:?CATALOG_TAG_BASE saknas}
       CATALOG_SIMULATED_TAGS: "on"
       FORWARDED_ALLOW_IPS: "*"
     ports:
@@ -157,6 +158,7 @@ services:
       HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN saknas}
       CATALOG_DOMAIN: ${CATALOG_DOMAIN:?CATALOG_DOMAIN saknas}
       ID_DOMAIN: ${ID_DOMAIN:?ID_DOMAIN saknas}
+      TAGS_DOMAIN: ${TAGS_DOMAIN:?TAGS_DOMAIN saknas}
     ports:
       - "80:80"
       - "443:443"
