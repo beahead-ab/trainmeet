@@ -19,7 +19,6 @@ const CERTAINTY = { sure: "säker", likely: "trolig", unsure: "osäker", confirm
 const CONTENT = { passengers: "Resande", goods: "Gods", service: "Tjänst" };
 const MODES = { requested: "Begärd", direct: "Direkt" };
 const TRACKS = { single: "Enkel", double: "Dubbel" };
-const COUNTRIES = { se: "Sverige", dk: "Danmark", no: "Norge", de: "Tyskland" };
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_NAMES = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
 const LEVELS = [[1, "ST"], [2, "+ BILD"], [3, "+ GRAF"], [4, "JSON"]];
@@ -74,15 +73,6 @@ async function api(path, body, { raw = null, name = null } = {}) {
 
 const number = value => new Intl.NumberFormat("sv-SE").format(value);
 const plural = (count, one, many) => `${number(count)} ${count === 1 ? one : many}`;
-
-function dates(meet) {
-  const format = value => new Date(value + "T12:00:00").toLocaleDateString("sv-SE",
-    { day: "numeric", month: "short", year: "numeric" });
-  if (!meet.first_date && !meet.last_date) return "Inget datum";
-  if (!meet.last_date || meet.first_date === meet.last_date) return format(meet.first_date);
-  if (!meet.first_date) return format(meet.last_date);
-  return `${format(meet.first_date)} – ${format(meet.last_date)}`;
-}
 
 function when(value) {
   return new Date(value).toLocaleString("sv-SE",
@@ -156,55 +146,6 @@ function rowSources(ref) {
 
 function rowCertainties(ref) {
   return new Set(factsOf(ref).map(fact => fact.certainty));
-}
-
-// --- Träffar ------------------------------------------------------------------------------
-
-async function showMeets() {
-  let meets;
-  try {
-    meets = await api(API + "/meets");
-  } catch (error) {
-    say(error.message);
-    return;
-  }
-  $("meet-count").textContent = String(meets.length + 1);
-  const rows = meets.map(summary => {
-    const latest = summary.versions.at(-1);
-    return el("tr", {},
-      el("td", {}, el("a", { href: `/planering/${summary.meet.id}` }, summary.meet.name),
-        el("div", { class: "liten" }, COUNTRIES[summary.meet.country] ?? summary.meet.country)),
-      el("td", {}, dates(summary.meet)),
-      el("td", {}, level(summary.level)),
-      el("td", { class: "tal" }, summary.trains ? number(summary.trains) : "–"),
-      el("td", {}, latest
-        ? el("span", {}, `Version ${latest.number}`,
-          el("span", { class: "liten" }, ` · ${when(latest.published)}`))
-        : el("span", { class: "svag" }, "Ingen än")),
-      el("td", { class: "tal" }, summary.questions ? String(summary.questions) : "–"));
-  });
-  rows.push(el("tr", {},
-    el("td", {}, el("a", { href: "/provbanan" }, "Provbanan"),
-      el("div", { class: "liten" }, "Inbyggd provbana")),
-    el("td", { class: "svag" }, "Alltid"), el("td", { class: "svag" }, "–"),
-    el("td", { class: "tal" }, "10"), el("td", {}, "Version 1"), el("td", { class: "tal" }, "–")));
-  $("meets").replaceChildren(...rows);
-}
-
-function setUpMeets() {
-  showMeets();
-  $("new-meet")?.addEventListener("submit", async event => {
-    event.preventDefault();
-    const body = { name: $("new-name").value, country: $("new-country").value };
-    if ($("new-first").value) body.first_date = $("new-first").value;
-    if ($("new-last").value) body.last_date = $("new-last").value;
-    try {
-      const created = await api(API + "/meets", body);
-      location.href = `/planering/${created.meet.id}`;
-    } catch (error) {
-      say(error.message);
-    }
-  });
 }
 
 // --- One meet -----------------------------------------------------------------------------
@@ -851,7 +792,7 @@ function describe(preview) {
 async function readFile(file) {
   const status = el("span", { class: "pill likely" }, "Läser …");
   $("files").replaceChildren(el("li", {}, el("span", { class: "kalla" }, "JSON"),
-    el("div", {}, el("b", {}, file.name), el("div", { class: "liten" }, "Stefans plan")), status));
+    el("div", {}, el("b", {}, file.name), el("div", { class: "liten" }, "Tellurians plan")), status));
   $("preview").hidden = true;
   $("apply").disabled = true;
   try {
@@ -861,7 +802,7 @@ async function readFile(file) {
     const places = Object.values(report.places).reduce((sum, value) => sum + value, 0);
     $("files").replaceChildren(el("li", {}, el("span", { class: "kalla" }, "JSON"),
       el("div", {}, el("b", {}, file.name), el("div", { class: "liten" },
-        `Stefans plan · ${plural(report.trains, "tåg", "tåg")} · ` +
+        `Tellurians plan · ${plural(report.trains, "tåg", "tåg")} · ` +
         `${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`)),
       el("span", { class: "pill sure" }, "Läst")));
     $("levels").replaceChildren(...LEVELS.map(([step, name]) =>
@@ -906,62 +847,6 @@ function setUpDrawer() {
       say(error.message);
       $("apply").disabled = false;
     }
-  });
-}
-
-// --- Versioner ----------------------------------------------------------------------------
-
-async function showVersions() {
-  let check, list;
-  try {
-    [check, list] = await Promise.all([
-      api(`${API}/meets/${meetId}/check`), api(`${API}/meets/${meetId}/versions`)]);
-  } catch (error) {
-    say(error.message);
-    return;
-  }
-  $("findings").replaceChildren(...(draft.package
-    ? (check.findings.length
-      ? check.findings.map(finding => el("li", {},
-        el("span", { class: "pill " + finding.severity },
-          finding.severity === "conflict" ? "Konflikt" : "Iakttagelse"),
-        el("span", {}, finding.message)))
-      : [el("li", { class: "tom" }, "Inga fynd.")])
-    : [el("li", { class: "tom" }, "Lägg till underlag under Data först.")]));
-  const next = (list.at(-1)?.number ?? 0) + 1;
-  if ($("publish")) {
-    $("publish").disabled = !draft.package;
-    $("publish").textContent = `Publicera version ${next}`;
-    $("publish-text").textContent = draft.package
-      ? "Utkastet fryses som en ny version. Den ändras aldrig." : "";
-  }
-  if (!list.length) {
-    $("versions").replaceChildren(el("tr", {},
-      el("td", { colspan: 6, class: "tom" }, "Ingen version är publicerad än.")));
-    return;
-  }
-  $("versions").replaceChildren(...list.slice().reverse().map(version => el("tr", {},
-    el("td", {}, el("b", {}, `Version ${version.number}`)),
-    el("td", {}, when(version.published)),
-    el("td", { class: "tal" }, String(version.conflicts)),
-    el("td", { class: "tal" }, String(version.observations)),
-    el("td", { class: "kod", title: version.checksum }, version.checksum.slice(0, 12)),
-    el("td", {}, el("a", {
-      href: `/drift?traff=${encodeURIComponent(meetId)}&version=${version.number}#ny-traff`,
-    }, "Kör i Drift →")))));
-}
-
-function setUpVersions() {
-  showVersions();
-  $("publish")?.addEventListener("click", async () => {
-    $("publish").disabled = true;
-    try {
-      const version = await api(`${API}/meets/${meetId}/versions`, {});
-      say(`Version ${version.number} är publicerad.`, true);
-    } catch (error) {
-      say(error.message);
-    }
-    await showVersions();
   });
 }
 
@@ -1212,13 +1097,8 @@ $("logout")?.addEventListener("click", async () => {
 });
 
 (async () => {
-  if (page === "traffar") {
-    setUpMeets();
-    return;
-  }
   if (!(await loadDraft())) return;
   if (page === "data") setUpData();
   else if (page === "bana") setUpMap();
   else if (page === "graf") setUpGraph();
-  else if (page === "versioner") setUpVersions();
 })();

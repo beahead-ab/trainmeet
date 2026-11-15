@@ -1,0 +1,322 @@
+/* The Hub's header (S2, TRAFIK-12): the same in every Hub app, dark in both themes like every
+   TrainMeet header (design.css). The meet with Byt träff, Planering and Drift as tabs side by
+   side, the meet clock, Anslut, Väntar, the gear and the account. Menus are light. */
+
+.osynlig {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The header: Kontrollrummet's 44 px for the buttons, the meet with Byt träff, Planering and
+   Drift as tabs side by side, the meet clock, Anslut, Väntar and the account. */
+.hubbhuvud {
+  min-height: 56px;
+  gap: 12px;
+  padding: 0 16px;
+}
+.hubbhuvud .tm-skylt {
+  height: 28px;
+}
+.hubbhuvud .tm-namn {
+  height: 16px;
+}
+.traffval {
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--tm-head-text);
+  background: #1b1f26;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+span.traffval {
+  background: none;
+  border-color: transparent;
+}
+button.traffval {
+  cursor: pointer;
+}
+button.traffval[aria-expanded="true"] {
+  border-color: var(--tm-head-tab);
+}
+.hubbhuvud .tm-flikar {
+  margin-left: 4px;
+  gap: 2px;
+}
+.hubbhuvud .tm-flikar a {
+  padding: 0 10px;
+  font-size: 14px;
+}
+.hubbhuvud .grupp {
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 12px;
+  color: var(--tm-head-mute);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hubbhuvud .grupp:first-child {
+  padding-left: 4px;
+}
+.hubbhuvud .tm-hoger {
+  gap: 8px;
+}
+.klocka {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.klocka b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.klocka .not {
+  color: var(--tm-head-mute);
+  font-size: 13px;
+}
+.klocka .lampa {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7280;
+  align-self: center;
+}
+.klocka.gar .lampa {
+  background: #46d36b;
+}
+.hknapp {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-head-text);
+  background: #1b1f26;
+  border: 1px solid var(--tm-head-line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-height: 40px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hknapp:hover {
+  border-color: #4a5260;
+}
+.hknapp[aria-expanded="true"] {
+  border-color: var(--tm-head-tab);
+}
+#waiting b {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #333944;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#waiting.har b {
+  background: #f5c518;
+  color: #121418;
+}
+.loggain {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+/* Byt träff: a light menu, as every menu (design.css), under the meet's name. */
+.bytpanel {
+  left: 0;
+  right: auto;
+  width: min(420px, calc(100vw - 32px));
+}
+.traffar {
+  list-style: none;
+  margin: 0 -8px 12px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.traff {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  color: var(--tm-panel-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.traff:hover:enabled,
+.traff.vald {
+  border-color: #2453c7;
+}
+.traff[aria-current="true"] {
+  background: #e8eefc;
+  cursor: default;
+}
+.traff .vad {
+  display: grid;
+}
+.traff .vad span {
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.traff .kor {
+  color: #15803d;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.traff .kor::before {
+  content: "● ";
+}
+.traff .prov {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #ecebe7;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bytpanel .dag {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.bytpanel select {
+  font: inherit;
+  color: var(--tm-panel-text);
+  background: #ffffff;
+  border: 1px solid #c9c8c2;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.bytpanel .liten {
+  color: var(--tm-panel-mute);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.anslut .liten {
+  color: var(--tm-mute);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.panelfot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid #e2e1dc;
+  padding-top: 12px;
+}
+.panelfot a,
+.lankknapp {
+  color: #1d47b0;
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lankknapp.fara {
+  color: #b42318;
+}
+
+/* Anslut (S2): the code large, and the QR code that opens the box with it. */
+.anslut {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--tm-panel-2);
+  border-bottom: 1px solid var(--tm-line);
+}
+.etikett {
+  margin: 0;
+  color: var(--tm-mute);
+  font-size: 13px;
+}
+.anslutkod {
+  font-family: var(--tm-mono);
+  font-size: 40px;
+  letter-spacing: 0.12em;
+  margin: 4px 0;
+  font-weight: 700;
+}
+#connect-qr {
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* The gear (TRAFIK-30): always to the left of the account, also on the phone. */
+.kugge {
+  padding: 8px;
+  width: 40px;
+  justify-content: center;
+}
+.kugge svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.kugge[aria-current="page"] {
+  border-color: var(--tm-head-tab);
+}
+
+@media (max-width: 1180px) {
+  .hubbhuvud .tm-flikar .grupp,
+  .klocka .not {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .hubbhuvud {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .hubbhuvud .tm-namn {
+    display: none;
+  }
+  .traffval {
+    max-width: 160px;
+  }
+  .anslut {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

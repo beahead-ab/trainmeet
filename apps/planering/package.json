@@ -1,0 +1,28 @@
+{
+  "name": "@trainmeet/planering",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Planering in the Hub: the meets, and for each meet Data, Bana, Graf and Versioner (PLAN-23). Served by hub/ under /planering.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@trainmeet/design": "0.1.0",
+    "@trainmeet/hubben": "0.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

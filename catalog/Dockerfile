@@ -9,11 +9,13 @@ FROM node:22-slim AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY apps/design/package.json apps/design/
+COPY apps/hubben/package.json apps/hubben/
 COPY apps/catalog/package.json apps/catalog/
 COPY apps/id/package.json apps/id/
 COPY apps/skarmar/package.json apps/skarmar/
 COPY apps/tmbox-webb/package.json apps/tmbox-webb/
 COPY apps/trafikledning/package.json apps/trafikledning/
+COPY apps/planering/package.json apps/planering/
 RUN npm ci --no-audit --no-fund
 COPY contracts/catalog.d.ts contracts/
 COPY apps/design apps/design

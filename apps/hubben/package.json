@@ -1,0 +1,30 @@
+{
+  "name": "@trainmeet/hubben",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Hub's shared parts for its web apps: the header (the meet with Byt träff, Planering and Drift, the meet clock, Anslut, Väntar, the gear and the account) and the hub's API behind it. Used by apps/trafikledning and apps/planering.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./hubben.css": "./src/hubben.css"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@trainmeet/design": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,4 +1,4 @@
-"""Stefan's planning file (JSON), read with code and without AI: level 4, the key.
+"""Tellurian's planning file (JSON), read with code and without AI: level 4, the key.
 
 The planning program saves the whole plan as .NET's reference-preserving JSON: an object may
 carry "$id", a repeat of it is {"$ref": id}, and lists sit in {"$values": [...]}. Nothing in
@@ -294,7 +294,7 @@ class _Reading:
 
 
 def read(data: bytes, *, meet: Meet, source: Source) -> ImportResult:
-    """Stefan's planning file as a draft for the meet. Raises PlanError when it is not a plan."""
+    """Tellurian's planning file as a draft for the meet. Raises PlanError when it is not a plan."""
     plan_data = load(data)
     found = problem(plan_data)
     if found:

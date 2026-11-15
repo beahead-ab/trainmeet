@@ -1,4 +1,4 @@
-"""Stefan's planning file read with code (level 4). Ported from the old Cloud's
+"""Tellurian's planning file read with code (level 4). Ported from the old Cloud's
 test_planning_json: the plan is built here in the form the program saves it, .NET's
 reference-preserving JSON with "$id", {"$ref": id} and {"$values": [...]}.
 """

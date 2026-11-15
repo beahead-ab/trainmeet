@@ -6,7 +6,7 @@ The import's principles (spec, trainmeet-hub-import.md 3, decided 2 November):
   question, never a guess (principles 2, 3 and 6).
 - The same source always gives the same result (principle 7).
 
-Stefan's planning file (JSON) is level 4, the key: everything in it is sure. Participants and
+Tellurian's planning file (JSON) is level 4, the key: everything in it is sure. Participants and
 vehicle contributions in the file are personal data and never come into the meet.
 """
 
@@ -36,7 +36,7 @@ class Certainty(StrEnum):
 
 
 class SourceKind(StrEnum):
-    PLANNING_JSON = "planning_json"  # Stefans planeringsfil
+    PLANNING_JSON = "planning_json"  # Tellurians planeringsfil
 
 
 class Source(Contract):

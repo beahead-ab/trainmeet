@@ -5,11 +5,13 @@
   "license": "AGPL-3.0-only",
   "workspaces": [
     "apps/design",
+    "apps/hubben",
     "apps/catalog",
     "apps/id",
     "apps/skarmar",
     "apps/tmbox-webb",
-    "apps/trafikledning"
+    "apps/trafikledning",
+    "apps/planering"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
