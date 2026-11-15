@@ -7,12 +7,13 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.models.utils.PostMigrationEvent;
 import org.keycloak.provider.ProviderConfigProperty;
 
 /** Registers the code to the email with Keycloak. Used in the realm's login flow (id/realm). */
 public class EmailCodeAuthenticatorFactory implements AuthenticatorFactory {
     public static final String ID = "trainmeet-email-code";
-    private static final EmailCodeAuthenticator SINGLETON = new EmailCodeAuthenticator();
 
     @Override
     public String getId() {
@@ -60,14 +61,21 @@ public class EmailCodeAuthenticatorFactory implements AuthenticatorFactory {
 
     @Override
     public Authenticator create(KeycloakSession session) {
-        return SINGLETON;
+        return new EmailCodeAuthenticator(session);
     }
 
     @Override
     public void init(Config.Scope config) {}
 
+    /** Brings an existing realm up to date when Keycloak has started (RealmUpdates). */
     @Override
-    public void postInit(KeycloakSessionFactory factory) {}
+    public void postInit(KeycloakSessionFactory factory) {
+        factory.register(event -> {
+            if (event instanceof PostMigrationEvent) {
+                KeycloakModelUtils.runJobInTransaction(factory, RealmUpdates::apply);
+            }
+        });
+    }
 
     @Override
     public void close() {}

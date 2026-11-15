@@ -9,6 +9,8 @@
   <title>${title} · TrainMeet ID</title>
   <link rel="icon" href="${url.resourcesPath}/img/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="${url.resourcesPath}/css/trainmeet.css">
+  <#-- Keycloak's passkey scripts import this by name. -->
+  <script type="importmap">{"imports": {"rfc4648": "${url.resourcesCommonPath}/vendor/rfc4648/rfc4648.js"}}</script>
 </head>
 <body>
   <a class="id-hoppa" href="#kortet">${msg("tmSkip")}</a>

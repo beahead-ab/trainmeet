@@ -41,7 +41,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Testmiljön
 
-- test.hub.trainmeet.app, test.catalog.trainmeet.app och test.id.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`, på samma server bakom samma Caddy. Catalog har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt. TrainMeet ID är Keycloak med vårt eget tillägg i `id/`, med en egen PostgreSQL; nyckeln till mejlen ligger i GitHub som `TEM_SECRET_KEY` och läggs i ID:s valv på servern. Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
+- test.hub.trainmeet.app, test.catalog.trainmeet.app och test.id.trainmeet.app läggs ut av jobbet "Testmiljön" när en ändring kommer till `main`, på samma server bakom samma Caddy. Catalog har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt. TrainMeet ID är Keycloak med vårt eget tillägg i `id/`, med en egen PostgreSQL; nyckeln till mejlen ligger i GitHub som `TEM_SECRET_KEY` och läggs i ID:s valv på servern. Keycloak läser `id/realm/trainmeet.json` bara första gången, så en ändring där får också en uppdatering i `RealmUpdates.java` (se README). Servern och SSH-nycklarna sköts av `deploy/testmiljo.py` (nycklarna i Scaleways Secret Manager); filerna på servern ligger i `deploy/testmiljo/`.
 - Behöver hubben nya inställningar eller hemligheter i testmiljön läggs de i `deploy/testmiljo/compose.yaml` som variabler, aldrig som värden i koden.
 
 ## Gamla repon

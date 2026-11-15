@@ -21,7 +21,8 @@ COPY --from=extension /src/target/trainmeet-email-code.jar /opt/keycloak/provide
 ENV KC_DB=postgres \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=false \
-    KC_VAULT=file
+    KC_VAULT=file \
+    KC_FEATURES=passkeys
 RUN /opt/keycloak/bin/kc.sh build
 
 FROM ${KEYCLOAK}
