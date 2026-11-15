@@ -367,3 +367,141 @@ input.cell { width: 8em; }
   border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
 .kostnad span { color: var(--tm-mute); font-size: 13.5px; }
 
+
+/* Bana: the map, and the chosen section or place beside. */
+.notis { background: #fbf5e6; border: 1px solid #ecdcae; border-radius: 12px; padding: 12px 16px;
+  margin: 0 0 18px; color: #3d3d3a; }
+.notis b { color: var(--gul); }
+.bana-yta { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px;
+  align-items: start; }
+.karta-kort { padding: 0; overflow: hidden; }
+.kort-rubrik { display: flex; gap: 10px; align-items: baseline; padding: 16px 20px;
+  border-bottom: 1px solid var(--tm-line); }
+.kort-rubrik h2 { margin: 0; }
+.karta-yta { overflow: auto; padding: 12px; background-color: #fbfaf9;
+  background-image: linear-gradient(var(--tm-panel-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tm-panel-2) 1px, transparent 1px);
+  background-size: 24px 24px; }
+.karta { display: block; max-width: none; }
+.forklaring { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.forklaring .bla { color: var(--tm-blue); }
+.lank path { fill: none; }
+.lank .enkel { stroke: #6b7280; stroke-width: 3; }
+.lank .yttre { stroke: #6b7280; stroke-width: 8; }
+.lank .inre { stroke: #fbfaf9; stroke-width: 3; }
+.lank.utan .enkel { stroke: #b8b8b2; stroke-width: 2; stroke-dasharray: 6 5; }
+.lank.osaker .enkel, .lank.osaker .yttre { stroke: var(--gul); stroke-dasharray: 7 5; }
+.lank.vald .enkel, .lank.vald .yttre { stroke: var(--tm-blue); }
+.lank .traff { stroke: transparent; stroke-width: 18; cursor: pointer; }
+.lank.utan .traff { cursor: default; }
+.lank:not(.utan):hover .enkel, .lank:not(.utan):hover .yttre { stroke: #374151; }
+.lank.vald:hover .enkel, .lank.vald:hover .yttre { stroke: var(--tm-blue); }
+.strackanamn { font: 600 11px "JetBrains Mono", monospace; fill: var(--tm-mute); text-anchor: middle; }
+.strackanamn.vald { fill: var(--tm-blue); }
+.plats { cursor: pointer; }
+.plats .ruta { fill: var(--tm-panel); stroke: var(--tm-text); stroke-width: 2; }
+.plats.shadow_yard .ruta { stroke-dasharray: 5 4; stroke: #3d3d3a; }
+.plats.remote .ruta, .plats.unmanned .ruta { stroke: #3d3d3a; }
+.plats .ring { fill: var(--tm-panel); stroke: #3d3d3a; stroke-width: 2.5; }
+.plats.vald .ruta, .plats.vald .ring { stroke: var(--tm-blue); stroke-width: 3; }
+.plats text { text-anchor: middle; }
+.plats .kod { font: 600 14px "JetBrains Mono", monospace; fill: var(--tm-text); }
+.plats .namn { font: 600 13px Inter, sans-serif; fill: var(--tm-text); }
+.plats .namn.under { font-weight: 500; fill: #3d3d3a; }
+.plats .not { font: 12px Inter, sans-serif; fill: var(--tm-mute); }
+.plats:focus { outline: none; }
+.plats:focus-visible .ruta, .plats:focus-visible .ring { stroke: var(--tm-blue); }
+.bana-yta .vald { border-left: 0; padding: 0 22px 20px; }
+.bana-yta .vald > .liten { padding-top: 18px; }
+
+/* Graf: the train graph, the places fixed on the left and the day scrolling sideways. */
+.segment { display: inline-flex; background: var(--tm-panel-2); border-radius: 10px; padding: 3px;
+  gap: 2px; }
+main.planering .segment button { border: 0; background: none; padding: 6px 14px; border-radius: 8px;
+  min-height: 34px; color: #3d3d3a; }
+main.planering .segment button[aria-pressed="true"] { background: var(--tm-panel); color: var(--tm-text);
+  box-shadow: var(--skugga); }
+.valj { flex-direction: row; align-items: center; gap: 8px; }
+.graf-yta { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px;
+  align-items: start; }
+.graf-kort { padding: 0; overflow: hidden; }
+.graf-rad { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 18px;
+  border-bottom: 1px solid var(--tm-line); }
+.graf { display: flex; }
+.graf-vanster { flex: none; border-right: 1px solid var(--tm-line); background: var(--tm-panel); }
+.graf-rulla { overflow-x: auto; flex: 1; cursor: grab; user-select: none; }
+.graf-rulla:active { cursor: grabbing; }
+.graf svg { display: block; }
+.graf-fot { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 12px 18px;
+  border-top: 1px solid var(--tm-line); }
+.graf-sida h2 { margin-bottom: 8px; }
+.numrerade { margin: 0 0 18px; padding-left: 22px; }
+.numrerade li { margin: 0 0 12px; }
+.numrerade li p { margin: 4px 0 0; font-size: 14px; }
+.numrerade li.annan { color: var(--tm-mute); }
+.numrerade li.tom { list-style: none; margin-left: -22px; color: var(--tm-mute); }
+.teckning { display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  color: #3d3d3a; }
+.teckning::before { content: ""; width: 22px; height: 0; border-top: 3px solid; }
+.teckning.resande::before { border-color: #2256c3; }
+.teckning.gods::before { border-color: #3d3d3a; }
+.teckning.tjanst::before { border-color: #7c3aed; border-top-style: dashed; }
+.teckning.okand::before { border-color: #9a9a94; }
+.rutnat .timme { stroke: #dcdcd7; stroke-width: 1; }
+.rutnat .tiominut { stroke: #efeeea; stroke-width: 1; stroke-dasharray: 2 3; }
+.rutnat .rad { stroke: #d2d2cc; stroke-width: 1; }
+.rutnat .rad.halt { stroke: #ebeae6; }
+text.tid { font: 600 11px Inter, sans-serif; fill: var(--tm-mute); text-anchor: middle;
+  font-variant-numeric: tabular-nums; }
+text.plats { font: 600 13px Inter, sans-serif; fill: var(--tm-text); text-anchor: end; }
+text.plats.halt { font-weight: 400; fill: var(--tm-mute); }
+.tagg path { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
+.tagg:hover path { stroke-width: 3.4; }
+.tagg .nr { font: 600 11px Inter, sans-serif; font-variant-numeric: tabular-nums;
+  paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.tagg.resande path { stroke: #2256c3; }
+.tagg.resande .nr { fill: #2256c3; }
+.tagg.gods path { stroke: #3d3d3a; }
+.tagg.gods .nr { fill: #3d3d3a; }
+.tagg.tjanst path { stroke: #7c3aed; stroke-dasharray: 5 4; }
+.tagg.tjanst .nr { fill: #7c3aed; }
+.tagg.okand path { stroke: #9a9a94; }
+.tagg.okand .nr { fill: #6b6b66; }
+.fyndlager .band.observation { fill: rgb(161 98 7 / 7%); }
+.fyndlager .band.conflict { fill: rgb(180 35 24 / 8%); }
+.fyndlager .ring { fill: none; stroke-width: 2.4; }
+.fyndlager .ring.conflict { stroke: var(--rod); }
+.fyndlager .ring.observation { stroke: var(--gul); }
+.fyndlager .nummer { font: 700 12px Inter, sans-serif; text-anchor: middle; paint-order: stroke;
+  stroke: #fff; stroke-width: 3px; }
+.fyndlager .nummer.conflict { fill: var(--rod); }
+.fyndlager .nummer.observation { fill: var(--gul); }
+.utskrift { display: none; }
+@media print {
+  @page { size: A3 landscape; margin: 10mm; }
+  body { background: #fff; }
+  .tm-hoppa, .tm-sidhuvud, .tm-bottenmeny, main.planering > *:not(#print) { display: none !important; }
+  main { padding: 0; max-width: none; }
+  .utskrift { display: block; }
+  .utskriftssida { break-after: page; }
+  .utskriftssida:last-child { break-after: auto; }
+  .utskriftssida h2 { font-size: 16px; margin: 0 0 6px; }
+  .utskriftssida svg { width: 100%; height: auto; }
+}
+
+
+.vald dl .par { display: grid; grid-template-columns: 130px 1fr; gap: 12px; }
+@media (max-width: 1100px) {
+  .graf-yta, .bana-yta { grid-template-columns: minmax(0, 1fr); }
+  .data-yta.med-vald { grid-template-columns: minmax(0, 1fr); }
+  .vald { border-left: 0; border-top: 1px solid var(--tm-line); }
+}
+@media (max-width: 700px) {
+  main.planering { padding: 20px 14px 48px; }
+  h1 { font-size: 24px; }
+}
+main.planering label.valj {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}

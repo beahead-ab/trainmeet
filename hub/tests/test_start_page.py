@@ -1,4 +1,4 @@
-"""What runs on the hub: /api/version, the health check and the brand files. The start page
+"""What runs on the hub: /api/version and the health check. The start page
 itself is apps/trafikledning (TRAFIK-21) and is tested there."""
 
 from __future__ import annotations
@@ -56,15 +56,12 @@ def test_api_version_has_the_name_from_first_start(tmp_path: Path) -> None:
     assert hub.get("/api/version").json()["hub_name"] == "Hubben Väst"
 
 
-def test_the_brand_files_are_served() -> None:
+def test_the_brand_comes_with_the_apps() -> None:
+    """The sign, the fonts and the favicon are built into each app (apps/design); the hub has
+    no folder of its own for them any more."""
     c = client(DEPLOYED)
-    for path in (
-        "/static/skylt.svg",
-        "/static/favicon.svg",
-        "/static/fonts/inter.woff2",
-        "/static/fonts/jetbrains-mono.woff2",
-    ):
-        assert c.get(path).status_code == 200, path
+    for path in ("/static/skylt.svg", "/static/favicon.svg", "/static/fonts/inter.woff2"):
+        assert c.get(path).status_code == 404, path
 
 
 def test_the_interactive_api_pages_are_off() -> None:

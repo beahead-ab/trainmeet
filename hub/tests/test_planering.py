@@ -219,22 +219,21 @@ def test_the_running_meet_survives_a_restart(planned: TestClient, tmp_path: Path
 
 
 def test_the_pages_follow_s6_and_the_buttons_need_the_administrator(planned: TestClient) -> None:
-    """Planering is Data · Bana · Graf · Versioner, and Lägg till underlag opens from Data. Bana
-    and Graf are drawn by the hub until they move into apps/planering (#68)."""
+    """Planering is Data · Bana · Graf · Versioner (S6), all in apps/planering; what the pages
+    show is tested there. The hub gives every address under /planering the app."""
     anonymous = TestClient(planned.app)
-    for path in (f"/planering/{MEET}/bana", f"/planering/{MEET}/graf"):
-        page = anonymous.get(path)
-        assert page.status_code == 200 and "/static/planering.css" in page.text, path
-    bana = anonymous.get(f"/planering/{MEET}/bana").text
-    assert "/static/bana.js" in bana and 'id="map"' in bana and 'id="choice"' in bana
-    graph = anonymous.get(f"/planering/{MEET}/graf").text
-    assert "/static/graf.js" in graph and 'id="graph"' in graph and 'id="print-line"' in graph
-    # Träffar, Data and Versioner are apps/planering (#68); what they show is tested there.
-    addresses = ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data")
-    for path in (*addresses, f"/planering/{MEET}/versioner", f"/planering/{MEET}/underlag"):
+    pages = ("/planering", f"/planering/{MEET}", f"/planering/{MEET}/data")
+    for path in (
+        *pages,
+        f"/planering/{MEET}/bana",
+        f"/planering/{MEET}/graf",
+        f"/planering/{MEET}/versioner",
+    ):
         page = anonymous.get(path)
         assert page.status_code == 200 and "Planering" in page.text, path
-        assert "/static/planering.css" not in page.text, path
+        assert "script-src 'self'" in page.headers["content-security-policy"], path
+    for old in ("/static/planering.js", "/static/bana.js", "/static/graf.js"):
+        assert anonymous.get(old).status_code == 404, old  # the old pages are gone
     # A path out of the folder never gives a file: at most the app's own page.
     outside = planned.get("/planering/..%2Fx")
     assert outside.status_code in {200, 404, 422}

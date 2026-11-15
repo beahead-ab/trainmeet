@@ -1,24 +1,27 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
 import { planning, type Check, type Draft, type MeetSummary, type NewMeet, type Version } from "./api";
+import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
+import { GrafPage } from "./Graf";
 import { TraffarPage } from "./Traffar";
 import { VersionerPage } from "./Versioner";
 
-// Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Data and Versioner.
-// Bana and Graf are still drawn by the hub and move here next (#68).
+// Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Data, Bana, Graf and
+// Versioner (S6).
 
-export type Route = { page: "traffar" } | { page: "data" | "versioner"; meet: string };
+export type Route = { page: "traffar" } | { page: "data" | "bana" | "graf" | "versioner"; meet: string };
 
-const MEET = /^\/planering\/([^/]+)(?:\/(data|versioner))?$/;
+const MEET = /^\/planering\/([^/]+)(?:\/(data|bana|graf|versioner))?$/;
 
 export function routeOf(path: string): Route {
   const found = path.replace(/\/+$/, "").match(MEET);
   if (!found?.[1]) return { page: "traffar" };
-  return { page: found[2] === "versioner" ? "versioner" : "data", meet: decodeURIComponent(found[1]) };
+  const page = found[2] === "bana" || found[2] === "graf" || found[2] === "versioner" ? found[2] : "data";
+  return { page, meet: decodeURIComponent(found[1]) };
 }
 
-/** The addresses this app draws itself; the rest (Bana, Graf, Drift) are other pages. */
+/** The addresses this app draws itself; the rest (Drift, Provbanan) are other pages. */
 export const isOwn = (path: string) => {
   const clean = path.replace(/\/+$/, "");
   return clean === "/planering" || MEET.test(clean);
@@ -141,6 +144,20 @@ export function App() {
             onFail={fail}
           />
         )}
+        {route.page === "bana" && (
+          <BanaPage
+            admin={admin}
+            meet={route.meet}
+            draft={draft}
+            onDraft={(next) => {
+              setDraft(next);
+              void readVersions(route.meet);
+            }}
+            onTell={tell}
+            onFail={fail}
+          />
+        )}
+        {route.page === "graf" && <GrafPage draft={draft} findings={check?.findings ?? []} />}
         {route.page === "versioner" && <VersionerPage admin={admin} meet={route.meet} draft={draft} check={check} versions={versions} busy={busy} onPublish={() => void onPublish()} />}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">
           {hubState.message}
