@@ -1,7 +1,7 @@
 # Testmiljön på servern, i /srv/trainmeet. Läggs dit av jobbet "Testmiljön" vid varje
-# ändring på main, tillsammans med Caddyfile, catalog-backup.sh och en .env med HUB_TAG,
-# HUB_DOMAIN, CATALOG_TAG, CATALOG_DOMAIN och Catalogs två hemligheter (catalog.env).
-# Hubben och Catalog delar server och Caddy, men inget annat (C35, CAT-218).
+# ändring på main, tillsammans med Caddyfile, catalog-backup.sh och en .env med taggarna,
+# adresserna och hemligheterna (catalog.env och id.env). Mejlnyckeln ligger i id-vault/.
+# Hubben, Catalog och TrainMeet ID delar server och Caddy, men inget annat (C35, CAT-218).
 services:
   hub:
     image: trainmeet-hub:${HUB_TAG:?HUB_TAG saknas}
@@ -54,15 +54,66 @@ services:
     ports:
       - "127.0.0.1:8081:8080"
 
+  # TrainMeet ID: Keycloak with the code to the email (#66, ID4, ID5), and its own PostgreSQL.
+  id-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${ID_DB_PASSWORD:?ID_DB_PASSWORD saknas}
+    volumes:
+      - id-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  id:
+    image: trainmeet-id:${ID_TAG:?ID_TAG saknas}
+    restart: unless-stopped
+    # Runs as the deploy user, so it can read the mail key in id-vault, which only it may read.
+    user: "${HOST_UID:?HOST_UID saknas}:0"
+    depends_on:
+      id-db:
+        condition: service_healthy
+    # Keycloak takes most of the memory it is given; the server is shared.
+    mem_limit: 900m
+    environment:
+      KC_DB_URL: jdbc:postgresql://id-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${ID_DB_PASSWORD}
+      KC_HOSTNAME: https://${ID_DOMAIN:?ID_DOMAIN saknas}
+      KC_BOOTSTRAP_ADMIN_USERNAME: tm-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${ID_ADMIN_PASSWORD:?ID_ADMIN_PASSWORD saknas}
+      # Scaleway's Transactional Email, from trainmeet.se. The key is in the vault.
+      ID_SMTP_HOST: smtp.tem.scaleway.com
+      ID_SMTP_PORT: "465"
+      ID_SMTP_SSL: "true"
+      ID_SMTP_STARTTLS: "false"
+      ID_SMTP_AUTH: "true"
+      ID_SMTP_USER: ${TEM_PROJECT_ID:-}
+      ID_SMTP_FROM: konto@trainmeet.se
+      ID_CATALOG_SECRET: ${ID_CATALOG_SECRET:?ID_CATALOG_SECRET saknas}
+      ID_CATALOG_URL: https://${CATALOG_DOMAIN}
+    volumes:
+      - ./id-vault:/opt/keycloak/vault:ro
+    ports:
+      - "127.0.0.1:8082:8080"
+      - "127.0.0.1:9082:9000"
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
       - hub
       - catalog
+      - id
     environment:
       HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN saknas}
       CATALOG_DOMAIN: ${CATALOG_DOMAIN:?CATALOG_DOMAIN saknas}
+      ID_DOMAIN: ${ID_DOMAIN:?ID_DOMAIN saknas}
     ports:
       - "80:80"
       - "443:443"
@@ -76,3 +127,4 @@ volumes:
   caddy-data:
   caddy-config:
   catalog-db:
+  id-db:

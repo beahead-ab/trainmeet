@@ -12,6 +12,8 @@ hundrade gången:
 - TrainMeet Catalogs två hemligheter i testmiljön (C35): lösenordet till databasen och
   nyckeln som säkerhetskopiorna krypteras med (CAT-39). De skapas här en gång, sparas i
   Secret Manager och skrivs till en fil som jobbet lägger på servern; de skrivs aldrig ut.
+- TrainMeet ID:s tre hemligheter (#66): databasens lösenord, den första administratörens
+  lösenord och hemligheten som Catalog loggar in i ID med. Likadant som Catalogs.
 
     python deploy/testmiljo.py ensure
 
@@ -20,7 +22,7 @@ Miljön (secrets i GitHub):
 Valfritt:
     TESTMILJO_TYPE      servertyp, förval DEV1-S
     TESTMILJO_SSH_DIR   var nyckelfilerna skrivs för jobbets ssh, förval ~/.ssh
-Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, created.
+Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, created.
 """
 
 from __future__ import annotations
@@ -67,6 +69,7 @@ NAME = "trainmeet-testhub"
 TAG = "trainmeet-testmiljo"
 SECRET_NAME = "trainmeet-testmiljo-ssh"
 CATALOG_SECRET_NAME = "trainmeet-testmiljo-catalog"
+ID_SECRET_NAME = "trainmeet-testmiljo-id"
 DEFAULT_TYPE = "DEV1-S"
 IMAGE_LABEL = "ubuntu_noble"
 DEPLOY_USER = "deploy"
@@ -118,6 +121,40 @@ class CatalogSecrets:
     def env_file(self) -> str:
         """The lines up.sh puts in .env on the server. Hex only, so no quoting is needed."""
         return f"CATALOG_DB_PASSWORD={self.db_password}\nCATALOG_BACKUP_KEY={self.backup_key}\n"
+
+
+@dataclass(frozen=True)
+class IdSecrets:
+    """TrainMeet ID in the test environment: its database, its first administrator, and the
+    secret Catalog logs in to it with (#66)."""
+
+    db_password: str
+    admin_password: str
+    catalog_secret: str
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> IdSecrets:
+        data = json.loads(text)
+        return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+    def env_file(self) -> str:
+        """The lines up.sh puts in .env on the server. Hex only, so no quoting is needed."""
+        return (
+            f"ID_DB_PASSWORD={self.db_password}\n"
+            f"ID_ADMIN_PASSWORD={self.admin_password}\n"
+            f"ID_CATALOG_SECRET={self.catalog_secret}\n"
+        )
+
+
+def generate_id_secrets() -> IdSecrets:
+    return IdSecrets(
+        db_password=random_secrets.token_hex(24),
+        admin_password=random_secrets.token_hex(24),
+        catalog_secret=random_secrets.token_hex(32),
+    )
 
 
 def generate_catalog_secrets() -> CatalogSecrets:
@@ -424,15 +461,34 @@ def write_ssh_files(keys: Keys, address: str) -> tuple[Path, Path]:
     return key_file, known_hosts
 
 
-def write_catalog_env(catalog: CatalogSecrets) -> Path:
-    """Catalog's secrets as a private file, for the deploy to put on the server."""
+def write_private(name: str, text: str) -> Path:
+    """A private file for the deploy to put on the server. Never printed."""
     folder = Path(os.environ.get("TESTMILJO_SSH_DIR") or Path.home() / ".ssh")
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path = folder / "testmiljo_catalog.env"
+    path = folder / name
     path.touch(mode=0o600, exist_ok=True)
     path.chmod(0o600)
-    path.write_text(catalog.env_file())
+    path.write_text(text)
     return path
+
+
+def write_catalog_env(catalog: CatalogSecrets) -> Path:
+    """Catalog's secrets as a private file, for the deploy to put on the server."""
+    return write_private("testmiljo_catalog.env", catalog.env_file())
+
+
+def ensure_id_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdSecrets:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        ID_SECRET_NAME,
+        "TrainMeet ID:s databaslösenord, administratör och Catalogs hemlighet i testmiljön. "
+        "Skapas av deploy/testmiljo.py.",
+        lambda: generate_id_secrets().to_json(),
+    )
+    if created:
+        print("ID:s hemligheter skapade och sparade i Secret Manager.")
+    return IdSecrets.from_json(text)
 
 
 def explain(status: int | None, body: str, commercial_type: str) -> str:
@@ -520,6 +576,7 @@ def main(argv: list[str]) -> int:
     try:
         keys = ensure_keys(secrets, project_id)
         catalog = ensure_catalog_secrets(secrets, project_id)
+        id_secrets = ensure_id_secrets(secrets, project_id)
         security_group_id = ensure_security_group(instance, project_id)
         ip = ensure_ip(instance, project_id)
         _, created = ensure_server(
@@ -542,6 +599,10 @@ def main(argv: list[str]) -> int:
     output("key_file", str(key_file))
     output("known_hosts", str(known_hosts))
     output("catalog_env", str(write_catalog_env(catalog)))
+    # up.sh puts both files in .env, so Catalog reads ID_CATALOG_SECRET from there too.
+    # ID sends its codes with Scaleway's Transactional Email in this project (#66).
+    id_env = id_secrets.env_file() + f"TEM_PROJECT_ID={project_id}\n"
+    output("id_env", str(write_private("testmiljo_id.env", id_env)))
     output("created", "true" if created else "false")
     return 0
 

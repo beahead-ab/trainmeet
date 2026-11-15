@@ -1,6 +1,6 @@
-# Caddy framför testhubben och Catalog. Certifikaten hämtas automatiskt från Let's Encrypt
-# när DNS-raderna för HUB_DOMAIN och CATALOG_DOMAIN pekar på servern. Saknas en rad väntar
-# den adressen; den andra fungerar ändå.
+# Caddy framför testhubben, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt från
+# Let's Encrypt när DNS-raderna för HUB_DOMAIN, CATALOG_DOMAIN och ID_DOMAIN pekar på servern.
+# Saknas en rad väntar den adressen; de andra fungerar ändå.
 {
 	admin off
 }
@@ -27,4 +27,19 @@
 	import skydd
 	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy catalog:8080
+}
+
+# TrainMeet ID (#66). Keycloak sets its own headers for its pages; its admin pages and
+# management are not reachable from outside.
+{$ID_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	respond /admin* 404
+	respond /realms/master* 404
+	reverse_proxy id:8080
 }

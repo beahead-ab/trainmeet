@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -107,6 +108,18 @@ def test_the_server_files_agree_on_the_names() -> None:
     assert "{$HUB_DOMAIN}" in caddyfile
     assert "HUB_TAG=%s\\nHUB_DOMAIN=%s" in up
     assert "127.0.0.1:8080:8080" in compose
+
+
+def test_the_catalog_check_gives_compose_every_name_it_requires() -> None:
+    """The check "Catalogs bild" runs the test environment's compose file, so every variable
+    the file requires must be in the check's .env too, or compose refuses to start."""
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    required = set(re.findall(r"\$\{([A-Z_]+):\?", compose))
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    job = workflow.split("\n  catalog:\n")[1].split("\n  id:\n")[0]
+    given = set(re.findall(r'echo "([A-Z_]+)=', job.split("} > .env")[0]))
+    assert required, "compose.yaml requires nothing?"
+    assert required <= given, sorted(required - given)
 
 
 def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
@@ -257,3 +270,40 @@ def test_the_quota_report_lists_the_server_types_the_account_may_create() -> Non
 
 def test_the_quota_report_says_when_nothing_is_allowed() -> None:
     assert "inte skapa någon" in testmiljo.quota_report([quotum("cp_servers_type_DEV1_S", 0)])
+
+
+def test_trainmeet_id_has_its_own_database_behind_the_same_caddy() -> None:
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    assert "image: trainmeet-id:${ID_TAG" in compose
+    assert "id-db:/var/lib/postgresql/data" in compose
+    assert "./id-vault:/opt/keycloak/vault:ro" in compose
+    assert "KC_HOSTNAME: https://${ID_DOMAIN" in compose
+    assert "{$ID_DOMAIN}" in caddyfile
+    assert "reverse_proxy id:8080" in caddyfile
+    # Keycloak's admin pages are not reachable from outside.
+    assert "respond /admin* 404" in caddyfile
+    assert "respond /realms/master* 404" in caddyfile
+    assert "ID_TAG=%s\\nID_DOMAIN=%s" in up
+    database = compose.split("  id-db:")[1].split("\n  id:")[0]
+    assert "ports:" not in database
+    # The mail key is never written in the compose file or .env, only in the vault.
+    assert "TEM_SECRET_KEY" not in compose
+
+
+def test_id_secrets_survive_secret_manager_and_stay_private(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    made = testmiljo.generate_id_secrets()
+    assert testmiljo.IdSecrets.from_json(made.to_json()) == made
+    assert len({made.db_password, made.admin_password, made.catalog_secret}) == 3
+    monkeypatch.setenv("TESTMILJO_SSH_DIR", str(tmp_path))
+    path = testmiljo.write_private("testmiljo_id.env", made.env_file())
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert path.read_text().splitlines() == [
+        f"ID_DB_PASSWORD={made.db_password}",
+        f"ID_ADMIN_PASSWORD={made.admin_password}",
+        f"ID_CATALOG_SECRET={made.catalog_secret}",
+    ]
