@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.removed-count.schema.json",
+  "title": "trainmeet.catalog-1.removed-count",
+  "additionalProperties": true,
+  "properties": {
+    "removed": {
+      "description": "How many of the owners Catalog had.",
+      "title": "Removed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "removed"
+  ],
+  "type": "object"
+}

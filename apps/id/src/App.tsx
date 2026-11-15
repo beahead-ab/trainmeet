@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import {
   api,
   ApiError,
+  EXPORT_HREF,
   loginHref,
   type Club,
   type ClubPage,
@@ -14,7 +15,9 @@ import {
   type MeetRole,
   type NewMeet,
   type AppKey,
+  type ClubRole,
   type HelpRequest,
+  type RemovalPlan,
   type Session,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
@@ -58,6 +61,7 @@ const TITLES: Record<Page, TextKey> = {
   invitations: "invitations",
   fleet: "fleetTitle",
   help: "help",
+  remove: "removeAccount",
   missing: "notFound",
 };
 
@@ -71,6 +75,7 @@ export type Data = {
   meet?: MeetPage;
   /** ID's own version, for Hjälp och fel from ID itself. */
   version?: string;
+  removal?: RemovalPlan;
 };
 
 export type Actions = {
@@ -87,6 +92,8 @@ export type Actions = {
   giveRole?: (meet: string, person: string, role: MeetRole) => Promise<string | null>;
   takeRole?: (grant: string) => Promise<string | null>;
   sendHelp?: (request: HelpRequest) => Promise<string | null>;
+  changeRole?: (club: string, person: string, role: ClubRole) => Promise<string | null>;
+  removeAccount?: () => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -213,6 +220,7 @@ function LoginCard({ t, language, route, search, path }: { t: T; language: Langu
           {t("loginFailed")}
         </p>
       ) : null}
+      {new URLSearchParams(search).get("borttaget") ? <p role="status">{t("removed")}</p> : null}
       <p>{t("loginIntro")}</p>
       <a className="tm-knapp primar" href={loginHref(here, language)}>
         {t("logIn")}
@@ -276,6 +284,8 @@ function Content(props: ShellProps & { t: T }) {
       return data.meet ? <MeetView t={t} page={data.meet} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "tokens":
       return <TokensCard t={t} heading={1} />;
+    case "remove":
+      return <RemoveView t={t} plan={data.removal} navigate={navigate} remove={actions.removeAccount} />;
     case "help":
       return <HelpView t={t} email={props.session?.account?.email ?? ""} search={props.search ?? ""} version={data.version} send={actions.sendHelp} />;
     case "missing":
@@ -311,6 +321,9 @@ function AccountCard({ session, t }: ShellProps & { t: T }) {
           </p>
         </div>
       </div>
+      <p>
+        <a href={PATHS.remove}>{t("removeAccount")}</a>
+      </p>
     </section>
   );
 }
@@ -404,6 +417,86 @@ function HelpView({ t, email, search, version, send }: { t: T; email: string; se
             <Problem text={problem} />
           </form>
         )}
+      </section>
+    </div>
+  );
+}
+
+/** Ta bort mitt konto (KONTO-31, ID7, ID13): the file first, what goes, then the word. */
+function RemoveView({ t, plan, navigate, remove }: { t: T; plan?: RemovalPlan; navigate?: Navigate; remove?: Actions["removeAccount"] }) {
+  const [word, setWord] = useState("");
+  const [busy, problem, run] = useAction();
+  const names = (clubs: RemovalPlan["clubs_removed"]) => clubs.map((club) => club.name).join(", ");
+  const blocked = (plan?.clubs_blocking.length ?? 0) > 0;
+  const confirmed = word.trim().toUpperCase() === t("confirmWord");
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (confirmed && !blocked) await run(() => remove?.() ?? Promise.resolve(null));
+  };
+  return (
+    <div className="id-kolumn id-ta-bort-sida">
+      <div>
+        <p className="id-overrubrik">{t("myAccount")}</p>
+        <h1>{t("removeAccount")}</h1>
+        <p>{t("removeIntro")}</p>
+      </div>
+      <section className="tm-kort" aria-labelledby="hamta">
+        <h2 id="hamta">
+          <span className="id-steg">1</span> {t("fetchTitle")}
+        </h2>
+        <p>{t("fetchText")}</p>
+        <p className="id-knappar">
+          <a className="tm-knapp primar" href={EXPORT_HREF} download>
+            {t("fetchButton")}
+          </a>
+          <span className="id-detalj">{t("fetchNote")}</span>
+        </p>
+      </section>
+      <section className="tm-kort" aria-labelledby="tas-bort">
+        <h2 id="tas-bort">
+          <span className="id-steg">2</span> {t("goesTitle")}
+        </h2>
+        <div className="id-appruta">
+          <div>
+            <p className="id-namn">TrainMeet ID</p>
+            <p className="id-detalj">{t("goesId")}</p>
+          </div>
+          <div>
+            <p className="id-namn">TrainMeet Catalog</p>
+            <p className="id-detalj">{t("goesCatalog")}</p>
+          </div>
+        </div>
+        {plan && plan.clubs_removed.length > 0 ? <p>{t("goesClubs", { clubs: names(plan.clubs_removed) })}</p> : null}
+        <p className="id-detalj">{t("clubStays")}</p>
+        {blocked && plan ? (
+          <p className="id-fel" role="alert">
+            {t("blocking", { clubs: names(plan.clubs_blocking) })}
+          </p>
+        ) : null}
+      </section>
+      <section className="tm-kort id-oppet" aria-labelledby="sparas">
+        <h2 id="sparas">
+          <span className="id-chip id-chip-invited">{t("open")}</span> {t("keptTitle")}
+        </h2>
+        <p>{t("keptText")}</p>
+      </section>
+      <section className="tm-kort" aria-labelledby="bekrafta">
+        <h2 id="bekrafta">
+          <span className="id-steg fara">3</span> {t("confirmTitle")}
+        </h2>
+        <form className="id-formular" onSubmit={submit}>
+          <label htmlFor="bekrafta-ord">{t("confirmLabel", { word: t("confirmWord") })}</label>
+          <input id="bekrafta-ord" autoComplete="off" value={word} onChange={(e) => setWord(e.target.value)} />
+          <div className="id-knappar">
+            <button type="submit" className="tm-knapp fara-fylld" disabled={busy || !confirmed || blocked}>
+              {t("removeAccount")}
+            </button>
+            <a className="tm-knapp" href={PATHS.account} onClick={linkClick(navigate, PATHS.account)}>
+              {t("cancel")}
+            </a>
+          </div>
+          <Problem text={problem} />
+        </form>
       </section>
     </div>
   );
@@ -760,9 +853,20 @@ function ClubView({ t, page, me, actions, language, navigate }: { t: T; page: Cl
                       {t("leave")}
                     </button>
                   ) : admin ? (
-                    <button type="button" className="tm-knapp" disabled={busy} aria-label={t("removeNamed", { name: member.person.name })} onClick={() => run(() => actions.removeMember?.(page.club.id, member.person.id) ?? Promise.resolve(null))}>
-                      {t("remove")}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="tm-knapp"
+                        disabled={busy}
+                        aria-label={t(member.role === "admin" ? "makeMemberNamed" : "makeAdminNamed", { name: member.person.name })}
+                        onClick={() => run(() => actions.changeRole?.(page.club.id, member.person.id, member.role === "admin" ? "member" : "admin") ?? Promise.resolve(null))}
+                      >
+                        {t(member.role === "admin" ? "makeMember" : "makeAdmin")}
+                      </button>
+                      <button type="button" className="tm-knapp" disabled={busy} aria-label={t("removeNamed", { name: member.person.name })} onClick={() => run(() => actions.removeMember?.(page.club.id, member.person.id) ?? Promise.resolve(null))}>
+                        {t("remove")}
+                      </button>
+                    </>
                   ) : null}
                 </div>
               </li>
@@ -915,6 +1019,9 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
         case "meet":
           setData({ meet: await api.meet(route.id ?? "") });
           break;
+        case "remove":
+          setData({ removal: await api.removalPlan() });
+          break;
         case "help": {
           const version = await api.version().catch(() => null);
           setData({ version: version?.commit?.slice(0, 7) ?? undefined });
@@ -974,6 +1081,17 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     giveRole: (meet, person, role) => act(() => api.giveAtMeet(meet, person, role))(),
     takeRole: (grant) => act(() => api.removeGrant(grant))(),
     sendHelp: (request) => act(() => api.help(request))(),
+    changeRole: (club, person, role) => act(() => api.changeRole(club, person, role))(),
+    removeAccount: async () => {
+      try {
+        await api.removeAccount();
+        window.location.assign("/?borttaget=1");
+        return null;
+      } catch (error) {
+        if (error instanceof ApiError) return error.problem ?? t(`problem_${error.code ?? "conflict"}` as TextKey);
+        return t("offline");
+      }
+    },
   };
 
   return (

@@ -420,3 +420,41 @@ def test_wrong_id_settings_stop_the_start(extra: dict[str, str], message: str) -
     with pytest.raises(ValueError, match=message) as raised:
         from_env({"CATALOG_DATABASE_URL": "postgresql://db/catalog", **extra})
     assert SECRET not in str(raised.value)
+
+
+def test_only_ids_own_api_gets_a_persons_data_and_removes_it(
+    client: TestClient, pretend_id: PretendId
+) -> None:
+    """KONTO-31, CAT-193: ID asks for the person's data for their file, and says when the account
+    is removed. Only a token for ID's own client is let in."""
+    subject = str(uuid.uuid4())
+    back_from_id(client, pretend_id, to_id(client), subject)
+    car = {"status": "ready", "kind": "freight_wagon", "litt": "Hbis", "number": "1"}
+    assert client.post(f"{API}/vehicles", json=car).status_code == 201
+    assert client.post(f"{API}/places", json={"name": "Låda 3"}).status_code == 201
+
+    pretend_id.claims = {"azp": "id", "aud": "account"}
+    from_id = {"Authorization": f"Bearer {pretend_id.token('service-account-id')}"}
+    file = client.get(f"{API}/id/export", params={"person": subject}, headers=from_id)
+    assert file.status_code == 200, file.text
+    assert [v["litt"] for v in file.json()["vehicles"]] == ["Hbis"]
+    assert [p["name"] for p in file.json()["places"]] == ["Låda 3"]
+    assert len(file.json()["history"][0]["events"]) == 1
+
+    pretend_id.claims = {"azp": "catalog"}
+    catalogs_own = {"Authorization": f"Bearer {pretend_id.token(subject)}"}
+    asked = {"person": subject}
+    assert client.get(f"{API}/id/export", params=asked, headers=catalogs_own).status_code == 403
+    assert client.get(f"{API}/id/export", params=asked).status_code == 401
+    pretend_id.sign_with, pretend_id.claims = new_key(), {"azp": "id"}
+    forged = {"Authorization": f"Bearer {pretend_id.token('service-account-id')}"}
+    assert (
+        client.post(f"{API}/id/removed", json={"owners": [subject]}, headers=forged).status_code
+        == 401
+    )
+
+    removed = client.post(f"{API}/id/removed", json={"owners": [subject]}, headers=from_id)
+    assert removed.json() == {"removed": 1}
+    assert client.get(f"{API}/session").json()["account"] is None  # the login went too
+    left = client.get(f"{API}/id/export", params={"person": subject}, headers=from_id).json()
+    assert (left["vehicles"], left["places"]) == ([], [])

@@ -23,6 +23,7 @@ from psycopg.types.json import Jsonb
 from catalog import evn
 from catalog.db import Database
 from contracts.catalog import (
+    CatalogExport,
     DccFunction,
     EvnParts,
     FieldSource,
@@ -37,6 +38,7 @@ from contracts.catalog import (
     VehicleChange,
     VehicleEvent,
     VehicleFields,
+    VehicleHistory,
     VehicleKind,
     VehicleList,
     VehicleState,
@@ -520,6 +522,48 @@ class Fleet:
                     "INSERT INTO owner (id, name) VALUES (%s, %s) ON CONFLICT (id) DO NOTHING",
                     (owner, (name.strip() or "Klubb")[:80]),
                 )
+
+    # --- The person's data, and removing it (KONTO-31, CAT-193) -------------------------------
+
+    def export(self, owner: UUID) -> CatalogExport:
+        """Every vehicle, its history, the places and the settings: for the person's file."""
+        with self.db.transaction() as conn:
+            rows = conn.execute(
+                f"SELECT {_COLUMNS} FROM {_FROM} WHERE v.owner_id = %s ORDER BY v.created_at",
+                (owner,),
+            ).fetchall()
+            vehicles = self._with_tags(conn, rows)
+            events = conn.execute(
+                "SELECT e.vehicle_id, e.at, e.state, e.place_name, e.lent_to FROM vehicle_event e "
+                "JOIN vehicle v ON v.id = e.vehicle_id WHERE v.owner_id = %s ORDER BY e.at, e.id",
+                (owner,),
+            ).fetchall()
+        history: dict[UUID, list[VehicleEvent]] = {}
+        for row in events:
+            event = {k: row[k] for k in ("at", "state", "place_name", "lent_to")}
+            history.setdefault(row["vehicle_id"], []).append(VehicleEvent.model_validate(event))
+        return CatalogExport(
+            owner=owner,
+            vehicles=vehicles,
+            history=[VehicleHistory(vehicle=v, events=e) for v, e in history.items()],
+            places=self.places(owner),
+            settings=self.settings(owner),
+        )
+
+    def remove_owners(self, owners: list[UUID]) -> int:
+        """The owners and everything that is theirs, in one transaction (CAT-193). Their id is
+        also taken out of other owners' tag history and vehicle history."""
+        nobody = UUID(int=0)
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE tag_event SET by_owner = %s WHERE by_owner = ANY(%s)", (nobody, owners)
+            )
+            conn.execute(
+                "UPDATE vehicle_owner SET owner_id = %s WHERE owner_id = ANY(%s)",
+                (nobody, owners),
+            )
+            removed = conn.execute("DELETE FROM owner WHERE id = ANY(%s)", (owners,))
+            return removed.rowcount
 
     def settings(self, owner: UUID) -> OwnerSettings:
         with self.db.transaction() as conn:

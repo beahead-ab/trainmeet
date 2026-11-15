@@ -124,9 +124,57 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        put: operations["changeClubRole"];
         post?: never;
         delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/account/removal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["removalPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/account/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/account/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removeAccount"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1092,6 +1140,654 @@ export interface components {
          */
         "trainmeet.id-1.fleet-access.ResourceKind": "club" | "fleet" | "meet" | "station" | "module" | "hub" | "catalog";
         /**
+         * ClubRoleChange
+         * @description The admin gives a member the admin's role, or takes it back. A club always keeps an
+         *     admin (KONTO-02, KONTO-35).
+         */
+        "trainmeet.id-1.club-role-change": {
+            role: components["schemas"]["trainmeet.id-1.club-role-change.ClubRole"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClubRole
+         * @description A person's role in a club (KONTO-35).
+         * @enum {string}
+         */
+        "trainmeet.id-1.club-role-change.ClubRole": "admin" | "member";
+        /** ClubBrief */
+        "trainmeet.id-1.club-brief": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RemovalPlan
+         * @description What removing the account takes with it (KONTO-31, ID7, ID13). A club where the person
+         *     is the only member goes too, with its meets and its fleet. A club where the person is the
+         *     only admin among other members stops the removal until someone else has the role.
+         */
+        "trainmeet.id-1.removal-plan": {
+            /** Clubs Removed */
+            clubs_removed: components["schemas"]["trainmeet.id-1.removal-plan.ClubBrief"][];
+            /** Clubs Blocking */
+            clubs_blocking: components["schemas"]["trainmeet.id-1.removal-plan.ClubBrief"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** ClubBrief */
+        "trainmeet.id-1.removal-plan.ClubBrief": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RemoveAccount
+         * @description The person has typed the word that confirms (TA BORT).
+         */
+        "trainmeet.id-1.remove-account": {
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: true;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AccountExport
+         * @description Everything TrainMeet holds for the person, as one file before the account is removed
+         *     (KONTO-31, ID7): ID's own, and Catalog's.
+         */
+        "trainmeet.id-1.account-export": {
+            /**
+             * Made At
+             * Format: date-time
+             */
+            made_at: string;
+            account: components["schemas"]["trainmeet.id-1.account-export.Account"];
+            /** Clubs */
+            clubs: components["schemas"]["trainmeet.id-1.account-export.Club"][];
+            /** Roles */
+            roles: components["schemas"]["trainmeet.id-1.account-export.Grant"][];
+            /** Invitations */
+            invitations: components["schemas"]["trainmeet.id-1.account-export.Invitation"][];
+            /** Meets */
+            meets: components["schemas"]["trainmeet.id-1.account-export.Meet"][];
+            /**
+             * @description Catalog's data, where Catalog runs beside ID.
+             * @default null
+             */
+            catalog: components["schemas"]["trainmeet.id-1.account-export.CatalogExport"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Account
+         * @description The person who is logged in, as ID knows them.
+         */
+        "trainmeet.id-1.account-export.Account": {
+            /**
+             * Id
+             * Format: uuid
+             * @description The account's id, the same in every app (the token's sub).
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Initials */
+            initials: string;
+            /**
+             * Email
+             * @description Verified by the code to it (KONTO-10).
+             */
+            email: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CatalogExport
+         * @description Everything Catalog holds for one owner, for the file the person fetches before removing the
+         *     account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.
+         */
+        "trainmeet.id-1.account-export.CatalogExport": {
+            /**
+             * Owner
+             * Format: uuid
+             */
+            owner: string;
+            /** Vehicles */
+            vehicles: components["schemas"]["trainmeet.id-1.account-export.Vehicle"][];
+            /** History */
+            history: components["schemas"]["trainmeet.id-1.account-export.VehicleHistory"][];
+            /** Places */
+            places: components["schemas"]["trainmeet.id-1.account-export.Place"][];
+            settings: components["schemas"]["trainmeet.id-1.account-export.OwnerSettings"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Club */
+        "trainmeet.id-1.account-export.Club": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** @description The person's role in the club. */
+            role: components["schemas"]["trainmeet.id-1.account-export.ClubRole"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClubRole
+         * @description A person's role in a club (KONTO-35).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.ClubRole": "admin" | "member";
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.id-1.account-export.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.id-1.account-export.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Grant
+         * @description A role someone has for a resource.
+         */
+        "trainmeet.id-1.account-export.Grant": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            person: components["schemas"]["trainmeet.id-1.account-export.Person"];
+            role: components["schemas"]["trainmeet.id-1.account-export.Role"];
+            resource: components["schemas"]["trainmeet.id-1.account-export.Resource"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Invitation
+         * @description An invitation to a club (KONTO-35) or to a shared fleet (KONTO-29). Gives nothing
+         *     until the person it was sent to has said yes.
+         */
+        "trainmeet.id-1.account-export.Invitation": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            resource: components["schemas"]["trainmeet.id-1.account-export.Resource"];
+            role: components["schemas"]["trainmeet.id-1.account-export.Role"];
+            /**
+             * Title
+             * @description What it is about: the club's name, or whose fleet.
+             */
+            title: string;
+            /**
+             * Sent To
+             * @description The address, partly hidden to anyone but its owner.
+             */
+            sent_to: string;
+            sent_by: components["schemas"]["trainmeet.id-1.account-export.Person"];
+            state: components["schemas"]["trainmeet.id-1.account-export.InvitationState"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * InvitationState
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.InvitationState": "waiting" | "accepted" | "declined";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.id-1.account-export.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Meet */
+        "trainmeet.id-1.account-export.Meet": {
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Club
+             * Format: uuid
+             */
+            club: string;
+            /** Club Name */
+            club_name: string;
+            /**
+             * Roles
+             * @description The person's own roles at the meet.
+             */
+            roles: components["schemas"]["trainmeet.id-1.account-export.MeetRole"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.id-1.account-export.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OwnerSettings
+         * @description Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).
+         */
+        "trainmeet.id-1.account-export.OwnerSettings": {
+            /**
+             * Show Name
+             * @default false
+             */
+            show_name: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Person
+         * @description Someone else, as a member or someone with a role: never their address.
+         */
+        "trainmeet.id-1.account-export.Person": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Initials */
+            initials: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Place
+         * @description A named place at home: a box or a shelf (CAT-71).
+         */
+        "trainmeet.id-1.account-export.Place": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Vehicles Home
+             * @description How many vehicles are at home here now.
+             */
+            vehicles_home: number;
+            /**
+             * Vehicles
+             * @description How many vehicles live here, wherever they are now.
+             */
+            vehicles: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Resource
+         * @description One thing a role applies to: its kind and its id in the app that owns it.
+         */
+        "trainmeet.id-1.account-export.Resource": {
+            kind: components["schemas"]["trainmeet.id-1.account-export.ResourceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ResourceKind
+         * @description What a role applies to (KONTO-03). ID only holds the reference, never the thing.
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.ResourceKind": "club" | "fleet" | "meet" | "station" | "module" | "hub" | "catalog";
+        /**
+         * Role
+         * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.TagKind": "nfc" | "qr" | "sim";
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.id-1.account-export.Vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.id-1.account-export.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.id-1.account-export.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.id-1.account-export.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.id-1.account-export.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.id-1.account-export.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.id-1.account-export.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.id-1.account-export.FieldSource"];
+            };
+            /**
+             * Tags
+             * @description At most one NFC, one QR. Only the owner sees them.
+             */
+            tags?: components["schemas"]["trainmeet.id-1.account-export.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
+            /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.id-1.account-export.Notice"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleEvent
+         * @description A change of state or place, with its time. Only the owner sees them (CAT-77).
+         */
+        "trainmeet.id-1.account-export.VehicleEvent": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            state: components["schemas"]["trainmeet.id-1.account-export.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Lent To
+             * @default null
+             */
+            lent_to: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleHistory
+         * @description One vehicle's events, in the file with the person's data.
+         */
+        "trainmeet.id-1.account-export.VehicleHistory": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /** Events */
+            events: components["schemas"]["trainmeet.id-1.account-export.VehicleEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.id-1.account-export.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.id-1.account-export.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * HelpRequest
          * @description Hjälp och fel in the account menu of every app (KONTO-06). It goes as a mail to Beahead's
          *     support address, with the app, the page and the version, and the person's verified address
@@ -1712,6 +2408,78 @@ export interface operations {
             };
         };
     };
+    changeClubRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club: string;
+                member: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.club-role-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.club-page"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
     removeMember: {
         parameters: {
             query?: never;
@@ -1771,6 +2539,133 @@ export interface operations {
             };
             /** @description ID säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    removalPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.removal-plan"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    exportAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.account-export"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    removeAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.remove-account"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.session"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

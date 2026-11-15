@@ -128,7 +128,7 @@
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
+      "serviceAccountsEnabled": true,
       "frontchannelLogout": false,
       "redirectUris": [
         "${ID_PUBLIC_URL}/api/id/1/login/callback"
@@ -145,11 +145,24 @@
         "acr",
         "basic",
         "profile",
-        "email"
+        "email",
+        "kc-admin-api"
       ]
     }
   ],
   "attributes": {
-    "trainmeetVersion": "4"
-  }
+    "trainmeetVersion": "5"
+  },
+  "users": [
+    {
+      "username": "service-account-id",
+      "enabled": true,
+      "serviceAccountClientId": "id",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users"
+        ]
+      }
+    }
+  ]
 }

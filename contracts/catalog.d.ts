@@ -84,6 +84,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/id/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exportForId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/id/removed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removedById"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/id/login": {
         parameters: {
             query?: never;
@@ -1821,6 +1853,443 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * VehicleHistory
+         * @description One vehicle's events, in the file with the person's data.
+         */
+        "trainmeet.catalog-1.vehicle-history": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /** Events */
+            events: components["schemas"]["trainmeet.catalog-1.vehicle-history.VehicleEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleEvent
+         * @description A change of state or place, with its time. Only the owner sees them (CAT-77).
+         */
+        "trainmeet.catalog-1.vehicle-history.VehicleEvent": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            state: components["schemas"]["trainmeet.catalog-1.vehicle-history.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Lent To
+             * @default null
+             */
+            lent_to: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-history.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * CatalogExport
+         * @description Everything Catalog holds for one owner, for the file the person fetches before removing the
+         *     account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.
+         */
+        "trainmeet.catalog-1.catalog-export": {
+            /**
+             * Owner
+             * Format: uuid
+             */
+            owner: string;
+            /** Vehicles */
+            vehicles: components["schemas"]["trainmeet.catalog-1.catalog-export.Vehicle"][];
+            /** History */
+            history: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleHistory"][];
+            /** Places */
+            places: components["schemas"]["trainmeet.catalog-1.catalog-export.Place"][];
+            settings: components["schemas"]["trainmeet.catalog-1.catalog-export.OwnerSettings"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.catalog-export.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.catalog-1.catalog-export.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.catalog-1.catalog-export.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.catalog-1.catalog-export.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OwnerSettings
+         * @description Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).
+         */
+        "trainmeet.catalog-1.catalog-export.OwnerSettings": {
+            /**
+             * Show Name
+             * @default false
+             */
+            show_name: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Place
+         * @description A named place at home: a box or a shelf (CAT-71).
+         */
+        "trainmeet.catalog-1.catalog-export.Place": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Vehicles Home
+             * @description How many vehicles are at home here now.
+             */
+            vehicles_home: number;
+            /**
+             * Vehicles
+             * @description How many vehicles live here, wherever they are now.
+             */
+            vehicles: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.TagKind": "nfc" | "qr" | "sim";
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.catalog-1.catalog-export.Vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.catalog-export.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.catalog-1.catalog-export.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.catalog-1.catalog-export.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.catalog-export.FieldSource"];
+            };
+            /**
+             * Tags
+             * @description At most one NFC, one QR. Only the owner sees them.
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
+            /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.catalog-1.catalog-export.Notice"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleEvent
+         * @description A change of state or place, with its time. Only the owner sees them (CAT-77).
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleEvent": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            state: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Lent To
+             * @default null
+             */
+            lent_to: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleHistory
+         * @description One vehicle's events, in the file with the person's data.
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleHistory": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /** Events */
+            events: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.catalog-1.catalog-export.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.catalog-export.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OwnersRemoved
+         * @description TrainMeet ID says that these owners are gone: a removed account, and the clubs that went
+         *     with it (CAT-193, ID13). Catalog removes their vehicles, places, tags and the rest.
+         */
+        "trainmeet.catalog-1.owners-removed": {
+            /** Owners */
+            owners: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** RemovedCount */
+        "trainmeet.catalog-1.removed-count": {
+            /**
+             * Removed
+             * @description How many of the owners Catalog had.
+             */
+            removed: number;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -1963,6 +2432,115 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    exportForId: {
+        parameters: {
+            query?: {
+                person?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.catalog-export"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removedById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.owners-removed"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed-count"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

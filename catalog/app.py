@@ -16,7 +16,7 @@ from typing import Annotated, Final
 from uuid import UUID
 
 import httpx
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -35,12 +35,15 @@ from catalog.settings import Settings, from_env
 from catalog.tags import Tags
 from contracts.catalog import (
     Account,
+    CatalogExport,
     CatalogVersion,
     FleetChoice,
     FleetRight,
     LoginKind,
+    OwnersRemoved,
     Problem,
     ProblemCode,
+    RemovedCount,
     Session,
     TrialLogin,
 )
@@ -286,6 +289,25 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         simulated=settings.simulated_tags,
         shared_with=access.shared_with,
     )
+
+    # --- For TrainMeet ID itself (KONTO-31, CAT-193) -------------------------------------------
+
+    def from_id(authorization: str | None = Header(default=None)) -> None:
+        if with_id is None:
+            raise Refused(404, ProblemCode.NOT_FOUND, "Finns inte.")
+        with_id.check_caller(authorization)
+
+    @app.get(API + "/id/export")
+    def export_for_id(person: UUID, _: None = Depends(from_id)) -> CatalogExport:
+        """The person's data for the file they fetch in ID before removing the account."""
+        return fleet.export(person)
+
+    @app.post(API + "/id/removed")
+    def removed_by_id(body: OwnersRemoved, _: None = Depends(from_id)) -> RemovedCount:
+        """The account is removed in ID: its fleet goes, and the clubs' that went with it."""
+        removed = fleet.remove_owners(list(body.owners))
+        LOGGER.info("ID tog bort %d ägare i Catalog.", removed)
+        return RemovedCount(removed=removed)
 
     @app.get(API + "/fleets")
     def fleets(account: Account | None = Depends(logged_in)) -> list[FleetChoice]:  # noqa: B008

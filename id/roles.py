@@ -33,6 +33,7 @@ from contracts.id import (
     Access,
     Account,
     Club,
+    ClubBrief,
     ClubPage,
     ClubRole,
     FleetAccess,
@@ -50,6 +51,7 @@ from contracts.id import (
     NewMeet,
     Person,
     ProblemCode,
+    RemovalPlan,
     Removed,
     Resource,
     ResourceKind,
@@ -257,6 +259,38 @@ class Roles:
             if member == asker.id:
                 return None
             return self._club_page(conn, club, role, asker.id)
+
+    def change_role(self, asker: Asker, club: UUID, member: UUID, role: ClubRole) -> ClubPage:
+        """The admin makes a member admin, or takes the role back (KONTO-02). A club always
+        keeps an admin, so the last one cannot step down."""
+        with self.db.transaction() as conn:
+            if self._club_role(conn, asker, club) != Role.ADMIN:
+                raise forbidden("Bara klubbens administratör ändrar rollerna.")
+            conn.execute("SELECT id FROM club WHERE id = %s FOR UPDATE", (club,))
+            rows = conn.execute(
+                "SELECT person_id, role FROM role_grant WHERE resource_kind = 'club' "
+                "AND resource_id = %s AND role IN ('admin', 'member')",
+                (str(club),),
+            ).fetchall()
+            held = {row["person_id"] for row in rows}
+            admins = {row["person_id"] for row in rows if row["role"] == "admin"}
+            if member not in held:
+                raise not_found()
+            if role == ClubRole.MEMBER and admins == {member}:
+                raise Refused(
+                    409,
+                    ProblemCode.CONFLICT,
+                    "Klubben behöver en administratör. Ge rollen till någon annan först.",
+                )
+            conn.execute(
+                "DELETE FROM role_grant WHERE resource_kind = 'club' AND resource_id = %s "
+                "AND person_id = %s AND role IN ('admin', 'member')",
+                (str(club), member),
+            )
+            resource = Resource(kind=ResourceKind.CLUB, id=str(club))
+            self._grant(conn, member, Role(role.value), resource, asker.id)
+            mine = self._club_role(conn, asker, club)
+            return self._club_page(conn, club, mine, asker.id)
 
     # --- Fleets (CAT-44, KONTO-29) -----------------------------------------------------------
 
@@ -639,6 +673,86 @@ class Roles:
             (resource.kind.value, resource.id, email, [r.value for r in roles]),
         ).fetchone()
         return row is not None
+
+    # --- Removing the account (KONTO-31, ID7, ID13) --------------------------------------------
+
+    def removal_plan(self, person: UUID) -> RemovalPlan:
+        """The clubs that go with the account, and those that stop it until someone else is
+        admin there."""
+        with self.db.transaction() as conn:
+            rows = conn.execute(
+                "SELECT c.id, c.name, "
+                "count(*) FILTER (WHERE g.role IN ('admin', 'member')) AS members, "
+                "count(*) FILTER (WHERE g.role = 'admin') AS admins "
+                "FROM club c JOIN role_grant g ON g.resource_kind = 'club' "
+                "AND g.resource_id = c.id::text "
+                "WHERE c.id::text IN (SELECT resource_id FROM role_grant WHERE person_id = %s "
+                "AND resource_kind = 'club' AND role = 'admin') "
+                "GROUP BY c.id, c.name ORDER BY lower(c.name)",
+                (person,),
+            ).fetchall()
+        removed = [ClubBrief(id=r["id"], name=r["name"]) for r in rows if r["members"] == 1]
+        blocking = [
+            ClubBrief(id=r["id"], name=r["name"])
+            for r in rows
+            if r["members"] > 1 and r["admins"] == 1
+        ]
+        return RemovalPlan(clubs_removed=removed, clubs_blocking=blocking)
+
+    def own_data(
+        self, asker: Asker
+    ) -> tuple[list[Club], list[Grant], list[Invitation], list[Meet]]:
+        """What ID holds for the person, for their file (KONTO-31)."""
+        clubs = self.clubs(asker)
+        with self.db.transaction() as conn:
+            rows = conn.execute(
+                "SELECT g.id AS grant_id, g.role, g.at, g.resource_kind, g.resource_id, p.id, "
+                "p.name FROM role_grant g JOIN person p ON p.id = g.person_id "
+                "WHERE g.person_id = %s ORDER BY g.at",
+                (asker.id,),
+            ).fetchall()
+            invitations = conn.execute(
+                self._INVITATION + "WHERE i.email = %s OR i.sent_by = %s ORDER BY i.at",
+                (asker.email, asker.id),
+            ).fetchall()
+            meets = self._meets(conn, asker.id)
+        grants = [
+            Grant(
+                id=row["grant_id"],
+                person=self._person(row),
+                role=Role(row["role"]),
+                resource=Resource(kind=ResourceKind(row["resource_kind"]), id=row["resource_id"]),
+                at=row["at"],
+            )
+            for row in rows
+        ]
+        sent = [self._invitation(row, show=True) for row in invitations]
+        return clubs, grants, sent, meets
+
+    def remove_person(self, person: UUID, email: str, clubs: list[UUID]) -> None:
+        """The person and what is theirs in ID, and the clubs that go with the account: their
+        meets and every role on them, their fleets' sharing and their invitations."""
+        club_ids = [str(club) for club in clubs]
+        with self.db.transaction() as conn:
+            meets = [
+                str(row["id"])
+                for row in conn.execute(
+                    "SELECT id FROM meet WHERE club_id::text = ANY(%s)", (club_ids,)
+                ).fetchall()
+            ]
+            fleets = [str(person), *club_ids]
+            conn.execute(
+                "DELETE FROM role_grant WHERE (resource_kind = 'club' AND resource_id = ANY(%s)) "
+                "OR (resource_kind = 'fleet' AND resource_id = ANY(%s)) "
+                "OR (resource_kind = 'meet' AND resource_id = ANY(%s))",
+                (club_ids, fleets, meets),
+            )
+            conn.execute(
+                "DELETE FROM invitation WHERE email = %s OR resource_id = ANY(%s)",
+                (email, [*club_ids, *fleets, *meets]),
+            )
+            conn.execute("DELETE FROM club WHERE id::text = ANY(%s)", (club_ids,))
+            conn.execute("DELETE FROM person WHERE id = %s", (person,))
 
     # --- What the apps ask (KONTO-34) ---------------------------------------------------------
 

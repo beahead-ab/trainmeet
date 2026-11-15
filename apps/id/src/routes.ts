@@ -2,7 +2,7 @@
 // gives index.html for each of them (id/app.py). The tabs are Konto, Klubbar, Träffar and
 // Tokens (KONTO-38).
 
-export type Page = "account" | "clubs" | "club" | "meets" | "meet" | "tokens" | "invitations" | "fleet" | "help" | "missing";
+export type Page = "account" | "clubs" | "club" | "meets" | "meet" | "tokens" | "invitations" | "fleet" | "help" | "remove" | "missing";
 export type Route = { page: Page; id?: string };
 
 export const PATHS = {
@@ -12,6 +12,7 @@ export const PATHS = {
   tokens: "/tokens",
   invitations: "/inbjudningar",
   help: "/hjalp",
+  remove: "/konto/ta-bort",
 } as const;
 
 export const clubPath = (id: string) => `/klubbar/${id}`;
@@ -40,6 +41,6 @@ export function routeFor(address: string): Route {
 export function tabOf(page: Page): Page {
   if (page === "club") return "clubs";
   if (page === "meet") return "meets";
-  if (page === "invitations" || page === "fleet" || page === "help") return "account";
+  if (page === "invitations" || page === "fleet" || page === "help" || page === "remove") return "account";
   return page;
 }

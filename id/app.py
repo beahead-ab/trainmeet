@@ -28,10 +28,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from contracts.id import (
     Access,
+    AccountExport,
     Answer,
     Club,
     ClubName,
     ClubPage,
+    ClubRoleChange,
     FleetAccess,
     FleetInvite,
     FleetPage,
@@ -45,6 +47,8 @@ from contracts.id import (
     NewMeet,
     Problem,
     ProblemCode,
+    RemovalPlan,
+    RemoveAccount,
     Removed,
     Resource,
     ResourceKind,
@@ -54,6 +58,7 @@ from contracts.id import (
 )
 from id import login as id_login
 from id import migrate
+from id.accounts import Accounts
 from id.db import Database
 from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
@@ -109,10 +114,12 @@ def create_app(
     """The app. The tests give a pretend Keycloak (http) and a pretend mail server."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
+    http = http if http is not None else httpx.Client(timeout=10.0)
     login = id_login.Login(db, settings, http)
     mail: AllMail = mailer if mailer is not None else SmtpMailer(settings.smtp)
     roles = Roles(db, mail, settings.public_url)
     help_desk = HelpDesk(mail, settings.support)
+    accounts = Accounts(settings, http, roles)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -244,6 +251,10 @@ def create_app(
     def invite_to_club(club: UUID, body: Invite, person: Person) -> Invitation:
         return roles.invite_to_club(person, club, body.email)
 
+    @app.put(API + "/clubs/{club}/members/{member}")
+    def change_role(club: UUID, member: UUID, body: ClubRoleChange, person: Person) -> ClubPage:
+        return roles.change_role(person, club, member, body.role)
+
     @app.delete(API + "/clubs/{club}/members/{member}", response_model=None)
     def remove_member(club: UUID, member: UUID, person: Person) -> ClubPage | Response:
         page = roles.remove_member(person, club, member)
@@ -288,6 +299,32 @@ def create_app(
     @app.post(API + "/meets/{meet}/grants")
     def give_at_meet(meet: UUID, body: MeetGrant, person: Person) -> MeetPage:
         return roles.give_at_meet(person, meet, body)
+
+    # --- Removing the account (KONTO-31, ID7, ID13) --------------------------------------------
+
+    @app.get(API + "/account/removal")
+    def removal_plan(person: Person) -> RemovalPlan:
+        return accounts.plan(person)
+
+    @app.get(API + "/account/export", response_model=AccountExport)
+    def export(session: SessionCookie = None) -> JSONResponse:
+        account = login.account(session)
+        if account is None:
+            raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
+        file = accounts.export(Asker(id=account.id, email=account.email), account)
+        return JSONResponse(
+            file.model_dump(mode="json"),
+            headers={
+                "Content-Disposition": 'attachment; filename="trainmeet-mina-uppgifter.json"',
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.post(API + "/account/remove")
+    def remove_account(body: RemoveAccount, response: Response, person: Person) -> Session:
+        accounts.remove(person)
+        response.delete_cookie(id_login.COOKIE, path="/")
+        return Session()
 
     # --- Hjälp och fel (KONTO-06, ID9) ---------------------------------------------------------
 

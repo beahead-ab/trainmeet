@@ -556,3 +556,32 @@ class OwnerSettings(Contract):
     """Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101)."""
 
     show_name: bool = False
+
+
+class VehicleHistory(Contract):
+    """One vehicle's events, in the file with the person's data."""
+
+    vehicle: UUID
+    events: list[VehicleEvent]
+
+
+class CatalogExport(Contract):
+    """Everything Catalog holds for one owner, for the file the person fetches before removing the
+    account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own."""
+
+    owner: UUID
+    vehicles: list[Vehicle]
+    history: list[VehicleHistory]
+    places: list[Place]
+    settings: OwnerSettings
+
+
+class OwnersRemoved(Contract):
+    """TrainMeet ID says that these owners are gone: a removed account, and the clubs that went
+    with it (CAT-193, ID13). Catalog removes their vehicles, places, tags and the rest."""
+
+    owners: Annotated[list[UUID], Field(min_length=1, max_length=50)]
+
+
+class RemovedCount(Contract):
+    removed: int = Field(description="How many of the owners Catalog had.")

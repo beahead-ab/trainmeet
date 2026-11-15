@@ -18,7 +18,8 @@ ny kod när man redan är inloggad i ID (KONTO-01), och ut ur både Catalog och 
 Med --id-app körs ID:s API och webbapp på den adressen (#67): en klubb skapas, en medlem
 bjuds in med mejl och svarar ja, och klubben får en träff där medlemmen blir trafikledare
 (ID10). Med båda delas en vagnpark i ID och syns i Catalog (#49), och klubbens vagnpark provas:
-administratören gör ägarens saker, medlemmen tittar (CAT-51, C39).
+administratören gör ägarens saker, medlemmen tittar (CAT-51, C39). Sist hämtas uppgifterna som en
+fil och kontot tas bort i Catalog, Keycloak och ID (KONTO-31, CAT-193).
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -641,6 +642,48 @@ def run_club_fleet(base: str, mails: Path, catalog: str, id_app: str) -> None:
     print("Klubbens vagnpark: medlemmen tittar: ok")
 
 
+def run_removal(base: str, mails: Path, catalog: str, id_app: str) -> None:
+    """KONTO-31, CAT-193, ID13: the file first, then the account goes in Catalog, Keycloak and
+    ID, with the club the person was alone in. The same address later gets a new account."""
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    in_catalog = Browser(base, catalog)
+    log_in_to_app(in_catalog, mails, address, "Provare Bort", "/api/catalog/1/id/login")
+    car = {"status": "ready", "kind": "freight_wagon", "litt": "Gbs", "number": "9"}
+    check(
+        in_catalog.app.post("/api/catalog/1/vehicles", json=car).status_code == 201, "Inget fordon."
+    )
+    in_id = Browser(base, id_app, "/api/id/1/session")
+    in_id.id.client.cookies = in_catalog.id.client.cookies
+    in_id.open("/api/id/1/login")
+    account = in_id.session()["account"]
+    check(isinstance(account, dict), "Inte inloggad i ID:s webbapp.")
+    assert isinstance(account, dict)
+    in_id.app.post("/api/id/1/clubs", json={"name": "Ensam klubb"})
+
+    file = in_id.app.get("/api/id/1/account/export")
+    check(file.status_code == 200, f"Filen svarade {file.status_code}: {file.text[:200]}")
+    body = file.json()
+    check(
+        [v["litt"] for v in body["catalog"]["vehicles"]] == ["Gbs"]
+        and [c["name"] for c in body["clubs"]] == ["Ensam klubb"],
+        "Filen saknar Catalogs fordon eller klubben.",
+    )
+    print("Ta bort kontot: filen med ID:s och Catalogs uppgifter: ok")
+
+    plan = in_id.app.get("/api/id/1/account/removal").json()
+    check([c["name"] for c in plan["clubs_removed"]] == ["Ensam klubb"], f"Planen: {plan}")
+    gone = in_id.app.post("/api/id/1/account/remove", json={"confirm": True})
+    check(gone.status_code == 200, f"Borttagningen svarade {gone.status_code}: {gone.text[:200]}")
+    check(in_id.session()["account"] is None, "Fortfarande inloggad i ID:s webbapp.")
+    check(in_catalog.session()["account"] is None, "Fortfarande inloggad i Catalog.")
+    again = Browser(base, catalog)
+    log_in_to_app(again, mails, address, "Provare Igen", "/api/catalog/1/id/login")
+    new = again.session()["account"]
+    check(isinstance(new, dict) and new.get("id") != account["id"], "Samma konto finns kvar.")
+    check(again.app.get("/api/catalog/1/vehicles").json()["total"] == 0, "Fordonet finns kvar.")
+    print("Ta bort kontot: borta i Catalog, Keycloak och ID, och adressen får ett nytt konto: ok")
+
+
 def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
     id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
@@ -657,6 +700,7 @@ def main(argv: list[str]) -> int:
         if id_app and through_catalog:
             run_sharing(argv[1], Path(argv[2]), argv[4], id_app)
             run_club_fleet(argv[1], Path(argv[2]), argv[4], id_app)
+            run_removal(argv[1], Path(argv[2]), argv[4], id_app)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

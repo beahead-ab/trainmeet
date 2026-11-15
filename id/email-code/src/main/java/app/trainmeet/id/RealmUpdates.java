@@ -3,11 +3,15 @@ package app.trainmeet.id;
 import java.util.List;
 import java.util.Set;
 import org.jboss.logging.Logger;
+import org.keycloak.models.AdminRoles;
 import org.keycloak.models.ClientModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
+import org.keycloak.models.RoleModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.models.WebAuthnPolicy;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.services.managers.ClientManager;
@@ -28,7 +32,7 @@ final class RealmUpdates {
     static final String REALM = "trainmeet";
     static final String VERSION = "trainmeetVersion";
     /** The latest update. The realm file says the same. */
-    static final int LATEST = 4;
+    static final int LATEST = 5;
 
     static final String PASSKEY_ACTION = "webauthn-register-passwordless";
 
@@ -43,7 +47,8 @@ final class RealmUpdates {
     static final List<Step> STEPS = List.of(
             (session, realm) -> passkeys(realm),
             (session, realm) -> idWebApp(realm),
-            RealmUpdates::catalogAsks);
+            RealmUpdates::catalogAsks,
+            RealmUpdates::idRemovesAccounts);
 
     /**
      * Every update runs in a transaction of its own, together with the new number. One that fails
@@ -147,6 +152,36 @@ final class RealmUpdates {
         // Keycloak makes the service account in the realm the session works in.
         session.getContext().setRealm(realm);
         new ClientManager(new RealmManager(session)).enableServiceAccount(client);
+    }
+
+    static final String ADMIN_API_SCOPE = "kc-admin-api";
+
+    /**
+     * 5: ID's API removes the account in Keycloak when the person removes it in ID (KONTO-31, ID7).
+     * The client "id" gets a service account with the one role it needs: manage-users, and
+     * Keycloak's own scope kc-admin-api, which puts the admin API's audience in its token. Keycloak
+     * 26.8 lets no token without it into the admin API.
+     */
+    static void idRemovesAccounts(KeycloakSession session, RealmModel realm) {
+        ClientModel client = realm.getClientByClientId(ID_CLIENT);
+        if (client == null) {
+            LOG.warn("Klienten id saknas, så ID:s API kan inte ta bort konton.");
+            return;
+        }
+        session.getContext().setRealm(realm);
+        if (!client.isServiceAccountsEnabled()) {
+            client.setServiceAccountsEnabled(true);
+            new ClientManager(new RealmManager(session)).enableServiceAccount(client);
+        }
+        realm.getClientScopesStream()
+                .filter(scope -> ADMIN_API_SCOPE.equals(scope.getName()))
+                .forEach(scope -> client.addClientScope(scope, true));
+        UserModel account = session.users().getServiceAccount(client);
+        ClientModel management = realm.getClientByClientId(Constants.REALM_MANAGEMENT_CLIENT_ID);
+        RoleModel manage = management == null ? null : management.getRole(AdminRoles.MANAGE_USERS);
+        if (account != null && manage != null && !account.hasRole(manage)) {
+            account.grantRole(manage);
+        }
     }
 
     private static int parse(String value) {

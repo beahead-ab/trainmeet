@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.removal-plan.schema.json",
+  "title": "trainmeet.id-1.removal-plan",
+  "$defs": {
+    "ClubBrief": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ClubBrief",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What removing the account takes with it (KONTO-31, ID7, ID13). A club where the person\nis the only member goes too, with its meets and its fleet. A club where the person is the\nonly admin among other members stops the removal until someone else has the role.",
+  "properties": {
+    "clubs_removed": {
+      "items": {
+        "$ref": "#/$defs/ClubBrief"
+      },
+      "title": "Clubs Removed",
+      "type": "array"
+    },
+    "clubs_blocking": {
+      "items": {
+        "$ref": "#/$defs/ClubBrief"
+      },
+      "title": "Clubs Blocking",
+      "type": "array"
+    }
+  },
+  "required": [
+    "clubs_removed",
+    "clubs_blocking"
+  ],
+  "type": "object"
+}

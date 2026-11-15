@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.club-role-change.schema.json",
+  "title": "trainmeet.id-1.club-role-change",
+  "$defs": {
+    "ClubRole": {
+      "description": "A person's role in a club (KONTO-35).",
+      "enum": [
+        "admin",
+        "member"
+      ],
+      "title": "ClubRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The admin gives a member the admin's role, or takes it back. A club always keeps an\nadmin (KONTO-02, KONTO-35).",
+  "properties": {
+    "role": {
+      "$ref": "#/$defs/ClubRole"
+    }
+  },
+  "required": [
+    "role"
+  ],
+  "type": "object"
+}
