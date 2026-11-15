@@ -67,3 +67,14 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Fråga | `question` | Ställs bara där en regel saknas eller två lika tunga underlag säger olika. |
 | Importrapport | `ImportReport` | Nivån, vad underlaget gav, vad reglerna bestämde och vad som inte lästes in. |
 | Program | `about.program` | Träffens program, som fasta tider. |
+
+## TrainMeet Catalog
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| Catalogs API | `trainmeet.catalog/1`, `contracts/catalog.py` | Det webbappen och andra läser av Catalog. Beskrivs i `catalog.openapi.json`, med TypeScript-typerna i `catalog.d.ts`. |
+| Konto | `Account` | Den som är inloggad, med id från inloggningen, namn och initialer. |
+| Inloggning | `Session`, `LoginKind` | Vem som är inloggad, och hur man loggar in här: `trial` eller `id`. |
+| Provinloggning | `LoginKind.TRIAL`, `TrialLogin` | Inloggningen i testmiljön tills TrainMeet ID finns, med fasta provkonton utan personuppgifter (CAT-214). |
+| Vagnpark | – | En ägares alla fordon. Kommer i kontrakten med fordonen (#50). |
+| Ägare | – | Den som äger en vagnpark: en person, och senare en klubb. Varje skrivning låser ägarens rad först (CAT-40). |

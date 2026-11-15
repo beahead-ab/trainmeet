@@ -1,0 +1,24 @@
+{
+  "name": "@trainmeet/design",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TrainMeet's design system in React: the sign, the product name in dots, the header, the app switcher and the account menu.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./design.css": "./src/design.css"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,5 +1,6 @@
-# Körs på varje PR och varje ändring på main: kodstil, typer, testerna och Hubbens bild.
-# Båda kontrollerna, "Tester" och "Hubbens bild", ska vara gröna innan en PR slås ihop.
+# Körs på varje PR och varje ändring på main: kodstil, typer, testerna, Hubbens bild och
+# Catalogs bild. Alla tre kontrollerna, "Tester", "Hubbens bild" och "Catalogs bild", ska
+# vara gröna innan en PR slås ihop.
 name: Tester
 
 on:
@@ -22,6 +23,19 @@ jobs:
     name: Tester
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # TrainMeet Catalog's tests need a PostgreSQL of their own (catalog/tests/conftest.py).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: prov
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 3s --health-retries 20
+    env:
+      CATALOG_TEST_DATABASE_URL: postgresql://postgres:prov@127.0.0.1:5432/postgres
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +58,9 @@ jobs:
         run: uv run pytest
 
       - name: Kontraktens TypeScript-typer
-        run: npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts --check
+        run: |
+          npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts --check
+          npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts --check
 
   bilden:
     name: Hubbens bild
@@ -79,11 +95,89 @@ jobs:
         if: failure()
         run: docker logs hub || true
 
+  # TrainMeet Catalog: webbappens typer och tester körs när bilden byggs. Sedan provas bilden
+  # med testmiljöns egen compose-fil: databasen, säkerhetskopian före migreringen, migreringen,
+  # Catalog i läget check, provinloggningen och en säkerhetskopia med data i (CAT-39).
+  catalog:
+    name: Catalogs bild
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROV: /tmp/catalog-testmiljo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg bilden
+        run: >
+          docker build -f catalog/Dockerfile -t trainmeet-catalog:prov
+          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+
+      - name: Starta databasen som i testmiljön
+        run: |
+          mkdir -p "$PROV"
+          cp deploy/testmiljo/compose.yaml deploy/testmiljo/catalog-backup.sh "$PROV/"
+          cd "$PROV"
+          umask 077
+          {
+            echo "HUB_TAG=prov"
+            echo "HUB_DOMAIN=localhost"
+            echo "CATALOG_TAG=prov"
+            echo "CATALOG_DOMAIN=localhost"
+            echo "CATALOG_DB_PASSWORD=$(openssl rand -hex 24)"
+            echo "CATALOG_BACKUP_KEY=$(openssl rand -hex 32)"
+          } > .env
+          docker compose up -d --wait catalog-db
+
+      - name: Säkerhetskopian före migreringen, migreringen och Catalog
+        run: |
+          cd "$PROV"
+          # Catalog vägrar starta mot en databas som inte är migrerad.
+          if UT=$(timeout 60 docker compose run --rm --no-deps catalog 2>&1); then
+            echo "::error::Catalog startade mot en omigrerad databas."; exit 1
+          fi
+          echo "$UT" | grep -q "saknar migrationer"
+          TESTMILJO_DIR="$PROV" sh catalog-backup.sh fore-migrering
+          docker compose run --rm --no-deps catalog python -m catalog.migrate
+          docker compose run --rm --no-deps catalog python -m catalog.migrate --check
+          docker compose up -d --no-deps catalog
+
+      - name: Prova Catalog
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8081/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8081/healthz | grep -qx ok
+          curl -fsS http://localhost:8081/api/version | grep -q '"product":"TrainMeet Catalog"'
+          curl -fsS http://localhost:8081/api/version | grep -q '"commit":"${{ github.sha }}"'
+          curl -fsS http://localhost:8081/ | grep -q "<title>TrainMeet Catalog</title>"
+          curl -fsS http://localhost:8081/fordon | grep -q 'id="root"'
+          curl -fsS -o /dev/null http://localhost:8081/manifest.webmanifest
+          curl -fsS -I http://localhost:8081/fordon | grep -qi "content-security-policy: default-src 'self'"
+          curl -fsS http://localhost:8081/api/catalog/1/session | grep -q '"login":"trial"'
+          ACCOUNT=$(curl -fsS http://localhost:8081/api/catalog/1/trial/accounts | jq -r '.[0].id')
+          curl -fsS -c "$PROV/kakor" -H 'Content-Type: application/json' -d "{\"account\":\"$ACCOUNT\"}" \
+            http://localhost:8081/api/catalog/1/trial/login | grep -q '"name":"Provkonto A"'
+          curl -fsS -b "$PROV/kakor" http://localhost:8081/api/catalog/1/session | grep -q '"name":"Provkonto A"'
+          docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)" | grep -qx catalog
+
+      - name: Nattens säkerhetskopia, med data i
+        run: |
+          cd "$PROV"
+          TESTMILJO_DIR="$PROV" sh catalog-backup.sh natt
+          ls catalog-backup/*-natt.dump.enc catalog-backup/*-fore-migrering.dump.enc
+          # Krypterad: pg_dumps eget huvud (PGDMP) syns inte i filen.
+          if head -c 5 catalog-backup/*-natt.dump.enc | grep -q PGDMP; then exit 1; fi
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: cd "$PROV" && docker compose logs || true
+
   # Lägger ut hubben på test.hub.trainmeet.app när en ändring har slagits ihop med main
   # och båda kontrollerna är gröna. Servern skapas första gången (deploy/testmiljo.py).
   testmiljon:
     name: Testmiljön
-    needs: [tester, bilden]
+    needs: [tester, bilden, catalog]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -100,6 +194,7 @@ jobs:
       SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
       TESTMILJO_TYPE: ${{ vars.TESTMILJO_TYPE }}
       DOMAIN: ${{ vars.TESTHUB_DOMAIN || 'test.hub.trainmeet.app' }}
+      CATALOG_DOMAIN: ${{ vars.TESTCATALOG_DOMAIN || 'test.catalog.trainmeet.app' }}
       TAG: ${{ github.sha }}
     steps:
       - name: Finns Scaleway-nyckeln?
@@ -141,14 +236,16 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
-      - name: Bygg bilden
+      - name: Bygg bilderna
         if: steps.nyckel.outputs.finns == 'true'
         run: |
-          docker build -f hub/Dockerfile -t "trainmeet-hub:$TAG" \
-            --build-arg TRAINMEET_COMMIT="$TAG" \
-            --build-arg TRAINMEET_PR="$PR" \
-            --build-arg TRAINMEET_TITLE="$TITLE" \
-            --build-arg TRAINMEET_BUILT="$BUILT" .
+          for part in hub catalog; do
+            docker build -f "$part/Dockerfile" -t "trainmeet-$part:$TAG" \
+              --build-arg TRAINMEET_COMMIT="$TAG" \
+              --build-arg TRAINMEET_PR="$PR" \
+              --build-arg TRAINMEET_TITLE="$TITLE" \
+              --build-arg TRAINMEET_BUILT="$BUILT" .
+          done
 
       - name: Servern hos Scaleway
         id: server
@@ -164,7 +261,9 @@ jobs:
           SSH_USER: ${{ steps.server.outputs.user }}
           KEY: ${{ steps.server.outputs.key_file }}
           KNOWN: ${{ steps.server.outputs.known_hosts }}
+          CATALOG_ENV: ${{ steps.server.outputs.catalog_env }}
         run: |
+          echo "CATALOG_ENV=$CATALOG_ENV" >> "$GITHUB_ENV"
           SSH="ssh -i $KEY -o UserKnownHostsFile=$KNOWN -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes"
           echo "SSH=$SSH" >> "$GITHUB_ENV"
           echo "TARGET=$SSH_USER@$IP" >> "$GITHUB_ENV"
@@ -186,13 +285,16 @@ jobs:
             docker compose version --short
           '
 
-      - name: Lägg ut hubben
+      - name: Lägg ut hubben och Catalog
         if: steps.nyckel.outputs.finns == 'true'
         run: |
-          docker save "trainmeet-hub:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" < deploy/testmiljo/up.sh
+          cat deploy/testmiljo/catalog-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/catalog-backup.sh'
+          # Catalogs hemligheter går direkt från Secret Manager till servern och skrivs aldrig ut.
+          $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/catalog.env' < "$CATALOG_ENV"
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" < deploy/testmiljo/up.sh
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
@@ -227,4 +329,36 @@ jobs:
             sleep 5
           done
           echo "::error::https://$DOMAIN svarar inte med den nya versionen."
+          exit 1
+
+      - name: Prova Catalogs adress
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$CATALOG_DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$CATALOG_DOMAIN pekar inte på servern än. Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### Catalog är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **CNAME**, namn **${CATALOG_DOMAIN%%.trainmeet.app}**, mål **$DOMAIN**, proxy **av** (grått moln)."
+              echo "Kör sedan jobbet igen, eller vänta till nästa ihopslagning."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$CATALOG_DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
+              {
+                echo "### Catalog är ute"
+                echo ""
+                echo "- https://$CATALOG_DOMAIN"
+                echo "- Ändring: ${PR:+#$PR }$TITLE"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$CATALOG_DOMAIN svarar inte med den nya versionen."
           exit 1

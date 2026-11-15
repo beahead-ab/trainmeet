@@ -12,13 +12,13 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 WORKDIR /src
 COPY pyproject.toml uv.lock README.md LICENSE ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-default-groups --no-install-project
 COPY contracts ./contracts
 COPY drift ./drift
 COPY integrationer ./integrationer
 COPY planering ./planering
 COPY hub ./hub
-RUN uv sync --locked --no-dev --no-editable
+RUN uv sync --locked --no-default-groups --no-editable
 
 FROM python:3.12-slim
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin hub

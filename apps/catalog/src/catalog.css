@@ -1,0 +1,99 @@
+/* Catalog's own layout, on top of the design system (@trainmeet/design). One main area per
+   page, short texts and one primary button. */
+.cat-sida {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 48px;
+  outline: none;
+}
+.cat-sida h1 {
+  margin: 0 0 24px;
+  font-size: 40px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+.cat-laddar {
+  color: var(--tm-mute);
+}
+.cat-tomt {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 40px 32px;
+}
+.cat-tomt p {
+  margin: 0;
+  color: var(--tm-mute);
+}
+.cat-tomt .cat-tomt-rubrik {
+  color: var(--tm-text);
+  font-size: 20px;
+  font-weight: 600;
+}
+.cat-tomt .tm-knapp {
+  margin-top: 12px;
+}
+.cat-provkonton {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.cat-provkonton .tm-knapp {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 12px;
+}
+.cat-provkonton .tm-konto {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+  border: 0;
+  background: #263247;
+  color: #e9ebef;
+}
+.cat-fel {
+  color: #b42318;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .cat-fel {
+    color: #ff8a80;
+  }
+}
+.cat-fot {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 32px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+.cat-sprak {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .cat-sida {
+    padding: 24px 16px 32px;
+  }
+  .cat-sida h1 {
+    font-size: 32px;
+  }
+  .cat-fot {
+    padding: 8px 16px calc(96px + env(safe-area-inset-bottom));
+  }
+}

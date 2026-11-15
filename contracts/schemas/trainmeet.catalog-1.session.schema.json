@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.session.schema.json",
+  "title": "trainmeet.catalog-1.session",
+  "$defs": {
+    "Account": {
+      "additionalProperties": true,
+      "description": "The person who is logged in, as Catalog knows them. The id comes from the login.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name the person shows.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "initials": {
+          "description": "For the account button.",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "initials"
+      ],
+      "title": "Account",
+      "type": "object"
+    },
+    "LoginKind": {
+      "description": "How people log in to this Catalog.",
+      "enum": [
+        "trial",
+        "id"
+      ],
+      "title": "LoginKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Who is logged in, if anyone, and how one logs in here.",
+  "properties": {
+    "account": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Account"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "login": {
+      "$ref": "#/$defs/LoginKind"
+    }
+  },
+  "required": [
+    "login"
+  ],
+  "type": "object"
+}

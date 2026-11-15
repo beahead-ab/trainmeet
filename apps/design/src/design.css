@@ -1,0 +1,438 @@
+/* TrainMeet's design system: Inter and JetBrains Mono, Kontrollrummets colours in light and
+   dark. The header is dark in both; the menus are light in every app. Numbers in JetBrains
+   Mono (CAT-198). Colours are chosen for WCAG 2.2 AA contrast (ST13). */
+@font-face {
+  font-family: Inter;
+  src: url("./fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./fonts/jetbrains-mono.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  --tm-bg: #f4f3ef;
+  --tm-panel: #ffffff;
+  --tm-panel-2: #f4f3ef;
+  --tm-line: #e2e1dc;
+  --tm-text: #111317;
+  --tm-mute: #5b606b;
+  --tm-blue: #2453c7;
+  --tm-blue-text: #1d47b0;
+  --tm-blue-soft: #e8eefc;
+  --tm-on-blue: #ffffff;
+  --tm-focus: #2453c7;
+  --tm-head: #121418;
+  --tm-head-line: #2a2f37;
+  --tm-head-text: #e9ebef;
+  --tm-head-mute: #a3a9b4;
+  --tm-head-tab: #6f97ff;
+  --tm-dots: #c0c5cf;
+  --tm-radius: 14px;
+  --tm-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tm-bg: #0e1114;
+    --tm-panel: #161a1e;
+    --tm-panel-2: #1b1f26;
+    --tm-line: #2a3038;
+    --tm-text: #e9ebef;
+    --tm-mute: #9aa1ad;
+    --tm-blue: #5aa9ff;
+    --tm-blue-text: #8cc3ff;
+    --tm-blue-soft: #18263a;
+    --tm-on-blue: #08121e;
+    --tm-focus: #8cc3ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--tm-bg);
+  color: var(--tm-text);
+  font: 16px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a {
+  color: var(--tm-blue-text);
+}
+:focus-visible {
+  outline: 3px solid var(--tm-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.tm-mono,
+.tm-nummer {
+  font-family: var(--tm-mono);
+  font-variant-numeric: tabular-nums;
+}
+.tm-hoppa {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 50;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font-weight: 600;
+}
+.tm-hoppa:focus {
+  top: 12px;
+}
+
+/* The header: always dark. */
+.tm-sidhuvud {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 0 24px;
+  background: var(--tm-head);
+  color: var(--tm-head-text);
+  border-bottom: 1px solid var(--tm-head-line);
+  --tm-focus: #8cc3ff;
+}
+.tm-marke {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--tm-dots);
+  text-decoration: none;
+}
+.tm-skylt {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+.tm-namn {
+  height: 18px;
+  width: auto;
+  display: block;
+  color: var(--tm-dots);
+}
+.tm-streck {
+  width: 1px;
+  height: 24px;
+  background: var(--tm-head-line);
+}
+.tm-plats {
+  font-family: var(--tm-mono);
+  font-size: 14px;
+  color: var(--tm-head-mute);
+  white-space: nowrap;
+}
+.tm-flikar {
+  display: flex;
+  gap: 8px;
+  align-self: stretch;
+  margin-left: 12px;
+}
+.tm-flikar a {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--tm-head-mute);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid transparent;
+}
+.tm-flikar a:hover {
+  color: var(--tm-head-text);
+}
+.tm-flikar a[aria-current="page"] {
+  color: var(--tm-head-text);
+  border-bottom-color: var(--tm-head-tab);
+}
+.tm-fyll {
+  flex: 1;
+}
+.tm-hoger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tm-ikonknapp,
+.tm-konto {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-head-line);
+  background: #1b1f26;
+  color: var(--tm-head-text);
+  cursor: pointer;
+  font: inherit;
+}
+.tm-ikonknapp svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.tm-ikonknapp[aria-expanded="true"] {
+  border-color: var(--tm-head-tab);
+}
+.tm-konto {
+  border-radius: 50%;
+  background: #263247;
+  font-weight: 700;
+  font-size: 15px;
+}
+.tm-sidhuvud .tm-knapp {
+  background: #1b1f26;
+  color: var(--tm-head-text);
+  border-color: var(--tm-head-line);
+}
+
+/* The menus: light in every app. */
+.tm-meny-ankare {
+  position: relative;
+}
+.tm-panel {
+  --tm-panel-text: #111317;
+  --tm-panel-mute: #5b606b;
+  --tm-focus: #2453c7;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  z-index: 30;
+  background: #ffffff;
+  color: var(--tm-panel-text);
+  border: 1px solid #e2e1dc;
+  border-radius: 20px;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.28);
+  padding: 20px;
+}
+.tm-panel[hidden] {
+  display: none;
+}
+.tm-panel-rubrik {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.tm-panel-rubrik h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.tm-panel-rubrik span {
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.tm-vaxlare {
+  width: min(560px, calc(100vw - 32px));
+}
+.tm-vaxlare ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.tm-app {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 14px;
+  min-height: 112px;
+  border: 1px solid #e2e1dc;
+  border-radius: 14px;
+  color: var(--tm-panel-text);
+  text-decoration: none;
+}
+a.tm-app:hover {
+  border-color: #2453c7;
+}
+.tm-app[aria-current="true"] {
+  border: 2px solid #2453c7;
+  background: #e8eefc;
+}
+.tm-app[aria-disabled="true"] .tm-namn-liten {
+  color: #8a8f99;
+}
+.tm-mini-skylt {
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: #2347ce;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.tm-namn-liten {
+  height: 14px;
+  width: auto;
+  max-width: 100%;
+  color: #5b606b;
+}
+.tm-vad {
+  font-size: 14px;
+  color: var(--tm-panel-mute);
+}
+.tm-kontomeny {
+  width: min(380px, calc(100vw - 32px));
+}
+.tm-vem {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.tm-vem div {
+  display: grid;
+}
+.tm-vem b {
+  font-size: 18px;
+}
+.tm-vem span {
+  color: var(--tm-panel-mute);
+  font-size: 14px;
+}
+.tm-konto.stor {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  border: 0;
+  background: #2453c7;
+  color: #ffffff;
+}
+.tm-menyval {
+  display: grid;
+  gap: 4px;
+}
+.tm-menyval a,
+.tm-menyval button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 17px;
+  color: #1d47b0;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tm-menyval button.neutral {
+  color: var(--tm-panel-text);
+}
+
+/* Buttons, cards and the empty state. */
+.tm-knapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tm-knapp.primar {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: var(--tm-on-blue);
+}
+.tm-kort {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 24px;
+}
+.tm-overrubrik {
+  margin: 0 0 6px;
+  color: var(--tm-blue-text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The bottom menu on the phone. */
+.tm-bottenmeny {
+  display: none;
+}
+@media (max-width: 760px) {
+  .tm-sidhuvud {
+    padding: 0 16px;
+    min-height: 60px;
+    gap: 10px;
+  }
+  .tm-namn {
+    height: 12px;
+  }
+  .tm-streck,
+  .tm-plats,
+  .tm-flikar,
+  .tm-sidhuvud .tm-ikonknapp {
+    display: none;
+  }
+  .tm-bottenmeny {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--tm-panel);
+    border-top: 1px solid var(--tm-line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tm-bottenmeny a {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-height: 64px;
+    padding: 10px 4px 8px;
+    color: var(--tm-mute);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .tm-bottenmeny a[aria-current="page"] {
+    color: var(--tm-blue-text);
+  }
+  .tm-bottenmeny svg {
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .tm-vaxlare ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

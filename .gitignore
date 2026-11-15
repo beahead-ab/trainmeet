@@ -17,3 +17,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Web apps
+node_modules/
+apps/*/dist/

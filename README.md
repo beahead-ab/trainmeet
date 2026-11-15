@@ -11,14 +11,15 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 | `contracts/` | Kontrakten: paketformatet, terminal- och stationsprotokollet, förarnas och driftens API och synken mellan hubbar. De andra delarna pratar bara med varandra genom dem. | – |
 | `core/`, `drift/`, `planering/`, `synk/`, `integrationer/` | TrainMeet Hub, kärnan som kör träffen. Det enda man installerar. | Raspberry Pi på träffen och i molnet |
 | `hub/` | Hubbens startprogram: drar igång delarna, första start och inloggning, trafikledningens sidor (Nu, Klienter, Logg), TMBox i webbläsaren och klockskärmen | Raspberry Pi på träffen och i molnet |
-| `apps/` | Trafikledningen, Lokföraren, TMBox i webbläsaren, skärmarna och Planering | Levereras av Hubben |
 | `id/` | TrainMeet ID, en inloggning för allt | I molnet |
 | `tkl/` | TrainMeet TKL, ställverket och Studio | Stationens dator eller i molnet |
 | `cad/` | TrainMeet CAD, modulbiblioteket | I molnet |
+| `catalog/` | TrainMeet Catalog: fordonen, taggarna och resan till träffen. En egen tjänst med egen PostgreSQL; använder bara `contracts/` | I molnet |
+| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`) och Catalogs webbapp (`apps/catalog`). Hubbens sidor flyttar hit (H62) | – |
 
 Mapparna kommer till i den ordning delarna byggs. Först kommer Grunden (kontrakten, de automatiska testerna och testmiljön), sedan Drift.
 
-TMBox-firmwaren och TMBox-appen för iPhone utvecklas i sina egna repon. TrainMeet Catalog skrivs om som en egen del i det här repot, `catalog/`, när den byggs (beslut C14 och C16 i specen); gamla TrainCatalog ligger kvar i sitt eget repo som facit.
+TMBox-firmwaren och TMBox-appen för iPhone utvecklas i sina egna repon. TrainMeet Catalog skrivs om som en egen del i det här repot, `catalog/` (beslut C14 och C16 i specen); gamla TrainCatalog ligger kvar i sitt eget repo som facit.
 
 ## Arbetssätt
 
@@ -39,19 +40,35 @@ uv run uvicorn hub.app:app --reload      # hubben på http://127.0.0.1:8000
 
 Hubbens bild byggs med `docker build -f hub/Dockerfile -t trainmeet-hub .` från repots rot.
 
+### Catalog på egen dator
+
+Catalog behöver en PostgreSQL och [Node 22](https://nodejs.org/) för webbappen.
+
+```sh
+npm ci && npm run build -w apps/catalog       # webbappen, till apps/catalog/dist
+CATALOG_DATABASE_URL=postgresql:///catalog CATALOG_MIGRATE=auto CATALOG_TRIAL_LOGIN=on \
+  uv run uvicorn catalog.app:app --port 8001  # Catalog på http://127.0.0.1:8001
+npm run dev -w apps/catalog                   # eller webbappen med omladdning, mot port 8001
+CATALOG_TEST_DATABASE_URL=postgresql:///postgres uv run pytest catalog
+```
+
+Catalogs bild byggs med `docker build -f catalog/Dockerfile -t trainmeet-catalog .`. Webbappens typer och tester körs när bilden byggs.
+
 ## Testmiljön
 
-https://test.hub.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
+https://test.hub.trainmeet.app och https://test.catalog.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
 
 [Öppna Provbanan](https://test.hub.trainmeet.app/provbanan) och starta en provkörning. Prova tåg 101 från Norrby för begärd klarering och tåg 102 från Sjövik för direktklarering. Du kan starta och stoppa klockan, svara från nästa driftplats och följa tåget till ankomst. Provkörningen är separat för varje webbläsare och sparas i ett dygn.
 
 Hubben kör också en riktig träff (steg 3). Den som först öppnade testhubben valde dess namn och PIN-kod och är lokal administratör. Inloggad startar man träffen under [Nu](https://test.hub.trainmeet.app/drift), ansluter boxar, TKL och skärmar med koden under *Anslut* och tilldelar dem under *Klienter*. Utan inloggning kan man titta på Nu. Träffen och hubbens inställningar ligger i egna filer bredvid Provbanans, och står kvar när hubben startas om; klockan står då still tills någon startar den.
 
+[Catalog](https://test.catalog.trainmeet.app) har en provinloggning tills TrainMeet ID finns (C21): välj ett av provkontona under *Logga in*. Provkontona är gemensamma för alla som provar, och allt där är testdata. Catalog har en egen PostgreSQL i en container på samma server. Före varje migrering och varje natt tas en krypterad säkerhetskopia, som provas genom att läsas in i en tom databas (CAT-39); de 14 senaste av varje slag ligger i `/srv/trainmeet/catalog-backup`. Lösenordet till databasen och nyckeln till säkerhetskopiorna skapas av `deploy/testmiljo.py` och ligger i Scaleways Secret Manager.
+
 Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff, lägger till Stefans planeringsfil (JSON, nivå 4), läser importrapporten, rättar telefon och klareringsläge under *Data* och publicerar en version under *Versioner* (steg 4a). Drift kör sedan versionen: välj den under *Byt träff*. Värnamos planeringsfil finns som testdata i `integrationer/tests/fixtures/varnamo.json.gz`.
 
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
-- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
+- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
 - **Kvoten:** Scaleway låter ett konto skapa servrar först när betalsättet är verifierat, och fler typer när identiteten är verifierad. Säger jobbet att kvoten är slut, listar det vilka servertyper kontot får skapa (om applikationen har behörigheten `IAMReadOnly`), annars se *Organization → Quotas* i Scaleways konsol.
 
 ### Engångsuppsättningen
@@ -62,7 +79,7 @@ Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff
    - *IAM → API keys → Generate API key* för applikationen, med `trainmeet` som standardprojekt. Spara *Secret Key* direkt; den visas bara en gång.
 2. **Fyra secrets i GitHub** (*Settings → Secrets and variables → Actions → New repository secret*): `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID` (projektets id under projektets *Settings*) och `SCW_DEFAULT_ORGANIZATION_ID` (under *Organization settings*).
 3. **Kör jobbet:** *Actions → Tester → Run workflow* på `main`. Första gången skapas servern. Sammanfattningen av körningen visar serverns adress.
-4. **DNS-raden i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). Kör jobbet en gång till. Då hämtar Caddy certifikatet, och sidan är ute.
+4. **DNS-raderna i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). För Catalog typ **CNAME**, namn **test.catalog**, mål **test.hub.trainmeet.app**, proxy **av**. Kör jobbet en gång till. Då hämtar Caddy certifikaten, och sidorna är ute.
 
 Utan nyckeln hoppar jobbet över utläggningen och säger det, så att `main` ändå blir grön.
 
