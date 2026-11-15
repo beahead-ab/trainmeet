@@ -3,7 +3,7 @@
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
-import { Crumbs, dateText, Dialog, ErrorLine, kindText, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
+import { Crumbs, dateText, Dialog, ErrorLine, isOwner, kindText, mayEdit, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
 import { nfcSupported, writeAddress } from "./nfc";
 import { editPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
@@ -201,9 +201,11 @@ export function CardView(props: CardViewProps) {
         <section className="tm-kort" aria-labelledby="kortet-rubrik">
           <div className="cat-kortrubrik">
             <h2 id="kortet-rubrik">{t("card")}</h2>
-            <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
-              {t("edit")}
-            </a>
+            {mayEdit(ctx) ? (
+              <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
+                {t("edit")}
+              </a>
+            ) : null}
           </div>
           <table className="cat-falttabell">
             <tbody>
@@ -251,6 +253,7 @@ export function CardView(props: CardViewProps) {
               </p>
             ) : null}
             {vehicle.state !== "home" && vehicle.place_name ? <p>{t("livesIn", { place: vehicle.place_name })}</p> : null}
+            {isOwner(ctx) ? (
             <div className="cat-knappar">
               <button type="button" className="tm-knapp" onClick={onMove}>
                 {t("move")}
@@ -265,8 +268,11 @@ export function CardView(props: CardViewProps) {
                 </a>
               ) : null}
             </div>
+            ) : null}
           </section>
 
+          {isOwner(ctx) ? (
+          <>
           <TagSection
             ctx={ctx}
             vehicle={vehicle}
@@ -298,6 +304,13 @@ export function CardView(props: CardViewProps) {
           <button type="button" className="tm-knapp cat-fara" onClick={onRemove}>
             {t("remove")}
           </button>
+          </>
+          ) : vehicle.tagged ? (
+            <section className="tm-kort">
+              <h2>{t("tagTitle")}</h2>
+              <p className="cat-under">{t("hasTag")}</p>
+            </section>
+          ) : null}
         </div>
       </div>
     </>
@@ -320,7 +333,7 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
 
   const load = () => {
     api.vehicle(id).then(setVehicle, (failure) => setError(problemText(t, failure)));
-    api.events(id).then(setEvents, () => setEvents([]));
+    if (isOwner(ctx)) api.events(id).then(setEvents, () => setEvents([]));
     api.pending().then((state) => setPending(state.pending), () => setPending(null));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- load reads only id

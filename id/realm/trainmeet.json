@@ -87,7 +87,7 @@
     {
       "clientId": "catalog",
       "name": "TrainMeet Catalog",
-      "description": "Catalog loggar in med ID (KONTO-27, #49).",
+      "description": "Catalog loggar in med ID (KONTO-27) och frågar ID:s API om rätten med en egen token (KONTO-34, #49).",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -96,7 +96,7 @@
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
+      "serviceAccountsEnabled": true,
       "frontchannelLogout": false,
       "redirectUris": [
         "${ID_CATALOG_URL}/api/catalog/1/id/callback"
@@ -150,6 +150,6 @@
     }
   ],
   "attributes": {
-    "trainmeetVersion": "3"
+    "trainmeetVersion": "4"
   }
 }

@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/fleets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["fleets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/id/login": {
         parameters: {
             query?: never;
@@ -491,6 +507,12 @@ export interface components {
              */
             simulated_tags: boolean;
             /**
+             * Share Url
+             * @description Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).
+             * @default null
+             */
+            share_url: string | null;
+            /**
              * Logout Url
              * @description Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).
              * @default null
@@ -541,6 +563,32 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * FleetChoice
+         * @description A fleet the person can work in: their own first, then the ones shared with them (CAT-50).
+         *     The vehicles' addresses take ?fleet=<owner> to work in someone else's.
+         */
+        "trainmeet.catalog-1.fleet-choice": {
+            /**
+             * Owner
+             * Format: uuid
+             */
+            owner: string;
+            /**
+             * Title
+             * @description Whose fleet it is.
+             */
+            title: string;
+            right: components["schemas"]["trainmeet.catalog-1.fleet-choice.FleetRight"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FleetRight
+         * @description The right to a fleet (CAT-44, CAT-46): the owner's, to edit, or to look.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.fleet-choice.FleetRight": "owner" | "edit" | "view";
         /**
          * VehicleFields
          * @description The core fields the owner writes (CAT-53). Images, tag and prototype come later.
@@ -822,9 +870,15 @@ export interface components {
             };
             /**
              * Tags
-             * @description At most one NFC, one QR.
+             * @description At most one NFC, one QR. Only the owner sees them.
              */
             tags?: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
             /**
              * Notices
              * @description Newest first.
@@ -1205,9 +1259,15 @@ export interface components {
             };
             /**
              * Tags
-             * @description At most one NFC, one QR.
+             * @description At most one NFC, one QR. Only the owner sees them.
              */
             tags?: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
             /**
              * Notices
              * @description Newest first.
@@ -1395,7 +1455,7 @@ export interface components {
         };
         /**
          * Problem
-         * @description The answer when Catalog says no: 401, 404, 409 or 422.
+         * @description The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.
          */
         "trainmeet.catalog-1.problem": {
             code: components["schemas"]["trainmeet.catalog-1.problem.ProblemCode"];
@@ -1412,7 +1472,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -1844,6 +1904,44 @@ export interface operations {
             };
         };
     };
+    fleets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.fleet-choice"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
     idLogIn: {
         parameters: {
             query?: {
@@ -1895,6 +1993,8 @@ export interface operations {
                 scale?: string;
                 state?: string;
                 place?: string;
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
             };
             header?: never;
             path?: never;
@@ -1921,7 +2021,25 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1933,7 +2051,10 @@ export interface operations {
     };
     addVehicle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1963,6 +2084,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1989,11 +2119,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     moveVehicles: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2023,6 +2165,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2049,11 +2200,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     vehicle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2081,7 +2244,25 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2093,7 +2274,10 @@ export interface operations {
     };
     changeVehicle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2125,6 +2309,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2151,12 +2344,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     removeVehicle: {
         parameters: {
             query?: {
                 version?: number;
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
             };
             header?: never;
             path: {
@@ -2185,6 +2389,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2211,11 +2424,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     lendVehicle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2247,6 +2472,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2273,11 +2507,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     returnVehicle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2309,6 +2555,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2335,11 +2590,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     vehicleEvents: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2357,11 +2624,32 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-event"][];
                 };
             };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     places: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2386,11 +2674,32 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     addPlace: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2420,6 +2729,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2446,11 +2764,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     renamePlace: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 place: string;
@@ -2482,6 +2812,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2508,11 +2847,23 @@ export interface operations {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
             };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
         };
     };
     removePlace: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 place: string;
@@ -2540,6 +2891,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2559,6 +2919,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2868,7 +3237,10 @@ export interface operations {
     };
     newLabel: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -2900,6 +3272,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2919,6 +3300,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2992,7 +3382,10 @@ export interface operations {
     };
     clearNotice: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -3021,6 +3414,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3040,6 +3442,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3122,7 +3533,10 @@ export interface operations {
     };
     unlinkTag: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
             header?: never;
             path: {
                 vehicle: string;
@@ -3154,6 +3568,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3173,6 +3596,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

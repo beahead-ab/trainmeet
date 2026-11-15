@@ -2,7 +2,7 @@
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, ApiError, ENGINES, fieldsOf, KINDS, statusFor, type Place, type Vehicle, type VehicleFields } from "./api";
-import { Crumbs, Dialog, ErrorLine, kindText, problemText, title, type Ctx } from "./common";
+import { Crumbs, Dialog, ErrorLine, isOwner, kindText, problemText, title, type Ctx } from "./common";
 import { PATHS, vehiclePath } from "./routes";
 import { afterLinking } from "./TagPage";
 
@@ -41,6 +41,8 @@ function Field({ label, help, children }: { label: string; help?: string; childr
 }
 
 export type FormViewProps = {
+  /** Someone else's fleet: where a new vehicle goes (CAT-50). */
+  addTo?: ReactNode;
   ctx: Ctx;
   fields: VehicleFields;
   places: Place[];
@@ -134,6 +136,8 @@ export function FormView(props: FormViewProps) {
             {(id) => <input id={id} className="tm-mono" value={fields.article_number ?? ""} maxLength={80} onChange={(e) => set({ article_number: e.target.value })} />}
           </Field>
         </div>
+        {props.addTo}
+        {isOwner(ctx) ? (
         <Field label={t("fPlace")}>
           {(id) => (
             <select id={id} value={fields.place ?? ""} onChange={(e) => set({ place: e.target.value || null })}>
@@ -146,6 +150,7 @@ export function FormView(props: FormViewProps) {
             </select>
           )}
         </Field>
+        ) : null}
         <Field label={t("fNote")} help={t("fNoteHelp")}>
           {(id, helpId) => <textarea id={id} rows={3} maxLength={2000} aria-describedby={helpId} value={fields.note ?? ""} onChange={(e) => set({ note: e.target.value })} />}
         </Field>
@@ -230,9 +235,10 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
   // Lägg till nytt fordon med taggen (CAT-105): the tag is offered to the new vehicle.
   const [tag] = useState(() => (id ? null : new URLSearchParams(window.location.search).get("tagg")));
   const [offer, setOffer] = useState<Vehicle | null>(null);
+  const [own, setOwn] = useState(false);
 
   useEffect(() => {
-    api.places().then(setPlaces, () => setPlaces([]));
+    if (isOwner(ctx)) api.places().then(setPlaces, () => setPlaces([]));
     if (id) {
       api.vehicle(id).then(
         (found) => {
@@ -242,16 +248,32 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
         (failure) => setError(problemText(t, failure)),
       );
     }
-  }, [id, t]);
+  }, [id, t, ctx]);
 
   const name = vehicle ? title(t, vehicle) : t("newTitle");
-  const done = (saved: Vehicle) => ctx.navigate?.(vehiclePath(saved.id));
+  const addTo =
+    !id && !isOwner(ctx) ? (
+      <fieldset className="cat-val">
+        <legend>{t("addTo")}</legend>
+        <label>
+          <input type="radio" name="fleet" checked={!own} onChange={() => setOwn(false)} /> {ctx.fleetTitle}
+        </label>
+        <label>
+          <input type="radio" name="fleet" checked={own} onChange={() => setOwn(true)} /> {t("ownFleet")}
+        </label>
+      </fieldset>
+    ) : null;
+  const done = (saved: Vehicle) => {
+    if (own) ctx.workIn?.(null); // it went into the person's own fleet
+    ctx.navigate?.(vehiclePath(saved.id));
+  };
   return (
     <>
     <FormView
       ctx={ctx}
       fields={fields}
       places={places}
+      addTo={addTo}
       heading={id ? t("editTitle", { name }) : t("newTitle")}
       crumb={id ? name : t("newTitle")}
       busy={busy || (id !== undefined && vehicle === null)}
@@ -263,7 +285,7 @@ export function VehicleFormPage({ ctx, id }: { ctx: Ctx; id?: string }) {
         setBusy(true);
         setError(null);
         try {
-          const saved = id && vehicle ? await api.changeVehicle(id, { ...outgoing(fields), version: vehicle.version }) : await api.addVehicle(outgoing(fields));
+          const saved = id && vehicle ? await api.changeVehicle(id, { ...outgoing(fields), version: vehicle.version }) : await api.addVehicle(outgoing(fields), own);
           if (tag && saved.status === "ready") setOffer(saved);
           else done(saved);
         } catch (failure) {

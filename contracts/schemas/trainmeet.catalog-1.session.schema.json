@@ -68,6 +68,19 @@
       "title": "Simulated Tags",
       "type": "boolean"
     },
+    "share_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).",
+      "title": "Share Url"
+    },
     "logout_url": {
       "anyOf": [
         {

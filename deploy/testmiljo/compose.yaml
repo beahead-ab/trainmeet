@@ -53,6 +53,8 @@ services:
       CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet
       CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}
       CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}
+      # ID's API, which Catalog asks about shared fleets at every call (#49, KONTO-34).
+      CATALOG_ID_API: http://id-api:8080
       # The test environment's tags point here, so they can be tapped here, and simulated tags
       # try the flows without hardware (CAT-96). Real tags carry trainmeet.app/t/ (C9).
       CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/

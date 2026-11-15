@@ -500,6 +500,58 @@ def run_id_api(base: str, mails: Path, id_app: str) -> None:
     print("ID:s webbapp: inbjudan besvarad, medlem i klubben: ok")
 
 
+def run_sharing(base: str, mails: Path, catalog: str, id_app: str) -> None:
+    """#49: Kim shares the fleet in ID, Sara sees it in Catalog, and it stops at once (CAT-48)."""
+    kim, sara = Browser(base, catalog), Browser(base, catalog)
+    kim_address = f"prov-{secrets.token_hex(4)}@example.com"
+    sara_address = f"prov-{secrets.token_hex(4)}@example.com"
+    log_in_to_app(kim, mails, kim_address, "Provare Ägare", "/api/catalog/1/id/login")
+    log_in_to_app(sara, mails, sara_address, "Provare Lånare", "/api/catalog/1/id/login")
+    kim_account = kim.session()["account"]
+    assert isinstance(kim_account, dict)
+    owner = str(kim_account["id"])
+    car = {"status": "ready", "kind": "freight_wagon", "litt": "Hbis", "number": "1"}
+    made = kim.app.post("/api/catalog/1/vehicles", json=car)
+    check(made.status_code == 201, f"Fordonet skapades inte: {made.status_code}")
+    in_kims = f"/api/catalog/1/vehicles?fleet={owner}"
+    check(sara.app.get(in_kims).status_code == 404, "Någon annans vagnpark syntes utan delning.")
+
+    # Kim shares in ID; the login to ID's web app goes without a code (KONTO-01).
+    kim_id, sara_id = (Browser(base, id_app, "/api/id/1/session") for _ in range(2))
+    for browser, catalog_browser in ((kim_id, kim), (sara_id, sara)):
+        browser.id.client.cookies = catalog_browser.id.client.cookies
+        browser.open("/api/id/1/login")
+        check(browser.session()["account"] is not None, "Inte inloggad i ID:s webbapp.")
+    shared = kim_id.app.post(
+        f"/api/id/1/fleets/{owner}/invitations", json={"email": sara_address, "role": "viewer"}
+    )
+    check(shared.status_code == 201, f"Delningen svarade {shared.status_code}: {shared.text[:200]}")
+    waiting = sara_id.app.get("/api/id/1/invitations").json()
+    check(len(waiting) == 1, "Inbjudan till vagnparken syns inte.")
+    sara_id.app.post(f"/api/id/1/invitations/{waiting[0]['id']}/answer", json={"accept": True})
+
+    fleets = sara.app.get("/api/catalog/1/fleets").json()
+    check(
+        [(f["owner"], f["right"]) for f in fleets][1:] == [(owner, "view")],
+        f"Catalog visar inte den delade vagnparken: {fleets}",
+    )
+    seen = sara.app.get(in_kims)
+    check(seen.status_code == 200 and seen.json()["total"] == 1, "Den delade vagnparken syns inte.")
+    vehicle = seen.json()["vehicles"][0]
+    change = {**car, "number": "2", "version": vehicle["version"]}
+    refused = sara.app.put(f"/api/catalog/1/vehicles/{vehicle['id']}?fleet={owner}", json=change)
+    check(refused.status_code == 403, "Att titta gav rätt att ändra.")
+    print("Delad vagnpark i Catalog efter ja i ID, bara att titta: ok")
+
+    grant = kim_id.app.get(f"/api/id/1/fleets/{owner}").json()["grants"][0]["id"]
+    check(
+        kim_id.app.delete(f"/api/id/1/grants/{grant}").status_code == 200,
+        "Gick inte att sluta dela.",
+    )
+    check(sara.app.get(in_kims).status_code == 404, "Delningen gällde efter att den tagits bort.")
+    print("Sluta dela gäller direkt: ok")
+
+
 def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
     id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
@@ -513,6 +565,8 @@ def main(argv: list[str]) -> int:
             run_catalog(argv[1], Path(argv[2]), argv[4])
         if id_app:
             run_id_api(argv[1], Path(argv[2]), id_app)
+        if id_app and through_catalog:
+            run_sharing(argv[1], Path(argv[2]), argv[4], id_app)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

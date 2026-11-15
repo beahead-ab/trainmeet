@@ -101,6 +101,46 @@
         }
       }
     },
+    "/api/catalog/1/fleets": {
+      "get": {
+        "operationId": "fleets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.fleet-choice"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/catalog/1/id/login": {
       "get": {
         "operationId": "idLogIn",
@@ -195,6 +235,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -234,6 +294,15 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -290,6 +359,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -301,7 +390,18 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     },
     "/api/catalog/1/vehicles/move": {
@@ -357,6 +457,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -368,7 +488,18 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     },
     "/api/catalog/1/vehicles/{vehicle}": {
@@ -404,6 +535,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -413,6 +564,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -469,6 +629,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -488,6 +668,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -544,6 +733,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -560,6 +769,15 @@
             "in": "query",
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -618,6 +836,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -637,6 +875,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -695,6 +942,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -714,6 +981,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -735,6 +1011,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -744,6 +1040,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -775,8 +1080,39 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       },
       "post": {
         "operationId": "addPlace",
@@ -830,6 +1166,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -841,7 +1197,18 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     },
     "/api/catalog/1/places/{place}": {
@@ -897,6 +1264,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -916,6 +1303,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -972,6 +1368,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -981,6 +1397,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -1367,6 +1792,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -1386,6 +1831,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -1521,6 +1975,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -1538,6 +2012,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -1668,6 +2151,26 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -1687,6 +2190,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ]
@@ -1863,6 +2375,19 @@
             "title": "Simulated Tags",
             "type": "boolean"
           },
+          "share_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).",
+            "title": "Share Url"
+          },
           "logout_url": {
             "anyOf": [
               {
@@ -1939,6 +2464,44 @@
         ],
         "title": "TrialLogin",
         "type": "object"
+      },
+      "trainmeet.catalog-1.fleet-choice": {
+        "additionalProperties": true,
+        "description": "A fleet the person can work in: their own first, then the ones shared with them (CAT-50).\nThe vehicles' addresses take ?fleet=<owner> to work in someone else's.",
+        "properties": {
+          "owner": {
+            "format": "uuid",
+            "title": "Owner",
+            "type": "string"
+          },
+          "title": {
+            "description": "Whose fleet it is.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "right": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.fleet-choice.FleetRight"
+          }
+        },
+        "required": [
+          "owner",
+          "title",
+          "right"
+        ],
+        "title": "FleetChoice",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.fleet-choice.FleetRight": {
+        "description": "The right to a fleet (CAT-44, CAT-46): the owner's, to edit, or to look.",
+        "enum": [
+          "owner",
+          "edit",
+          "view"
+        ],
+        "title": "FleetRight",
+        "type": "string"
       },
       "trainmeet.catalog-1.vehicle-fields": {
         "additionalProperties": true,
@@ -2399,12 +2962,18 @@
             "type": "object"
           },
           "tags": {
-            "description": "At most one NFC, one QR.",
+            "description": "At most one NFC, one QR. Only the owner sees them.",
             "items": {
               "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleTag"
             },
             "title": "Tags",
             "type": "array"
+          },
+          "tagged": {
+            "default": false,
+            "description": "The vehicle has a tag: what someone it is shared with sees (CAT-47).",
+            "title": "Tagged",
+            "type": "boolean"
           },
           "notices": {
             "description": "Newest first.",
@@ -3042,12 +3611,18 @@
             "type": "object"
           },
           "tags": {
-            "description": "At most one NFC, one QR.",
+            "description": "At most one NFC, one QR. Only the owner sees them.",
             "items": {
               "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleTag"
             },
             "title": "Tags",
             "type": "array"
+          },
+          "tagged": {
+            "default": false,
+            "description": "The vehicle has a tag: what someone it is shared with sees (CAT-47).",
+            "title": "Tagged",
+            "type": "boolean"
           },
           "notices": {
             "description": "Newest first.",
@@ -3369,7 +3944,7 @@
       },
       "trainmeet.catalog-1.problem": {
         "additionalProperties": true,
-        "description": "The answer when Catalog says no: 401, 404, 409 or 422.",
+        "description": "The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.problem.ProblemCode"
@@ -3403,7 +3978,9 @@
           "tag_changed",
           "bad_tag",
           "too_many",
-          "not_here"
+          "not_here",
+          "forbidden",
+          "unavailable"
         ],
         "title": "ProblemCode",
         "type": "string"

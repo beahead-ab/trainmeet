@@ -1,6 +1,6 @@
 import { AccountMenu, AppSwitcher, BottomNav, Header, linkClick, type App as SwitcherApp, type Navigate } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { api, idLoginHref, type Account, type CatalogVersion, type Session } from "./api";
+import { api, idLoginHref, workIn, type Account, type CatalogVersion, type FleetChoice, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import type { Ctx } from "./common";
@@ -63,7 +63,18 @@ export type ShellProps = {
   search?: string;
   /** False shows the empty fleet without fetching (tests of the shell). */
   fleet?: boolean;
+  /** The fleets the person can work in: their own first, then the shared ones (CAT-50). */
+  fleets?: FleetChoice[] | null;
+  /** The fleet the person works in now: null for their own (#49). */
+  working?: string | null;
+  onWorkIn?: (owner: string | null) => void;
 };
+
+/** The fleet worked in now, if it is someone else's. */
+function otherFleet(props: ShellProps): FleetChoice | null {
+  if (!props.working) return null;
+  return props.fleets?.find((f) => f.owner === props.working && f.right !== "owner") ?? null;
+}
 
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
 export function Shell(props: ShellProps) {
@@ -145,7 +156,17 @@ export function Shell(props: ShellProps) {
         ) : session === null ? (
           <p className="cat-laddar">{t("loading")}</p>
         ) : (
-          <PageContent {...props} t={t} account={account} />
+          <>
+            {otherFleet(props) ? (
+              <p className="tm-kort cat-annans" role="status">
+                <span>{t("inFleet", { title: otherFleet(props)?.title ?? "" })}</span>
+                <button type="button" className="tm-knapp" onClick={() => props.onWorkIn?.(null)}>
+                  {t("toOwnFleet")}
+                </button>
+              </p>
+            ) : null}
+            <PageContent {...props} t={t} account={account} />
+          </>
         )}
       </main>
 
@@ -176,6 +197,24 @@ export function Shell(props: ShellProps) {
   );
 }
 
+/** One fleet at a time (CAT-50): the person's own, or one shared with them. */
+function FleetPicker(props: ShellProps & { t: T }) {
+  const { t, fleets } = props;
+  if (!fleets || fleets.length < 2) return null;
+  return (
+    <div className="cat-vagnparksval">
+      <label htmlFor="vagnpark">{t("chooseFleet")}</label>
+      <select id="vagnpark" value={props.working ?? fleets[0]?.owner ?? ""} onChange={(event) => props.onWorkIn?.(event.target.value === fleets[0]?.owner ? null : event.target.value)}>
+        {fleets.map((choice) => (
+          <option key={choice.owner} value={choice.owner}>
+            {choice.title}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function Empty({ title, detail }: { title: string; detail?: string }) {
   return (
     <section className="tm-kort cat-tomt">
@@ -192,7 +231,17 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       {t("logIn")}
     </a>
   );
-  const ctx: Ctx = { t, language, navigate, replace: props.replace };
+  const other = otherFleet(props);
+  const ctx: Ctx = {
+    t,
+    language,
+    navigate,
+    replace: props.replace,
+    right: other?.right ?? "owner",
+    fleetTitle: other?.title,
+    shareUrl: props.session?.share_url ?? null,
+    workIn: props.onWorkIn,
+  };
   const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places"];
   if (fleetPages.includes(page) && !account) {
     return (
@@ -202,7 +251,13 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       </section>
     );
   }
-  if (page === "vehicles" && account && props.fleet !== false) return <VehiclesPage ctx={ctx} account={account} />;
+  if (page === "vehicles" && account && props.fleet !== false)
+    return (
+      <>
+        <FleetPicker {...props} t={t} />
+        <VehiclesPage key={props.working ?? "egen"} ctx={ctx} account={account} />
+      </>
+    );
   switch (page) {
     case "newVehicle":
       return <VehicleFormPage ctx={ctx} />;
@@ -340,6 +395,8 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
   const [route, setRoute] = useState<Route>(() => routeFor(window.location.pathname + window.location.search));
   const page = route.page;
   const [session, setSession] = useState<Session | null>(null);
+  const [fleets, setFleets] = useState<FleetChoice[] | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
   const [version, setVersion] = useState<CatalogVersion | null>(null);
   const [trialAccounts, setTrialAccounts] = useState<Account[] | null>(null);
   const [offline, setOffline] = useState(false);
@@ -378,6 +435,21 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
   }, [page, session, trialAccounts]);
 
   useEffect(() => {
+    // The fleets shared with the person, from ID through Catalog (CAT-50). ID down: only the own.
+    if (session?.account) api.fleets().then(setFleets, () => setFleets(null));
+    else setFleets(null);
+  }, [session]);
+
+  const changeFleet = useCallback(
+    (owner: string | null) => {
+      workIn(owner);
+      setWorking(owner);
+      navigate(PATHS.vehicles);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
     document.documentElement.lang = language;
     document.title = `${text(language, TITLES[page])} · TrainMeet Catalog`;
   }, [language, page]);
@@ -400,6 +472,9 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       replace={replace}
       trialAccounts={trialAccounts}
       search={window.location.search}
+      fleets={fleets}
+      working={working}
+      onWorkIn={changeFleet}
       onLanguage={() => {
         const next: Language = language === "sv" ? "en" : "sv";
         setLanguage(next);

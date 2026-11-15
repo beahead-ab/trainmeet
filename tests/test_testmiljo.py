@@ -139,6 +139,7 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet" in compose
     assert "CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}" in compose
     assert "CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}" in compose
+    assert "CATALOG_ID_API: http://id-api:8080" in compose  # shared fleets (#49)
     assert 'CATALOG_SIMULATED_TAGS: "on"' in compose
     assert "CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/" in compose
     assert "CATALOG_MIGRATE: check" in compose

@@ -18,6 +18,10 @@ CATALOG_ID_INTERNAL    Where Catalog itself reaches the same realm, if not at th
 CATALOG_ID_CLIENT      Catalog's client in ID. Default "catalog".
 CATALOG_ID_SECRET      The client's secret. Required with the issuer. Never written to the log.
 CATALOG_PUBLIC_URL     Catalog's own address, for ID to send the browser back to.
+CATALOG_ID_WEB         ID's web app, where the owner shares the fleet. Default: the issuer's
+                       address, where it lives in the test environment beside Keycloak.
+CATALOG_ID_API         ID's own API, which Catalog asks about shared fleets at every call (#49,
+                       KONTO-34), e.g. http://id-api:8080 next to it. Without it nothing is shared.
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                        Which change is running, set when the image is built.
 """
@@ -60,10 +64,17 @@ class IdSettings:
     secret: str = field(repr=False)
     public_url: str
     internal: str
+    api: str | None = None
+    web: str | None = None
 
     @property
     def redirect_uri(self) -> str:
         return self.public_url + "/api/catalog/1/id/callback"
+
+    @property
+    def id_public(self) -> str:
+        """ID's web app: as set, or the issuer's address without the realm."""
+        return self.web or self.issuer.split("/realms/", 1)[0]
 
 
 @dataclass(frozen=True)
@@ -121,6 +132,8 @@ def id_from_env(source: Mapping[str, str]) -> IdSettings | None:
         secret=secret,
         public_url=public_url,
         internal=_address(source, "CATALOG_ID_INTERNAL", internal=True) or issuer,
+        api=_address(source, "CATALOG_ID_API", internal=True),
+        web=_address(source, "CATALOG_ID_WEB"),
     )
 
 

@@ -155,3 +155,23 @@ def test_ids_own_web_app_logs_in_like_catalog_in_the_file_and_the_update() -> No
     scopes = re.search(r"SCOPES = List.of\(([^)]*)\)", updates)
     assert scopes is not None
     assert re.findall(r'"([a-z-]+)"', scopes.group(1)) == client["defaultClientScopes"]
+
+
+def test_catalog_asks_ids_api_with_a_token_of_its_own() -> None:
+    """#49, KONTO-34: Catalog's client may use client credentials, in the file and update 4."""
+    catalog = next(c for c in realm()["clients"] if c["clientId"] == "catalog")
+    assert catalog["serviceAccountsEnabled"] is True
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert "RealmUpdates::catalogAsks" in updates
+    assert "enableServiceAccount(client)" in updates
+
+
+def test_there_is_one_update_for_every_number_after_the_first() -> None:
+    """Update i takes the realm from i - 1 to i; the list runs in order, one transaction each."""
+    updates = UPDATES.read_text(encoding="utf-8")
+    latest = re.search(r"static final int LATEST = (\d+);", updates)
+    steps = re.search(r"List<Step> STEPS = List.of\((.*?)\);", updates, re.S)
+    assert latest is not None and steps is not None
+    count = len(re.findall(r"\(session, realm\) ->|RealmUpdates::", steps.group(1)))
+    assert count == int(latest.group(1)) - 1
+    assert "runJobInTransactionWithResult" in updates

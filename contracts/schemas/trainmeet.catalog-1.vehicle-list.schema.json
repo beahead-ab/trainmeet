@@ -326,12 +326,18 @@
           "type": "object"
         },
         "tags": {
-          "description": "At most one NFC, one QR.",
+          "description": "At most one NFC, one QR. Only the owner sees them.",
           "items": {
             "$ref": "#/$defs/VehicleTag"
           },
           "title": "Tags",
           "type": "array"
+        },
+        "tagged": {
+          "default": false,
+          "description": "The vehicle has a tag: what someone it is shared with sees (CAT-47).",
+          "title": "Tagged",
+          "type": "boolean"
         },
         "notices": {
           "description": "Newest first.",

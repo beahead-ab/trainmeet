@@ -34,6 +34,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     evn: null,
     field_sources: {},
     tags: [],
+    tagged: false,
     created_at: NOW,
     updated_at: NOW,
     ...change,

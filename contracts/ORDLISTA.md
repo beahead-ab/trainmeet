@@ -78,6 +78,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Inloggning med ID | `LoginKind.ID`, `/api/catalog/1/id/login`, `Session.logout_url` | Webbläsaren går till TrainMeet ID och kommer tillbaka inloggad, med samma konto i alla appar. Kontot i Catalog skapas första gången (CAT-42). Vid utloggning säger Catalog vart webbläsaren går för att logga ut ur ID också. |
 | Provinloggning | `LoginKind.TRIAL`, `TrialLogin` | Inloggningen i testmiljön tills TrainMeet ID finns, med fasta provkonton utan personuppgifter (CAT-214). |
 | Vagnpark | `VehicleList` | En ägares alla fordon. |
+| Vagnparksval | `FleetChoice`, `FleetRight`, `?fleet=` | Vagnparkerna man kan arbeta i: den egna först, sedan de som är delade med en, med rätten `owner`, `edit` eller `view` (CAT-50, #49). Rätten avgörs på ett ställe, `catalog/access.py` (CAT-49). |
+| Har en tagg | `Vehicle.tagged` | Det den som vagnparken är delad med ser: att fordonet har en tagg, aldrig taggen (CAT-47). |
 | Fordon | `Vehicle` | Ett fysiskt exemplar med ett permanent id (CAT-52). |
 | Kärnfält | `VehicleFields` | De få fält ett fordon har: slag, littera, nummer, bolag, epok, skala, modell, anteckning, och för lok DCC-adress och funktioner (CAT-53). |
 | Slag | `kind` | `locomotive` lok, `freight_wagon` godsvagn, `passenger_coach` personvagn, `multiple_unit` motorvagn eller tågsätt, `other` övrigt. |

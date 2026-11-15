@@ -36,6 +36,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     lending: null,
     evn: { text: "21 74 245 2 253-0", interop: "21", country: "74", country_letters: "S", serial: "245 2 253", check: 0, given: 0, valid: true },
     field_sources: { litt: "owner" },
+    tagged: false,
     created_at: NOW,
     updated_at: NOW,
     ...change,
@@ -178,5 +179,48 @@ describe("lending and the places", () => {
     expect(html).toContain("Gbs 3112");
     expect(html).toContain("Till Olle sedan 15 november.");
     expect(html).toContain("Ny plats");
+  });
+});
+
+describe("a fleet shared with someone (#49)", () => {
+  const shared = (right: "view" | "edit"): Ctx => ({ ...ctx(), right, fleetTitle: "Vagnparken · Provkonto A" });
+
+  it("shows the owner the button to share the fleet in ID, and the places", () => {
+    const html = renderToStaticMarkup(
+      <VehiclesView ctx={{ ...ctx(), shareUrl: "https://test.id.trainmeet.app/vagnparker/a" }} account={account} list={list([vehicle()])} q="" state={null} group="all" selected={new Set()} error={null} />,
+    );
+    expect(html).toContain('href="https://test.id.trainmeet.app/vagnparker/a"');
+    expect(html).toContain("Dela vagnparken");
+    expect(html).toContain('type="checkbox"');
+  });
+
+  it("to look: whose fleet it is, and nothing to add, move or share", () => {
+    const html = renderToStaticMarkup(
+      <VehiclesView ctx={{ ...shared("view"), shareUrl: "https://x" }} account={account} list={list([vehicle()])} q="" state={null} group="all" selected={new Set()} error={null} />,
+    );
+    expect(html).toContain("Vagnparken · Provkonto A");
+    expect(html).not.toContain("Dela vagnparken");
+    expect(html).not.toContain("Lägg till fordon");
+    expect(html).not.toContain('type="checkbox"');
+    expect(html).not.toContain(">Platser<");
+  });
+
+  it("to edit: add a vehicle, but the card keeps the owner's things to the owner", () => {
+    const html = renderToStaticMarkup(
+      <VehiclesView ctx={shared("edit")} account={account} list={list([vehicle()])} q="" state={null} group="all" selected={new Set()} error={null} />,
+    );
+    expect(html).toContain("Lägg till fordon");
+    const card = renderToStaticMarkup(<CardView ctx={shared("edit")} vehicle={vehicle({ tagged: true, tags: [] })} events={[]} error={null} />);
+    expect(card).toContain(">Ändra<");
+    expect(card).toContain("Fordonet har en tagg. Bara ägaren ser den."); // CAT-47
+    for (const owners of ["Låna ut", "Flytta", "Ta bort fordonet", "Händelser"]) expect(card).not.toContain(owners);
+    const looking = renderToStaticMarkup(<CardView ctx={shared("view")} vehicle={vehicle()} events={[]} error={null} />);
+    expect(looking).not.toContain(">Ändra<");
+  });
+
+  it("a new vehicle in someone else's fleet, or in one's own", () => {
+    const html = renderToStaticMarkup(<FormView ctx={shared("edit")} fields={EMPTY} places={[]} heading="Nytt" crumb="Nytt" busy={false} error={null} backHref="/fordon" addTo={<p>Lägg fordonet i</p>} />);
+    expect(html).toContain("Lägg fordonet i");
+    expect(html).not.toContain(text("sv", "fPlace")); // the places are the owner's
   });
 });

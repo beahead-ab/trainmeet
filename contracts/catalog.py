@@ -67,6 +67,10 @@ class Session(Contract):
     simulated_tags: bool = Field(
         default=False, description="Simulated tags can be made here: the test environment."
     )
+    share_url: str | None = Field(
+        default=None,
+        description="Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).",
+    )
     logout_url: str | None = Field(
         default=None,
         description=(
@@ -74,6 +78,23 @@ class Session(Contract):
             "TrainMeet ID logs out too and sends it back (KONTO-01)."
         ),
     )
+
+
+class FleetRight(StrEnum):
+    """The right to a fleet (CAT-44, CAT-46): the owner's, to edit, or to look."""
+
+    OWNER = "owner"
+    EDIT = "edit"
+    VIEW = "view"
+
+
+class FleetChoice(Contract):
+    """A fleet the person can work in: their own first, then the ones shared with them (CAT-50).
+    The vehicles' addresses take ?fleet=<owner> to work in someone else's."""
+
+    owner: UUID
+    title: Text = Field(description="Whose fleet it is.")
+    right: FleetRight
 
 
 class TrialLogin(Contract):
@@ -239,7 +260,13 @@ class Vehicle(VehicleFields):
     lending: Lending | None = None
     evn: EvnParts | None = None
     field_sources: dict[str, FieldSource] = Field(default_factory=dict)
-    tags: list[VehicleTag] = Field(default_factory=list, description="At most one NFC, one QR.")
+    tags: list[VehicleTag] = Field(
+        default_factory=list, description="At most one NFC, one QR. Only the owner sees them."
+    )
+    tagged: bool = Field(
+        default=False,
+        description="The vehicle has a tag: what someone it is shared with sees (CAT-47).",
+    )
     notices: list[Notice] = Field(default_factory=list, description="Newest first.")
     created_at: datetime
     updated_at: datetime
@@ -329,10 +356,14 @@ class ProblemCode(StrEnum):
     """More than 30 lookups in a minute: try again in a minute (CAT-111, CAT-112)."""
     NOT_HERE = "not_here"
     """Simulated tags exist only in the test environment (CAT-96)."""
+    FORBIDDEN = "forbidden"
+    """The fleet is shared with the asker, but only the owner may do this (CAT-46, CAT-49)."""
+    UNAVAILABLE = "unavailable"
+    """TrainMeet ID does not answer, so nothing shared can be shown just now (#49)."""
 
 
 class Problem(Contract):
-    """The answer when Catalog says no: 401, 404, 409 or 422."""
+    """The answer when Catalog says no: 401, 403, 404, 409, 422 or 503."""
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
