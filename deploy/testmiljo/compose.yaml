@@ -140,6 +140,8 @@ services:
       ID_SMTP_AUTH: "true"
       ID_SMTP_USER: ${TEM_PROJECT_ID:-}
       ID_SMTP_FROM: konto@trainmeet.se
+      # Hjälp och fel goes here (KONTO-06, ID9, ID12): a setting, not in the code.
+      ID_SUPPORT_ADDRESS: ${ID_SUPPORT_ADDRESS:-support@trainmeet.se}
       ID_SMTP_PASSWORD_FILE: /vault/trainmeet_smtp-password
       FORWARDED_ALLOW_IPS: "*"
     volumes:

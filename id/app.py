@@ -12,7 +12,7 @@ import os
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Annotated, Final
+from typing import Annotated, Final, Protocol
 from uuid import UUID
 
 import httpx
@@ -35,6 +35,8 @@ from contracts.id import (
     FleetAccess,
     FleetInvite,
     FleetPage,
+    HelpRequest,
+    HelpSent,
     Invitation,
     Invite,
     Meet,
@@ -47,11 +49,13 @@ from contracts.id import (
     Resource,
     ResourceKind,
     Session,
+    Switcher,
     Version,
 )
 from id import login as id_login
 from id import migrate
 from id.db import Database
+from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
@@ -80,6 +84,10 @@ SessionCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
 AttemptCookie = Annotated[str | None, Cookie(alias=id_login.ATTEMPT_COOKIE)]
 
 
+class AllMail(Mailer, HelpMailer, Protocol):
+    """Invitations and Hjälp och fel, from the same mail server."""
+
+
 class SecurityHeaders(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -96,15 +104,15 @@ def create_app(
     settings: Settings | None = None,
     *,
     http: httpx.Client | None = None,
-    mailer: Mailer | None = None,
+    mailer: AllMail | None = None,
 ) -> FastAPI:
     """The app. The tests give a pretend Keycloak (http) and a pretend mail server."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     login = id_login.Login(db, settings, http)
-    roles = Roles(
-        db, mailer if mailer is not None else SmtpMailer(settings.smtp), settings.public_url
-    )
+    mail: AllMail = mailer if mailer is not None else SmtpMailer(settings.smtp)
+    roles = Roles(db, mail, settings.public_url)
+    help_desk = HelpDesk(mail, settings.support)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -165,7 +173,9 @@ def create_app(
 
     @app.get(API + "/session")
     def get_session(session: SessionCookie = None) -> Session:
-        return Session(account=login.account(session))
+        account = login.account(session)
+        apps = roles.switcher(account.id).apps if account else []
+        return Session(account=account, apps=apps)
 
     @app.delete(API + "/session")
     def log_out(response: Response, session: SessionCookie = None) -> Session:
@@ -279,6 +289,15 @@ def create_app(
     def give_at_meet(meet: UUID, body: MeetGrant, person: Person) -> MeetPage:
         return roles.give_at_meet(person, meet, body)
 
+    # --- Hjälp och fel (KONTO-06, ID9) ---------------------------------------------------------
+
+    @app.post(API + "/help")
+    def send_help(body: HelpRequest, session: SessionCookie = None) -> HelpSent:
+        account = login.account(session)
+        if account is None:
+            raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
+        return help_desk.send(account, body)
+
     # --- Invitations --------------------------------------------------------------------------
 
     @app.get(API + "/invitations")
@@ -303,6 +322,10 @@ def create_app(
         except ValueError as error:
             raise HTTPException(status_code=422, detail="resource är kind:id.") from error
         return roles.access(person, wanted)
+
+    @app.get(API + "/apps/switcher")
+    def switcher(person: UUID, _: App) -> Switcher:
+        return roles.switcher(person)
 
     @app.get(API + "/apps/fleets")
     def fleets(person: UUID, _: App) -> list[FleetAccess]:

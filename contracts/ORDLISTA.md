@@ -116,4 +116,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Delning | `FleetPage`, `FleetInvite`, `FleetRole` | Ägaren delar hela vagnparken med en person, att titta (`viewer`) eller redigera (`editor`) (CAT-44). |
 | Träff i ID | `Meet`, `NewMeet`, `MeetPage` | En referens till en träff med namn, datum och klubb (ID10). Själva träffen ägs av Hubben (KONTO-09), som kopplar sin träff hit i ärende 78. |
 | Roll på träffen | `MeetRole`, `MeetGrant` | `organizer` arrangör, `dispatcher` trafikledare, `loco_lead` lokledare och `remote_clearer` fjärrtågklarerare. Går till klubbens medlemmar; arrangören delar ut trafikledare och lokledare, klubbens administratör alla (KONTO-36). |
+| App | `AppKey` | En av TrainMeets appar: `hub`, `tkl`, `cad`, `catalog`, `driver` (Lokföraren) och `id`. |
+| Appväxlaren | `Switcher`, `Session.apps` | Apparna personen har något i (KONTO-38, ID11): Catalog och ID för alla, Hubben med en roll på en träff eller som klubbens administratör, Lokföraren som lokledare. |
+| Hjälp och fel | `HelpRequest`, `HelpKind` | Hjälp (`help`) eller fel (`fault`) från kontomenyn i alla appar, som ett mejl till supportadressen med appen, sidan och versionen (KONTO-06, ID9, ID12). |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |

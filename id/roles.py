@@ -28,6 +28,7 @@ from psycopg import Connection
 from psycopg.errors import UniqueViolation
 from psycopg.rows import DictRow
 
+from contracts.common import AppKey
 from contracts.id import (
     Access,
     Account,
@@ -53,6 +54,7 @@ from contracts.id import (
     Resource,
     ResourceKind,
     Role,
+    Switcher,
 )
 from id.db import Database
 
@@ -668,6 +670,28 @@ class Roles:
                 for row in club:
                     roles.add(Role.ADMIN if row["role"] == "admin" else Role.VIEWER)
         return Access(person=person, resource=resource, roles=sorted(roles))
+
+    def switcher(self, person: UUID) -> Switcher:
+        """The apps the person has something in (KONTO-38, ID11). Catalog and ID always."""
+        with self.db.transaction() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT resource_kind, role FROM role_grant WHERE person_id = %s",
+                (person,),
+            ).fetchall()
+        held = {(row["resource_kind"], row["role"]) for row in rows}
+        kinds = {kind for kind, _ in held}
+        apps = []
+        if kinds & {"meet", "hub"} or ("club", "admin") in held:
+            apps.append(AppKey.HUB)
+        if "station" in kinds:
+            apps.append(AppKey.TKL)
+        if "module" in kinds:
+            apps.append(AppKey.CAD)
+        apps.append(AppKey.CATALOG)
+        if ("meet", "loco_lead") in held:
+            apps.append(AppKey.DRIVER)
+        apps.append(AppKey.ID)
+        return Switcher(apps=apps)
 
     def fleets_for(self, person: UUID) -> list[FleetAccess]:
         """The fleets the person may work in besides their own: shared with them, and their

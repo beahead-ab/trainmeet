@@ -133,6 +133,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.removed": id_api.Removed,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
+    "trainmeet.id-1.help-request": id_api.HelpRequest,
+    "trainmeet.id-1.help-sent": id_api.HelpSent,
+    "trainmeet.id-1.switcher": id_api.Switcher,
     "trainmeet.id-1.new-meet": id_api.NewMeet,
     "trainmeet.id-1.meet": id_api.Meet,
     "trainmeet.id-1.meet-page": id_api.MeetPage,
@@ -717,6 +720,9 @@ def id_openapi() -> str:
     route(
         "post", a + "/meets/{meet}/grants", "giveAtMeet", "meet-page", "meet-grant", problems=write
     )
+    route(
+        "post", a + "/help", "sendHelp", "help-sent", "help-request", problems=(401, 422, 429, 503)
+    )
     route("get", a + "/invitations", "invitations", "invitation", many=True, problems=(401,))
     route(
         "post",
@@ -735,6 +741,15 @@ def id_openapi() -> str:
         "appAccess",
         "access",
         query=("person", "resource"),
+        problems=(401, 422),
+        app=True,
+    )
+    route(
+        "get",
+        a + "/apps/switcher",
+        "appSwitcher",
+        "switcher",
+        query=("person",),
         problems=(401, 422),
         app=True,
     )

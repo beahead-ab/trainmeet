@@ -28,7 +28,7 @@ from uuid import UUID
 
 from pydantic import Field, RootModel, StringConstraints
 
-from contracts.common import Contract, Text
+from contracts.common import AppKey, Contract, Text
 
 
 class CatalogVersion(Contract):
@@ -70,6 +70,14 @@ class Session(Contract):
     share_url: str | None = Field(
         default=None,
         description="Where the owner shares the fleet in TrainMeet ID (CAT-44, KONTO-29).",
+    )
+    help_url: str | None = Field(
+        default=None,
+        description="Hjälp och fel in TrainMeet ID, which mails Beahead's support (KONTO-06).",
+    )
+    apps: list[AppKey] | None = Field(
+        default=None,
+        description="The app switcher's apps, as ID says (ID11); null when ID does not answer.",
     )
     logout_url: str | None = Field(
         default=None,

@@ -10,7 +10,8 @@
         "forbidden",
         "invalid",
         "conflict",
-        "unavailable"
+        "unavailable",
+        "too_many"
       ],
       "title": "ProblemCode",
       "type": "string"

@@ -245,6 +245,7 @@ jobs:
             -e ID_API_PUBLIC_URL=http://localhost:8002 \
             -e ID_SMTP_HOST=127.0.0.1 -e ID_SMTP_PORT=2525 -e ID_SMTP_SSL=false -e ID_SMTP_STARTTLS=false \
             -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_PASSWORD_FILE=/vault/trainmeet_smtp-password \
+            -e ID_SUPPORT_ADDRESS=support@example.com \
             --user "$(id -u):0" \
             trainmeet-idapi:prov uvicorn id.app:app --host 127.0.0.1 --port 8002 --no-access-log
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8002/healthz >/dev/null 2>&1 && break; sleep 1; done

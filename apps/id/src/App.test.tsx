@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ClubPage, FleetPage, Invitation, Meet, MeetPage, Session } from "./api";
-import { days, Shell, type ShellProps } from "./App";
+import { days, helpAbout, helpHref, Shell, switcherApps, type ShellProps } from "./App";
 import { TEXTS } from "./i18n";
 import { routeFor } from "./routes";
 
@@ -181,5 +181,31 @@ describe("the meets in ID (ID10)", () => {
     expect(html).not.toContain("Ändra rollerna");
     expect(html).not.toContain("Ändra träffen");
     expect(html).toContain("Träffen i Hubben");
+  });
+});
+
+describe("Hjälp och fel and the app switcher (KONTO-06, KONTO-38)", () => {
+  const t = (key: keyof typeof TEXTS.sv) => TEXTS.sv[key];
+
+  it("asks for the text, and says what goes with it and where the answer comes", () => {
+    const html = render({ route: { page: "help" }, search: "?app=catalog&sida=%2Ffordon&version=0.1.0+%C2%B7+abcdef1" });
+    expect(html).toContain("Hjälp och fel");
+    expect(html).toContain("svaret kommer till kim@example.com");
+    expect(html).toContain("Skickas med: TrainMeet Catalog · sidan /fordon · version 0.1.0 · abcdef1");
+    expect(html).toContain("Jag behöver hjälp");
+    expect(html).toContain("Något blev fel");
+    expect(html).toContain('for="hjalp-text"');
+  });
+
+  it("reads the app from the link, and never an app that does not exist", () => {
+    expect(helpAbout("?app=catalog&sida=%2Ffordon&version=1")).toEqual({ app: "catalog", page: "/fordon", version: "1" });
+    expect(helpAbout("?app=okand&version=fel", "abc1234")).toEqual({ app: "id", page: "", version: "abc1234" });
+    expect(helpHref("/klubbar")).toBe("/hjalp?app=id&sida=%2Fklubbar");
+  });
+
+  it("shows only the apps the person has something in", () => {
+    const shown = switcherApps(t, "test.id.trainmeet.app", ["catalog", "driver", "id"]).map((app) => app.product);
+    expect(shown).toEqual(["CATALOG", "LOKFÖRAREN", "ID"]);
+    expect(switcherApps(t, "test.id.trainmeet.app", [])).toHaveLength(6);
   });
 });

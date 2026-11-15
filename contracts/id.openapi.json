@@ -1089,6 +1089,73 @@
         ]
       }
     },
+    "/api/id/1/help": {
+      "post": {
+        "operationId": "sendHelp",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.help-sent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.help-request"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/id/1/invitations": {
       "get": {
         "operationId": "invitations",
@@ -1343,6 +1410,58 @@
         ]
       }
     },
+    "/api/id/1/apps/switcher": {
+      "get": {
+        "operationId": "appSwitcher",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.switcher"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
     "/api/id/1/apps/fleets": {
       "get": {
         "operationId": "appFleets",
@@ -1453,6 +1572,14 @@
             "default": null,
             "description": "Only in the answer to logging out: where the browser goes next.",
             "title": "Logout Url"
+          },
+          "apps": {
+            "description": "The app switcher's apps for the person (ID11).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.session.AppKey"
+            },
+            "title": "Apps",
+            "type": "array"
           }
         },
         "title": "Session",
@@ -1496,6 +1623,19 @@
         ],
         "title": "Account",
         "type": "object"
+      },
+      "trainmeet.id-1.session.AppKey": {
+        "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+        "enum": [
+          "hub",
+          "tkl",
+          "cad",
+          "catalog",
+          "driver",
+          "id"
+        ],
+        "title": "AppKey",
+        "type": "string"
       },
       "trainmeet.id-1.account": {
         "additionalProperties": true,
@@ -2714,6 +2854,108 @@
         "title": "ResourceKind",
         "type": "string"
       },
+      "trainmeet.id-1.help-request": {
+        "additionalProperties": true,
+        "description": "Hjälp och fel in the account menu of every app (KONTO-06). It goes as a mail to Beahead's\nsupport address, with the app, the page and the version, and the person's verified address\nto answer (ID9, ID12).",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.help-request.HelpKind"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "app": {
+            "$ref": "#/components/schemas/trainmeet.id-1.help-request.AppKey"
+          },
+          "page": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Page",
+            "type": "string"
+          },
+          "version": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "app"
+        ],
+        "title": "HelpRequest",
+        "type": "object"
+      },
+      "trainmeet.id-1.help-request.AppKey": {
+        "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+        "enum": [
+          "hub",
+          "tkl",
+          "cad",
+          "catalog",
+          "driver",
+          "id"
+        ],
+        "title": "AppKey",
+        "type": "string"
+      },
+      "trainmeet.id-1.help-request.HelpKind": {
+        "enum": [
+          "help",
+          "fault"
+        ],
+        "title": "HelpKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.help-sent": {
+        "additionalProperties": true,
+        "properties": {
+          "sent": {
+            "const": true,
+            "default": true,
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "title": "HelpSent",
+        "type": "object"
+      },
+      "trainmeet.id-1.switcher": {
+        "additionalProperties": true,
+        "description": "The apps the person has something in (KONTO-38, ID11): Catalog and ID for everyone who\nis logged in; the Hub with a role at a meet or as a club's admin, Lokföraren as Lokledare,\nTKL with a role at a station and CAD with a role on a module.",
+        "properties": {
+          "apps": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.switcher.AppKey"
+            },
+            "title": "Apps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "apps"
+        ],
+        "title": "Switcher",
+        "type": "object"
+      },
+      "trainmeet.id-1.switcher.AppKey": {
+        "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+        "enum": [
+          "hub",
+          "tkl",
+          "cad",
+          "catalog",
+          "driver",
+          "id"
+        ],
+        "title": "AppKey",
+        "type": "string"
+      },
       "trainmeet.id-1.new-meet": {
         "additionalProperties": true,
         "description": "A meet as ID holds it: a reference with name, dates and club (ID10). The meet itself, its\nplan and its traffic, belongs to the Hub (KONTO-09).",
@@ -3101,7 +3343,8 @@
           "forbidden",
           "invalid",
           "conflict",
-          "unavailable"
+          "unavailable",
+          "too_many"
         ],
         "title": "ProblemCode",
         "type": "string"

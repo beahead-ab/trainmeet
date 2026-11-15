@@ -36,6 +36,18 @@ class Contract(BaseModel):
     model_config = ConfigDict(extra="allow", str_strip_whitespace=True, frozen=True)
 
 
+class AppKey(StrEnum):
+    """The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06)."""
+
+    HUB = "hub"
+    TKL = "tkl"
+    CAD = "cad"
+    CATALOG = "catalog"
+    DRIVER = "driver"
+    """Lokföraren."""
+    ID = "id"
+
+
 class Side(StrEnum):
     """Which side of a place a section or exit leaves from, as the box shows it."""
 

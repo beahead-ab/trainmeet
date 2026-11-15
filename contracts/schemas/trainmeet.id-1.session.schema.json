@@ -41,6 +41,19 @@
       ],
       "title": "Account",
       "type": "object"
+    },
+    "AppKey": {
+      "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+      "enum": [
+        "hub",
+        "tkl",
+        "cad",
+        "catalog",
+        "driver",
+        "id"
+      ],
+      "title": "AppKey",
+      "type": "string"
     }
   },
   "additionalProperties": true,
@@ -68,6 +81,14 @@
       "default": null,
       "description": "Only in the answer to logging out: where the browser goes next.",
       "title": "Logout Url"
+    },
+    "apps": {
+      "description": "The app switcher's apps for the person (ID11).",
+      "items": {
+        "$ref": "#/$defs/AppKey"
+      },
+      "title": "Apps",
+      "type": "array"
     }
   },
   "type": "object"

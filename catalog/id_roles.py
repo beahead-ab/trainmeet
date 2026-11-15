@@ -91,6 +91,12 @@ class IdRoles:
         roles = body.get("roles", []) if isinstance(body, dict) else []
         return {str(role) for role in roles}
 
+    def switcher(self, person: UUID) -> list[str]:
+        """The apps the person has something in, for the app switcher (ID11)."""
+        body = self._get("switcher", {"person": str(person)})
+        apps = body.get("apps", []) if isinstance(body, dict) else []
+        return [str(app) for app in apps]
+
     def shared_fleets(self, person: UUID) -> list[SharedFleet]:
         body = self._get("fleets", {"person": str(person)})
         found: list[SharedFleet] = []
