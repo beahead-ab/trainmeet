@@ -101,6 +101,67 @@
         }
       }
     },
+    "/api/catalog/1/id/login": {
+      "get": {
+        "operationId": "idLogIn",
+        "summary": "Till TrainMeet ID för att logga in. next är sidan att komma tillbaka till, lang sv/en.",
+        "parameters": [
+          {
+            "name": "next",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Vidare, med Location."
+          }
+        }
+      }
+    },
+    "/api/catalog/1/id/callback": {
+      "get": {
+        "operationId": "idCallback",
+        "summary": "Tillbaka från TrainMeet ID: sessionen startar och webbläsaren går till next, eller till /logga-in?inloggning=fel.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Vidare, med Location."
+          }
+        }
+      }
+    },
     "/api/catalog/1/vehicles": {
       "get": {
         "operationId": "vehicles",
@@ -1801,6 +1862,19 @@
             "description": "Simulated tags can be made here: the test environment.",
             "title": "Simulated Tags",
             "type": "boolean"
+          },
+          "logout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).",
+            "title": "Logout Url"
           }
         },
         "required": [

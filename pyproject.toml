@@ -15,7 +15,10 @@ dependencies = [
 [dependency-groups]
 # TrainMeet Catalog's own server (catalog/): PostgreSQL through psycopg (CAT-35). Not in the hub's image.
 catalog = [
+    # Talks to TrainMeet ID: the token exchange, and the ID token's signature (KONTO-10).
+    "httpx>=0.27",
     "psycopg[binary,pool]>=3.2",
+    "pyjwt[crypto]>=2.10",
 ]
 dev = [
     "httpx>=0.27",

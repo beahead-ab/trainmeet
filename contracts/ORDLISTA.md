@@ -75,6 +75,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Catalogs API | `trainmeet.catalog/1`, `contracts/catalog.py` | Det webbappen och andra läser av Catalog. Beskrivs i `catalog.openapi.json`, med TypeScript-typerna i `catalog.d.ts`. |
 | Konto | `Account` | Den som är inloggad, med id från inloggningen, namn och initialer. |
 | Inloggning | `Session`, `LoginKind` | Vem som är inloggad, och hur man loggar in här: `trial` eller `id`. |
+| Inloggning med ID | `LoginKind.ID`, `/api/catalog/1/id/login`, `Session.logout_url` | Webbläsaren går till TrainMeet ID och kommer tillbaka inloggad, med samma konto i alla appar. Kontot i Catalog skapas första gången (CAT-42). Vid utloggning säger Catalog vart webbläsaren går för att logga ut ur ID också. |
 | Provinloggning | `LoginKind.TRIAL`, `TrialLogin` | Inloggningen i testmiljön tills TrainMeet ID finns, med fasta provkonton utan personuppgifter (CAT-214). |
 | Vagnpark | `VehicleList` | En ägares alla fordon. |
 | Fordon | `Vehicle` | Ett fysiskt exemplar med ett permanent id (CAT-52). |

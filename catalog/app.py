@@ -14,11 +14,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Final
 
+import httpx
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from catalog import fleet_api, login, migrate, tags_api
+from catalog import fleet_api, id_login, login, migrate, tags_api
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.settings import Settings, from_env
@@ -55,6 +62,7 @@ NO_WEB_APP = """<!doctype html>
 """
 
 SessionCookie = Annotated[str | None, Cookie(alias=login.COOKIE)]
+IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
 
 
 class SecurityHeaders(BaseHTTPMiddleware):
@@ -81,11 +89,13 @@ def _web_file(web_dir: Path, path: str) -> Path | None:
     return None
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None = None) -> FastAPI:
+    """The app. id_http is how Catalog reaches TrainMeet ID; the tests give a pretend ID."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     sessions = login.Sessions(db)
     login_kind = LoginKind.TRIAL if settings.trial_login else LoginKind.ID
+    with_id = id_login.IdLogin(db, settings.id, http=id_http) if settings.id is not None else None
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
 
     @asynccontextmanager
@@ -171,9 +181,54 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.delete(API + "/session")
     def log_out(response: Response, session: SessionCookie = None) -> Session:
-        sessions.end(session)
+        id_token = sessions.end(session)
         response.delete_cookie(login.COOKIE, path="/")
-        return Session(account=None, login=login_kind, simulated_tags=settings.simulated_tags)
+        return Session(
+            account=None,
+            login=login_kind,
+            simulated_tags=settings.simulated_tags,
+            logout_url=with_id.logout_address(id_token) if with_id and id_token else None,
+        )
+
+    # --- TrainMeet ID (#66, KONTO-27) -------------------------------------------------------
+
+    @app.get(API + "/id/login", response_class=RedirectResponse, status_code=303)
+    def id_log_in(request: Request, next: str | None = None, lang: str | None = None) -> Response:
+        if with_id is None:
+            raise HTTPException(status_code=404, detail="Inloggningen med ID är inte på här.")
+        started = with_id.start(id_login.safe_next(next), lang)
+        response = RedirectResponse(started.address, status_code=303)
+        response.set_cookie(
+            id_login.COOKIE,
+            started.key,
+            max_age=id_login.LIFETIME_SECONDS,
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="lax",  # ID sends the browser back with a plain link
+            path=id_login.COOKIE_PATH,
+        )
+        return response
+
+    @app.get(API + "/id/callback", response_class=RedirectResponse, status_code=303)
+    def id_callback(
+        request: Request,
+        attempt: IdLoginCookie = None,
+        code: str | None = None,
+        state: str | None = None,
+        error: str | None = None,
+    ) -> Response:
+        if with_id is None:
+            raise HTTPException(status_code=404, detail="Inloggningen med ID är inte på här.")
+        try:
+            done = with_id.finish(attempt, state, code, error)
+        except id_login.LoginFailed as failed:
+            LOGGER.warning("Inloggningen med ID gick inte: %s", failed)
+            response = RedirectResponse(failed.back, status_code=303)
+        else:
+            response = RedirectResponse(done.next_path, status_code=303)
+            set_cookie(response, request, sessions.start(done.account, done.id_token))
+        response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
+        return response
 
     def require_trial() -> None:
         if not settings.trial_login:

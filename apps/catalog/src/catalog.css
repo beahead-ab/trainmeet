@@ -54,6 +54,15 @@
   background: #263247;
   color: #e9ebef;
 }
+.cat-inloggning {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 640px;
+}
+.cat-inloggning p {
+  margin: 0;
+}
 .cat-fel {
   color: #b42318;
   font-weight: 600;

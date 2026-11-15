@@ -40,7 +40,8 @@ const sv = {
   tapDetail: "Här håller du telefonen mot taggen under ett fordon.",
   loginTrialIntro:
     "Provinloggning i testmiljön. Välj ett provkonto. Allt här är testdata och kan tas bort när som helst.",
-  loginIdComing: "Inloggningen med TrainMeet ID kommer snart.",
+  loginIdIntro: "Du loggar in med TrainMeet ID, samma konto i alla TrainMeets appar. Du får en kod till din e-post, och har du inget konto skapar du det där.",
+  loginWithId: "Logga in med TrainMeet ID",
   loginFailed: "Det gick inte att logga in. Försök igen.",
   loggedInAs: "Du är inloggad som {name}.",
   helpText:
@@ -292,7 +293,8 @@ const en: Texts = {
   tapDetail: "This is where you hold the phone to the tag under a vehicle.",
   loginTrialIntro:
     "Trial login in the test environment. Choose a trial account. Everything here is test data and may be removed at any time.",
-  loginIdComing: "Logging in with TrainMeet ID is coming soon.",
+  loginIdIntro: "You log in with TrainMeet ID, the same account in all TrainMeet apps. You get a code by e-mail, and if you have no account you create it there.",
+  loginWithId: "Log in with TrainMeet ID",
   loginFailed: "Could not log in. Please try again.",
   loggedInAs: "You are logged in as {name}.",
   helpText:

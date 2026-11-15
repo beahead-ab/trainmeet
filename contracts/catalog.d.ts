@@ -68,6 +68,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/id/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Till TrainMeet ID för att logga in. next är sidan att komma tillbaka till, lang sv/en. */
+        get: operations["idLogIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/id/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tillbaka från TrainMeet ID: sessionen startar och webbläsaren går till next, eller till /logga-in?inloggning=fel. */
+        get: operations["idCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/vehicles": {
         parameters: {
             query?: never;
@@ -456,6 +490,12 @@ export interface components {
              * @default false
              */
             simulated_tags: boolean;
+            /**
+             * Logout Url
+             * @description Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).
+             * @default null
+             */
+            logout_url: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1801,6 +1841,49 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.catalog-1.session"];
                 };
+            };
+        };
+    };
+    idLogIn: {
+        parameters: {
+            query?: {
+                next?: string;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vidare, med Location. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    idCallback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vidare, med Location. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

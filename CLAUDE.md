@@ -29,7 +29,7 @@ Gäller alla chattar som arbetar i repot: Hub, ID, TKL, CAD och Catalog.
 
 ## Tester
 
-- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest), "Hubbens bild" (bilden byggs och provas) "Catalogs bild" (webbappens typer och tester, bilden, och ett prov med testmiljöns databas och säkerhetskopia) och "ID:s bild" (tilläggets tester, bilden, och ett prov av inloggningen med en kod till e-posten). Alla fyra ska vara gröna.
+- Testerna körs på varje PR. Kontrollerna heter "Tester" (kodstil med ruff, typer med mypy, pytest), "Hubbens bild" (bilden byggs och provas) "Catalogs bild" (webbappens typer och tester, bilden, och ett prov med testmiljöns databas och säkerhetskopia) och "ID:s bild" (tilläggets tester, bilden, och ett prov av inloggningen med en kod till e-posten, också in i Catalog). Alla fyra ska vara gröna.
 - Gamla Servers tester är facit. Ett beteende som portas tar med sitt test.
 - Kör samma sak lokalt: `uv sync`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`. Python 3.12, beroendena låsta i `uv.lock`. Catalogs databastester behöver en PostgreSQL i `CATALOG_TEST_DATABASE_URL`. Webbapparna: `npm ci`, `npm run check`, `npm test`, Node 22, beroendena låsta i `package-lock.json`.
 - Ett nytt beroende läggs bara till om det är välkänt och behövs; nämn det i PR-texten.

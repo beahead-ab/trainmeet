@@ -67,6 +67,19 @@
       "description": "Simulated tags can be made here: the test environment.",
       "title": "Simulated Tags",
       "type": "boolean"
+    },
+    "logout_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).",
+      "title": "Logout Url"
     }
   },
   "required": [

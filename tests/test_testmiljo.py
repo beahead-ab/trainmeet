@@ -132,7 +132,13 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "image: postgres:17-alpine" in compose
     assert "catalog-db:/var/lib/postgresql/data" in compose
     assert "127.0.0.1:8081:8080" in compose
-    assert 'CATALOG_TRIAL_LOGIN: "on"' in compose
+    assert "CATALOG_TRIAL_LOGIN: ${CATALOG_TRIAL_LOGIN:?" in compose
+    # The trial login goes when TrainMeet ID can send its codes (#66).
+    assert "if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi" in up
+    assert "CATALOG_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet" in compose
+    assert "CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet" in compose
+    assert "CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}" in compose
+    assert "CATALOG_PUBLIC_URL: https://${CATALOG_DOMAIN}" in compose
     assert 'CATALOG_SIMULATED_TAGS: "on"' in compose
     assert "CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/" in compose
     assert "CATALOG_MIGRATE: check" in compose
@@ -307,3 +313,19 @@ def test_id_secrets_survive_secret_manager_and_stay_private(
         f"ID_ADMIN_PASSWORD={made.admin_password}",
         f"ID_CATALOG_SECRET={made.catalog_secret}",
     ]
+
+
+def test_the_id_check_stops_its_background_programs() -> None:
+    """Programs started through uv hold uv's cache locked; setup-uv's own cleanup after the
+    job then waits for the lock and fails the check (it happened on main, 15 November)."""
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    job = workflow.split("\n  id:\n")[1].split("\n  testmiljon:\n")[0]
+    started = re.findall(
+        r"nohup uvx? (?:--from \S+ )?(?:run )?python (\S+)|nohup uv run (uvicorn \S+)", job
+    )
+    assert started, "the check starts nothing in the background?"
+    stop = job.split("- name: Stäng av provets program")[1]
+    assert "if: always()" in stop
+    stopped = re.findall(r'pkill -f "([^"]+)"', stop)
+    for script, server in started:
+        assert any(pattern in (script or server) for pattern in stopped), script or server

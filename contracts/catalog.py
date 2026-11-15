@@ -48,7 +48,7 @@ class LoginKind(StrEnum):
     TRIAL = "trial"
     """The trial login in the test environment, until TrainMeet ID (CAT-214)."""
     ID = "id"
-    """TrainMeet ID (#49)."""
+    """TrainMeet ID (#66): GET /api/catalog/1/id/login sends the browser there."""
 
 
 class Account(Contract):
@@ -66,6 +66,13 @@ class Session(Contract):
     login: LoginKind
     simulated_tags: bool = Field(
         default=False, description="Simulated tags can be made here: the test environment."
+    )
+    logout_url: str | None = Field(
+        default=None,
+        description=(
+            "Only in the answer to logging out: where the browser goes next, so that "
+            "TrainMeet ID logs out too and sends it back (KONTO-01)."
+        ),
     )
 
 
