@@ -8,6 +8,9 @@ CATALOG_MIGRATE        "check" (default): refuse to start if the database is beh
                        backup (CAT-39).
 CATALOG_TRIAL_LOGIN    "on" turns on the trial login, only in the test environment (CAT-214).
 CATALOG_WEB_DIR        The built web app (apps/catalog/dist). Default: next to the repo.
+CATALOG_TAG_BASE       The tags' address up to the uid. Default https://trainmeet.app/t/ (C9);
+                       the test environment uses its own, so its tags can be tapped there.
+CATALOG_SIMULATED_TAGS "on" allows simulated tags, only in the test environment (CAT-96).
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                        Which change is running, set when the image is built.
 """
@@ -47,10 +50,19 @@ class Settings:
     migrate: Literal["check", "auto"] = "check"
     trial_login: bool = False
     web_dir: Path = DEFAULT_WEB_DIR
+    tag_base: str = "https://trainmeet.app/t/"
+    simulated_tags: bool = False
     build: CatalogVersion = field(default_factory=lambda: CatalogVersion(version="0.0.0"))
 
     def __repr__(self) -> str:  # the database address may hold a password
         return f"Settings(migrate={self.migrate!r}, trial_login={self.trial_login})"
+
+
+def _switch(source: Mapping[str, str], name: str) -> bool:
+    value = source.get(name, "").strip().lower()
+    if value not in ("", "on", "off"):
+        raise SettingsError(f'{name} ska vara "on" eller "off".')
+    return value == "on"
 
 
 def build_from_env(source: Mapping[str, str]) -> CatalogVersion:
@@ -88,14 +100,16 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
     migrate = source.get("CATALOG_MIGRATE", "check").strip() or "check"
     if migrate not in ("check", "auto"):
         raise SettingsError('CATALOG_MIGRATE ska vara "check" eller "auto".')
-    trial = source.get("CATALOG_TRIAL_LOGIN", "").strip().lower()
-    if trial not in ("", "on", "off"):
-        raise SettingsError('CATALOG_TRIAL_LOGIN ska vara "on" eller "off".')
     web_dir = source.get("CATALOG_WEB_DIR", "").strip()
+    tag_base = source.get("CATALOG_TAG_BASE", "").strip() or "https://trainmeet.app/t/"
+    if not tag_base.startswith("https://") or not tag_base.rstrip("/").endswith("/t"):
+        raise SettingsError("CATALOG_TAG_BASE ska vara en https-adress som slutar på /t/.")
     return Settings(
         database_url=database_url,
         migrate="auto" if migrate == "auto" else "check",
-        trial_login=trial == "on",
+        trial_login=_switch(source, "CATALOG_TRIAL_LOGIN"),
         web_dir=Path(web_dir) if web_dir else DEFAULT_WEB_DIR,
+        tag_base=tag_base.rstrip("/") + "/",
+        simulated_tags=_switch(source, "CATALOG_SIMULATED_TAGS"),
         build=build_from_env(source),
     )

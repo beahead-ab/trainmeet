@@ -5,7 +5,7 @@ import { ApiError, type Vehicle, type VehicleKind, type VehicleState } from "./a
 import type { Language, TextKey } from "./i18n";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
-export type Ctx = { t: T; language: Language; navigate?: Navigate };
+export type Ctx = { t: T; language: Language; navigate?: Navigate; replace?: Navigate };
 
 export const kindText = (t: T, kind: VehicleKind | null | undefined) => (kind ? t(`kind_${kind}` as TextKey) : "");
 export const stateText = (t: T, state: VehicleState) => t(`state_${state}` as TextKey);

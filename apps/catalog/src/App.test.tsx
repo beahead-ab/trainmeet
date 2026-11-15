@@ -8,7 +8,7 @@ const account = { id: "8a3e1f0c-1111-5222-8333-944455556666", name: "Provkonto A
 const version = { product: "TrainMeet Catalog" as const, version: "0.1.0", commit: "abcdef1234", pr: 101, title: "Grunden", built: null };
 
 function render(overrides: Partial<ShellProps> = {}): string {
-  const session: Session = { account: null, login: "trial" };
+  const session: Session = { account: null, login: "trial", simulated_tags: false };
   return renderToStaticMarkup(
     <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} fleet={false} {...overrides} />,
   );
@@ -32,7 +32,7 @@ describe("an empty Catalog", () => {
 
   it("asks a visitor to log in, and shows the empty fleet to the one logged in", () => {
     expect(render()).toContain("Logga in för att se din vagnpark.");
-    const html = render({ session: { account, login: "trial" } });
+    const html = render({ session: { account, login: "trial", simulated_tags: false } });
     expect(html).toContain("Vagnparken · Provkonto A");
     expect(html).toContain("Vagnparken är tom.");
     expect(html).toContain('aria-label="PA, Kontomenyn, Provkonto A"');
@@ -48,11 +48,11 @@ describe("an empty Catalog", () => {
   });
 
   it("says that ID is coming when there is no trial login", () => {
-    expect(render({ page: "login", session: { account: null, login: "id" } })).toContain("TrainMeet ID kommer snart");
+    expect(render({ page: "login", session: { account: null, login: "id", simulated_tags: false } })).toContain("TrainMeet ID kommer snart");
   });
 
   it("speaks English too, and offers Swedish back", () => {
-    const html = render({ language: "en", session: { account, login: "trial" } });
+    const html = render({ language: "en", session: { account, login: "trial", simulated_tags: false } });
     expect(html).toContain("Your fleet is empty.");
     expect(html).toContain(">Vehicles<");
     expect(html).toContain('lang="sv"');

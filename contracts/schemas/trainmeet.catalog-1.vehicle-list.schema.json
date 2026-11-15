@@ -134,6 +134,16 @@
       "title": "Lending",
       "type": "object"
     },
+    "TagKind": {
+      "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+      "enum": [
+        "nfc",
+        "qr",
+        "sim"
+      ],
+      "title": "TagKind",
+      "type": "string"
+    },
     "Vehicle": {
       "additionalProperties": true,
       "description": "A vehicle as its owner sees it.",
@@ -288,6 +298,14 @@
           "title": "Field Sources",
           "type": "object"
         },
+        "tags": {
+          "description": "At most one NFC, one QR.",
+          "items": {
+            "$ref": "#/$defs/VehicleTag"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
         "created_at": {
           "format": "date-time",
           "title": "Created At",
@@ -340,6 +358,56 @@
       ],
       "title": "VehicleStatus",
       "type": "string"
+    },
+    "VehicleTag": {
+      "additionalProperties": true,
+      "description": "A tag on the vehicle, as the card shows it (CAT-97).",
+      "properties": {
+        "assignment": {
+          "description": "The link. A change carries it (CAT-89).",
+          "format": "uuid",
+          "title": "Assignment",
+          "type": "string"
+        },
+        "tag": {
+          "format": "uuid",
+          "title": "Tag",
+          "type": "string"
+        },
+        "uid": {
+          "description": "What stands after /t/ in the address.",
+          "title": "Uid",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/TagKind"
+        },
+        "address": {
+          "description": "For example https://trainmeet.app/t/04a1b2c3d4e5f6.",
+          "title": "Address",
+          "type": "string"
+        },
+        "linked_at": {
+          "format": "date-time",
+          "title": "Linked At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assignment",
+        "tag",
+        "uid",
+        "name",
+        "kind",
+        "address",
+        "linked_at"
+      ],
+      "title": "VehicleTag",
+      "type": "object"
     }
   },
   "additionalProperties": true,

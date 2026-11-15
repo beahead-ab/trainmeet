@@ -39,6 +39,7 @@ from contracts.catalog import (
     VehicleList,
     VehicleState,
     VehicleStatus,
+    VehicleTag,
 )
 
 # The core fields that carry a source (CAT-64). The place is not one: it is where the
@@ -107,7 +108,7 @@ def _evn(number: str) -> EvnParts | None:
     )
 
 
-def to_vehicle(row: DictRow) -> Vehicle:
+def to_vehicle(row: DictRow, tags: list[VehicleTag] | None = None) -> Vehicle:
     lending = None
     if row["state"] == VehicleState.LENT and row["lent_to"] and row["lent_since"]:
         lending = Lending(to=row["lent_to"], since=row["lent_since"], until=row["lent_until"])
@@ -132,6 +133,7 @@ def to_vehicle(row: DictRow) -> Vehicle:
         lending=lending,
         evn=_evn(row["number"]),
         field_sources={k: FieldSource(v) for k, v in row["field_sources"].items()},
+        tags=tags or [],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -197,10 +199,43 @@ def _event(
 
 
 class Fleet:
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db: Database, *, tag_base: str = "https://trainmeet.app/t/") -> None:
         self.db = db
+        self.tag_base = tag_base.rstrip("/") + "/"
 
     # --- Reading ----------------------------------------------------------------------
+
+    def _tags(
+        self, conn: Connection[DictRow], vehicles: list[UUID]
+    ) -> dict[UUID, list[VehicleTag]]:
+        """The active tags per vehicle: at most one NFC and one QR each (CAT-82, CAT-97)."""
+        found: dict[UUID, list[VehicleTag]] = {}
+        if not vehicles:
+            return found
+        rows = conn.execute(
+            "SELECT DISTINCT ON (a.id) a.id, a.vehicle_id, a.started_at, t.id AS tag, t.name, "
+            "t.kind, i.value FROM tag_assignment a JOIN tag t ON t.id = a.tag_id "
+            "JOIN tag_identifier i ON i.tag_id = t.id "
+            "WHERE a.vehicle_id = ANY(%s) AND a.ended_at IS NULL ORDER BY a.id, i.namespace",
+            (vehicles,),
+        ).fetchall()
+        for row in sorted(rows, key=lambda r: (r["kind"] == "qr", r["started_at"])):
+            found.setdefault(row["vehicle_id"], []).append(
+                VehicleTag(
+                    assignment=row["id"],
+                    tag=row["tag"],
+                    uid=row["value"],
+                    name=row["name"],
+                    kind=row["kind"],
+                    address=self.tag_base + row["value"],
+                    linked_at=row["started_at"],
+                )
+            )
+        return found
+
+    def _with_tags(self, conn: Connection[DictRow], rows: list[DictRow]) -> list[Vehicle]:
+        tags = self._tags(conn, [r["id"] for r in rows])
+        return [to_vehicle(r, tags.get(r["id"])) for r in rows]
 
     def _read(self, conn: Connection[DictRow], owner: UUID, vehicle: UUID) -> Vehicle:
         row = conn.execute(
@@ -209,7 +244,7 @@ class Fleet:
         ).fetchone()
         if row is None:
             raise not_found()
-        return to_vehicle(row)
+        return self._with_tags(conn, [row])[0]
 
     def get(self, owner: UUID, vehicle: UUID) -> Vehicle:
         with self.db.transaction() as conn:
@@ -270,12 +305,11 @@ class Fleet:
                 "ORDER BY lower(v.litt), v.number, v.created_at LIMIT %(most)s",
                 {**args, "most": MOST},
             ).fetchall()
+            vehicles = self._with_tags(conn, rows)
         counts = {s: 0 for s in VehicleState}
         for row in counted:
             counts[VehicleState(row["state"])] = int(row["n"])
-        return VehicleList(
-            vehicles=[to_vehicle(r) for r in rows], counts=counts, total=sum(counts.values())
-        )
+        return VehicleList(vehicles=vehicles, counts=counts, total=sum(counts.values()))
 
     def events(self, owner: UUID, vehicle: UUID) -> list[VehicleEvent]:
         with self.db.transaction() as conn:
@@ -327,7 +361,7 @@ class Fleet:
         ).fetchone()
         if row is None:
             raise not_found()
-        current = to_vehicle(row)
+        current = self._with_tags(conn, [row])[0]
         if current.version != version:
             raise changed()
         return current
@@ -337,9 +371,13 @@ class Fleet:
         values = _values(change)
         with self.db.owner_transaction(owner) as conn:
             current = self._lock(conn, owner, vehicle, change.version)
-            if current.state is VehicleState.LENT and change.status is VehicleStatus.DRAFT:
+            if change.status is VehicleStatus.DRAFT and (
+                current.state is VehicleState.LENT or current.tags
+            ):
                 raise Refused(
-                    422, ProblemCode.NOT_READY, "Ett utlånat fordon kan inte bli ett utkast."
+                    422,
+                    ProblemCode.NOT_READY,
+                    "Ett fordon som är utlånat eller har en tagg kan inte bli ett utkast.",
                 )
             before = _values(current)
             sources = {k: v.value for k, v in current.field_sources.items()}
@@ -372,9 +410,15 @@ class Fleet:
             return self._read(conn, owner, vehicle)
 
     def remove(self, owner: UUID, vehicle: UUID, version: int) -> None:
-        """Remove a vehicle after the owner has confirmed (CAT-68). Images and tag come later."""
+        """Remove a vehicle after the owner has confirmed. Its tags become free (CAT-68)."""
         with self.db.owner_transaction(owner) as conn:
             self._lock(conn, owner, vehicle, version)
+            conn.execute(
+                "INSERT INTO tag_event (tag_id, vehicle_id, by_owner, event) "
+                "SELECT tag_id, NULL, %s, 'unlinked' FROM tag_assignment "
+                "WHERE vehicle_id = %s AND ended_at IS NULL",
+                (owner, vehicle),
+            )
             conn.execute("DELETE FROM vehicle WHERE id = %s", (vehicle,))
 
     def move(self, owner: UUID, vehicles: list[UUID], place: UUID | None) -> VehicleList:
@@ -403,7 +447,7 @@ class Fleet:
                 "ORDER BY lower(v.litt), v.number, v.created_at",
                 (owner, unique),
             ).fetchall()
-        result = [to_vehicle(r) for r in moved]
+            result = self._with_tags(conn, moved)
         counts = {s: sum(1 for v in result if v.state is s) for s in VehicleState}
         return VehicleList(vehicles=result, counts=counts, total=len(result))
 

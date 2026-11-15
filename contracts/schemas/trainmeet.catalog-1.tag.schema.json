@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tag.schema.json",
+  "title": "trainmeet.catalog-1.tag",
+  "$defs": {
+    "TagKind": {
+      "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
+      "enum": [
+        "nfc",
+        "qr",
+        "sim"
+      ],
+      "title": "TagKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A tag the owner has made: a simulated tag or a QR label.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "uid": {
+      "title": "Uid",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/TagKind"
+    },
+    "address": {
+      "title": "Address",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "uid",
+    "name",
+    "kind",
+    "address"
+  ],
+  "type": "object"
+}

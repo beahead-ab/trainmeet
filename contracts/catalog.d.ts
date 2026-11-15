@@ -196,6 +196,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/tags/simulated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["newSimulatedTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/tags/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pendingLink"];
+        put?: never;
+        post: operations["waitForTag"];
+        delete: operations["stopWaiting"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/tags/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lookupTag"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/tags/{uid}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["linkTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/tags/{uid}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tagEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/tags/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["newLabel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/tags/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unlinkTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/tags/{uid}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tagQrCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -274,6 +402,12 @@ export interface components {
             /** @default null */
             account: components["schemas"]["trainmeet.catalog-1.session.Account"] | null;
             login: components["schemas"]["trainmeet.catalog-1.session.LoginKind"];
+            /**
+             * Simulated Tags
+             * @description Simulated tags can be made here: the test environment.
+             * @default false
+             */
+            simulated_tags: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -599,6 +733,11 @@ export interface components {
                 [key: string]: components["schemas"]["trainmeet.catalog-1.vehicle.FieldSource"];
             };
             /**
+             * Tags
+             * @description At most one NFC, one QR.
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleTag"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -686,6 +825,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle.TagKind": "nfc" | "qr" | "sim";
+        /**
          * VehicleKind
          * @description The kinds of vehicle (CAT-54).
          * @enum {string}
@@ -703,6 +848,43 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.vehicle.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.catalog-1.vehicle.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * VehicleList
          * @description The fleet, filtered, with the count per state over the whole fleet.
@@ -794,6 +976,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.vehicle-list.TagKind": "nfc" | "qr" | "sim";
+        /**
          * Vehicle
          * @description A vehicle as its owner sees it.
          */
@@ -883,6 +1071,11 @@ export interface components {
                 [key: string]: components["schemas"]["trainmeet.catalog-1.vehicle-list.FieldSource"];
             };
             /**
+             * Tags
+             * @description At most one NFC, one QR.
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleTag"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -913,6 +1106,43 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.vehicle-list.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.catalog-1.vehicle-list.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.vehicle-list.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Move
          * @description Move several vehicles to a place at home at once (CAT-73). Null: home without a place.
@@ -1044,7 +1274,288 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here";
+        /**
+         * Tag
+         * @description A tag the owner has made: a simulated tag or a QR label.
+         */
+        "trainmeet.catalog-1.tag": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Uid */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.tag.TagKind"];
+            /** Address */
+            address: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tag.TagKind": "nfc" | "qr" | "sim";
+        /**
+         * Lookup
+         * @description What /t/<uid> answers: one of five outcomes, each with its own fields (CAT-98, CAT-209).
+         */
+        "trainmeet.catalog-1.lookup": components["schemas"]["trainmeet.catalog-1.lookup.LookupMine"] | components["schemas"]["trainmeet.catalog-1.lookup.LookupShared"] | components["schemas"]["trainmeet.catalog-1.lookup.LookupPrivate"] | components["schemas"]["trainmeet.catalog-1.lookup.LookupFleet"] | components["schemas"]["trainmeet.catalog-1.lookup.LookupUnknown"];
+        /**
+         * LookupFleet
+         * @description A vehicle in a fleet shared with the asker: the card, with the sharing's right (CAT-104).
+         *     Sharing comes with TrainMeet ID (#49).
+         */
+        "trainmeet.catalog-1.lookup.LookupFleet": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "fleet";
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /**
+             * Right
+             * @enum {string}
+             */
+            right: "view" | "edit";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LookupMine
+         * @description My vehicle: the card opens (CAT-99).
+         */
+        "trainmeet.catalog-1.lookup.LookupMine": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "mine";
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LookupPrivate
+         * @description Someone else's vehicle without the owner's name, or anyone not logged in (CAT-100).
+         */
+        "trainmeet.catalog-1.lookup.LookupPrivate": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "private";
+            card: components["schemas"]["trainmeet.catalog-1.lookup.MiniCard"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LookupShared
+         * @description Someone else's vehicle, whose owner shows their name to those logged in (CAT-101).
+         */
+        "trainmeet.catalog-1.lookup.LookupShared": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "shared";
+            /** Owner Name */
+            owner_name: string;
+            card: components["schemas"]["trainmeet.catalog-1.lookup.MiniCard"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LookupUnknown
+         * @description The tag is not linked. Logged in: its uid, to add or link a vehicle (CAT-105).
+         *     Logged out: nothing more (CAT-106).
+         */
+        "trainmeet.catalog-1.lookup.LookupUnknown": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "unknown";
+            /**
+             * Tag Uid
+             * @default null
+             */
+            tag_uid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MiniCard
+         * @description What someone else sees: exactly litt and number, kind, operator, scale and thumbnail.
+         *     Never place, note, model, DCC address or anything about the tag (CAT-100).
+         */
+        "trainmeet.catalog-1.lookup.MiniCard": {
+            /** Litt */
+            litt: string;
+            /** Number */
+            number: string;
+            kind: components["schemas"]["trainmeet.catalog-1.lookup.VehicleKind"] | null;
+            /** Operator */
+            operator: string;
+            /** Scale */
+            scale: string;
+            /**
+             * Thumbnail
+             * @description The thumbnail's address, checked on every fetch.
+             */
+            thumbnail: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.lookup.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * TagLink
+         * @description Link the tag to one of one's own vehicles, after "Ja, koppla" (CAT-83).
+         */
+        "trainmeet.catalog-1.tag-link": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /**
+             * Confirm
+             * @description The explicit yes. Without it nothing happens.
+             * @constant
+             */
+            confirm: true;
+            /**
+             * Replace
+             * @description The vehicle's link of the same kind, as seen, to end it (CAT-88, CAT-89).
+             * @default null
+             */
+            replace: string | null;
+            /**
+             * Move From
+             * @description This tag's link to another of one's own vehicles, as seen (CAT-87).
+             * @default null
+             */
+            move_from: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagUnlink
+         * @description Unlink after a confirmation; the history stays (CAT-90).
+         */
+        "trainmeet.catalog-1.tag-unlink": {
+            /**
+             * Assignment
+             * Format: uuid
+             */
+            assignment: string;
+            /**
+             * Confirm
+             * @constant
+             */
+            confirm: true;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NewLabel
+         * @description A new QR label for the vehicle (CAT-121). replace: its QR label as seen, if it has one.
+         */
+        "trainmeet.catalog-1.new-label": {
+            /**
+             * Replace
+             * @default null
+             */
+            replace: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEvent
+         * @description A link or unlink the asker made (CAT-93).
+         */
+        "trainmeet.catalog-1.tag-event": {
+            event: components["schemas"]["trainmeet.catalog-1.tag-event.TagEventKind"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Vehicle Id */
+            vehicle_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEventKind
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tag-event.TagEventKind": "linked" | "unlinked";
+        /**
+         * NewPending
+         * @description Koppla tagg on the card: the vehicle waits 10 minutes for the next tag (CAT-94).
+         */
+        "trainmeet.catalog-1.new-pending": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /**
+             * Replace
+             * @description The vehicle's link of the same kind, as seen, to replace it.
+             * @default null
+             */
+            replace: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PendingState */
+        "trainmeet.catalog-1.pending": {
+            pending: components["schemas"]["trainmeet.catalog-1.pending.PendingLink"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PendingLink */
+        "trainmeet.catalog-1.pending.PendingLink": {
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /**
+             * Title
+             * @description Litt and number, to ask: Koppla taggen till Hbis 2253?
+             */
+            title: string;
+            /** Replace */
+            replace: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -1830,6 +2341,459 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    newSimulatedTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.tag"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    pendingLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.pending"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    waitForTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.new-pending"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.pending"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    stopWaiting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.pending"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    lookupTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.lookup"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    linkTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.tag-link"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tagEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.tag-event"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    newLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.new-label"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    unlinkTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.tag-unlink"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.vehicle"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tagQrCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The QR code with the tag's address, for its owner */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -120,6 +120,8 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "catalog-db:/var/lib/postgresql/data" in compose
     assert "127.0.0.1:8081:8080" in compose
     assert 'CATALOG_TRIAL_LOGIN: "on"' in compose
+    assert 'CATALOG_SIMULATED_TAGS: "on"' in compose
+    assert "CATALOG_TAG_BASE: https://${CATALOG_DOMAIN}/t/" in compose
     assert "CATALOG_MIGRATE: check" in compose
     assert "{$CATALOG_DOMAIN}" in caddyfile
     assert "reverse_proxy catalog:8080" in caddyfile

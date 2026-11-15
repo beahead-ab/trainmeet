@@ -159,6 +159,10 @@ jobs:
           curl -fsS -c "$PROV/kakor" -H 'Content-Type: application/json' -d "{\"account\":\"$ACCOUNT\"}" \
             http://localhost:8081/api/catalog/1/trial/login | grep -q '"name":"Provkonto A"'
           curl -fsS -b "$PROV/kakor" http://localhost:8081/api/catalog/1/session | grep -q '"name":"Provkonto A"'
+          # En simulerad tagg, som i testmiljön: okänd tills den kopplas (#54).
+          TAGG=$(curl -fsS -b "$PROV/kakor" -X POST http://localhost:8081/api/catalog/1/tags/simulated | jq -r .uid)
+          curl -fsS -b "$PROV/kakor" "http://localhost:8081/api/catalog/1/tags/$TAGG" | grep -q '"outcome":"unknown"'
+          curl -fsS "http://localhost:8081/t/$TAGG" | grep -q 'id="root"'
           docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)" | grep -qx catalog
 
       - name: Nattens säkerhetskopia, med data i

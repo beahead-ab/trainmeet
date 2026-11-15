@@ -61,6 +61,12 @@
     },
     "login": {
       "$ref": "#/$defs/LoginKind"
+    },
+    "simulated_tags": {
+      "default": false,
+      "description": "Simulated tags can be made here: the test environment.",
+      "title": "Simulated Tags",
+      "type": "boolean"
     }
   },
   "required": [
