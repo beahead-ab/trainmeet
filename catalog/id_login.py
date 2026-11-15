@@ -118,7 +118,7 @@ class IdLogin:
         self.settings = settings
         self.http = http if http is not None else httpx.Client(timeout=10.0)
         self._keys: dict[str, jwt.PyJWK] = {}
-        self._keys_read = 0.0
+        self._keys_read: float | None = None  # never yet: monotonic time starts at boot
         self._lock = threading.Lock()
 
     # --- To ID ------------------------------------------------------------------------------
@@ -241,7 +241,10 @@ class IdLogin:
     def _key(self, kid: str) -> jwt.PyJWK:
         """ID's signing key, read again when ID has a new one, at most once a minute."""
         with self._lock:
-            if kid not in self._keys and time.monotonic() - self._keys_read > _KEYS_AGAIN_AFTER:
+            stale = (
+                self._keys_read is None or time.monotonic() - self._keys_read > _KEYS_AGAIN_AFTER
+            )
+            if kid not in self._keys and stale:
                 answer = self.http.get(f"{self.settings.internal}/protocol/openid-connect/certs")
                 answer.raise_for_status()
                 keys: dict[str, jwt.PyJWK] = {}

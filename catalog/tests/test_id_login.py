@@ -270,6 +270,17 @@ def test_a_new_signing_key_is_read_from_id_but_not_on_every_login(
     assert pretend_id.certs_read == 1
 
 
+def test_the_keys_are_read_the_first_time_even_just_after_the_machine_started(
+    client: TestClient, pretend_id: PretendId, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # time.monotonic() counts from when the machine started, so it can be small (it was on
+    # GitHub's fresh machines, 15 November).
+    monkeypatch.setattr("catalog.id_login.time.monotonic", lambda: 5.0)
+    answer = back_from_id(client, pretend_id, to_id(client), str(uuid.uuid4()))
+    assert answer.headers["location"] == "/fordon"
+    assert pretend_id.certs_read == 1
+
+
 def test_the_wrong_state_or_another_browser_logs_no_one_in(
     client: TestClient, pretend_id: PretendId
 ) -> None:
