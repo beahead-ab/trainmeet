@@ -134,6 +134,33 @@
       "title": "Lending",
       "type": "object"
     },
+    "Notice": {
+      "additionalProperties": true,
+      "description": "Någon sa till: where someone saw the vehicle, without who said it (CAT-113).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "at"
+      ],
+      "title": "Notice",
+      "type": "object"
+    },
     "TagKind": {
       "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
       "enum": [
@@ -304,6 +331,14 @@
             "$ref": "#/$defs/VehicleTag"
           },
           "title": "Tags",
+          "type": "array"
+        },
+        "notices": {
+          "description": "Newest first.",
+          "items": {
+            "$ref": "#/$defs/Notice"
+          },
+          "title": "Notices",
           "type": "array"
         },
         "created_at": {

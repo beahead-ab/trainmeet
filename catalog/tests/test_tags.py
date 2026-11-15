@@ -454,3 +454,42 @@ def test_only_a_ready_vehicle_of_ones_own_can_wait(owner: TestClient, reader: Te
         404,
         "not_found",
     )
+
+
+# --- Säg till ägaren and Visa mitt namn (CAT-101, CAT-113) ---------------------------------------
+
+
+def test_someone_logged_in_can_tell_the_owner_without_learning_who_it_is(
+    owner: TestClient, reader: TestClient, visitor: TestClient
+) -> None:
+    car = vehicle(owner)
+    link(owner, UID, car["id"])
+    told = reader.post(f"{API}/tags/{UID}/notice", json={"text": "Står på spår 3 i Särö"})
+    assert told.json() == {"told": True}
+    notices = owner.get(f"{API}/vehicles/{car['id']}").json()["notices"]
+    assert [n["text"] for n in notices] == ["Står på spår 3 i Särö"]
+    assert set(notices[0]) == {"id", "text", "at"}
+    assert problem(visitor.post(f"{API}/tags/{UID}/notice", json={"text": "hej"})) == (401, "login")
+    assert problem(owner.post(f"{API}/tags/{UID}/notice", json={"text": "jag själv"})) == (
+        404,
+        "not_found",
+    )
+    cleared = owner.delete(f"{API}/vehicles/{car['id']}/notices/{notices[0]['id']}")
+    assert cleared.status_code == 200
+    assert owner.get(f"{API}/vehicles/{car['id']}").json()["notices"] == []
+
+
+def test_a_notice_about_an_unknown_tag_goes_nowhere(reader: TestClient) -> None:
+    assert problem(reader.post(f"{API}/tags/{UID}/notice", json={"text": "hej"})) == (
+        404,
+        "not_found",
+    )
+
+
+def test_the_owner_turns_the_name_on_and_off(owner: TestClient, reader: TestClient) -> None:
+    link(owner, UID, vehicle(owner)["id"])
+    assert owner.get(API + "/settings").json() == {"show_name": False}
+    assert owner.put(API + "/settings", json={"show_name": True}).json() == {"show_name": True}
+    assert lookup(reader, UID).json()["owner_name"] == "Provkonto A"
+    owner.put(API + "/settings", json={"show_name": False})
+    assert lookup(reader, UID).json()["outcome"] == "private"

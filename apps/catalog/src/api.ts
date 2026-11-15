@@ -104,6 +104,10 @@ export const api = {
   pending: () => call<PendingState>("GET", `${T}/pending`),
   waitForTag: (vehicle: string, replace: string | null) => call<PendingState>("POST", `${T}/pending`, { vehicle, replace }),
   stopWaiting: () => call<PendingState>("DELETE", `${T}/pending`),
+  tell: (uid: string, text: string) => call<{ told: true }>("POST", `${tagPath(uid)}/notice`, { text }),
+  clearNotice: (vehicle: string, notice: string) => call<{ id: string }>("DELETE", `${V}/${vehicle}/notices/${notice}`),
+  settings: () => call<{ show_name: boolean }>("GET", "/api/catalog/1/settings"),
+  changeSettings: (show_name: boolean) => call<{ show_name: boolean }>("PUT", "/api/catalog/1/settings", { show_name }),
 };
 
 export const qrAddress = (uid: string) => `${tagPath(uid)}/qr.svg`;

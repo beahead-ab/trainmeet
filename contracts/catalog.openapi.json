@@ -1330,6 +1330,230 @@
         ]
       }
     },
+    "/api/catalog/1/tags/{uid}/notice": {
+      "post": {
+        "operationId": "tellTheOwner",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.told"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tell"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/notices/{notice}": {
+      "delete": {
+        "operationId": "clearNotice",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "notice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/settings": {
+      "get": {
+        "operationId": "ownerSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "changeOwnerSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.settings"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/catalog/1/vehicles/{vehicle}/tags/unlink": {
       "post": {
         "operationId": "unlinkTag",
@@ -2108,6 +2332,14 @@
             "title": "Tags",
             "type": "array"
           },
+          "notices": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.Notice"
+            },
+            "title": "Notices",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2258,6 +2490,33 @@
           "since"
         ],
         "title": "Lending",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.Notice": {
+        "additionalProperties": true,
+        "description": "Någon sa till: where someone saw the vehicle, without who said it (CAT-113).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "at"
+        ],
+        "title": "Notice",
         "type": "object"
       },
       "trainmeet.catalog-1.vehicle.TagKind": {
@@ -2517,6 +2776,33 @@
         "title": "Lending",
         "type": "object"
       },
+      "trainmeet.catalog-1.vehicle-list.Notice": {
+        "additionalProperties": true,
+        "description": "Någon sa till: where someone saw the vehicle, without who said it (CAT-113).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "at"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
       "trainmeet.catalog-1.vehicle-list.TagKind": {
         "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
         "enum": [
@@ -2687,6 +2973,14 @@
               "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleTag"
             },
             "title": "Tags",
+            "type": "array"
+          },
+          "notices": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.Notice"
+            },
+            "title": "Notices",
             "type": "array"
           },
           "created_at": {
@@ -3529,6 +3823,50 @@
           "expires_at"
         ],
         "title": "PendingLink",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tell": {
+        "additionalProperties": true,
+        "description": "Säg till ägaren: where the vehicle stands, in a line (CAT-113).",
+        "properties": {
+          "text": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Tell",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.told": {
+        "additionalProperties": true,
+        "description": "The notice is with the owner. Nothing about who the owner is.",
+        "properties": {
+          "told": {
+            "const": true,
+            "default": true,
+            "title": "Told",
+            "type": "boolean"
+          }
+        },
+        "title": "Told",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.settings": {
+        "additionalProperties": true,
+        "description": "Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).",
+        "properties": {
+          "show_name": {
+            "default": false,
+            "title": "Show Name",
+            "type": "boolean"
+          }
+        },
+        "title": "OwnerSettings",
         "type": "object"
       }
     },

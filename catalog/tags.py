@@ -46,10 +46,12 @@ from contracts.catalog import (
     TagKind,
     TagLink,
     TagUnlink,
+    Told,
     VehicleKind,
 )
 
 LOOKUPS_PER_MINUTE = 30
+NOTICES_KEPT = 20
 PENDING_MINUTES = 10
 _HEX = re.compile(r"[0-9a-f]{2}(?:[:\-]?[0-9a-f]{2}){3,15}")
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -435,6 +437,36 @@ class Tags:
                 (value, tag_id),
             )
         return Tag(id=tag_id, uid=value, name=name, kind=TagKind.SIM, address=self.address(value))
+
+    # --- Säg till ägaren (CAT-113) -----------------------------------------------------------
+
+    def tell(self, asker: UUID, uid: str, text: str) -> Told:
+        """Where someone saw the vehicle. Kept without the sender; the sender learns nothing."""
+        if not self.limiter.allow_person(asker):
+            raise _too_many()
+        found = normalize(uid)
+        with self.db.transaction() as conn:
+            row = conn.execute(
+                "SELECT a.vehicle_id, a.owner_id FROM tag_identifier i "
+                "JOIN tag_assignment a ON a.tag_id = i.tag_id AND a.ended_at IS NULL "
+                "WHERE i.namespace = %s AND i.value = %s",
+                (found.namespace, found.value),
+            ).fetchone()
+            if row is None or row["owner_id"] == asker:
+                raise Refused(
+                    404, ProblemCode.NOT_FOUND, "Det finns inget fordon att säga till om."
+                )
+            conn.execute(
+                "INSERT INTO vehicle_notice (id, vehicle_id, text) VALUES (%s, %s, %s)",
+                (uuid.uuid4(), row["vehicle_id"], text),
+            )
+            conn.execute(
+                "DELETE FROM vehicle_notice WHERE vehicle_id = %(v)s AND id NOT IN "
+                "(SELECT id FROM vehicle_notice WHERE vehicle_id = %(v)s "
+                "ORDER BY at DESC LIMIT %(kept)s)",
+                {"v": row["vehicle_id"], "kept": NOTICES_KEPT},
+            )
+        return Told()
 
     # --- The tag's own pages ----------------------------------------------------------------
 

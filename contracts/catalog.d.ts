@@ -292,6 +292,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/tags/{uid}/notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tellTheOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/notices/{notice}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["clearNotice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownerSettings"];
+        put: operations["changeOwnerSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/vehicles/{vehicle}/tags/unlink": {
         parameters: {
             query?: never;
@@ -738,6 +786,11 @@ export interface components {
              */
             tags?: components["schemas"]["trainmeet.catalog-1.vehicle.VehicleTag"][];
             /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.catalog-1.vehicle.Notice"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -821,6 +874,26 @@ export interface components {
              * @default null
              */
             until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.catalog-1.vehicle.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         } & {
             [key: string]: unknown;
         };
@@ -976,6 +1049,26 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.catalog-1.vehicle-list.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TagKind
          * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
          * @enum {string}
@@ -1075,6 +1168,11 @@ export interface components {
              * @description At most one NFC, one QR.
              */
             tags?: components["schemas"]["trainmeet.catalog-1.vehicle-list.VehicleTag"][];
+            /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.catalog-1.vehicle-list.Notice"][];
             /**
              * Created At
              * Format: date-time
@@ -1553,6 +1651,43 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Tell
+         * @description Säg till ägaren: where the vehicle stands, in a line (CAT-113).
+         */
+        "trainmeet.catalog-1.tell": {
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Told
+         * @description The notice is with the owner. Nothing about who the owner is.
+         */
+        "trainmeet.catalog-1.told": {
+            /**
+             * Told
+             * @default true
+             * @constant
+             */
+            told: true;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OwnerSettings
+         * @description Visa mitt namn när någon blippar mina fordon: off from the start (CAT-101).
+         */
+        "trainmeet.catalog-1.settings": {
+            /**
+             * Show Name
+             * @default false
+             */
+            show_name: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2692,6 +2827,198 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tellTheOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.tell"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.told"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    clearNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle: string;
+                notice: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    ownerSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.settings"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    changeOwnerSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.settings"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

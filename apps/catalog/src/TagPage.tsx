@@ -5,14 +5,31 @@ import { linkClick } from "@trainmeet/design";
 import { useEffect, useState } from "react";
 import { api, ApiError, type Account, type Lookup, type PendingState, type Vehicle, type VehicleTag } from "./api";
 import { Dialog, ErrorLine, kindText, problemText, title, type Ctx, type T } from "./common";
+import { isIos, nfcSupported } from "./nfc";
 import { PATHS, vehiclePath } from "./routes";
 import { VehicleCardPage } from "./VehicleCard";
 
 type Mini = Extract<Lookup, { outcome: "shared" | "private" }>;
 
-/** Someone else's vehicle: exactly litt and number, kind, operator and scale (CAT-100). */
-export function MiniCardView({ t, found }: { t: T; found: Mini }) {
+/** Someone else's vehicle: exactly litt and number, kind, operator and scale (CAT-100), and
+ * for those logged in, Säg till ägaren (CAT-113). */
+export function MiniCardView({
+  t,
+  found,
+  loggedIn = false,
+  told = false,
+  error = null,
+  onTell,
+}: {
+  t: T;
+  found: Mini;
+  loggedIn?: boolean;
+  told?: boolean;
+  error?: string | null;
+  onTell?: (text: string) => void;
+}) {
   const card = found.card;
+  const [text, setText] = useState("");
   return (
     <>
       <p className="tm-overrubrik">{t("someoneElses")}</p>
@@ -21,12 +38,47 @@ export function MiniCardView({ t, found }: { t: T; found: Mini }) {
         <p className="cat-ingress">{[kindText(t, card.kind), card.operator, card.scale].filter(Boolean).join(" · ")}</p>
         {found.outcome === "shared" ? <p>{t("ownerIs", { name: found.owner_name })}</p> : null}
       </section>
+      <section className="tm-kort cat-avsnitt" aria-labelledby="sag-till-rubrik">
+        <h2 id="sag-till-rubrik">{t("tellTitle")}</h2>
+        {!loggedIn ? (
+          <p className="cat-under">{t("tellLogin")}</p>
+        ) : told ? (
+          <p role="status">{t("tellDone")}</p>
+        ) : (
+          <form
+            className="cat-rad"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (text.trim()) onTell?.(text.trim());
+            }}
+          >
+            <label htmlFor="sag-till">{t("tellLabel")}</label>
+            <input id="sag-till" value={text} maxLength={200} aria-describedby="sag-till-hjalp" onChange={(e) => setText(e.target.value)} />
+            <button type="submit" className="tm-knapp" disabled={!text.trim()}>
+              {t("tellSend")}
+            </button>
+            <p id="sag-till-hjalp" className="cat-hjalp">
+              {t("tellHelp")}
+            </p>
+          </form>
+        )}
+        <ErrorLine text={error} />
+      </section>
     </>
   );
 }
 
 /** The slot a tag takes on a vehicle: NFC and simulated tags share one, a QR label has its own. */
 export const slotOf = (uid: string) => (/^q[a-z0-9]{11}$/.test(uid) ? "qr" : "nfc");
+
+/** A physical NFC tag's serial number, which Android can write the address onto (CAT-118). */
+export const isSerialNumber = (uid: string) =>
+  /^([0-9a-f]{2}[:-]?){4,16}$/i.test(uid) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid);
+
+/** The card after linking: on Android, with the offer to write the address on the tag. */
+export function afterLinking(vehicle: string, uid: string, canWrite: boolean = nfcSupported()): string {
+  return canWrite && isSerialNumber(uid) ? `${vehiclePath(vehicle)}?skriv=${encodeURIComponent(uid)}` : vehiclePath(vehicle);
+}
 const tagIn = (vehicle: Vehicle, uid: string): VehicleTag | undefined =>
   (vehicle.tags ?? []).find((tag) => (tag.kind === "qr" ? "qr" : "nfc") === slotOf(uid));
 
@@ -70,6 +122,7 @@ export function UnknownView({
         <section className="tm-kort cat-tomt">
           <p className="cat-tomt-rubrik">{t("tagUnknown")}</p>
           <p>{t("tagUnknownLogin")}</p>
+          {isIos() ? <p className="cat-under">{t("tapIphoneLogin")}</p> : null}
           <a className="tm-knapp primar" href={login} onClick={linkClick(navigate, login)}>
             {t("logIn")}
           </a>
@@ -143,6 +196,7 @@ export function TagPage({ ctx, uid, account }: { ctx: Ctx; uid: string; account:
   const [choosing, setChoosing] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [ask, setAsk] = useState<Ask>(null);
+  const [told, setTold] = useState(false);
 
   useEffect(() => {
     api.lookup(uid).then(setFound, (failure) => setError(problemText(t, failure)));
@@ -158,7 +212,7 @@ export function TagPage({ ctx, uid, account }: { ctx: Ctx; uid: string; account:
   const doLink = async (vehicle: Vehicle, replace: VehicleTag | null) => {
     try {
       await api.link(uid, { vehicle: vehicle.id, confirm: true, replace: replace?.assignment ?? null, move_from: null });
-      ctx.navigate?.(vehiclePath(vehicle.id));
+      ctx.navigate?.(afterLinking(vehicle.id, uid));
     } catch (failure) {
       setAsk(null);
       setError(problemText(t, failure));
@@ -168,7 +222,26 @@ export function TagPage({ ctx, uid, account }: { ctx: Ctx; uid: string; account:
   if (error && !found) return <ErrorLine text={error} />;
   if (!found) return <p className="cat-laddar">{t("loading")}</p>;
   if (found.outcome === "mine" || found.outcome === "fleet") return <VehicleCardPage ctx={ctx} id={found.vehicle_id} />;
-  if (found.outcome === "shared" || found.outcome === "private") return <MiniCardView t={t} found={found} />;
+  if (found.outcome === "shared" || found.outcome === "private") {
+    return (
+      <MiniCardView
+        t={t}
+        found={found}
+        loggedIn={account !== null}
+        told={told}
+        error={error}
+        onTell={async (text) => {
+          try {
+            await api.tell(uid, text);
+            setTold(true);
+            setError(null);
+          } catch (failure) {
+            setError(problemText(t, failure));
+          }
+        }}
+      />
+    );
+  }
   return (
     <UnknownView
       ctx={ctx}

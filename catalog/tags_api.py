@@ -24,6 +24,8 @@ from contracts.catalog import (
     TagEvent,
     TagLink,
     TagUnlink,
+    Tell,
+    Told,
     Vehicle,
 )
 
@@ -84,6 +86,10 @@ def router(fleet: Fleet, tags: Tags, logged_in: Callable[..., Account | None]) -
     def link(uid: str, body: TagLink, me: Owner) -> Vehicle:
         tags.link(me, uid, body)
         return fleet.get(me, body.vehicle)
+
+    @routes.post("/tags/{uid}/notice")
+    def tell(uid: str, body: Tell, me: Owner) -> Told:
+        return tags.tell(me, uid, body.text)
 
     @routes.get("/tags/{uid}/events")
     def events(uid: str, me: Owner) -> list[TagEvent]:

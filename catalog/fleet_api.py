@@ -18,6 +18,7 @@ from contracts.catalog import (
     Account,
     Lend,
     Move,
+    OwnerSettings,
     Place,
     PlaceName,
     ProblemCode,
@@ -102,6 +103,19 @@ def router(fleet: Fleet, logged_in: Callable[..., Account | None]) -> APIRouter:
     @routes.get("/vehicles/{vehicle}/events")
     def events(vehicle: UUID, me: Owner) -> list[VehicleEvent]:
         return fleet.events(me, vehicle)
+
+    @routes.delete("/vehicles/{vehicle}/notices/{notice}")
+    def clear_notice(vehicle: UUID, notice: UUID, me: Owner) -> Removed:
+        fleet.clear_notice(me, vehicle, notice)
+        return Removed(id=notice)
+
+    @routes.get("/settings")
+    def settings(me: Owner) -> OwnerSettings:
+        return fleet.settings(me)
+
+    @routes.put("/settings")
+    def change_settings(body: OwnerSettings, me: Owner) -> OwnerSettings:
+        return fleet.change_settings(me, body)
 
     @routes.get("/places")
     def places(me: Owner) -> list[Place]:

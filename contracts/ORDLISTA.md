@@ -97,4 +97,5 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Uppslag | `Lookup` | Det /t/<uid> svarar: `mine`, `shared`, `private`, `fleet` eller `unknown`, vart och ett med en egen vitlista (CAT-98). |
 | Minikort | `MiniCard` | Det en annan än ägaren ser: littera och nummer, slag, bolag, skala och miniatyr (CAT-100). |
 | Väntande koppling | `PendingLink` | Koppla tagg på kortet: fordonet väntar på nästa tagg i 10 minuter (CAT-94). |
-
+| Säg till ägaren | `Tell`, `Notice` | Den som är inloggad och blippar någon annans fordon skriver var det står. Ägaren ser beskedet utan avsändare (CAT-113). |
+| Visa mitt namn | `OwnerSettings.show_name` | Ägarens namn på minikortet, för den som är inloggad. Av från början (CAT-101). |

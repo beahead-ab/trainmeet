@@ -11,6 +11,8 @@ export type PlacesViewProps = {
   places: Place[] | null;
   lent: Vehicle[];
   error: string | null;
+  showName?: boolean | null;
+  onShowName?: (on: boolean) => void;
   onAdd?: (name: string) => Promise<boolean>;
   onRename?: (place: Place, name: string) => Promise<boolean>;
   onRemove?: (place: Place) => void;
@@ -64,7 +66,7 @@ function PlaceCard({ ctx, place, onRename, onRemove }: { ctx: Ctx; place: Place;
   );
 }
 
-export function PlacesView({ ctx, places, lent, error, onAdd, onRename, onRemove, onGiveBack }: PlacesViewProps) {
+export function PlacesView({ ctx, places, lent, error, onAdd, onRename, onRemove, onGiveBack, showName, onShowName }: PlacesViewProps) {
   const { t, language, navigate } = ctx;
   const [name, setName] = useState("");
   const id = useId();
@@ -101,7 +103,8 @@ export function PlacesView({ ctx, places, lent, error, onAdd, onRename, onRemove
             </ul>
           )}
         </div>
-        <section className="tm-kort cat-sidokolumn" aria-labelledby="utlanat-rubrik">
+        <div className="cat-sidokolumn">
+        <section className="tm-kort" aria-labelledby="utlanat-rubrik">
           <h2 id="utlanat-rubrik">{t("lentOut")}</h2>
           {lent.length === 0 ? (
             <p className="cat-under">{t("lentNone")}</p>
@@ -125,6 +128,24 @@ export function PlacesView({ ctx, places, lent, error, onAdd, onRename, onRemove
             </ul>
           )}
         </section>
+        <section className="tm-kort cat-avsnitt" aria-labelledby="installningar-rubrik">
+          <h2 id="installningar-rubrik">{t("settingsTitle")}</h2>
+          <label className="cat-vaxel">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={showName ?? false}
+              disabled={showName === null || showName === undefined}
+              aria-describedby="visa-namn-hjalp"
+              onChange={(event) => onShowName?.(event.target.checked)}
+            />
+            <span>{t("showName")}</span>
+          </label>
+          <p id="visa-namn-hjalp" className="cat-hjalp">
+            {t("showNameHelp")}
+          </p>
+        </section>
+        </div>
       </div>
     </>
   );
@@ -136,7 +157,9 @@ export function PlacesPage({ ctx }: { ctx: Ctx }) {
   const [lent, setLent] = useState<Vehicle[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Place | null>(null);
+  const [showName, setShowName] = useState<boolean | null>(null);
   const load = () => {
+    api.settings().then((settings) => setShowName(settings.show_name), () => setShowName(null));
     api.places().then(setPlaces, (failure) => setError(problemText(t, failure)));
     api.vehicles({ state: "lent" }).then((list) => setLent(list.vehicles), () => setLent([]));
   };
@@ -164,6 +187,11 @@ export function PlacesPage({ ctx }: { ctx: Ctx }) {
         onRename={(place, name) => attempt(() => api.renamePlace(place.id, name))}
         onRemove={setRemoving}
         onGiveBack={(vehicle) => void attempt(() => api.giveBack(vehicle.id, vehicle.version))}
+        showName={showName}
+        onShowName={(on) => {
+          setShowName(on);
+          void attempt(() => api.changeSettings(on));
+        }}
       />
       <Dialog open={removing !== null} title={t("removePlace")} onClose={() => setRemoving(null)}>
         <p>{removing ? t("removePlaceConfirm", { name: removing.name }) : ""}</p>
