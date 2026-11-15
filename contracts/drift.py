@@ -172,12 +172,26 @@ class ClearanceRequested(ClearanceRef):
 
 class ClearanceAnswered(ClearanceRef):
     approved: bool
+    forward: bool = Field(
+        default=False,
+        description="Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.",
+    )
+
+
+class ClearanceReminded(ClearanceRef):
+    """A request still unanswered (H39): after 3 minutes and then every 3 minutes, real time."""
+
+    count: int = Field(ge=1, description="Vilken påminnelse i ordningen, från 1.")
 
 
 class TrainArrived(ClearanceRef):
     """The train is in. Without a track it came in on the planned one (old Server 4.9.0)."""
 
     track: Text | None = Field(default=None, description="Spåret tåget kom in på.")
+    forward: bool = Field(
+        default=False,
+        description="Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.",
+    )
 
 
 class TrainMovedHere(Contract):
@@ -326,6 +340,7 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
+    EventKind.CLEARANCE_REMINDED: ClearanceReminded,
     EventKind.TRAIN_DEPARTED: ClearanceRef,
     EventKind.TRAIN_ARRIVED: TrainArrived,
     EventKind.TRAIN_MOVED_HERE: TrainMovedHere,

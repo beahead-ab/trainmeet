@@ -20,6 +20,8 @@ from contracts.reasons import Reason
 
 VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
+# An unanswered request is reminded of after this long, and then as often, real time (H39).
+REMINDER_SECONDS: Final = 180
 # The automation acts through the same station commands as a box, under its own name (F14).
 AUTOMATION: Final = "automatik"
 # What a box or TKL may still do at a place left to the automation: look, and take it back.
@@ -109,6 +111,10 @@ class Case:
     departed: bool = False
     arrived: bool = False
     revision: int = 1
+    # The reminders of an unanswered request (H39): how many, and when the last one, or the
+    # request, went out, in real time.
+    reminders: int = 0
+    since: datetime | None = None
 
     @property
     def active(self) -> bool:
@@ -160,6 +166,8 @@ class Drift:
         self.first_run: float | None = None
         self.departed_seconds: dict[str, float] = {}
         self.arrived_seconds: dict[str, float] = {}
+        # When the clock last started, in real time: the reminders count from there (H39).
+        self.running_since = now
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -295,6 +303,8 @@ class Drift:
                 running = event.kind == events.EventKind.CLOCK_STARTED or (
                     self.clock.running and event.kind == events.EventKind.CLOCK_SPEED
                 )
+                if running and not self.clock.running:
+                    self.running_since = event.wall_time
                 self.clock = Clock(clock.seconds, clock.speed, running, event.wall_time)
                 if running and self.first_run is None and self.automation.enabled:
                     self.first_run = clock.seconds
@@ -303,7 +313,7 @@ class Drift:
                 requested = events.ClearanceRequested.model_validate(event.data)
                 assert event.call is not None
                 self.cases[requested.clearance_id] = Case(
-                    requested.clearance_id, self.legs[event.call]
+                    requested.clearance_id, self.legs[event.call], since=event.wall_time
                 )
                 self.requested_at[requested.clearance_id] = event.model_time
                 self._touch(self.legs[event.call])
@@ -317,6 +327,13 @@ class Drift:
                 )
                 self.cases[case.id] = replace(case, status=status, revision=case.revision + 1)
                 self._touch(case.leg)
+            case events.EventKind.CLEARANCE_REMINDED:
+                reminded = events.ClearanceReminded.model_validate(event.data)
+                case = self.cases[reminded.clearance_id]
+                # A reminder is no answer: the case keeps its revision, so an answer on its
+                # way is not refused as stale; the places are told to read again.
+                self.cases[case.id] = replace(case, reminders=reminded.count, since=event.wall_time)
+                self._touch_places(case.leg.departure.place, case.leg.arrival.place)
             case events.EventKind.CLEARANCE_CANCELLED | events.EventKind.CLEARANCE_INVALIDATED:
                 case = self.cases[events.ClearanceRef.model_validate(event.data).clearance_id]
                 status = (
@@ -641,6 +658,26 @@ class Drift:
                 leg=leg,
             )
 
+    def remind(self, now: datetime) -> None:
+        """Remind of every request still unanswered: after 3 minutes and then every 3 minutes,
+        real time (H39, DRIFT-33). Only while the clock runs; when it stands, nothing goes out
+        (DRIFT-44), and the waiting starts over when it runs again."""
+        if not self.clock.running:
+            return
+        for case in list(self.cases.values()):
+            if case.status != station.ClearanceStatus.WAITING or case.departed:
+                continue
+            since = max(case.since or now, self.running_since)
+            if (now - since).total_seconds() >= REMINDER_SECONDS:
+                # The place that should answer, as Logg shows it.
+                self._record(
+                    events.EventKind.CLEARANCE_REMINDED,
+                    {"clearance_id": case.id, "count": case.reminders + 1},
+                    now,
+                    leg=case.leg,
+                    place=case.leg.arrival.place,
+                )
+
     def _case_action(self, command: station.Command, now: datetime) -> None:
         if command.action == station.Action.CLEARANCE_RESPONSE:
             answer = station.ClearanceResponse.model_validate(command.payload)
@@ -684,17 +721,18 @@ class Drift:
                 events.EventKind.TRAIN_MOVED_HERE, {"track": track}, now, command=command, leg=leg
             )
             return
+        # What was forgotten is done here, and marked as moved forward in Logg (DRIFT-42).
         if case.status == station.ClearanceStatus.WAITING:
             self._record(
                 events.EventKind.CLEARANCE_ANSWERED,
-                {"clearance_id": case.id, "approved": True},
+                {"clearance_id": case.id, "approved": True, "forward": True},
                 now,
                 command=command,
                 leg=leg,
             )
         self._record(
             events.EventKind.TRAIN_ARRIVED,
-            {"clearance_id": case.id, "track": track},
+            {"clearance_id": case.id, "track": track, "forward": True},
             now,
             command=command,
             leg=leg,
@@ -744,13 +782,11 @@ class Drift:
         elif case.status == station.ClearanceStatus.WAITING:
             raise Refused(Reason.TRAIN_NOT_DEPARTED)
         else:
-            self._record(
-                events.EventKind.TRAIN_ARRIVED,
-                {"clearance_id": case.id, "track": track},
-                now,
-                command=command,
-                leg=leg,
-            )
+            # Cleared but never reported departed: it came in all the same (DRIFT-42).
+            data: dict[str, object] = {"clearance_id": case.id, "track": track}
+            if not case.departed:
+                data["forward"] = True
+            self._record(events.EventKind.TRAIN_ARRIVED, data, now, command=command, leg=leg)
 
     def _set_aside(self, command: station.Command, now: datetime) -> None:
         call = station.CallOnly.model_validate(command.payload).call

@@ -175,6 +175,12 @@
         "approved": {
           "title": "Approved",
           "type": "boolean"
+        },
+        "forward": {
+          "default": false,
+          "description": "Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.",
+          "title": "Forward",
+          "type": "boolean"
         }
       },
       "required": [
@@ -197,6 +203,29 @@
         "clearance_id"
       ],
       "title": "ClearanceRef",
+      "type": "object"
+    },
+    "ClearanceReminded": {
+      "additionalProperties": true,
+      "description": "A request still unanswered (H39): after 3 minutes and then every 3 minutes, real time.",
+      "properties": {
+        "clearance_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Clearance Id",
+          "type": "string"
+        },
+        "count": {
+          "description": "Vilken påminnelse i ordningen, från 1.",
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "clearance_id",
+        "count"
+      ],
+      "title": "ClearanceReminded",
       "type": "object"
     },
     "TrainArrived": {
@@ -222,6 +251,12 @@
           "default": null,
           "description": "Spåret tåget kom in på.",
           "title": "Track"
+        },
+        "forward": {
+          "default": false,
+          "description": "Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.",
+          "title": "Forward",
+          "type": "boolean"
         }
       },
       "required": [
@@ -732,6 +767,21 @@
     {
       "properties": {
         "kind": {
+          "const": "clearance.reminded",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ClearanceReminded"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "train.departed",
           "type": "string"
         },
@@ -951,6 +1001,7 @@
               "clearance.requested",
               "clearance.answered",
               "clearance.cancelled",
+              "clearance.reminded",
               "train.departed",
               "train.arrived",
               "train.moved_here",

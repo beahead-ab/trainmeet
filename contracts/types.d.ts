@@ -3747,6 +3747,10 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.ClearanceRef"];
         } | {
             /** @constant */
+            kind: "clearance.reminded";
+            data: components["schemas"]["trainmeet.drift-1.event.ClearanceReminded"];
+        } | {
+            /** @constant */
             kind: "train.departed";
             data: components["schemas"]["trainmeet.drift-1.event.ClearanceRef"];
         } | {
@@ -3870,6 +3874,12 @@ export interface components {
             clearance_id: string;
             /** Approved */
             approved: boolean;
+            /**
+             * Forward
+             * @description Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.
+             * @default false
+             */
+            forward: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3877,6 +3887,21 @@ export interface components {
         "trainmeet.drift-1.event.ClearanceRef": {
             /** Clearance Id */
             clearance_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceReminded
+         * @description A request still unanswered (H39): after 3 minutes and then every 3 minutes, real time.
+         */
+        "trainmeet.drift-1.event.ClearanceReminded": {
+            /** Clearance Id */
+            clearance_id: string;
+            /**
+             * Count
+             * @description Vilken påminnelse i ordningen, från 1.
+             */
+            count: number;
         } & {
             [key: string]: unknown;
         };
@@ -3893,6 +3918,12 @@ export interface components {
              * @default null
              */
             track: string | null;
+            /**
+             * Forward
+             * @description Flyttat fram: ett steg glömdes, och Drift gjorde det i samma händelse.
+             * @default false
+             */
+            forward: boolean;
         } & {
             [key: string]: unknown;
         };

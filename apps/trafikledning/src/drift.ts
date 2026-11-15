@@ -100,9 +100,11 @@ export function actorName(who: Actor | null | undefined, clients: Client[]): str
 
 export function describe(event: DriftEvent): string {
   const data = event.data ?? {};
-  if (event.kind === "clearance.answered") return data["approved"] ? "Klart givet" : "Begäran nekad";
+  const forward = data["forward"] ? ", flyttat fram" : "";
+  if (event.kind === "clearance.answered") return (data["approved"] ? "Klart givet" : "Begäran nekad") + forward;
   if (event.kind === "clock.speed") return `Ny hastighet ${String(data["speed"])}×`;
-  if (event.kind === "train.arrived" && data["track"]) return `Ankomst spår ${String(data["track"])}`;
+  if (event.kind === "clearance.reminded" && data["count"]) return `Påminnelse ${String(data["count"])}, obesvarad begäran`;
+  if (event.kind === "train.arrived") return (data["track"] ? `Ankomst spår ${String(data["track"])}` : "Ankomst") + forward;
   return EVENTS[event.kind] ?? event.kind;
 }
 

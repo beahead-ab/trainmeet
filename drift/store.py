@@ -661,16 +661,19 @@ class PreviewStore:
     # --- The automation (F14) -------------------------------------------------------------
 
     def tick(self, run_id: str) -> None:
-        """One round of the automation, every second or so, while the hub runs."""
+        """One round every second or so while the hub runs: the reminders of unanswered
+        requests (H39), and the automation (F14). Nothing happens while the clock stands."""
         with self._transaction() as db:
             now = now_utc()
             drift = self._load(db, run_id, now)
-            if not drift.automation.enabled or not drift.clock.running:
+            if not drift.clock.running:
                 return
             size = len(drift.history)
             if size >= self.max_actions:
                 raise RunLimit()
-            self.automatik(run_id).tick(drift, now)
+            drift.remind(now)
+            if drift.automation.enabled:
+                self.automatik(run_id).tick(drift, now)
             self._save(db, run_id, drift.history[size:])
 
     def automation(self, run_id: str) -> events.AutomationStatus:

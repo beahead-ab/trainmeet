@@ -33,6 +33,9 @@ group("Klienter and Logg (TRAFIK-04, TRAFIK-07)", () => {
     expect(describe(event("clearance.answered", { approved: false }))).toBe("Begäran nekad");
     expect(describe(event("clock.speed", { speed: 4 }))).toBe("Ny hastighet 4×");
     expect(describe(event("train.arrived", { track: "2" }))).toBe("Ankomst spår 2");
+    expect(describe(event("train.arrived", { track: "2", forward: true }))).toBe("Ankomst spår 2, flyttat fram");
+    expect(describe(event("clearance.answered", { approved: true, forward: true }))).toBe("Klart givet, flyttat fram");
+    expect(describe(event("clearance.reminded", { clearance_id: "c", count: 2 }))).toBe("Påminnelse 2, obesvarad begäran");
     expect(describe(event("something.new"))).toBe("something.new");
     expect(actorName({ kind: "system", id: null }, [])).toBe("Hubben");
     expect(actorName({ kind: "dispatcher", id: null }, [])).toBe("Trafikledningen");

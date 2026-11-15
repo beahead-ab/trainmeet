@@ -25,6 +25,9 @@ export function NuPage(props: NuProps) {
   return now ? <Meet {...props} now={now} /> : <NoMeet {...props} />;
 }
 
+/** An unanswered request is reminded of every third minute (H39, DRIFT-33). */
+export const reminded = (count: number | undefined) => (count ? ` · påmind ${count === 1 ? "en gång" : `${count} gånger`}` : "");
+
 function NoMeet({ admin, choices, asked, onStart }: NuProps) {
   const [choice, setChoice] = useState(asked ?? choices[0]?.value ?? "provbanan:1");
   const [day, setDay] = useState<Weekday>("mon");
@@ -116,10 +119,10 @@ function Meet(props: NuProps & { now: Now }) {
       <ul id="cases" className="lista">
         {now.clearances.length ? (
           now.clearances.map((clearance) => (
-            <li key={clearance.clearance_id}>
+            <li key={clearance.clearance_id} className={clearance.reminders ? "vantar" : undefined}>
               <div className="vem">
                 <b>{`${clearance.train_number} · ${placeCode(now, clearance.from_place)} → ${placeCode(now, clearance.to_place)}`}</b>
-                <span className="liten">{`${clearance.departed ? "På väg" : (CASES[clearance.status] ?? clearance.status)} · begärd ${clearance.requested_at}`}</span>
+                <span className="liten">{`${clearance.departed ? "På väg" : (CASES[clearance.status] ?? clearance.status)} · begärd ${clearance.requested_at}${reminded(clearance.reminders)}`}</span>
               </div>
             </li>
           ))
