@@ -96,6 +96,10 @@ jobs:
           curl -fsSI http://localhost:8080/skarm/ansluten | grep -qi "content-security-policy: default-src 'self'"
           SCRIPT=$(curl -fsS http://localhost:8080/skarm | grep -o '/skarm/assets/[^"]*\.js' | head -1)
           curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Anslut skärmen"
+          curl -fsS http://localhost:8080/box | grep -q "TrainMeet Hub · TMBox"
+          curl -fsS http://localhost:8080/provbanan/box | grep -q "TrainMeet Hub · TMBox"
+          SCRIPT=$(curl -fsS http://localhost:8080/box | grep -o '/box/assets/[^"]*\.js' | head -1)
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Koppla från"
 
       - name: Visa loggen om något gick fel
         if: failure()

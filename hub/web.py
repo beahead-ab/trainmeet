@@ -36,14 +36,18 @@ HEADERS: Final = {
 
 @dataclass(frozen=True)
 class WebApp:
-    """One app: its address and its folder under apps/."""
+    """One app: its addresses and its folder under apps/. The first address is Vite's base."""
 
-    prefix: str
+    prefixes: tuple[str, ...]
     folder: str
     title: str
 
 
-APPS: Final = (WebApp(prefix="/skarm", folder="skarmar", title="Träffens skärmar"),)
+APPS: Final = (
+    WebApp(prefixes=("/skarm",), folder="skarmar", title="Träffens skärmar"),
+    # TMBox web joins the hub's meet on /box and a Provbanan run on /provbanan/box (BOXWEB-10).
+    WebApp(prefixes=("/box", "/provbanan/box"), folder="tmbox-webb", title="TMBox"),
+)
 
 
 def web_dir(app: WebApp, root: Path | None = None) -> Path:
@@ -87,7 +91,8 @@ def _serve(routes: APIRouter, app: WebApp, folder: Path) -> None:
             return HTMLResponse(_not_built(app), headers=HEADERS)
         return FileResponse(index, headers={**HEADERS, "Cache-Control": "no-cache"})
 
-    routes.add_api_route(app.prefix, serve, methods=["GET", "HEAD"], include_in_schema=False)
-    routes.add_api_route(
-        app.prefix + "/{path:path}", serve, methods=["GET", "HEAD"], include_in_schema=False
-    )
+    for prefix in app.prefixes:
+        routes.add_api_route(prefix, serve, methods=["GET", "HEAD"], include_in_schema=False)
+        routes.add_api_route(
+            prefix + "/{path:path}", serve, methods=["GET", "HEAD"], include_in_schema=False
+        )

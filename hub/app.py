@@ -109,7 +109,7 @@ def create_app(
     app.include_router(drift_api.router(running, login))
     app.include_router(planering_api.router(plans, login))
     runs = AnyRun(lambda: running.store, lambda: preview)
-    app.include_router(tmbox_web.router(runs, current))
+    app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))
     app.include_router(screen_web.router(runs))
     # The pages rebuilt in React under apps/ (H62, GRUND-36).
