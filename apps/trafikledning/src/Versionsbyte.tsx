@@ -52,6 +52,20 @@ export function Tillbakadragen({ now }: { now: Now }) {
   );
 }
 
+/** Molnhubben följer Pi:n live (SYNK-04, SYNK-14): another hub leads the meet; this one shows
+ * the same and decides nothing. How long since the leader was heard says if it is still there. */
+export function Följer({ now }: { now: Now }) {
+  if (!now.leader) return null;
+  const { hub_name: name, silent } = now.leader;
+  const heard = silent < 5 ? "hörd nyss" : silent < 120 ? `hörd för ${silent} s sedan` : `hörd för ${Math.round(silent / 60)} min sedan`;
+  return (
+    <section id="leader" className={"kort" + (silent >= 45 ? " varning" : "")} role="status" aria-labelledby="leader-title">
+      <h2 id="leader-title">{`Följer ${name} live`}</h2>
+      <p>{`${name} leder träffen, och den här hubben visar samma läge. Klockan, klareringarna och ändringarna sköts där. ${heard[0]?.toUpperCase()}${heard.slice(1)}.`}</p>
+    </section>
+  );
+}
+
 export function Versionsbyte({ now, pkg, versions, preview, onPreview, onSwitch, onForce, onCallOff }: SwitchProps) {
   const [drop, setDrop] = useState<string[]>([]);
   const waiting = now.switch;

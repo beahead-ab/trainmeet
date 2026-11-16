@@ -337,8 +337,15 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             _error(error)
         if running.withdrawn(running.meet, seen.version):
             seen = seen.model_copy(update={"withdrawn": True})
+        led = running.store.leader(running.store.current())
+        if led is not None:
+            hub_name, heard = led
+            silent = max(0, int((now_utc() - heard).total_seconds()))
+            seen = seen.model_copy(
+                update={"leader": drift.Leader(hub_name=hub_name, heard=heard, silent=silent)}
+            )
         if seen.changes and running.meet != PROVBANAN:
-            answers = running.planning.answers(running.meet)
+            answers = running.answers(running.meet)
             seen = seen.model_copy(
                 update={
                     "changes": [

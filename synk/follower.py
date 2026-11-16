@@ -17,6 +17,7 @@ import logging
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event, Thread
 from typing import Final
@@ -24,11 +25,23 @@ from urllib.parse import quote, urlsplit
 
 from pydantic import ValidationError
 
-from contracts.sync import HEADER, PROTOCOL, Hello, Link, LinkRequest, VersionList
+from contracts.drift import DriftEvent
+from contracts.sync import (
+    HEADER,
+    PROTOCOL,
+    Hello,
+    Link,
+    LinkRequest,
+    RunAck,
+    RunEvents,
+    VersionList,
+)
 from synk.link import LinkError, Links, Reach, TooManyTries, WrongCode
 from synk.store import SyncError, Versions
 
 WAIT: Final = 25.0  # seconds the cloud holds a long-poll
+PUSH: Final = 1.0  # seconds between rounds of drift events up to the cloud
+BATCH: Final = 500  # drift events in one call
 RETRY: Final = (2.0, 5.0, 15.0, 30.0)  # seconds between tries when the cloud does not answer
 LOGGER = logging.getLogger("synk.follower")
 
@@ -38,6 +51,16 @@ Call = Callable[[str, str, Mapping[str, str], bytes | None, float], tuple[int, b
 
 class Unreachable(Exception):
     """The cloud did not answer."""
+
+
+@dataclass(frozen=True)
+class Leading:
+    """The run this hub leads: the meet, the version, the run and the version's checksum."""
+
+    meet: str
+    version: int
+    run: str
+    package: str
 
 
 def urllib_call(
@@ -91,12 +114,17 @@ class Follower:
         versions: Versions,
         hello: Callable[[], Hello],
         call: Call = urllib_call,
+        leading: Callable[[], Leading | None] = lambda: None,
+        events_after: Callable[[str, int], list[DriftEvent]] = lambda run, seq: [],
     ) -> None:
         self.links = links
         self.versions = versions
         self.hello = hello
         self.call = call
+        self.leading = leading
+        self.events_after = events_after
         self._marks: dict[str, str] = {}
+        self._acks: dict[str, int] = {}
 
     def _headers(self, key: str | None = None) -> dict[str, str]:
         headers = {"Content-Type": "application/json", HEADER: PROTOCOL}
@@ -188,11 +216,49 @@ class Follower:
             raise SyncError(f"Version {number} gick inte att hämta ({status}).")
         return data
 
+    # --- Under träffen: Pi:n leder och molnet följer (SYNK-04, DRIFT-12) ---------------------
+
+    def push(self) -> int | None:
+        """The run this hub leads, if its meet is followed from the cloud: the drift events the
+        cloud does not have, in order, from its acknowledgement. The cloud's last seq, or None
+        when there is no such run."""
+        led = self.leading()
+        reach = next((r for r in self.links.reaches() if led and r.meet == led.meet), None)
+        if led is None or reach is None:
+            return None
+        ack = self._acks.get(led.run)
+        while True:
+            sent = [] if ack is None else self.events_after(led.run, ack)[:BATCH]
+            body = RunEvents(version=led.version, package=led.package, run=led.run, events=sent)
+            now = datetime.now(UTC)
+            status, answer = self.call(
+                "POST",
+                f"{reach.address}/api/sync/1/meets/{quote(led.meet, safe='')}/runs",
+                self._headers(reach.key),
+                body.model_dump_json().encode(),
+                30.0,
+            )
+            if status != 200:
+                self.links.heard(
+                    led.meet, now, _detail(answer) or f"Molnhubben tog inte emot läget ({status})."
+                )
+                return ack
+            got = RunAck.model_validate_json(answer)
+            self.links.keep_answers(led.meet, got.answers)
+            self.links.heard(led.meet, now)
+            caught_up = ack is not None and len(sent) < BATCH
+            ack = self._acks[led.run] = got.ack
+            if caught_up:
+                return ack
+
     # --- In the background -------------------------------------------------------------------
 
     def run(self, stop: Event, wait: float = WAIT) -> None:
-        """Follow every meet the Pi is linked to, one thread each, until stop."""
+        """Follow every meet the Pi is linked to, one thread each, and send the run it leads,
+        until stop."""
         threads: dict[str, Thread] = {}
+        pushing = Thread(target=self._push_loop, args=(stop,), name="synk-upp", daemon=True)
+        pushing.start()
         while not stop.is_set():
             for reach in self.links.reaches():
                 if reach.meet not in threads or not threads[reach.meet].is_alive():
@@ -205,6 +271,18 @@ class Follower:
                     threads[reach.meet] = thread
                     thread.start()
             stop.wait(2.0)
+
+    def _push_loop(self, stop: Event) -> None:
+        tries = 0
+        while not stop.wait(PUSH if tries == 0 else RETRY[min(tries, len(RETRY)) - 1]):
+            try:
+                self.push()
+                tries = 0
+            except Unreachable:
+                tries += 1
+            except Exception:
+                LOGGER.exception("Läget kunde inte skickas till molnet")
+                tries = len(RETRY)
 
     def _follow_meet(self, meet: str, stop: Event, wait: float) -> None:
         tries = 0

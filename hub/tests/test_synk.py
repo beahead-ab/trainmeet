@@ -239,3 +239,81 @@ def test_the_address_is_https_except_nearby() -> None:
         check_address("http://test.hub.trainmeet.app")
     with pytest.raises(LinkError, match="adress"):
         check_address("ftp://moln")
+
+
+def started(pi: TestClient, cloud: TestClient) -> TestClient:
+    """The Pi linked, running the meet: it leads (SYNK-14)."""
+    assert link(pi, cloud).status_code == 200
+    assert pi.post(DRIFT + "/start", json={"meet": MEET, "version": 1}).status_code == 201
+    return pi
+
+
+def count(client: TestClient) -> int:
+    running = client.app.state.running  # type: ignore[attr-defined]
+    store = running.mirror(MEET, 1)
+    return len(store.events_after(store.current(), 0))
+
+
+def test_the_cloud_follows_the_pis_run_live(cloud: TestClient, tmp_path: Path) -> None:
+    """Under träffen (SYNK-04, SYNK-14, DRIFT-12): the Pi leads and sends its drift events; the
+    cloud keeps them as they came, shows the same Nu, decides nothing and never ticks."""
+    pi = started(pi_for(cloud, tmp_path), cloud)
+    assert pi.post(DRIFT + "/clock", json={"action": "jump", "time": "08:00"}).status_code == 200
+    ack = follower(pi).push()
+    assert ack == count(pi) > 1
+    # Byt träff in the cloud follows the run the Pi leads; it starts no run of its own.
+    assert cloud.post(DRIFT + "/start", json={"meet": MEET, "version": 1}).status_code == 201
+    up = drift.Now.model_validate(cloud.get(DRIFT + "/now").json())
+    down = drift.Now.model_validate(pi.get(DRIFT + "/now").json())
+    assert (up.clock.time, up.legs, up.version) == (down.clock.time, down.legs, down.version)
+    assert up.leader is not None and up.leader.hub_name == "Pi:n hemma" and down.leader is None
+    refused = cloud.post(DRIFT + "/clock", json={"action": "start"})
+    assert refused.status_code == 409 and "leder träffen" in refused.json()["detail"]
+    from hub.app import tick_once
+
+    tick_once(cloud.app.state.running)  # type: ignore[attr-defined]
+    assert count(cloud) == ack, "the cloud's automation writes nothing into the Pi's run"
+
+
+def test_a_driftandring_on_the_pi_is_a_proposal_in_the_cloud(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    """4.4 over Synk: the change goes up as a proposal, and Ta med comes back down."""
+    pi = started(pi_for(cloud, tmp_path), cloud)
+    package = pi.get(DRIFT + "/package").json()
+    train = package["trains"][0]["id"]
+    made = pi.post(DRIFT + "/changes", json={"change": {"kind": "cancel", "train": train}})
+    assert made.status_code == 200, made.text
+    follower(pi).push()
+    [proposal] = cloud.get(f"{API}/meets/{MEET}/proposals").json()
+    assert proposal["status"] == "waiting"
+    assert cloud.post(f"{API}/meets/{MEET}/proposals/{proposal['id']}/take").status_code == 200
+    follower(pi).push()
+    [change] = drift.Now.model_validate(pi.get(DRIFT + "/now").json()).changes
+    assert change.proposal == drift.ProposalStatus.TAKEN
+
+
+def test_after_a_break_the_pi_goes_on_from_the_clouds_acknowledgement(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    """A Pi that starts again knows nothing of what the cloud has: it asks, and sends the rest,
+    with no gap and nothing twice."""
+    pi = started(pi_for(cloud, tmp_path), cloud)
+    follower(pi).push()
+    for time_of_day in ("07:00", "08:00", "09:00"):
+        assert (
+            pi.post(DRIFT + "/clock", json={"action": "jump", "time": time_of_day}).status_code
+            == 200
+        )
+    again = Follower(
+        follower(pi).links,
+        follower(pi).versions,
+        follower(pi).hello,
+        follower(pi).call,
+        leading=follower(pi).leading,
+        events_after=follower(pi).events_after,
+    )
+    assert again.push() == count(pi) == count(cloud)
+    mirror = cloud.app.state.running.mirror(MEET, 1)  # type: ignore[attr-defined]
+    up = [e.seq for e in mirror.events_after(mirror.current(), 0)]
+    assert up == list(range(1, len(up) + 1))

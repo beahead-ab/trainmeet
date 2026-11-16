@@ -803,6 +803,36 @@
       "title": "LastJump",
       "type": "object"
     },
+    "Leader": {
+      "additionalProperties": true,
+      "description": "Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14).",
+      "properties": {
+        "hub_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Hub Name",
+          "type": "string"
+        },
+        "heard": {
+          "format": "date-time",
+          "title": "Heard",
+          "type": "string"
+        },
+        "silent": {
+          "description": "Sekunder sedan ledaren senast hördes av.",
+          "minimum": 0,
+          "title": "Silent",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hub_name",
+        "heard",
+        "silent"
+      ],
+      "title": "Leader",
+      "type": "object"
+    },
     "LegNow": {
       "additionalProperties": true,
       "description": "One train between two places today, and where it stands.",
@@ -1079,6 +1109,18 @@
           "description": "Versionen som körs är tillbakadragen i Planering (H68).",
           "title": "Withdrawn",
           "type": "boolean"
+        },
+        "leader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Leader"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "En annan hubb leder träffen och den här följer den live (SYNK-14)."
         }
       },
       "required": [

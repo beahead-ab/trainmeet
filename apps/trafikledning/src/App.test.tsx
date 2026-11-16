@@ -28,6 +28,9 @@ describe("Nu, Klienter and Logg (S6)", () => {
     expect(looking).toContain("Trafikdag måndag · dag 1 · klockan står still");
     expect(looking).not.toContain('id="clock-toggle"');
     const running = renderToStaticMarkup(<NuPage admin now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    const following = renderToStaticMarkup(<NuPage admin now={{ ...now, leader: { hub_name: "Pi:n hemma", heard: "2026-11-16T05:00:00Z", silent: 1 } } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(following).toContain("Följer Pi:n hemma live");
+    expect(following).not.toContain('id="clock-controls"');
     expect(running).toContain('id="clock-toggle"');
     expect(running).toContain(">Starta klockan<");
     expect(running).toContain('aria-pressed="true">4×</button>');

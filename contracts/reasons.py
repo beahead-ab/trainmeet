@@ -71,6 +71,8 @@ class Reason(StrEnum):
     NO_SWITCH_WAITING = "no_switch_waiting"
     DRIFT_LOCKED = "drift_locked"
     NOT_LOCKED = "not_locked"
+    # Synk (SYNK-14): the hub follows a meet another hub leads
+    NOT_LEADER = "not_leader"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -123,6 +125,7 @@ TEXT_SV: dict[Reason, str] = {
         "lås upp."
     ),
     Reason.NOT_LOCKED: "Drift är inte spärrad.",
+    Reason.NOT_LEADER: "En annan hubb leder träffen. Den här hubben följer den och ändrar inget.",
     Reason.DAY_STILL_RUNNING: (
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."

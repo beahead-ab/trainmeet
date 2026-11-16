@@ -18,6 +18,7 @@ from typing import Annotated, Any, NoReturn
 from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
 
+from contracts import drift
 from contracts.sync import (
     HEADER,
     PROTOCOL,
@@ -25,10 +26,14 @@ from contracts.sync import (
     Hello,
     Link,
     LinkRequest,
+    RunAck,
+    RunEvents,
     VersionList,
 )
+from drift.engine import Refused
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
+from hub.running import Running
 from planering.store import Planning, PlanningError
 from synk.follower import Follower
 from synk.link import LinkError, Links
@@ -66,6 +71,7 @@ def router(
     versions: Versions,
     links: Links,
     follower: Follower,
+    running: Running,
     login: LocalLogin,
     hello: Callable[[], Hello],
 ) -> APIRouter:
@@ -172,6 +178,44 @@ def router(
             media_type="application/json",
             headers={"Cache-Control": "no-store", "X-Checksum": kept.checksum},
         )
+
+    # --- Under träffen: molnet följer Pi:n live (SYNK-04, SYNK-14, DRIFT-12) -------------------
+
+    @routes.post("/api/sync/1/meets/{meet}/runs")
+    def runs(
+        meet: str,
+        sent: RunEvents,
+        response: Response,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """The Pi's drift events for the run it leads, kept as they came. A driftändring
+        becomes a proposal in Planering here, and the answers go back down (4.4)."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        pi = links.follower(meet, _key(authorization), datetime.now(UTC))
+        if pi is None:
+            raise HTTPException(401, "Molnhubben känner inte den här Pi:n.")
+        try:
+            kept, _ = versions.stored(meet, sent.version)
+        except SyncError as error:
+            _fail(error)
+        if kept.checksum != sent.package:
+            raise HTTPException(409, "Pi:n kör en annan version än den molnhubben har.")
+        store = running.mirror(meet, sent.version)
+        try:
+            ack, taken = store.receive(sent.run, pi.hub_name, sent.events)
+        except Refused as error:
+            raise HTTPException(409, "Molnhubben kör själv den körningen.") from error
+        for event in taken:
+            if event.kind == drift.EventKind.CHANGE_MADE:
+                made = drift.ChangeMade.model_validate(event.data)
+                plans.propose(meet, sent.version, made.change_id, made.change, made.train_number)
+            elif event.kind == drift.EventKind.CHANGE_DROPPED:
+                plans.withdraw(meet, drift.ChangeRef.model_validate(event.data).change_id)
+        if running.meet == meet:
+            running.follow(meet, sent.version)
+        return RunAck(run=sent.run, ack=ack, answers=plans.answers(meet)).model_dump(mode="json")
 
     # --- On the Pi: Den här hubben → Molnet ---------------------------------------------------
 

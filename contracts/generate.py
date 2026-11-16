@@ -113,6 +113,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.sync-1.follower": sync.Follower,
     "trainmeet.sync-1.cloud-link": sync.CloudLink,
     "trainmeet.sync-1.cloud-link-change": sync.CloudLinkChange,
+    "trainmeet.sync-1.run-events": sync.RunEvents,
+    "trainmeet.sync-1.run-ack": sync.RunAck,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,

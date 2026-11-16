@@ -92,8 +92,17 @@ def create_app(
     def hello() -> Hello:
         return Hello(hub_id=links.hub_id(), hub_name=login.state().name, software=info.version)
 
-    # The Pi follows its meets in the cloud (SYNK-10): it always calls out (SYNK-13).
-    follower = Follower(links, versions, hello, sync_call)
+    # The Pi follows its meets in the cloud (SYNK-10) and sends the run it leads up
+    # (DRIFT-12): it always calls out (SYNK-13).
+    follower = Follower(
+        links,
+        versions,
+        hello,
+        sync_call,
+        leading=running.leading,
+        events_after=lambda run, seq: running.store.events_after(run, seq),
+    )
+    running.followed_answers = links.answers
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -124,7 +133,7 @@ def create_app(
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
     app.include_router(planering_api.router(plans, versions, links, login))
-    app.include_router(synk_api.router(plans, versions, links, follower, login, hello))
+    app.include_router(synk_api.router(plans, versions, links, follower, running, login, hello))
     runs = AnyRun(lambda: running.store, lambda: preview)
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))

@@ -354,7 +354,8 @@
         "same_version",
         "no_switch_waiting",
         "drift_locked",
-        "not_locked"
+        "not_locked",
+        "not_leader"
       ],
       "title": "Reason",
       "type": "string"

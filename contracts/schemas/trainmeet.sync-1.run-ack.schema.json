@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.run-ack.schema.json",
+  "title": "trainmeet.sync-1.run-ack",
+  "$defs": {
+    "ProposalStatus": {
+      "description": "Planering's answer to a driftändring (4.4, PLAN-03).",
+      "enum": [
+        "waiting",
+        "taken",
+        "rejected",
+        "withdrawn"
+      ],
+      "title": "ProposalStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4).",
+  "properties": {
+    "run": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Run",
+      "type": "string"
+    },
+    "ack": {
+      "minimum": 0,
+      "title": "Ack",
+      "type": "integer"
+    },
+    "answers": {
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+          "$ref": "#/$defs/ProposalStatus"
+        }
+      },
+      "title": "Answers",
+      "type": "object"
+    }
+  },
+  "required": [
+    "run",
+    "ack"
+  ],
+  "type": "object"
+}
