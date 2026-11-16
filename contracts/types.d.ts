@@ -804,6 +804,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["hubAiService"];
+        put?: never;
+        post: operations["connectAi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets": {
         parameters: {
             query?: never;
@@ -7366,6 +7382,62 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * AiService
+         * @description Egen AI (H58): the service the hub transcribes scanned pages and pictures with. The key
+         *     is never shown again: only that one is set.
+         */
+        "trainmeet.hub-1.ai-service": {
+            format: components["schemas"]["trainmeet.hub-1.ai-service.AiFormat"];
+            /**
+             * Address
+             * @description Tjänstens adress, till exempel https://api.anthropic.com.
+             */
+            address: string;
+            /** Model */
+            model: string;
+            /** Key Set */
+            key_set: boolean;
+            /**
+             * Checked
+             * @description När hubben senast provade att modellen läser bilder (H70).
+             * @default null
+             */
+            checked: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AiFormat
+         * @description Which API the service talks (H59): the ordinary chat API, or Claude's own.
+         * @enum {string}
+         */
+        "trainmeet.hub-1.ai-service.AiFormat": "chat" | "claude";
+        /**
+         * AiServiceChange
+         * @description Koppla in egen AI. The hub checks that the model reads an image before it is saved.
+         */
+        "trainmeet.hub-1.ai-service-change": {
+            format: components["schemas"]["trainmeet.hub-1.ai-service-change.AiFormat"];
+            /** Address */
+            address: string;
+            /** Model */
+            model: string;
+            /**
+             * Key
+             * @description Skickas när den läggs in eller byts; annars står den kvar. Visas aldrig igen.
+             * @default null
+             */
+            key: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AiFormat
+         * @description Which API the service talks (H59): the ordinary chat API, or Claude's own.
+         * @enum {string}
+         */
+        "trainmeet.hub-1.ai-service-change.AiFormat": "chat" | "claude";
+        /**
          * ImportResult
          * @description What an import gives Planering: the package, its facts, rules, questions and report.
          */
@@ -11976,6 +12048,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.session"];
+                };
+            };
+        };
+    };
+    hubAiService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.ai-service"];
+                };
+            };
+        };
+    };
+    connectAi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.ai-service-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.ai-service"];
                 };
             };
         };

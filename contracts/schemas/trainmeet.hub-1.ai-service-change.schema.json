@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.ai-service-change.schema.json",
+  "title": "trainmeet.hub-1.ai-service-change",
+  "$defs": {
+    "AiFormat": {
+      "description": "Which API the service talks (H59): the ordinary chat API, or Claude's own.",
+      "enum": [
+        "chat",
+        "claude"
+      ],
+      "title": "AiFormat",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Koppla in egen AI. The hub checks that the model reads an image before it is saved.",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/AiFormat"
+    },
+    "address": {
+      "maxLength": 300,
+      "minLength": 8,
+      "title": "Address",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "key": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Skickas när den läggs in eller byts; annars står den kvar. Visas aldrig igen.",
+      "title": "Key"
+    }
+  },
+  "required": [
+    "format",
+    "address",
+    "model"
+  ],
+  "type": "object"
+}

@@ -1,9 +1,11 @@
-"""Den här hubben over HTTP: first start, logging in and out, and the admin check the other
-routes use. Pages send the session as an HttpOnly cookie; API clients as Authorization: Bearer.
+"""Den här hubben over HTTP: first start, logging in and out, the admin check the other routes
+use, and the hub's own AI service (H58). Pages send the session as an HttpOnly cookie; API
+clients as Authorization: Bearer.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Request, Response
@@ -11,6 +13,7 @@ from fastapi import APIRouter, Cookie, Header, HTTPException, Request, Response
 from contracts import hub
 from hub.local import (
     SESSION_LIFETIME,
+    AiSetting,
     AlreadySetUp,
     InvalidSetup,
     LocalLogin,
@@ -18,6 +21,7 @@ from hub.local import (
     TooManyAttempts,
     WrongPin,
 )
+from integrationer import ai
 
 COOKIE = "trainmeet_session"
 SessionCookie = Annotated[str | None, Cookie(alias=COOKIE, max_length=120)]
@@ -85,6 +89,49 @@ def router(login: LocalLogin) -> APIRouter:
         _set_cookie(request, response, token)
         return hub.Session(session_key=token).model_dump(mode="json")
 
+    @routes.get("/ai")
+    def ai_service(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Egen AI (H58): what is set, never the key."""
+        response.headers["Cache-Control"] = "no-store"
+        require_admin(login, session, authorization)
+        found = login.ai()
+        if found is None:
+            raise HTTPException(404, "Ingen egen AI är inkopplad.")
+        return _ai_view(found)
+
+    @routes.post("/ai")
+    def connect_ai(
+        change: hub.AiServiceChange,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Koppla in egen AI: the hub checks that the model reads an image (H70), and only then
+        keeps the setting. Without a new key the one set before stays."""
+        response.headers["Cache-Control"] = "no-store"
+        require_admin(login, session, authorization)
+        before = login.ai()
+        key = change.key.strip() if change.key else before.key if before else ""
+        if not key:
+            raise HTTPException(422, "Lägg in nyckeln till AI-tjänsten.")
+        try:
+            address = ai.check_address(change.address)
+            service = ai.Service(change.format.value, address, change.model.strip(), key)
+            ai.probe(service)
+        except ai.AiError as error:
+            raise HTTPException(422, str(error)) from None
+        setting = AiSetting(service.format, service.address, service.model, key, datetime.now(UTC))
+        login.set_ai(setting)
+        return _ai_view(setting)
+
+    @routes.post("/ai/disconnect", status_code=204)
+    def disconnect_ai(session: SessionCookie = None, authorization: Authorization = None) -> None:
+        """Koppla bort: the setting and the key are gone from the hub."""
+        require_admin(login, session, authorization)
+        login.clear_ai()
+
     @routes.post("/logout", status_code=204)
     def log_out(
         response: Response, session: SessionCookie = None, authorization: Authorization = None
@@ -93,6 +140,16 @@ def router(login: LocalLogin) -> APIRouter:
         response.delete_cookie(COOKIE, path="/")
 
     return routes
+
+
+def _ai_view(setting: AiSetting) -> dict[str, Any]:
+    return hub.AiService(
+        format=hub.AiFormat(setting.format),
+        address=setting.address,
+        model=setting.model,
+        key_set=bool(setting.key),
+        checked=setting.checked,
+    ).model_dump(mode="json")
 
 
 def require_admin(login: LocalLogin, cookie: str | None, authorization: str | None) -> None:

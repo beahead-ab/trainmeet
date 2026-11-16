@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.ai-service.schema.json",
+  "title": "trainmeet.hub-1.ai-service",
+  "$defs": {
+    "AiFormat": {
+      "description": "Which API the service talks (H59): the ordinary chat API, or Claude's own.",
+      "enum": [
+        "chat",
+        "claude"
+      ],
+      "title": "AiFormat",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Egen AI (H58): the service the hub transcribes scanned pages and pictures with. The key\nis never shown again: only that one is set.",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/AiFormat"
+    },
+    "address": {
+      "description": "Tjänstens adress, till exempel https://api.anthropic.com.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "key_set": {
+      "title": "Key Set",
+      "type": "boolean"
+    },
+    "checked": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "När hubben senast provade att modellen läser bilder (H70).",
+      "title": "Checked"
+    }
+  },
+  "required": [
+    "format",
+    "address",
+    "model",
+    "key_set"
+  ],
+  "type": "object"
+}

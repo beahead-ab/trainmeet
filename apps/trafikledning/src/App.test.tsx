@@ -174,6 +174,23 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(outside).toContain("<dd>Testhubben</dd>");
   });
 
+  it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
+    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "ai"]);
+    const none = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={null} />);
+    expect(none).toContain("Ingen egen AI är inkopplad");
+    expect(none).toContain('id="ai-connect" type="button" class="primar" disabled=""');
+    expect(none).toContain("Koppla in och prova");
+    expect(none).not.toContain('id="ai-off"');
+    const ai = { format: "claude", address: "https://api.anthropic.com", model: "en-modell", key_set: true, checked: "2026-11-16T03:00:00Z" } as const;
+    const set = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={ai} />);
+    expect(set).toContain("Inkopplad · en-modell");
+    expect(set).toContain('placeholder="Sparad"');
+    expect(set).toContain('id="ai-key" type="password"');
+    expect(set).toContain('id="ai-off"');
+    expect(set).toContain('id="ai-connect" type="button" class="primar">Spara och prova');
+    expect(renderToStaticMarkup(<SettingsPage admin={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />)).toContain("Logga in för att se AI-tjänsten.");
+  });
+
   it("lets the administrator change Automatiken and save it whole, and asks others to log in", () => {
     const html = settings(true, now);
     expect(html).toContain('id="traffen"');

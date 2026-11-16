@@ -1,6 +1,6 @@
 import { DRIFT_TABS, hub, Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type Package, type PlacePhone, type PlanVersion, type SwitchPreview, type SwitchVersion } from "./api";
+import { api, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type Package, type PlacePhone, type PlanVersion, type SwitchPreview, type SwitchVersion } from "./api";
 import type { DriftChange } from "./changes";
 import { SettingsPage } from "./Installningar";
 import { KlienterPage, type ClientAction } from "./Klienter";
@@ -94,6 +94,30 @@ export function App() {
     if (!admin || (page !== "nu" && page !== "logg") || !running) return setPkg(null);
     void api.package().then(setPkg, () => setPkg(null));
   }, [admin, page, running, changeCount, changeState]);
+
+  // Egen AI (H58) under Den här hubben: read under the gear, by the administrator only.
+  const [ai, setAi] = useState<AiService | null | undefined>(undefined);
+  const readAi = useCallback(async () => {
+    try {
+      setAi(await hub.ai());
+    } catch {
+      setAi(null);
+    }
+  }, []);
+  useEffect(() => {
+    if (!admin || page !== "installningar") return setAi(undefined);
+    void readAi();
+  }, [admin, page, readAi]);
+  const onAi = async (change: AiServiceChange) => {
+    const kept = await act(() => hub.connectAi(change));
+    if (kept) say("AI-tjänsten är inkopplad. Modellen läste provbilden.");
+    await readAi();
+    return kept;
+  };
+  const onAiOff = async () => {
+    if (await act(() => hub.disconnectAi())) say("AI-tjänsten är bortkopplad, och nyckeln är borta ur hubben.");
+    await readAi();
+  };
 
   // The numbers are read under the gear only, and only by the administrator (B13).
   useEffect(() => {
@@ -259,7 +283,7 @@ export function App() {
         {page === "logg" && <LoggPage admin={admin} now={now} pkg={pkg} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
-          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} />
+          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} />
         )}
         {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">
