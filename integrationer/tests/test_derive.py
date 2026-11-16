@@ -18,9 +18,16 @@ import pytest
 from contracts.meet import Meet, MeetPackage, PlaceKind, TrackKind, Train
 from contracts.planning import Certainty, ImportResult
 from integrationer import derive, track_picture
-from integrationer.derive import abbreviates
-from integrationer.station_lists import ListError, Lists, read
-from integrationer.tests.test_station_lists import HEADER, lists_zip, odt, plan, rows_for, source
+from integrationer.station_lists import ListError, Lists, abbreviates, read
+from integrationer.tests.test_station_lists import (
+    HEADER,
+    lists_pdf,
+    lists_zip,
+    odt,
+    plan,
+    rows_for,
+    source,
+)
 from integrationer.tests.test_track_picture import AT, picture_pdf
 
 __all__ = ["plan"]
@@ -288,3 +295,24 @@ def test_abbreviations() -> None:
     assert abbreviates("Tve", "Tveiten") and abbreviates("Skh", "Skuggvik havn")
     assert abbreviates("Gdö", "Gårdsjö") and not abbreviates("Gbg", "Gårdsjö")
     assert not abbreviates("Kje", "Kjøllstad") and not abbreviates("Tby", "Tveiten")
+
+
+def test_lists_without_signatures_take_them_from_the_picture(plan: MeetPackage) -> None:
+    """The lists as PDF with only the station's name over the table. Each station takes the
+    signature on the picture that abbreviates its name, one at a time: Ste goes to Steinsnes,
+    which leaves Spn for Spiten, and Elisabeth, which trains run through, cannot be Ela at the
+    end of a spur."""
+    names = {p.code: p.name for p in plan.places}
+    titles = {code: names[code] for code in (*LISTED, "Ste")}
+    found = read(lists_pdf(plan, titles, remote={"Ste": ("Tri",)}), "listor.pdf")
+    picture = track_picture.read(picture_pdf(plan))
+    given = source().model_copy(update={"id": "u-picture", "filename": "Banan.pdf", "level": 2})
+    result = derive.draft(found, meet=plan.meet, source=source(), picture=picture, drawn=given)
+    codes = {p.name: p.code for p in result.package.places}
+    assert {codes[names[code]] for code in (*LISTED, "Ste")} == {*LISTED, "Ste"}
+    assert codes["Elisabeth"] == "Ebh" and codes["Spiten"] == "Spn"
+    assert result.report.notes[0].startswith(
+        "Utkastet är härlett ur 14 stationslistor och banbilden. Banbilden visar 14 av 14 "
+        "sträckor, 9 platser emellan och dubbelspår på 6 sträckor."
+    )
+    assert len(result.package.trains) == 228

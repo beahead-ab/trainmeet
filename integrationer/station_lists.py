@@ -19,6 +19,7 @@ import re
 import zipfile
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import pairwise
 from pathlib import Path, PurePosixPath
 from typing import Final
 from xml.etree import ElementTree as ET
@@ -26,6 +27,7 @@ from xml.etree import ElementTree as ET
 from contracts.common import Weekday
 from contracts.meet import MeetPackage, Train
 from contracts.planning import ImportReport, ImportResult, ListVerdict, Source
+from integrationer import pdf_page
 
 MAX_BYTES: Final = 20 * 1024 * 1024
 MAX_EXPANDED: Final = 100 * 1024 * 1024
@@ -211,6 +213,121 @@ def _csv_tables(data: bytes) -> list[list[list[str]]]:
     ]
 
 
+REMARKS: Final = {"anmärkningar", "bemærkninger", "merknader", "anmerkninger"}
+PRINTED: Final = [
+    "Tåg",
+    "Dagar",
+    "Spår",
+    "Ank",
+    "Från",
+    "Avg",
+    "Till",
+    "M",
+    "Ti",
+    "O",
+    "To",
+    "F",
+    "L",
+]
+
+
+def abbreviates(code: str, name: str) -> bool:
+    """Tve for Tveiten: the signature's letters in the name, in order, from its first."""
+    letters, text = code.casefold(), name.casefold()
+    if not letters or not text.startswith(letters[0]):
+        return False
+    rest = iter(text)
+    return all(letter in rest for letter in letters)
+
+
+def _title(text: str) -> tuple[str, str]:
+    """ "Ste Steinsnes" is Steinsnes with the signature Ste; "Sura by" has no signature."""
+    first, _, rest = text.partition(" ")
+    if rest and len(first) <= 4 and first[:1].isupper() and abbreviates(first, rest):
+        return rest.strip(), first
+    return text, ""
+
+
+def _pdf_tables(data: bytes, name: str) -> list[tuple[str, str, list[list[str]]]]:
+    """The planning program's station lists as PDF, read from the text layer: a list per
+    station, its name in large letters above the table. A long list goes on over the next
+    page without heading or table head. Ported from the old Cloud (dispatch_import.pdf_records):
+    the columns are where the table head's words stand, and each row begins on a line with
+    days; the day boxes are drawn, so Dagar carries the days."""
+    try:
+        read = pdf_page.pages(data)
+    except pdf_page.PdfError as error:
+        raise ListError(str(error)) from error
+    out: list[tuple[str, str, list[list[str]]]] = []
+    bounds: list[float] = []
+    for page in read:
+        words = page.words
+        head = next((w for w in words if header_key(w.text) in REMARKS), None)
+        heights = sorted(w.bottom - w.top for w in words)
+        titled = bool(heights) and heights[-1] > 1.5 * heights[len(heights) // 2]
+        where = f"{name}, sida {page.number}"
+        if head is None:
+            if not out or titled:
+                raise ListError(
+                    f"{where}: ingen stationslista med Tåg, Dagar, Spår, Ank och Avg, och inte "
+                    "heller en banbild med sidan Topologi."
+                )
+            top = 0.0
+        else:
+            labels = {header_key(w.text): w.x0 for w in words if abs(w.top - head.top) < 2}
+
+            def x(*keys: str, labels: dict[str, float] = labels, where: str = where) -> float:
+                found = next((labels[k] for k in keys if k in labels), None)
+                if found is None:
+                    raise ListError(f"{where}: tabellhuvudet saknar {keys[0].capitalize()}.")
+                return found
+
+            bounds = [
+                x("tåg", "tog") - 2,
+                x("dagar", "dage", "dager") - 2,
+                x("spår", "spor") - 2,
+                x("ank") - 12,
+                x("från", "fra") - 2,
+                x("avg", "afg") - 12,
+                x("till", "til") - 2,
+                x("m") - 2,
+                head.x0 - 2,
+                page.width,
+            ]
+            above = [w for w in words if w.bottom <= head.top]
+            tallest = max((w.bottom - w.top for w in above), default=0.0)
+            heading = sorted(
+                (w for w in above if w.bottom - w.top >= tallest * 0.85), key=lambda w: w.x0
+            )
+            text = re.split(r"\d{1,2}:\d{2}", " ".join(w.text for w in heading))[0].strip()
+            # "Steinsnes + Triangeln": the dispatcher at Steinsnes runs Triangeln as well.
+            text = re.split(r"\s+\+\s+", text)[0].strip()
+            if not text:
+                raise ListError(f"{where}: stationens namn saknas över tabellen.")
+            station, code = _title(text)
+            out.append((station, code, [[*PRINTED, "Anmärkningar"]]))
+            top = head.top + 5
+        # A row begins where Dagar has a value: a long train label may go on to a second line.
+        tops = sorted({w.top for w in words if bounds[1] <= w.x0 < bounds[2] and w.top > top})
+        anchors: list[float] = []
+        for y in tops:
+            if not anchors or y - anchors[-1] > 2:
+                anchors.append(y)
+        for index, y in enumerate(anchors):
+            end = anchors[index + 1] - 1 if index + 1 < len(anchors) else page.height
+            cells = []
+            for low, high in pairwise(bounds):
+                chosen = sorted(
+                    (w for w in words if y - 1 <= w.top < end and low <= w.x0 < high),
+                    key=lambda w: (round(w.top / 2), w.x0),
+                )
+                cells.append(" ".join(w.text for w in chosen))
+            out[-1][2].append([*cells[:7], *[""] * 6, cells[8]])
+    if not out:
+        raise ListError(f"{name}: ingen stationslista med Tåg, Dagar, Spår, Ank och Avg.")
+    return out
+
+
 def _station(name: str) -> tuple[str, str]:
     """ "Lek Lekby.odt" is the list for Lekby, with the signature Lek."""
     heading = Path(name).stem
@@ -234,15 +351,20 @@ def parse_days(text: str) -> set[int] | None:
 
 
 def _time(text: str) -> str | None:
-    match = TIME.match(text.strip())
+    match = TIME.match(re.sub(r"\s+", "", text))  # "(02:24 )": a bracket on its own line
     if not match:
         return None
     hour, minute = int(match[1]), int(match[2])
     return f"{hour % 24:02d}:{minute:02d}"
 
 
-def _rows(name: str, tables: list[list[list[str]]], found: Lists) -> None:
-    station, code = _station(name)
+def _rows(
+    name: str,
+    tables: list[list[list[str]]],
+    found: Lists,
+    station_code: tuple[str, str] | None = None,
+) -> None:
+    station, code = station_code or _station(name)
     read = False
     for table in tables:
         if not table or len(table[0]) < 7:
@@ -295,7 +417,8 @@ def _rows(name: str, tables: list[list[list[str]]], found: Lists) -> None:
 
 
 def read(data: bytes, name: str) -> Lists:
-    """The station lists in the file: one ODT, a ZIP of ODT lists, Excel or CSV."""
+    """The station lists in the file: one ODT, a ZIP of ODT lists, Excel, CSV, or the planning
+    program's PDF with a text layer."""
     if len(data) > MAX_BYTES:
         raise ListError("Filen är större än 20 MB.")
     suffix = Path(name).suffix.casefold()
@@ -306,18 +429,28 @@ def read(data: bytes, name: str) -> Lists:
         elif suffix == ".zip":
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 members = _members(archive)
-                lists = [m for m in members if member_name(m).casefold().endswith(".odt")]
+                lists = [m for m in members if member_name(m).casefold().endswith((".odt", ".pdf"))]
                 if not lists:
-                    raise ListError("ZIP-filen har inga stationslistor i ODT.")
+                    raise ListError("ZIP-filen har inga stationslistor i ODT eller PDF.")
                 for item in lists:
-                    _rows(Path(member_name(item)).name, _odt_tables(archive.read(item)), found)
+                    member = Path(member_name(item)).name
+                    if member.casefold().endswith(".pdf"):
+                        for station, code, table in _pdf_tables(archive.read(item), member):
+                            _rows(f"{member} · {station}", [table], found, (station, code))
+                    else:
+                        _rows(member, _odt_tables(archive.read(item)), found)
                 for item in members:
                     if item not in lists:
-                        found.left_out.append(f"{member_name(item)}: inte en stationslista i ODT.")
+                        found.left_out.append(
+                            f"{member_name(item)}: inte en stationslista i ODT eller PDF."
+                        )
         elif suffix == ".xlsx":
             _rows(name, _xlsx_tables(data), found)
         elif suffix == ".csv":
             _rows(name, _csv_tables(data), found)
+        elif suffix == ".pdf":
+            for station, code, table in _pdf_tables(data, name):
+                _rows(f"{name} · {station}", [table], found, (station, code))
         else:
             raise ListError("Filen är inte stationslistor i ODT, ZIP, Excel eller CSV.")
     except (zipfile.BadZipFile, KeyError, ET.ParseError) as error:

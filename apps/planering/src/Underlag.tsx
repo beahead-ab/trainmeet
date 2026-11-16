@@ -10,6 +10,8 @@ import { LEVELS, describePreview, plural } from "./data";
 
 type Read = { name: string; state: "reading" } | { name: string; state: "read"; preview: ImportPreview } | { name: string; state: "failed" };
 
+const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD" };
+
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
   const verdicts = report.verdicts ?? [];
@@ -88,12 +90,12 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
           >
             <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv,.pdf,application/pdf" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
             <b>Släpp filen här</b>
-            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel eller CSV) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan.</span>
+            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan.</span>
           </label>
           {read && (
             <ul id="files" className="filer">
               <li>
-                <span className="kalla">{/\.(odt|zip|xlsx|csv)$/i.test(read.name) ? "ST" : /\.pdf$/i.test(read.name) ? "BILD" : "JSON"}</span>
+                <span className="kalla">{read.state === "read" ? TAG[read.preview.source.kind] : /\.(odt|zip|xlsx|csv|pdf)$/i.test(read.name) ? "ST" : "JSON"}</span>
                 <div>
                   <b>{read.name}</b>
                   <div className="liten">{preview ? readLine(preview) : "Tellurians plan"}</div>

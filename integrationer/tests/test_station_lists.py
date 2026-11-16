@@ -21,6 +21,7 @@ from contracts.meet import Meet, MeetPackage
 from contracts.planning import Source, SourceKind
 from integrationer import planning_json, station_lists
 from integrationer.station_lists import ListError, check, member_name, parse_days, read, verdicts
+from integrationer.tests.pdf_writer import Sheet, pdf
 
 FIXTURE = Path(__file__).parent / "fixtures" / "varnamo.json.gz"
 SHORT = {"mon": "M", "tue": "Ti", "wed": "O", "thu": "To", "fri": "F", "sat": "L", "sun": "S"}
@@ -227,6 +228,8 @@ def test_what_is_not_a_list_is_refused_or_left_out() -> None:
             archive.writestr("content.xml", '<!DOCTYPE x [<!ENTITY a "b">]><x/>')
         read(stream.getvalue(), "Lek Lekby.odt")
     with pytest.raises(ListError, match="inte stationslistor"):
+        read(b"x", "Banan.docx")
+    with pytest.raises(ListError, match="inte en PDF"):
         read(b"x", "Banan.pdf")
     rows = [
         HEADER,
@@ -241,3 +244,77 @@ def test_a_name_without_the_utf8_flag_is_read_as_written() -> None:
     info = zipfile.ZipInfo("Mkd Munkerød.odt".encode().decode("cp437"))
     assert member_name(info) == "Mkd Munkerød.odt"
     assert station_lists.is_lists("Lek Lekby.ODT") and not station_lists.is_lists("plan.json")
+
+
+# Where the planning program puts the table head in its PDF, in points from the left.
+PRINTED = [("Tåg", 31), ("Dagar", 110), ("Spår", 151), ("Ank", 182), ("Från", 209),
+           ("Avg", 315), ("Till", 342), ("M", 439), ("Ti", 451), ("O", 462), ("To", 473),
+           ("F", 485), ("L", 497), ("Anmärkningar", 507)]  # fmt: skip
+COLUMNS = (31, 110, 156, 182, 209, 310, 342, 507)
+
+
+def lists_pdf(
+    plan: MeetPackage,
+    titles: dict[str, str],
+    per_page: int = 30,
+    remote: dict[str, tuple[str, ...]] | None = None,
+) -> bytes:
+    """The lists as the planning program prints them: the station in large letters, the table
+    head, and a long list going on over the next page without either."""
+    sheets = []
+    for code, title in titles.items():
+        rows = rows_for(plan, code, remote=(remote or {}).get(code, ()))[1:]
+        for start in range(0, len(rows), per_page):
+            sheet = Sheet()
+            y = 40.0
+            if start == 0:
+                sheet.text(28, 40, title, 20).text(250, 40, "00:00-23:59", 20)
+                for text, x in PRINTED:
+                    sheet.text(x, 70, text, 8)
+                y = 90
+            for row in rows[start : start + per_page]:
+                for text, x in zip([*row[:7], row[13]], COLUMNS, strict=True):
+                    if text:
+                        sheet.text(x, y, text, 8)
+                y += 13
+            sheets.append(sheet)
+    return pdf(*sheets)
+
+
+def test_the_lists_as_pdf_are_read_from_the_text_layer(plan: MeetPackage) -> None:
+    data = lists_pdf(plan, {"Lek": "Lek Lekby", "Mkd": "Mkd Munkerød", "R": "Rotebro"})
+    found = read(data, "Stationslistor.pdf")
+    assert sorted(found.rows) == [
+        "Stationslistor.pdf · Lekby",
+        "Stationslistor.pdf · Munkerød",
+        "Stationslistor.pdf · Rotebro",
+    ]
+    assert {r.code for r in found.rows["Stationslistor.pdf · Munkerød"]} == {"Mkd"}
+    assert {r.code for r in found.rows["Stationslistor.pdf · Rotebro"]} == {""}, "no signature"
+    assert len(found.rows["Stationslistor.pdf · Munkerød"]) > 60, "over four pages"
+    judged = verdicts(found, plan)
+    assert len(judged) == 3 and all(v.place and not v.differences for v in judged)
+    assert all(v.agreeing == v.rows > 20 for v in judged)
+    passing = [r for r in found.rows["Stationslistor.pdf · Lekby"] if not r.stops]
+    assert passing and not hasattr(passing[0], "note")
+
+
+def test_a_zip_of_lists_as_pdf(plan: MeetPackage) -> None:
+    data = lists_zip({"Lek Lekby.pdf": lists_pdf(plan, {"Lek": "Lek Lekby"}), "x.txt": b"x"})
+    found = read(data, "listor.zip")
+    assert list(found.rows) == ["Lek Lekby.pdf · Lekby"]
+    assert found.left_out == ["x.txt: inte en stationslista i ODT eller PDF."]
+    [verdict] = verdicts(found, plan)
+    assert verdict.agreeing == verdict.rows > 20
+
+
+def test_a_pdf_that_is_not_lists_is_refused(plan: MeetPackage) -> None:
+    with pytest.raises(ListError, match="inte heller en banbild"):
+        read(
+            pdf(Sheet().text(42, 40, "Program", 20).text(42, 80, "09:00 Klockan startas")), "p.pdf"
+        )
+    head = Sheet().text(28, 40, "Lekby", 20)
+    for text, x in PRINTED[:3] + PRINTED[-1:]:
+        head.text(x, 70, text, 8)
+    with pytest.raises(ListError, match="tabellhuvudet saknar Ank"):
+        read(pdf(head), "Lekby.pdf")

@@ -109,17 +109,17 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             raise HTTPException(
                 415,
                 "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON), "
-                "stationslistorna (ODT, ZIP, Excel eller CSV) eller banbilden (PDF).",
+                "stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden (PDF).",
             )
         try:
             current = store.draft(meet)
         except PlanningError as error:
             _fail(error)
         digest = hashlib.sha256(data).hexdigest()
-        if lists:
-            return _lists(meet, name, data, current, digest)
-        if drawn:
+        if drawn and track_picture.is_picture(data):
             return _picture(meet, name, data, current, digest)
+        if lists or drawn:
+            return _lists(meet, name, data, current, digest)
         source = planning.Source(
             id=f"u-{digest[:12]}",
             kind=planning.SourceKind.PLANNING_JSON,
