@@ -66,6 +66,9 @@ export const hub = {
   cloud: () => call<CloudLink[]>("/api/hub/cloud"),
   connectCloud: (change: CloudLinkChange) => call<CloudLink[]>("/api/hub/cloud", change),
   disconnectCloud: (meet: string) => call<CloudLink[]>(`/api/hub/cloud/${encodeURIComponent(meet)}/disconnect`, {}),
+  // Träffens hem (H35): to the Pi before the meet, back to the cloud after.
+  takeHome: (meet: string) => call<CloudLink[]>(`/api/hub/cloud/${encodeURIComponent(meet)}/take`, {}),
+  handBack: (meet: string) => call<CloudLink[]>(`/api/hub/cloud/${encodeURIComponent(meet)}/back`, {}),
   /** Nu, open to everyone who looks; null when no meet is started. */
   now: async (): Promise<Now | null> => {
     try {

@@ -34,8 +34,10 @@ from contracts.sync import (
     LinkRequest,
     RunAck,
     RunEvents,
+    SentVersion,
     VersionList,
 )
+from synk.home import Homes
 from synk.link import LinkError, Links, Reach, TooManyTries, WrongCode
 from synk.store import SyncError, Versions
 
@@ -116,6 +118,7 @@ class Follower:
         call: Call = urllib_call,
         leading: Callable[[], Leading | None] = lambda: None,
         events_after: Callable[[str, int], list[DriftEvent]] = lambda run, seq: [],
+        homes: Homes | None = None,
     ) -> None:
         self.links = links
         self.versions = versions
@@ -123,6 +126,7 @@ class Follower:
         self.call = call
         self.leading = leading
         self.events_after = events_after
+        self.homes = homes
         self._marks: dict[str, str] = {}
         self._acks: dict[str, int] = {}
 
@@ -186,6 +190,8 @@ class Follower:
             self.links.heard(reach.meet, now, f"Molnhubben svarade med fel {status}.")
             return False
         listed = VersionList.model_validate_json(answer)
+        if self._home_here(reach, listed):
+            return self._send_versions(reach, listed, now)
         changed = False
         for version in listed.versions:
             try:
@@ -197,6 +203,74 @@ class Follower:
         self._marks[reach.meet] = listed.mark
         self.links.heard(reach.meet, now)
         return changed
+
+    def _home_here(self, reach: Reach, listed: VersionList) -> bool:
+        """Is this hub the meet's home (H35)? The cloud's word counts when it has moved the home
+        since (Ta tillbaka hem)."""
+        if self.homes is None:
+            return False
+        hello = self.hello()
+        mine = self.homes.home(reach.meet, hello.hub_id, hello.hub_name)
+        told = listed.home
+        if told is not None and told.generation > mine.generation:
+            self.homes.move(reach.meet, told.hub_id, told.hub_name, told.generation)
+            return told.hub_id == hello.hub_id
+        return mine.here and mine.generation > 0
+
+    def _send_versions(self, reach: Reach, listed: VersionList, now: datetime) -> bool:
+        """This hub is the home: the versions it published that the cloud lacks go up, and so
+        does a withdrawal (SYNK-10)."""
+        assert self.homes is not None
+        hello = self.hello()
+        generation = self.homes.home(reach.meet, hello.hub_id, hello.hub_name).generation
+        there = {v.number: v for v in listed.versions}
+        sent = False
+        for version in self.versions.versions(reach.meet):
+            known = there.get(version.number)
+            if known is not None and (known.withdrawn is not None or version.withdrawn is None):
+                continue
+            _, data = self.versions.stored(reach.meet, version.number)
+            body = SentVersion(generation=generation, version=version, package=data.decode())
+            status, answer = self.call(
+                "POST",
+                f"{reach.address}/api/sync/1/meets/{quote(reach.meet, safe='')}/versions",
+                self._headers(reach.key),
+                body.model_dump_json().encode(),
+                60.0,
+            )
+            if status != 200:
+                problem = _detail(answer) or f"Molnhubben tog inte emot versionen ({status})."
+                self.links.heard(reach.meet, now, problem)
+                return sent
+            sent = True
+        self._marks.pop(reach.meet, None)  # the cloud's list changed: ask again at once
+        self.links.heard(reach.meet, now)
+        return sent
+
+    def nudge(self, meet: str) -> None:
+        """A version was published or withdrawn here: one round at once, in the background, so
+        that the cloud has it within a second rather than after the long-poll."""
+        reach = next((r for r in self.links.reaches() if r.meet == meet), None)
+        if reach is not None:
+            Thread(target=self._quietly, args=(reach,), name="synk-nu", daemon=True).start()
+
+    def _quietly(self, reach: Reach) -> None:
+        try:
+            self.follow(reach, wait=0)
+        except Exception:
+            LOGGER.exception("Versionen kunde inte skickas till molnet")
+
+    def send(self, meet: str, path: str, body: bytes) -> tuple[int, bytes]:
+        """A call to the cloud about a meet the Pi follows, with its key. Raises LinkError."""
+        reach = next((r for r in self.links.reaches() if r.meet == meet), None)
+        if reach is None:
+            raise LinkError("Pi:n följer inte den träffen.")
+        try:
+            return self.call(
+                "POST", f"{reach.address}{path}", self._headers(reach.key), body, 120.0
+            )
+        except Unreachable as error:
+            raise LinkError("Molnhubben svarar inte.") from error
 
     def _bytes(self, reach: Reach, number: int) -> bytes:
         """The version's bytes: kept here already, or fetched from the cloud."""

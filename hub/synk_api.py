@@ -9,7 +9,10 @@ sees the meets the Pi follows. The key is never shown or logged.
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import hashlib
+import json
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -24,18 +27,24 @@ from contracts.sync import (
     PROTOCOL,
     CloudLinkChange,
     Hello,
+    Home,
+    HomeBundle,
     Link,
     LinkRequest,
     RunAck,
     RunEvents,
+    SentVersion,
+    SourceFile,
     VersionList,
 )
+from contracts.sync import Follower as FollowerInfo
 from drift.engine import Refused
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
 from hub.running import Running
 from planering.store import Planning, PlanningError
 from synk.follower import Follower
+from synk.home import Homes
 from synk.link import LinkError, Links
 from synk.store import SyncError, Versions
 
@@ -72,10 +81,34 @@ def router(
     links: Links,
     follower: Follower,
     running: Running,
+    homes: Homes,
     login: LocalLogin,
     hello: Callable[[], Hello],
 ) -> APIRouter:
     routes = APIRouter()
+
+    def home(meet: str) -> Home:
+        me = hello()
+        return homes.home(meet, me.hub_id, me.hub_name)
+
+    def bundle(meet: str, generation: int) -> HomeBundle:
+        """What moves with the home: the draft, the sources and the proposals (H35)."""
+        created, draft, files, proposals = plans.export(meet)
+        return HomeBundle(
+            meet=meet,
+            generation=generation,
+            created=created,
+            draft=draft,
+            sources=[SourceFile(id=s, data=base64.b64encode(b).decode()) for s, b in files],
+            proposals=proposals,
+        )
+
+    def adopt(given: HomeBundle) -> None:
+        try:
+            files = [(f.id, base64.b64decode(f.data, validate=True)) for f in given.sources]
+        except (binascii.Error, ValueError) as error:
+            raise HTTPException(422, "Underlagen i flytten gick inte att läsa.") from error
+        plans.adopt(given.created, given.draft, files, given.proposals)
 
     def admin(session: str | None, authorization: str | None) -> None:
         require_admin(login, session, authorization)
@@ -97,9 +130,11 @@ def router(
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            plans.draft(meet)  # the meet's home is this hub
+            plans.draft(meet)
         except PlanningError as error:
             _fail(error)
+        if not home(meet).here:
+            raise HTTPException(409, f"Träffens hem är {home(meet).hub_name}. Koppla Pi:n där.")
         return links.new_code(meet, datetime.now(UTC)).model_dump(mode="json")
 
     @routes.get("/api/sync/1/meets/{meet}/followers")
@@ -156,7 +191,13 @@ def router(
         except PlanningError as error:
             _fail(error)
         return VersionList.model_validate(
-            {"meet": meet, "meet_name": name, "versions": found, "mark": now_mark}
+            {
+                "meet": meet,
+                "meet_name": name,
+                "versions": found,
+                "mark": now_mark,
+                "home": await run_in_threadpool(home, meet),
+            }
         ).model_dump(mode="json")
 
     @routes.get("/api/sync/1/meets/{meet}/versions/{number}")
@@ -207,7 +248,7 @@ def router(
             ack, taken = store.receive(sent.run, pi.hub_name, sent.events)
         except Refused as error:
             raise HTTPException(409, "Molnhubben kör själv den körningen.") from error
-        for event in taken:
+        for event in taken if home(meet).here else []:
             if event.kind == drift.EventKind.CHANGE_MADE:
                 made = drift.ChangeMade.model_validate(event.data)
                 plans.propose(meet, sent.version, made.change_id, made.change, made.train_number)
@@ -217,11 +258,114 @@ def router(
             running.follow(meet, sent.version)
         return RunAck(run=sent.run, ack=ack, answers=plans.answers(meet)).model_dump(mode="json")
 
+    # --- Träffens hem (H35, SYNK-03, SYNK-16) -------------------------------------------------
+
+    def pi(meet: str, authorization: str | None) -> FollowerInfo:
+        found = links.follower(meet, _key(authorization), datetime.now(UTC))
+        if found is None:
+            raise HTTPException(401, "Molnhubben känner inte den här Pi:n.")
+        return found
+
+    @routes.get("/api/sync/1/meets/{meet}/home")
+    def where(meet: str, response: Response) -> dict[str, Any]:
+        """Var träffens hem är, för den som tittar."""
+        response.headers["Cache-Control"] = "no-store"
+        return home(meet).model_dump(mode="json")
+
+    @routes.post("/api/sync/1/meets/{meet}/home/take")
+    def take(
+        meet: str,
+        response: Response,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """Ta hem träffen till Pi:n: the home moves at once, and the Pi gets what moves with it.
+        Asked again by the same Pi, it gets the same, so a move cut off half way is done again."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        asking = pi(meet, authorization)
+        now = home(meet)
+        if not now.here and now.hub_id != asking.hub_id:
+            raise HTTPException(409, f"Träffens hem är {now.hub_name}.")
+        generation = now.generation if now.hub_id == asking.hub_id else now.generation + 1
+        try:
+            moving = bundle(meet, generation)
+        except PlanningError as error:
+            _fail(error)
+        homes.move(meet, asking.hub_id, asking.hub_name, generation)
+        return moving.model_dump(mode="json")
+
+    @routes.post("/api/sync/1/meets/{meet}/home/back")
+    def back(
+        meet: str,
+        given: HomeBundle,
+        response: Response,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """Lämna tillbaka: the Pi hands the meet back, with what it changed."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        asking = pi(meet, authorization)
+        now = home(meet)
+        if now.hub_id != asking.hub_id or given.generation != now.generation:
+            raise HTTPException(409, f"Träffens hem är {now.hub_name}.")
+        adopt(given)
+        me = hello()
+        homes.move(meet, me.hub_id, me.hub_name, now.generation + 1)
+        return home(meet).model_dump(mode="json")
+
+    @routes.post("/api/sync/1/meets/{meet}/versions")
+    def sent(
+        meet: str,
+        given: SentVersion,
+        response: Response,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """A version the home published, here to be followed (SYNK-10). Only from the home."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        asking = pi(meet, authorization)
+        now = home(meet)
+        if now.hub_id != asking.hub_id or given.generation != now.generation:
+            raise HTTPException(409, f"Träffens hem är {now.hub_name}.")
+        if given.version.meet != meet:
+            raise HTTPException(409, "Versionen hör till en annan träff.")
+        try:
+            versions.receive(given.version, given.package.encode())
+        except SyncError as error:
+            _fail(error)
+        return given.version.model_dump(mode="json")
+
+    @routes.post("/api/sync/1/meets/{meet}/home/reclaim")
+    def reclaim(
+        meet: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Ta tillbaka hem hit, when the Pi that has it is gone: what it changed and never
+        handed back stays there."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        now = home(meet)
+        if now.here:
+            raise HTTPException(409, "Träffens hem är redan här.")
+        me = hello()
+        homes.move(meet, me.hub_id, me.hub_name, now.generation + 1)
+        return home(meet).model_dump(mode="json")
+
     # --- On the Pi: Den här hubben → Molnet ---------------------------------------------------
 
     def clouds() -> list[dict[str, Any]]:
         counts = {meet: len(found) for meet, found in versions.meets().items()}
-        return [c.model_dump(mode="json") for c in links.clouds(counts)]
+        return [
+            c.model_copy(
+                update={"home_here": home(c.meet).here and home(c.meet).generation > 0}
+            ).model_dump(mode="json")
+            for c in links.clouds(counts)
+        ]
 
     @routes.get("/api/hub/cloud")
     def cloud(
@@ -262,4 +406,65 @@ def router(
             raise HTTPException(404, "Pi:n följer inte den träffen.")
         return clouds()
 
+    @routes.post("/api/hub/cloud/{meet}/take")
+    def take_home(
+        meet: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> list[dict[str, Any]]:
+        """Ta hem träffen hit (H35): the Pi becomes the meet's home before the meet."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            status, answer = follower.send(meet, f"/api/sync/1/meets/{meet}/home/take", b"{}")
+        except LinkError as error:
+            _fail(error)
+        if status != 200:
+            raise HTTPException(409, _said(answer) or "Molnhubben lämnade inte över träffen.")
+        given = HomeBundle.model_validate_json(answer)
+        adopt(given)
+        me = hello()
+        homes.move(meet, me.hub_id, me.hub_name, given.generation)
+        return clouds()
+
+    @routes.post("/api/hub/cloud/{meet}/back")
+    def hand_back(
+        meet: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> list[dict[str, Any]]:
+        """Lämna tillbaka till molnet: after the meet, with what was changed here."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        now = home(meet)
+        if not now.here or now.generation == 0:
+            raise HTTPException(409, "Träffens hem är inte här.")
+        # The versions published here go up first, so nothing is left behind.
+        reach = next((r for r in links.reaches() if r.meet == meet), None)
+        if reach is not None:
+            try:
+                follower.follow(reach, wait=0)
+            except Exception as error:
+                raise HTTPException(409, "Molnhubben svarar inte. Försök igen.") from error
+        try:
+            body = bundle(meet, now.generation).model_dump_json().encode()
+            status, answer = follower.send(meet, f"/api/sync/1/meets/{meet}/home/back", body)
+        except (LinkError, PlanningError) as error:
+            _fail(error)
+        if status != 200:
+            raise HTTPException(409, _said(answer) or "Molnhubben tog inte emot träffen.")
+        moved = Home.model_validate_json(answer)
+        homes.move(meet, moved.hub_id, moved.hub_name, moved.generation)
+        return clouds()
+
     return routes
+
+
+def _said(answer: bytes) -> str | None:
+    try:
+        detail = json.loads(answer).get("detail")
+    except (ValueError, AttributeError):
+        return None
+    return detail if isinstance(detail, str) else None

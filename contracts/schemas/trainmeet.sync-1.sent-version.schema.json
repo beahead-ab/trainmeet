@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.sent-version.schema.json",
+  "title": "trainmeet.sync-1.sent-version",
+  "$defs": {
+    "Version": {
+      "additionalProperties": true,
+      "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+      "properties": {
+        "meet": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "published": {
+          "format": "date-time",
+          "title": "Published",
+          "type": "string"
+        },
+        "checksum": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Checksum",
+          "type": "string"
+        },
+        "conflicts": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Conflicts",
+          "type": "integer"
+        },
+        "observations": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Observations",
+          "type": "integer"
+        },
+        "withdrawn": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+          "title": "Withdrawn"
+        }
+      },
+      "required": [
+        "meet",
+        "number",
+        "published",
+        "checksum"
+      ],
+      "title": "Version",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "En version som Pi:n publicerade som hem, upp till molnet: info och byten (SYNK-10).",
+  "properties": {
+    "generation": {
+      "minimum": 1,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    },
+    "package": {
+      "description": "Paketet som det publicerades, som JSON-text.",
+      "title": "Package",
+      "type": "string"
+    }
+  },
+  "required": [
+    "generation",
+    "version",
+    "package"
+  ],
+  "type": "object"
+}

@@ -13,4 +13,13 @@ describe("Koppla en Pi (SYNK-02)", () => {
     expect(looking).toContain("Ingen Pi följer träffen än.");
     expect(looking).not.toContain("Koppla en Pi</button>");
   });
+
+  it("says where the meet's home is when it is on the Pi, and offers to take it back (H35)", () => {
+    const home = { meet: "varnamo", hub_id: "hub-1a2b3c", hub_name: "Låtsas-Pi", here: false, generation: 1, since: null };
+    const away = renderToStaticMarkup(<KopplaPi admin meet="varnamo" initial={[]} initialHome={home} />);
+    expect(away).toContain("Träffens hem är Låtsas-Pi");
+    expect(away).toContain("Här kan du titta, inte ändra.");
+    expect(away).toContain("Ta tillbaka hem hit …");
+    expect(away).not.toContain("Koppla en Pi");
+  });
 });

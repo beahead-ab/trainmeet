@@ -16,7 +16,7 @@ from pydantic import Field
 
 from contracts.common import Contract, Id, Text
 from contracts.drift import DriftEvent, ProposalStatus
-from contracts.planning import Version
+from contracts.planning import Draft, Proposal, Version
 
 PROTOCOL: Final = "trainmeet.sync/1"
 HEADER: Final = "TrainMeet-Sync"  # the protocol each call speaks
@@ -54,6 +54,18 @@ class Link(Contract):
     hello: Hello = Field(description="Molnets hälsning.")
 
 
+class Home(Contract):
+    """Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den
+    andra hubben följer och ändrar inget i Planering."""
+
+    meet: Id
+    hub_id: Id
+    hub_name: Text
+    here: bool = Field(description="Är hemmet den här hubben?")
+    generation: int = Field(default=0, ge=0, description="Räknas upp varje gång hemmet flyttas.")
+    since: datetime | None = None
+
+
 class VersionList(Contract):
     """Träffens versioner, som molnet har dem. Följaren skickar tillbaka mark och får svar när
     något har ändrats, eller när väntan är slut (long-poll)."""
@@ -62,6 +74,7 @@ class VersionList(Contract):
     meet_name: Text
     versions: list[Version]
     mark: Text = Field(description="Listans kännetecken: ändras när en version publiceras.")
+    home: Home | None = Field(default=None, description="Träffens hem, som molnet ser det.")
 
 
 class Follower(Contract):
@@ -87,6 +100,9 @@ class CloudLink(Contract):
     heard: datetime | None = None
     versions: int = Field(default=0, ge=0, description="Versioner Pi:n har av träffen.")
     problem: Text | None = Field(default=None, description="Varför Pi:n inte når molnet just nu.")
+    home_here: bool = Field(
+        default=False, description="Träffens hem är Pi:n: här planeras och publiceras (H35)."
+    )
 
 
 class CloudLinkChange(Contract):
@@ -115,3 +131,29 @@ class RunAck(Contract):
     run: Text
     ack: int = Field(ge=0)
     answers: dict[Id, ProposalStatus] = Field(default_factory=dict)
+
+
+class SourceFile(Contract):
+    """Ett underlag som det kom, med i flytten."""
+
+    id: Id
+    data: str = Field(description="Filen i base64.")
+
+
+class HomeBundle(Contract):
+    """Det som flyttar med hemmet: utkastet, underlagen och förslagen från Drift (H35)."""
+
+    meet: Id
+    generation: int = Field(ge=1)
+    created: datetime
+    draft: Draft
+    sources: list[SourceFile] = Field(default_factory=list)
+    proposals: list[Proposal] = Field(default_factory=list)
+
+
+class SentVersion(Contract):
+    """En version som Pi:n publicerade som hem, upp till molnet: info och byten (SYNK-10)."""
+
+    generation: int = Field(ge=1)
+    version: Version
+    package: str = Field(description="Paketet som det publicerades, som JSON-text.")
