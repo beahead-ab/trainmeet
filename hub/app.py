@@ -29,12 +29,14 @@ from hub import (
     web,
 )
 from hub.local import LocalLogin
+from hub.push import Pusher, Senders
 from hub.running import Running
 from hub.stores import AnyRun
 from planering.store import Planning
 from synk.follower import Call, Follower, urllib_call
 from synk.home import Homes
 from synk.link import Links
+from synk.push import ApnsPush, ApnsSettings, CloudPush, FakePush
 from synk.relay import Relay
 from synk.store import Versions
 
@@ -54,12 +56,16 @@ def tick_once(running: Running) -> None:
         return
 
 
-def _ticker(running: Running, stop: Event) -> None:
+def _ticker(running: Running, stop: Event, pusher: Pusher) -> None:
     while not stop.wait(TICK_SECONDS):
         try:
             tick_once(running)
         except Exception:
             LOGGER.exception("Automatiken kunde inte ta sitt steg")
+        try:
+            pusher.round()
+        except Exception:
+            LOGGER.exception("Notiserna kunde inte skickas")
 
 
 def create_app(
@@ -115,6 +121,14 @@ def create_app(
         station=lambda call: station_api.relayed(runs, call, relay_address),
     )
     relay = Relay()
+    # Push (F20): with Apple's key here, otherwise through the cloud, otherwise pretend.
+    pushes = Senders(
+        (lambda found: ApnsPush(found) if found else None)(ApnsSettings.from_env()),
+        CloudPush(follower.send, lambda: running.meet),
+        FakePush(),
+        lambda: any(reach.meet == running.meet for reach in links.reaches()),
+    )
+    pusher = Pusher(running, pushes)
     running.followed_answers = links.answers
 
     def me() -> tuple[str, str]:
@@ -125,7 +139,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         stop = Event()
-        thread = Thread(target=_ticker, args=(running, stop), name="automatiken", daemon=True)
+        thread = Thread(
+            target=_ticker, args=(running, stop, pusher), name="automatiken", daemon=True
+        )
         thread.start()
         synk = Thread(target=follower.run, args=(stop,), name="synken", daemon=True)
         synk.start()
@@ -148,6 +164,7 @@ def create_app(
     app.state.running = running
     app.state.follower = follower
     app.state.relay = relay
+    app.state.pusher = pusher
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
@@ -155,7 +172,9 @@ def create_app(
         planering_api.router(plans, versions, links, homes, me, login, published=follower.nudge)
     )
     app.include_router(
-        synk_api.router(plans, versions, links, follower, running, homes, login, hello, relay)
+        synk_api.router(
+            plans, versions, links, follower, running, homes, login, hello, relay, pushes
+        )
     )
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs, relay_address))

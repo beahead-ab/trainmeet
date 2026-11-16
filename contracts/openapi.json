@@ -158,6 +158,44 @@
         ]
       }
     },
+    "/api/station/1/push": {
+      "put": {
+        "operationId": "stationPush",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.station-1.push-token"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "stationPushOff",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/terminal/session": {
       "post": {
         "operationId": "terminalLogin",
@@ -6671,6 +6709,193 @@
           "approval"
         ],
         "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.station-1.push-token": {
+        "additionalProperties": true,
+        "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+        "properties": {
+          "platform": {
+            "const": "apns",
+            "default": "apns",
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "sandbox": {
+            "default": false,
+            "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+            "title": "Sandbox",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushToken",
+        "type": "object"
+      },
+      "trainmeet.station-1.notice": {
+        "additionalProperties": true,
+        "description": "Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,\npåminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka\ndirekt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna\nexpected_revision.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.station-1.notice.EventKind"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "clearance_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Clearance Id"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.station-1.notice.MeetContext"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-1.notice.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "seq": {
+            "description": "Drifthändelsen notisen kommer från.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "place",
+          "title",
+          "body",
+          "train_number",
+          "context",
+          "seq"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "trainmeet.station-1.notice.EventKind": {
+        "enum": [
+          "changed",
+          "train.approaching",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.reminder",
+          "line.available",
+          "approval"
+        ],
+        "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.station-1.notice.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.station-1.notice.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.station-1.notice.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.station-1.notice.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
         "type": "string"
       },
       "trainmeet.terminal16.hello": {
@@ -27066,6 +27291,17 @@
             "minimum": 0.0,
             "title": "Wait",
             "type": "number"
+          },
+          "push": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.PushToken"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -27370,13 +27606,42 @@
         "title": "MeetContext",
         "type": "object"
       },
+      "trainmeet.sync-1.relay-call.PushToken": {
+        "additionalProperties": true,
+        "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+        "properties": {
+          "platform": {
+            "const": "apns",
+            "default": "apns",
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "sandbox": {
+            "default": false,
+            "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+            "title": "Sandbox",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushToken",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-call.RelayKind": {
         "enum": [
           "connect",
           "connection",
           "snapshot",
           "command",
-          "revision"
+          "revision",
+          "push"
         ],
         "title": "RelayKind",
         "type": "string"
@@ -27814,6 +28079,34 @@
         "title": "MeetContext",
         "type": "object"
       },
+      "trainmeet.sync-1.relay-calls.PushToken": {
+        "additionalProperties": true,
+        "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+        "properties": {
+          "platform": {
+            "const": "apns",
+            "default": "apns",
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "sandbox": {
+            "default": false,
+            "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+            "title": "Sandbox",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushToken",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-calls.RelayCall": {
         "additionalProperties": true,
         "description": "Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.\nMolnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse\n(SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).",
@@ -27908,6 +28201,17 @@
             "minimum": 0.0,
             "title": "Wait",
             "type": "number"
+          },
+          "push": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.PushToken"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -27923,7 +28227,8 @@
           "connection",
           "snapshot",
           "command",
-          "revision"
+          "revision",
+          "push"
         ],
         "title": "RelayKind",
         "type": "string"
@@ -29206,6 +29511,431 @@
         ],
         "title": "TrainOnSection",
         "type": "object"
+      },
+      "trainmeet.sync-1.push": {
+        "additionalProperties": true,
+        "description": "En notis till en telefon. Pi:n har ingen nyckel till Apple, så den skickar sina notiser\ntill molnet, som skickar dem vidare: push går samma väg som reläet (SYNK-11).",
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push.PushToken"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push.Notice"
+          }
+        },
+        "required": [
+          "token",
+          "notice"
+        ],
+        "title": "Push",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push.EventKind": {
+        "enum": [
+          "changed",
+          "train.approaching",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.reminder",
+          "line.available",
+          "approval"
+        ],
+        "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.push.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push.Notice": {
+        "additionalProperties": true,
+        "description": "Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,\npåminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka\ndirekt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna\nexpected_revision.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push.EventKind"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "clearance_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Clearance Id"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push.MeetContext"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.push.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "seq": {
+            "description": "Drifthändelsen notisen kommer från.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "place",
+          "title",
+          "body",
+          "train_number",
+          "context",
+          "seq"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push.PushToken": {
+        "additionalProperties": true,
+        "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+        "properties": {
+          "platform": {
+            "const": "apns",
+            "default": "apns",
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "sandbox": {
+            "default": false,
+            "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+            "title": "Sandbox",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushToken",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.sync-1.push-batch": {
+        "additionalProperties": true,
+        "properties": {
+          "pushes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.Push"
+            },
+            "maxItems": 500,
+            "title": "Pushes",
+            "type": "array"
+          }
+        },
+        "title": "PushBatch",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.EventKind": {
+        "enum": [
+          "changed",
+          "train.approaching",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.reminder",
+          "line.available",
+          "approval"
+        ],
+        "title": "EventKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.push-batch.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.Notice": {
+        "additionalProperties": true,
+        "description": "Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,\npåminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka\ndirekt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna\nexpected_revision.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.EventKind"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "clearance_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Clearance Id"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.MeetContext"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "seq": {
+            "description": "Drifthändelsen notisen kommer från.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "place",
+          "title",
+          "body",
+          "train_number",
+          "context",
+          "seq"
+        ],
+        "title": "Notice",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.Push": {
+        "additionalProperties": true,
+        "description": "En notis till en telefon. Pi:n har ingen nyckel till Apple, så den skickar sina notiser\ntill molnet, som skickar dem vidare: push går samma väg som reläet (SYNK-11).",
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.PushToken"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.Notice"
+          }
+        },
+        "required": [
+          "token",
+          "notice"
+        ],
+        "title": "Push",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.PushToken": {
+        "additionalProperties": true,
+        "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+        "properties": {
+          "platform": {
+            "const": "apns",
+            "default": "apns",
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-fA-F]{64,200}$",
+            "title": "Token",
+            "type": "string"
+          },
+          "sandbox": {
+            "default": false,
+            "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+            "title": "Sandbox",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushToken",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.push-batch.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.sync-1.push-batch.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
       }
     },
     "securitySchemes": {

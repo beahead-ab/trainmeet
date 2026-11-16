@@ -185,6 +185,7 @@ class RelayKind(StrEnum):
     SNAPSHOT = "snapshot"
     COMMAND = "command"
     REVISION = "revision"  # waits until the place changes, for the event stream
+    PUSH = "push"  # the phone's address for push, or none to stop
 
 
 class RelayCall(Contract):
@@ -201,6 +202,7 @@ class RelayCall(Contract):
     command: station.Command | None = None
     known: int | None = Field(default=None, ge=0, description="Platsens revision som klienten har.")
     wait: float = Field(default=0.0, ge=0.0, le=RELAY_WAIT)
+    push: station.PushToken | None = None
 
 
 class RelayCalls(Contract):
@@ -217,3 +219,18 @@ class RelayAnswer(Contract):
     snapshot: station.Snapshot | None = None
     reply: station.Reply | None = None
     revision: int | None = Field(default=None, ge=0)
+
+
+# --- Push (SYNK-05, F20) -----------------------------------------------------------------------
+
+
+class Push(Contract):
+    """En notis till en telefon. Pi:n har ingen nyckel till Apple, så den skickar sina notiser
+    till molnet, som skickar dem vidare: push går samma väg som reläet (SYNK-11)."""
+
+    token: station.PushToken
+    notice: station.Notice
+
+
+class PushBatch(Contract):
+    pushes: list[Push] = Field(default_factory=list, max_length=500)

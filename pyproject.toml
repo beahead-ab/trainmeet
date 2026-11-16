@@ -27,6 +27,11 @@ id = [
     "psycopg[binary,pool]>=3.2",
     "pyjwt[crypto]>=2.10",
 ]
+# Push to Apple's service (F20, synk/push.py): HTTP/2 and the signed token. In the hub's image.
+push = [
+    "httpx[http2]>=0.27",
+    "pyjwt[crypto]>=2.10",
+]
 dev = [
     "httpx>=0.27",
     # Checks the examples against the published JSON Schemas, as other readers will.
@@ -39,7 +44,7 @@ dev = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "catalog", "id"]
+default-groups = ["dev", "catalog", "id", "push"]
 
 [build-system]
 requires = ["hatchling>=1.27"]

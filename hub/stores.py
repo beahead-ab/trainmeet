@@ -52,6 +52,9 @@ class AnyRun:
     def station_command(self, key: str, command: station.Command) -> station.Reply:
         return self._first(UnknownClient, lambda store: store.station_command(key, command))
 
+    def set_push(self, key: str, token: station.PushToken | None) -> None:
+        self._first(UnknownClient, lambda store: store.set_push(key, token))
+
     def screen_login(self, name: str, code: str) -> tuple[str, str]:
         return self._first(MissingRun, lambda store: store.screen_login(name, code))
 

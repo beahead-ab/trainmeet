@@ -163,6 +163,9 @@ jobs:
           curl -fsS -H "$JSON" -d "$TEL" "http://localhost:8090$RELA/api/station/1/connect" |
             grep -q '"status":"waiting"'
           echo "En telefon når Pi:n genom molnets relä."
+          # Push (F20): bilden har det som behövs för Apples tjänst, HTTP/2 och den signerade nyckeln.
+          docker exec moln /app/.venv/bin/python -c 'import h2, httpx, jwt; from synk.push import ApnsPush'
+          echo "Bilden kan skicka push."
 
       - name: Visa loggen om något gick fel
         if: failure()
@@ -482,6 +485,10 @@ jobs:
         if: steps.nyckel.outputs.finns == 'true'
         env:
           TEM_SECRET_KEY: ${{ secrets.TEM_SECRET_KEY }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
+          APNS_TOPIC: ${{ secrets.APNS_TOPIC }}
+          APNS_KEY: ${{ secrets.APNS_KEY }}
           IP: ${{ steps.server.outputs.ip }}
         run: |
           docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
@@ -495,6 +502,16 @@ jobs:
           if [ -n "$TEM_SECRET_KEY" ]; then
             printf '%s' "$TEM_SECRET_KEY" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_smtp-password'
           fi
+          # Apples push-nyckel (F20) går från GitHub direkt till testhubbens miljö på servern och
+          # skrivs aldrig ut. Utan den går notiserna till låtsad push.
+          {
+            if [ -n "$APNS_KEY_ID" ] && [ -n "$APNS_TEAM_ID" ] && [ -n "$APNS_TOPIC" ] && [ -n "$APNS_KEY" ]; then
+              echo "TRAINMEET_APNS_KEY_ID=$APNS_KEY_ID"
+              echo "TRAINMEET_APNS_TEAM_ID=$APNS_TEAM_ID"
+              echo "TRAINMEET_APNS_TOPIC=$APNS_TOPIC"
+              printf 'TRAINMEET_APNS_KEY=%s\n' "$(printf '%s\n' "$APNS_KEY" | awk 'BEGIN { ORS = "\\n" } { print }')"
+            fi
+          } | $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/hub-push.env'
           # The tags' final address once trainmeet.app points here, else Catalog's own (C38).
           TAG_BASE="https://$CATALOG_DOMAIN/t/"
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
