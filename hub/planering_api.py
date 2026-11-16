@@ -204,6 +204,23 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except PlanningError as error:
             _fail(error)
 
+    @routes.post("/meets/{meet}/double-track/{section}")
+    def double_track(
+        meet: str,
+        section: str,
+        given: planning.DoubleTrackAnswer,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Dubbelspårsfrågan (PLAN-35): Ja or Nej for a single-track section."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.double_track(meet, section, given).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
     @routes.get("/meets/{meet}/versions")
     def versions(meet: str, response: Response) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"

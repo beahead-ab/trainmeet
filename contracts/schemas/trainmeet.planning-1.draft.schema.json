@@ -2659,6 +2659,16 @@
       },
       "title": "Taken",
       "type": "array"
+    },
+    "double_track_declined": {
+      "description": "Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+          "type": "string"
+        }
+      },
+      "title": "Double Track Declined",
+      "type": "object"
     }
   },
   "required": [

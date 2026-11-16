@@ -916,6 +916,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/double-track/{section}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["answerDoubleTrack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets/{meet}/versions": {
         parameters: {
             query?: never;
@@ -7617,6 +7633,13 @@ export interface components {
              * @description Förslagen från Drift som tagits med, i ordning.
              */
             taken?: components["schemas"]["trainmeet.planning-1.draft.TakenChange"][];
+            /**
+             * Double Track Declined
+             * @description Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.
+             */
+            double_track_declined?: {
+                [key: string]: string;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -9374,12 +9397,49 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DoubleTrackAnswer
+         * @description Ja makes the section double track; Nej keeps it single for these trains.
+         */
+        "trainmeet.planning-1.double-track-answer": {
+            /** Double */
+            double: boolean;
+            /** Fingerprint */
+            fingerprint: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Check
-         * @description Trafikkontrollen of the draft: what publishing would carry in its findings.
+         * @description Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,
+         *     the structural errors that stop publishing, and the double-track questions.
          */
         "trainmeet.planning-1.check": {
             /** Findings */
             findings?: components["schemas"]["trainmeet.planning-1.check.Finding"][];
+            /**
+             * Blocking
+             * @description Strukturfel. De stoppar publiceringen.
+             */
+            blocking?: string[];
+            /** Double Track */
+            double_track?: components["schemas"]["trainmeet.planning-1.check.DoubleTrackQuestion"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DoubleTrackQuestion
+         * @description Dubbelspårsfrågan (PLAN-35): a single-track section with at least two A conflicts. A No
+         *     is kept with the fingerprint, and the question comes back only when the trains change.
+         */
+        "trainmeet.planning-1.check.DoubleTrackQuestion": {
+            /** Section */
+            section: string;
+            /** Conflicts */
+            conflicts: number;
+            /** Fingerprint */
+            fingerprint: string;
+            /** Message */
+            message: string;
         } & {
             [key: string]: unknown;
         };
@@ -11112,6 +11172,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.planning-1.check"];
+                };
+            };
+        };
+    };
+    answerDoubleTrack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.double-track-answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
                 };
             };
         };

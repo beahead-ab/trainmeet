@@ -3,6 +3,41 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.check.schema.json",
   "title": "trainmeet.planning-1.check",
   "$defs": {
+    "DoubleTrackQuestion": {
+      "additionalProperties": true,
+      "description": "Dubbelspårsfrågan (PLAN-35): a single-track section with at least two A conflicts. A No\nis kept with the fingerprint, and the question comes back only when the trains change.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "conflicts": {
+          "minimum": 2,
+          "title": "Conflicts",
+          "type": "integer"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "conflicts",
+        "fingerprint",
+        "message"
+      ],
+      "title": "DoubleTrackQuestion",
+      "type": "object"
+    },
     "Finding": {
       "additionalProperties": true,
       "description": "From the traffic check (Planering): shown, but does not stop publishing.",
@@ -56,13 +91,30 @@
     }
   },
   "additionalProperties": true,
-  "description": "Trafikkontrollen of the draft: what publishing would carry in its findings.",
+  "description": "Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,\nthe structural errors that stop publishing, and the double-track questions.",
   "properties": {
     "findings": {
       "items": {
         "$ref": "#/$defs/Finding"
       },
       "title": "Findings",
+      "type": "array"
+    },
+    "blocking": {
+      "description": "Strukturfel. De stoppar publiceringen.",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Blocking",
+      "type": "array"
+    },
+    "double_track": {
+      "items": {
+        "$ref": "#/$defs/DoubleTrackQuestion"
+      },
+      "title": "Double Track",
       "type": "array"
     }
   },

@@ -18,7 +18,7 @@ from typing import Final
 
 from contracts.common import Id, checksum
 from contracts.drift import DriftChange, ProposalStatus
-from contracts.meet import Meet, MeetPackage, Place, Section, Train
+from contracts.meet import Meet, MeetPackage, Place, Section, TrackKind, Train
 from contracts.planning import (
     PLANNER,
     Answer,
@@ -26,6 +26,7 @@ from contracts.planning import (
     Certainty,
     Change,
     Check,
+    DoubleTrackAnswer,
     Draft,
     Fact,
     ImportPreview,
@@ -46,7 +47,7 @@ from contracts.planning import (
 from contracts.reasons import TEXT_SV
 from core import changes as driftchanges
 from planering import compare
-from planering.check import check
+from planering.check import review
 
 RESERVED: Final = {"provbanan"}
 MAX_MEETS: Final = 200
@@ -158,7 +159,12 @@ class Planning:
             return source, bytes(row[0])
 
     def check(self, meet_id: str) -> Check:
-        return Check(findings=check(self.draft(meet_id)))
+        """Trafikkontrollen (PLAN-35): the findings, what stops publishing, and the
+        double-track questions."""
+        found = review(self.draft(meet_id))
+        return Check(
+            findings=found.findings, blocking=found.blocking, double_track=found.double_track
+        )
 
     def versions(self, meet_id: str) -> list[Version]:
         with self._transaction() as db:
@@ -283,6 +289,25 @@ class Planning:
                     raise PlanningError(f"Tiderna för tåg {train.number} kommer inte i ordning.")
             return self._save(db, draft)
 
+    def double_track(self, meet_id: str, section: Id, answer: DoubleTrackAnswer) -> Draft:
+        """Dubbelspårsfrågan (PLAN-35): Ja makes the section double track, as the planner's
+        change; Nej is kept with the fingerprint of the trains on it."""
+        asked = next(
+            (q for q in review(self.draft(meet_id)).double_track if q.section == section), None
+        )
+        if asked is None:
+            raise PlanningError("Frågan ställs inte längre.")
+        if asked.fingerprint != answer.fingerprint:
+            raise PlanningError("Tågen på sträckan har ändrats sedan frågan ställdes. Titta igen.")
+        if answer.double:
+            return self.change(
+                meet_id, SectionTracksChange(section=section, tracks=TrackKind.DOUBLE)
+            )
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            declined = {**draft.double_track_declined, section: answer.fingerprint}
+            return self._save(db, draft.model_copy(update={"double_track_declined": declined}))
+
     def answer(self, meet_id: str, answer: Answer) -> Draft:
         with self._transaction() as db:
             draft = self._draft(db, meet_id)
@@ -301,7 +326,12 @@ class Planning:
             draft = self._draft(db, meet_id)
             if draft.package is None:
                 raise PlanningError("Lägg till underlag innan du publicerar.")
-            findings = check(draft)
+            found = review(draft)
+            if found.blocking:
+                raise PlanningError(
+                    "Rätta det här innan du publicerar: " + " ".join(found.blocking)
+                )
+            findings = found.findings
             package = MeetPackage.model_validate(
                 draft.package.model_copy(
                     update={"meet": draft.meet, "findings": findings}
@@ -569,6 +599,7 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
         report=result.report,
         changes=draft.changes,
         taken=draft.taken,
+        double_track_declined=draft.double_track_declined,
     )
     return _lay_taken(_replay(fresh, answers))
 
