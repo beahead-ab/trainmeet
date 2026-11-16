@@ -11,12 +11,14 @@ from enum import StrEnum
 from pydantic import Field
 
 from contracts.common import Contract, Id, Text, Weekday
+from contracts.drift import Now
 from contracts.station import Clock
 
 
 class ScreenView(StrEnum):
     CLOCK = "clock"  # Klocka, analog (H74)
     CLOCK_DIGITAL = "clock_digital"  # Klocka, digital (H74)
+    TRACKS = "tracks"  # Banöversikt (SKARM-21, H47)
 
 
 class ScreenLogin(Contract):
@@ -44,3 +46,14 @@ class ScreenPicture(Contract):
     meet: Text
     traffic_day: Weekday
     clock: Clock
+    now: Now | None = Field(
+        default=None,
+        description="Träffen som den går, för vyerna som ritar banan (SKARM-09). Inte för klockan.",
+    )
+    package: Text | None = Field(
+        default=None,
+        description=(
+            "Vilket paket vyn ritar på: byts när versionen eller driftändringarna ändras. "
+            "Paketet hämtas på /api/screen/package."
+        ),
+    )

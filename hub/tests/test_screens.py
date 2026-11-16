@@ -60,6 +60,25 @@ def test_a_screen_waits_under_vantar_until_it_gets_the_clock(hub: TestClient) ->
     assert picture(hub, headers).view == screen.ScreenView.CLOCK_DIGITAL, "the two styles (H74)"
 
 
+def test_banoversikten_gets_the_meet_as_it_runs_and_the_package(hub: TestClient) -> None:
+    """SKARM-09: the views that draw the line get Nu with the picture and the package once; the
+    package's key changes with a driftändring."""
+    client_id, headers = join(hub)
+    assert picture(hub, headers).now is None, "not before it has a view"
+    hub.post(API + "/clients/view", json={"client_id": client_id, "view": "clock"})
+    assert picture(hub, headers).now is None, "the clock needs only the time"
+    hub.post(API + "/clients/view", json={"client_id": client_id, "view": "tracks"})
+    seen = picture(hub, headers)
+    assert seen.view == screen.ScreenView.TRACKS and seen.now is not None and seen.package
+    assert {leg.train_number for leg in seen.now.legs} >= {"101", "102"}
+    drawn = TestClient(hub.app).get("/api/screen/package", headers=headers)
+    assert drawn.status_code == 200 and drawn.json()["meet"]["name"] == "Provbanan"
+    assert TestClient(hub.app).get("/api/screen/package").status_code == 401
+    cancel = {"change": {"kind": "cancel", "train": "t108"}}
+    assert hub.post(API + "/changes", json=cancel).status_code == 200
+    assert picture(hub, headers).package != seen.package, "fetched again after a driftändring"
+
+
 def test_only_the_administrator_gives_a_view(hub: TestClient) -> None:
     client_id, _ = join(hub)
     body = {"client_id": client_id, "view": "clock"}

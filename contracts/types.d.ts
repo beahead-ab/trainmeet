@@ -708,6 +708,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/screen/package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["screenPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/clients/view": {
         parameters: {
             query?: never;
@@ -6600,7 +6616,7 @@ export interface components {
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.show.ScreenView": "clock" | "clock_digital";
+        "trainmeet.screen-1.show.ScreenView": "clock" | "clock_digital" | "tracks";
         /**
          * ScreenPicture
          * @description What the screen shows now. Without a view it waits, and says its name.
@@ -6614,9 +6630,274 @@ export interface components {
             meet: string;
             traffic_day: components["schemas"]["trainmeet.screen-1.picture.Weekday"];
             clock: components["schemas"]["trainmeet.screen-1.picture.Clock"];
+            /**
+             * @description Träffen som den går, för vyerna som ritar banan (SKARM-09). Inte för klockan.
+             * @default null
+             */
+            now: components["schemas"]["trainmeet.screen-1.picture.Now"] | null;
+            /**
+             * Package
+             * @description Vilket paket vyn ritar på: byts när versionen eller driftändringarna ändras. Paketet hämtas på /api/screen/package.
+             * @default null
+             */
+            package: string | null;
         } & {
             [key: string]: unknown;
         };
+        /** CallTime */
+        "trainmeet.screen-1.picture.CallTime": {
+            /** Call */
+            call: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CancelTrain
+         * @description Ställ in tåg: the train does not run.
+         */
+        "trainmeet.screen-1.picture.CancelTrain": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "cancel";
+            /** Train */
+            train: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeDays
+         * @description Ändrade trafikdagar för ett tåg.
+         */
+        "trainmeet.screen-1.picture.ChangeDays": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "days";
+            /** Train */
+            train: string;
+            /** Days */
+            days: components["schemas"]["trainmeet.screen-1.picture.Weekday"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeNow
+         * @description A Drift change as Nu lists it, with what it waits for.
+         */
+        "trainmeet.screen-1.picture.ChangeNow": {
+            /** Change Id */
+            change_id: string;
+            /** Change */
+            change: components["schemas"]["trainmeet.screen-1.picture.CancelTrain"] | components["schemas"]["trainmeet.screen-1.picture.ExtraTrain"] | components["schemas"]["trainmeet.screen-1.picture.ChangeTimes"] | components["schemas"]["trainmeet.screen-1.picture.ChangePlace"] | components["schemas"]["trainmeet.screen-1.picture.ChangeTrack"] | components["schemas"]["trainmeet.screen-1.picture.ChangeSectionTracks"] | components["schemas"]["trainmeet.screen-1.picture.ChangeDays"] | components["schemas"]["trainmeet.screen-1.picture.ChangeNumber"] | components["schemas"]["trainmeet.screen-1.picture.NoStop"] | components["schemas"]["trainmeet.screen-1.picture.TrainNote"];
+            status: components["schemas"]["trainmeet.screen-1.picture.ChangeStatus"];
+            /**
+             * Forced
+             * @default false
+             */
+            forced: boolean;
+            /**
+             * Train Number
+             * @description Tågets nummer då.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Made
+             * @description Modelltiden när ändringen gjordes.
+             */
+            made: string;
+            /**
+             * @description Svaret från Planering; tomt för Provbanan.
+             * @default null
+             */
+            proposal: components["schemas"]["trainmeet.screen-1.picture.ProposalStatus"] | null;
+            /**
+             * Waiting For
+             * @description Tågnumren som är ute och som ändringen väntar på.
+             */
+            waiting_for?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeNumber
+         * @description Byte av tågnummer: the same train, a new number.
+         */
+        "trainmeet.screen-1.picture.ChangeNumber": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "number";
+            /** Train */
+            train: string;
+            /** Number */
+            number: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangePlace
+         * @description Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;
+         *     or a place unmanned, left to the automation, or manned again.
+         */
+        "trainmeet.screen-1.picture.ChangePlace": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "place";
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Closed
+             * @default null
+             */
+            closed: boolean | null;
+            /** @default null */
+            clearance_mode: components["schemas"]["trainmeet.screen-1.picture.ClearanceMode"] | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Kind
+             * @default null
+             */
+            place_kind: ("manned" | "unmanned") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeSectionTracks
+         * @description Enkel eller dubbel sträcka.
+         */
+        "trainmeet.screen-1.picture.ChangeSectionTracks": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tracks";
+            /** Section */
+            section: string;
+            tracks: components["schemas"]["trainmeet.screen-1.picture.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeStatus
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ChangeStatus": "applied" | "waiting" | "dropped";
+        /**
+         * ChangeTimes
+         * @description Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;
+         *     or new times for some calls.
+         */
+        "trainmeet.screen-1.picture.ChangeTimes": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "times";
+            /** Train */
+            train: string;
+            /**
+             * Minutes
+             * @description Minuter senare, eller tidigare.
+             * @default 0
+             */
+            minutes: number;
+            /**
+             * From Call
+             * @description Flytta från avgången här; tomt betyder hela tåget.
+             * @default null
+             */
+            from_call: string | null;
+            /** Calls */
+            calls?: components["schemas"]["trainmeet.screen-1.picture.CallTime"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeTrack
+         * @description Ändrat planerat spår: another track for a call.
+         */
+        "trainmeet.screen-1.picture.ChangeTrack": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "track";
+            /** Call */
+            call: string;
+            /** Track */
+            track: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clearance */
+        "trainmeet.screen-1.picture.Clearance": {
+            /** Clearance Id */
+            clearance_id: string;
+            /** Call */
+            call: string;
+            /** Train Number */
+            train_number: string;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            status: components["schemas"]["trainmeet.screen-1.picture.ClearanceStatus"];
+            /**
+             * Departed
+             * @default false
+             */
+            departed: boolean;
+            /** Requested At */
+            requested_at: string;
+            /**
+             * Reminders
+             * @description Påminnelser hittills (H39).
+             * @default 0
+             */
+            reminders: number;
+            /** Revision */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ClearanceMode": "requested" | "direct";
+        /**
+         * ClearanceStatus
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ClearanceStatus": "waiting" | "approved" | "rejected" | "cancelled" | "invalidated";
         /** Clock */
         "trainmeet.screen-1.picture.Clock": {
             /** Time */
@@ -6639,10 +6920,333 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DayChangeMode
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.DayChangeMode": "manual" | "automatic";
+        /**
+         * DayStatus
+         * @description Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time.
+         */
+        "trainmeet.screen-1.picture.DayStatus": {
+            mode: components["schemas"]["trainmeet.screen-1.picture.DayChangeMode"];
+            /**
+             * Time
+             * @description När nästa speldygn börjar, efter midnatt.
+             */
+            time: string;
+            /**
+             * Fixed
+             * @description Tiden är satt av trafikledningen, inte räknad.
+             */
+            fixed: boolean;
+            /**
+             * First
+             * @description Nästa dags första tåg; tomt om dagen saknar tåg.
+             * @default null
+             */
+            first: string | null;
+            /** Next Game Day */
+            next_game_day: number;
+            next_traffic_day: components["schemas"]["trainmeet.screen-1.picture.Weekday"];
+            /**
+             * Suggested
+             * @description Klockan som Starta ny dag föreslår.
+             */
+            suggested: string;
+            /**
+             * Due
+             * @description Manuellt: tiden har passerats, och nästa dag kan startas.
+             */
+            due: boolean;
+            /**
+             * Waiting
+             * @description Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).
+             */
+            waiting: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExtraTrain
+         * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
+         *     departure time, where Drift fills in the places between.
+         */
+        "trainmeet.screen-1.picture.ExtraTrain": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "extra";
+            /** Number */
+            number: string;
+            /**
+             * Departure
+             * @description Avgången från första driftplatsen.
+             */
+            departure: string;
+            /**
+             * Copy Of
+             * @description Tåget som kopieras.
+             * @default null
+             */
+            copy_of: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Days
+             * @description Trafikdagarna; tomt betyder kopians dagar, eller alla.
+             * @default null
+             */
+            days: components["schemas"]["trainmeet.screen-1.picture.Weekday"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LastJump
+         * @description The latest time jump or new day, while it can be undone (F6): until the next one.
+         */
+        "trainmeet.screen-1.picture.LastJump": {
+            /**
+             * Seq
+             * @description Händelsens nummer, för Ångra.
+             */
+            seq: number;
+            /**
+             * Kind
+             * @description Tidshopp eller ny dag.
+             * @default time
+             * @enum {string}
+             */
+            kind: "time" | "day";
+            /** From Time */
+            from_time: string;
+            /** To Time */
+            to_time: string;
+            /**
+             * Game Day
+             * @description Speldygnet efter.
+             */
+            game_day: number;
+            /** @description Trafikdagen efter. */
+            traffic_day: components["schemas"]["trainmeet.screen-1.picture.Weekday"];
+            /**
+             * Closed
+             * @description Antalet klareringar som stängdes.
+             */
+            closed: number;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LegNow
+         * @description One train between two places today, and where it stands.
+         */
+        "trainmeet.screen-1.picture.LegNow": {
+            /**
+             * Leg
+             * @description Avgångens tågbesök; nyckeln för sträckan.
+             */
+            leg: string;
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Train Type
+             * @default null
+             */
+            train_type: string | null;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "planned" | "requested" | "cleared" | "on_the_way" | "arrived";
+            /**
+             * Clearance Id
+             * @default null
+             */
+            clearance_id: string | null;
+            /**
+             * Track
+             * @description Ankomstspåret, planerat eller faktiskt.
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NoStop
+         * @description Ej uppehåll: the train passes the place without stopping (genomfart), or stops again.
+         */
+        "trainmeet.screen-1.picture.NoStop": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "no_stop";
+            /** Call */
+            call: string;
+            /**
+             * Stops
+             * @default false
+             */
+            stops: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Now
+         * @description The meet as it runs: open to everyone, so it holds no names of people, no codes and no
+         *     phone numbers (B13).
+         */
+        "trainmeet.screen-1.picture.Now": {
+            /** Meet Id */
+            meet_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Version
+             * @description Versionen av träffpaketet som körs.
+             * @default 1
+             */
+            version: number;
+            traffic_day: components["schemas"]["trainmeet.screen-1.picture.Weekday"];
+            /** Game Day */
+            game_day: number;
+            clock: components["schemas"]["trainmeet.screen-1.picture.Clock"];
+            /** Places */
+            places: components["schemas"]["trainmeet.screen-1.picture.NowPlace"][];
+            /** Legs */
+            legs: components["schemas"]["trainmeet.screen-1.picture.LegNow"][];
+            /** Clearances */
+            clearances: components["schemas"]["trainmeet.screen-1.picture.Clearance"][];
+            /**
+             * @description Det senaste tidshoppet eller nya dygnet, att ångra.
+             * @default null
+             */
+            jump: components["schemas"]["trainmeet.screen-1.picture.LastJump"] | null;
+            /**
+             * @description Dygnsskiftet.
+             * @default null
+             */
+            day: components["schemas"]["trainmeet.screen-1.picture.DayStatus"] | null;
+            /**
+             * Changes
+             * @description Driftändringarna ovanpå versionen (DRIFT-41).
+             */
+            changes?: components["schemas"]["trainmeet.screen-1.picture.ChangeNow"][];
+            /**
+             * @description Ett versionsbyte som väntar på tåg som är ute (H38).
+             * @default null
+             */
+            switch: components["schemas"]["trainmeet.screen-1.picture.SwitchWaiting"] | null;
+            /**
+             * Locked
+             * @description Drift startade spärrad: det som påbörjades och aldrig blev klart (DRIFT-47).
+             * @default null
+             */
+            locked: ("version" | "jump" | "undo" | "day") | null;
+            /**
+             * Withdrawn
+             * @description Versionen som körs är tillbakadragen i Planering (H68).
+             * @default false
+             */
+            withdrawn: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** NowPlace */
+        "trainmeet.screen-1.picture.NowPlace": {
+            /** Place */
+            place: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ProposalStatus
+         * @description Planering's answer to a driftändring (4.4, PLAN-03).
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital";
+        "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital" | "tracks";
+        /** SwitchWaiting */
+        "trainmeet.screen-1.picture.SwitchWaiting": {
+            /** Version */
+            version: number;
+            /** Waits For */
+            waits_for?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackKind
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.TrackKind": "single" | "double";
+        /**
+         * TrainNote
+         * @description Anmärkning: text that follows the train, or one of its calls. Empty takes it away.
+         */
+        "trainmeet.screen-1.picture.TrainNote": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "note";
+            /** Train */
+            train: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -11025,6 +11629,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.screen-1.picture"];
+                };
+            };
+        };
+    };
+    screenPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.meet-1"];
                 };
             };
         };

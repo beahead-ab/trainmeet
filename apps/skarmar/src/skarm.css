@@ -204,3 +204,152 @@ button {
   font-size: 7vh;
   font-weight: 700;
 }
+
+/* Skärm · Banöversikt (SKARM-21): the meet and the line's state top left, the clock top right,
+   the drawing in the middle, the four lists and the legend below. */
+.laddar {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--mute);
+  font-size: 3vh;
+}
+.bana-vy {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  background: #000;
+}
+.bana-rubrik {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 3vh 1.7vw 1vh;
+}
+.bana-rubrik h1 {
+  margin: 0;
+  font-size: 3.4vh;
+  font-weight: 700;
+}
+.bana-rubrik p {
+  margin: 0.3vh 0 0;
+  color: var(--mute);
+  font-size: 1.9vh;
+}
+.bana-klocka {
+  text-align: right;
+}
+.bana-klocka .tid-liten {
+  margin: 0;
+  color: var(--text);
+  font-size: 5.6vh;
+  font-weight: 800;
+  line-height: 1;
+}
+.bana-klocka .gar {
+  color: var(--green);
+}
+.bana-klocka .gar::before {
+  content: "● ";
+}
+.bana-ritning {
+  min-height: 0;
+  padding: 0 1vw;
+}
+.remsa {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2vw;
+  padding: 1.6vh 1.7vw;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.remsa-del h2 {
+  margin: 0 0 0.8vh;
+  padding-bottom: 0.6vh;
+  border-bottom: 1px solid var(--line);
+  color: var(--mute);
+  font-size: 1.15vh;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.remsa-del ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8vh;
+}
+.remsa-del li {
+  display: flex;
+  gap: 0.8vw;
+  align-items: flex-start;
+  font-size: 1.7vh;
+}
+.remsa-del li > span:last-child {
+  display: grid;
+}
+.remsa-del .liten,
+.remsa-del .tom {
+  color: var(--mute);
+  font-size: 1.45vh;
+}
+.bricka {
+  min-width: 5vw;
+  text-align: center;
+  font-weight: 800;
+  font-size: 2vh;
+  padding: 0.3vh 0.6vw;
+  border-radius: 4px;
+  border: 2px solid var(--line);
+  background: #050607;
+}
+.bricka.belagt {
+  border-color: #ff5b4f;
+}
+.bricka.klar {
+  border-color: var(--green);
+}
+.bricka.begard {
+  border: 2px dashed var(--yellow);
+}
+.bricka.slutar {
+  border: 2px dotted var(--mute);
+  color: var(--mute);
+}
+.bana-fot {
+  display: flex;
+  gap: 1.6vw;
+  align-items: center;
+  padding: 1.2vh 1.7vw;
+  color: var(--mute);
+  font-size: 1.5vh;
+  border-top: 1px solid var(--line);
+}
+.bana-fot > span:first-child {
+  flex: 1;
+}
+.teckning::before {
+  content: "";
+  display: inline-block;
+  width: 1.6vw;
+  height: 0;
+  margin-right: 0.4vw;
+  vertical-align: middle;
+  border-top: 4px solid var(--mute);
+}
+.teckning.klar::before {
+  border-top-color: var(--green);
+}
+.teckning.belagt::before {
+  border-top-color: #ff5b4f;
+}
+.teckning.begard::before {
+  border-top: 4px dashed var(--yellow);
+}
+.teckning.kommer::before {
+  border-top: 3px dashed var(--blue);
+}
+.teckning.slutar::before {
+  border-top: 3px dotted var(--mute);
+}
