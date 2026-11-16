@@ -19,6 +19,9 @@ Transport (Claude, draft): HTTP with JSON under /api/station/1/ and an event str
     POST /api/station/1/commands           Command         -> Reply (always with the snapshot)
     GET  /api/station/1/places/{place}/events   Event stream (text/event-stream)
 
+Outside the meet's network the same calls go to the cloud hub's relay, under
+/relay/{hub}/api/station/1/..., with the same key (SYNK-11). The address is in ConnectReply.relay.
+
 The snapshot is the truth; events are hints to fetch it again, as in v2. A command answered
 with `duplicate` had already been carried out: the reply is the first one's.
 """
@@ -86,6 +89,11 @@ class ConnectReply(Contract):
         description="Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.",
     )
     message: Text | None = None
+    relay: Text | None = Field(
+        default=None,
+        description="Adressen utanför träffens nät: molnhubbens relä till den här hubben, där "
+        "samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
+    )
 
 
 # --- Commands ------------------------------------------------------------------------------

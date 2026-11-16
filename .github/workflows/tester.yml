@@ -148,6 +148,21 @@ jobs:
           done
           curl -fsS http://localhost:8090/api/drift/1/now | grep -q '"hub_name":"Pi:n"'
           echo "Pi:n leder träffen och molnet följer den."
+          # Reläet (SYNK-11): en telefon utanför träffens nät ansluter till Pi:n genom molnet.
+          # Pi:n säger adressen när en klient ansluter på träffens nät.
+          KOD=$(curl -fsS -b pi.txt http://localhost:8091/api/drift/1/connect |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["code"])')
+          TEL="{\"kind\":\"tmbox_app\",\"name\":\"Telefonen\",\"software\":\"TMBox\",\"code\":\"$KOD\"}"
+          RELA=$(curl -fsS -H "$JSON" -d "$TEL" http://localhost:8091/api/station/1/connect |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["relay"].split(":8080", 1)[1])')
+          for i in $(seq 1 20); do
+            curl -fsS -H "$JSON" -d "$TEL" "http://localhost:8090$RELA/api/station/1/connect" |
+              grep -q '"status":"waiting"' && break
+            sleep 1
+          done
+          curl -fsS -H "$JSON" -d "$TEL" "http://localhost:8090$RELA/api/station/1/connect" |
+            grep -q '"status":"waiting"'
+          echo "En telefon når Pi:n genom molnets relä."
 
       - name: Visa loggen om något gick fel
         if: failure()

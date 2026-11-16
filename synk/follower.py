@@ -19,7 +19,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from threading import Event, Thread
+from threading import BoundedSemaphore, Event, Thread
 from typing import Final, Protocol
 from urllib.parse import quote, urlsplit
 
@@ -32,6 +32,9 @@ from contracts.sync import (
     Hello,
     Link,
     LinkRequest,
+    RelayAnswer,
+    RelayCall,
+    RelayCalls,
     RunAck,
     RunEvents,
     RunFeed,
@@ -46,10 +49,13 @@ WAIT: Final = 25.0  # seconds the cloud holds a long-poll
 PUSH: Final = 1.0  # seconds between rounds of drift events up to the cloud
 BATCH: Final = 500  # drift events in one call
 RETRY: Final = (2.0, 5.0, 15.0, 30.0)  # seconds between tries when the cloud does not answer
+RELAYED: Final = 64  # relayed calls served at once: an event stream holds one (SYNK-11)
 LOGGER = logging.getLogger("synk.follower")
 
 # method, url, headers, body, timeout -> status, body
 Call = Callable[[str, str, Mapping[str, str], bytes | None, float], tuple[int, bytes]]
+# A call in the station protocol that came through the cloud's relay, answered here (SYNK-11)
+Station = Callable[[RelayCall], RelayAnswer]
 
 
 class Unreachable(Exception):
@@ -134,6 +140,7 @@ class Follower:
         call: Call = urllib_call,
         runs: Runs | None = None,
         homes: Homes | None = None,
+        station: Station | None = None,
     ) -> None:
         self.links = links
         self.versions = versions
@@ -141,6 +148,8 @@ class Follower:
         self.call = call
         self.runs = runs
         self.homes = homes
+        self.station = station
+        self._serving = BoundedSemaphore(RELAYED)
         self._marks: dict[str, str] = {}
         self._acks: dict[str, int] = {}
         self._pulled: dict[str, int] = {}
@@ -384,12 +393,60 @@ class Follower:
         self._pulled[run.run] = self.runs.receive(run.run, feed.leader, feed.events)
         return self._pulled[run.run]
 
+    # --- Reläet: phones and the cloud's TKL outside the meet's network (SYNK-11) -------------
+
+    def relay(self, reach: Reach, wait: float = WAIT) -> int:
+        """Fetch the calls the cloud keeps for this hub, with long-poll, and answer each in a
+        thread of its own: a revision may wait for a change. How many came."""
+        meet = quote(reach.meet, safe="")
+        status, data = self.call(
+            "GET",
+            f"{reach.address}/api/sync/1/meets/{meet}/relay?wait={wait:g}",
+            self._headers(reach.key),
+            None,
+            wait + 15.0,
+        )
+        if status != 200:
+            raise Unreachable()
+        calls = RelayCalls.model_validate_json(data).calls
+        for call in calls:
+            if self._serving.acquire(blocking=False):
+                Thread(target=self._serve, args=(reach, call), daemon=True).start()
+            else:
+                busy = RelayAnswer(id=call.id, status=429, detail="Hubben har för mycket att göra.")
+                self._answer(reach, busy)
+        return len(calls)
+
+    def _serve(self, reach: Reach, call: RelayCall) -> None:
+        try:
+            if self.station is None:
+                answer = RelayAnswer(id=call.id, status=404, detail="Hubben tar inte emot anrop.")
+            else:
+                answer = self.station(call)
+            self._answer(reach, answer)
+        except Unreachable:
+            pass  # the client is told by the cloud that no answer came
+        except Exception:
+            LOGGER.exception("Ett anrop genom reläet kunde inte besvaras")
+        finally:
+            self._serving.release()
+
+    def _answer(self, reach: Reach, answer: RelayAnswer) -> None:
+        self.call(
+            "POST",
+            f"{reach.address}/api/sync/1/meets/{quote(reach.meet, safe='')}/relay",
+            self._headers(reach.key),
+            answer.model_dump_json().encode(),
+            30.0,
+        )
+
     # --- In the background -------------------------------------------------------------------
 
     def run(self, stop: Event, wait: float = WAIT) -> None:
         """Follow every meet the Pi is linked to, one thread each, and send the run it leads,
         until stop."""
         threads: dict[str, Thread] = {}
+        relaying: dict[str, Thread] = {}
         pushing = Thread(target=self._push_loop, args=(stop,), name="synk-upp", daemon=True)
         pushing.start()
         while not stop.is_set():
@@ -403,7 +460,33 @@ class Follower:
                     )
                     threads[reach.meet] = thread
                     thread.start()
+                # One relay per cloud, whichever meet's key it fetches with.
+                if reach.address not in relaying or not relaying[reach.address].is_alive():
+                    thread = Thread(
+                        target=self._relay_loop,
+                        args=(reach.address, stop, wait),
+                        name="synk-relä",
+                        daemon=True,
+                    )
+                    relaying[reach.address] = thread
+                    thread.start()
             stop.wait(2.0)
+
+    def _relay_loop(self, address: str, stop: Event, wait: float) -> None:
+        tries = 0
+        while not stop.is_set():
+            reach = next((r for r in self.links.reaches() if r.address == address), None)
+            if reach is None:
+                return  # Koppla bort
+            try:
+                self.relay(reach, wait)
+                tries = 0
+            except Unreachable:
+                stop.wait(RETRY[min(tries, len(RETRY) - 1)])
+                tries += 1
+            except Exception:
+                LOGGER.exception("Reläet kunde inte hämta sina anrop")
+                stop.wait(RETRY[-1])
 
     def _push_loop(self, stop: Event) -> None:
         tries = 0

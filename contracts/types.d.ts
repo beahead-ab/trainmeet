@@ -2075,6 +2075,12 @@ export interface components {
              * @default null
              */
             message: string | null;
+            /**
+             * Relay
+             * @description Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.
+             * @default null
+             */
+            relay: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13196,6 +13202,1034 @@ export interface components {
              * @default null
              */
             withdrawn: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayCall
+         * @description Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.
+         *     Molnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse
+         *     (SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).
+         */
+        "trainmeet.sync-1.relay-call": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.sync-1.relay-call.RelayKind"];
+            /**
+             * Key Hash
+             * @description Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).
+             * @default null
+             */
+            key_hash: string | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Client Id
+             * @default null
+             */
+            client_id: string | null;
+            /** @default null */
+            connect: components["schemas"]["trainmeet.sync-1.relay-call.ConnectRequest"] | null;
+            /** @default null */
+            command: components["schemas"]["trainmeet.sync-1.relay-call.Command"] | null;
+            /**
+             * Known
+             * @description Platsens revision som klienten har.
+             * @default null
+             */
+            known: number | null;
+            /**
+             * Wait
+             * @default 0
+             */
+            wait: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Action
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-call.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
+        /** BoxSide */
+        "trainmeet.sync-1.relay-call.BoxSide": {
+            side: components["schemas"]["trainmeet.sync-1.relay-call.Side"];
+            /**
+             * Label
+             * @description Det boxen visar för sidan, till exempel Väster.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClientKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-call.ClientKind": "tkl" | "tmbox_app" | "dispatch";
+        /** Command */
+        "trainmeet.sync-1.relay-call.Command": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /**
+             * Message Id
+             * @description Unikt per klient. Samma id ger samma svar.
+             */
+            message_id: string;
+            /** Client Id */
+            client_id: string;
+            /** Place */
+            place: string;
+            context: components["schemas"]["trainmeet.sync-1.relay-call.MeetContext"];
+            action: components["schemas"]["trainmeet.sync-1.relay-call.Action"];
+            /**
+             * @description Exakt en scope och nyckel; utelämnas för train.lookup.
+             * @default null
+             */
+            expected_revision: components["schemas"]["trainmeet.sync-1.relay-call.Revision"] | null;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ConnectRequest
+         * @description The client says what it is, which station it is and which places it wants to run.
+         *     A TKL that is not coupled in advance sends its outside along (H28).
+         */
+        "trainmeet.sync-1.relay-call.ConnectRequest": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /**
+             * Protocols
+             * @description Alla versioner klienten talar.
+             */
+            protocols?: string[];
+            kind: components["schemas"]["trainmeet.sync-1.relay-call.ClientKind"];
+            /**
+             * Name
+             * @description Det trafikledningen ser i Klienter.
+             */
+            name: string;
+            /**
+             * Software
+             * @description Program och version, till exempel TKL 0.1.0.
+             */
+            software: string;
+            /**
+             * Station Id
+             * @default null
+             */
+            station_id: string | null;
+            /** @default null */
+            outside: components["schemas"]["trainmeet.sync-1.relay-call.StationOutside"] | null;
+            /**
+             * Wants
+             * @description Driftplatserna den vill köra.
+             */
+            wants?: string[];
+            /**
+             * Code
+             * @description Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.
+             * @default null
+             */
+            code: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Exit */
+        "trainmeet.sync-1.relay-call.Exit": {
+            /**
+             * Id
+             * @description Utfartens fasta id. Kopplas till en sträcka per träff (H26).
+             */
+            id: string;
+            /** @description Vilken sida utfarten ligger på. */
+            side: components["schemas"]["trainmeet.sync-1.relay-call.Side"];
+            /**
+             * Name
+             * @description Till exempel Mot Norrby.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når utfarten, vid gränsen.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen, med sina namn.
+             */
+            signals?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.sync-1.relay-call.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision";
+        /** Revision */
+        "trainmeet.sync-1.relay-call.Revision": {
+            scope: components["schemas"]["trainmeet.sync-1.relay-call.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-call.RevisionScope": "call" | "case" | "place";
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-call.Side": "left" | "right";
+        /**
+         * StationOutside
+         * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
+         */
+        "trainmeet.sync-1.relay-call.StationOutside": {
+            /**
+             * Format
+             * @default trainmeet.station-outside/1
+             * @constant
+             */
+            format: "trainmeet.station-outside/1";
+            /**
+             * Station Id
+             * @description Stationens id, skapat i TKL Studio.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.sync-1.relay-call.StationTrack"][];
+            /** Exits */
+            exits: components["schemas"]["trainmeet.sync-1.relay-call.Exit"][];
+            /** Sides */
+            sides?: components["schemas"]["trainmeet.sync-1.relay-call.BoxSide"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationTrack */
+        "trainmeet.sync-1.relay-call.StationTrack": {
+            /**
+             * Id
+             * @description Spårets korta namn i stationen, till exempel 1a. Fast id.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Det som står på skärmen, till exempel Spår 1a.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** RelayCalls */
+        "trainmeet.sync-1.relay-calls": {
+            /** Calls */
+            calls?: components["schemas"]["trainmeet.sync-1.relay-calls.RelayCall"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Action
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-calls.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
+        /** BoxSide */
+        "trainmeet.sync-1.relay-calls.BoxSide": {
+            side: components["schemas"]["trainmeet.sync-1.relay-calls.Side"];
+            /**
+             * Label
+             * @description Det boxen visar för sidan, till exempel Väster.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClientKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-calls.ClientKind": "tkl" | "tmbox_app" | "dispatch";
+        /** Command */
+        "trainmeet.sync-1.relay-calls.Command": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /**
+             * Message Id
+             * @description Unikt per klient. Samma id ger samma svar.
+             */
+            message_id: string;
+            /** Client Id */
+            client_id: string;
+            /** Place */
+            place: string;
+            context: components["schemas"]["trainmeet.sync-1.relay-calls.MeetContext"];
+            action: components["schemas"]["trainmeet.sync-1.relay-calls.Action"];
+            /**
+             * @description Exakt en scope och nyckel; utelämnas för train.lookup.
+             * @default null
+             */
+            expected_revision: components["schemas"]["trainmeet.sync-1.relay-calls.Revision"] | null;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ConnectRequest
+         * @description The client says what it is, which station it is and which places it wants to run.
+         *     A TKL that is not coupled in advance sends its outside along (H28).
+         */
+        "trainmeet.sync-1.relay-calls.ConnectRequest": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /**
+             * Protocols
+             * @description Alla versioner klienten talar.
+             */
+            protocols?: string[];
+            kind: components["schemas"]["trainmeet.sync-1.relay-calls.ClientKind"];
+            /**
+             * Name
+             * @description Det trafikledningen ser i Klienter.
+             */
+            name: string;
+            /**
+             * Software
+             * @description Program och version, till exempel TKL 0.1.0.
+             */
+            software: string;
+            /**
+             * Station Id
+             * @default null
+             */
+            station_id: string | null;
+            /** @default null */
+            outside: components["schemas"]["trainmeet.sync-1.relay-calls.StationOutside"] | null;
+            /**
+             * Wants
+             * @description Driftplatserna den vill köra.
+             */
+            wants?: string[];
+            /**
+             * Code
+             * @description Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.
+             * @default null
+             */
+            code: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Exit */
+        "trainmeet.sync-1.relay-calls.Exit": {
+            /**
+             * Id
+             * @description Utfartens fasta id. Kopplas till en sträcka per träff (H26).
+             */
+            id: string;
+            /** @description Vilken sida utfarten ligger på. */
+            side: components["schemas"]["trainmeet.sync-1.relay-calls.Side"];
+            /**
+             * Name
+             * @description Till exempel Mot Norrby.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når utfarten, vid gränsen.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen, med sina namn.
+             */
+            signals?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.sync-1.relay-calls.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayCall
+         * @description Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.
+         *     Molnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse
+         *     (SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).
+         */
+        "trainmeet.sync-1.relay-calls.RelayCall": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.sync-1.relay-calls.RelayKind"];
+            /**
+             * Key Hash
+             * @description Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).
+             * @default null
+             */
+            key_hash: string | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Client Id
+             * @default null
+             */
+            client_id: string | null;
+            /** @default null */
+            connect: components["schemas"]["trainmeet.sync-1.relay-calls.ConnectRequest"] | null;
+            /** @default null */
+            command: components["schemas"]["trainmeet.sync-1.relay-calls.Command"] | null;
+            /**
+             * Known
+             * @description Platsens revision som klienten har.
+             * @default null
+             */
+            known: number | null;
+            /**
+             * Wait
+             * @default 0
+             */
+            wait: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision";
+        /** Revision */
+        "trainmeet.sync-1.relay-calls.Revision": {
+            scope: components["schemas"]["trainmeet.sync-1.relay-calls.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-calls.RevisionScope": "call" | "case" | "place";
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-calls.Side": "left" | "right";
+        /**
+         * StationOutside
+         * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
+         */
+        "trainmeet.sync-1.relay-calls.StationOutside": {
+            /**
+             * Format
+             * @default trainmeet.station-outside/1
+             * @constant
+             */
+            format: "trainmeet.station-outside/1";
+            /**
+             * Station Id
+             * @description Stationens id, skapat i TKL Studio.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.sync-1.relay-calls.StationTrack"][];
+            /** Exits */
+            exits: components["schemas"]["trainmeet.sync-1.relay-calls.Exit"][];
+            /** Sides */
+            sides?: components["schemas"]["trainmeet.sync-1.relay-calls.BoxSide"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationTrack */
+        "trainmeet.sync-1.relay-calls.StationTrack": {
+            /**
+             * Id
+             * @description Spårets korta namn i stationen, till exempel 1a. Fast id.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Det som står på skärmen, till exempel Spår 1a.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayAnswer
+         * @description Hubbens svar på ett anrop genom reläet, som molnet ger klienten som det är.
+         */
+        "trainmeet.sync-1.relay-answer": {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @description HTTP-status, som om klienten frågat hubben.
+             */
+            status: number;
+            /**
+             * Detail
+             * @description Varför, när status inte är 2xx.
+             * @default null
+             */
+            detail: string | null;
+            /** @default null */
+            connected: components["schemas"]["trainmeet.sync-1.relay-answer.ConnectReply"] | null;
+            /** @default null */
+            snapshot: components["schemas"]["trainmeet.sync-1.relay-answer.Snapshot"] | null;
+            /** @default null */
+            reply: components["schemas"]["trainmeet.sync-1.relay-answer.Reply"] | null;
+            /**
+             * Revision
+             * @default null
+             */
+            revision: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Action
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
+        /**
+         * ApprovalStatus
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.ApprovalStatus": "waiting" | "approved" | "refused" | "revoked";
+        /**
+         * ArrivalState
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.ArrivalState": "none" | "on_the_way" | "arrived";
+        /**
+         * CallHere
+         * @description A call at this place, with what the client may do with it right now.
+         */
+        "trainmeet.sync-1.relay-answer.CallHere": {
+            /** Call */
+            call: string;
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Train Label
+             * @description Till exempel IC 116 (F9).
+             * @default null
+             */
+            train_label: string | null;
+            /**
+             * Train Type
+             * @default null
+             */
+            train_type: string | null;
+            /**
+             * Manual
+             * @default false
+             */
+            manual: boolean;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Day Offset
+             * @default 0
+             */
+            day_offset: number;
+            /**
+             * Planned Track
+             * @default null
+             */
+            planned_track: string | null;
+            /**
+             * Track
+             * @description Var tåget står eller ska stå nu.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /** @default none */
+            arrival_state: components["schemas"]["trainmeet.sync-1.relay-answer.ArrivalState"];
+            /** @default planned */
+            departure_state: components["schemas"]["trainmeet.sync-1.relay-answer.DepartureState"];
+            /**
+             * Positioned
+             * @default false
+             */
+            positioned: boolean;
+            /**
+             * Crew Ready
+             * @default false
+             */
+            crew_ready: boolean;
+            /** Revision */
+            revision: number;
+            /** Allowed Actions */
+            allowed_actions?: components["schemas"]["trainmeet.sync-1.relay-answer.Action"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clearance */
+        "trainmeet.sync-1.relay-answer.Clearance": {
+            /** Clearance Id */
+            clearance_id: string;
+            /** Call */
+            call: string;
+            /** Train Number */
+            train_number: string;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            status: components["schemas"]["trainmeet.sync-1.relay-answer.ClearanceStatus"];
+            /**
+             * Departed
+             * @default false
+             */
+            departed: boolean;
+            /** Requested At */
+            requested_at: string;
+            /**
+             * Reminders
+             * @description Påminnelser hittills (H39).
+             * @default 0
+             */
+            reminders: number;
+            /** Revision */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.ClearanceMode": "requested" | "direct";
+        /**
+         * ClearanceStatus
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.ClearanceStatus": "waiting" | "approved" | "rejected" | "cancelled" | "invalidated";
+        /** Clock */
+        "trainmeet.sync-1.relay-answer.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ConnectReply */
+        "trainmeet.sync-1.relay-answer.ConnectReply": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /** Client Id */
+            client_id: string;
+            status: components["schemas"]["trainmeet.sync-1.relay-answer.ApprovalStatus"];
+            /**
+             * Places
+             * @description Godkända driftplatser.
+             */
+            places?: string[];
+            /**
+             * Key
+             * @description Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.
+             * @default null
+             */
+            key: string | null;
+            /**
+             * Message
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Relay
+             * @description Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.
+             * @default null
+             */
+            relay: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DepartureState
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /** LineMessage */
+        "trainmeet.sync-1.relay-answer.LineMessage": {
+            /** Message Id */
+            message_id: string;
+            /** Section */
+            section: string;
+            /** From Place */
+            from_place: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Acknowledged
+             * @default false
+             */
+            acknowledged: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LookupMatch */
+        "trainmeet.sync-1.relay-answer.LookupMatch": {
+            /** Call */
+            call: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Train Label
+             * @default null
+             */
+            train_label: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.sync-1.relay-answer.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Neighbour
+         * @description A place and its game number, for the telephone list in TKL and the app (H24).
+         */
+        "trainmeet.sync-1.relay-answer.Neighbour": {
+            /** Place */
+            place: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Phone
+             * @default null
+             */
+            phone: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Reason
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
+        /** Reply */
+        "trainmeet.sync-1.relay-answer.Reply": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            /** Message Id */
+            message_id: string;
+            status: components["schemas"]["trainmeet.sync-1.relay-answer.ReplyStatus"];
+            /** @default null */
+            reason: components["schemas"]["trainmeet.sync-1.relay-answer.Reason"] | null;
+            /**
+             * Message
+             * @description Texten att visa, på klientens språk.
+             * @default null
+             */
+            message: string | null;
+            /** @default null */
+            revision: components["schemas"]["trainmeet.sync-1.relay-answer.Revision"] | null;
+            /**
+             * Result
+             * @description Bara för train.lookup.
+             * @default null
+             */
+            result: components["schemas"]["trainmeet.sync-1.relay-answer.LookupMatch"][] | null;
+            snapshot: components["schemas"]["trainmeet.sync-1.relay-answer.Snapshot"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReplyStatus
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.ReplyStatus": "accepted" | "rejected" | "duplicate";
+        /** Revision */
+        "trainmeet.sync-1.relay-answer.Revision": {
+            scope: components["schemas"]["trainmeet.sync-1.relay-answer.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.RevisionScope": "call" | "case" | "place";
+        /** SectionHere */
+        "trainmeet.sync-1.relay-answer.SectionHere": {
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Code */
+            other_code: string;
+            tracks: components["schemas"]["trainmeet.sync-1.relay-answer.TrackKind"];
+            clearance_mode: components["schemas"]["trainmeet.sync-1.relay-answer.ClearanceMode"];
+            /** @default null */
+            side: components["schemas"]["trainmeet.sync-1.relay-answer.Side"] | null;
+            /**
+             * Exit
+             * @description Stationens utfart för sträckan.
+             * @default null
+             */
+            exit: string | null;
+            /**
+             * Occupied
+             * @default false
+             */
+            occupied: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.Side": "left" | "right";
+        /**
+         * Snapshot
+         * @description Everything a client needs for one place, replaced whole every time.
+         */
+        "trainmeet.sync-1.relay-answer.Snapshot": {
+            /**
+             * Protocol
+             * @default trainmeet.station/1
+             * @constant
+             */
+            protocol: "trainmeet.station/1";
+            place: components["schemas"]["trainmeet.sync-1.relay-answer.Neighbour"];
+            context: components["schemas"]["trainmeet.sync-1.relay-answer.MeetContext"];
+            clock: components["schemas"]["trainmeet.sync-1.relay-answer.Clock"];
+            /** Place Revision */
+            place_revision: number;
+            /** Sections */
+            sections?: components["schemas"]["trainmeet.sync-1.relay-answer.SectionHere"][];
+            /** Calls */
+            calls?: components["schemas"]["trainmeet.sync-1.relay-answer.CallHere"][];
+            /**
+             * On The Way
+             * @description På väg hit.
+             */
+            on_the_way?: components["schemas"]["trainmeet.sync-1.relay-answer.TrainOnSection"][];
+            /**
+             * Have Left
+             * @description Har lämnat.
+             */
+            have_left?: components["schemas"]["trainmeet.sync-1.relay-answer.TrainOnSection"][];
+            /** Clearances */
+            clearances?: components["schemas"]["trainmeet.sync-1.relay-answer.Clearance"][];
+            /** Line Messages */
+            line_messages?: components["schemas"]["trainmeet.sync-1.relay-answer.LineMessage"][];
+            /** Neighbours */
+            neighbours?: components["schemas"]["trainmeet.sync-1.relay-answer.Neighbour"][];
+            /** All Places */
+            all_places?: components["schemas"]["trainmeet.sync-1.relay-answer.Neighbour"][];
+            /**
+             * Automatic
+             * @description Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).
+             * @default false
+             */
+            automatic: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.TrackKind": "single" | "double";
+        /**
+         * TrainOnSection
+         * @description A train on its way here or that has left, from the departure to the arrival (H32).
+         */
+        "trainmeet.sync-1.relay-answer.TrainOnSection": {
+            /** Call */
+            call: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Train Type
+             * @default null
+             */
+            train_type: string | null;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /**
+             * Planned Track
+             * @description Spåret vid ankomsten.
+             * @default null
+             */
+            planned_track: string | null;
+            /** Departed At */
+            departed_at: string;
         } & {
             [key: string]: unknown;
         };

@@ -4126,6 +4126,21 @@
             ],
             "default": null,
             "title": "Message"
+          },
+          "relay": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
+            "title": "Relay"
           }
         },
         "required": [
@@ -26955,6 +26970,2241 @@
           "checksum"
         ],
         "title": "Version",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call": {
+        "additionalProperties": true,
+        "description": "Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.\nMolnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse\n(SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.RelayKind"
+          },
+          "key_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).",
+            "title": "Key Hash"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Id"
+          },
+          "connect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.ConnectRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Command"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "known": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Platsens revision som klienten har.",
+            "title": "Known"
+          },
+          "wait": {
+            "default": 0.0,
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Wait",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "RelayCall",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "train.set_aside",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-call.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.ClientKind": {
+        "enum": [
+          "tkl",
+          "tmbox_app",
+          "dispatch"
+        ],
+        "title": "ClientKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-call.Command": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "message_id": {
+            "description": "Unikt per klient. Samma id ger samma svar.",
+            "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.MeetContext"
+          },
+          "action": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Action"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exakt en scope och nyckel; utelämnas för train.lookup."
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "message_id",
+          "client_id",
+          "place",
+          "context",
+          "action"
+        ],
+        "title": "Command",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.ConnectRequest": {
+        "additionalProperties": true,
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "protocols": {
+            "description": "Alla versioner klienten talar.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Protocols",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.ClientKind"
+          },
+          "name": {
+            "description": "Det trafikledningen ser i Klienter.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Program och version, till exempel TKL 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          },
+          "station_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Station Id"
+          },
+          "outside": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.StationOutside"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "wants": {
+            "description": "Driftplatserna den vill köra.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Wants",
+            "type": "array"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "software"
+        ],
+        "title": "ConnectRequest",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.RelayKind": {
+        "enum": [
+          "connect",
+          "connection",
+          "snapshot",
+          "command",
+          "revision"
+        ],
+        "title": "RelayKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-call.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-call.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-call.StationOutside": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls": {
+        "additionalProperties": true,
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.RelayCall"
+            },
+            "maxItems": 100,
+            "title": "Calls",
+            "type": "array"
+          }
+        },
+        "title": "RelayCalls",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "train.set_aside",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-calls.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.ClientKind": {
+        "enum": [
+          "tkl",
+          "tmbox_app",
+          "dispatch"
+        ],
+        "title": "ClientKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-calls.Command": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "message_id": {
+            "description": "Unikt per klient. Samma id ger samma svar.",
+            "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.MeetContext"
+          },
+          "action": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Action"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exakt en scope och nyckel; utelämnas för train.lookup."
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "message_id",
+          "client_id",
+          "place",
+          "context",
+          "action"
+        ],
+        "title": "Command",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.ConnectRequest": {
+        "additionalProperties": true,
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "protocols": {
+            "description": "Alla versioner klienten talar.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Protocols",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.ClientKind"
+          },
+          "name": {
+            "description": "Det trafikledningen ser i Klienter.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Program och version, till exempel TKL 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          },
+          "station_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Station Id"
+          },
+          "outside": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.StationOutside"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "wants": {
+            "description": "Driftplatserna den vill köra.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Wants",
+            "type": "array"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "software"
+        ],
+        "title": "ConnectRequest",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.RelayCall": {
+        "additionalProperties": true,
+        "description": "Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.\nMolnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse\n(SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.RelayKind"
+          },
+          "key_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).",
+            "title": "Key Hash"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Id"
+          },
+          "connect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.ConnectRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Command"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "known": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Platsens revision som klienten har.",
+            "title": "Known"
+          },
+          "wait": {
+            "default": 0.0,
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Wait",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "RelayCall",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.RelayKind": {
+        "enum": [
+          "connect",
+          "connection",
+          "snapshot",
+          "command",
+          "revision"
+        ],
+        "title": "RelayKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-calls.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-calls.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-calls.StationOutside": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer": {
+        "additionalProperties": true,
+        "description": "Hubbens svar på ett anrop genom reläet, som molnet ger klienten som det är.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "HTTP-status, som om klienten frågat hubben.",
+            "maximum": 599,
+            "minimum": 200,
+            "title": "Status",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför, när status inte är 2xx.",
+            "title": "Detail"
+          },
+          "connected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ConnectReply"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Snapshot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Reply"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Revision"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "RelayAnswer",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.Action": {
+        "enum": [
+          "train.lookup",
+          "train.track.change",
+          "train.departed",
+          "train.arrived",
+          "train.position.set",
+          "train.crew_ready.set",
+          "train.set_aside",
+          "clearance.request",
+          "clearance.response",
+          "clearance.cancel",
+          "line.available.publish",
+          "line.available.acknowledge",
+          "section.occupancy",
+          "signal.exit",
+          "place.leave",
+          "place.take_back"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.ApprovalStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "refused",
+          "revoked"
+        ],
+        "title": "ApprovalStatus",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.ArrivalState": {
+        "enum": [
+          "none",
+          "on_the_way",
+          "arrived"
+        ],
+        "title": "ArrivalState",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.CallHere": {
+        "additionalProperties": true,
+        "description": "A call at this place, with what the client may do with it right now.",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel IC 116 (F9).",
+            "title": "Train Label"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "manual": {
+            "default": false,
+            "title": "Manual",
+            "type": "boolean"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          },
+          "day_offset": {
+            "default": 0,
+            "title": "Day Offset",
+            "type": "integer"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Planned Track"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var tåget står eller ska stå nu.",
+            "title": "Track"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "arrival_state": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ArrivalState",
+            "default": "none"
+          },
+          "departure_state": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.DepartureState",
+            "default": "planned"
+          },
+          "positioned": {
+            "default": false,
+            "title": "Positioned",
+            "type": "boolean"
+          },
+          "crew_ready": {
+            "default": false,
+            "title": "Crew Ready",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "allowed_actions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Action"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "call",
+          "train",
+          "train_number",
+          "revision"
+        ],
+        "title": "CallHere",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.Clearance": {
+        "additionalProperties": true,
+        "properties": {
+          "clearance_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Clearance Id",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "to_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "To Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ClearanceStatus"
+          },
+          "departed": {
+            "default": false,
+            "title": "Departed",
+            "type": "boolean"
+          },
+          "requested_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "reminders": {
+            "default": 0,
+            "description": "Påminnelser hittills (H39).",
+            "minimum": 0,
+            "title": "Reminders",
+            "type": "integer"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "clearance_id",
+          "call",
+          "train_number",
+          "section",
+          "from_place",
+          "to_place",
+          "status",
+          "requested_at",
+          "revision"
+        ],
+        "title": "Clearance",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.ClearanceStatus": {
+        "enum": [
+          "waiting",
+          "approved",
+          "rejected",
+          "cancelled",
+          "invalidated"
+        ],
+        "title": "ClearanceStatus",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.Clock": {
+        "additionalProperties": true,
+        "properties": {
+          "time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Time",
+            "type": "string"
+          },
+          "seconds": {
+            "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "integer"
+          },
+          "running": {
+            "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+            "title": "Running",
+            "type": "boolean"
+          },
+          "speed": {
+            "exclusiveMinimum": 0,
+            "title": "Speed",
+            "type": "number"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "time",
+          "seconds",
+          "running",
+          "speed",
+          "game_day"
+        ],
+        "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.ConnectReply": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ApprovalStatus"
+          },
+          "places": {
+            "description": "Godkända driftplatser.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.",
+            "title": "Key"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message"
+          },
+          "relay": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
+            "title": "Relay"
+          }
+        },
+        "required": [
+          "client_id",
+          "status"
+        ],
+        "title": "ConnectReply",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.DepartureState": {
+        "enum": [
+          "planned",
+          "requested",
+          "cleared",
+          "departed"
+        ],
+        "title": "DepartureState",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.LineMessage": {
+        "additionalProperties": true,
+        "properties": {
+          "message_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "from_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "From Place",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "acknowledged": {
+            "default": false,
+            "title": "Acknowledged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id",
+          "section",
+          "from_place"
+        ],
+        "title": "LineMessage",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.LookupMatch": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Label"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
+          }
+        },
+        "required": [
+          "call",
+          "train_number"
+        ],
+        "title": "LookupMatch",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.MeetContext": {
+        "additionalProperties": true,
+        "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+        "properties": {
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarskapets epok; byts vid övertag.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet_id",
+          "version",
+          "game_day",
+          "epoch"
+        ],
+        "title": "MeetContext",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.Neighbour": {
+        "additionalProperties": true,
+        "description": "A place and its game number, for the telephone list in TKL and the app (H24).",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place",
+          "code",
+          "name"
+        ],
+        "title": "Neighbour",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.Reason": {
+        "enum": [
+          "unsupported_protocol",
+          "unknown_action",
+          "not_approved",
+          "wrong_place",
+          "stale_meet_context",
+          "stale_revision",
+          "no_active_meet",
+          "train_number_required",
+          "unknown_train_number",
+          "ambiguous_train_number",
+          "unknown_call",
+          "unknown_track",
+          "track_occupied",
+          "unknown_section",
+          "channel_occupied",
+          "call_already_requested",
+          "clearance_not_pending",
+          "unknown_clearance",
+          "not_sender",
+          "not_receiver",
+          "train_already_departed",
+          "departure_not_reserved",
+          "invalid_departure",
+          "invalid_arrival",
+          "train_not_departed",
+          "unknown_line_message",
+          "already_acknowledged",
+          "not_level_3",
+          "station_automatic",
+          "automatic_station_manned",
+          "automation_off",
+          "client_not_present",
+          "no_jump_to_undo",
+          "other_game_day",
+          "day_still_running",
+          "unknown_place",
+          "unknown_train",
+          "no_route",
+          "invalid_time",
+          "train_number_taken",
+          "unknown_change",
+          "section_closed",
+          "unknown_version",
+          "same_version",
+          "no_switch_waiting",
+          "drift_locked",
+          "not_locked",
+          "not_leader",
+          "already_leader"
+        ],
+        "title": "Reason",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.Reply": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "message_id": {
+            "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ReplyStatus"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Reason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Texten att visa, på klientens språk.",
+            "title": "Message"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Revision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "result": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.LookupMatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara för train.lookup.",
+            "title": "Result"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Snapshot"
+          }
+        },
+        "required": [
+          "message_id",
+          "status",
+          "snapshot"
+        ],
+        "title": "Reply",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.ReplyStatus": {
+        "enum": [
+          "accepted",
+          "rejected",
+          "duplicate"
+        ],
+        "title": "ReplyStatus",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.Revision": {
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.RevisionScope"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "value"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.RevisionScope": {
+        "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+        "enum": [
+          "call",
+          "case",
+          "place"
+        ],
+        "title": "RevisionScope",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.SectionHere": {
+        "additionalProperties": true,
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "other_code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Other Code",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.TrackKind"
+          },
+          "clearance_mode": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ClearanceMode"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Side"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "exit": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens utfart för sträckan.",
+            "title": "Exit"
+          },
+          "occupied": {
+            "default": false,
+            "title": "Occupied",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "section",
+          "other_place",
+          "other_code",
+          "tracks",
+          "clearance_mode"
+        ],
+        "title": "SectionHere",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.Snapshot": {
+        "additionalProperties": true,
+        "description": "Everything a client needs for one place, replaced whole every time.",
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.station/1",
+            "default": "trainmeet.station/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "place": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Neighbour"
+          },
+          "context": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.MeetContext"
+          },
+          "clock": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Clock"
+          },
+          "place_revision": {
+            "minimum": 0,
+            "title": "Place Revision",
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.SectionHere"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.CallHere"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "on_the_way": {
+            "description": "På väg hit.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.TrainOnSection"
+            },
+            "title": "On The Way",
+            "type": "array"
+          },
+          "have_left": {
+            "description": "Har lämnat.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.TrainOnSection"
+            },
+            "title": "Have Left",
+            "type": "array"
+          },
+          "clearances": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Clearance"
+            },
+            "title": "Clearances",
+            "type": "array"
+          },
+          "line_messages": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.LineMessage"
+            },
+            "title": "Line Messages",
+            "type": "array"
+          },
+          "neighbours": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Neighbour"
+            },
+            "title": "Neighbours",
+            "type": "array"
+          },
+          "all_places": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.Neighbour"
+            },
+            "title": "All Places",
+            "type": "array"
+          },
+          "automatic": {
+            "default": false,
+            "description": "Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+            "title": "Automatic",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "place",
+          "context",
+          "clock",
+          "place_revision"
+        ],
+        "title": "Snapshot",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.TrainOnSection": {
+        "additionalProperties": true,
+        "description": "A train on its way here or that has left, from the departure to the arrival (H32).",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "train_type": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train Type"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "other_place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Other Place",
+            "type": "string"
+          },
+          "planned_track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret vid ankomsten.",
+            "title": "Planned Track"
+          },
+          "departed_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "train_number",
+          "section",
+          "other_place",
+          "departed_at"
+        ],
+        "title": "TrainOnSection",
         "type": "object"
       }
     },
