@@ -19581,7 +19581,8 @@
       "trainmeet.planning-1.draft.SourceKind": {
         "enum": [
           "planning_json",
-          "station_lists"
+          "station_lists",
+          "track_picture"
         ],
         "title": "SourceKind",
         "type": "string"
@@ -20966,7 +20967,8 @@
       "trainmeet.planning-1.import-preview.SourceKind": {
         "enum": [
           "planning_json",
-          "station_lists"
+          "station_lists",
+          "track_picture"
         ],
         "title": "SourceKind",
         "type": "string"

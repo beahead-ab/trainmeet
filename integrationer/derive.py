@@ -16,6 +16,18 @@ confirms it in Bana (IMPORT-04, PLAN-02):
 - A section runs between two places that follow each other on a train's route, single track
   until the track picture or the planner says otherwise.
 
+With the track picture as well (underlagsnivå 2, track_picture.py):
+
+- Each place takes its signature's place on the picture, which becomes the map in Bana.
+- A place named only in Från or Till takes the signature on the picture that is an abbreviation
+  of its name ("Tve" for Tveiten), or else the only one with the same first letter. That rule is
+  said, and the signature is osäker.
+- A place on the picture without a list is a place in between: an industry or a halt inside the
+  section, where the trains have no time. The lists give no time where the line branches
+  either, so such a place lies inside the sections too, and the report says so.
+- A section the trains give and the picture shows is säker, with the places in between as its
+  parts; two lines side by side all the way make it double track.
+
 Ported from the old Cloud (cloud/domain.py, build_linear_topology), without its silent guesses
 (IMPORT-29): no signature is made up, and what a rule decided is said in the report.
 """
@@ -35,6 +47,8 @@ from contracts.common import Weekday
 from contracts.meet import (
     Call,
     Clock,
+    Display,
+    MapPoint,
     Meet,
     MeetPackage,
     Place,
@@ -42,6 +56,7 @@ from contracts.meet import (
     PlanTrack,
     Section,
     SectionPart,
+    TrackKind,
     Train,
 )
 from contracts.planning import (
@@ -59,8 +74,10 @@ from contracts.planning import (
 from integrationer import rulebook
 from integrationer.planning_json import CONTENT_WORD
 from integrationer.station_lists import ListError, Lists, Row, merged
+from integrationer.track_picture import Picture
 
 LEVEL: Final = 1  # Stationstidtabeller: underlagsnivå 1 (I1)
+DRAWN: Final = 2  # + banbilden: underlagsnivå 2
 DAY: Final = 24 * 60
 WEEK: Final = list(Weekday)
 SHOWN: Final = 3
@@ -78,6 +95,9 @@ class _Place:
     tracks: set[str] = field(default_factory=set)
     kind_note: str = ""
     named_by: str | None = None  # the train that gave a place known by its code its name
+    drawn: str | None = None  # the signature on the track picture
+    only_drawn: bool = False  # on the picture, in no list
+    code_note: str | None = None  # how the signature was found, when a rule decided it
 
 
 @dataclass
@@ -114,9 +134,26 @@ class _Run:
     start: int = 0
 
 
-def draft(found: Lists, *, meet: Meet, source: Source) -> ImportResult:
-    """The draft the lists give on their own. Raises ListError when no train can be read."""
-    return _Derivation(found, meet, source).run()
+def draft(
+    found: Lists,
+    *,
+    meet: Meet,
+    source: Source,
+    picture: Picture | None = None,
+    drawn: Source | None = None,
+) -> ImportResult:
+    """The draft the lists give, with the track picture when there is one (drawn is its
+    source). Raises ListError when no train can be read."""
+    return _Derivation(found, meet, source, picture if drawn else None, drawn).run()
+
+
+def abbreviates(code: str, name: str) -> bool:
+    """Tve for Tveiten: the signature's letters in the name, in order, from its first."""
+    letters, text = code.casefold(), name.casefold()
+    if not letters or not text.startswith(letters[0]):
+        return False
+    rest = iter(text)
+    return all(letter in rest for letter in letters)
 
 
 def _minutes(clock: str) -> int:
@@ -142,15 +179,28 @@ def _joined(names: list[str]) -> str:
     return unique[0] if len(unique) == 1 else ", ".join(unique[:-1]) + " och " + unique[-1]
 
 
+def plural(count: int, one: str, many: str) -> str:
+    return f"{count} {one if count == 1 else many}"
+
+
 def _number_order(number: str) -> tuple[int, str]:
     return (int(number), number) if number.isdigit() else (1 << 30, number)
 
 
 class _Derivation:
-    def __init__(self, found: Lists, meet: Meet, source: Source) -> None:
+    def __init__(
+        self,
+        found: Lists,
+        meet: Meet,
+        source: Source,
+        picture: Picture | None,
+        drawn: Source | None,
+    ) -> None:
         self.found = found
         self.meet = meet
         self.source = source
+        self.picture = picture
+        self.drawn = drawn
         self.places: dict[str, _Place] = {}
         self.by_code: dict[str, _Place] = {}
         self.by_name: dict[str, _Place] = {}
@@ -159,12 +209,25 @@ class _Derivation:
         self.left_out: list[str] = list(found.left_out)
         self.unnamed: list[str] = []
         self.midnight: list[str] = []
+        self.confirmed: set[str] = set()
 
     def origin(self, at: str) -> Origin:
         return Origin(source=self.source.id, at=at)
 
-    def fact(self, ref: str, certainty: Certainty, at: list[str], note: str | None = None) -> None:
-        origins = [self.origin(a) for a in dict.fromkeys(at)]
+    def on_picture(self, what: str = "") -> Origin:
+        assert self.drawn is not None and self.picture is not None
+        at = f"Banbilden, sida {self.picture.page}" + (f", {what}" if what else "")
+        return Origin(source=self.drawn.id, at=at)
+
+    def fact(
+        self,
+        ref: str,
+        certainty: Certainty,
+        at: list[str],
+        note: str | None = None,
+        also: list[Origin] | None = None,
+    ) -> None:
+        origins = [self.origin(a) for a in dict.fromkeys(at)] + (also or [])
         self.facts.append(Fact(ref=ref, certainty=certainty, origins=origins, note=note))
 
     def run(self) -> ImportResult:
@@ -174,6 +237,8 @@ class _Derivation:
             raise ListError("Listorna har inga tåg att bygga utkastet av.")
         trains = self._trains(runs)
         self._kinds(stops)
+        if self.picture is not None:
+            self._from_picture()
         sections = self._sections(trains)
         rules, questions = self._rulebook(trains)
         places = [self._place(p) for p in self.places.values()]
@@ -188,9 +253,19 @@ class _Derivation:
                 f"Tåg {_joined(self.midnight)} går över midnatt; dagarna i listan gäller när "
                 "tåget börjar."
             )
+        layout = {
+            p.id: MapPoint(x=self.picture.places[p.drawn][0], y=self.picture.places[p.drawn][1])
+            for p in self.places.values()
+            if self.picture is not None and p.drawn is not None
+        }
         try:
             package = MeetPackage(
-                meet=self.meet, clock=clock, places=places, sections=sections, trains=trains
+                meet=self.meet,
+                clock=clock,
+                places=places,
+                sections=sections,
+                trains=trains,
+                display=Display(reference_layout=layout),
             )
         except ValidationError as error:
             raise ListError(
@@ -199,19 +274,14 @@ class _Derivation:
         counts = Counter(place.kind for place in places)
         report = ImportReport(
             source=self.source.id,
-            level=LEVEL,
+            level=DRAWN if self.picture is not None else LEVEL,
             places={kind: counts[kind] for kind in PlaceKind if counts[kind]},
             sections=len(sections),
             parts=sum(len(section.parts) for section in sections),
             trains=len(trains),
             calls=sum(len(train.calls) for train in trains),
             train_types=len(rules.train_types),
-            notes=[
-                f"Utkastet är härlett ur {len(self.found.rows)} stationslistor. Platstyperna och "
-                "sträckorna är osäkra tills du bekräftar dem i Bana; banbilden, grafen eller "
-                "planeringsfilen höjer nivån.",
-                *dict.fromkeys(self.notes),
-            ],
+            notes=[self._summary(sections), *dict.fromkeys(self.notes)],
             left_out=list(dict.fromkeys(self.left_out)),
         )
         return ImportResult(
@@ -220,6 +290,23 @@ class _Derivation:
             rulebook=rules,
             questions=questions,
             report=report,
+        )
+
+    def _summary(self, sections: list[Section]) -> str:
+        lists = f"Utkastet är härlett ur {len(self.found.rows)} stationslistor"
+        if self.picture is None:
+            return (
+                f"{lists}. Platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana; "
+                "banbilden, grafen eller planeringsfilen höjer nivån."
+            )
+        shown = sum(1 for s in sections if s.id in self.confirmed)
+        between = sum(1 for p in self.places.values() if p.only_drawn)
+        double = sum(1 for s in sections if s.tracks == TrackKind.DOUBLE)
+        return (
+            f"{lists} och banbilden. Banbilden visar {shown} av {len(sections)} sträckor, "
+            f"{plural(between, 'plats', 'platser')} emellan och dubbelspår på "
+            f"{plural(double, 'sträcka', 'sträckor')}. Platstyperna är osäkra tills du "
+            "bekräftar dem i Bana."
         )
 
     # --- Places ------------------------------------------------------------------------------
@@ -304,8 +391,13 @@ class _Derivation:
                 place.kind_note = "Har en egen stationslista: klarerar tåg."
 
     def _place(self, place: _Place) -> Place:
-        self.fact(f"place:{place.id}", Certainty.LIKELY, [place.at])
-        self.fact(f"place:{place.id}.kind", Certainty.UNSURE, [place.at], place.kind_note)
+        drawn = [self.on_picture(place.drawn)] if place.drawn else []
+        at = [] if place.only_drawn else [place.at]
+        both = Certainty.SURE if at and drawn else Certainty.LIKELY
+        self.fact(f"place:{place.id}", both, at, also=drawn)
+        self.fact(f"place:{place.id}.kind", Certainty.UNSURE, at, place.kind_note, also=drawn)
+        if place.code_note:
+            self.fact(f"place:{place.id}.code", Certainty.UNSURE, at, place.code_note, also=drawn)
         if place.code == place.name and place.kind == PlaceKind.REMOTE and not place.named_by:
             self.notes.append(
                 f"{place.code} står bara med signaturen i listorna; namnet saknas tills du "
@@ -322,6 +414,78 @@ class _Derivation:
                 for index, name in enumerate(sorted(place.tracks, key=_natural))
             ],
         )
+
+    def _from_picture(self) -> None:
+        """The picture's signatures on the places: by signature, by the rule for a place named
+        only in Från or Till, and the rest as places in between."""
+        assert self.picture is not None
+        codes = {code.casefold(): code for code in self.picture.places}
+        for place in self.places.values():
+            code = codes.get(place.code.casefold())
+            if code is not None and not (place.code == place.name and place.kind == PlaceKind.HALT):
+                place.drawn = code
+        free = {c for c in self.picture.places if c not in {p.drawn for p in self.places.values()}}
+        guessed: list[str] = []
+        unclear: list[str] = []
+        for place in self.places.values():
+            if place.drawn is not None or place.code != place.name:
+                continue
+            first = [c for c in free if c.casefold()[0] == place.name.casefold()[0]]
+            short = [c for c in first if abbreviates(c, place.name)]
+            if len(short) == 1:
+                code, rule = short[0], f"{short[0]} är en förkortning av {place.name}"
+            elif len(first) == 1:
+                code, rule = (
+                    first[0],
+                    (
+                        f"{first[0]} är den enda signaturen på banbilden som börjar som "
+                        f"{place.name} och inte har en lista"
+                    ),
+                )
+            else:
+                if first:
+                    shown = _joined(sorted(short or first)).replace(" och ", " eller ")
+                    unclear.append(f"{place.name} ({shown})")
+                continue
+            free.discard(code)
+            self.by_code[code.casefold()] = place
+            place.code, place.drawn = code, code
+            place.code_note = f"Signaturen ur banbilden: {rule}."
+            guessed.append(f"{code} för {place.name}")
+        if guessed:
+            self.notes.append(
+                f"Signaturerna ur banbilden, osäkra tills du bekräftar dem: {_joined(guessed)}."
+            )
+        if unclear:
+            self.notes.append(
+                f"Banbilden har flera signaturer som kan vara {_joined(unclear)}; ingen väljs "
+                "på en gissning."
+            )
+        between: list[str] = []
+        branching: list[str] = []
+        for code in sorted(free):
+            place = self._new(code, code, f"Banbilden, sida {self.picture.page}")
+            place.kind, place.drawn, place.only_drawn = PlaceKind.HALT, code, True
+            place.kind_note = (
+                "Står på banbilden men har ingen lista: industri eller hållplats inne i sträckan."
+            )
+            between.append(code)
+            if self.picture.branches(code) >= 3:
+                branching.append(code)
+                place.kind_note = (
+                    "Banan grenar sig här. Platsen har ingen lista och tågen har ingen tid här, "
+                    "så den ligger inne i sträckorna tills du ändrar platstypen."
+                )
+        if between:
+            self.notes.append(
+                f"{_joined(between)} står på banbilden men har ingen lista; signaturen används "
+                "som namn."
+            )
+        if branching:
+            self.notes.append(
+                f"Banan grenar sig vid {_joined(branching)}, som saknar lista och tider: platsen "
+                "ligger inne i sträckorna tills du ändrar platstypen."
+            )
 
     # --- Trains -------------------------------------------------------------------------------
 
@@ -500,17 +664,71 @@ class _Derivation:
             section_id = f"s-{a.removeprefix('l-')}-{b.removeprefix('l-')}"
             shown = ", ".join(numbers[:SHOWN]) + (" …" if len(numbers) > SHOWN else "")
             names = f"{self.places[a].name} och {self.places[b].name}"
+            running = f"{plural(len(numbers), 'tåg', 'tåg')} går direkt mellan {names}"
+            way = self._way(a, b, halts)
+            if way is None:
+                missing = " Banbilden visar ingen väg mellan dem." if self.picture else ""
+                self.fact(
+                    f"section:{section_id}",
+                    Certainty.UNSURE,
+                    [f"Tåg {shown}"],
+                    f"Härledd: {running}. Enkelspår tills banbilden eller du säger annat.{missing}",
+                )
+                part = SectionPart(id=f"{section_id}.1", from_place=a, to_place=b)
+                self.fact(f"part:{part.id}", Certainty.UNSURE, [f"Tåg {shown}"])
+                sections.append(Section(id=section_id, place_a=a, place_b=b, parts=[part]))
+                continue
+            assert self.picture is not None
+            drawn = [self.places[p].drawn or "" for p in way]
+            double = all(self.picture.links.get(frozenset(link), False) for link in pairwise(drawn))
+            through = [self.places[p].name for p in way[1:-1]]
+            self.confirmed.add(section_id)
             self.fact(
                 f"section:{section_id}",
-                Certainty.UNSURE,
+                Certainty.SURE,
                 [f"Tåg {shown}"],
-                f"Härledd: {len(numbers)} tåg går direkt mellan {names}. Enkelspår tills "
-                "banbilden eller du säger annat.",
+                f"{running.capitalize()}, och banbilden visar vägen"
+                + (f" förbi {_joined(through)}" if through else "")
+                + (". Dubbelspår: två linjer hela vägen." if double else ". Enkelspår."),
+                also=[self.on_picture("–".join(drawn))],
             )
-            part = SectionPart(id=f"{section_id}.1", from_place=a, to_place=b)
-            self.fact(f"part:{part.id}", Certainty.UNSURE, [f"Tåg {shown}"])
-            sections.append(Section(id=section_id, place_a=a, place_b=b, parts=[part]))
+            parts = [
+                SectionPart(id=f"{section_id}.{n}", from_place=x, to_place=y)
+                for n, (x, y) in enumerate(pairwise(way), 1)
+            ]
+            for part in parts:
+                link = f"{self.places[part.from_place].drawn}–{self.places[part.to_place].drawn}"
+                self.facts.append(
+                    Fact(
+                        ref=f"part:{part.id}",
+                        certainty=Certainty.LIKELY,
+                        origins=[self.on_picture(link)],
+                    )
+                )
+            sections.append(
+                Section(
+                    id=section_id,
+                    place_a=a,
+                    place_b=b,
+                    tracks=TrackKind.DOUBLE if double else TrackKind.SINGLE,
+                    parts=parts,
+                )
+            )
         return sections
+
+    def _way(self, a: str, b: str, halts: set[str]) -> list[str] | None:
+        """The places from a to b on the picture, through industries and halts only."""
+        if self.picture is None:
+            return None
+        start, end = self.places[a].drawn, self.places[b].drawn
+        if start is None or end is None:
+            return None
+        through = {self.places[p].drawn for p in halts if self.places[p].drawn}
+        way = self.picture.path(start, end, {c for c in through if c})
+        if way is None:
+            return None
+        by_drawn = {p.drawn: p.id for p in self.places.values() if p.drawn}
+        return [by_drawn[code] for code in way]
 
     # --- The rulebook -------------------------------------------------------------------------
 

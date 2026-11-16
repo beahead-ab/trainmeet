@@ -185,4 +185,20 @@ describe("Lägg till underlag", () => {
     expect(both).toContain('id="changes"');
     expect(both).toContain("Stationslistorna som redan är underlag får en dom var");
   });
+
+  it("says what the track picture gives on top of the lists (level 2)", () => {
+    const note = "Utkastet är härlett ur 14 stationslistor och banbilden. Banbilden visar 14 av 14 sträckor, 9 platser emellan och dubbelspår på 6 sträckor.";
+    const drawn = {
+      ...preview,
+      source: { id: "src5", kind: "track_picture", filename: "Banan.pdf" },
+      report: { level: 2, places: { manned: 11, shadow_yard: 3, remote: 1, halt: 16 }, sections: 14, trains: 228, verdicts: [], notes: [note] },
+    } as unknown as ImportPreview;
+    const html = renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "Banan.pdf", state: "read", preview: drawn }} />);
+    expect(html).toContain("Banbild och stationslistor · 228 tåg · 31 driftplatser · 14 sträckor");
+    expect(html).toContain(">BILD<");
+    expect(html).toContain(note);
+    expect((html.match(/class="fylld"/g) ?? []).length).toBe(2);
+    const kept = { ...drawn, report: { level: 2, trains: 0, sections: 0, notes: ["Planeringsfilen har redan banan; banbilden sparas som underlag."] } } as unknown as ImportPreview;
+    expect(renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "Banan.pdf", state: "read", preview: kept }} />)).toContain("Banbild · sparas som underlag");
+  });
 });

@@ -627,9 +627,9 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
     if result.checks_only:
         # Stationslistorna prövade mot planeringsfilen (IMPORT-27): the draft stays as it is;
         # the source is kept and its verdicts go with the report.
-        report = (draft.report or result.report).model_copy(
-            update={"verdicts": result.report.verdicts}
-        )
+        report = draft.report or result.report
+        if result.report.verdicts:
+            report = report.model_copy(update={"verdicts": result.report.verdicts})
         return draft.model_copy(
             update={
                 "sources": [s for s in draft.sources if s.kind != source.kind] + [source],

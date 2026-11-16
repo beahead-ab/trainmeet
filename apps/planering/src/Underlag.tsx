@@ -14,12 +14,14 @@ export function readLine(preview: ImportPreview): string {
   const report = preview.report;
   const verdicts = report.verdicts ?? [];
   const lists = preview.source.kind === "station_lists";
+  if (preview.source.kind === "track_picture" && !report.trains) return "Banbild · sparas som underlag";
   if (lists && verdicts.length) {
     const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
     return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
   }
   const places = Object.values(report.places ?? {}).reduce((sum, value) => sum + value, 0);
   const counts = `${plural(report.trains, "tåg", "tåg")} · ${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`;
+  if (preview.source.kind === "track_picture") return `Banbild och stationslistor · ${counts}`;
   return lists ? `Stationslistor · ${counts}, härledda` : `Tellurians plan · ${counts}`;
 }
 
@@ -84,14 +86,14 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               void take(event.dataTransfer.files[0]);
             }}
           >
-            <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
+            <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv,.pdf,application/pdf" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
             <b>Släpp filen här</b>
-            <span>eller välj den. Tellurians planeringsfil (JSON), eller stationslistorna (ODT, ZIP, Excel eller CSV), som prövas mot planeringsfilen. Grafen och en bild av banan kommer i nästa del (4c).</span>
+            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel eller CSV) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan.</span>
           </label>
           {read && (
             <ul id="files" className="filer">
               <li>
-                <span className="kalla">{/\.(odt|zip|xlsx|csv)$/i.test(read.name) ? "ST" : "JSON"}</span>
+                <span className="kalla">{/\.(odt|zip|xlsx|csv)$/i.test(read.name) ? "ST" : /\.pdf$/i.test(read.name) ? "BILD" : "JSON"}</span>
                 <div>
                   <b>{read.name}</b>
                   <div className="liten">{preview ? readLine(preview) : "Tellurians plan"}</div>
@@ -122,6 +124,10 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                   {preview.source.kind === "station_lists" ? (
                     <p className="liten" id="derived">
                       Härlett ur listorna: platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana. Banbilden, grafen eller planeringsfilen höjer nivån.
+                    </p>
+                  ) : preview.source.kind === "track_picture" ? (
+                    <p className="liten" id="derived">
+                      {preview.report.notes?.[0] ?? "Banbilden sparas som underlag."}
                     </p>
                   ) : (
                     <p className="liten">Allt får källa och säkerhet och syns som kolumner i Data.</p>

@@ -39,6 +39,7 @@ class Certainty(StrEnum):
 class SourceKind(StrEnum):
     PLANNING_JSON = "planning_json"  # Tellurians planeringsfil
     STATION_LISTS = "station_lists"  # Stationslistorna: ODT, Excel eller CSV (4c1)
+    TRACK_PICTURE = "track_picture"  # Banbilden: Tellurians topologi-PDF (4c1)
 
 
 class Source(Contract):

@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from contracts import planning
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from integrationer import derive, planning_json, station_lists
+from integrationer import derive, planning_json, station_lists, track_picture
 from planering import export
 from planering.store import Planning, PlanningError
 
@@ -99,11 +99,17 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
     def _read(meet: str, name: str, data: bytes) -> dict[str, Any]:
         lower = name.casefold()
         lists = station_lists.is_lists(name)
-        if not (lists or lower.endswith((".json", ".json.gz", ".gz")) or data[:2] == b"\x1f\x8b"):
+        drawn = lower.endswith(".pdf")
+        if not (
+            lists
+            or drawn
+            or lower.endswith((".json", ".json.gz", ".gz"))
+            or data[:2] == b"\x1f\x8b"
+        ):
             raise HTTPException(
                 415,
-                "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON) eller "
-                "stationslistorna (ODT, ZIP, Excel eller CSV).",
+                "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON), "
+                "stationslistorna (ODT, ZIP, Excel eller CSV) eller banbilden (PDF).",
             )
         try:
             current = store.draft(meet)
@@ -112,6 +118,8 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         digest = hashlib.sha256(data).hexdigest()
         if lists:
             return _lists(meet, name, data, current, digest)
+        if drawn:
+            return _picture(meet, name, data, current, digest)
         source = planning.Source(
             id=f"u-{digest[:12]}",
             kind=planning.SourceKind.PLANNING_JSON,
@@ -159,11 +167,77 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 result = station_lists.check(data, name, plan=current.package, source=source)
             else:
                 found = station_lists.read(data, name)
-                result = derive.draft(found, meet=current.meet, source=source)
+                picture, drawn = _drawn(meet, current)
+                result = derive.draft(
+                    found, meet=current.meet, source=source, picture=picture, drawn=drawn
+                )
         except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
         try:
             return store.preview(meet, source, data, result).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
+    def _drawn(
+        meet: str, current: planning.Draft
+    ) -> tuple[track_picture.Picture | None, planning.Source | None]:
+        """The track picture already among the sources, read again from the file as it came."""
+        drawn = next(
+            (s for s in current.sources if s.kind == planning.SourceKind.TRACK_PICTURE), None
+        )
+        if drawn is None:
+            return None, None
+        _, body = store.source_file(meet, drawn.id)
+        try:
+            return track_picture.read(body), drawn
+        except track_picture.PictureError:
+            return None, None
+
+    def _picture(
+        meet: str, name: str, data: bytes, current: planning.Draft, digest: str
+    ) -> dict[str, Any]:
+        """Banbilden (4c1, level 2): with the station lists and no planning file, the draft is
+        derived again with the picture: the places in between, the sections it shows and
+        double track, and the map in Bana. With the planning file it is kept as a source."""
+        source = planning.Source(
+            id=f"u-{digest[:12]}",
+            kind=planning.SourceKind.TRACK_PICTURE,
+            filename=name,
+            size=len(data),
+            sha256=digest,
+            level=track_picture.LEVEL,
+            added=datetime.now(UTC),
+        )
+        try:
+            picture = track_picture.read(data)
+        except track_picture.PictureError as error:
+            raise HTTPException(422, str(error)) from error
+        kinds = {s.kind: s for s in current.sources}
+        try:
+            if planning.SourceKind.PLANNING_JSON in kinds and current.package is not None:
+                note = "Planeringsfilen har redan banan; banbilden sparas som underlag."
+                result = planning.ImportResult(
+                    package=current.package,
+                    report=planning.ImportReport(
+                        source=source.id, level=track_picture.LEVEL, notes=[note]
+                    ),
+                    checks_only=True,
+                )
+            elif (lists := kinds.get(planning.SourceKind.STATION_LISTS)) is not None:
+                _, body = store.source_file(meet, lists.id)
+                found = station_lists.read(body, lists.filename)
+                result = derive.draft(
+                    found, meet=current.meet, source=lists, picture=picture, drawn=source
+                )
+                report = result.report.model_copy(update={"source": source.id})
+                result = result.model_copy(update={"report": report})
+            else:
+                raise HTTPException(
+                    422, "Lägg till stationslistorna först. Banbilden bygger vidare på dem."
+                )
+            return store.preview(meet, source, data, result).model_dump(mode="json")
+        except station_lists.ListError as error:
+            raise HTTPException(422, str(error)) from error
         except PlanningError as error:
             _fail(error)
 
