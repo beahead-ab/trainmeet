@@ -106,8 +106,27 @@ def test_the_server_files_agree_on_the_names() -> None:
     assert "./hub-data:/data" in compose
     assert "reverse_proxy hub:8080" in caddyfile
     assert "{$HUB_DOMAIN}" in caddyfile
-    assert "HUB_TAG=%s\\nHUB_DOMAIN=%s" in up
+    assert "HUB_TAG=%s\\nHUB_DOMAIN=%s\\nPI_DOMAIN=%s" in up
     assert "127.0.0.1:8080:8080" in compose
+
+
+def test_a_pretend_pi_follows_the_test_hub() -> None:
+    """Låtsas-Pi (#73): the same hub image as a Pi runs it, at an address of its own behind the
+    same Caddy, with its data in a volume of its own. It reaches the test hub by name on
+    compose's network, which Synk lets it call over plain HTTP."""
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    pi = compose.split("\n  pi:\n")[1].split("\n\n")[0]
+    assert "image: trainmeet-hub:${HUB_TAG}" in pi and "TRAINMEET_HUB_NAME: Låtsas-Pi" in pi
+    assert "- pi-data:/data" in pi and "127.0.0.1:8084:8080" in pi
+    assert "{$PI_DOMAIN}" in caddyfile and "reverse_proxy pi:8080" in caddyfile
+    assert 'PI_DOMAIN="${7:-test.pi.trainmeet.app}"' in up and "pi:8084" in up
+    assert '"$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    hub_image = (ROOT / "hub" / "Dockerfile").read_text()
+    assert "mkdir /data && chown hub:hub /data" in hub_image
 
 
 def test_the_catalog_check_gives_compose_every_name_it_requires() -> None:
@@ -173,7 +192,7 @@ def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -
     assert "printf 'TAGS_DOMAIN=%s\\nCATALOG_TAG_BASE=%s\\n'" in up
     assert "TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}" in workflow
     assert 'TAG_BASE="https://$TAGS_DOMAIN/t/"' in workflow
-    assert '"$TAGS_DOMAIN" "$TAG_BASE" < deploy/testmiljo/up.sh' in workflow
+    assert '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh' in workflow
     assert "- name: Prova taggarnas adress" in workflow
 
 

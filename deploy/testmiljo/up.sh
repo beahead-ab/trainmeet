@@ -14,6 +14,8 @@ ID_DOMAIN="$4"
 # passes https://trainmeet.app/t/ as the tags' base then; until that, Catalog's own address.
 TAGS_DOMAIN="${5:-trainmeet.app}"
 TAG_BASE="${6:-https://$CATALOG_DOMAIN/t/}"
+# Låtsas-Pi (#73): the same hub as a Pi runs it, following the test hub.
+PI_DOMAIN="${7:-test.pi.trainmeet.app}"
 cd /srv/trainmeet
 
 umask 077
@@ -25,7 +27,7 @@ mkdir -p id-vault
 TRIAL=on
 if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
 {
-  printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\n' "$TAG" "$DOMAIN"
+  printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\nPI_DOMAIN=%s\n' "$TAG" "$DOMAIN" "$PI_DOMAIN"
   printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"
@@ -108,7 +110,7 @@ if [ ! -s id-vault/trainmeet_smtp-password ]; then
 fi
 
 # The new versions must answer on the server itself, with the right commit.
-for service in hub:8080 catalog:8081 id-api:8083; do
+for service in hub:8080 pi:8084 catalog:8081 id-api:8083; do
   name="${service%%:*}"
   port="${service##*:}"
   i=0
