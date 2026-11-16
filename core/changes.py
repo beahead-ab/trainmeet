@@ -135,9 +135,7 @@ def apply(package: MeetPackage, change: changes.DriftChange, change_id: str) -> 
     match change:
         case changes.CancelTrain():
             train(package, change.train)
-            return package.model_copy(
-                update={"trains": [t for t in package.trains if t.id != change.train]}
-            )
+            return _without(package, change.train)
         case changes.ExtraTrain():
             extra = _extra(package, change, f"x-{change_id}")
             _number_free(package, extra.number, extra.days, extra.id)
@@ -176,6 +174,24 @@ def apply(package: MeetPackage, change: changes.DriftChange, change_id: str) -> 
                 raise ChangeError(Reason.UNKNOWN_CALL)
             return _with_call(package, change.call, note=change.text)
     raise ChangeError(Reason.UNKNOWN_ACTION)  # pragma: no cover - the union is closed
+
+
+def _without(package: MeetPackage, train_id: str) -> MeetPackage:
+    """The package without a train: out of its duties and its turns too, so that nothing
+    points at a train that is gone."""
+    return package.model_copy(
+        update={
+            "trains": [t for t in package.trains if t.id != train_id],
+            "duties": [
+                d.model_copy(update={"legs": [leg for leg in d.legs if leg.train != train_id]})
+                for d in package.duties
+            ],
+            "turns": [
+                t.model_copy(update={"trains": [x for x in t.trains if x != train_id]})
+                for t in package.turns
+            ],
+        }
+    )
 
 
 def touches(package: MeetPackage, change: changes.DriftChange) -> tuple[set[str], set[str]]:

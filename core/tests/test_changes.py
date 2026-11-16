@@ -142,3 +142,26 @@ def test_what_a_change_touches(package: MeetPackage) -> None:
     assert touches(package, changes.TrainNote(train="t101", text="x")) == (set(), set())
     extra = changes.ExtraTrain(number="9", copy_of="t101", departure="10:00")
     assert touches(package, extra) == (set(), set())
+
+
+def test_every_kind_leaves_a_package_that_holds_together(package: MeetPackage) -> None:
+    """The package's own check: a cancelled train is out of its duties and turns too."""
+    kinds: list[changes.DriftChange] = [
+        changes.CancelTrain(train="t101"),
+        changes.ExtraTrain(number="9101", copy_of="t102", departure="10:00"),
+        changes.ExtraTrain(number="9801", from_place="nby", to_place="sjv", departure="11:00"),
+        changes.ChangeTimes(train="t102", minutes=5),
+        changes.ChangePlace(section="s-nby-asn", closed=True),
+        changes.ChangePlace(place="asn", place_kind="unmanned"),
+        changes.ChangeTrack(call="t102-asn", track="1"),
+        changes.ChangeSectionTracks(section="s-asn-mla", tracks=TrackKind.SINGLE),
+        changes.ChangeDays(train="t103", days=[Weekday.MON, Weekday.TUE]),
+        changes.ChangeNumber(train="t103", number="113"),
+        changes.NoStop(call="t103-asn"),
+        changes.TrainNote(train="t103", text="Ånglok"),
+    ]
+    changed = package
+    for index, change in enumerate(kinds):
+        changed = apply(changed, change, f"c{index}")
+    MeetPackage.model_validate(changed.model_dump(mode="json"))
+    assert {d.id for d in package.duties} == {d.id for d in changed.duties}
