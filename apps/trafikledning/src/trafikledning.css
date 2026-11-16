@@ -493,6 +493,22 @@ main.installningssida {
 .installning .liten {
   margin: 0;
 }
+ul.moln {
+  list-style: none;
+  margin: 10px 0 4px;
+  padding: 0;
+}
+ul.moln li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--tm-line, #e5e7eb);
+}
+ul.moln .varning {
+  color: var(--gul-text);
+}
 .installningsfot {
   display: flex;
   justify-content: space-between;

@@ -32,6 +32,7 @@ from integrationer import (
 )
 from planering import export
 from planering.store import Planning, PlanningError
+from synk.link import Links
 from synk.store import SyncError, Versions
 
 MAX_UPLOAD: Final = planning_json.MAX_BYTES
@@ -48,7 +49,7 @@ def filename(name: str) -> str:
     return _CONTROL.sub("", base).strip()[:200] or "underlag"
 
 
-def router(store: Planning, kept: Versions, login: LocalLogin) -> APIRouter:
+def router(store: Planning, kept: Versions, links: Links, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/planering/1")
 
     def admin(session: str | None, authorization: str | None) -> None:
@@ -56,15 +57,23 @@ def router(store: Planning, kept: Versions, login: LocalLogin) -> APIRouter:
 
     @routes.get("/meets")
     def meets(response: Response) -> list[dict[str, Any]]:
-        """The meets with their versions, which Synk keeps (SYNK-08)."""
+        """The meets with their versions, which Synk keeps (SYNK-08), and the meets this hub
+        follows in the cloud (SYNK-02): those are planned there, and run here."""
         response.headers["Cache-Control"] = "no-store"
         published = kept.meets()
-        return [
-            summary.model_copy(update={"versions": published.get(summary.meet.id, [])}).model_dump(
-                mode="json"
-            )
+        planned = [
+            summary.model_copy(update={"versions": published.get(summary.meet.id, [])})
             for summary in store.meets()
         ]
+        mine = {summary.meet.id for summary in planned}
+        followed = []
+        for cloud in links.clouds({}):
+            found = published.get(cloud.meet, [])
+            if cloud.meet in mine or not found:
+                continue
+            meet = kept.package(cloud.meet, found[-1].number).meet
+            followed.append(planning.MeetSummary(meet=meet, versions=found, home=cloud.cloud_name))
+        return [summary.model_dump(mode="json") for summary in [*followed, *planned]]
 
     @routes.post("/meets", status_code=201)
     def create(

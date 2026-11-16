@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.cloud-link-change.schema.json",
+  "title": "trainmeet.sync-1.cloud-link-change",
+  "additionalProperties": true,
+  "description": "Koppla Pi:n till molnet: molnhubbens adress och koden därifrån.",
+  "properties": {
+    "address": {
+      "maxLength": 200,
+      "minLength": 8,
+      "title": "Address",
+      "type": "string"
+    },
+    "code": {
+      "description": "Sex siffror. Gäller en gång, i 15 minuter.",
+      "pattern": "^[0-9]{6}$",
+      "title": "Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "address",
+    "code"
+  ],
+  "type": "object"
+}

@@ -50,8 +50,8 @@ export function TraffarPage({ admin, meets, onCreate }: TraffarProps) {
                   return (
                     <tr key={summary.meet.id}>
                       <td>
-                        <a href={`/planering/${encodeURIComponent(summary.meet.id)}`}>{summary.meet.name}</a>
-                        <div className="liten">{COUNTRIES[summary.meet.country] ?? summary.meet.country}</div>
+                        {summary.home ? <b>{summary.meet.name}</b> : <a href={`/planering/${encodeURIComponent(summary.meet.id)}`}>{summary.meet.name}</a>}
+                        <div className="liten">{summary.home ? `Planeras i ${summary.home} · körs här med Byt träff` : (COUNTRIES[summary.meet.country] ?? summary.meet.country)}</div>
                       </td>
                       <td>{dates(summary.meet)}</td>
                       <td>

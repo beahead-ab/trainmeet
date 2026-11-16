@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.version-list.schema.json",
+  "title": "trainmeet.sync-1.version-list",
+  "$defs": {
+    "Version": {
+      "additionalProperties": true,
+      "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+      "properties": {
+        "meet": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "number": {
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "published": {
+          "format": "date-time",
+          "title": "Published",
+          "type": "string"
+        },
+        "checksum": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Checksum",
+          "type": "string"
+        },
+        "conflicts": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Conflicts",
+          "type": "integer"
+        },
+        "observations": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Observations",
+          "type": "integer"
+        },
+        "withdrawn": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+          "title": "Withdrawn"
+        }
+      },
+      "required": [
+        "meet",
+        "number",
+        "published",
+        "checksum"
+      ],
+      "title": "Version",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Träffens versioner, som molnet har dem. Följaren skickar tillbaka mark och får svar när\nnågot har ändrats, eller när väntan är slut (long-poll).",
+  "properties": {
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
+    "meet_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Meet Name",
+      "type": "string"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/Version"
+      },
+      "title": "Versions",
+      "type": "array"
+    },
+    "mark": {
+      "description": "Listans kännetecken: ändras när en version publiceras.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Mark",
+      "type": "string"
+    }
+  },
+  "required": [
+    "meet",
+    "meet_name",
+    "versions",
+    "mark"
+  ],
+  "type": "object"
+}

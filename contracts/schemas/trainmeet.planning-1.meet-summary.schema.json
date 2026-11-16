@@ -237,6 +237,21 @@
       },
       "title": "Versions",
       "type": "array"
+    },
+    "home": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
+      "title": "Home"
     }
   },
   "required": [

@@ -20456,6 +20456,21 @@
             },
             "title": "Versions",
             "type": "array"
+          },
+          "home": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
+            "title": "Home"
           }
         },
         "required": [
@@ -22408,6 +22423,469 @@
         ],
         "title": "Weekday",
         "type": "string"
+      },
+      "trainmeet.sync-1.hello": {
+        "additionalProperties": true,
+        "description": "Vem som ringer: hubben, dess program och de versioner av protokollet den talar.",
+        "properties": {
+          "protocols": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protocols",
+            "type": "array"
+          },
+          "hub_id": {
+            "description": "Hubbens id: slumpat vid första start, inte hemligt.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub Id",
+            "type": "string"
+          },
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Hubbens programversion, till exempel 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hub_id",
+          "hub_name",
+          "software"
+        ],
+        "title": "Hello",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-code": {
+        "additionalProperties": true,
+        "description": "Koppla en Pi (SYNK-02): koden som administratören i molnet ger Pi:n.",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "code": {
+            "description": "Sex siffror. Gäller en gång, i 15 minuter.",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meet",
+          "code",
+          "expires"
+        ],
+        "title": "LinkCode",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-request": {
+        "additionalProperties": true,
+        "properties": {
+          "code": {
+            "description": "Sex siffror. Gäller en gång, i 15 minuter.",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "hello": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.link-request.Hello"
+          }
+        },
+        "required": [
+          "code",
+          "hello"
+        ],
+        "title": "LinkRequest",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-request.Hello": {
+        "additionalProperties": true,
+        "description": "Vem som ringer: hubben, dess program och de versioner av protokollet den talar.",
+        "properties": {
+          "protocols": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protocols",
+            "type": "array"
+          },
+          "hub_id": {
+            "description": "Hubbens id: slumpat vid första start, inte hemligt.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub Id",
+            "type": "string"
+          },
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Hubbens programversion, till exempel 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hub_id",
+          "hub_name",
+          "software"
+        ],
+        "title": "Hello",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link": {
+        "additionalProperties": true,
+        "description": "Molnets svar: träffen Pi:n nu följer och dess nyckel, som bara ges här, en gång.",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "meet_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet Name",
+            "type": "string"
+          },
+          "key": {
+            "description": "Pi:ns nyckel mot molnet. Skrivs aldrig ut.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "hello": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.link.Hello",
+            "description": "Molnets hälsning."
+          }
+        },
+        "required": [
+          "meet",
+          "meet_name",
+          "key",
+          "hello"
+        ],
+        "title": "Link",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link.Hello": {
+        "additionalProperties": true,
+        "description": "Vem som ringer: hubben, dess program och de versioner av protokollet den talar.",
+        "properties": {
+          "protocols": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protocols",
+            "type": "array"
+          },
+          "hub_id": {
+            "description": "Hubbens id: slumpat vid första start, inte hemligt.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub Id",
+            "type": "string"
+          },
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Hubbens programversion, till exempel 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hub_id",
+          "hub_name",
+          "software"
+        ],
+        "title": "Hello",
+        "type": "object"
+      },
+      "trainmeet.sync-1.version-list": {
+        "additionalProperties": true,
+        "description": "Träffens versioner, som molnet har dem. Följaren skickar tillbaka mark och får svar när\nnågot har ändrats, eller när väntan är slut (long-poll).",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "meet_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet Name",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.version-list.Version"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "mark": {
+            "description": "Listans kännetecken: ändras när en version publiceras.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Mark",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meet",
+          "meet_name",
+          "versions",
+          "mark"
+        ],
+        "title": "VersionList",
+        "type": "object"
+      },
+      "trainmeet.sync-1.version-list.Version": {
+        "additionalProperties": true,
+        "description": "A published version: frozen, never changed, never deleted (Ordlista).",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "number": {
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "published": {
+            "format": "date-time",
+            "title": "Published",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "observations": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Observations",
+            "type": "integer"
+          },
+          "withdrawn": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+            "title": "Withdrawn"
+          }
+        },
+        "required": [
+          "meet",
+          "number",
+          "published",
+          "checksum"
+        ],
+        "title": "Version",
+        "type": "object"
+      },
+      "trainmeet.sync-1.follower": {
+        "additionalProperties": true,
+        "description": "En Pi som följer träffen, som molnets administratör ser den.",
+        "properties": {
+          "hub_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub Id",
+            "type": "string"
+          },
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          },
+          "linked": {
+            "format": "date-time",
+            "title": "Linked",
+            "type": "string"
+          },
+          "heard": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När Pi:n senast hördes av.",
+            "title": "Heard"
+          }
+        },
+        "required": [
+          "hub_id",
+          "hub_name",
+          "software",
+          "linked"
+        ],
+        "title": "Follower",
+        "type": "object"
+      },
+      "trainmeet.sync-1.cloud-link": {
+        "additionalProperties": true,
+        "description": "Molnet, som Pi:n ser det: en träff Pi:n följer. Nyckeln visas aldrig.",
+        "properties": {
+          "address": {
+            "description": "Molnhubbens adress, till exempel https://test.hub.trainmeet.app.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "meet_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet Name",
+            "type": "string"
+          },
+          "cloud_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Cloud Name",
+            "type": "string"
+          },
+          "linked": {
+            "format": "date-time",
+            "title": "Linked",
+            "type": "string"
+          },
+          "heard": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heard"
+          },
+          "versions": {
+            "default": 0,
+            "description": "Versioner Pi:n har av träffen.",
+            "minimum": 0,
+            "title": "Versions",
+            "type": "integer"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför Pi:n inte når molnet just nu.",
+            "title": "Problem"
+          }
+        },
+        "required": [
+          "address",
+          "meet",
+          "meet_name",
+          "cloud_name",
+          "linked"
+        ],
+        "title": "CloudLink",
+        "type": "object"
+      },
+      "trainmeet.sync-1.cloud-link-change": {
+        "additionalProperties": true,
+        "description": "Koppla Pi:n till molnet: molnhubbens adress och koden därifrån.",
+        "properties": {
+          "address": {
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "Address",
+            "type": "string"
+          },
+          "code": {
+            "description": "Sex siffror. Gäller en gång, i 15 minuter.",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "code"
+        ],
+        "title": "CloudLinkChange",
+        "type": "object"
       }
     },
     "securitySchemes": {

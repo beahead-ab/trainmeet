@@ -215,6 +215,10 @@ class MeetSummary(Contract):
     sources: int = 0
     questions: int = 0
     versions: list[Version] = Field(default_factory=list)
+    home: Text | None = Field(
+        default=None,
+        description="Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
+    )
 
 
 class PlaceChange(Contract):

@@ -146,6 +146,38 @@ class Versions:
             )
             return version
 
+    def receive(self, version: Version, data: bytes) -> bool:
+        """A version from the hub this one follows (SYNK-10): kept with the same number, only
+        if the bytes match the checksum. A withdrawal there is noted here. True if anything
+        changed. Raises Damaged, or SyncError if the number is taken by other bytes."""
+        if checksum(json.loads(data)) != version.checksum:
+            raise Damaged(f"Version {version.number} kom inte hel. Den hämtas igen.")
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT info FROM version WHERE meet_id=? AND number=?",
+                (version.meet, version.number),
+            ).fetchone()
+            if row is None:
+                db.execute(
+                    "INSERT INTO version VALUES (?, ?, ?, ?)",
+                    (version.meet, version.number, version.model_dump_json(), data.decode()),
+                )
+                return True
+            kept = Version.model_validate_json(row[0])
+            if kept.checksum != version.checksum:
+                raise SyncError(f"Version {version.number} finns redan här med ett annat innehåll.")
+            if kept.withdrawn is None and version.withdrawn is not None:
+                db.execute(
+                    "UPDATE version SET info=? WHERE meet_id=? AND number=?",
+                    (
+                        kept.model_copy(update={"withdrawn": version.withdrawn}).model_dump_json(),
+                        version.meet,
+                        version.number,
+                    ),
+                )
+                return True
+            return False
+
     def withdraw(self, meet: str, number: int) -> Version:
         """Dra tillbaka en version (PLAN-18, F21): it can no longer be started or switched to,
         but it stays, frozen, so that history and logs hold. A meet that runs it goes on, with

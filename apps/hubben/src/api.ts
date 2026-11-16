@@ -16,6 +16,8 @@ export type DriftEvent = Schemas["trainmeet.drift-1.event"];
 export type Joining = Schemas["trainmeet.drift-1.joining"];
 export type MeetSummary = Schemas["trainmeet.planning-1.meet-summary"];
 export type StartMeet = Schemas["trainmeet.drift-1.start"];
+export type CloudLink = Schemas["trainmeet.sync-1.cloud-link"];
+export type CloudLinkChange = Schemas["trainmeet.sync-1.cloud-link-change"];
 
 export const DRIFT = "/api/drift/1";
 
@@ -60,6 +62,10 @@ export const hub = {
   ai: () => call<AiService>("/api/hub/ai"),
   connectAi: (change: AiServiceChange) => call<AiService>("/api/hub/ai", change),
   disconnectAi: () => call<unknown>("/api/hub/ai/disconnect", {}),
+  // Molnet (SYNK-02): the Pi follows meets in the cloud; the key never comes back here.
+  cloud: () => call<CloudLink[]>("/api/hub/cloud"),
+  connectCloud: (change: CloudLinkChange) => call<CloudLink[]>("/api/hub/cloud", change),
+  disconnectCloud: (meet: string) => call<CloudLink[]>(`/api/hub/cloud/${encodeURIComponent(meet)}/disconnect`, {}),
   /** Nu, open to everyone who looks; null when no meet is started. */
   now: async (): Promise<Now | null> => {
     try {

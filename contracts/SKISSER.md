@@ -6,6 +6,8 @@ De här två kontrakten skrivs färdigt i de steg som bygger dem. Här står det
 
 Ett protokoll för Pi:n mot molnet och för hubb mot hubb (5.6).
 
+Det som finns i `contracts/sync.py` sedan steg 5 del 2: hälsningen med protokollversionerna (`Hello`), koden och kopplingen (`LinkCode`, `LinkRequest`, `Link`), versionslistan med long-poll (`VersionList`) och Pi:ns och molnets vyer (`CloudLink`, `Follower`). Resten skrivs i de delar som bygger det.
+
 - **Följaren ringer alltid ut** till den den följer. Ingen port öppnas på träffen (regel 4).
 - **Versioner:** följaren frågar efter senaste version med long-poll och hämtar paket den saknar. Kontrollsumman (`contracts.checksum`) avgör om paketet är helt. Bilagorna har egna kontrollsummor.
 - **Under träffen** skickar ledaren sina drifthändelser (`trainmeet.drift/1`, `DriftEvent`) i ordning till följaren. Följaren kvitterar det senaste `seq` den tagit emot, och efter ett avbrott fortsätter ledaren från kvittensen.

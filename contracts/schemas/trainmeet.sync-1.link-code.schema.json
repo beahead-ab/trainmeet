@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-code.schema.json",
+  "title": "trainmeet.sync-1.link-code",
+  "additionalProperties": true,
+  "description": "Koppla en Pi (SYNK-02): koden som administratören i molnet ger Pi:n.",
+  "properties": {
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
+    "code": {
+      "description": "Sex siffror. Gäller en gång, i 15 minuter.",
+      "pattern": "^[0-9]{6}$",
+      "title": "Code",
+      "type": "string"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    }
+  },
+  "required": [
+    "meet",
+    "code",
+    "expires"
+  ],
+  "type": "object"
+}

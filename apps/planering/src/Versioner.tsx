@@ -1,6 +1,6 @@
 import { changeText } from "@trainmeet/hubben";
-import { Fragment, useState, type ReactNode } from "react";
-import type { Check, Deviation, Draft, DoubleTrackQuestion, Proposal, Version } from "./api";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type Follower, type LinkCode, type Proposal, type Version } from "./api";
 import { days } from "./data";
 import { when } from "./text";
 
@@ -184,7 +184,87 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
         </table>
       </section>
       {planned && <Exportera admin={admin} meet={meet} versions={versions ?? []} />}
+      {planned && <KopplaPi admin={admin} meet={meet} />}
     </>
+  );
+}
+
+const clock = (at: string) => new Date(at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+
+/** Koppla en Pi (SYNK-02, H11): a six-digit code the Pi gives under Den här hubben → Molnet.
+ * The Pi then fetches each version the moment it is published; it always calls out. */
+export function KopplaPi({ admin, meet, initial }: { admin: boolean; meet: string; initial?: Follower[] }) {
+  const [followers, setFollowers] = useState<Follower[] | null>(initial ?? null);
+  const [code, setCode] = useState<LinkCode | null>(null);
+  const [said, setSaid] = useState("");
+  useEffect(() => {
+    if (initial) return;
+    const read = () => void planning.followers(meet).then(setFollowers, () => undefined);
+    read();
+    const timer = window.setInterval(read, 5000);
+    return () => window.clearInterval(timer);
+  }, [meet, initial]);
+  const ask = async () => {
+    setSaid("");
+    try {
+      setCode(await planning.linkCode(meet));
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    }
+  };
+  const revoke = async (follower: Follower) => {
+    try {
+      await planning.revoke(meet, follower.hub_id);
+      setFollowers((before) => (before ?? []).filter((f) => f.hub_id !== follower.hub_id));
+      setSaid(`${follower.hub_name} följer inte längre träffen.`);
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    }
+  };
+  return (
+    <section id="pi" className="kort" aria-labelledby="pi-rubrik">
+      <h2 id="pi-rubrik">Pi:n på träffen</h2>
+      <p className="liten">En Pi följer träffen och hämtar varje version när den publiceras. Skriv koden på Pi:n under kugghjulet → Den här hubben → Molnet. Den gäller en gång i 15 minuter.</p>
+      {followers && followers.length > 0 ? (
+        <ul id="followers" className="fynd">
+          {followers.map((follower) => (
+            <li key={follower.hub_id}>
+              <span className="pill sure">Följer</span>
+              <span>
+                {`${follower.hub_name} · Hubben ${follower.software} · hörd ${follower.heard ? when(follower.heard) : "aldrig"}`}
+              </span>
+              {admin && (
+                <button type="button" onClick={() => void revoke(follower)}>
+                  Koppla bort
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="liten" id="followers">
+          {followers ? "Ingen Pi följer träffen än." : "Hämtar …"}
+        </p>
+      )}
+      {admin && (
+        <div className="rad">
+          <button id="link-code" type="button" onClick={() => void ask()}>
+            Koppla en Pi
+          </button>
+          <span className="liten" role="status" id="link-said">
+            {code ? (
+              <>
+                {"Koden är "}
+                <b className="kod" id="link-code-digits">{code.code}</b>
+                {` och gäller till ${clock(code.expires)}.`}
+              </>
+            ) : (
+              said
+            )}
+          </span>
+        </div>
+      )}
+    </section>
   );
 }
 
