@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -30,6 +30,7 @@ from hub import (
     web,
 )
 from hub.local import LocalLogin
+from hub.pin import take_pin_file
 from hub.push import Pusher, Senders
 from hub.running import Running
 from hub.stores import AnyRun
@@ -57,16 +58,19 @@ def tick_once(running: Running) -> None:
         return
 
 
-def _ticker(running: Running, stop: Event, pusher: Pusher) -> None:
+def _ticker(running: Running, stop: Event, chores: list[tuple[str, Callable[[], object]]]) -> None:
+    """The automation, and then the hub's other chores once a second: each on its own, so
+    that one that fails never stops the others."""
     while not stop.wait(TICK_SECONDS):
         try:
             tick_once(running)
         except Exception:
             LOGGER.exception("Automatiken kunde inte ta sitt steg")
-        try:
-            pusher.round()
-        except Exception:
-            LOGGER.exception("Notiserna kunde inte skickas")
+        for what, chore in chores:
+            try:
+                chore()
+            except Exception:
+                LOGGER.exception("%s kunde inte göras", what)
 
 
 def create_app(
@@ -148,8 +152,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         stop = Event()
+        chores: list[tuple[str, Callable[[], object]]] = [("Notiserna", pusher.round)]
+        if usb:
+            # A forgotten PIN, with a file on the USB stick (H46).
+            chores.append(("PIN-filen", lambda: take_pin_file(Path(usb), login)))
         thread = Thread(
-            target=_ticker, args=(running, stop, pusher), name="automatiken", daemon=True
+            target=_ticker, args=(running, stop, chores), name="automatiken", daemon=True
         )
         thread.start()
         synk = Thread(target=follower.run, args=(stop,), name="synken", daemon=True)

@@ -159,6 +159,25 @@ describe("the addresses", () => {
   });
 });
 
+describe("Namn och PIN under the gear (SYNK-07, H46)", () => {
+  it("lets the administrator rename the hub and change the PIN, and tells how a forgotten one is set", () => {
+    const html = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />);
+    expect(html).toContain('id="hub-name"');
+    expect(html).toContain('value="Testhubben"');
+    expect(html).toContain("Spara namnet");
+    expect(html).toContain('id="pin-now"');
+    expect(html).toContain('autoComplete="current-password"');
+    expect(html).toContain("Byt PIN");
+    expect(html).toContain("trainmeet-ny-pin.txt");
+  });
+  it("shows only the name to the one who is not logged in", () => {
+    const html = renderToStaticMarkup(<SettingsPage admin={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />);
+    expect(html).toContain("Testhubben");
+    expect(html).not.toContain('id="hub-name"');
+    expect(html).not.toContain("Byt PIN");
+  });
+});
+
 describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   const automation = {
     settings: { enabled: true, lost_contact_minutes: 0, disturbance: "off", where: "both", seed: "", stabling: true, stabling_minutes: 5, late_stop_minutes: 2, answer_seconds: 3 },
@@ -174,7 +193,8 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     const outside = settings(true, null);
     expect(outside).toContain("Namn och version");
     expect(outside).not.toContain('id="automatik"');
-    expect(outside).toContain("<dd>Testhubben</dd>");
+    expect(outside).toContain('value="Testhubben"');
+    expect(settings(false, null)).toContain("<dd>Testhubben</dd>");
   });
 
   it("links the Pi to the cloud with a code, and shows how the synk goes (SYNK-02)", () => {

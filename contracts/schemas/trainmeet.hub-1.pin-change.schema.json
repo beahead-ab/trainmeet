@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.pin-change.schema.json",
+  "title": "trainmeet.hub-1.pin-change",
+  "additionalProperties": true,
+  "description": "Byt PIN (SYNK-07): den nuvarande först. Alla andra inloggningar slutar gälla.",
+  "properties": {
+    "pin": {
+      "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+      "pattern": "^[0-9]{6,12}$",
+      "title": "Pin",
+      "type": "string"
+    },
+    "new_pin": {
+      "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+      "pattern": "^[0-9]{6,12}$",
+      "title": "New Pin",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pin",
+    "new_pin"
+  ],
+  "type": "object"
+}

@@ -1453,6 +1453,63 @@
         }
       }
     },
+    "/api/hub/name": {
+      "post": {
+        "operationId": "renameHub",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.info"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.rename"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/hub/pin": {
+      "post": {
+        "operationId": "changePin",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.pin-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/hub/ai": {
       "get": {
         "operationId": "hubAiService",
@@ -15776,6 +15833,47 @@
           "session_key"
         ],
         "title": "Session",
+        "type": "object"
+      },
+      "trainmeet.hub-1.rename": {
+        "additionalProperties": true,
+        "description": "På den här hubben (SYNK-07): hubbens namn, som det syns i sidhuvudet och för molnet.",
+        "properties": {
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Rename",
+        "type": "object"
+      },
+      "trainmeet.hub-1.pin-change": {
+        "additionalProperties": true,
+        "description": "Byt PIN (SYNK-07): den nuvarande först. Alla andra inloggningar slutar gälla.",
+        "properties": {
+          "pin": {
+            "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "Pin",
+            "type": "string"
+          },
+          "new_pin": {
+            "description": "6–12 siffror. Skrivs aldrig ut i loggen.",
+            "pattern": "^[0-9]{6,12}$",
+            "title": "New Pin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pin",
+          "new_pin"
+        ],
+        "title": "PinChange",
         "type": "object"
       },
       "trainmeet.hub-1.version": {

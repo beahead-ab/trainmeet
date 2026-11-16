@@ -820,6 +820,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["renameHub"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changePin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/ai": {
         parameters: {
             query?: never;
@@ -7534,6 +7566,34 @@ export interface components {
              * @description Visas en gång. Gäller 12 timmar, eller tills utloggning.
              */
             session_key: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Rename
+         * @description På den här hubben (SYNK-07): hubbens namn, som det syns i sidhuvudet och för molnet.
+         */
+        "trainmeet.hub-1.rename": {
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PinChange
+         * @description Byt PIN (SYNK-07): den nuvarande först. Alla andra inloggningar slutar gälla.
+         */
+        "trainmeet.hub-1.pin-change": {
+            /**
+             * Pin
+             * @description 6–12 siffror. Skrivs aldrig ut i loggen.
+             */
+            pin: string;
+            /**
+             * New Pin
+             * @description 6–12 siffror. Skrivs aldrig ut i loggen.
+             */
+            new_pin: string;
         } & {
             [key: string]: unknown;
         };
@@ -15829,6 +15889,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.session"];
                 };
+            };
+        };
+    };
+    renameHub: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.rename"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.info"];
+                };
+            };
+        };
+    };
+    changePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.pin-change"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

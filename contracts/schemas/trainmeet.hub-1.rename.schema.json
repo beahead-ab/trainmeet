@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.rename.schema.json",
+  "title": "trainmeet.hub-1.rename",
+  "additionalProperties": true,
+  "description": "På den här hubben (SYNK-07): hubbens namn, som det syns i sidhuvudet och för molnet.",
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}

@@ -27,6 +27,10 @@ export type SettingsProps = {
   /** Resolves true when the hub checked the model and kept the setting. */
   onAi?: (change: AiServiceChange) => Promise<boolean>;
   onAiOff?: () => void;
+  /** På den här hubben (SYNK-07): resolves true when the hub kept the new name. */
+  onRename?: (name: string) => Promise<boolean>;
+  /** Byt PIN: the current PIN first. Resolves true when it was changed. */
+  onPin?: (pin: string, newPin: string) => Promise<boolean>;
 };
 
 type Heap = { label: string; note: string; items: [string, string][] };
@@ -91,12 +95,16 @@ export function SettingsPage(props: SettingsProps) {
           <section id="hubben" className="kort" aria-labelledby="hubben-rubrik">
             <h2 id="hubben-rubrik">Namn och version</h2>
             <p className="liten">Gäller den här hubben och alla träffar på den.</p>
-            <dl className="bygge">
-              <dt>Namn</dt>
-              <dd>{hubName}</dd>
-            </dl>
+            {props.admin ? (
+              <NamnOchPin {...props} />
+            ) : (
+              <dl className="bygge">
+                <dt>Namn</dt>
+                <dd>{hubName}</dd>
+              </dl>
+            )}
             {version && <Built version={version} />}
-            <p className="liten">Pi:ns nät, PIN och skärmlås och språk kommer hit senare i steg 5.</p>
+            <p className="liten">Pi:ns nät och språk kommer hit senare i steg 5.</p>
           </section>
           <Molnet admin={props.admin} />
           <EgenAi {...props} />
@@ -210,6 +218,76 @@ const FORMATS: [AiServiceChange["format"], string, string][] = [
   ["claude", "Claudes API", "https://api.anthropic.com"],
   ["chat", "Det vanliga chatt-API:t", "https://"],
 ];
+
+const PIN = /^[0-9]{6,12}$/;
+
+/** På den här hubben (SYNK-07): the hub's name, and a new PIN with the current one first. A
+ * forgotten PIN is set with physical access to the Pi (H46, SYNK-27). */
+export function NamnOchPin({ hubName, onRename, onPin }: SettingsProps) {
+  const [name, setName] = useState(hubName);
+  const [pin, setPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setName(hubName), [hubName]);
+  const tidy = name.split(/\s+/).filter(Boolean).join(" ");
+  const differ = newPin !== "" && again !== "" && newPin !== again;
+  const pinReady = PIN.test(pin) && PIN.test(newPin) && newPin === again;
+  const rename = async () => {
+    setBusy(true);
+    await onRename?.(tidy);
+    setBusy(false);
+  };
+  const change = async () => {
+    setBusy(true);
+    const done = await (onPin?.(pin, newPin) ?? Promise.resolve(false));
+    setBusy(false);
+    if (done) [setPin, setNewPin, setAgain].forEach((clear) => clear(""));
+  };
+  return (
+    <>
+      <div className="installning">
+        <label htmlFor="hub-name" className="etikett">
+          Namn
+        </label>
+        <input id="hub-name" value={name} maxLength={40} onChange={(event) => setName(event.target.value)} autoComplete="off" />
+        <button id="hub-rename" type="button" disabled={busy || !tidy || tidy === hubName} onClick={() => void rename()}>
+          Spara namnet
+        </button>
+      </div>
+      <fieldset className="pinbyte">
+        <legend className="etikett">PIN-kod</legend>
+        <div className="installning">
+          <label htmlFor="pin-now" className="etikett">
+            Nuvarande
+          </label>
+          <input id="pin-now" type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} />
+        </div>
+        <div className="installning">
+          <label htmlFor="pin-new" className="etikett">
+            Ny
+          </label>
+          <input id="pin-new" type="password" inputMode="numeric" autoComplete="new-password" value={newPin} onChange={(event) => setNewPin(event.target.value)} aria-describedby="pin-hint" />
+        </div>
+        <div className="installning">
+          <label htmlFor="pin-again" className="etikett">
+            Ny igen
+          </label>
+          <input id="pin-again" type="password" inputMode="numeric" autoComplete="new-password" value={again} onChange={(event) => setAgain(event.target.value)} aria-invalid={differ} aria-describedby="pin-hint" />
+        </div>
+        <div className="installningsfot">
+          <span className="liten" id="pin-hint" role="status">
+            {differ ? "De två nya PIN-koderna är olika." : "6–12 siffror. Alla andra inloggningar slutar gälla."}
+          </span>
+          <button id="pin-change" type="button" className="primar" disabled={busy || !pinReady} onClick={() => void change()}>
+            Byt PIN
+          </button>
+        </div>
+        <p className="liten">Glömd PIN-kod: kör python -m hub.pin på Pi:n, eller lägg en fil som heter trainmeet-ny-pin.txt, med den nya PIN-koden på första raden, på ett USB-minne och sätt i det i Pi:n.</p>
+      </fieldset>
+    </>
+  );
+}
 
 /** Den här hubben → AI (H58, H59, H70): the service that transcribes scanned pages and pictures
  * in Planering. The hub checks that the model reads a picture before it keeps the setting; the
