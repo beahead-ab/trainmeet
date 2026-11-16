@@ -111,6 +111,16 @@ jobs:
           SCRIPT=$(curl -fsS http://localhost:8080/box | grep -o '/box/assets/[^"]*\.js' | head -1)
           curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Koppla från"
 
+      - name: Belastningsprovet, 40 boxar och 30 stationsklienter (DRIFT-20)
+        run: |
+          # Hubbens träff med Provbanan: varje box hämtar sin bild varje sekund och varje
+          # stationsklient sin ögonblicksbild varannan sekund. Rött om Drift ger ett enda fel
+          # eller om p99 är över en sekund.
+          curl -fsS -H 'Content-Type: application/json' -d '{"name":"Hubben","pin":"482915"}' \
+            http://localhost:8080/api/hub/setup >/dev/null
+          python3 deploy/belastning.py --hub http://localhost:8080 --pin 482915 --start \
+            --boxes 40 --clients 30 --seconds 20 --strict
+
       - name: Två hubbar ur bilden, Pi:n följer molnet (Synk, ärende 73)
         run: |
           # Molnet och en Pi på ett eget nät: Pi:n ringer ut till http://moln:8080, som på testmiljöns

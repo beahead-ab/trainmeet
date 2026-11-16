@@ -1,0 +1,62 @@
+"""Belastningsprovet (DRIFT-20) and what it found: the hub's meet takes as many boxes and
+station clients as a big meet has, and a PDF is read in a process of its own, so that an
+import never holds Drift up."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from deploy.belastning import Tally, acceptable, report
+from hub.app import create_app
+from hub.build_info import BuildInfo
+from hub.running import MAX_CLIENTS
+from integrationer import pdf_page
+from integrationer.tests.pdf_writer import Sheet, pdf
+
+
+def test_the_report_and_what_is_acceptable() -> None:
+    tally = Tally()
+    for spent in [0.005] * 98 + [0.02, 0.03]:
+        tally.took("ögonblicksbild", spent, 200)
+    tally.took("import", 3.0, 422)
+    shown = report(tally, 20)
+    assert "ögonblicksbild" in shown and "100" in shown and "import 422 × 1" in shown
+    assert acceptable(tally), "a file the meet cannot take yet is no failure of Drift"
+    tally.took("boxens bild", 0.01, 500)
+    assert not acceptable(tally)
+    slow = Tally()
+    for _ in range(100):
+        slow.took("kommando", 1.5, 200)
+    assert not acceptable(slow)
+
+
+def test_the_hubs_meet_takes_more_boxes_than_provbanan(tmp_path: Path) -> None:
+    """Found by the load test: Provbanan's limit of 16 also held the hub's own meet."""
+    hub = TestClient(create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db"))
+    assert hub.post("/api/hub/setup", json={"name": "Hubben", "pin": "482915"}).status_code == 201
+    assert hub.post("/api/drift/1/start", json={"version": 1}).status_code == 201
+    assert hub.app.state.running.store.max_clients == MAX_CLIENTS >= 100  # type: ignore[attr-defined]
+    code = hub.get("/api/drift/1/connect").json()["code"]
+    for n in range(20):
+        box = hub.post("/api/terminal/session", json={"name": f"Box {n}", "code": code})
+        assert box.status_code == 201, box.text
+        client = hub.post(
+            "/api/station/1/connect",
+            json={"kind": "tkl", "name": f"TKL {n}", "software": "TKL 0.1.0", "code": code},
+        )
+        assert client.status_code == 201, client.text
+
+
+def test_a_pdf_is_read_in_a_process_of_its_own_and_once() -> None:
+    data = pdf(Sheet().text(40, 60, "Lekby"))
+    first = pdf_page.pages(data)
+    assert [w.text for w in first[0].words] == ["Lekby"]
+    pool = pdf_page._pool
+    assert pool is not None and pool.submit(os.getpid).result() != os.getpid()
+    # The same file again is not read again, and what comes back is a copy of its own.
+    first[0].words.clear()
+    again = pdf_page.pages(data)
+    assert [w.text for w in again[0].words] == ["Lekby"]
