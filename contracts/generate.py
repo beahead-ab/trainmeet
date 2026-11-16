@@ -93,6 +93,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.session": hub.Session,
     "trainmeet.hub-1.rename": hub.Rename,
     "trainmeet.hub-1.pin-change": hub.PinChange,
+    "trainmeet.hub-1.wifi-status": hub.WifiStatus,
+    "trainmeet.hub-1.wifi-profile-change": hub.WifiProfileChange,
+    "trainmeet.hub-1.wifi-action": hub.WifiAction,
     "trainmeet.hub-1.version": hub.Version,
     "trainmeet.hub-1.ai-service": hub.AiService,
     "trainmeet.hub-1.ai-service-change": hub.AiServiceChange,
@@ -485,6 +488,19 @@ def openapi() -> str:
     route("post", "/api/hub/login", "hubLogIn", h + "session", h + "login")
     route("post", "/api/hub/name", "renameHub", h + "info", h + "rename", bearer=True)
     route("post", "/api/hub/pin", "changePin", None, h + "pin-change", bearer=True)
+    route("get", "/api/hub/wifi", "piWifi", h + "wifi-status", bearer=True)
+    wifi = "/api/hub/wifi/"
+    route(
+        "post",
+        wifi + "save",
+        "savePiWifi",
+        h + "wifi-status",
+        h + "wifi-profile-change",
+        bearer=True,
+    )
+    route(
+        "post", wifi + "{action}", "piWifiAction", h + "wifi-status", h + "wifi-action", bearer=True
+    )
     route("get", "/api/hub/ai", "hubAiService", h + "ai-service", bearer=True)
     route(
         "post", "/api/hub/ai", "connectAi", h + "ai-service", h + "ai-service-change", bearer=True

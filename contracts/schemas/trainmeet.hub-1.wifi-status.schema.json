@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.wifi-status.schema.json",
+  "title": "trainmeet.hub-1.wifi-status",
+  "$defs": {
+    "WifiDevice": {
+      "additionalProperties": true,
+      "properties": {
+        "interface": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "integer"
+        },
+        "uuid": {
+          "description": "Profilen som är ansluten, eller tomt.",
+          "title": "Uuid",
+          "type": "string"
+        },
+        "addresses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Addresses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "interface",
+        "state",
+        "uuid",
+        "addresses"
+      ],
+      "title": "WifiDevice",
+      "type": "object"
+    },
+    "WifiNearby": {
+      "additionalProperties": true,
+      "properties": {
+        "ssid": {
+          "title": "Ssid",
+          "type": "string"
+        },
+        "security": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Security",
+          "type": "array"
+        },
+        "signal": {
+          "title": "Signal",
+          "type": "integer"
+        },
+        "interface": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ssid",
+        "security",
+        "signal",
+        "interface"
+      ],
+      "title": "WifiNearby",
+      "type": "object"
+    },
+    "WifiProfile": {
+      "additionalProperties": true,
+      "description": "Ett sparat Wi-Fi på Pi:n. Lösenordet finns bara hos NetworkManager och kommer aldrig hit.",
+      "properties": {
+        "uuid": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Uuid",
+          "type": "string"
+        },
+        "ssid": {
+          "title": "Ssid",
+          "type": "string"
+        },
+        "security": {
+          "enum": [
+            "open",
+            "wpa2",
+            "wpa3",
+            "unsupported"
+          ],
+          "title": "Security",
+          "type": "string"
+        },
+        "hidden": {
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "priority": {
+          "title": "Priority",
+          "type": "integer"
+        },
+        "autoconnect": {
+          "title": "Autoconnect",
+          "type": "boolean"
+        },
+        "active": {
+          "title": "Active",
+          "type": "boolean"
+        },
+        "editable": {
+          "description": "Kan hanteras här: inte företagsnät, hotspot eller liknande.",
+          "title": "Editable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "uuid",
+        "ssid",
+        "security",
+        "hidden",
+        "priority",
+        "autoconnect",
+        "active",
+        "editable"
+      ],
+      "title": "WifiProfile",
+      "type": "object"
+    },
+    "WifiTrial": {
+      "additionalProperties": true,
+      "description": "Ett nytt nät provas: behåll det innan tiden är ute, annars går Pi:n tillbaka (H45).",
+      "properties": {
+        "uuid": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Uuid",
+          "type": "string"
+        },
+        "interface": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        },
+        "remaining": {
+          "description": "Sekunder kvar av de 90.",
+          "minimum": 0,
+          "title": "Remaining",
+          "type": "integer"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara till den som startade provet.",
+          "title": "Token"
+        }
+      },
+      "required": [
+        "uuid",
+        "interface",
+        "remaining"
+      ],
+      "title": "WifiTrial",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Pi:ns eget nät, inte träffens Wi-Fi som visas för deltagarna.",
+  "properties": {
+    "supported": {
+      "title": "Supported",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "profiles": {
+      "items": {
+        "$ref": "#/$defs/WifiProfile"
+      },
+      "title": "Profiles",
+      "type": "array"
+    },
+    "devices": {
+      "items": {
+        "$ref": "#/$defs/WifiDevice"
+      },
+      "title": "Devices",
+      "type": "array"
+    },
+    "nearby": {
+      "items": {
+        "$ref": "#/$defs/WifiNearby"
+      },
+      "title": "Nearby",
+      "type": "array"
+    },
+    "radio_enabled": {
+      "default": false,
+      "title": "Radio Enabled",
+      "type": "boolean"
+    },
+    "recovering": {
+      "default": false,
+      "description": "NetworkManager går tillbaka just nu.",
+      "title": "Recovering",
+      "type": "boolean"
+    },
+    "trial": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WifiTrial"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "can_manage": {
+      "default": false,
+      "description": "Ändringar görs bara i webbläsaren på Pi:n eller över HTTPS, så att ett lösenord aldrig går okrypterat över träffens nät.",
+      "title": "Can Manage",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "supported"
+  ],
+  "type": "object"
+}

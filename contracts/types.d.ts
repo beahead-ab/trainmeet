@@ -852,6 +852,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/wifi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["piWifi"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/wifi/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["savePiWifi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/wifi/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["piWifiAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/ai": {
         parameters: {
             query?: never;
@@ -7594,6 +7642,188 @@ export interface components {
              * @description 6–12 siffror. Skrivs aldrig ut i loggen.
              */
             new_pin: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * WifiStatus
+         * @description Pi:ns eget nät, inte träffens Wi-Fi som visas för deltagarna.
+         */
+        "trainmeet.hub-1.wifi-status": {
+            /** Supported */
+            supported: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /** Profiles */
+            profiles?: components["schemas"]["trainmeet.hub-1.wifi-status.WifiProfile"][];
+            /** Devices */
+            devices?: components["schemas"]["trainmeet.hub-1.wifi-status.WifiDevice"][];
+            /** Nearby */
+            nearby?: components["schemas"]["trainmeet.hub-1.wifi-status.WifiNearby"][];
+            /**
+             * Radio Enabled
+             * @default false
+             */
+            radio_enabled: boolean;
+            /**
+             * Recovering
+             * @description NetworkManager går tillbaka just nu.
+             * @default false
+             */
+            recovering: boolean;
+            /** @default null */
+            trial: components["schemas"]["trainmeet.hub-1.wifi-status.WifiTrial"] | null;
+            /**
+             * Can Manage
+             * @description Ändringar görs bara i webbläsaren på Pi:n eller över HTTPS, så att ett lösenord aldrig går okrypterat över träffens nät.
+             * @default false
+             */
+            can_manage: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** WifiDevice */
+        "trainmeet.hub-1.wifi-status.WifiDevice": {
+            /** Interface */
+            interface: string;
+            /** State */
+            state: number;
+            /**
+             * Uuid
+             * @description Profilen som är ansluten, eller tomt.
+             */
+            uuid: string;
+            /** Addresses */
+            addresses: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** WifiNearby */
+        "trainmeet.hub-1.wifi-status.WifiNearby": {
+            /** Ssid */
+            ssid: string;
+            /** Security */
+            security: string[];
+            /** Signal */
+            signal: number;
+            /** Interface */
+            interface: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * WifiProfile
+         * @description Ett sparat Wi-Fi på Pi:n. Lösenordet finns bara hos NetworkManager och kommer aldrig hit.
+         */
+        "trainmeet.hub-1.wifi-status.WifiProfile": {
+            /** Uuid */
+            uuid: string;
+            /** Ssid */
+            ssid: string;
+            /**
+             * Security
+             * @enum {string}
+             */
+            security: "open" | "wpa2" | "wpa3" | "unsupported";
+            /** Hidden */
+            hidden: boolean;
+            /** Priority */
+            priority: number;
+            /** Autoconnect */
+            autoconnect: boolean;
+            /** Active */
+            active: boolean;
+            /**
+             * Editable
+             * @description Kan hanteras här: inte företagsnät, hotspot eller liknande.
+             */
+            editable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * WifiTrial
+         * @description Ett nytt nät provas: behåll det innan tiden är ute, annars går Pi:n tillbaka (H45).
+         */
+        "trainmeet.hub-1.wifi-status.WifiTrial": {
+            /** Uuid */
+            uuid: string;
+            /** Interface */
+            interface: string;
+            /**
+             * Remaining
+             * @description Sekunder kvar av de 90.
+             */
+            remaining: number;
+            /**
+             * Token
+             * @description Bara till den som startade provet.
+             * @default null
+             */
+            token: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * WifiProfileChange
+         * @description Spara ett nät. Utan lösenord behålls det sparade, om SSID och säkerhet är desamma.
+         */
+        "trainmeet.hub-1.wifi-profile-change": {
+            /**
+             * Uuid
+             * @default null
+             */
+            uuid: string | null;
+            /** Ssid */
+            ssid: string;
+            /**
+             * Security
+             * @enum {string}
+             */
+            security: "open" | "wpa2" | "wpa3";
+            /**
+             * Password
+             * @description Skrivs aldrig ut.
+             * @default
+             */
+            password: string;
+            /**
+             * Hidden
+             * @default false
+             */
+            hidden: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * WifiAction
+         * @description Det övriga: sök (interface), ta bort (uuid), ordning (uuids), anslut nu (uuid och
+         *     interface), behåll eller återställ (token).
+         */
+        "trainmeet.hub-1.wifi-action": {
+            /**
+             * Uuid
+             * @default null
+             */
+            uuid: string | null;
+            /**
+             * Uuids
+             * @default null
+             */
+            uuids: string[] | null;
+            /**
+             * Interface
+             * @default null
+             */
+            interface: string | null;
+            /**
+             * Token
+             * @default null
+             */
+            token: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -15935,6 +16165,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    piWifi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.wifi-status"];
+                };
+            };
+        };
+    };
+    savePiWifi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.wifi-profile-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.wifi-status"];
+                };
+            };
+        };
+    };
+    piWifiAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.wifi-action"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.wifi-status"];
+                };
             };
         };
     };
