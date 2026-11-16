@@ -2,21 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { planning, type Draft, type ImportPreview } from "./api";
 import { LEVELS, describePreview, plural } from "./data";
 
-// Lägg till underlag (S6), opened from Data: drop or choose Tellurian's planning file (JSON). It
-// is read with code, without AI, and nothing is put in before Lägg in i utkastet: first the
-// level and exactly what changes in the draft.
+// Lägg till underlag (S6), opened from Data: drop or choose Tellurian's planning file (JSON) or
+// the station lists. They are read with code, without AI, and nothing is put in before Lägg in
+// i utkastet: first the level and exactly what changes in the draft. Lists added beside the
+// planning file get a verdict each instead (IMPORT-27); without it they build the draft, with
+// places, kinds and sections derived and osäkra (IMPORT-17).
 
 type Read = { name: string; state: "reading" } | { name: string; state: "read"; preview: ImportPreview } | { name: string; state: "failed" };
 
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
-  if (preview.source.kind === "station_lists") {
-    const verdicts = report.verdicts ?? [];
+  const verdicts = report.verdicts ?? [];
+  const lists = preview.source.kind === "station_lists";
+  if (lists && verdicts.length) {
     const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
     return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
   }
   const places = Object.values(report.places ?? {}).reduce((sum, value) => sum + value, 0);
-  return `Tellurians plan · ${plural(report.trains, "tåg", "tåg")} · ${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`;
+  const counts = `${plural(report.trains, "tåg", "tåg")} · ${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`;
+  return lists ? `Stationslistor · ${counts}, härledda` : `Tellurians plan · ${counts}`;
 }
 
 export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: string; onClose: () => void; onApplied: (draft: Draft) => void; onFail?: (error: unknown) => void; initial?: Read }) {
@@ -109,34 +113,24 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                   </div>
                 ))}
               </div>
-              {preview.source.kind === "station_lists" ? (
-                <div className="andras" id="verdicts">
-                  <b>Stationslistorna prövade mot planeringsfilen</b>
-                  <p className="liten">Utkastet ändras inte. Varje lista får en dom, rad för rad (IMPORT-27).</p>
-                  <ul className="domar">
-                    {(preview.report.verdicts ?? []).map((verdict) => (
-                      <li key={verdict.document}>
-                        <span className={`pill ${verdict.differences?.length ? "conflict" : "sure"}`}>{verdict.differences?.length ? "Skiljer" : "Stämmer"}</span>
-                        <span>
-                          <b>{verdict.document}</b>
-                          <span className="liten">{` · ${verdict.agreeing} av ${verdict.rows} tågbesök stämmer`}</span>
-                          {(verdict.differences ?? []).slice(0, 5).map((text) => (
-                            <span key={text} className="liten skillnad">
-                              {text}
-                            </span>
-                          ))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {preview.source.kind === "station_lists" && preview.report.verdicts?.length ? (
+                <Domar preview={preview} text="Utkastet ändras inte. Varje lista får en dom, rad för rad (IMPORT-27)." />
               ) : (
                 <div className="andras">
                   <b>Det här ändras i utkastet</b>
                   <p id="changes">{describePreview(preview)}</p>
-                  <p className="liten">Allt får källa och säkerhet och syns som kolumner i Data.</p>
+                  {preview.source.kind === "station_lists" ? (
+                    <p className="liten" id="derived">
+                      Härlett ur listorna: platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana. Banbilden, grafen eller planeringsfilen höjer nivån.
+                    </p>
+                  ) : (
+                    <p className="liten">Allt får källa och säkerhet och syns som kolumner i Data.</p>
+                  )}
                 </div>
               )}
+              {preview.source.kind !== "station_lists" && preview.report.verdicts?.length ? (
+                <Domar preview={preview} text="Stationslistorna som redan är underlag får en dom var, rad för rad, mot planeringsfilen (IMPORT-27)." />
+              ) : null}
               <div className="kostnad">
                 <b>Ingen AI</b>
                 <span>Filen läses med kod. Inga tokens.</span>
@@ -153,6 +147,31 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
+  return (
+    <div className="andras" id="verdicts">
+      <b>Stationslistorna prövade mot planeringsfilen</b>
+      <p className="liten">{text}</p>
+      <ul className="domar">
+        {(preview.report.verdicts ?? []).map((verdict) => (
+          <li key={verdict.document}>
+            <span className={`pill ${verdict.differences?.length ? "conflict" : "sure"}`}>{verdict.differences?.length ? "Skiljer" : "Stämmer"}</span>
+            <span>
+              <b>{verdict.document}</b>
+              <span className="liten">{` · ${verdict.agreeing} av ${verdict.rows} tågbesök stämmer`}</span>
+              {(verdict.differences ?? []).slice(0, 5).map((difference) => (
+                <span key={difference} className="liten skillnad">
+                  {difference}
+                </span>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

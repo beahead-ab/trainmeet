@@ -4,8 +4,7 @@ with the columns Tåg, Dagar, Spår, Ank, Från, Avg, Till, the week's day boxes
 
 With the planning file in the draft the lists are its check, not a second source: each list gets
 a verdict, row by row, against the plan (IMPORT-27; Värnamo gave no questions in the old Cloud).
-The draft does not change. Building a draft from the lists alone, without the planning file,
-comes in the next part of 4c1.
+The draft does not change. Without the planning file the lists build the draft, in derive.py.
 
 Ported from the old Cloud (cloud/dispatch_import.py). Nothing in a file is ever run, archives
 are checked before they are unpacked, and XML with its own definitions is refused. What the
@@ -331,7 +330,7 @@ def read(data: bytes, name: str) -> Lists:
 # --- The verdict per list against the plan (IMPORT-27) -------------------------------------------
 
 
-def _merged(rows: list[Row]) -> list[Row]:
+def merged(rows: list[Row]) -> list[Row]:
     """A stop printed on two rows, the arrival and the departure, is one stop."""
     seen: dict[tuple[object, ...], Row] = {}
     for row in rows:
@@ -369,8 +368,8 @@ def verdicts(found: Lists, plan: MeetPackage) -> list[ListVerdict]:
         differences: list[str] = []
         agreeing = 0
         matched: set[str] = set()
-        merged = _merged(rows)
-        for row in merged:
+        merged_rows = merged(rows)
+        for row in merged_rows:
             at = place
             if row.remote:
                 at = by_code.get(row.remote.casefold(), place)
@@ -408,10 +407,10 @@ def verdicts(found: Lists, plan: MeetPackage) -> list[ListVerdict]:
             agreeing += 1
         covered = {place.id} | {
             by_code[r.remote.casefold()].id
-            for r in merged
+            for r in merged_rows
             if r.remote and r.remote.casefold() in by_code
         }
-        listed_days = set().union(*(r.days for r in merged)) if merged else set()
+        listed_days = set().union(*(r.days for r in merged_rows)) if merged_rows else set()
         for train in plan.trains:
             if not {WEEK.index(day) for day in train.days} & listed_days:
                 continue
@@ -421,7 +420,7 @@ def verdicts(found: Lists, plan: MeetPackage) -> list[ListVerdict]:
                     and call.id not in matched
                     and (call.arrival or call.departure)
                 ):
-                    if any(r.number == train.number for r in merged):
+                    if any(r.number == train.number for r in merged_rows):
                         continue  # said above, with its times
                     differences.append(
                         f"Tåg {train.number} vid {by_id[call.place].name} finns i planen men "
@@ -431,7 +430,7 @@ def verdicts(found: Lists, plan: MeetPackage) -> list[ListVerdict]:
             ListVerdict(
                 document=document,
                 place=place.id,
-                rows=len(merged),
+                rows=len(merged_rows),
                 agreeing=agreeing,
                 differences=list(dict.fromkeys(differences)),
             )
@@ -445,20 +444,36 @@ def _times(arrival: str | None, departure: str | None) -> str:
     return arrival or departure or "ingen tid"
 
 
+def summary(judged: list[ListVerdict]) -> str:
+    agreeing = sum(1 for v in judged if not v.differences)
+    return f"{agreeing} av {len(judged)} stationslistor stämmer med planeringsfilen rad för rad."
+
+
 def check(data: bytes, name: str, *, plan: MeetPackage, source: Source) -> ImportResult:
     """The lists as the check of the plan: a verdict per list; the draft does not change."""
     found = read(data, name)
     judged = verdicts(found, plan)
-    agreeing = sum(1 for v in judged if not v.differences)
-    notes = [f"{agreeing} av {len(judged)} stationslistor stämmer med planeringsfilen rad för rad."]
     return ImportResult(
         package=plan,
         report=ImportReport(
             source=source.id,
             level=LEVEL,
-            notes=notes,
+            notes=[summary(judged)],
             left_out=list(dict.fromkeys(found.left_out)),
             verdicts=judged,
         ),
         checks_only=True,
     )
+
+
+def judged_anew(data: bytes, name: str, result: ImportResult) -> ImportResult:
+    """The planning file read with the lists already among the sources: they become its check,
+    a verdict per list (level 4: the other sources are checks)."""
+    try:
+        judged = verdicts(read(data, name), result.package)
+    except ListError:
+        return result
+    report = result.report.model_copy(
+        update={"verdicts": judged, "notes": [*result.report.notes, summary(judged)]}
+    )
+    return result.model_copy(update={"report": report})

@@ -6,7 +6,9 @@ never guesses from the train number.
 
 The abbreviations come from the old Cloud (table_import.TRAIN_PREFIXES): the planning program's
 train categories and what they are in TrainMeet. Museum trains (M) and InterCity are passenger
-trains; wagon moves and loco transfers are service trains.
+trains; wagon moves and loco transfers are service trains. The abbreviations the station lists
+carry (RE, X, L, N, RS; GD, HG, CG, CL, Kp) come from the old Cloud's station list reader
+(dispatch_import.parse_records), and agree with what Värnamo's planning file says they carry.
 """
 
 from __future__ import annotations
@@ -19,8 +21,14 @@ from contracts.planning import Certainty, Origin, TrainContent, TrainTypeRule
 SOURCE: Final = "regelboken"
 
 KNOWN: Final[dict[TrainContent, tuple[str, ...]]] = {
-    "passengers": ("pt", "snt", "lt", "rt", "xt", "nt", "ic", "ir", "m"),
-    "goods": ("g", "gt", "gxt", "lgt", "ngt", "mt", "pxt"),
+    "passengers": (
+        *("pt", "snt", "lt", "rt", "xt", "nt", "ic", "ir", "m"),
+        *("re", "x", "l", "lb", "rs", "n"),
+    ),
+    "goods": (
+        *("g", "gt", "gxt", "lgt", "ngt", "mt", "pxt"),
+        *("gd", "hg", "cg", "tg", "cl", "kp"),
+    ),
     "service": ("a", "t", "vut", "trp"),
 }
 _BY_KEY: Final[dict[str, TrainContent]] = {

@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from contracts import planning
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from integrationer import planning_json, station_lists
+from integrationer import derive, planning_json, station_lists
 from planering import export
 from planering.store import Planning, PlanningError
 
@@ -125,7 +125,13 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             result = planning_json.read(data, meet=current.meet, source=source)
         except planning_json.PlanError as error:
             raise HTTPException(422, str(error)) from error
+        added = next(
+            (s for s in current.sources if s.kind == planning.SourceKind.STATION_LISTS), None
+        )
         try:
+            if added is not None:
+                _, body = store.source_file(meet, added.id)
+                result = station_lists.judged_anew(body, added.filename, result)
             return store.preview(meet, source, data, result).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
@@ -134,16 +140,11 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         meet: str, name: str, data: bytes, current: planning.Draft, digest: str
     ) -> dict[str, Any]:
         """Stationslistorna (4c1): with the planning file in the draft, each list is judged
-        against it, row by row (IMPORT-27). Without it, the lists build the draft in the next
-        part of 4c1."""
-        if current.package is None or not any(
+        against it, row by row (IMPORT-27). Without it, the lists build the draft: trains,
+        places, sections and place kinds derived, marked osäkra (IMPORT-17)."""
+        planned = current.package is not None and any(
             s.kind == planning.SourceKind.PLANNING_JSON for s in current.sources
-        ):
-            raise HTTPException(
-                422,
-                "Stationslistorna prövas än så länge mot planeringsfilen. Lägg till "
-                "planeringsfilen (JSON) först.",
-            )
+        )
         source = planning.Source(
             id=f"u-{digest[:12]}",
             kind=planning.SourceKind.STATION_LISTS,
@@ -154,7 +155,11 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             added=datetime.now(UTC),
         )
         try:
-            result = station_lists.check(data, name, plan=current.package, source=source)
+            if planned and current.package is not None:
+                result = station_lists.check(data, name, plan=current.package, source=source)
+            else:
+                found = station_lists.read(data, name)
+                result = derive.draft(found, meet=current.meet, source=source)
         except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
         try:

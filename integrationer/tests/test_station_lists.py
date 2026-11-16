@@ -61,31 +61,44 @@ def plan() -> MeetPackage:
     return planning_json.read(data, meet=meet, source=source(SourceKind.PLANNING_JSON)).package
 
 
-def rows_for(plan: MeetPackage, code: str) -> list[list[str]]:
-    """A station's list as the planning program prints it."""
+def rows_for(
+    plan: MeetPackage, code: str, *, remote: tuple[str, ...] = (), twice: bool = False
+) -> list[list[str]]:
+    """A station's list as the planning program prints it, in the order of the times: Från is
+    empty where the train begins and Till where it ends. A place the station runs from afar
+    has its code before the track ("Tri 1"). With twice, a stop is printed on two rows, the
+    arrival and the departure, as the program does."""
     place = next(p for p in plan.places if p.code == code)
     names = {p.id: p.name for p in plan.places}
-    out = [HEADER]
+    codes = {p.id: p.code for p in plan.places}
+    here = {place.id} | {p.id for p in plan.places if p.code in remote}
+    out: list[list[str]] = []
     for train in plan.trains:
         for call in train.calls:
-            if call.place != place.id or not (call.arrival or call.departure):
+            if call.place not in here or not (call.arrival or call.departure):
                 continue
             days = "Dagl" if len(train.days) == 7 else ",".join(SHORT[d] for d in train.days)
             label = " ".join(x for x in (train.operator, train.train_type, train.number) if x)
-            out.append(
-                [
-                    label,
-                    days,
-                    call.track or "",
-                    call.arrival or "",
-                    names[train.calls[0].place],
-                    call.departure or "",
-                    names[train.calls[-1].place],
-                    *[""] * 6,
-                    ("Ej uppehåll" if not call.stops else "") + "I tåget: ett fordon.",
-                ]
+            track = call.track or ""
+            if call.place != place.id:
+                track = f"{codes[call.place]} {track}".strip()
+            first, last = train.calls[0], train.calls[-1]
+            row = [
+                label,
+                days,
+                track,
+                call.arrival or "",
+                "" if call is first else names[first.place],
+                call.departure or "",
+                "" if call is last else names[last.place],
+                *[""] * 6,
+                ("Ej uppehåll" if not call.stops else "") + "I tåget: ett fordon.",
+            ]
+            out.extend(
+                [row, row] if twice and call.stops and call.arrival and call.departure else [row]
             )
-    return out
+    out.sort(key=lambda row: row[3] or row[5])
+    return [HEADER, *out]
 
 
 def odt(rows: list[list[str]]) -> bytes:
