@@ -84,6 +84,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Stationslistor | `SourceKind.STATION_LISTS` | Planeringsprogrammets lista per station (ODT, ZIP med ODT, Excel eller CSV). Prövas mot planeringsfilen och ändrar inte utkastet (IMPORT-27). Vad listan säger om fordonen i tåget läses aldrig in. |
 | Banbild | `SourceKind.TRACK_PICTURE` | Sidan Topologi i Tellurians PDF: driftplatserna med signatur och läge, linjerna mellan dem och dubbelspår där två linjer går bredvid varandra. Underlagsnivå 2, och kartan i Bana. |
 | Banbilden i Bana | `TrackPicture`, `PictureLink`, `/meets/{meet}/picture` | Banbildens signaturer och linjer, i kartans enheter, som bakgrund i Bana (PLAN-02). |
+| Egen AI | `AiService`, `AiServiceChange`, `AiFormat`, `/api/hub/ai` | AI-tjänsten hubben skriver av skannade sidor och bilder med, inställd under Den här hubben → AI (H58). Det vanliga chatt-API:t eller Claudes eget (H59). Nyckeln stannar i hubben och visas aldrig igen. |
 | Bekräfta | `ConfirmChange` | Planeraren godkänner det ett underlag gav, som det är: en osäker eller trolig uppgift blir bekräftad (IMPORT-04). |
 | Dom | `ListVerdict`, `ImportReport.verdicts`, `ImportResult.checks_only` | En stationslistas prövning mot planen: hur många tågbesök som stämmer och var det skiljer. |
 | Program | `about.program` | Träffens program, som fasta tider. |

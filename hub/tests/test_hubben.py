@@ -96,3 +96,46 @@ def test_a_session_expires(hub: TestClient, monkeypatch: pytest.MonkeyPatch) -> 
     later = local._now() + local.SESSION_LIFETIME
     monkeypatch.setattr(local, "_now", lambda: later)
     assert info(hub).logged_in is False
+
+
+def test_own_ai_is_connected_checked_and_its_key_never_shown(
+    hub: TestClient, tmp_path: Path
+) -> None:
+    """Den här hubben → AI (H58, H59, H70), against a stand-in service on this machine: the hub
+    checks that the model reads a picture before it keeps the setting, and the key is never
+    shown again or written to the hub's log."""
+    from integrationer.tests.fake_ai import KEY, FakeAi, serving
+
+    assert hub.get("/api/hub/ai").status_code == 401
+    hub.post("/api/hub/setup", json={"name": "Hubben", "pin": PIN})
+    assert hub.get("/api/hub/ai").status_code == 404
+    with serving() as fake:
+        given = {"format": "claude", "address": fake.address + "/", "model": "claude-x", "key": KEY}
+        connected = hub.post("/api/hub/ai", json=given)
+        assert connected.status_code == 200, connected.text
+        seen = contract.AiService.model_validate(connected.json())
+        assert (seen.format, seen.address, seen.model, seen.key_set) == (
+            contract.AiFormat.CLAUDE,
+            fake.address,
+            "claude-x",
+            True,
+        )
+        assert seen.checked is not None and len(fake.asked) == 1
+        assert KEY not in connected.text and KEY not in hub.get("/api/hub/ai").text
+        kept = hub.post("/api/hub/ai", json={**given, "format": "chat", "key": None})
+        assert kept.status_code == 200 and kept.json()["format"] == "chat", "the key stays"
+        wrong = hub.post("/api/hub/ai", json={**given, "key": "sk-wrong-9876"})
+        assert (
+            wrong.status_code == 422
+            and wrong.json()["detail"] == "AI-tjänsten godtog inte nyckeln."
+        )
+        assert hub.get("/api/hub/ai").json()["format"] == "chat", "a failed check changes nothing"
+    with serving(FakeAi(blind=True)) as blind:
+        refused = hub.post("/api/hub/ai", json={**given, "address": blind.address})
+        assert refused.status_code == 422 and "läste inte talet" in refused.json()["detail"]
+    with sqlite3.connect(tmp_path / "hubben.sqlite3") as db:
+        assert db.execute("SELECT key FROM ai").fetchone() == (KEY,), "it stays in the hub"
+    assert hub.post("/api/hub/ai/disconnect").status_code == 204
+    assert hub.get("/api/hub/ai").status_code == 404
+    with sqlite3.connect(tmp_path / "hubben.sqlite3") as db:
+        assert db.execute("SELECT count(*) FROM ai").fetchone() == (0,), "and goes with it"

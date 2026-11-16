@@ -7,6 +7,8 @@ import type { components } from "../../../contracts/types";
 type Schemas = components["schemas"];
 export type HubInfo = Schemas["trainmeet.hub-1.info"];
 export type Version = Schemas["trainmeet.hub-1.version"];
+export type AiService = Schemas["trainmeet.hub-1.ai-service"];
+export type AiServiceChange = Schemas["trainmeet.hub-1.ai-service-change"];
 export type Now = Schemas["trainmeet.drift-1.now"];
 export type Weekday = Schemas["trainmeet.drift-1.now.Weekday"];
 export type Client = Schemas["trainmeet.drift-1.client"];
@@ -54,6 +56,10 @@ export const hub = {
   setUp: (name: string, pin: string) => call<unknown>("/api/hub/setup", { name, pin }),
   logIn: (pin: string) => call<unknown>("/api/hub/login", { pin }),
   logOut: () => call<unknown>("/api/hub/logout", {}),
+  // Egen AI under Den här hubben (H58): the key goes in and is never shown again.
+  ai: () => call<AiService>("/api/hub/ai"),
+  connectAi: (change: AiServiceChange) => call<AiService>("/api/hub/ai", change),
+  disconnectAi: () => call<unknown>("/api/hub/ai/disconnect", {}),
   /** Nu, open to everyone who looks; null when no meet is started. */
   now: async (): Promise<Now | null> => {
     try {

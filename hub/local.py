@@ -17,7 +17,7 @@ import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from secrets import token_bytes, token_urlsafe
@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS session (
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS login_failure (at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS ai (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    format TEXT NOT NULL,
+    address TEXT NOT NULL,
+    model TEXT NOT NULL,
+    key TEXT NOT NULL,
+    checked REAL
+);
 """
 
 
@@ -64,6 +72,17 @@ class TooManyAttempts(Exception):
 
 class InvalidSetup(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class AiSetting:
+    """Egen AI as stored (H58). The key stays in the hub and is never shown."""
+
+    format: str
+    address: str
+    model: str
+    key: str = field(repr=False)
+    checked: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -169,6 +188,31 @@ class LocalLogin:
                 (_token_hash(token), _now().timestamp()),
             ).fetchone()
         return row is not None
+
+    def ai(self) -> AiSetting | None:
+        with self._transaction() as db:
+            row = db.execute("SELECT format, address, model, key, checked FROM ai").fetchone()
+        if row is None:
+            return None
+        checked = datetime.fromtimestamp(row[4], UTC) if row[4] is not None else None
+        return AiSetting(row[0], row[1], row[2], row[3], checked)
+
+    def set_ai(self, setting: AiSetting) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO ai VALUES (1, ?, ?, ?, ?, ?)",
+                (
+                    setting.format,
+                    setting.address,
+                    setting.model,
+                    setting.key,
+                    setting.checked.timestamp() if setting.checked else None,
+                ),
+            )
+
+    def clear_ai(self) -> None:
+        with self._transaction() as db:
+            db.execute("DELETE FROM ai")
 
     def log_out(self, token: str | None) -> None:
         if not token:

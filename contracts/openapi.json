@@ -1415,6 +1415,58 @@
         }
       }
     },
+    "/api/hub/ai": {
+      "get": {
+        "operationId": "hubAiService",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.ai-service"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "connectAi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.ai-service"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.ai-service-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets": {
       "get": {
         "operationId": "planningMeets",
@@ -15433,6 +15485,115 @@
         ],
         "title": "Version",
         "type": "object"
+      },
+      "trainmeet.hub-1.ai-service": {
+        "additionalProperties": true,
+        "description": "Egen AI (H58): the service the hub transcribes scanned pages and pictures with. The key\nis never shown again: only that one is set.",
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.ai-service.AiFormat"
+          },
+          "address": {
+            "description": "Tjänstens adress, till exempel https://api.anthropic.com.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "key_set": {
+            "title": "Key Set",
+            "type": "boolean"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När hubben senast provade att modellen läser bilder (H70).",
+            "title": "Checked"
+          }
+        },
+        "required": [
+          "format",
+          "address",
+          "model",
+          "key_set"
+        ],
+        "title": "AiService",
+        "type": "object"
+      },
+      "trainmeet.hub-1.ai-service.AiFormat": {
+        "description": "Which API the service talks (H59): the ordinary chat API, or Claude's own.",
+        "enum": [
+          "chat",
+          "claude"
+        ],
+        "title": "AiFormat",
+        "type": "string"
+      },
+      "trainmeet.hub-1.ai-service-change": {
+        "additionalProperties": true,
+        "description": "Koppla in egen AI. The hub checks that the model reads an image before it is saved.",
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.ai-service-change.AiFormat"
+          },
+          "address": {
+            "maxLength": 300,
+            "minLength": 8,
+            "title": "Address",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Skickas när den läggs in eller byts; annars står den kvar. Visas aldrig igen.",
+            "title": "Key"
+          }
+        },
+        "required": [
+          "format",
+          "address",
+          "model"
+        ],
+        "title": "AiServiceChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.ai-service-change.AiFormat": {
+        "description": "Which API the service talks (H59): the ordinary chat API, or Claude's own.",
+        "enum": [
+          "chat",
+          "claude"
+        ],
+        "title": "AiFormat",
+        "type": "string"
       },
       "trainmeet.planning-1.import": {
         "additionalProperties": true,

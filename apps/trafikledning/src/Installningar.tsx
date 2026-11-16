@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Automation, AutomationSettings, DaySettings, Now, PlacePhone, Version } from "./api";
+import type { AiService, AiServiceChange, Automation, AutomationSettings, DaySettings, Now, PlacePhone, Version } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -22,12 +22,24 @@ export type SettingsProps = {
   /** The places' game numbers, read only by the administrator (H30). */
   phones?: PlacePhone[] | null;
   onPhones?: (changes: PlacePhone[]) => void;
+  /** Egen AI (H58), read only by the administrator; null when none is connected. */
+  ai?: AiService | null;
+  /** Resolves true when the hub checked the model and kept the setting. */
+  onAi?: (change: AiServiceChange) => Promise<boolean>;
+  onAiOff?: () => void;
 };
 
 type Heap = { label: string; note: string; items: [string, string][] };
 
 export function heaps(now: Now | null): Heap[] {
-  const machine: Heap = { label: "Den här hubben", note: "bara maskinen", items: [["hubben", "Namn och version"]] };
+  const machine: Heap = {
+    label: "Den här hubben",
+    note: "bara maskinen",
+    items: [
+      ["hubben", "Namn och version"],
+      ["ai", "AI"],
+    ],
+  };
   if (!now) return [machine];
   return [
     { label: "I paketet", note: "följer versionen", items: [["traffen", "Träffen och trafikdagarna"]] },
@@ -83,11 +95,99 @@ export function SettingsPage(props: SettingsProps) {
               <dd>{hubName}</dd>
             </dl>
             {version && <Built version={version} />}
-            <p className="liten">Pi:ns nät, PIN och skärmlås, språk och AI kommer hit med Synk i steg 5.</p>
+            <p className="liten">Pi:ns nät, PIN och skärmlås och språk kommer hit med Synk i steg 5.</p>
           </section>
+          <EgenAi {...props} />
         </div>
       </div>
     </>
+  );
+}
+
+const FORMATS: [AiServiceChange["format"], string, string][] = [
+  ["claude", "Claudes API", "https://api.anthropic.com"],
+  ["chat", "Det vanliga chatt-API:t", "https://"],
+];
+
+/** Den här hubben → AI (H58, H59, H70): the service that transcribes scanned pages and pictures
+ * in Planering. The hub checks that the model reads a picture before it keeps the setting; the
+ * key is sent once and never shown again. */
+export function EgenAi({ admin, ai, onAi, onAiOff }: SettingsProps) {
+  const [format, setFormat] = useState<AiServiceChange["format"]>(ai?.format ?? "claude");
+  const [address, setAddress] = useState(ai?.address ?? "https://api.anthropic.com");
+  const [model, setModel] = useState(ai?.model ?? "");
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const connect = async () => {
+    setBusy(true);
+    const kept = await (onAi?.({ format, address, model, key: key || null }) ?? Promise.resolve(false));
+    setBusy(false);
+    if (kept) setKey("");
+  };
+  return (
+    <section id="ai" className="kort" aria-labelledby="ai-rubrik">
+      <h2 id="ai-rubrik">AI</h2>
+      <p className="liten">Egen AI skriver av skannade sidor och bilder när underlag läggs till i Planering. Den betalas av din AI-tjänst; TrainMeet drar inga tokens. Underlag med text läses alltid med kod, utan AI.</p>
+      {!admin ? (
+        <p className="liten" id="ai-state">{ai === undefined ? "Logga in för att se AI-tjänsten." : ai ? `${ai.model} är inkopplad.` : "Ingen egen AI är inkopplad."}</p>
+      ) : (
+        <>
+          <dl className="bygge" id="ai-state">
+            <dt>Läge</dt>
+            <dd>{ai ? `Inkopplad · ${ai.model}` : "Ingen egen AI är inkopplad"}</dd>
+            {ai?.checked && (
+              <>
+                <dt>Provad</dt>
+                <dd>{`Läste provbilden ${new Date(ai.checked).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" })}`}</dd>
+              </>
+            )}
+          </dl>
+          <div className="installning">
+            <span className="etikett">Format</span>
+            <Chips label="Tjänstens format">
+              {FORMATS.map(([value, label, start]) => (
+                <Chip key={value} label={label} pressed={format === value} onClick={() => (setFormat(value), FORMATS.some(([, , other]) => other === address) && setAddress(start))} />
+              ))}
+            </Chips>
+          </div>
+          <div className="installning">
+            <label htmlFor="ai-address" className="etikett">
+              Adress
+            </label>
+            <input id="ai-address" className="tm-mono" value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="off" spellCheck={false} />
+          </div>
+          <div className="installning">
+            <label htmlFor="ai-model" className="etikett">
+              Modell
+            </label>
+            <input id="ai-model" className="tm-mono" value={model} onChange={(event) => setModel(event.target.value)} autoComplete="off" spellCheck={false} />
+            <span className="liten">en modell som kan läsa bilder</span>
+          </div>
+          <div className="installning">
+            <label htmlFor="ai-key" className="etikett">
+              Nyckel
+            </label>
+            <input id="ai-key" type="password" className="tm-mono" value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder={ai?.key_set ? "Sparad" : "Klistra in nyckeln"} />
+            <span className="liten">stannar i hubben, visas aldrig igen och skrivs aldrig i loggen; skriv en ny för att byta</span>
+          </div>
+          <div className="installningsfot">
+            <span className="liten" role="status">
+              {busy ? "Provar att modellen läser en bild …" : "Hubben provar att modellen läser en bild innan den sparas."}
+            </span>
+            <span className="rad">
+              {ai && (
+                <button id="ai-off" type="button" disabled={busy} onClick={() => onAiOff?.()}>
+                  Koppla bort
+                </button>
+              )}
+              <button id="ai-connect" type="button" className="primar" disabled={busy || !model.trim() || !address.trim() || (!key && !ai?.key_set)} onClick={() => void connect()}>
+                {ai ? "Spara och prova" : "Koppla in och prova"}
+              </button>
+            </span>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

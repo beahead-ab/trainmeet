@@ -20,18 +20,22 @@ body.kontrollrummet {
   --gron: #15803d;
   --rod: #b42318;
   --gul: #a16207;
+  /* Text in amber on the light page needs to be darker than the marks (WCAG AA). */
+  --gul-text: #854d0e;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --gron: #46d36b;
     --rod: #ff7a6e;
     --gul: #f5c518;
+    --gul-text: #f5c518;
   }
 }
 body.kontrollrummet {
   --gron: #46d36b;
   --rod: #ff7a6e;
   --gul: #f5c518;
+  --gul-text: #f5c518;
 }
 body {
   font-size: 15px;
@@ -341,7 +345,7 @@ main .slag button[aria-pressed="true"] {
   padding: 10px 0;
 }
 .meddelande {
-  color: var(--gul);
+  color: var(--gul-text);
   min-height: 1.5em;
   margin: 8px 0 0;
 }
