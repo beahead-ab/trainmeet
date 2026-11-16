@@ -252,12 +252,46 @@ def test_the_exports_of_the_draft_and_of_a_version(planned: TestClient) -> None:
     assert anonymous.get(path + "/allt").status_code == 422
 
 
+def test_station_lists_alone_build_the_draft(hub: TestClient) -> None:
+    """4c1 (IMPORT-17, IMPORT-33): without the planning file the lists build the draft, with
+    places, kinds and sections derived and marked osäkra. The planning file added afterwards
+    takes over the draft, and the lists become its check, a verdict each."""
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    lists = station_lists_zip("Mkd", "Lek", "Gdö")
+    early = upload(hub, data=lists, name="Station dispatch lists.zip")
+    assert early.status_code == 201, early.text
+    seen = planning.ImportPreview.model_validate(early.json())
+    assert seen.first and seen.report.level == 1 and not seen.report.verdicts
+    applied = hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply")
+    draft = planning.Draft.model_validate(applied.json())
+    assert draft.package is not None and len(draft.package.trains) > 50
+    assert {p.code for p in draft.package.places} >= {"Mkd", "Lek", "Gdö"}
+    facts = {f.ref: f for f in draft.facts}
+    section = draft.package.sections[0]
+    assert facts[f"section:{section.id}"].certainty == planning.Certainty.UNSURE
+    assert facts["place:l-lek.kind"].certainty == planning.Certainty.UNSURE
+    plan = planning.ImportPreview.model_validate(upload(hub).json())
+    assert [v.document for v in plan.report.verdicts] == [
+        "Gdö Gårdsjö.odt",
+        "Lek Lekby.odt",
+        "Mkd Munkerød.odt",
+    ], "the lists already added are judged against the planning file"
+    assert all(not v.differences for v in plan.report.verdicts)
+    after = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{plan.source.id}/apply").json()
+    )
+    assert after.package is not None and len(after.package.trains) == 228
+    assert {s.kind for s in after.sources} == {
+        planning.SourceKind.PLANNING_JSON,
+        planning.SourceKind.STATION_LISTS,
+    }
+    assert after.report is not None and after.report.level == 4 and after.report.verdicts
+
+
 def test_station_lists_are_judged_against_the_plan(hub: TestClient) -> None:
     """4c1 (IMPORT-27, IMPORT-33): with the planning file in the draft, the station lists get a
-    verdict each; the draft does not change. Without it they wait for the next part."""
+    verdict each; the draft does not change."""
     hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
-    early = upload(hub, data=station_lists_zip(), name="Station dispatch lists.zip")
-    assert early.status_code == 422 and "planeringsfilen" in early.json()["detail"]
     preview = planning.ImportPreview.model_validate(upload(hub).json())
     hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply")
     before = planning.Draft.model_validate(hub.get(f"{API}/meets/{MEET}").json())
@@ -278,8 +312,9 @@ def test_station_lists_are_judged_against_the_plan(hub: TestClient) -> None:
     assert after.report is not None and after.report.verdicts[0].agreeing > 20
 
 
-def station_lists_zip() -> bytes:
-    """Lekby's list made from the planning file, in the planning program's format."""
+def station_lists_zip(*codes: str) -> bytes:
+    """Lists made from the planning file, in the planning program's format: Lekby's alone, or
+    the places with the given signatures."""
     meet = Meet(id=MEET, name="Värnamo", country="se", timezone="Europe/Stockholm")
     kind = planning.SourceKind.PLANNING_JSON
     given = planning.Source(
@@ -287,7 +322,10 @@ def station_lists_zip() -> bytes:
         added=datetime(2026, 11, 16, tzinfo=UTC),
     )  # fmt: skip
     plan = planning_json.read(VARNAMO, meet=meet, source=given).package
-    return lists_zip({"Lek Lekby.odt": odt(rows_for(plan, "Lek"))})
+    names = {p.code: p.name for p in plan.places}
+    return lists_zip(
+        {f"{code} {names[code]}.odt": odt(rows_for(plan, code)) for code in codes or ("Lek",)}
+    )
 
 
 def later_by(clock: str, minutes: int) -> str:

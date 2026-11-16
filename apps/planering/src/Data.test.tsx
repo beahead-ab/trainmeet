@@ -164,4 +164,25 @@ describe("Lägg till underlag", () => {
     expect(html).toContain("Skiljer");
     expect(html).toContain("avgång 10:42 i listan, 10:40 i planen.");
   });
+
+  it("says what the lists alone give, derived and osäkert (IMPORT-17)", () => {
+    const derived = {
+      ...preview,
+      source: { id: "src4", kind: "station_lists", filename: "lists.zip" },
+      report: { level: 1, places: { manned: 11, shadow_yard: 3, remote: 1, halt: 7 }, sections: 14, trains: 228, verdicts: [] },
+      first: true,
+      trains: { added: 228 },
+      places: { added: 22 },
+      sections: { added: 14 },
+    } as unknown as ImportPreview;
+    const html = renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "lists.zip", state: "read", preview: derived }} />);
+    expect(html).toContain("Stationslistor · 228 tåg · 22 driftplatser · 14 sträckor, härledda");
+    expect(html).toContain("Allt är nytt: 228 tåg, 22 driftplatser, 14 sträckor.");
+    expect(html).toContain("osäkra tills du bekräftar dem i Bana");
+    expect(html).not.toContain('id="verdicts"');
+    const judged = { ...preview, report: { ...preview.report, verdicts: [{ document: "Lek Lekby.odt", place: "lek", rows: 52, agreeing: 52, differences: [] }] } } as unknown as ImportPreview;
+    const both = renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "varnamo.json", state: "read", preview: judged }} />);
+    expect(both).toContain('id="changes"');
+    expect(both).toContain("Stationslistorna som redan är underlag får en dom var");
+  });
 });
