@@ -417,7 +417,7 @@ def test_a_scanned_list_is_written_down_by_the_hubs_own_ai(hub: TestClient) -> N
     from integrationer.tests.test_scanned import transcript
 
     hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
-    photo = drawn("123")
+    photo = drawn("1234")  # four digits: never the hub's own probe, which draws three
 
     def send(transcribe: bool) -> Any:
         return hub.post(
