@@ -509,6 +509,23 @@ ul.moln li {
 ul.moln .varning {
   color: var(--gul-text);
 }
+.provanslutning {
+  border: 1px solid var(--tm-line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.provanslutning p {
+  margin: 0;
+}
+ol.natlista li .rad button {
+  min-width: 2.5em;
+}
 fieldset.pinbyte {
   border: 0;
   margin: 0;

@@ -1510,6 +1510,102 @@
         ]
       }
     },
+    "/api/hub/wifi": {
+      "get": {
+        "operationId": "piWifi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/hub/wifi/save": {
+      "post": {
+        "operationId": "savePiWifi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.wifi-profile-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/hub/wifi/{action}": {
+      "post": {
+        "operationId": "piWifiAction",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.wifi-action"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/hub/ai": {
       "get": {
         "operationId": "hubAiService",
@@ -15874,6 +15970,375 @@
           "new_pin"
         ],
         "title": "PinChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-status": {
+        "additionalProperties": true,
+        "description": "Pi:ns eget nät, inte träffens Wi-Fi som visas för deltagarna.",
+        "properties": {
+          "supported": {
+            "title": "Supported",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status.WifiProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status.WifiDevice"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "nearby": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status.WifiNearby"
+            },
+            "title": "Nearby",
+            "type": "array"
+          },
+          "radio_enabled": {
+            "default": false,
+            "title": "Radio Enabled",
+            "type": "boolean"
+          },
+          "recovering": {
+            "default": false,
+            "description": "NetworkManager går tillbaka just nu.",
+            "title": "Recovering",
+            "type": "boolean"
+          },
+          "trial": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.hub-1.wifi-status.WifiTrial"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "can_manage": {
+            "default": false,
+            "description": "Ändringar görs bara i webbläsaren på Pi:n eller över HTTPS, så att ett lösenord aldrig går okrypterat över träffens nät.",
+            "title": "Can Manage",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "supported"
+        ],
+        "title": "WifiStatus",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-status.WifiDevice": {
+        "additionalProperties": true,
+        "properties": {
+          "interface": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Interface",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "integer"
+          },
+          "uuid": {
+            "description": "Profilen som är ansluten, eller tomt.",
+            "title": "Uuid",
+            "type": "string"
+          },
+          "addresses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addresses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "interface",
+          "state",
+          "uuid",
+          "addresses"
+        ],
+        "title": "WifiDevice",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-status.WifiNearby": {
+        "additionalProperties": true,
+        "properties": {
+          "ssid": {
+            "title": "Ssid",
+            "type": "string"
+          },
+          "security": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Security",
+            "type": "array"
+          },
+          "signal": {
+            "title": "Signal",
+            "type": "integer"
+          },
+          "interface": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Interface",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ssid",
+          "security",
+          "signal",
+          "interface"
+        ],
+        "title": "WifiNearby",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-status.WifiProfile": {
+        "additionalProperties": true,
+        "description": "Ett sparat Wi-Fi på Pi:n. Lösenordet finns bara hos NetworkManager och kommer aldrig hit.",
+        "properties": {
+          "uuid": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Uuid",
+            "type": "string"
+          },
+          "ssid": {
+            "title": "Ssid",
+            "type": "string"
+          },
+          "security": {
+            "enum": [
+              "open",
+              "wpa2",
+              "wpa3",
+              "unsupported"
+            ],
+            "title": "Security",
+            "type": "string"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "autoconnect": {
+            "title": "Autoconnect",
+            "type": "boolean"
+          },
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "editable": {
+            "description": "Kan hanteras här: inte företagsnät, hotspot eller liknande.",
+            "title": "Editable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "uuid",
+          "ssid",
+          "security",
+          "hidden",
+          "priority",
+          "autoconnect",
+          "active",
+          "editable"
+        ],
+        "title": "WifiProfile",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-status.WifiTrial": {
+        "additionalProperties": true,
+        "description": "Ett nytt nät provas: behåll det innan tiden är ute, annars går Pi:n tillbaka (H45).",
+        "properties": {
+          "uuid": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Uuid",
+            "type": "string"
+          },
+          "interface": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Interface",
+            "type": "string"
+          },
+          "remaining": {
+            "description": "Sekunder kvar av de 90.",
+            "minimum": 0,
+            "title": "Remaining",
+            "type": "integer"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bara till den som startade provet.",
+            "title": "Token"
+          }
+        },
+        "required": [
+          "uuid",
+          "interface",
+          "remaining"
+        ],
+        "title": "WifiTrial",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-profile-change": {
+        "additionalProperties": true,
+        "description": "Spara ett nät. Utan lösenord behålls det sparade, om SSID och säkerhet är desamma.",
+        "properties": {
+          "uuid": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uuid"
+          },
+          "ssid": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Ssid",
+            "type": "string"
+          },
+          "security": {
+            "enum": [
+              "open",
+              "wpa2",
+              "wpa3"
+            ],
+            "title": "Security",
+            "type": "string"
+          },
+          "password": {
+            "default": "",
+            "description": "Skrivs aldrig ut.",
+            "maxLength": 63,
+            "title": "Password",
+            "type": "string"
+          },
+          "hidden": {
+            "default": false,
+            "title": "Hidden",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ssid",
+          "security"
+        ],
+        "title": "WifiProfileChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.wifi-action": {
+        "additionalProperties": true,
+        "description": "Det övriga: sök (interface), ta bort (uuid), ordning (uuids), anslut nu (uuid och\ninterface), behåll eller återställ (token).",
+        "properties": {
+          "uuid": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uuid"
+          },
+          "uuids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uuids"
+          },
+          "interface": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Interface"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token"
+          }
+        },
+        "title": "WifiAction",
         "type": "object"
       },
       "trainmeet.hub-1.version": {

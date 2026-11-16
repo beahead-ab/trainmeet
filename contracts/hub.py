@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import Field
 
@@ -100,3 +101,84 @@ class Version(Contract):
     built: datetime | None = None
     pr_url: str | None = Field(default=None, description="Ändringen på GitHub.")
     commit_url: str | None = Field(default=None, description="Committen på GitHub.")
+
+
+# --- Pi:ns nät (SYNK-07, SYNK-26, H45) ----------------------------------------------------------
+
+WifiSecurity = Literal["open", "wpa2", "wpa3"]
+
+
+class WifiProfile(Contract):
+    """Ett sparat Wi-Fi på Pi:n. Lösenordet finns bara hos NetworkManager och kommer aldrig hit."""
+
+    uuid: Text
+    ssid: str
+    security: Literal["open", "wpa2", "wpa3", "unsupported"]
+    hidden: bool
+    priority: int
+    autoconnect: bool
+    active: bool
+    editable: bool = Field(
+        description="Kan hanteras här: inte företagsnät, hotspot eller liknande."
+    )
+
+
+class WifiDevice(Contract):
+    interface: Text
+    state: int
+    uuid: str = Field(description="Profilen som är ansluten, eller tomt.")
+    addresses: list[str]
+
+
+class WifiNearby(Contract):
+    ssid: str
+    security: list[str]
+    signal: int
+    interface: Text
+
+
+class WifiTrial(Contract):
+    """Ett nytt nät provas: behåll det innan tiden är ute, annars går Pi:n tillbaka (H45)."""
+
+    uuid: Text
+    interface: Text
+    remaining: int = Field(ge=0, description="Sekunder kvar av de 90.")
+    token: str | None = Field(default=None, description="Bara till den som startade provet.")
+
+
+class WifiStatus(Contract):
+    """Pi:ns eget nät, inte träffens Wi-Fi som visas för deltagarna."""
+
+    supported: bool
+    reason: Text | None = None
+    profiles: list[WifiProfile] = Field(default_factory=list)
+    devices: list[WifiDevice] = Field(default_factory=list)
+    nearby: list[WifiNearby] = Field(default_factory=list)
+    radio_enabled: bool = False
+    recovering: bool = Field(default=False, description="NetworkManager går tillbaka just nu.")
+    trial: WifiTrial | None = None
+    can_manage: bool = Field(
+        default=False,
+        description="Ändringar görs bara i webbläsaren på Pi:n eller över HTTPS, så att ett "
+        "lösenord aldrig går okrypterat över träffens nät.",
+    )
+
+
+class WifiProfileChange(Contract):
+    """Spara ett nät. Utan lösenord behålls det sparade, om SSID och säkerhet är desamma."""
+
+    uuid: Text | None = None
+    ssid: str = Field(min_length=1, max_length=32)
+    security: WifiSecurity
+    password: str = Field(default="", max_length=63, description="Skrivs aldrig ut.")
+    hidden: bool = False
+
+
+class WifiAction(Contract):
+    """Det övriga: sök (interface), ta bort (uuid), ordning (uuids), anslut nu (uuid och
+    interface), behåll eller återställ (token)."""
+
+    uuid: Text | None = None
+    uuids: list[str] | None = Field(default=None, max_length=32)
+    interface: Text | None = None
+    token: Text | None = None

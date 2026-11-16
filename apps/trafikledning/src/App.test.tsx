@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, Molnet, newSeed, SettingsPage } from "./Installningar";
+import { heaps, Molnet, Natet, newSeed, SettingsPage } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
@@ -159,6 +159,49 @@ describe("the addresses", () => {
   });
 });
 
+describe("Pi:ns nät under the gear (SYNK-26, H45)", () => {
+  const status = {
+    supported: true,
+    reason: null,
+    profiles: [
+      { uuid: "11111111-1111-4111-8111-111111111111", ssid: "Hemma", security: "wpa2", hidden: false, priority: 10, autoconnect: true, active: true, editable: true },
+      { uuid: "22222222-2222-4222-8222-222222222222", ssid: "Träffens nät", security: "wpa3", hidden: false, priority: 0, autoconnect: true, active: false, editable: true },
+    ],
+    devices: [{ interface: "wlan0", state: 100, uuid: "11111111-1111-4111-8111-111111111111", addresses: ["192.168.1.20"] }],
+    nearby: [{ ssid: "Klubblokalen", security: ["wpa2"], signal: 80, interface: "wlan0" }],
+    radio_enabled: true,
+    recovering: false,
+    trial: null,
+    can_manage: true,
+  } as never;
+  it("lists the Pi's nets, with Anslut nu only for one that is not on, and never a password", () => {
+    const html = renderToStaticMarkup(<Natet admin initial={status} />);
+    expect(html).toContain("Hemma");
+    expect(html).toContain("anslutet nu");
+    expect(html.match(/>Anslut nu<\/button>/g)?.length).toBe(1);
+    expect(html).toContain("Spara nätet");
+    expect(html).toContain("Klubblokalen");
+    expect(html).not.toContain("private");
+  });
+  it("only reads over plain HTTP, and says where to change it", () => {
+    const html = renderToStaticMarkup(<Natet admin initial={{ ...(status as object), can_manage: false } as never} />);
+    expect(html).toContain("över HTTPS");
+    expect(html).not.toContain("Spara nätet");
+  });
+  it("says so on a hub without the Pi's network service", () => {
+    const html = renderToStaticMarkup(<Natet admin initial={{ supported: false, reason: "Pi:ns nät ställs in på en Raspberry Pi med TrainMeets nätverkstjänst." } as never} />);
+    expect(html).toContain("Raspberry Pi");
+  });
+  it("asks to keep a net on trial within its seconds", () => {
+    const trial = { ...(status as object), trial: { uuid: "22222222-2222-4222-8222-222222222222", interface: "wlan0", remaining: 74, token: "abc" } } as never;
+    const html = renderToStaticMarkup(<Natet admin initial={trial} />);
+    expect(html).toContain("Provar Träffens nät.");
+    expect(html).toContain("74 sekunder");
+    expect(html).toContain("Behåll anslutningen");
+    expect(html).toContain("Återställ nu");
+  });
+});
+
 describe("Namn och PIN under the gear (SYNK-07, H46)", () => {
   it("lets the administrator rename the hub and change the PIN, and tells how a forgotten one is set", () => {
     const html = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />);
@@ -214,7 +257,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   });
 
   it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
-    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "molnet", "ai"]);
+    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "natet", "molnet", "ai"]);
     const none = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={null} />);
     expect(none).toContain("Ingen egen AI är inkopplad");
     expect(none).toContain('id="ai-connect" type="button" class="primar" disabled=""');

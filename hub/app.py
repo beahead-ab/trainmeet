@@ -21,6 +21,7 @@ from hub import (
     build_info,
     drift_api,
     hubben,
+    network_api,
     planering_api,
     provbanan,
     screen_web,
@@ -183,6 +184,8 @@ def create_app(
     app.state.relay = relay
     app.state.pusher = pusher
     app.include_router(hubben.router(login))
+    # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
+    app.include_router(network_api.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
     app.include_router(

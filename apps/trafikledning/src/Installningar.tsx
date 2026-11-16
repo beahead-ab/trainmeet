@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type Version } from "./api";
+import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -41,6 +41,7 @@ export function heaps(now: Now | null): Heap[] {
     note: "bara maskinen",
     items: [
       ["hubben", "Namn och version"],
+      ["natet", "Pi:ns nät"],
       ["molnet", "Molnet"],
       ["ai", "AI"],
     ],
@@ -104,8 +105,9 @@ export function SettingsPage(props: SettingsProps) {
               </dl>
             )}
             {version && <Built version={version} />}
-            <p className="liten">Pi:ns nät och språk kommer hit senare i steg 5.</p>
+            <p className="liten">Språket kommer hit senare i steg 5.</p>
           </section>
+          <Natet admin={props.admin} />
           <Molnet admin={props.admin} />
           <EgenAi {...props} />
         </div>
@@ -115,6 +117,216 @@ export function SettingsPage(props: SettingsProps) {
 }
 
 const when = (at: string | null | undefined) => (at ? new Date(at).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "medium" }) : "aldrig");
+
+const SECURITY: [WifiProfile["security"], string][] = [
+  ["wpa2", "WPA2"],
+  ["wpa3", "WPA3"],
+  ["open", "Öppet"],
+];
+
+/** Den här hubben → Pi:ns nät (SYNK-07, SYNK-26, H45): the Pi's own Wi-Fi, not the meet's.
+ * Anslut nu is tried: keep it within 90 seconds, or NetworkManager goes back by itself. A
+ * change is only made in the browser on the Pi or over HTTPS; a password never comes back. */
+export function Natet({ admin, initial }: { admin: boolean; initial?: WifiStatus }) {
+  const [state, setState] = useState<WifiStatus | null>(initial ?? null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [ssid, setSsid] = useState("");
+  const [security, setSecurity] = useState<"wpa2" | "wpa3" | "open">("wpa2");
+  const [password, setPassword] = useState("");
+  const [hidden, setHidden] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
+  const trial = state?.trial ?? null;
+  useEffect(() => {
+    if (!admin || initial) return;
+    const read = () => void hub.wifi().then(setState, () => undefined);
+    read();
+    const timer = window.setInterval(read, trial ? 2000 : 10000);
+    return () => window.clearInterval(timer);
+  }, [admin, initial, trial]);
+  const act = async (doing: () => Promise<WifiStatus>, done: string) => {
+    setBusy(true);
+    setSaid("");
+    try {
+      setState(await doing());
+      setSaid(done);
+      return true;
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const clear = () => {
+    setEditing(null);
+    setSsid("");
+    setPassword("");
+    setHidden(false);
+    setSecurity("wpa2");
+  };
+  const edit = (profile: WifiProfile) => {
+    setEditing(profile.uuid);
+    setSsid(profile.ssid);
+    setSecurity(profile.security === "unsupported" ? "wpa2" : profile.security);
+    setHidden(profile.hidden);
+    setPassword("");
+  };
+  const save = async () => {
+    const change = { uuid: editing, ssid: ssid.trim(), security, password, hidden };
+    if (await act(() => hub.saveWifi(change), `${ssid.trim()} är sparat. Det ändrar inte nätet Pi:n är på nu.`)) clear();
+  };
+  const profiles = state?.profiles ?? [];
+  const editable = profiles.filter((profile) => profile.editable);
+  const move = (uuid: string, step: number) => {
+    const ids = editable.map((profile) => profile.uuid);
+    const at = ids.indexOf(uuid);
+    if (at + step < 0 || at + step >= ids.length) return;
+    const [moved] = ids.splice(at, 1);
+    if (moved) ids.splice(at + step, 0, moved);
+    void act(() => hub.wifiAction("order", { uuids: ids }), "Ordningen är sparad. Den gäller nästa gång Pi:n startar.");
+  };
+  const device = state?.devices?.[0]?.interface ?? "wlan0";
+  const manage = Boolean(state?.can_manage) && !trial && !state?.recovering;
+  const tried = trial ? profiles.find((profile) => profile.uuid === trial.uuid) : undefined;
+  const connect = (profile: WifiProfile) => {
+    const warned = window.confirm(`Pi:n byter till ${profile.ssid}. Webbläsaren och boxarna kan tappa kontakten, och Pi:n kan få en ny adress. Anslut igen och tryck Behåll anslutningen inom 90 sekunder, annars går Pi:n tillbaka till nätet den har nu.`);
+    if (warned) void act(() => hub.wifiAction("connect", { uuid: profile.uuid, interface: device }), `Provar ${profile.ssid}.`);
+  };
+  return (
+    <section id="natet" className="kort" aria-labelledby="natet-rubrik">
+      <h2 id="natet-rubrik">Pi:ns nät</h2>
+      <p className="liten">De nät Pi:n själv ansluter till. Det är inte träffens Wi-Fi, som deltagarna ser. Näten och deras lösenord stannar på Pi:n.</p>
+      {!admin ? (
+        <p className="liten">Logga in för att se Pi:ns nät.</p>
+      ) : !state ? (
+        <p className="liten">Läser Pi:ns nät …</p>
+      ) : !state.supported ? (
+        <p className="liten" id="natet-saknas">{state.reason ?? "Pi:ns nät ställs in på en Raspberry Pi."}</p>
+      ) : (
+        <>
+          {trial && (
+            <div className="provanslutning" role="status" id="natet-prov">
+              <p>
+                <b>{`Provar ${tried?.ssid ?? "ett nytt nät"}.`}</b> {`Behåll anslutningen inom ${trial.remaining} sekunder, annars går Pi:n tillbaka till nätet före.`}
+              </p>
+              {trial.token ? (
+                <span className="rad">
+                  <button type="button" disabled={busy} onClick={() => void act(() => hub.wifiAction("rollback", { token: trial.token ?? "" }), "Pi:n är tillbaka på nätet före.")}>
+                    Återställ nu
+                  </button>
+                  <button type="button" className="primar" disabled={busy} onClick={() => void act(() => hub.wifiAction("confirm", { token: trial.token ?? "" }), "Pi:n behåller det nya nätet.")}>
+                    Behåll anslutningen
+                  </button>
+                </span>
+              ) : (
+                <p className="liten">Provet startades av en annan inloggning.</p>
+              )}
+            </div>
+          )}
+          {state.recovering && !trial && <p className="liten varning">Pi:n går tillbaka till nätet före. Vänta en stund.</p>}
+          {!state.can_manage && <p className="liten" id="natet-las">Ändra Pi:ns nät i webbläsaren på Pi:n, eller över HTTPS, så att ett lösenord aldrig går okrypterat över träffens nät.</p>}
+          <ol className="moln natlista" id="natlista">
+            {profiles.map((profile) => (
+              <li key={profile.uuid}>
+                <div>
+                  <b>{profile.ssid}</b>
+                  <div className="liten">
+                    {[SECURITY.find(([value]) => value === profile.security)?.[1] ?? "Kan inte hanteras här", profile.hidden ? "dolt" : "", profile.active ? "anslutet nu" : "", !profile.autoconnect ? "ansluter inte av sig själv" : ""].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                {manage && profile.editable && (
+                  <span className="rad">
+                    <button type="button" aria-label={`Flytta upp ${profile.ssid}`} disabled={busy || editable[0]?.uuid === profile.uuid} onClick={() => move(profile.uuid, -1)}>
+                      ↑
+                    </button>
+                    <button type="button" aria-label={`Flytta ned ${profile.ssid}`} disabled={busy || editable[editable.length - 1]?.uuid === profile.uuid} onClick={() => move(profile.uuid, 1)}>
+                      ↓
+                    </button>
+                    {!profile.active && (
+                      <>
+                        <button type="button" disabled={busy} onClick={() => edit(profile)}>
+                          Ändra
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => window.confirm(`Ta bort ${profile.ssid} från Pi:n?`) && void act(() => hub.wifiAction("delete", { uuid: profile.uuid }), `${profile.ssid} är borttaget.`)}>
+                          Ta bort
+                        </button>
+                        <button type="button" className="primar" disabled={busy} onClick={() => connect(profile)}>
+                          Anslut nu
+                        </button>
+                      </>
+                    )}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+          {manage && (
+            <>
+              <div className="installning">
+                <label htmlFor="wifi-ssid" className="etikett">
+                  {editing ? "Ändra nätet" : "Lägg till ett nät"}
+                </label>
+                <input id="wifi-ssid" list="wifi-near" value={ssid} maxLength={32} onChange={(event) => setSsid(event.target.value)} autoComplete="off" spellCheck={false} placeholder="Nätets namn (SSID)" />
+                <button type="button" disabled={busy} onClick={() => void act(() => hub.wifiAction("scan", { interface: device }), "Pi:n söker efter nät i närheten.")}>
+                  Sök nät
+                </button>
+                <datalist id="wifi-near">
+                  {(state.nearby ?? []).map((near) => (
+                    <option key={`${near.interface}-${near.ssid}`} value={near.ssid} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="installning">
+                <span className="etikett">Säkerhet</span>
+                <Chips label="Nätets säkerhet">
+                  {SECURITY.map(([value, label]) => (
+                    <Chip key={value} label={label} pressed={security === value} onClick={() => setSecurity(value as "wpa2" | "wpa3" | "open")} />
+                  ))}
+                </Chips>
+              </div>
+              {security !== "open" && (
+                <div className="installning">
+                  <label htmlFor="wifi-password" className="etikett">
+                    Lösenord
+                  </label>
+                  <input id="wifi-password" type="password" value={password} maxLength={63} onChange={(event) => setPassword(event.target.value)} autoComplete="off" />
+                  <span className="liten">{editing ? "tomt behåller det sparade, om namn och säkerhet är desamma" : "8–63 tecken; stannar på Pi:n och visas aldrig igen"}</span>
+                </div>
+              )}
+              <div className="installning">
+                <span className="etikett">Dolt nät</span>
+                <label className="rad">
+                  <input type="checkbox" checked={hidden} onChange={(event) => setHidden(event.target.checked)} /> Nätet syns inte i listan
+                </label>
+              </div>
+              <div className="installningsfot">
+                <span className="liten" role="status" id="natet-said">
+                  {said || "Att spara byter inte nätet. Anslut nu provar det i 90 sekunder."}
+                </span>
+                <span className="rad">
+                  {editing && (
+                    <button type="button" disabled={busy} onClick={clear}>
+                      Avbryt
+                    </button>
+                  )}
+                  <button id="wifi-save" type="button" className="primar" disabled={busy || !ssid.trim()} onClick={() => void save()}>
+                    Spara nätet
+                  </button>
+                </span>
+              </div>
+            </>
+          )}
+          {!manage && said && (
+            <p className="liten" role="status">
+              {said}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 /** Den här hubben → Molnet (SYNK-02, SYNK-10): a Pi follows meets planned in the cloud. The
  * administrator there gives a six-digit code under Versioner; the Pi gets a key of its own,

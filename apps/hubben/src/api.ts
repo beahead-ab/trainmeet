@@ -17,6 +17,12 @@ export type Joining = Schemas["trainmeet.drift-1.joining"];
 export type MeetSummary = Schemas["trainmeet.planning-1.meet-summary"];
 export type StartMeet = Schemas["trainmeet.drift-1.start"];
 export type CloudLink = Schemas["trainmeet.sync-1.cloud-link"];
+export type WifiStatus = Schemas["trainmeet.hub-1.wifi-status"];
+export type WifiProfile = Schemas["trainmeet.hub-1.wifi-status.WifiProfile"];
+export type WifiProfileChange = Schemas["trainmeet.hub-1.wifi-profile-change"];
+export type WifiAction = Schemas["trainmeet.hub-1.wifi-action"];
+export type WifiVerb = "scan" | "delete" | "order" | "connect" | "confirm" | "rollback";
+const NETWORK = { "X-TrainMeet-Network": "1" };
 export type CloudLinkChange = Schemas["trainmeet.sync-1.cloud-link-change"];
 
 export const DRIFT = "/api/drift/1";
@@ -37,11 +43,11 @@ const detail = (answer: unknown, otherwise: string) => {
 };
 
 /** One call to the hub: GET without a body, POST with one; a no becomes a Problem. */
-export async function call<T>(path: string, body?: unknown): Promise<T> {
+export async function call<T>(path: string, body?: unknown, extra: Record<string, string> = {}): Promise<T> {
   const sending = body !== undefined;
   const response = await fetch(path, {
     method: sending ? "POST" : "GET",
-    headers: sending ? { "Content-Type": "application/json" } : {},
+    headers: sending ? { "Content-Type": "application/json", ...extra } : extra,
     body: sending ? JSON.stringify(body) : undefined,
     credentials: "same-origin",
     cache: "no-store",
@@ -61,6 +67,10 @@ export const hub = {
   rename: (name: string) => call<HubInfo>("/api/hub/name", { name }),
   changePin: (pin: string, newPin: string) => call<unknown>("/api/hub/pin", { pin, new_pin: newPin }),
   logOut: () => call<unknown>("/api/hub/logout", {}),
+  // Pi:ns nät (SYNK-26): a change carries the hub's own mark; a password never comes back.
+  wifi: () => call<WifiStatus>("/api/hub/wifi"),
+  saveWifi: (change: Partial<WifiProfileChange> & Pick<WifiProfileChange, "ssid" | "security">) => call<WifiStatus>("/api/hub/wifi/save", change, NETWORK),
+  wifiAction: (action: WifiVerb, given: Partial<WifiAction>) => call<WifiStatus>(`/api/hub/wifi/${action}`, given, NETWORK),
   // Egen AI under Den här hubben (H58): the key goes in and is never shown again.
   ai: () => call<AiService>("/api/hub/ai"),
   connectAi: (change: AiServiceChange) => call<AiService>("/api/hub/ai", change),
