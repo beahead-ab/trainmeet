@@ -134,6 +134,7 @@ class PreviewStore:
         version: int = 1,
         package_key: str | None = None,
         automation: bool = True,
+        packages: Callable[[int], MeetPackage] | None = None,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
@@ -141,6 +142,8 @@ class PreviewStore:
         self.path = path
         self.package = package
         self.version = version
+        # The meet's other versions, for a version switch in the run (DRIFT-29).
+        self.packages = packages
         self.lifetime = lifetime
         self.max_runs = max_runs
         self.max_actions = max_actions
@@ -188,7 +191,7 @@ class PreviewStore:
                 "SELECT body FROM preview_event WHERE run_id=? ORDER BY seq", (run_id,)
             )
         ]
-        drift = Drift(self.package, history, now=now, version=self.version)
+        drift = Drift(self.package, history, now=now, version=self.version, packages=self.packages)
         if row[0] != self.boot:
             size = len(history)
             drift.pause_after_restart(now)
@@ -295,6 +298,44 @@ class PreviewStore:
             drift = self._load(db, run_id, now)
             size = len(drift.history)
             drift.drop_change(change_id, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    # --- Versionsbyte (DRIFT-29) and påbörjat och klart (DRIFT-47) ---------------------------
+
+    def switch(self, run_id: str, request: events.SwitchVersion, included: list[str]) -> Drift:
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.switch_version(request, included, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def force_switch(self, run_id: str) -> Drift:
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.force_switch(now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def call_off_switch(self, run_id: str) -> Drift:
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.call_off_switch(now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def unlock(self, run_id: str) -> Drift:
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.unlock(now)
             self._save(db, run_id, drift.history[size:])
             return drift
 
@@ -741,7 +782,7 @@ class PreviewStore:
         with self._transaction() as db:
             now = now_utc()
             drift = self._load(db, run_id, now)
-            if not drift.clock.running:
+            if not drift.clock.running or drift.locked is not None:
                 return
             size = len(drift.history)
             if size >= self.max_actions:

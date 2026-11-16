@@ -309,6 +309,9 @@ main .slag button[aria-pressed="true"] {
   text-decoration: line-through;
   font-weight: 500;
 }
+.kort.varning {
+  border-color: var(--rod);
+}
 .pamin {
   border-left: 3px solid var(--gul);
   background: var(--tm-panel);

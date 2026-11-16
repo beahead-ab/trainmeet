@@ -32,6 +32,11 @@ Action = station.Action
 Clock = events.ClockAction
 
 
+def last(drift: Drift, kind: events.EventKind) -> events.DriftEvent:
+    """The latest event of a kind: a jump or a new day is written between begun and done."""
+    return next(event for event in reversed(drift.history) if event.kind == kind)
+
+
 def at(seconds: float) -> datetime:
     return START + timedelta(seconds=seconds)
 
@@ -167,7 +172,7 @@ def test_the_open_cases_are_closed_and_named_in_the_event(drift: Drift) -> None:
     jump(drift, "07:00", at(10))
     case = drift.cases[clearance]
     assert (case.status, case.revision) == (station.ClearanceStatus.CANCELLED, before + 1)
-    event = drift.history[-1]
+    event = last(drift, events.EventKind.TIME_JUMP)
     assert (event.kind, event.actor.kind) == (
         events.EventKind.TIME_JUMP,
         events.ActorKind.DISPATCHER,
@@ -202,7 +207,7 @@ def test_undo_puts_everything_back(drift: Drift) -> None:
     clearance = run_101(drift, at(0))
     drift.control_clock(events.ClockControl(action=Clock.START), at(0))
     jump(drift, "08:00", at(120))
-    jumped = drift.history[-1].seq
+    jumped = last(drift, events.EventKind.TIME_JUMP).seq
     shown = nu(drift, at(121)).jump
     assert shown is not None
     assert (shown.seq, shown.from_time, shown.to_time, shown.closed) == (
@@ -225,7 +230,11 @@ def test_undo_puts_everything_back(drift: Drift) -> None:
     )
     size = len(drift.history)
     undo(drift, at(140), jumped)
-    assert len(drift.history) == size + 1, "nothing is deleted"
+    assert [e.kind for e in drift.history[size:]] == [
+        events.EventKind.TRANSITION_BEGUN,
+        events.EventKind.TIME_JUMP_UNDONE,
+        events.EventKind.TRANSITION_DONE,
+    ], "nothing is deleted; Ångra is written between begun and done (DRIFT-47)"
     case = drift.cases[clearance]
     assert (case.status, case.departed) == (station.ClearanceStatus.APPROVED, True)
     assert case.revision > case_revision, "a client that saw the jump reads again"
@@ -239,7 +248,7 @@ def test_undo_puts_everything_back(drift: Drift) -> None:
 
 def test_only_the_latest_jump_can_be_undone_and_only_once(drift: Drift) -> None:
     jump(drift, "07:00", at(0))
-    first = drift.history[-1].seq
+    first = last(drift, events.EventKind.TIME_JUMP).seq
     jump(drift, "08:00", at(10))
     with pytest.raises(Refused) as refused:
         undo(drift, at(20), first)

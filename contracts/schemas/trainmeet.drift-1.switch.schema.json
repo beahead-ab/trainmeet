@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.switch.schema.json",
+  "title": "trainmeet.drift-1.switch",
+  "additionalProperties": true,
+  "description": "Byt till en ny version under träffen: the clock, where the trains stand and the open\nclearances go with it. Each driftändring is kept unless let go; one the planner took into\nthe new version falls away (H4, H66).",
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "drop": {
+      "description": "Driftändringarna som släpps.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Drop",
+      "type": "array"
+    },
+    "force": {
+      "default": false,
+      "description": "Tvinga igenom fast ett tåg som ändras är ute eller har öppen klarering (H38).",
+      "title": "Force",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "type": "object"
+}

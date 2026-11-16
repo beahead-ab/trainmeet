@@ -44,6 +44,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Förslag | `Proposal` | En driftändring som förslag till nästa version (4.4). Planeraren tar med den i utkastet eller avslår den i Versioner, och Drift ser svaret. Släpps den i Drift innan svaret är den återtagen. |
 | Ta med | `take`, `Draft.taken` | Förslaget läggs på utkastet, på samma sätt som Drift gjorde, och står kvar när underlaget läses om. |
 | Avslå | `reject` | Nästa version görs utan förslaget. |
+| Versionsbyte | `version.switched`, `SwitchVersion` | Drift går över till en ny version under träffen, när trafikledningen säger till. Klockan, tågens lägen och de öppna klareringarna följer med. Varje driftändring behålls om den inte släpps; en som planeraren tagit med i den nya versionen faller bort (H4, H66). Mot ett tåg som är ute väntar bytet, om det inte tvingas igenom (H38). |
+| Påbörjat och klart | `transition.begun`, `transition.done` | Ett versionsbyte, ett tidshopp, Ångra och ett dygnsskifte skrivs mellan två drifthändelser. Startar Drift med ett påbörjat utan klart är den spärrad tills trafikledningen låser upp (DRIFT-47). |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |

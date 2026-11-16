@@ -43,6 +43,13 @@ def _error(error: Exception) -> NoReturn:
     raise HTTPException(404, "Ingen träff är startad.") from error
 
 
+def _latest(history: list[drift.DriftEvent], kind: drift.EventKind | None) -> drift.DriftEvent:
+    """The latest event of a kind, or the latest of all."""
+    if kind is None:
+        return history[-1]
+    return next(event for event in reversed(history) if event.kind == kind)
+
+
 def router(running: Running, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/drift/1")
     failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient)
@@ -85,9 +92,16 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return running.store.clock(run_id, control).history[-1].model_dump(mode="json")
+            state = running.store.clock(run_id, control)
         except failures as error:
             _error(error)
+        # A jump and Ångra are written between begun and done (DRIFT-47): the answer is the
+        # event itself.
+        kind = {
+            drift.ClockAction.JUMP: drift.EventKind.TIME_JUMP,
+            drift.ClockAction.UNDO_JUMP: drift.EventKind.TIME_JUMP_UNDONE,
+        }.get(control.action)
+        return _latest(state.history, kind).model_dump(mode="json")
 
     @routes.post("/day")
     def new_day(
@@ -100,9 +114,10 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return running.store.new_day(run_id, request).history[-1].model_dump(mode="json")
+            state = running.store.new_day(run_id, request)
         except failures as error:
             _error(error)
+        return _latest(state.history, drift.EventKind.DAY_CHANGED).model_dump(mode="json")
 
     @routes.post("/day/settings")
     def day_settings(
@@ -139,7 +154,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             # Every driftändring is a proposal for the next version (4.4). Synk carries it when
             # Planering is elsewhere; on the hub it is handed over here.
             running.planning.propose(
-                running.meet, running.version, made.change_id, made.change, made.train_number
+                running.meet, state.version, made.change_id, made.change, made.train_number
             )
         return event.model_dump(mode="json")
 
@@ -173,6 +188,108 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         run_id = admin(session, authorization)
         try:
             return running.store.force_change(run_id, change_id).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    # --- Versionsbyte (TRAFIK-03, DRIFT-29) and påbörjat och klart (DRIFT-47) -----------------
+
+    def included(version: int) -> list[str]:
+        """The driftändringar the planner took into the version: they fall away at the switch
+        (H4). Taken before the version was published, that is."""
+        if running.meet == PROVBANAN:
+            return []
+        published = next(
+            (v.published for v in running.planning.versions(running.meet) if v.number == version),
+            None,
+        )
+        if published is None:
+            return []
+        return [
+            p.id
+            for p in running.planning.proposals(running.meet)
+            if p.status == drift.ProposalStatus.TAKEN
+            and p.answered is not None
+            and p.answered <= published
+        ]
+
+    @routes.get("/switch/{version}")
+    def switch_preview(
+        version: int,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """What a switch to the version would do: the driftändringar that fall away and the
+        trains it waits for (H4, H38)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            state = running.store.state(run_id)
+            waits = state.switch_waits_for(version)
+        except failures as error:
+            _error(error)
+        taken = set(included(version))
+        return drift.SwitchPreview(
+            version=version,
+            changes=[
+                drift.SwitchChange(change_id=change_id, included=change_id in taken)
+                for change_id, change in state.changes.items()
+                if change.status != drift.ChangeStatus.DROPPED
+            ],
+            waits_for=waits,
+        ).model_dump(mode="json")
+
+    @routes.post("/switch")
+    def switch(
+        request: drift.SwitchVersion,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Byt till en ny version (TRAFIK-03): made, or waiting for the trains that are out."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            state = running.store.switch(run_id, request, included(request.version))
+        except failures as error:
+            _error(error)
+        kinds = (drift.EventKind.VERSION_SWITCHED, drift.EventKind.VERSION_WAITING)
+        return next(e for e in reversed(state.history) if e.kind in kinds).model_dump(mode="json")
+
+    @routes.post("/switch/force")
+    def force_switch(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Tvinga igenom the switch that waits (H38)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            state = running.store.force_switch(run_id)
+        except failures as error:
+            _error(error)
+        return _latest(state.history, drift.EventKind.VERSION_SWITCHED).model_dump(mode="json")
+
+    @routes.post("/switch/call-off")
+    def call_off(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Avbryt bytet that waits."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.call_off_switch(run_id).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/unlock")
+    def unlock(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Lås upp Drift that started locked (DRIFT-47)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.unlock(run_id).history[-1].model_dump(mode="json")
         except failures as error:
             _error(error)
 

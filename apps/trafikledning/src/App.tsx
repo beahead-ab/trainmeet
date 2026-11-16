@@ -1,6 +1,6 @@
 import { DRIFT_TABS, hub, Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type Package, type PlacePhone } from "./api";
+import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type Package, type PlacePhone, type PlanVersion, type SwitchPreview, type SwitchVersion } from "./api";
 import type { DriftChange } from "./changes";
 import { SettingsPage } from "./Installningar";
 import { KlienterPage, type ClientAction } from "./Klienter";
@@ -135,6 +135,38 @@ export function App() {
     await readPhones();
   };
 
+  // Versionsbyte (TRAFIK-03): the running meet's versions from Planering, and the preview of a
+  // switch before it is made.
+  const [versions, setVersions] = useState<PlanVersion[] | null>(null);
+  const [preview, setPreview] = useState<SwitchPreview | null>(null);
+  const meetId = now?.meet_id;
+  useEffect(() => {
+    if (!admin || page !== "nu" || !meetId || meetId === "provbanan") return setVersions(null);
+    const read = () => void api.versions(meetId).then(setVersions, () => setVersions(null));
+    read();
+    const timer = window.setInterval(read, 15000);
+    return () => window.clearInterval(timer);
+  }, [admin, page, meetId]);
+  const onPreview = async (version: number | null) => {
+    if (version === null) return setPreview(null);
+    await act(async () => setPreview(await api.switchPreview(version)));
+  };
+  const onSwitch = async (request: SwitchVersion) => {
+    if (await act(() => api.switchVersion(request))) {
+      setPreview(null);
+      await readNow();
+    }
+  };
+  const onForceSwitch = async () => {
+    if (await act(() => api.forceSwitch())) await readNow();
+  };
+  const onCallOff = async () => {
+    if (await act(() => api.callOffSwitch())) await readNow();
+  };
+  const onUnlock = async () => {
+    if (await act(() => api.unlock())) await readNow();
+  };
+
   const onChange = async (change: DriftChange) => {
     if (await act(() => api.makeChange({ change, force: false }))) await readNow();
   };
@@ -210,6 +242,15 @@ export function App() {
             onChange={(change) => void onChange(change)}
             onDrop={(id) => void onDrop(id)}
             onForce={(id) => void onForce(id)}
+            switching={{
+              versions,
+              preview,
+              onPreview: (version) => void onPreview(version),
+              onSwitch: (request) => void onSwitch(request),
+              onForce: () => void onForceSwitch(),
+              onCallOff: () => void onCallOff(),
+            }}
+            onUnlock={() => void onUnlock()}
             onStart={(choice, day) => void hubState.start(choice, day)}
             onPlace={(change) => void onPlace(change)}
           />

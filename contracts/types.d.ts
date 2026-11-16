@@ -292,6 +292,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/switch/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["switchPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["switchVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/switch/force": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["forceSwitch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/switch/call-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["callOffSwitch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unlockDrift"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/clients": {
         parameters: {
             query?: never;
@@ -2439,7 +2519,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked";
         /**
          * ReplyStatus
          * @enum {string}
@@ -4118,6 +4198,58 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.make-change.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * SwitchVersion
+         * @description Byt till en ny version under träffen: the clock, where the trains stand and the open
+         *     clearances go with it. Each driftändring is kept unless let go; one the planner took into
+         *     the new version falls away (H4, H66).
+         */
+        "trainmeet.drift-1.switch": {
+            /** Version */
+            version: number;
+            /**
+             * Drop
+             * @description Driftändringarna som släpps.
+             */
+            drop?: string[];
+            /**
+             * Force
+             * @description Tvinga igenom fast ett tåg som ändras är ute eller har öppen klarering (H38).
+             * @default false
+             */
+            force: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchPreview
+         * @description What a switch to a version would do, before it is made.
+         */
+        "trainmeet.drift-1.switch-preview": {
+            /** Version */
+            version: number;
+            /** Changes */
+            changes?: components["schemas"]["trainmeet.drift-1.switch-preview.SwitchChange"][];
+            /**
+             * Waits For
+             * @description Tåg som får ändringar i versionen och är ute eller har öppen klarering.
+             */
+            waits_for?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** SwitchChange */
+        "trainmeet.drift-1.switch-preview.SwitchChange": {
+            /** Change Id */
+            change_id: string;
+            /**
+             * Included
+             * @description Planeraren har tagit med den i den nya versionen.
+             */
+            included: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /** Approve */
         "trainmeet.drift-1.approve": {
             /** Client Id */
@@ -4321,6 +4453,22 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.PhoneChanged"];
         } | {
             /** @constant */
+            kind: "transition.begun";
+            data: components["schemas"]["trainmeet.drift-1.event.Transition"];
+        } | {
+            /** @constant */
+            kind: "transition.done";
+            data: components["schemas"]["trainmeet.drift-1.event.Transition"];
+        } | {
+            /** @constant */
+            kind: "version.switched";
+            data: components["schemas"]["trainmeet.drift-1.event.VersionSwitch"];
+        } | {
+            /** @constant */
+            kind: "version.waiting";
+            data: components["schemas"]["trainmeet.drift-1.event.VersionSwitch"];
+        } | {
+            /** @constant */
             kind: "change.made";
             data: components["schemas"]["trainmeet.drift-1.event.ChangeMade"];
         } | {
@@ -4426,7 +4574,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -4580,6 +4728,47 @@ export interface components {
              * @default null
              */
             phone: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Transition
+         * @description Påbörjat och klart (DRIFT-47): a version switch, a time jump, Ångra and a new day are
+         *     written between two events. Drift that starts with one begun and not done is locked and
+         *     says so, until Trafikledningen unlocks it.
+         */
+        "trainmeet.drift-1.event.Transition": {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "version" | "jump" | "undo" | "day";
+            /**
+             * Unlocked
+             * @description Klart för att trafikledningen låste upp.
+             * @default false
+             */
+            unlocked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VersionSwitch
+         * @description Drift goes over to another version of the meet (DRIFT-29). The driftändringar dropped
+         *     and those the planner took into the version fall away; the rest stay on top.
+         */
+        "trainmeet.drift-1.event.VersionSwitch": {
+            /** Version */
+            version: number;
+            /** Drop */
+            drop?: string[];
+            /** Included */
+            included?: string[];
+            /**
+             * Forced
+             * @default false
+             */
+            forced: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5171,6 +5360,23 @@ export interface components {
              * @description Driftändringarna ovanpå versionen (DRIFT-41).
              */
             changes?: components["schemas"]["trainmeet.drift-1.now.ChangeNow"][];
+            /**
+             * @description Ett versionsbyte som väntar på tåg som är ute (H38).
+             * @default null
+             */
+            switch: components["schemas"]["trainmeet.drift-1.now.SwitchWaiting"] | null;
+            /**
+             * Locked
+             * @description Drift startade spärrad: det som påbörjades och aldrig blev klart (DRIFT-47).
+             * @default null
+             */
+            locked: ("version" | "jump" | "undo" | "day") | null;
+            /**
+             * Withdrawn
+             * @description Versionen som körs är tillbakadragen i Planering (H68).
+             * @default false
+             */
+            withdrawn: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5672,6 +5878,15 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.now.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /** SwitchWaiting */
+        "trainmeet.drift-1.now.SwitchWaiting": {
+            /** Version */
+            version: number;
+            /** Waits For */
+            waits_for?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrackKind
          * @enum {string}
@@ -6172,7 +6387,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -9819,6 +10034,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.meet-1"];
+                };
+            };
+        };
+    };
+    switchPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.switch-preview"];
+                };
+            };
+        };
+    };
+    switchVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.switch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.event"];
+                };
+            };
+        };
+    };
+    forceSwitch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.event"];
+                };
+            };
+        };
+    };
+    callOffSwitch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.event"];
+                };
+            };
+        };
+    };
+    unlockDrift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.event"];
                 };
             };
         };

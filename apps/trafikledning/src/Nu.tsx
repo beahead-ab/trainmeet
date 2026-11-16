@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Package, Weekday } from "./api";
 import { Andringar } from "./Andringar";
+import { Spärrad, Versionsbyte, type SwitchProps } from "./Versionsbyte";
 import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
 import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
@@ -24,6 +25,9 @@ export type NuProps = {
   onChange?: (change: DriftChange) => void;
   onDrop?: (id: string) => void;
   onForce?: (id: string) => void;
+  /** Versionsbyte (TRAFIK-03) and Lås upp (DRIFT-47). */
+  switching?: Omit<SwitchProps, "now" | "pkg">;
+  onUnlock?: () => void;
   onStart?: (choice: MeetChoice, day: Weekday) => void;
   onPlace?: (change: ChangePlace) => void;
 };
@@ -180,6 +184,8 @@ function Meet(props: NuProps & { now: Now }) {
           {now.clock.running ? `klockan går i ${now.clock.speed}×` : "klockan står still"}
         </p>
       </div>
+      {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
+      {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}
       {admin && (
         <div className="rad" id="clock-controls">
           <button id="clock-toggle" type="button" className="primar" onClick={() => onClock?.({ action: now.clock.running ? "stop" : "start", speed: null, time: null, game_day: null, jump: null })}>

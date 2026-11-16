@@ -64,6 +64,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.day": drift.DayStatus,
     "trainmeet.drift-1.phone": drift.PlacePhone,
     "trainmeet.drift-1.make-change": drift.MakeChange,
+    "trainmeet.drift-1.switch": drift.SwitchVersion,
+    "trainmeet.drift-1.switch-preview": drift.SwitchPreview,
     "trainmeet.drift-1.approve": drift.Approve,
     "trainmeet.drift-1.revoke": drift.Revoke,
     "trainmeet.drift-1.assign": drift.Assign,
@@ -370,6 +372,13 @@ def openapi() -> str:
     route("post", "/api/drift/1/changes/{change_id}/drop", "dropChange", d + "event", bearer=True)
     route("post", "/api/drift/1/changes/{change_id}/force", "forceChange", d + "event", bearer=True)
     route("get", "/api/drift/1/package", "driftPackage", "trainmeet.meet-1")
+    route(
+        "get", "/api/drift/1/switch/{version}", "switchPreview", d + "switch-preview", bearer=True
+    )
+    route("post", "/api/drift/1/switch", "switchVersion", d + "event", d + "switch", bearer=True)
+    route("post", "/api/drift/1/switch/force", "forceSwitch", d + "event", bearer=True)
+    route("post", "/api/drift/1/switch/call-off", "callOffSwitch", d + "event", bearer=True)
+    route("post", "/api/drift/1/unlock", "unlockDrift", d + "event", bearer=True)
     route(
         "post",
         "/api/drift/1/phones",

@@ -137,6 +137,8 @@ def apply(package: MeetPackage, change: changes.DriftChange, change_id: str) -> 
             train(package, change.train)
             return _without(package, change.train)
         case changes.ExtraTrain():
+            if any(t.id == f"x-{change_id}" for t in package.trains):
+                raise ChangeError(Reason.TRAIN_NUMBER_TAKEN)  # Already in, as a version took it.
             extra = _extra(package, change, f"x-{change_id}")
             _number_free(package, extra.number, extra.days, extra.id)
             return package.model_copy(update={"trains": [*package.trains, extra]})

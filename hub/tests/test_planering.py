@@ -303,3 +303,40 @@ def test_a_driftändring_becomes_a_proposal_and_drift_sees_the_answer(planned: T
         by_train[second]: "rejected",
         by_train[third]: "withdrawn",
     }
+
+
+def test_the_dispatcher_switches_to_a_new_version_during_the_meet(planned: TestClient) -> None:
+    """Versionsbyte (TRAFIK-03, DRIFT-29, H4, H66) through the hub: the change the planner took
+    into version 2 falls away at the switch, the one kept stays on top of version 2."""
+    seen = run_varnamo(planned)
+    noted, cancelled = [leg.train for leg in seen.legs if leg.state == "planned"][:2]
+    note = {"change": {"kind": "note", "train": noted, "text": "Ånglok"}}
+    note_id = drift.ChangeMade.model_validate(
+        planned.post(DRIFT + "/changes", json=note).json()["data"]
+    ).change_id
+    cancel = {"change": {"kind": "cancel", "train": cancelled}}
+    cancel_id = drift.ChangeMade.model_validate(
+        planned.post(DRIFT + "/changes", json=cancel).json()["data"]
+    ).change_id
+    assert planned.post(f"{API}/meets/{MEET}/proposals/{note_id}/take").status_code == 200
+    assert planned.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    anonymous = TestClient(planned.app)
+    assert anonymous.get(DRIFT + "/switch/2").status_code == 401
+    preview = drift.SwitchPreview.model_validate(planned.get(DRIFT + "/switch/2").json())
+    assert {c.change_id: c.included for c in preview.changes} == {note_id: True, cancel_id: False}
+    assert preview.waits_for == []
+    assert anonymous.post(DRIFT + "/switch", json={"version": 2}).status_code == 401
+    switched = planned.post(DRIFT + "/switch", json={"version": 2})
+    assert switched.status_code == 200, switched.text
+    assert drift.DriftEvent.model_validate(switched.json()).kind == drift.EventKind.VERSION_SWITCHED
+    after = drift.Now.model_validate(planned.get(DRIFT + "/now").json())
+    assert after.version == 2
+    assert {c.change_id: c.status for c in after.changes} == {
+        note_id: "dropped",
+        cancel_id: "applied",
+    }
+    package = planned.get(DRIFT + "/package").json()
+    trains = {t["id"]: t for t in package["trains"]}
+    assert trains[noted]["note"] == "Ånglok", "from version 2 itself"
+    assert cancelled not in trains, "kept on top of version 2"
+    assert planned.post(DRIFT + "/switch", json={"version": 2}).status_code == 409

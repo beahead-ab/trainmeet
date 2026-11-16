@@ -39,6 +39,10 @@ export const EVENTS: Record<string, string> = {
   "change.made": "Driftändring",
   "change.applied": "Driftändringen gäller nu",
   "change.dropped": "Driftändringen släppt",
+  "version.switched": "Ny version",
+  "version.waiting": "Versionsbytet väntar på tåg som är ute",
+  "version.called_off": "Versionsbytet avbrutet",
+  "transition.done": "Drift upplåst",
   "clearance.requested": "Klarering begärd",
   "clearance.cancelled": "Begäran återtagen",
   "clearance.invalidated": "Klareringen blev ogiltig (spårbyte)",
@@ -154,6 +158,8 @@ export function describe(event: DriftEvent, pkg: Package | null = null): string 
     const text = changeText(data["change"] as DriftChange, pkg, data["train_number"] as string | null);
     return `Driftändring: ${text}` + (data["waiting"] ? ", väntar på tåget" : "") + (data["forced"] ? ", tvingad igenom" : "");
   }
+  if (event.kind === "version.switched" && typeof data["version"] === "number") return `Version ${data["version"]} körs nu` + (data["forced"] ? ", tvingad igenom" : "");
+  if (event.kind === "version.waiting" && typeof data["version"] === "number") return `Byte till version ${data["version"]} väntar på tåg som är ute`;
   if (event.kind === "change.applied") return "Driftändringen gäller nu" + (data["forced"] ? ", tvingad igenom" : "");
   const forward = data["forward"] ? ", flyttat fram" : "";
   if (event.kind === "clock.jump" && typeof data["seconds"] === "number") {
@@ -217,4 +223,8 @@ export function refusalRows(refusals: Refusal[], now: Now | null): string[][] {
 /** The file's name: the meet, the game day and the date. */
 export const logFile = (now: Now | null, what: "logg" | "nekade", ending: "csv" | "json", today: Date = new Date()) =>
   `${what}-${now?.meet_id ?? "traffen"}-dag${now?.game_day ?? 1}-${today.toISOString().slice(0, 10)}.${ending}`;
+
+/** Påbörjat och klart (DRIFT-47) are for Drift's own record: Logg shows only Lås upp. */
+export const shown = (event: DriftEvent) =>
+  event.kind !== "transition.begun" && (event.kind !== "transition.done" || Boolean((event.data ?? {})["unlocked"]));
 
