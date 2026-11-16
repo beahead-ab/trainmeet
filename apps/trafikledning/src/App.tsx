@@ -114,6 +114,17 @@ export function App() {
     await readAi();
     return kept;
   };
+  const onRename = async (name: string) => {
+    const kept = await act(() => hub.rename(name));
+    if (kept) say(`Hubben heter nu ${name}.`);
+    await readInfo();
+    return kept;
+  };
+  const onPin = async (pin: string, newPin: string) => {
+    const changed = await act(() => hub.changePin(pin, newPin));
+    if (changed) say("PIN-koden är bytt. Alla andra inloggningar har slutat gälla.");
+    return changed;
+  };
   const onAiOff = async () => {
     if (await act(() => hub.disconnectAi())) say("AI-tjänsten är bortkopplad, och nyckeln är borta ur hubben.");
     await readAi();
@@ -287,7 +298,7 @@ export function App() {
         {page === "logg" && <LoggPage admin={admin} now={now} pkg={pkg} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
-          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} />
+          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} onRename={onRename} onPin={onPin} />
         )}
         {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">

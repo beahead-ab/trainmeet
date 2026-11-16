@@ -89,6 +89,41 @@ def router(login: LocalLogin) -> APIRouter:
         _set_cookie(request, response, token)
         return hub.Session(session_key=token).model_dump(mode="json")
 
+    @routes.post("/name")
+    def rename(
+        change: hub.Rename,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """På den här hubben (SYNK-07): the hub's name."""
+        response.headers["Cache-Control"] = "no-store"
+        require_admin(login, session, authorization)
+        try:
+            login.rename(change.name)
+        except InvalidSetup as error:
+            raise HTTPException(422, str(error)) from error
+        state = login.state()
+        return hub.HubInfo(name=state.name, set_up=state.set_up, logged_in=True).model_dump(
+            mode="json"
+        )
+
+    @routes.post("/pin", status_code=204)
+    def change_pin(
+        change: hub.PinChange, session: SessionCookie = None, authorization: Authorization = None
+    ) -> None:
+        """Byt PIN (SYNK-07): the current one again, then the new. The one who changed it stays
+        logged in; every other session ends."""
+        require_admin(login, session, authorization)
+        try:
+            login.change_pin(change.pin, change.new_pin, session_of(session, authorization))
+        except TooManyAttempts as error:
+            raise HTTPException(429, "För många fel försök. Vänta tio minuter.") from error
+        except WrongPin as error:
+            raise HTTPException(403, "Den nuvarande PIN-koden stämmer inte.") from error
+        except InvalidSetup as error:
+            raise HTTPException(422, str(error)) from error
+
     @routes.get("/ai")
     def ai_service(
         response: Response, session: SessionCookie = None, authorization: Authorization = None

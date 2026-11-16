@@ -509,6 +509,14 @@ ul.moln li {
 ul.moln .varning {
   color: var(--gul-text);
 }
+fieldset.pinbyte {
+  border: 0;
+  margin: 0;
+  padding: 12px 0 0;
+}
+fieldset.pinbyte legend {
+  padding: 0;
+}
 .installningsfot {
   display: flex;
   justify-content: space-between;

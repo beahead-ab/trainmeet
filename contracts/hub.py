@@ -34,6 +34,19 @@ class LogIn(Contract):
     pin: str = PIN
 
 
+class Rename(Contract):
+    """På den här hubben (SYNK-07): hubbens namn, som det syns i sidhuvudet och för molnet."""
+
+    name: str = Field(min_length=1, max_length=40)
+
+
+class PinChange(Contract):
+    """Byt PIN (SYNK-07): den nuvarande först. Alla andra inloggningar slutar gälla."""
+
+    pin: str = PIN
+    new_pin: str = PIN
+
+
 class Session(Contract):
     session_key: Text = Field(
         description="Visas en gång. Gäller 12 timmar, eller tills utloggning."

@@ -57,6 +57,9 @@ export const hub = {
   version: () => call<Version>("/api/version"),
   setUp: (name: string, pin: string) => call<unknown>("/api/hub/setup", { name, pin }),
   logIn: (pin: string) => call<unknown>("/api/hub/login", { pin }),
+  // På den här hubben (SYNK-07): the hub's name, and a new PIN with the current one first.
+  rename: (name: string) => call<HubInfo>("/api/hub/name", { name }),
+  changePin: (pin: string, newPin: string) => call<unknown>("/api/hub/pin", { pin, new_pin: newPin }),
   logOut: () => call<unknown>("/api/hub/logout", {}),
   // Egen AI under Den här hubben (H58): the key goes in and is never shown again.
   ai: () => call<AiService>("/api/hub/ai"),

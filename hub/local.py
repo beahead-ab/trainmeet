@@ -145,29 +145,70 @@ class LocalLogin:
             return self._new_session(db)
 
     def log_in(self, pin: str) -> str:
-        now = _now()
         with self._transaction() as db:
-            row = db.execute("SELECT pin_salt, pin_hash FROM hub WHERE id=1").fetchone()
-            if row is None:
-                raise NotSetUp()
-            db.execute(
-                "DELETE FROM login_failure WHERE at<?", ((now - FAILURE_WINDOW).timestamp(),)
-            )
-            failures = db.execute("SELECT count(*) FROM login_failure").fetchone()[0]
-            if failures >= MAX_FAILURES:
-                raise TooManyAttempts()
-            salt, expected = row
-            if not PIN_PATTERN.fullmatch(pin) or not hmac.compare_digest(
-                _hash_pin(pin, salt), expected
-            ):
-                db.execute("INSERT INTO login_failure VALUES (?)", (now.timestamp(),))
-                wrong = True
-            else:
-                wrong = False
+            wrong = not self._pin_right(db, pin)
+            if not wrong:
                 token = self._new_session(db)
         if wrong:
             raise WrongPin()
         return token
+
+    def _pin_right(self, db: sqlite3.Connection, pin: str) -> bool:
+        """Is the PIN the hub's? A wrong one counts against the hub, so guessing stays slow.
+        Raises NotSetUp and TooManyAttempts."""
+        now = _now()
+        row = db.execute("SELECT pin_salt, pin_hash FROM hub WHERE id=1").fetchone()
+        if row is None:
+            raise NotSetUp()
+        db.execute("DELETE FROM login_failure WHERE at<?", ((now - FAILURE_WINDOW).timestamp(),))
+        failures = db.execute("SELECT count(*) FROM login_failure").fetchone()[0]
+        if failures >= MAX_FAILURES:
+            raise TooManyAttempts()
+        salt, expected = row
+        if not PIN_PATTERN.fullmatch(pin) or not hmac.compare_digest(
+            _hash_pin(pin, salt), expected
+        ):
+            db.execute("INSERT INTO login_failure VALUES (?)", (now.timestamp(),))
+            return False
+        return True
+
+    def rename(self, name: str) -> str:
+        """På den här hubben: a new name for the hub. The name as kept."""
+        name = " ".join(name.split())
+        if not 1 <= len(name) <= NAME_LIMIT:
+            raise InvalidSetup("Hubbens namn är 1–40 tecken.")
+        with self._transaction() as db:
+            if db.execute("UPDATE hub SET name=? WHERE id=1", (name,)).rowcount == 0:
+                raise NotSetUp()
+        return name
+
+    def change_pin(self, pin: str, new_pin: str, keep: str | None) -> None:
+        """Byt PIN: the current one first. Every other session ends; keep goes on."""
+        if not PIN_PATTERN.fullmatch(new_pin):
+            raise InvalidSetup("PIN-koden är 6–12 siffror.")
+        with self._transaction() as db:
+            wrong = not self._pin_right(db, pin)
+            if not wrong:
+                self._set_pin(db, new_pin, keep)
+        if wrong:
+            raise WrongPin()
+
+    def reset_pin(self, new_pin: str) -> None:
+        """A forgotten PIN, with physical access to the hub (H46, SYNK-27): a command on the
+        Pi or a file on a USB stick. Every session ends; the failed attempts are forgotten."""
+        if not PIN_PATTERN.fullmatch(new_pin):
+            raise InvalidSetup("PIN-koden är 6–12 siffror.")
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM hub WHERE id=1").fetchone() is None:
+                raise NotSetUp()
+            self._set_pin(db, new_pin, None)
+            db.execute("DELETE FROM login_failure")
+
+    def _set_pin(self, db: sqlite3.Connection, pin: str, keep: str | None) -> None:
+        salt = token_bytes(16)
+        db.execute("UPDATE hub SET pin_salt=?, pin_hash=? WHERE id=1", (salt, _hash_pin(pin, salt)))
+        kept = _token_hash(keep) if keep else ""
+        db.execute("DELETE FROM session WHERE token_hash!=?", (kept,))
 
     def _new_session(self, db: sqlite3.Connection) -> str:
         now = _now()
