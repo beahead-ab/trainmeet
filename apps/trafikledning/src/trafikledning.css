@@ -282,6 +282,33 @@ input.tal {
 .lista li.vantar {
   border-color: var(--gul);
 }
+.mellan {
+  justify-content: space-between;
+}
+.slag {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+main .slag button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  font-weight: 500;
+}
+main .slag button[aria-pressed="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.formular {
+  border-top: 1px solid var(--tm-line);
+  padding-top: 12px;
+}
+.lista li.slappt b {
+  text-decoration: line-through;
+  font-weight: 500;
+}
 .pamin {
   border-left: 3px solid var(--gul);
   background: var(--tm-panel);

@@ -1327,6 +1327,12 @@
           "title": "Parts",
           "type": "array"
         },
+        "closed": {
+          "default": false,
+          "description": "Stängd: inga tåg klareras över sträckan (DRIFT-41).",
+          "title": "Closed",
+          "type": "boolean"
+        },
         "source_ids": {
           "additionalProperties": {
             "type": "string"

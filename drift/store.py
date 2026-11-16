@@ -266,6 +266,38 @@ class PreviewStore:
             self._save(db, run_id, drift.history[size:])
             return drift.day_status(now)
 
+    def make_change(self, run_id: str, request: events.MakeChange) -> Drift:
+        """Ny driftändring from Nu (TRAFIK-02, DRIFT-41)."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            drift.make_change(request, now, f"c{token_hex(5)}")
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def force_change(self, run_id: str, change_id: str) -> Drift:
+        """Tvinga igenom a waiting driftändring (H38)."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.force_change(change_id, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def drop_change(self, run_id: str, change_id: str) -> Drift:
+        """Släpp a driftändring: the version that runs is as before it."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            drift.drop_change(change_id, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
     def phones(self, run_id: str) -> list[events.PlacePhone]:
         """Every place's game number, as changed during the meet (H30)."""
         drift = self.state(run_id)

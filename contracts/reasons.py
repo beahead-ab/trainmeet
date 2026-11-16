@@ -58,6 +58,13 @@ class Reason(StrEnum):
     DAY_STILL_RUNNING = "day_still_running"
     # The places during the meet (H30)
     UNKNOWN_PLACE = "unknown_place"
+    # Driftändringar (DRIFT-41)
+    UNKNOWN_TRAIN = "unknown_train"
+    NO_ROUTE = "no_route"
+    INVALID_TIME = "invalid_time"
+    TRAIN_NUMBER_TAKEN = "train_number_taken"
+    UNKNOWN_CHANGE = "unknown_change"
+    SECTION_CLOSED = "section_closed"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -96,6 +103,12 @@ TEXT_SV: dict[Reason, str] = {
     Reason.NO_JUMP_TO_UNDO: "Det finns inget tidshopp att ångra.",
     Reason.OTHER_GAME_DAY: "Ett hopp till ett annat speldygn görs med dygnsskiftet.",
     Reason.UNKNOWN_PLACE: "Driftplatsen finns inte i träffen.",
+    Reason.UNKNOWN_TRAIN: "Tåget finns inte i träffen.",
+    Reason.NO_ROUTE: "Det finns ingen väg mellan driftplatserna.",
+    Reason.INVALID_TIME: "Tiderna går inte ihop: ett tåg kan inte gå bakåt i tiden.",
+    Reason.TRAIN_NUMBER_TAKEN: "Tågnumret finns redan samma dag.",
+    Reason.UNKNOWN_CHANGE: "Driftändringen finns inte, eller är redan släppt.",
+    Reason.SECTION_CLOSED: "Sträckan är stängd.",
     Reason.DAY_STILL_RUNNING: (
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Problem, type Client, type DriftEvent, type Now, type Refusal } from "./api";
+import { api, Problem, type Client, type DriftEvent, type Now, type Package, type Refusal } from "./api";
 import { actorName, csv, describe, eventRows, logFile, placeName, refusalRows, trainId, trainNumber } from "./drift";
 import { Chip, Chips, LoginFirst } from "./ui";
 
@@ -24,6 +24,8 @@ export type LogRows = { kind: "events"; events: DriftEvent[] } | { kind: "refusa
 export type LoggProps = {
   admin: boolean;
   now: Now | null;
+  /** The package Drift goes by, for the words of the driftändringar. */
+  pkg?: Package | null;
   clients: Client[];
   navigate: (href: string) => void;
   onMessage?: (text: string) => void;
@@ -31,7 +33,7 @@ export type LoggProps = {
   rows?: LogRows;
 };
 
-export function LoggPage({ admin, now, clients, navigate, onMessage, rows: given }: LoggProps) {
+export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage, rows: given }: LoggProps) {
   const [kind, setKind] = useState<LogRows["kind"]>(given?.kind ?? "events");
   const [place, setPlace] = useState<string | null>(null);
   const [train, setTrain] = useState("");
@@ -90,7 +92,7 @@ export function LoggPage({ admin, now, clients, navigate, onMessage, rows: given
             id="export-csv"
             type="button"
             disabled={!shown}
-            onClick={() => shown && save(logFile(now, shown.kind === "events" ? "logg" : "nekade", "csv"), "text/csv;charset=utf-8", csv(shown.kind === "events" ? eventRows(shown.events, now, clients) : refusalRows(shown.refusals, now)))}
+            onClick={() => shown && save(logFile(now, shown.kind === "events" ? "logg" : "nekade", "csv"), "text/csv;charset=utf-8", csv(shown.kind === "events" ? eventRows(shown.events, now, clients, pkg) : refusalRows(shown.refusals, now)))}
           >
             Exportera CSV
           </button>
@@ -128,7 +130,7 @@ export function LoggPage({ admin, now, clients, navigate, onMessage, rows: given
                 shown.events.map((event) => (
                   <tr key={event.seq}>
                     <td>{event.model_time}</td>
-                    <td>{describe(event)}</td>
+                    <td>{describe(event, pkg)}</td>
                     <td className="tag">{trainNumber(now, event.train)}</td>
                     <td>{event.place ? placeName(now, event.place) : ""}</td>
                     <td>{actorName(event.actor, clients)}</td>

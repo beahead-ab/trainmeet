@@ -36,6 +36,11 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Ångra hoppet | `clock.jump_undone`, `TimeJumpUndone` | Läget före det senaste tidshoppet läggs tillbaka, med klockan som den var. Händelserna emellan står kvar i loggen. |
 | Dygnsskifte | `day.changed`, `DayChanged` | Nästa speldygn börjar, med nästa veckodag som trafikdag: en timme före den dagens första tåg, aldrig före midnatt, eller vid en tid trafikledningen satt. Natten hör till dygnet före fram till dess. Tågen ställs strax före dagens första avgång. Manuellt är förval, automatiskt ett val (`DaySettings`). |
 | Starta ny dag | `POST /api/drift/1/day`, `NewDay` | Trafikledningen startar nästa speldygn. Nekas medan dagens tåg är ute eller har en öppen klarering. |
+| Driftändring | `DriftChange`, `change.made` | En ändring som trafikledningen gör i Nu under träffen, ovanpå versionen som körs. Tio slag: ställa in tåg, extratåg, ändrade tider, ändrade driftplatser och sträckor, ändrat planerat spår, enkel eller dubbel sträcka, ändrade trafikdagar, byte av tågnummer, ej uppehåll och anmärkning (DRIFT-41). Gäller direkt och blir ett förslag till nästa version. |
+| Extratåg | `ExtraTrain` | Ett tåg som trafikledningen sätter in: en kopia av ett tåg med nytt nummer och ny tid, eller från–till med avgångstid, där Drift fyller i driftplatserna emellan (H12). |
+| Väntar | `ChangeStatus.waiting` | En driftändring mot ett tåg som är ute eller har öppen klarering gäller först när tåget är framme (H38). |
+| Tvinga igenom | `force`, `change.applied` | Trafikledningen låter en väntande driftändring gälla direkt, med en varning. Det som inte längre körs stängs (H38). |
+| Släpp | `change.dropped` | En driftändring gäller inte längre; versionen körs som den är. |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |

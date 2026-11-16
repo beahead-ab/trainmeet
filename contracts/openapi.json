@@ -450,6 +450,119 @@
         ]
       }
     },
+    "/api/drift/1/changes": {
+      "post": {
+        "operationId": "makeChange",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/changes/{change_id}/drop": {
+      "post": {
+        "operationId": "dropChange",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/drift/1/changes/{change_id}/force": {
+      "post": {
+        "operationId": "forceChange",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/drift/1/package": {
+      "get": {
+        "operationId": "driftPackage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.meet-1"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/drift/1/clients": {
       "get": {
         "operationId": "driftClients",
@@ -2570,6 +2683,12 @@
             },
             "title": "Parts",
             "type": "array"
+          },
+          "closed": {
+            "default": false,
+            "description": "Stängd: inga tåg klareras över sträckan (DRIFT-41).",
+            "title": "Closed",
+            "type": "boolean"
           },
           "source_ids": {
             "additionalProperties": {
@@ -4839,7 +4958,13 @@
           "no_jump_to_undo",
           "other_game_day",
           "day_still_running",
-          "unknown_place"
+          "unknown_place",
+          "unknown_train",
+          "no_route",
+          "invalid_time",
+          "train_number_taken",
+          "unknown_change",
+          "section_closed"
         ],
         "title": "Reason",
         "type": "string"
@@ -7916,6 +8041,575 @@
         "title": "PlacePhone",
         "type": "object"
       },
+      "trainmeet.drift-1.make-change": {
+        "additionalProperties": true,
+        "description": "Ny driftändring from Nu (TRAFIK-02).",
+        "properties": {
+          "change": {
+            "discriminator": {
+              "mapping": {
+                "cancel": "#/components/schemas/trainmeet.drift-1.make-change.CancelTrain",
+                "days": "#/components/schemas/trainmeet.drift-1.make-change.ChangeDays",
+                "extra": "#/components/schemas/trainmeet.drift-1.make-change.ExtraTrain",
+                "no_stop": "#/components/schemas/trainmeet.drift-1.make-change.NoStop",
+                "note": "#/components/schemas/trainmeet.drift-1.make-change.TrainNote",
+                "number": "#/components/schemas/trainmeet.drift-1.make-change.ChangeNumber",
+                "place": "#/components/schemas/trainmeet.drift-1.make-change.ChangePlace",
+                "times": "#/components/schemas/trainmeet.drift-1.make-change.ChangeTimes",
+                "track": "#/components/schemas/trainmeet.drift-1.make-change.ChangeTrack",
+                "tracks": "#/components/schemas/trainmeet.drift-1.make-change.ChangeSectionTracks"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.CancelTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ExtraTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangeTimes"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangePlace"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangeTrack"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangeSectionTracks"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangeDays"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ChangeNumber"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.NoStop"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.TrainNote"
+              }
+            ],
+            "title": "Change"
+          },
+          "force": {
+            "default": false,
+            "description": "Tvinga igenom mot ett tåg som är ute eller har öppen klarering (H38).",
+            "title": "Force",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "change"
+        ],
+        "title": "MakeChange",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.CallTime": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "CallTime",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.CancelTrain": {
+        "additionalProperties": true,
+        "description": "Ställ in tåg: the train does not run.",
+        "properties": {
+          "kind": {
+            "const": "cancel",
+            "default": "cancel",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "CancelTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangeDays": {
+        "additionalProperties": true,
+        "description": "Ändrade trafikdagar för ett tåg.",
+        "properties": {
+          "kind": {
+            "const": "days",
+            "default": "days",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.make-change.Weekday"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train",
+          "days"
+        ],
+        "title": "ChangeDays",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangeNumber": {
+        "additionalProperties": true,
+        "description": "Byte av tågnummer: the same train, a new number.",
+        "properties": {
+          "kind": {
+            "const": "number",
+            "default": "number",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train",
+          "number"
+        ],
+        "title": "ChangeNumber",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangePlace": {
+        "additionalProperties": true,
+        "description": "Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;\nor a place unmanned, left to the automation, or manned again.",
+        "properties": {
+          "kind": {
+            "const": "place",
+            "default": "place",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Closed"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.make-change.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "place_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manned",
+                  "unmanned"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Kind"
+          }
+        },
+        "title": "ChangePlace",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangeSectionTracks": {
+        "additionalProperties": true,
+        "description": "Enkel eller dubbel sträcka.",
+        "properties": {
+          "kind": {
+            "const": "tracks",
+            "default": "tracks",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.make-change.TrackKind"
+          }
+        },
+        "required": [
+          "section",
+          "tracks"
+        ],
+        "title": "ChangeSectionTracks",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangeTimes": {
+        "additionalProperties": true,
+        "description": "Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;\nor new times for some calls.",
+        "properties": {
+          "kind": {
+            "const": "times",
+            "default": "times",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "minutes": {
+            "default": 0,
+            "description": "Minuter senare, eller tidigare.",
+            "maximum": 720,
+            "minimum": -720,
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "from_call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Flytta från avgången här; tomt betyder hela tåget.",
+            "title": "From Call"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.make-change.CallTime"
+            },
+            "maxItems": 100,
+            "title": "Calls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "ChangeTimes",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ChangeTrack": {
+        "additionalProperties": true,
+        "description": "Ändrat planerat spår: another track for a call.",
+        "properties": {
+          "kind": {
+            "const": "track",
+            "default": "track",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "track": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "track"
+        ],
+        "title": "ChangeTrack",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.drift-1.make-change.ExtraTrain": {
+        "additionalProperties": true,
+        "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
+        "properties": {
+          "kind": {
+            "const": "extra",
+            "default": "extra",
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "departure": {
+            "description": "Avgången från första driftplatsen.",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departure",
+            "type": "string"
+          },
+          "copy_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tåget som kopieras.",
+            "title": "Copy Of"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.make-change.Weekday"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Trafikdagarna; tomt betyder kopians dagar, eller alla.",
+            "title": "Days"
+          }
+        },
+        "required": [
+          "number",
+          "departure"
+        ],
+        "title": "ExtraTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.NoStop": {
+        "additionalProperties": true,
+        "description": "Ej uppehåll: the train passes the place without stopping (genomfart), or stops again.",
+        "properties": {
+          "kind": {
+            "const": "no_stop",
+            "default": "no_stop",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "stops": {
+            "default": false,
+            "title": "Stops",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "NoStop",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.drift-1.make-change.TrainNote": {
+        "additionalProperties": true,
+        "description": "Anmärkning: text that follows the train, or one of its calls. Empty takes it away.",
+        "properties": {
+          "kind": {
+            "const": "note",
+            "default": "note",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "TrainNote",
+        "type": "object"
+      },
+      "trainmeet.drift-1.make-change.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
+        "type": "string"
+      },
       "trainmeet.drift-1.approve": {
         "additionalProperties": true,
         "properties": {
@@ -8415,6 +9109,51 @@
           {
             "properties": {
               "kind": {
+                "const": "change.made",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeMade"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "change.applied",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "change.dropped",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeRef"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "clearance.requested",
                 "type": "string"
               },
@@ -8696,6 +9435,9 @@
                     "day.changed",
                     "day.settings",
                     "place.phone",
+                    "change.made",
+                    "change.applied",
+                    "change.dropped",
                     "clearance.requested",
                     "clearance.answered",
                     "clearance.cancelled",
@@ -8811,7 +9553,10 @@
           "place.left",
           "place.taken_back",
           "automation.set",
-          "place.phone"
+          "place.phone",
+          "change.made",
+          "change.applied",
+          "change.dropped"
         ],
         "title": "EventKind",
         "type": "string"
@@ -9057,6 +9802,608 @@
           }
         },
         "title": "PhoneChanged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.CallTime": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "CallTime",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.CancelTrain": {
+        "additionalProperties": true,
+        "description": "Ställ in tåg: the train does not run.",
+        "properties": {
+          "kind": {
+            "const": "cancel",
+            "default": "cancel",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "CancelTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeDays": {
+        "additionalProperties": true,
+        "description": "Ändrade trafikdagar för ett tåg.",
+        "properties": {
+          "kind": {
+            "const": "days",
+            "default": "days",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.event.Weekday"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train",
+          "days"
+        ],
+        "title": "ChangeDays",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeNumber": {
+        "additionalProperties": true,
+        "description": "Byte av tågnummer: the same train, a new number.",
+        "properties": {
+          "kind": {
+            "const": "number",
+            "default": "number",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train",
+          "number"
+        ],
+        "title": "ChangeNumber",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangePlace": {
+        "additionalProperties": true,
+        "description": "Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;\nor a place unmanned, left to the automation, or manned again.",
+        "properties": {
+          "kind": {
+            "const": "place",
+            "default": "place",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Closed"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "place_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manned",
+                  "unmanned"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Kind"
+          }
+        },
+        "title": "ChangePlace",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeSectionTracks": {
+        "additionalProperties": true,
+        "description": "Enkel eller dubbel sträcka.",
+        "properties": {
+          "kind": {
+            "const": "tracks",
+            "default": "tracks",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.TrackKind"
+          }
+        },
+        "required": [
+          "section",
+          "tracks"
+        ],
+        "title": "ChangeSectionTracks",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeTimes": {
+        "additionalProperties": true,
+        "description": "Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;\nor new times for some calls.",
+        "properties": {
+          "kind": {
+            "const": "times",
+            "default": "times",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "minutes": {
+            "default": 0,
+            "description": "Minuter senare, eller tidigare.",
+            "maximum": 720,
+            "minimum": -720,
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "from_call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Flytta från avgången här; tomt betyder hela tåget.",
+            "title": "From Call"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.event.CallTime"
+            },
+            "maxItems": 100,
+            "title": "Calls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "ChangeTimes",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeTrack": {
+        "additionalProperties": true,
+        "description": "Ändrat planerat spår: another track for a call.",
+        "properties": {
+          "kind": {
+            "const": "track",
+            "default": "track",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "track": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "track"
+        ],
+        "title": "ChangeTrack",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.ExtraTrain": {
+        "additionalProperties": true,
+        "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
+        "properties": {
+          "kind": {
+            "const": "extra",
+            "default": "extra",
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "departure": {
+            "description": "Avgången från första driftplatsen.",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departure",
+            "type": "string"
+          },
+          "copy_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tåget som kopieras.",
+            "title": "Copy Of"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event.Weekday"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Trafikdagarna; tomt betyder kopians dagar, eller alla.",
+            "title": "Days"
+          }
+        },
+        "required": [
+          "number",
+          "departure"
+        ],
+        "title": "ExtraTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.NoStop": {
+        "additionalProperties": true,
+        "description": "Ej uppehåll: the train passes the place without stopping (genomfart), or stops again.",
+        "properties": {
+          "kind": {
+            "const": "no_stop",
+            "default": "no_stop",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "stops": {
+            "default": false,
+            "title": "Stops",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "NoStop",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.TrainNote": {
+        "additionalProperties": true,
+        "description": "Anmärkning: text that follows the train, or one of its calls. Empty takes it away.",
+        "properties": {
+          "kind": {
+            "const": "note",
+            "default": "note",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "TrainNote",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeMade": {
+        "additionalProperties": true,
+        "description": "A Drift change made from Nu (DRIFT-41). It applies at once, or waits for the trains it\ntouches to be in (H38).",
+        "properties": {
+          "change_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Change Id",
+            "type": "string"
+          },
+          "change": {
+            "discriminator": {
+              "mapping": {
+                "cancel": "#/components/schemas/trainmeet.drift-1.event.CancelTrain",
+                "days": "#/components/schemas/trainmeet.drift-1.event.ChangeDays",
+                "extra": "#/components/schemas/trainmeet.drift-1.event.ExtraTrain",
+                "no_stop": "#/components/schemas/trainmeet.drift-1.event.NoStop",
+                "note": "#/components/schemas/trainmeet.drift-1.event.TrainNote",
+                "number": "#/components/schemas/trainmeet.drift-1.event.ChangeNumber",
+                "place": "#/components/schemas/trainmeet.drift-1.event.ChangePlace",
+                "times": "#/components/schemas/trainmeet.drift-1.event.ChangeTimes",
+                "track": "#/components/schemas/trainmeet.drift-1.event.ChangeTrack",
+                "tracks": "#/components/schemas/trainmeet.drift-1.event.ChangeSectionTracks"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.CancelTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ExtraTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeTimes"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangePlace"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeTrack"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeSectionTracks"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeDays"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ChangeNumber"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.NoStop"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.TrainNote"
+              }
+            ],
+            "title": "Change"
+          },
+          "waiting": {
+            "default": false,
+            "title": "Waiting",
+            "type": "boolean"
+          },
+          "forced": {
+            "default": false,
+            "title": "Forced",
+            "type": "boolean"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågets nummer när ändringen gjordes, för Logg.",
+            "title": "Train Number"
+          }
+        },
+        "required": [
+          "change_id",
+          "change"
+        ],
+        "title": "ChangeMade",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ChangeRef": {
+        "additionalProperties": true,
+        "description": "A waiting change that now applies, or a change let go.",
+        "properties": {
+          "change_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Change Id",
+            "type": "string"
+          },
+          "forced": {
+            "default": false,
+            "description": "Tvingad igenom medan tåget var ute (H38).",
+            "title": "Forced",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "change_id"
+        ],
+        "title": "ChangeRef",
         "type": "object"
       },
       "trainmeet.drift-1.event.ClearanceRequested": {
@@ -9532,6 +10879,14 @@
             ],
             "default": null,
             "description": "Dygnsskiftet."
+          },
+          "changes": {
+            "description": "Driftändringarna ovanpå versionen (DRIFT-41).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeNow"
+            },
+            "title": "Changes",
+            "type": "array"
           }
         },
         "required": [
@@ -9545,6 +10900,432 @@
           "clearances"
         ],
         "title": "Now",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.CallTime": {
+        "additionalProperties": true,
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Departure"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "CallTime",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.CancelTrain": {
+        "additionalProperties": true,
+        "description": "Ställ in tåg: the train does not run.",
+        "properties": {
+          "kind": {
+            "const": "cancel",
+            "default": "cancel",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "CancelTrain",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeDays": {
+        "additionalProperties": true,
+        "description": "Ändrade trafikdagar för ett tåg.",
+        "properties": {
+          "kind": {
+            "const": "days",
+            "default": "days",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.now.Weekday"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train",
+          "days"
+        ],
+        "title": "ChangeDays",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeNow": {
+        "additionalProperties": true,
+        "description": "A Drift change as Nu lists it, with what it waits for.",
+        "properties": {
+          "change_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Change Id",
+            "type": "string"
+          },
+          "change": {
+            "discriminator": {
+              "mapping": {
+                "cancel": "#/components/schemas/trainmeet.drift-1.now.CancelTrain",
+                "days": "#/components/schemas/trainmeet.drift-1.now.ChangeDays",
+                "extra": "#/components/schemas/trainmeet.drift-1.now.ExtraTrain",
+                "no_stop": "#/components/schemas/trainmeet.drift-1.now.NoStop",
+                "note": "#/components/schemas/trainmeet.drift-1.now.TrainNote",
+                "number": "#/components/schemas/trainmeet.drift-1.now.ChangeNumber",
+                "place": "#/components/schemas/trainmeet.drift-1.now.ChangePlace",
+                "times": "#/components/schemas/trainmeet.drift-1.now.ChangeTimes",
+                "track": "#/components/schemas/trainmeet.drift-1.now.ChangeTrack",
+                "tracks": "#/components/schemas/trainmeet.drift-1.now.ChangeSectionTracks"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.CancelTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ExtraTrain"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeTimes"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangePlace"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeTrack"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeSectionTracks"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeDays"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeNumber"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.NoStop"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.TrainNote"
+              }
+            ],
+            "title": "Change"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.now.ChangeStatus"
+          },
+          "forced": {
+            "default": false,
+            "title": "Forced",
+            "type": "boolean"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågets nummer då.",
+            "title": "Train Number"
+          },
+          "made": {
+            "description": "Modelltiden när ändringen gjordes.",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Made",
+            "type": "string"
+          },
+          "waiting_for": {
+            "description": "Tågnumren som är ute och som ändringen väntar på.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Waiting For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "change_id",
+          "change",
+          "status",
+          "made"
+        ],
+        "title": "ChangeNow",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeNumber": {
+        "additionalProperties": true,
+        "description": "Byte av tågnummer: the same train, a new number.",
+        "properties": {
+          "kind": {
+            "const": "number",
+            "default": "number",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train",
+          "number"
+        ],
+        "title": "ChangeNumber",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangePlace": {
+        "additionalProperties": true,
+        "description": "Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;\nor a place unmanned, left to the automation, or manned again.",
+        "properties": {
+          "kind": {
+            "const": "place",
+            "default": "place",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Closed"
+          },
+          "clearance_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ClearanceMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "place_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manned",
+                  "unmanned"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place Kind"
+          }
+        },
+        "title": "ChangePlace",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeSectionTracks": {
+        "additionalProperties": true,
+        "description": "Enkel eller dubbel sträcka.",
+        "properties": {
+          "kind": {
+            "const": "tracks",
+            "default": "tracks",
+            "title": "Kind",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "tracks": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.now.TrackKind"
+          }
+        },
+        "required": [
+          "section",
+          "tracks"
+        ],
+        "title": "ChangeSectionTracks",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeStatus": {
+        "enum": [
+          "applied",
+          "waiting",
+          "dropped"
+        ],
+        "title": "ChangeStatus",
+        "type": "string"
+      },
+      "trainmeet.drift-1.now.ChangeTimes": {
+        "additionalProperties": true,
+        "description": "Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;\nor new times for some calls.",
+        "properties": {
+          "kind": {
+            "const": "times",
+            "default": "times",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "minutes": {
+            "default": 0,
+            "description": "Minuter senare, eller tidigare.",
+            "maximum": 720,
+            "minimum": -720,
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "from_call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Flytta från avgången här; tomt betyder hela tåget.",
+            "title": "From Call"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.now.CallTime"
+            },
+            "maxItems": 100,
+            "title": "Calls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "ChangeTimes",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ChangeTrack": {
+        "additionalProperties": true,
+        "description": "Ändrat planerat spår: another track for a call.",
+        "properties": {
+          "kind": {
+            "const": "track",
+            "default": "track",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "track": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "track"
+        ],
+        "title": "ChangeTrack",
         "type": "object"
       },
       "trainmeet.drift-1.now.Clearance": {
@@ -9620,6 +11401,15 @@
         ],
         "title": "Clearance",
         "type": "object"
+      },
+      "trainmeet.drift-1.now.ClearanceMode": {
+        "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
+        "enum": [
+          "requested",
+          "direct"
+        ],
+        "title": "ClearanceMode",
+        "type": "string"
       },
       "trainmeet.drift-1.now.ClearanceStatus": {
         "enum": [
@@ -9748,6 +11538,92 @@
           "waiting"
         ],
         "title": "DayStatus",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ExtraTrain": {
+        "additionalProperties": true,
+        "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
+        "properties": {
+          "kind": {
+            "const": "extra",
+            "default": "extra",
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "departure": {
+            "description": "Avgången från första driftplatsen.",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Departure",
+            "type": "string"
+          },
+          "copy_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tåget som kopieras.",
+            "title": "Copy Of"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Place"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Place"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.now.Weekday"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Trafikdagarna; tomt betyder kopians dagar, eller alla.",
+            "title": "Days"
+          }
+        },
+        "required": [
+          "number",
+          "departure"
+        ],
+        "title": "ExtraTrain",
         "type": "object"
       },
       "trainmeet.drift-1.now.LastJump": {
@@ -9942,6 +11818,33 @@
         "title": "LegNow",
         "type": "object"
       },
+      "trainmeet.drift-1.now.NoStop": {
+        "additionalProperties": true,
+        "description": "Ej uppehåll: the train passes the place without stopping (genomfart), or stops again.",
+        "properties": {
+          "kind": {
+            "const": "no_stop",
+            "default": "no_stop",
+            "title": "Kind",
+            "type": "string"
+          },
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "stops": {
+            "default": false,
+            "title": "Stops",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "call"
+        ],
+        "title": "NoStop",
+        "type": "object"
+      },
       "trainmeet.drift-1.now.NowPlace": {
         "additionalProperties": true,
         "properties": {
@@ -9969,6 +11872,63 @@
           "name"
         ],
         "title": "NowPlace",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.TrackKind": {
+        "enum": [
+          "single",
+          "double"
+        ],
+        "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.drift-1.now.TrainNote": {
+        "additionalProperties": true,
+        "description": "Anmärkning: text that follows the train, or one of its calls. Empty takes it away.",
+        "properties": {
+          "kind": {
+            "const": "note",
+            "default": "note",
+            "title": "Kind",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          }
+        },
+        "required": [
+          "train"
+        ],
+        "title": "TrainNote",
         "type": "object"
       },
       "trainmeet.drift-1.now.Weekday": {
@@ -10882,7 +12842,13 @@
           "no_jump_to_undo",
           "other_game_day",
           "day_still_running",
-          "unknown_place"
+          "unknown_place",
+          "unknown_train",
+          "no_route",
+          "invalid_time",
+          "train_number_taken",
+          "unknown_change",
+          "section_closed"
         ],
         "title": "Reason",
         "type": "string"
@@ -12803,6 +14769,12 @@
             "title": "Parts",
             "type": "array"
           },
+          "closed": {
+            "default": false,
+            "description": "Stängd: inga tåg klareras över sträckan (DRIFT-41).",
+            "title": "Closed",
+            "type": "boolean"
+          },
           "source_ids": {
             "additionalProperties": {
               "type": "string"
@@ -14686,6 +16658,12 @@
             },
             "title": "Parts",
             "type": "array"
+          },
+          "closed": {
+            "default": false,
+            "description": "Stängd: inga tåg klareras över sträckan (DRIFT-41).",
+            "title": "Closed",
+            "type": "boolean"
           },
           "source_ids": {
             "additionalProperties": {

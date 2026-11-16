@@ -119,6 +119,61 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         except failures as error:
             _error(error)
 
+    @routes.post("/changes")
+    def make_change(
+        request: drift.MakeChange,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Ny driftändring (TRAFIK-02, DRIFT-41): it applies at once, or waits for the train."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.make_change(run_id, request).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/changes/{change_id}/drop")
+    def drop_change(
+        change_id: Id,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Släpp a driftändring."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.drop_change(run_id, change_id).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/changes/{change_id}/force")
+    def force_change(
+        change_id: Id,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Tvinga igenom a waiting driftändring, with Nu's warning (H38)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.force_change(run_id, change_id).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.get("/package")
+    def package(response: Response) -> dict[str, Any]:
+        """The package Drift goes by: the version with the driftändringar on top. The
+        timetable is no secret, so anyone who looks may read it, like Nu."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            return running.store.state(running.store.current()).package.model_dump(mode="json")
+        except MissingRun as error:
+            _error(error)
+
     @routes.get("/phones")
     def phones(
         response: Response, session: SessionCookie = None, authorization: Authorization = None

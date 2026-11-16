@@ -45,6 +45,7 @@ RUN uv sync --locked --no-default-groups --no-install-project
 COPY contracts ./contracts
 COPY drift ./drift
 COPY integrationer ./integrationer
+COPY core ./core
 COPY planering ./planering
 COPY hub ./hub
 RUN uv sync --locked --no-default-groups --no-editable

@@ -14,9 +14,17 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
     POST /api/drift/1/automation/place   AutomationPlace -> AutomationStatus  leave or take back
     GET  /api/drift/1/log?place=&train=  DriftEvent list       the event log, filtered (F27)
     GET  /api/drift/1/events             DriftEvent stream    live, for Nu and Logg
+    POST /api/drift/1/day                NewDay -> DriftEvent           Starta ny dag (F7)
+    POST /api/drift/1/day/settings       DaySettings -> DayStatus
+    GET  /api/drift/1/phones             list[PlacePhone]               the game numbers (H30)
+    POST /api/drift/1/phones             PlacePhone -> list[PlacePhone]
+    POST /api/drift/1/changes            MakeChange -> DriftEvent       driftändringar (DRIFT-41)
+    POST /api/drift/1/changes/{id}/force -> DriftEvent                  tvinga igenom (H38)
+    POST /api/drift/1/changes/{id}/drop  -> DriftEvent                  släpp
+    GET  /api/drift/1/package            MeetPackage                    the version with them on
 
-Still to come, each in the step that builds it: operating changes (step 3), version switch and
-takeover (steps 4–5), screen data for Klocka, Banöversikt and Tågdiagram (step 3 and later).
+Still to come, each in the step that builds it: the proposals to Planering and the version
+switch (ärende 69), takeover (steps 4–5), screen data for Banöversikt and Tågdiagram.
 
 Every drift event is kept in order with the leader's epoch. The events are what a restart
 reads back and what the Pi sends to the cloud; there is no separate audit log.
@@ -26,12 +34,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
 from contracts.common import BoxLanguage, Contract, Id, Text, TimeOfDay, Weekday
-from contracts.meet import Call, ClearanceMode
+from contracts.meet import Call, ClearanceMode, TrackKind
 from contracts.reasons import Reason
 from contracts.station import ApprovalStatus, Clearance, ClearanceStatus, Clock, MeetContext
 from contracts.terminal import DisplaySize
@@ -109,6 +117,182 @@ class PlacePhone(Contract):
     phone: Text | None = Field(default=None, max_length=24, description="Träffens leknummer.")
 
 
+# --- Driftändringar (DRIFT-41, TRAFIK-02, H3, H12, H43): ten kinds. Each applies at once, on top
+# of the version that runs, and becomes a proposal for the next version (4.4). Against a train
+# that is out, or has an open clearance, it waits until the train is in, unless Trafikledningen
+# forces it through with a warning (H38).
+
+
+class CallTime(Contract):
+    call: Id
+    arrival: TimeOfDay | None = None
+    departure: TimeOfDay | None = None
+
+
+class CancelTrain(Contract):
+    """Ställ in tåg: the train does not run."""
+
+    kind: Literal["cancel"] = "cancel"
+    train: Id
+
+
+class ExtraTrain(Contract):
+    """Extratåg (H12): a copy of a train with a new number and time, or from–to with a
+    departure time, where Drift fills in the places between."""
+
+    kind: Literal["extra"] = "extra"
+    number: Text
+    departure: TimeOfDay = Field(description="Avgången från första driftplatsen.")
+    copy_of: Id | None = Field(default=None, description="Tåget som kopieras.")
+    from_place: Id | None = None
+    to_place: Id | None = None
+    days: list[Weekday] | None = Field(
+        default=None, description="Trafikdagarna; tomt betyder kopians dagar, eller alla."
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> ExtraTrain:
+        if (self.copy_of is None) == (self.from_place is None or self.to_place is None):
+            raise ValueError("Ange tåget att kopiera, eller från och till.")
+        if self.from_place is not None and self.from_place == self.to_place:
+            raise ValueError("Från och till är samma driftplats.")
+        return self
+
+
+class ChangeTimes(Contract):
+    """Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;
+    or new times for some calls."""
+
+    kind: Literal["times"] = "times"
+    train: Id
+    minutes: int = Field(default=0, ge=-720, le=720, description="Minuter senare, eller tidigare.")
+    from_call: Id | None = Field(
+        default=None, description="Flytta från avgången här; tomt betyder hela tåget."
+    )
+    calls: list[CallTime] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def _check(self) -> ChangeTimes:
+        if not self.minutes and not self.calls:
+            raise ValueError("Ange minuter eller nya tider.")
+        return self
+
+
+class ChangePlace(Contract):
+    """Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;
+    or a place unmanned, left to the automation, or manned again."""
+
+    kind: Literal["place"] = "place"
+    section: Id | None = None
+    closed: bool | None = None
+    clearance_mode: ClearanceMode | None = None
+    place: Id | None = None
+    place_kind: Literal["manned", "unmanned"] | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> ChangePlace:
+        on_section = self.closed is not None or self.clearance_mode is not None
+        if self.section is not None and on_section and self.place is None:
+            return self
+        if self.place is not None and self.place_kind is not None and self.section is None:
+            return self
+        raise ValueError("Ange en sträcka och vad som ändras, eller en driftplats och dess typ.")
+
+
+class ChangeTrack(Contract):
+    """Ändrat planerat spår: another track for a call."""
+
+    kind: Literal["track"] = "track"
+    call: Id
+    track: Text
+
+
+class ChangeSectionTracks(Contract):
+    """Enkel eller dubbel sträcka."""
+
+    kind: Literal["tracks"] = "tracks"
+    section: Id
+    tracks: TrackKind
+
+
+class ChangeDays(Contract):
+    """Ändrade trafikdagar för ett tåg."""
+
+    kind: Literal["days"] = "days"
+    train: Id
+    days: list[Weekday] = Field(min_length=1)
+
+
+class ChangeNumber(Contract):
+    """Byte av tågnummer: the same train, a new number."""
+
+    kind: Literal["number"] = "number"
+    train: Id
+    number: Text
+
+
+class NoStop(Contract):
+    """Ej uppehåll: the train passes the place without stopping (genomfart), or stops again."""
+
+    kind: Literal["no_stop"] = "no_stop"
+    call: Id
+    stops: bool = False
+
+
+class TrainNote(Contract):
+    """Anmärkning: text that follows the train, or one of its calls. Empty takes it away."""
+
+    kind: Literal["note"] = "note"
+    train: Id
+    call: Id | None = None
+    text: Text | None = None
+
+
+DriftChange = Annotated[
+    CancelTrain
+    | ExtraTrain
+    | ChangeTimes
+    | ChangePlace
+    | ChangeTrack
+    | ChangeSectionTracks
+    | ChangeDays
+    | ChangeNumber
+    | NoStop
+    | TrainNote,
+    Field(discriminator="kind"),
+]
+
+
+class MakeChange(Contract):
+    """Ny driftändring from Nu (TRAFIK-02)."""
+
+    change: DriftChange
+    force: bool = Field(
+        default=False,
+        description="Tvinga igenom mot ett tåg som är ute eller har öppen klarering (H38).",
+    )
+
+
+class ChangeStatus(StrEnum):
+    APPLIED = "applied"  # gäller
+    WAITING = "waiting"  # väntar tills tåget är framme (H38)
+    DROPPED = "dropped"  # släppt
+
+
+class ChangeNow(Contract):
+    """A Drift change as Nu lists it, with what it waits for."""
+
+    change_id: Id
+    change: DriftChange
+    status: ChangeStatus
+    forced: bool = False
+    train_number: Text | None = Field(default=None, description="Tågets nummer då.")
+    made: TimeOfDay = Field(description="Modelltiden när ändringen gjordes.")
+    waiting_for: list[Text] = Field(
+        default_factory=list, description="Tågnumren som är ute och som ändringen väntar på."
+    )
+
+
 class Approve(Contract):
     client_id: Id
     places: list[Id] = Field(min_length=1)
@@ -174,6 +358,10 @@ class EventKind(StrEnum):
     PLACE_TAKEN_BACK = "place.taken_back"  # tagen tillbaka från automatiken
     AUTOMATION_SET = "automation.set"
     PLACE_PHONE = "place.phone"  # telefonnumret under träffen (H30)
+    # Driftändringar (DRIFT-41): made, applied when the train is in, and let go.
+    CHANGE_MADE = "change.made"
+    CHANGE_APPLIED = "change.applied"
+    CHANGE_DROPPED = "change.dropped"
 
 
 class ActorKind(StrEnum):
@@ -235,6 +423,26 @@ class PhoneChanged(Contract):
     """A place's game number changed during the meet (H30); the event names the place."""
 
     phone: Text | None = Field(default=None, max_length=24)
+
+
+class ChangeMade(Contract):
+    """A Drift change made from Nu (DRIFT-41). It applies at once, or waits for the trains it
+    touches to be in (H38)."""
+
+    change_id: Id
+    change: DriftChange
+    waiting: bool = False
+    forced: bool = False
+    train_number: Text | None = Field(
+        default=None, description="Tågets nummer när ändringen gjordes, för Logg."
+    )
+
+
+class ChangeRef(Contract):
+    """A waiting change that now applies, or a change let go."""
+
+    change_id: Id
+    forced: bool = Field(default=False, description="Tvingad igenom medan tåget var ute (H38).")
 
 
 class ClearanceRef(Contract):
@@ -418,6 +626,9 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.DAY_CHANGED: DayChanged,
     EventKind.DAY_SETTINGS: DaySettings,
     EventKind.PLACE_PHONE: PhoneChanged,
+    EventKind.CHANGE_MADE: ChangeMade,
+    EventKind.CHANGE_APPLIED: ChangeRef,
+    EventKind.CHANGE_DROPPED: ChangeRef,
     EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
@@ -561,6 +772,9 @@ class Now(Contract):
         default=None, description="Det senaste tidshoppet eller nya dygnet, att ångra."
     )
     day: DayStatus | None = Field(default=None, description="Dygnsskiftet.")
+    changes: list[ChangeNow] = Field(
+        default_factory=list, description="Driftändringarna ovanpå versionen (DRIFT-41)."
+    )
 
 
 class Joining(Contract):

@@ -49,6 +49,24 @@ describe("Nu, Klienter and Logg (S6)", () => {
     expect(renderToStaticMarkup(<NuPage admin={false} now={{ ...now, day } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />)).not.toContain('id="new-day"');
   });
 
+  it("lists the driftändringar with Släpp, and Tvinga igenom for one that waits (TRAFIK-02, H38)", () => {
+    const changes = [
+      { change_id: "c1", change: { kind: "cancel", train: "t43" }, status: "waiting", forced: false, train_number: "43", made: "06:10", waiting_for: ["43"] },
+      { change_id: "c2", change: { kind: "number", train: "t44", number: "144" }, status: "dropped", forced: false, train_number: "44", made: "06:12", waiting_for: [] },
+    ];
+    const html = renderToStaticMarkup(<NuPage admin now={{ ...now, changes } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(html).toContain('id="change-count" class="antal">1</span>');
+    expect(html).toContain(">Ny driftändring<");
+    expect(html).toContain("<b>Inställt tåg 43</b>");
+    expect(html).toContain("Väntar på tåg 43 · gjord 06:10");
+    expect(html).toContain(">Tvinga igenom<");
+    expect(html).toContain("<b>Tåg 44 får nummer 144</b>");
+    expect(html).toContain("Släppt · gjord 06:12");
+    const empty = renderToStaticMarkup(<NuPage admin now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(empty).toContain("Inga driftändringar. Tidtabellen körs som versionen säger.");
+    expect(renderToStaticMarkup(<NuPage admin={false} now={{ ...now, changes } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />)).not.toContain('id="changes"');
+  });
+
   it("asks to start a meet when none runs, and to log in first when looking", () => {
     const html = renderToStaticMarkup(<NuPage admin now={null} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
     expect(html).toContain("Ingen träff är startad");
