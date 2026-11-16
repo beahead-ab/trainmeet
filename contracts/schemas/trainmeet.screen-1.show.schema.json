@@ -5,7 +5,8 @@
   "$defs": {
     "ScreenView": {
       "enum": [
-        "clock"
+        "clock",
+        "clock_digital"
       ],
       "title": "ScreenView",
       "type": "string"

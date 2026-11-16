@@ -1,6 +1,7 @@
 """Träffens skärmar (TV, 1920 × 1080): a screen joins with the meet's code, waits under Väntar
-and shows the view the dispatcher gives it in Klienter (S3, S4). Steg 3 has the clock; the
-track overview, the train graph and the overview come later.
+and shows the view the dispatcher gives it in Klienter (S3, S4). The clock comes in two
+built-in styles, analog and digital (H74); the track overview, the train graph and the
+overview come in step 3b (ärende 70).
 """
 
 from __future__ import annotations
@@ -14,7 +15,8 @@ from contracts.station import Clock
 
 
 class ScreenView(StrEnum):
-    CLOCK = "clock"
+    CLOCK = "clock"  # Klocka, analog (H74)
+    CLOCK_DIGITAL = "clock_digital"  # Klocka, digital (H74)
 
 
 class ScreenLogin(Contract):
