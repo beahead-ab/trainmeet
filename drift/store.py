@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from secrets import randbelow, token_hex, token_urlsafe
-from threading import Lock
+from threading import Lock, local
 from typing import Any, Final, TypeVar
 
 from contracts import drift as events
@@ -20,6 +20,7 @@ from contracts.meet import MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.terminal import DisplaySize
 from drift.automatik import Automatik
+from drift.copy import EventCopy
 from drift.engine import Drift, Outcome, Refused, model_time, now_utc
 from drift.notices import notices
 from drift.snapshot import snapshot
@@ -29,10 +30,8 @@ from drift.terminal_text import COUNTRY_LANGUAGE
 RUN_LIFETIME: Final = timedelta(days=1)
 MAX_RUNS: Final = 256
 MAX_ACTIONS: Final = 2000
-MAX_BOXES: Final = 16
-MAX_STATION_CLIENTS: Final = 16
+MAX_CLIENTS: Final = 16  # boxes, station clients and screens of each kind in a Provbanan run
 MAX_REFUSALS: Final = 500
-MAX_SCREENS: Final = 16
 
 T = TypeVar("T")
 
@@ -159,6 +158,8 @@ class PreviewStore:
         package_key: str | None = None,
         automation: bool = True,
         packages: Callable[[int], MeetPackage] | None = None,
+        copy: EventCopy | None = None,
+        max_clients: int = MAX_CLIENTS,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
@@ -171,6 +172,9 @@ class PreviewStore:
         self.lifetime = lifetime
         self.max_runs = max_runs
         self.max_actions = max_actions
+        # Boxes, station clients and screens per run: few in Provbanan's runs on the shared
+        # test hub, as many as a big meet has in the hub's own.
+        self.max_clients = max_clients
         # Which package a run belongs to. A published version brings the checksum it was
         # published with, so a run keeps its package when the contracts gain a field.
         self.package_key = package_key or checksum(package.model_dump(mode="json"))
@@ -179,6 +183,9 @@ class PreviewStore:
         self.boot = token_hex(16)
         self._ready = False
         self._lock = Lock()
+        # The USB copy of the hub's meet (DRIFT-21); Provbanan's runs have none.
+        self.copy = copy
+        self._local = local()
         # The automation of each run (F14): what it knows of contact lives in memory.
         self._automatik: dict[str, Automatik] = {}
 
@@ -190,27 +197,40 @@ class PreviewStore:
                 with closing(sqlite3.connect(self.path)) as db:
                     db.executescript(_SCHEMA)
                 self._ready = True
-        with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute("PRAGMA foreign_keys=ON")
-            db.execute("BEGIN IMMEDIATE")
-            yield db
+        # The events saved in this transaction, for the USB copy once they are committed.
+        saved: list[tuple[str, list[events.DriftEvent]]] = []
+        self._local.saved = saved
+        try:
+            with closing(sqlite3.connect(self.path)) as db, db:
+                db.execute("PRAGMA foreign_keys=ON")
+                db.execute("BEGIN IMMEDIATE")
+                yield db
+        finally:
+            self._local.saved = None
+        if self.copy is not None:
+            for run_id, written in saved:
+                self.copy.write(epoch_of(run_id), written)
 
-    @staticmethod
     def _save(
+        self,
         db: sqlite3.Connection,
         run_id: str,
         new_events: list[events.DriftEvent],
         *,
         mirror: bool = False,
     ) -> None:
-        """The new events, written before Drift answers (DRIFT-21). A run this hub follows
-        takes events only from the hub that leads it (SYNK-14)."""
+        """The new events, written before Drift answers (DRIFT-21), and then copied to the USB
+        stick if one is in. A run this hub follows takes events only from the hub that leads
+        it (SYNK-14)."""
         if new_events and not mirror and _mirrored(db, run_id):
             raise Refused(Reason.NOT_LEADER)
         db.executemany(
             "INSERT INTO preview_event VALUES (?, ?, ?)",
             ((run_id, event.seq, event.model_dump_json()) for event in new_events),
         )
+        saved = getattr(self._local, "saved", None)
+        if new_events and saved is not None:
+            saved.append((run_id, list(new_events)))
 
     def _load(self, db: sqlite3.Connection, run_id: str, now: datetime) -> Drift:
         row = db.execute(
@@ -475,7 +495,7 @@ class PreviewStore:
             count = db.execute(
                 "SELECT count(*) FROM preview_box WHERE run_id=?", (run_id,)
             ).fetchone()[0]
-            if count >= MAX_BOXES:
+            if count >= self.max_clients:
                 raise RunLimit()
             client_id = "box-" + token_hex(6)
             key = token_urlsafe(32)
@@ -624,7 +644,7 @@ class PreviewStore:
             count = db.execute(
                 "SELECT count(*) FROM station_client WHERE run_id=?", (run_id,)
             ).fetchone()[0]
-            if count >= MAX_STATION_CLIENTS:
+            if count >= self.max_clients:
                 raise RunLimit()
             client_id = f"{request.kind.value}-{token_hex(6)}"
             stored = request.model_copy(update={"code": None})
@@ -1155,7 +1175,7 @@ class PreviewStore:
             count = db.execute("SELECT count(*) FROM screen WHERE run_id=?", (run_id,)).fetchone()[
                 0
             ]
-            if count >= MAX_SCREENS:
+            if count >= self.max_clients:
                 raise RunLimit()
             client_id, key = "screen-" + token_hex(6), token_urlsafe(32)
             db.execute(

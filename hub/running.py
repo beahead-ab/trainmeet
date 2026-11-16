@@ -19,6 +19,7 @@ from typing import Final
 from contracts.common import Weekday
 from contracts.drift import DriftEvent, ProposalStatus
 from contracts.meet import MeetPackage
+from drift.copy import EventCopy
 from drift.engine import Refused, now_utc
 from drift.store import MissingRun, PreviewStore
 from planering.store import Planning, PlanningError
@@ -29,6 +30,9 @@ PROVBANAN: Final = "provbanan"
 LIFETIME: Final = timedelta(days=3650)
 MAX_RUNS: Final = 64
 MAX_ACTIONS: Final = 1_000_000
+# Boxes, station clients and screens of each kind in the hub's meet: more than a big meet has
+# (Värnamo has 31 places), with room for phones and screens beside the boxes.
+MAX_CLIENTS: Final = 300
 # A run another hub leads and was heard from this recently is followed, never started anew
 # (SYNK-14): two hubs never decide for the same meet.
 FOLLOW_WINDOW: Final = timedelta(minutes=5)
@@ -61,8 +65,11 @@ class Running:
         planning: Planning,
         versions: Versions,
         hub_version: str = "0.0.0",
+        usb: Path | None = None,
     ) -> None:
         self.data_dir = data_dir
+        # Where a USB stick is mounted, for the copy of the drift events (DRIFT-21).
+        self.usb = usb
         self.provbanan = provbanan
         self.provbanan_key = provbanan_key
         self.planning = planning
@@ -277,7 +284,9 @@ class Running:
                 lifetime=LIFETIME,
                 max_runs=MAX_RUNS,
                 max_actions=MAX_ACTIONS,
+                max_clients=MAX_CLIENTS,
                 version=version,
                 package_key=package_key,
+                copy=EventCopy(self.usb, f"{meet}-v{version}") if self.usb else None,
             )
         return self._stores[key]

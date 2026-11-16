@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -91,8 +92,16 @@ def create_app(
     links = Links(data_dir / "planering.sqlite3")
     homes = Homes(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
+    # A USB stick for the copy of the drift events (DRIFT-21), where the Pi mounts it.
+    usb = os.environ.get("TRAINMEET_USB_DIR", "").strip()
     running = Running(
-        data_dir, package, provbanan.package_key(), plans, versions, hub_version=info.version
+        data_dir,
+        package,
+        provbanan.package_key(),
+        plans,
+        versions,
+        hub_version=info.version,
+        usb=Path(usb) if usb else None,
     )
 
     def current() -> build_info.BuildInfo:
