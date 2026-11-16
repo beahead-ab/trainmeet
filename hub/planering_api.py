@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from contracts import planning
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from integrationer import planning_json
+from integrationer import planning_json, station_lists
 from planering import export
 from planering.store import Planning, PlanningError
 
@@ -98,15 +98,20 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
 
     def _read(meet: str, name: str, data: bytes) -> dict[str, Any]:
         lower = name.casefold()
-        if not (lower.endswith((".json", ".json.gz", ".gz")) or data[:2] == b"\x1f\x8b"):
+        lists = station_lists.is_lists(name)
+        if not (lists or lower.endswith((".json", ".json.gz", ".gz")) or data[:2] == b"\x1f\x8b"):
             raise HTTPException(
-                415, "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON)."
+                415,
+                "Den filtypen läses inte än. Lägg till Tellurians planeringsfil (JSON) eller "
+                "stationslistorna (ODT, ZIP, Excel eller CSV).",
             )
         try:
             current = store.draft(meet)
         except PlanningError as error:
             _fail(error)
         digest = hashlib.sha256(data).hexdigest()
+        if lists:
+            return _lists(meet, name, data, current, digest)
         source = planning.Source(
             id=f"u-{digest[:12]}",
             kind=planning.SourceKind.PLANNING_JSON,
@@ -119,6 +124,38 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         try:
             result = planning_json.read(data, meet=current.meet, source=source)
         except planning_json.PlanError as error:
+            raise HTTPException(422, str(error)) from error
+        try:
+            return store.preview(meet, source, data, result).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
+    def _lists(
+        meet: str, name: str, data: bytes, current: planning.Draft, digest: str
+    ) -> dict[str, Any]:
+        """Stationslistorna (4c1): with the planning file in the draft, each list is judged
+        against it, row by row (IMPORT-27). Without it, the lists build the draft in the next
+        part of 4c1."""
+        if current.package is None or not any(
+            s.kind == planning.SourceKind.PLANNING_JSON for s in current.sources
+        ):
+            raise HTTPException(
+                422,
+                "Stationslistorna prövas än så länge mot planeringsfilen. Lägg till "
+                "planeringsfilen (JSON) först.",
+            )
+        source = planning.Source(
+            id=f"u-{digest[:12]}",
+            kind=planning.SourceKind.STATION_LISTS,
+            filename=name,
+            size=len(data),
+            sha256=digest,
+            level=station_lists.LEVEL,
+            added=datetime.now(UTC),
+        )
+        try:
+            result = station_lists.check(data, name, plan=current.package, source=source)
+        except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
         try:
             return store.preview(meet, source, data, result).model_dump(mode="json")

@@ -7361,6 +7361,12 @@ export interface components {
             /** Questions */
             questions?: components["schemas"]["trainmeet.planning-1.import.Question"][];
             report: components["schemas"]["trainmeet.planning-1.import.ImportReport"];
+            /**
+             * Checks Only
+             * @description Underlaget prövas mot utkastet och ändrar det inte: stationslistorna mot planeringsfilen (IMPORT-27).
+             * @default false
+             */
+            checks_only: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -7787,6 +7793,11 @@ export interface components {
              * @description Det som inte lästes in, och varför.
              */
             left_out?: string[];
+            /**
+             * Verdicts
+             * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
+             */
+            verdicts?: components["schemas"]["trainmeet.planning-1.import.ListVerdict"][];
         } & {
             [key: string]: unknown;
         };
@@ -7795,6 +7806,40 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.import.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * ListVerdict
+         * @description Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.
+         */
+        "trainmeet.planning-1.import.ListVerdict": {
+            /**
+             * Document
+             * @description Listans fil, till exempel Lek Lekby.odt.
+             */
+            document: string;
+            /**
+             * Place
+             * @description Driftplatsen listan gäller, i planen.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Rows
+             * @description Listans rader, ett uppehåll på två rader räknat en gång.
+             */
+            rows: number;
+            /**
+             * Agreeing
+             * @description Rader som stämmer med planen.
+             */
+            agreeing: number;
+            /**
+             * Differences
+             * @description Det som skiljer, i klartext.
+             */
+            differences?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * MapPoint
          * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
@@ -8976,6 +9021,11 @@ export interface components {
              * @description Det som inte lästes in, och varför.
              */
             left_out?: string[];
+            /**
+             * Verdicts
+             * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
+             */
+            verdicts?: components["schemas"]["trainmeet.planning-1.draft.ListVerdict"][];
         } & {
             [key: string]: unknown;
         };
@@ -8984,6 +9034,40 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.draft.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * ListVerdict
+         * @description Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.
+         */
+        "trainmeet.planning-1.draft.ListVerdict": {
+            /**
+             * Document
+             * @description Listans fil, till exempel Lek Lekby.odt.
+             */
+            document: string;
+            /**
+             * Place
+             * @description Driftplatsen listan gäller, i planen.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Rows
+             * @description Listans rader, ett uppehåll på två rader räknat en gång.
+             */
+            rows: number;
+            /**
+             * Agreeing
+             * @description Rader som stämmer med planen.
+             */
+            agreeing: number;
+            /**
+             * Differences
+             * @description Det som skiljer, i klartext.
+             */
+            differences?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * MapPoint
          * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
@@ -9377,7 +9461,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.SourceKind": "planning_json";
+        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists";
         /**
          * StationOutside
          * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
@@ -10043,6 +10127,45 @@ export interface components {
              * @description Det som inte lästes in, och varför.
              */
             left_out?: string[];
+            /**
+             * Verdicts
+             * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
+             */
+            verdicts?: components["schemas"]["trainmeet.planning-1.import-preview.ListVerdict"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ListVerdict
+         * @description Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.
+         */
+        "trainmeet.planning-1.import-preview.ListVerdict": {
+            /**
+             * Document
+             * @description Listans fil, till exempel Lek Lekby.odt.
+             */
+            document: string;
+            /**
+             * Place
+             * @description Driftplatsen listan gäller, i planen.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Rows
+             * @description Listans rader, ett uppehåll på två rader räknat en gång.
+             */
+            rows: number;
+            /**
+             * Agreeing
+             * @description Rader som stämmer med planen.
+             */
+            agreeing: number;
+            /**
+             * Differences
+             * @description Det som skiljer, i klartext.
+             */
+            differences?: string[];
         } & {
             [key: string]: unknown;
         };
@@ -10083,7 +10206,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import-preview.SourceKind": "planning_json";
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.

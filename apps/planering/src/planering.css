@@ -564,3 +564,27 @@ ul.export li {
 ul.export a {
   font-weight: 600;
 }
+
+/* Stationslistorna prövade mot planeringsfilen (IMPORT-27): a verdict per list. */
+ul.domar {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+ul.domar li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+ul.domar li > span:last-child {
+  display: grid;
+}
+/* The beige box is darker than the page, so the green needs to be darker too (WCAG AA). */
+ul.domar .pill.sure {
+  color: #166534;
+}
+.skillnad {
+  color: var(--rod);
+}

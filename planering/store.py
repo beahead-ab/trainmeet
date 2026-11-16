@@ -624,6 +624,18 @@ def _train_of(package: MeetPackage, change: Change) -> Id | None:
 def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
     """The draft with the source in it, the meet's own name and dates kept, and the planner's
     changes and answers on top."""
+    if result.checks_only:
+        # Stationslistorna prövade mot planeringsfilen (IMPORT-27): the draft stays as it is;
+        # the source is kept and its verdicts go with the report.
+        report = (draft.report or result.report).model_copy(
+            update={"verdicts": result.report.verdicts}
+        )
+        return draft.model_copy(
+            update={
+                "sources": [s for s in draft.sources if s.kind != source.kind] + [source],
+                "report": report,
+            }
+        )
     meet = draft.meet.model_copy(
         update={
             "traffic_week": result.package.meet.traffic_week,

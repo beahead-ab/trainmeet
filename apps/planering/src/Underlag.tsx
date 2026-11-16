@@ -10,6 +10,11 @@ type Read = { name: string; state: "reading" } | { name: string; state: "read"; 
 
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
+  if (preview.source.kind === "station_lists") {
+    const verdicts = report.verdicts ?? [];
+    const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
+    return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
+  }
   const places = Object.values(report.places ?? {}).reduce((sum, value) => sum + value, 0);
   return `Tellurians plan · ${plural(report.trains, "tåg", "tåg")} · ${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`;
 }
@@ -75,14 +80,14 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               void take(event.dataTransfer.files[0]);
             }}
           >
-            <input id="file" type="file" accept=".json,.gz,application/json" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
+            <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
             <b>Släpp filen här</b>
-            <span>eller välj den. Tellurians planeringsfil (JSON). Stationstidtabeller, grafen och en bild av banan kommer i nästa del (4c).</span>
+            <span>eller välj den. Tellurians planeringsfil (JSON), eller stationslistorna (ODT, ZIP, Excel eller CSV), som prövas mot planeringsfilen. Grafen och en bild av banan kommer i nästa del (4c).</span>
           </label>
           {read && (
             <ul id="files" className="filer">
               <li>
-                <span className="kalla">JSON</span>
+                <span className="kalla">{/\.(odt|zip|xlsx|csv)$/i.test(read.name) ? "ST" : "JSON"}</span>
                 <div>
                   <b>{read.name}</b>
                   <div className="liten">{preview ? readLine(preview) : "Tellurians plan"}</div>
@@ -104,11 +109,34 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                   </div>
                 ))}
               </div>
-              <div className="andras">
-                <b>Det här ändras i utkastet</b>
-                <p id="changes">{describePreview(preview)}</p>
-                <p className="liten">Allt får källa och säkerhet och syns som kolumner i Data.</p>
-              </div>
+              {preview.source.kind === "station_lists" ? (
+                <div className="andras" id="verdicts">
+                  <b>Stationslistorna prövade mot planeringsfilen</b>
+                  <p className="liten">Utkastet ändras inte. Varje lista får en dom, rad för rad (IMPORT-27).</p>
+                  <ul className="domar">
+                    {(preview.report.verdicts ?? []).map((verdict) => (
+                      <li key={verdict.document}>
+                        <span className={`pill ${verdict.differences?.length ? "conflict" : "sure"}`}>{verdict.differences?.length ? "Skiljer" : "Stämmer"}</span>
+                        <span>
+                          <b>{verdict.document}</b>
+                          <span className="liten">{` · ${verdict.agreeing} av ${verdict.rows} tågbesök stämmer`}</span>
+                          {(verdict.differences ?? []).slice(0, 5).map((text) => (
+                            <span key={text} className="liten skillnad">
+                              {text}
+                            </span>
+                          ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="andras">
+                  <b>Det här ändras i utkastet</b>
+                  <p id="changes">{describePreview(preview)}</p>
+                  <p className="liten">Allt får källa och säkerhet och syns som kolumner i Data.</p>
+                </div>
+              )}
               <div className="kostnad">
                 <b>Ingen AI</b>
                 <span>Filen läses med kod. Inga tokens.</span>

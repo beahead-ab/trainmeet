@@ -81,6 +81,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Regelbok | `rulebook` | Tågslagen och förkortningarna som alla underlag läses med. Saknas en regel blir det en fråga. |
 | Fråga | `question` | Ställs bara där en regel saknas eller två lika tunga underlag säger olika. |
 | Importrapport | `ImportReport` | Nivån, vad underlaget gav, vad reglerna bestämde och vad som inte lästes in. |
+| Stationslistor | `SourceKind.STATION_LISTS` | Planeringsprogrammets lista per station (ODT, ZIP med ODT, Excel eller CSV). Prövas mot planeringsfilen och ändrar inte utkastet (IMPORT-27). Vad listan säger om fordonen i tåget läses aldrig in. |
+| Dom | `ListVerdict`, `ImportReport.verdicts`, `ImportResult.checks_only` | En stationslistas prövning mot planen: hur många tågbesök som stämmer och var det skiljer. |
 | Program | `about.program` | Träffens program, som fasta tider. |
 
 ## TrainMeet Catalog

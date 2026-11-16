@@ -38,6 +38,7 @@ class Certainty(StrEnum):
 
 class SourceKind(StrEnum):
     PLANNING_JSON = "planning_json"  # Tellurians planeringsfil
+    STATION_LISTS = "station_lists"  # Stationslistorna: ODT, Excel eller CSV (4c1)
 
 
 class Source(Contract):
@@ -112,6 +113,18 @@ class Question(Contract):
     answer: Text | None = None
 
 
+class ListVerdict(Contract):
+    """Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad."""
+
+    document: Text = Field(description="Listans fil, till exempel Lek Lekby.odt.")
+    place: Id | None = Field(default=None, description="Driftplatsen listan gäller, i planen.")
+    rows: int = Field(ge=0, description="Listans rader, ett uppehåll på två rader räknat en gång.")
+    agreeing: int = Field(ge=0, description="Rader som stämmer med planen.")
+    differences: list[Text] = Field(
+        default_factory=list, description="Det som skiljer, i klartext."
+    )
+
+
 class ImportReport(Contract):
     """Importrapporten: the level, what the source gave, what rules decided, what was left out."""
 
@@ -132,6 +145,10 @@ class ImportReport(Contract):
     left_out: list[Text] = Field(
         default_factory=list, description="Det som inte lästes in, och varför."
     )
+    verdicts: list[ListVerdict] = Field(
+        default_factory=list,
+        description="Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).",
+    )
 
 
 class ImportResult(Contract):
@@ -142,6 +159,13 @@ class ImportResult(Contract):
     rulebook: Rulebook = Field(default_factory=Rulebook)
     questions: list[Question] = Field(default_factory=list)
     report: ImportReport
+    checks_only: bool = Field(
+        default=False,
+        description=(
+            "Underlaget prövas mot utkastet och ändrar det inte: stationslistorna mot "
+            "planeringsfilen (IMPORT-27)."
+        ),
+    )
 
 
 # --- Meets, the draft and versions ---------------------------------------------------------

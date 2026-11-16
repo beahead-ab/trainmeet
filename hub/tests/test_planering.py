@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,13 +18,15 @@ from fastapi.testclient import TestClient
 
 from contracts import drift, planning
 from contracts.common import checksum
-from contracts.meet import MeetPackage
+from contracts.meet import Meet, MeetPackage
 from drift.store import PreviewStore
 from hub import provbanan
 from hub.app import create_app, tick_once
 from hub.build_info import BuildInfo
 from hub.running import Running
 from hub.tests.test_tmbox_web import Tab
+from integrationer import planning_json
+from integrationer.tests.test_station_lists import lists_zip, odt, rows_for
 from planering.store import Planning
 
 PIN = "482915"
@@ -247,6 +250,44 @@ def test_the_exports_of_the_draft_and_of_a_version(planned: TestClient) -> None:
         assert archive.namelist() == ["Värnamo.json.gz"]
         assert archive.read("Värnamo.json.gz") == VARNAMO
     assert anonymous.get(path + "/allt").status_code == 422
+
+
+def test_station_lists_are_judged_against_the_plan(hub: TestClient) -> None:
+    """4c1 (IMPORT-27, IMPORT-33): with the planning file in the draft, the station lists get a
+    verdict each; the draft does not change. Without it they wait for the next part."""
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    early = upload(hub, data=station_lists_zip(), name="Station dispatch lists.zip")
+    assert early.status_code == 422 and "planeringsfilen" in early.json()["detail"]
+    preview = planning.ImportPreview.model_validate(upload(hub).json())
+    hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply")
+    before = planning.Draft.model_validate(hub.get(f"{API}/meets/{MEET}").json())
+    checked = upload(hub, data=station_lists_zip(), name="Station dispatch lists.zip")
+    assert checked.status_code == 201, checked.text
+    seen = planning.ImportPreview.model_validate(checked.json())
+    assert seen.source.kind == planning.SourceKind.STATION_LISTS
+    assert (seen.trains.added, seen.trains.removed, seen.times, seen.tracks) == (0, 0, 0, 0)
+    assert [(v.document, v.differences) for v in seen.report.verdicts] == [("Lek Lekby.odt", [])]
+    applied = hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply")
+    assert applied.status_code == 200, applied.text
+    after = planning.Draft.model_validate(applied.json())
+    assert after.package == before.package, "the plan stays as it was"
+    assert {s.kind for s in after.sources} == {
+        planning.SourceKind.PLANNING_JSON,
+        planning.SourceKind.STATION_LISTS,
+    }
+    assert after.report is not None and after.report.verdicts[0].agreeing > 20
+
+
+def station_lists_zip() -> bytes:
+    """Lekby's list made from the planning file, in the planning program's format."""
+    meet = Meet(id=MEET, name="Värnamo", country="se", timezone="Europe/Stockholm")
+    kind = planning.SourceKind.PLANNING_JSON
+    given = planning.Source(
+        id="u-x", kind=kind, filename="v", size=1, sha256="a" * 64, level=4,
+        added=datetime(2026, 11, 16, tzinfo=UTC),
+    )  # fmt: skip
+    plan = planning_json.read(VARNAMO, meet=meet, source=given).package
+    return lists_zip({"Lek Lekby.odt": odt(rows_for(plan, "Lek"))})
 
 
 def later_by(clock: str, minutes: int) -> str:
