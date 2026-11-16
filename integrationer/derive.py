@@ -48,6 +48,7 @@ from contracts.meet import (
     Call,
     Clock,
     Display,
+    GraphPage,
     MapPoint,
     Meet,
     MeetPackage,
@@ -72,12 +73,14 @@ from contracts.planning import (
     TrainTypeRule,
 )
 from integrationer import rulebook
+from integrationer.graph_picture import Line as GraphLine
 from integrationer.planning_json import CONTENT_WORD
 from integrationer.station_lists import ListError, Lists, Row, abbreviates, merged
 from integrationer.track_picture import Picture
 
 LEVEL: Final = 1  # Stationstidtabeller: underlagsnivå 1 (I1)
 DRAWN: Final = 2  # + banbilden: underlagsnivå 2
+GRAPHED: Final = 3  # + grafen: underlagsnivå 3
 DAY: Final = 24 * 60
 WEEK: Final = list(Weekday)
 SHOWN: Final = 3
@@ -142,10 +145,15 @@ def draft(
     source: Source,
     picture: Picture | None = None,
     drawn: Source | None = None,
+    graph: list[GraphLine] | None = None,
+    graphed: Source | None = None,
 ) -> ImportResult:
     """The draft the lists give, with the track picture when there is one (drawn is its
-    source). Raises ListError when no train can be read."""
-    return _Derivation(found, meet, source, picture if drawn else None, drawn).run()
+    source) and the graph's lines (graphed is its source). Raises ListError when no train can
+    be read."""
+    derivation = _Derivation(found, meet, source, picture if drawn else None, drawn)
+    derivation.graph, derivation.graphed = (graph, graphed) if graphed else (None, None)
+    return derivation.run()
 
 
 def _minutes(clock: str) -> int:
@@ -193,6 +201,9 @@ class _Derivation:
         self.source = source
         self.picture = picture
         self.drawn = drawn
+        self.graph: list[GraphLine] | None = None
+        self.graphed: Source | None = None
+        self.graph_told = ""
         self.places: dict[str, _Place] = {}
         self.by_code: dict[str, _Place] = {}
         self.by_name: dict[str, _Place] = {}
@@ -234,6 +245,7 @@ class _Derivation:
         if self.picture is not None:
             self._from_picture(trains)
         sections = self._sections(trains)
+        pages = self._graph_lines(sections) if self.graph else []
         rules, questions = self._rulebook(trains)
         places = [self._place(p) for p in self.places.values()]
         clock = Clock(start_time="06:00")
@@ -259,7 +271,7 @@ class _Derivation:
                 places=places,
                 sections=sections,
                 trains=trains,
-                display=Display(reference_layout=layout),
+                display=Display(reference_layout=layout, graph_pages=pages),
             )
         except ValidationError as error:
             raise ListError(
@@ -268,7 +280,7 @@ class _Derivation:
         counts = Counter(place.kind for place in places)
         report = ImportReport(
             source=self.source.id,
-            level=DRAWN if self.picture is not None else LEVEL,
+            level=GRAPHED if self.graph else DRAWN if self.picture is not None else LEVEL,
             places={kind: counts[kind] for kind in PlaceKind if counts[kind]},
             sections=len(sections),
             parts=sum(len(section.parts) for section in sections),
@@ -287,23 +299,32 @@ class _Derivation:
         )
 
     def _summary(self, sections: list[Section]) -> str:
-        lists = f"Utkastet är härlett ur {len(self.found.rows)} stationslistor"
+        named = [f"{len(self.found.rows)} stationslistor"]
+        named += ["banbilden"] * (self.picture is not None) + ["grafen"] * bool(self.graph)
+        told = [f"Utkastet är härlett ur {_joined(named)}."]
         if self.found.transcribed:
-            lists += " som AI har skrivit av, så tågen och tiderna är också osäkra"
-        if self.picture is None:
-            return (
-                f"{lists}. Platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana; "
-                "banbilden, grafen eller planeringsfilen höjer nivån."
+            told.append(
+                "Stationslistorna som AI har skrivit av gör också tågen och tiderna osäkra."
             )
-        shown = sum(1 for s in sections if s.id in self.confirmed)
-        between = sum(1 for p in self.places.values() if p.only_drawn)
-        double = sum(1 for s in sections if s.tracks == TrackKind.DOUBLE)
-        return (
-            f"{lists} och banbilden. Banbilden visar {shown} av {len(sections)} sträckor, "
-            f"{plural(between, 'plats', 'platser')} emellan och dubbelspår på "
-            f"{plural(double, 'sträcka', 'sträckor')}. Platstyperna är osäkra tills du "
-            "bekräftar dem i Bana."
-        )
+        if self.picture is not None:
+            shown = sum(1 for s in sections if s.id in self.confirmed)
+            between = sum(1 for p in self.places.values() if p.only_drawn)
+            double = sum(1 for s in sections if s.tracks == TrackKind.DOUBLE)
+            told.append(
+                f"Banbilden visar {shown} av {len(sections)} sträckor, "
+                f"{plural(between, 'plats', 'platser')} emellan och dubbelspår på "
+                f"{plural(double, 'sträcka', 'sträckor')}."
+            )
+        if self.graph_told:
+            told.append(self.graph_told)
+        if self.picture is None and not self.graph:
+            told.append(
+                "Platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana; banbilden, "
+                "grafen eller planeringsfilen höjer nivån."
+            )
+        else:
+            told.append("Platstyperna är osäkra tills du bekräftar dem i Bana.")
+        return " ".join(told)
 
     # --- Places ------------------------------------------------------------------------------
 
@@ -745,6 +766,76 @@ class _Derivation:
             return None
         by_drawn = {p.drawn: p.id for p in self.places.values() if p.drawn}
         return [by_drawn[code] for code in way]
+
+    # --- The graph ----------------------------------------------------------------------------
+
+    def _graph_lines(self, sections: list[Section]) -> list[GraphPage]:
+        """The graph's lines (level 3): the places in their order along each line, with the
+        distances when every station has one, as the lines of Graf. A section between two
+        stations next to each other on a line, with at most industries and halts between, is
+        confirmed by the graph."""
+        assert self.graph is not None and self.graphed is not None
+        by_label = {p.code.casefold(): p.id for p in self.places.values()}
+        by_label.update({p.name.casefold(): p.id for p in self.places.values()})
+        halts = {p.id for p in self.places.values() if p.kind == PlaceKind.HALT}
+        pages: list[GraphPage] = []
+        unknown: list[str] = []
+        neighbours: dict[frozenset[str], str] = {}
+        for n, line in enumerate(self.graph, 1):
+            found = [(by_label.get(label.casefold()), km, label) for label, km in line.stations]
+            unknown += [label for place, _, label in found if place is None]
+            known = [(place, km) for place, km, _ in found if place is not None]
+            if len(known) < 2:
+                continue
+            name = line.name or f"Linje {line.number or n}"
+            kms = [km for _, km in known]
+            distances = (
+                [round(km - kms[0], 3) for km in kms]  # type: ignore[operator]
+                if all(km is not None for km in kms)
+                else None
+            )
+            page = GraphPage(
+                id=f"g-{n}",
+                name=name,
+                places=[place for place, _ in known],
+                number=line.number or None,
+                distances=distances,
+            )
+            pages.append(page)
+            at = f"Grafen, {name}"
+            self.facts.append(
+                Fact(
+                    ref=f"graph:{page.id}",
+                    certainty=Certainty.UNSURE,  # written down by AI (I2)
+                    origins=[Origin(source=self.graphed.id, at=at)],
+                )
+            )
+            stops = [place for place, _ in known if place not in halts]
+            for a, b in pairwise(stops):
+                neighbours.setdefault(frozenset((a, b)), at)
+        facts = {fact.ref: index for index, fact in enumerate(self.facts)}
+        confirmed = 0
+        for section in sections:
+            on_line = neighbours.get(frozenset((section.place_a, section.place_b)))
+            index = facts.get(f"section:{section.id}")
+            if on_line is None or index is None:
+                continue
+            fact = self.facts[index]
+            origins = [*fact.origins, Origin(source=self.graphed.id, at=on_line)]
+            self.facts[index] = fact.model_copy(
+                update={"certainty": Certainty.SURE, "origins": origins}
+            )
+            confirmed += 1
+        self.graph_told = (
+            f"Grafen gav {plural(len(pages), 'linje', 'linjer')} och bekräftade "
+            f"{plural(confirmed, 'sträcka', 'sträckor')} av {len(sections)}."
+        )
+        if unknown:
+            self.notes.append(
+                f"{_joined(list(dict.fromkeys(unknown)))} står i grafen men finns inte bland "
+                "platserna; de är inte med i grafens linjer."
+            )
+        return pages
 
     # --- The rulebook -------------------------------------------------------------------------
 

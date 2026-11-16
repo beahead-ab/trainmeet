@@ -509,6 +509,50 @@ def test_a_photo_of_the_track_is_written_down_as_the_picture(hub: TestClient) ->
     assert shown.headers["content-type"] == "image/png"
 
 
+def test_the_graph_as_a_picture_gives_the_lines(hub: TestClient) -> None:
+    """4c2, level 3: the graph written down by the hub's own AI gives the lines in Graf and
+    confirms the sections; it waits for the lists, and is read again without AI."""
+    import hashlib
+
+    from integrationer.ai import drawn
+    from integrationer.tests.fake_ai import KEY, FakeAi, serving
+    from integrationer.tests.test_graph_picture import graph_transcript
+
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    graph = drawn("333", 16)
+
+    def send(name: str = "Grafen.png") -> Any:
+        return hub.post(
+            f"{API}/meets/{MEET}/sources",
+            params={"name": name, "transcribe": "graph"},
+            content=graph,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+
+    fake = FakeAi(answers={hashlib.sha256(graph).hexdigest(): graph_transcript(varnamo_plan())})
+    with serving(fake):
+        given = {"format": "chat", "address": fake.address, "model": "m", "key": KEY}
+        assert hub.post("/api/hub/ai", json=given).status_code == 200
+        early = send()
+        assert early.status_code == 422 and "stationslistorna först" in early.json()["detail"]
+        lists = planning.ImportPreview.model_validate(
+            upload(hub, data=station_lists_zip("Mkd", "Lek", "Gdö", "R"), name="l.zip").json()
+        )
+        hub.post(f"{API}/meets/{MEET}/sources/{lists.source.id}/apply")
+        asked = len(fake.asked)
+        seen = planning.ImportPreview.model_validate(send().json())
+        assert len(fake.asked) == asked, "the graph's page was written down already"
+    assert seen.source.kind == planning.SourceKind.GRAPH_PICTURE and seen.report.level == 3
+    draft = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply").json()
+    )
+    assert draft.package is not None and draft.package.display.graph_pages
+    again = planning.ImportPreview.model_validate(
+        upload(hub, data=station_lists_zip("Mkd", "Lek", "Gdö", "R", "Nlu"), name="l2.zip").json()
+    )
+    assert again.report.level == 3, "new lists are read with the saved graph"
+
+
 def test_station_lists_as_pdf(hub: TestClient) -> None:
     """The planning program's lists as PDF: read from the text layer, and the draft built from
     them as from ODT. A PDF that is neither lists nor a track picture is refused."""

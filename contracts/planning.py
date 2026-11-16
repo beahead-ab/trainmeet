@@ -48,6 +48,7 @@ class SourceKind(StrEnum):
     PLANNING_JSON = "planning_json"  # Tellurians planeringsfil
     STATION_LISTS = "station_lists"  # Stationslistorna: ODT, Excel eller CSV (4c1)
     TRACK_PICTURE = "track_picture"  # Banbilden: Tellurians topologi-PDF (4c1)
+    GRAPH_PICTURE = "graph_picture"  # Grafen som bild, avskriven av egen AI (4c2)
 
 
 class Source(Contract):

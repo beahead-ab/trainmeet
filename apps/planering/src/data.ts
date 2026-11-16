@@ -100,7 +100,7 @@ export function sourceKind(origin: Origin, sources: Draft["sources"]): [label: s
   if (origin.source === "planner") return ["PLAN", "andrad", "Ändrat i Planering"];
   if (origin.source === "regelboken") return ["REGEL", "regel", "Regelboken"];
   const source = (sources ?? []).find((item) => item.id === origin.source);
-  const label = source?.kind === "station_lists" ? "ST" : source?.kind === "track_picture" ? "BILD" : "JSON";
+  const label = source?.kind === "station_lists" ? "ST" : source?.kind === "track_picture" ? "BILD" : source?.kind === "graph_picture" ? "GRAF" : "JSON";
   return [label, "", source ? source.filename : "Underlaget"];
 }
 
