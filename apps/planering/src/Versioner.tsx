@@ -1,6 +1,6 @@
 import { changeText } from "@trainmeet/hubben";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type Follower, type LinkCode, type Proposal, type Version } from "./api";
+import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type Follower, type Home, type LinkCode, type Proposal, type Version } from "./api";
 import { days } from "./data";
 import { when } from "./text";
 
@@ -193,13 +193,18 @@ const clock = (at: string) => new Date(at).toLocaleTimeString("sv-SE", { hour: "
 
 /** Koppla en Pi (SYNK-02, H11): a six-digit code the Pi gives under Den här hubben → Molnet.
  * The Pi then fetches each version the moment it is published; it always calls out. */
-export function KopplaPi({ admin, meet, initial }: { admin: boolean; meet: string; initial?: Follower[] }) {
+export function KopplaPi({ admin, meet, initial, initialHome }: { admin: boolean; meet: string; initial?: Follower[]; initialHome?: Home }) {
   const [followers, setFollowers] = useState<Follower[] | null>(initial ?? null);
+  const [home, setHome] = useState<Home | null>(initialHome ?? null);
   const [code, setCode] = useState<LinkCode | null>(null);
   const [said, setSaid] = useState("");
+  const [asking, setAsking] = useState(false);
   useEffect(() => {
     if (initial) return;
-    const read = () => void planning.followers(meet).then(setFollowers, () => undefined);
+    const read = () => {
+      void planning.followers(meet).then(setFollowers, () => undefined);
+      void planning.home(meet).then(setHome, () => undefined);
+    };
     read();
     const timer = window.setInterval(read, 5000);
     return () => window.clearInterval(timer);
@@ -221,10 +226,49 @@ export function KopplaPi({ admin, meet, initial }: { admin: boolean; meet: strin
       setSaid(error instanceof Error ? error.message : "Det gick inte.");
     }
   };
+  const reclaim = async () => {
+    setAsking(false);
+    try {
+      setHome(await planning.reclaim(meet));
+      setSaid("Träffens hem är här igen.");
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    }
+  };
+  if (home && !home.here) {
+    return (
+      <section id="pi" className="kort varning" aria-labelledby="pi-rubrik">
+        <h2 id="pi-rubrik">{`Träffens hem är ${home.hub_name}`}</h2>
+        <p className="liten">{`${home.hub_name} tog hem träffen${home.since ? ` ${when(home.since)}` : ""}. Där planeras och publiceras den nu, och den här hubben följer versionerna. Här kan du titta, inte ändra.`}</p>
+        {admin && (
+          <div className="rad">
+            {asking ? (
+              <>
+                <button id="reclaim-confirm" type="button" className="fara" onClick={() => void reclaim()}>
+                  Ta tillbaka hem hit
+                </button>
+                <button type="button" onClick={() => setAsking(false)}>
+                  Avbryt
+                </button>
+                <span className="liten">{`Det ${home.hub_name} har ändrat och inte lämnat tillbaka blir kvar där.`}</span>
+              </>
+            ) : (
+              <button id="reclaim" type="button" onClick={() => setAsking(true)}>
+                Ta tillbaka hem hit …
+              </button>
+            )}
+            <span className="liten" role="status">
+              {said}
+            </span>
+          </div>
+        )}
+      </section>
+    );
+  }
   return (
     <section id="pi" className="kort" aria-labelledby="pi-rubrik">
       <h2 id="pi-rubrik">Pi:n på träffen</h2>
-      <p className="liten">En Pi följer träffen och hämtar varje version när den publiceras. Skriv koden på Pi:n under kugghjulet → Den här hubben → Molnet. Den gäller en gång i 15 minuter.</p>
+      <p className="liten">En Pi följer träffen och hämtar varje version när den publiceras. Skriv koden på Pi:n under kugghjulet → Den här hubben → Molnet. Den gäller en gång i 15 minuter. Före träffen tar Pi:n hem träffen med en knapp, och lämnar tillbaka den efteråt.</p>
       {followers && followers.length > 0 ? (
         <ul id="followers" className="fynd">
           {followers.map((follower) => (

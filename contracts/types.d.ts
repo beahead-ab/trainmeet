@@ -11126,6 +11126,42 @@ export interface components {
              * @description Listans kännetecken: ändras när en version publiceras.
              */
             mark: string;
+            /**
+             * @description Träffens hem, som molnet ser det.
+             * @default null
+             */
+            home: components["schemas"]["trainmeet.sync-1.version-list.Home"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Home
+         * @description Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den
+         *     andra hubben följer och ändrar inget i Planering.
+         */
+        "trainmeet.sync-1.version-list.Home": {
+            /** Meet */
+            meet: string;
+            /** Hub Id */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Here
+             * @description Är hemmet den här hubben?
+             */
+            here: boolean;
+            /**
+             * Generation
+             * @description Räknas upp varje gång hemmet flyttas.
+             * @default 0
+             */
+            generation: number;
+            /**
+             * Since
+             * @default null
+             */
+            since: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -11227,6 +11263,12 @@ export interface components {
              * @default null
              */
             problem: string | null;
+            /**
+             * Home Here
+             * @description Träffens hem är Pi:n: här planeras och publiceras (H35).
+             * @default false
+             */
+            home_here: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -11373,6 +11415,1582 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.run-ack.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
+         * Home
+         * @description Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den
+         *     andra hubben följer och ändrar inget i Planering.
+         */
+        "trainmeet.sync-1.home": {
+            /** Meet */
+            meet: string;
+            /** Hub Id */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Here
+             * @description Är hemmet den här hubben?
+             */
+            here: boolean;
+            /**
+             * Generation
+             * @description Räknas upp varje gång hemmet flyttas.
+             * @default 0
+             */
+            generation: number;
+            /**
+             * Since
+             * @default null
+             */
+            since: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * HomeBundle
+         * @description Det som flyttar med hemmet: utkastet, underlagen och förslagen från Drift (H35).
+         */
+        "trainmeet.sync-1.home-bundle": {
+            /** Meet */
+            meet: string;
+            /** Generation */
+            generation: number;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            draft: components["schemas"]["trainmeet.sync-1.home-bundle.Draft"];
+            /** Sources */
+            sources?: components["schemas"]["trainmeet.sync-1.home-bundle.SourceFile"][];
+            /** Proposals */
+            proposals?: components["schemas"]["trainmeet.sync-1.home-bundle.Proposal"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** About */
+        "trainmeet.sync-1.home-bundle.About": {
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Instructions
+             * @default null
+             */
+            instructions: string | null;
+            /**
+             * Program
+             * @description Träffens program, som fasta tider.
+             * @default null
+             */
+            program: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Alternative */
+        "trainmeet.sync-1.home-bundle.Alternative": {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+            /** Origins */
+            origins?: components["schemas"]["trainmeet.sync-1.home-bundle.Origin"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Attachment
+         * @description A file the package carries, beside the package, with its own checksum.
+         */
+        "trainmeet.sync-1.home-bundle.Attachment": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.sync-1.home-bundle.AttachmentKind"];
+            /** Filename */
+            filename: string;
+            /** Media Type */
+            media_type: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AttachmentKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.AttachmentKind": "clock_face" | "sketch" | "overview" | "other";
+        /** BoxSide */
+        "trainmeet.sync-1.home-bundle.BoxSide": {
+            side: components["schemas"]["trainmeet.sync-1.home-bundle.Side"];
+            /**
+             * Label
+             * @description Det boxen visar för sidan, till exempel Väster.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Call
+         * @description Tågbesök: what Drift keeps track of. A train number alone is never a key (A1).
+         */
+        "trainmeet.sync-1.home-bundle.Call": {
+            /** Id */
+            id: string;
+            /** Place */
+            place: string;
+            /**
+             * Track
+             * @description Planens spårnamn.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Day Offset
+             * @description Speldygn efter tågets första.
+             * @default 0
+             */
+            day_offset: number;
+            /**
+             * Stops
+             * @description Falskt för ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Exchange
+             * @description Falskt för uppehåll utan utbyte: tåget står men lastar inte.
+             * @default true
+             */
+            exchange: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CallChange
+         * @description One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.
+         *     Empty clears it.
+         */
+        "trainmeet.sync-1.home-bundle.CallChange": {
+            /** Call */
+            call: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "arrival" | "departure" | "track";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** CallTime */
+        "trainmeet.sync-1.home-bundle.CallTime": {
+            /** Call */
+            call: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CancelTrain
+         * @description Ställ in tåg: the train does not run.
+         */
+        "trainmeet.sync-1.home-bundle.CancelTrain": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "cancel";
+            /** Train */
+            train: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description Säkerhet per faktum (import 6).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.Certainty": "sure" | "likely" | "unsure" | "confirmed";
+        /**
+         * ChangeDays
+         * @description Ändrade trafikdagar för ett tåg.
+         */
+        "trainmeet.sync-1.home-bundle.ChangeDays": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "days";
+            /** Train */
+            train: string;
+            /** Days */
+            days: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeNumber
+         * @description Byte av tågnummer: the same train, a new number.
+         */
+        "trainmeet.sync-1.home-bundle.ChangeNumber": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "number";
+            /** Train */
+            train: string;
+            /** Number */
+            number: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangePlace
+         * @description Ändrade driftplatser och sträckor: a section closed or opened, or its clearance mode;
+         *     or a place unmanned, left to the automation, or manned again.
+         */
+        "trainmeet.sync-1.home-bundle.ChangePlace": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "place";
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Closed
+             * @default null
+             */
+            closed: boolean | null;
+            /** @default null */
+            clearance_mode: components["schemas"]["trainmeet.sync-1.home-bundle.ClearanceMode"] | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Kind
+             * @default null
+             */
+            place_kind: ("manned" | "unmanned") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeSectionTracks
+         * @description Enkel eller dubbel sträcka.
+         */
+        "trainmeet.sync-1.home-bundle.ChangeSectionTracks": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tracks";
+            /** Section */
+            section: string;
+            tracks: components["schemas"]["trainmeet.sync-1.home-bundle.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeTimes
+         * @description Ändrade tider (tåg och möten): the whole train, or from a call on, moved some minutes;
+         *     or new times for some calls.
+         */
+        "trainmeet.sync-1.home-bundle.ChangeTimes": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "times";
+            /** Train */
+            train: string;
+            /**
+             * Minutes
+             * @description Minuter senare, eller tidigare.
+             * @default 0
+             */
+            minutes: number;
+            /**
+             * From Call
+             * @description Flytta från avgången här; tomt betyder hela tåget.
+             * @default null
+             */
+            from_call: string | null;
+            /** Calls */
+            calls?: components["schemas"]["trainmeet.sync-1.home-bundle.CallTime"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChangeTrack
+         * @description Ändrat planerat spår: another track for a call.
+         */
+        "trainmeet.sync-1.home-bundle.ChangeTrack": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "track";
+            /** Call */
+            call: string;
+            /** Track */
+            track: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClearanceMode
+         * @description Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once
+         *     if the section is free. The meet has one; a section may have the other (decided 1 Nov).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.ClearanceMode": "requested" | "direct";
+        /** Clock */
+        "trainmeet.sync-1.home-bundle.Clock": {
+            /**
+             * Start Time
+             * @description Modelltiden när klockan startar.
+             */
+            start_time: string;
+            /**
+             * Speed
+             * @description Modellminuter per minut.
+             * @default 1
+             */
+            speed: number;
+            /**
+             * Styles
+             * @description Klockans stilar: analog, digital eller custom:<urtavlans id>.
+             */
+            styles?: string[];
+            /**
+             * Stop Reasons
+             * @description Stoppskälen.
+             */
+            stop_reasons?: string[];
+            /**
+             * Faces
+             * @description Urtavlorna, som bilagor (F13).
+             */
+            faces?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ConfirmChange
+         * @description Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
+         *     osäker or trolig fact becomes bekräftad, which counts as säker.
+         */
+        "trainmeet.sync-1.home-bundle.ConfirmChange": {
+            /**
+             * Confirm
+             * @description Faktumets ref, till exempel section:s-gdo-r.
+             */
+            confirm: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CoupledStation
+         * @description A station coupled to the place in advance: its outside pinned to a version (H28).
+         */
+        "trainmeet.sync-1.home-bundle.CoupledStation": {
+            /** Station Id */
+            station_id: string;
+            /**
+             * Version
+             * @description Versionen av stationspaketet som gäller.
+             */
+            version: number;
+            outside: components["schemas"]["trainmeet.sync-1.home-bundle.StationOutside"];
+            /**
+             * Track Map
+             * @description Planens spårnamn → stationens spår-id.
+             */
+            track_map?: {
+                [key: string]: string;
+            };
+            /**
+             * Exit Map
+             * @description Sträckans id → stationens utfart (H26).
+             */
+            exit_map?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DefaultTrack
+         * @description Standard track per train type and direction at a place (B4).
+         */
+        "trainmeet.sync-1.home-bundle.DefaultTrack": {
+            /** Track */
+            track: string;
+            /**
+             * Train Type
+             * @description Tomt betyder alla tågslag.
+             * @default null
+             */
+            train_type: string | null;
+            /**
+             * @description Tomt betyder båda riktningarna.
+             * @default null
+             */
+            towards: components["schemas"]["trainmeet.sync-1.home-bundle.Side"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Display */
+        "trainmeet.sync-1.home-bundle.Display": {
+            /**
+             * Graph Order
+             * @description Platserna i grafen.
+             */
+            graph_order?: string[];
+            /** Graph Pages */
+            graph_pages?: components["schemas"]["trainmeet.sync-1.home-bundle.GraphPage"][];
+            /**
+             * Reference Layout
+             * @description Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara ritningen av banan; en plats utan läge ritas efter sträckorna.
+             */
+            reference_layout?: {
+                [key: string]: components["schemas"]["trainmeet.sync-1.home-bundle.MapPoint"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Draft
+         * @description Utkastet: what Planering works on until it is published as a version.
+         */
+        "trainmeet.sync-1.home-bundle.Draft": {
+            /**
+             * Format
+             * @default trainmeet.planning/1
+             * @constant
+             */
+            format: "trainmeet.planning/1";
+            meet: components["schemas"]["trainmeet.sync-1.home-bundle.Meet"];
+            /**
+             * Revision
+             * @description Räknas upp varje gång utkastet sparas (PLAN-38).
+             * @default 0
+             */
+            revision: number;
+            /**
+             * @description Tomt tills underlag finns.
+             * @default null
+             */
+            package: components["schemas"]["trainmeet.sync-1.home-bundle.MeetPackage"] | null;
+            /** Facts */
+            facts?: components["schemas"]["trainmeet.sync-1.home-bundle.Fact"][];
+            rulebook?: components["schemas"]["trainmeet.sync-1.home-bundle.Rulebook"];
+            /** Sources */
+            sources?: components["schemas"]["trainmeet.sync-1.home-bundle.Source"][];
+            /** Questions */
+            questions?: components["schemas"]["trainmeet.sync-1.home-bundle.Question"][];
+            /** @default null */
+            report: components["schemas"]["trainmeet.sync-1.home-bundle.ImportReport"] | null;
+            /**
+             * Changes
+             * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
+             */
+            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"])[];
+            /**
+             * Taken
+             * @description Förslagen från Drift som tagits med, i ordning.
+             */
+            taken?: components["schemas"]["trainmeet.sync-1.home-bundle.TakenChange"][];
+            /**
+             * Let Stand
+             * @description Låt stå i rimlighetskontrollen: avvikelsen och fingeravtrycket (PLAN-36).
+             */
+            let_stand?: {
+                [key: string]: string;
+            };
+            /**
+             * Double Track Declined
+             * @description Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.
+             */
+            double_track_declined?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Duty
+         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.
+         */
+        "trainmeet.sync-1.home-bundle.Duty": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Legs */
+            legs?: components["schemas"]["trainmeet.sync-1.home-bundle.DutyLeg"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DutyLeg */
+        "trainmeet.sync-1.home-bundle.DutyLeg": {
+            /** Train */
+            train: string;
+            /** From Call */
+            from_call: string;
+            /** To Call */
+            to_call: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Exit */
+        "trainmeet.sync-1.home-bundle.Exit": {
+            /**
+             * Id
+             * @description Utfartens fasta id. Kopplas till en sträcka per träff (H26).
+             */
+            id: string;
+            /** @description Vilken sida utfarten ligger på. */
+            side: components["schemas"]["trainmeet.sync-1.home-bundle.Side"];
+            /**
+             * Name
+             * @description Till exempel Mot Norrby.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når utfarten, vid gränsen.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen, med sina namn.
+             */
+            signals?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExtraTrain
+         * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
+         *     departure time, where Drift fills in the places between.
+         */
+        "trainmeet.sync-1.home-bundle.ExtraTrain": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "extra";
+            /** Number */
+            number: string;
+            /**
+             * Departure
+             * @description Avgången från första driftplatsen.
+             */
+            departure: string;
+            /**
+             * Copy Of
+             * @description Tåget som kopieras.
+             * @default null
+             */
+            copy_of: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Days
+             * @description Trafikdagarna; tomt betyder kopians dagar, eller alla.
+             * @default null
+             */
+            days: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Fact
+         * @description What the draft knows about one thing, where it comes from and how sure it is.
+         */
+        "trainmeet.sync-1.home-bundle.Fact": {
+            /**
+             * Ref
+             * @description Vad det gäller: place:p5, section:d16, train:t27, call:c161, eller ett fält som place:p5.phone.
+             */
+            ref: string;
+            certainty: components["schemas"]["trainmeet.sync-1.home-bundle.Certainty"];
+            /** Origins */
+            origins: components["schemas"]["trainmeet.sync-1.home-bundle.Origin"][];
+            /**
+             * Note
+             * @description Hur en regel bestämde värdet.
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Finding
+         * @description From the traffic check (Planering): shown, but does not stop publishing.
+         */
+        "trainmeet.sync-1.home-bundle.Finding": {
+            /** Id */
+            id: string;
+            severity: components["schemas"]["trainmeet.sync-1.home-bundle.Severity"];
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Refs */
+            refs?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPage
+         * @description Grafens linje: one sheet of the train graph, the places in order along it.
+         */
+        "trainmeet.sync-1.home-bundle.GraphPage": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Places */
+            places: string[];
+            /**
+             * Number
+             * @description Linjens nummer i planen.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Distances
+             * @description Avståndet från första platsen, en per plats och i ordning. Tomt: grafen använder den typiska gångtiden.
+             * @default null
+             */
+            distances: number[] | null;
+            /**
+             * Color
+             * @default null
+             */
+            color: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ImportReport
+         * @description Importrapporten: the level, what the source gave, what rules decided, what was left out.
+         */
+        "trainmeet.sync-1.home-bundle.ImportReport": {
+            /** Source */
+            source: string;
+            /** Level */
+            level: number;
+            /** Places */
+            places?: {
+                [key: string]: number;
+            };
+            /**
+             * Sections
+             * @default 0
+             */
+            sections: number;
+            /**
+             * Parts
+             * @default 0
+             */
+            parts: number;
+            /**
+             * Trains
+             * @default 0
+             */
+            trains: number;
+            /**
+             * Calls
+             * @default 0
+             */
+            calls: number;
+            /**
+             * Duties
+             * @default 0
+             */
+            duties: number;
+            /**
+             * Turns
+             * @default 0
+             */
+            turns: number;
+            /**
+             * Shunting
+             * @default 0
+             */
+            shunting: number;
+            /**
+             * Train Types
+             * @default 0
+             */
+            train_types: number;
+            /**
+             * Notes
+             * @description Vad reglerna bestämde, i klartext.
+             */
+            notes?: string[];
+            /**
+             * Left Out
+             * @description Det som inte lästes in, och varför.
+             */
+            left_out?: string[];
+            /**
+             * Verdicts
+             * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
+             */
+            verdicts?: components["schemas"]["trainmeet.sync-1.home-bundle.ListVerdict"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Language
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * ListVerdict
+         * @description Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.
+         */
+        "trainmeet.sync-1.home-bundle.ListVerdict": {
+            /**
+             * Document
+             * @description Listans fil, till exempel Lek Lekby.odt.
+             */
+            document: string;
+            /**
+             * Place
+             * @description Driftplatsen listan gäller, i planen.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Rows
+             * @description Listans rader, ett uppehåll på två rader räknat en gång.
+             */
+            rows: number;
+            /**
+             * Agreeing
+             * @description Rader som stämmer med planen.
+             */
+            agreeing: number;
+            /**
+             * Differences
+             * @description Det som skiljer, i klartext.
+             */
+            differences?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MapPoint
+         * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
+         */
+        "trainmeet.sync-1.home-bundle.MapPoint": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Meet */
+        "trainmeet.sync-1.home-bundle.Meet": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Country
+             * @default se
+             * @enum {string}
+             */
+            country: "se" | "dk" | "no" | "de";
+            /**
+             * Timezone
+             * @default Europe/Stockholm
+             */
+            timezone: string;
+            /**
+             * First Date
+             * @default null
+             */
+            first_date: string | null;
+            /**
+             * Last Date
+             * @default null
+             */
+            last_date: string | null;
+            traffic_week?: components["schemas"]["trainmeet.sync-1.home-bundle.TrafficWeek"];
+            /** @default requested */
+            clearance_mode: components["schemas"]["trainmeet.sync-1.home-bundle.ClearanceMode"];
+            /**
+             * Settings
+             * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
+             */
+            settings?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** MeetPackage */
+        "trainmeet.sync-1.home-bundle.MeetPackage": {
+            /**
+             * Format
+             * @default trainmeet.meet/1
+             * @constant
+             */
+            format: "trainmeet.meet/1";
+            /**
+             * Requires Hub
+             * @description Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.
+             * @default null
+             */
+            requires_hub: string | null;
+            meet: components["schemas"]["trainmeet.sync-1.home-bundle.Meet"];
+            clock: components["schemas"]["trainmeet.sync-1.home-bundle.Clock"];
+            /** Attachments */
+            attachments?: components["schemas"]["trainmeet.sync-1.home-bundle.Attachment"][];
+            /** Places */
+            places: components["schemas"]["trainmeet.sync-1.home-bundle.Place"][];
+            /** Sections */
+            sections?: components["schemas"]["trainmeet.sync-1.home-bundle.Section"][];
+            /** Trains */
+            trains?: components["schemas"]["trainmeet.sync-1.home-bundle.Train"][];
+            /** Duties */
+            duties?: components["schemas"]["trainmeet.sync-1.home-bundle.Duty"][];
+            /** Turns */
+            turns?: components["schemas"]["trainmeet.sync-1.home-bundle.Turn"][];
+            /** Shunting */
+            shunting?: components["schemas"]["trainmeet.sync-1.home-bundle.Shunting"][];
+            display?: components["schemas"]["trainmeet.sync-1.home-bundle.Display"];
+            /** About */
+            about?: {
+                [key: string]: components["schemas"]["trainmeet.sync-1.home-bundle.About"];
+            };
+            /** Findings */
+            findings?: components["schemas"]["trainmeet.sync-1.home-bundle.Finding"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NoStop
+         * @description Ej uppehåll: the train passes the place without stopping (genomfart), or stops again.
+         */
+        "trainmeet.sync-1.home-bundle.NoStop": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "no_stop";
+            /** Call */
+            call: string;
+            /**
+             * Stops
+             * @default false
+             */
+            stops: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Origin */
+        "trainmeet.sync-1.home-bundle.Origin": {
+            /**
+             * Source
+             * @description Underlaget, eller planner för en ändring i Planering.
+             */
+            source: string;
+            /**
+             * At
+             * @description Var i underlaget, till exempel Trains Id 27.
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Place
+         * @description Driftplats: a place from the plan. Sections, calls and protocols point here.
+         */
+        "trainmeet.sync-1.home-bundle.Place": {
+            /** Id */
+            id: string;
+            /**
+             * Code
+             * @description Signaturen, till exempel Nby.
+             */
+            code: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.sync-1.home-bundle.PlaceKind"];
+            /**
+             * Remote From
+             * @description Driftplatsen som fjärrstyr.
+             * @default null
+             */
+            remote_from: string | null;
+            /**
+             * Phone
+             * @description Träffens leknummer (H30).
+             * @default null
+             */
+            phone: string | null;
+            /** Aliases */
+            aliases?: string[];
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.sync-1.home-bundle.PlanTrack"][];
+            /** Default Tracks */
+            default_tracks?: components["schemas"]["trainmeet.sync-1.home-bundle.DefaultTrack"][];
+            /** @default null */
+            station: components["schemas"]["trainmeet.sync-1.home-bundle.CoupledStation"] | null;
+            /** Instructions */
+            instructions?: {
+                [key: string]: string;
+            };
+            /**
+             * Source Ids
+             * @description Planens käll-id:n, till exempel för Tellurian.
+             */
+            source_ids?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PlaceChange
+         * @description A change to one place in the draft. Only the fields sent are changed.
+         */
+        "trainmeet.sync-1.home-bundle.PlaceChange": {
+            /** Place */
+            place: string;
+            /**
+             * Phone
+             * @default null
+             */
+            phone: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PlaceKind
+         * @description Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.PlaceKind": "manned" | "remote" | "unmanned" | "shadow_yard" | "halt";
+        /** PlanTrack */
+        "trainmeet.sync-1.home-bundle.PlanTrack": {
+            /**
+             * Name
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Proposal
+         * @description Förslag från Drift (4.4, PLAN-03): a driftändring made during the meet, for the next
+         *     version. The planner takes it into the draft (Ta med) or rejects it (Avslå); Drift sees the
+         *     answer.
+         */
+        "trainmeet.sync-1.home-bundle.Proposal": {
+            /**
+             * Id
+             * @description Driftändringens id i Drift.
+             */
+            id: string;
+            /** Meet */
+            meet: string;
+            /**
+             * Version
+             * @description Versionen som kördes när ändringen gjordes.
+             */
+            version: number;
+            /** Change */
+            change: components["schemas"]["trainmeet.sync-1.home-bundle.CancelTrain"] | components["schemas"]["trainmeet.sync-1.home-bundle.ExtraTrain"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeTimes"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangePlace"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeTrack"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeSectionTracks"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeDays"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeNumber"] | components["schemas"]["trainmeet.sync-1.home-bundle.NoStop"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainNote"];
+            /**
+             * Train Number
+             * @description Tågets nummer då.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Made
+             * Format: date-time
+             */
+            made: string;
+            /** @default waiting */
+            status: components["schemas"]["trainmeet.sync-1.home-bundle.ProposalStatus"];
+            /**
+             * Answered
+             * @default null
+             */
+            answered: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ProposalStatus
+         * @description Planering's answer to a driftändring (4.4, PLAN-03).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
+         * Question
+         * @description Asked only where a rule is missing or two equal sources disagree (import 3.6).
+         */
+        "trainmeet.sync-1.home-bundle.Question": {
+            /** Id */
+            id: string;
+            /**
+             * Cause
+             * @description Orsaken, som frågorna grupperas efter.
+             */
+            cause: string;
+            /** Message */
+            message: string;
+            /** Refs */
+            refs?: string[];
+            /** Alternatives */
+            alternatives?: components["schemas"]["trainmeet.sync-1.home-bundle.Alternative"][];
+            /**
+             * Answer
+             * @default null
+             */
+            answer: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Rulebook
+         * @description Regelboken: the meet's train types. Read by every source; added to by the planner.
+         */
+        "trainmeet.sync-1.home-bundle.Rulebook": {
+            /** Train Types */
+            train_types?: components["schemas"]["trainmeet.sync-1.home-bundle.TrainTypeRule"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Section
+         * @description Sträcka: the plan's clearance section between two places that clear to each other (F1).
+         *     A train gets clearance once for the whole section, even past halts along it.
+         */
+        "trainmeet.sync-1.home-bundle.Section": {
+            /** Id */
+            id: string;
+            /** Place A */
+            place_a: string;
+            /** Place B */
+            place_b: string;
+            /** @default single */
+            tracks: components["schemas"]["trainmeet.sync-1.home-bundle.TrackKind"];
+            /**
+             * @description Bara om sträckan avviker från träffens grundläge.
+             * @default null
+             */
+            clearance_mode: components["schemas"]["trainmeet.sync-1.home-bundle.ClearanceMode"] | null;
+            /**
+             * @description Sidan vid place_a (F3).
+             * @default null
+             */
+            side_at_a: components["schemas"]["trainmeet.sync-1.home-bundle.Side"] | null;
+            /**
+             * @description Sidan vid place_b (F3).
+             * @default null
+             */
+            side_at_b: components["schemas"]["trainmeet.sync-1.home-bundle.Side"] | null;
+            /**
+             * Parts
+             * @description Delsträckorna i ordning från place_a till place_b.
+             */
+            parts?: components["schemas"]["trainmeet.sync-1.home-bundle.SectionPart"][];
+            /**
+             * Closed
+             * @description Stängd: inga tåg klareras över sträckan (DRIFT-41).
+             * @default false
+             */
+            closed: boolean;
+            /** Source Ids */
+            source_ids?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SectionChange
+         * @description A change to one section in the draft. Clearance mode empty follows the meet.
+         */
+        "trainmeet.sync-1.home-bundle.SectionChange": {
+            /** Section */
+            section: string;
+            /** @default null */
+            clearance_mode: components["schemas"]["trainmeet.sync-1.home-bundle.ClearanceMode"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SectionPart
+         * @description Delsträcka: the physical piece between two places, for map, graph and detection.
+         */
+        "trainmeet.sync-1.home-bundle.SectionPart": {
+            /** Id */
+            id: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SectionTracksChange
+         * @description Enkel- eller dubbelspår for one section in the draft.
+         */
+        "trainmeet.sync-1.home-bundle.SectionTracksChange": {
+            /** Section */
+            section: string;
+            tracks: components["schemas"]["trainmeet.sync-1.home-bundle.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Severity
+         * @description A published package carries no structural errors: those stop publishing.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.Severity": "conflict" | "observation";
+        /**
+         * Shunting
+         * @description Växlingsuppdrag at a place.
+         */
+        "trainmeet.sync-1.home-bundle.Shunting": {
+            /** Id */
+            id: string;
+            /** Place */
+            place: string;
+            /** Name */
+            name: string;
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.Side": "left" | "right";
+        /**
+         * Source
+         * @description Underlag: a file added to the meet. Kept as it came, so it can be read again.
+         */
+        "trainmeet.sync-1.home-bundle.Source": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.sync-1.home-bundle.SourceKind"];
+            /** Filename */
+            filename: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+            /**
+             * Level
+             * @description Underlagsnivån filen ger (import 4).
+             */
+            level: number;
+            /**
+             * Added
+             * Format: date-time
+             */
+            added: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SourceFile
+         * @description Ett underlag som det kom, med i flytten.
+         */
+        "trainmeet.sync-1.home-bundle.SourceFile": {
+            /** Id */
+            id: string;
+            /**
+             * Data
+             * @description Filen i base64.
+             */
+            data: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SourceKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
+        /**
+         * StationOutside
+         * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
+         */
+        "trainmeet.sync-1.home-bundle.StationOutside": {
+            /**
+             * Format
+             * @default trainmeet.station-outside/1
+             * @constant
+             */
+            format: "trainmeet.station-outside/1";
+            /**
+             * Station Id
+             * @description Stationens id, skapat i TKL Studio.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.sync-1.home-bundle.StationTrack"][];
+            /** Exits */
+            exits: components["schemas"]["trainmeet.sync-1.home-bundle.Exit"][];
+            /** Sides */
+            sides?: components["schemas"]["trainmeet.sync-1.home-bundle.BoxSide"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationTrack */
+        "trainmeet.sync-1.home-bundle.StationTrack": {
+            /**
+             * Id
+             * @description Spårets korta namn i stationen, till exempel 1a. Fast id.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Det som står på skärmen, till exempel Spår 1a.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TakenChange
+         * @description A driftändring taken into the draft. It is laid on again when the sources are read
+         *     again, after the planner's own changes.
+         */
+        "trainmeet.sync-1.home-bundle.TakenChange": {
+            /** Id */
+            id: string;
+            /** Change */
+            change: components["schemas"]["trainmeet.sync-1.home-bundle.CancelTrain"] | components["schemas"]["trainmeet.sync-1.home-bundle.ExtraTrain"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeTimes"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangePlace"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeTrack"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeSectionTracks"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeDays"] | components["schemas"]["trainmeet.sync-1.home-bundle.ChangeNumber"] | components["schemas"]["trainmeet.sync-1.home-bundle.NoStop"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainNote"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.TrackKind": "single" | "double";
+        /**
+         * TrafficWeek
+         * @description The planner's default game week (F8). Drift suggests it; the dispatcher may pick another.
+         */
+        "trainmeet.sync-1.home-bundle.TrafficWeek": {
+            /** @default mon */
+            start_weekday: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"];
+            /**
+             * Days
+             * @description Antal speldygn, Dag 1…N.
+             * @default 1
+             */
+            days: number;
+            /**
+             * Runs Over Midnight
+             * @default false
+             */
+            runs_over_midnight: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Train */
+        "trainmeet.sync-1.home-bundle.Train": {
+            /** Id */
+            id: string;
+            /**
+             * Number
+             * @description Tågnumret, för inmatning och visning.
+             */
+            number: string;
+            /**
+             * Service Key
+             * @description Håller isär två tåg med samma nummer samma dag (F9).
+             * @default null
+             */
+            service_key: string | null;
+            /**
+             * Train Type
+             * @description Tågslaget.
+             * @default null
+             */
+            train_type: string | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /**
+             * Days
+             * @description Trafikdagarna.
+             */
+            days: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"][];
+            /**
+             * Manual
+             * @description Körs manuellt (F10).
+             * @default false
+             */
+            manual: boolean;
+            /** Calls */
+            calls: components["schemas"]["trainmeet.sync-1.home-bundle.Call"][];
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** Source Ids */
+            source_ids?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainChange
+         * @description One field of a train in the draft (PLAN-01): its number or its note. Empty clears the
+         *     note; a train always has a number.
+         */
+        "trainmeet.sync-1.home-bundle.TrainChange": {
+            /** Train */
+            train: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "number" | "note";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainDaysChange
+         * @description A train's days in the draft (PLAN-01).
+         */
+        "trainmeet.sync-1.home-bundle.TrainDaysChange": {
+            /** Train */
+            train: string;
+            /** Days */
+            days: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainNote
+         * @description Anmärkning: text that follows the train, or one of its calls. Empty takes it away.
+         */
+        "trainmeet.sync-1.home-bundle.TrainNote": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "note";
+            /** Train */
+            train: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainTypeRule
+         * @description A train type in the rulebook: the abbreviation trains carry, and what it carries.
+         */
+        "trainmeet.sync-1.home-bundle.TrainTypeRule": {
+            /**
+             * Code
+             * @description Förkortningen, som tågen visar den: Pt, X, RE.
+             */
+            code: string;
+            /**
+             * Names
+             * @description Tågslagens namn i underlaget.
+             */
+            names?: string[];
+            /**
+             * Content
+             * @description Resande, gods eller tjänst. Tomt tills en regel finns.
+             * @default null
+             */
+            content: ("passengers" | "goods" | "service") | null;
+            certainty: components["schemas"]["trainmeet.sync-1.home-bundle.Certainty"];
+            /** Origins */
+            origins: components["schemas"]["trainmeet.sync-1.home-bundle.Origin"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Turn
+         * @description Omlopp: the trains one set of vehicles runs, in order.
+         */
+        "trainmeet.sync-1.home-bundle.Turn": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Trains */
+            trains?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * SentVersion
+         * @description En version som Pi:n publicerade som hem, upp till molnet: info och byten (SYNK-10).
+         */
+        "trainmeet.sync-1.sent-version": {
+            /** Generation */
+            generation: number;
+            version: components["schemas"]["trainmeet.sync-1.sent-version.Version"];
+            /**
+             * Package
+             * @description Paketet som det publicerades, som JSON-text.
+             */
+            package: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Version
+         * @description A published version: frozen, never changed, never deleted (Ordlista).
+         */
+        "trainmeet.sync-1.sent-version.Version": {
+            /** Meet */
+            meet: string;
+            /** Number */
+            number: number;
+            /**
+             * Published
+             * Format: date-time
+             */
+            published: string;
+            /** Checksum */
+            checksum: string;
+            /**
+             * Conflicts
+             * @default 0
+             */
+            conflicts: number;
+            /**
+             * Observations
+             * @default 0
+             */
+            observations: number;
+            /**
+             * Withdrawn
+             * @description Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.
+             * @default null
+             */
+            withdrawn: string | null;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;

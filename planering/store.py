@@ -175,6 +175,60 @@ class Planning:
             )
         return [(s, bytes(bodies[s.id])) for s in draft.sources if s.id in bodies]
 
+    # --- Träffens hem flyttar (H35, SYNK-16) ------------------------------------------------
+
+    def export(
+        self, meet_id: str
+    ) -> tuple[datetime, Draft, list[tuple[str, bytes]], list[Proposal]]:
+        """Everything the meet's home takes along: when it was made, the draft, the sources as
+        they came and the proposals from Drift."""
+        with self._transaction() as db:
+            row = db.execute("SELECT created FROM meet WHERE id=?", (meet_id,)).fetchone()
+            if row is None:
+                raise UnknownMeet("Träffen finns inte.")
+            draft = self._draft(db, meet_id)
+            files = [
+                (str(source), bytes(body))
+                for source, body in db.execute(
+                    "SELECT source_id, body FROM source_file WHERE meet_id=?", (meet_id,)
+                )
+            ]
+            proposals = [
+                Proposal.model_validate_json(body)
+                for (body,) in db.execute(
+                    "SELECT body FROM proposal WHERE meet_id=? ORDER BY made", (meet_id,)
+                )
+            ]
+        return datetime.fromtimestamp(row[0], UTC), draft, files, proposals
+
+    def adopt(
+        self,
+        created: datetime,
+        draft: Draft,
+        files: list[tuple[str, bytes]],
+        proposals: list[Proposal],
+    ) -> Draft:
+        """The meet as the hub it comes from had it: it takes the place of what was here."""
+        meet_id = draft.meet.id
+        with self._transaction() as db:
+            # Updated in place: in a file from step 4 the versions still point at the meet.
+            for table in ("source_file", "proposal", "pending"):
+                db.execute(f"DELETE FROM {table} WHERE meet_id=?", (meet_id,))
+            db.execute(
+                "INSERT INTO meet VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET"
+                " created=excluded.created, summary=excluded.summary, draft=excluded.draft",
+                (meet_id, created.timestamp(), _summary(draft), draft.model_dump_json()),
+            )
+            db.executemany(
+                "INSERT INTO source_file VALUES (?, ?, ?)",
+                ((meet_id, source, body) for source, body in files),
+            )
+            db.executemany(
+                "INSERT INTO proposal VALUES (?, ?, ?, ?)",
+                ((meet_id, p.id, p.made.timestamp(), p.model_dump_json()) for p in proposals),
+            )
+        return draft
+
     def check(self, meet_id: str) -> Check:
         """Trafikkontrollen (PLAN-35): the findings, what stops publishing, and the
         double-track questions."""

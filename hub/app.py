@@ -33,6 +33,7 @@ from hub.running import Running
 from hub.stores import AnyRun
 from planering.store import Planning
 from synk.follower import Call, Follower, urllib_call
+from synk.home import Homes
 from synk.link import Links
 from synk.store import Versions
 
@@ -81,6 +82,7 @@ def create_app(
     # Synk keeps the versions, in Planering's file (SYNK-20).
     versions = Versions(data_dir / "planering.sqlite3")
     links = Links(data_dir / "planering.sqlite3")
+    homes = Homes(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
     running = Running(
         data_dir, package, provbanan.package_key(), plans, versions, hub_version=info.version
@@ -101,8 +103,14 @@ def create_app(
         sync_call,
         leading=running.leading,
         events_after=lambda run, seq: running.store.events_after(run, seq),
+        homes=homes,
     )
     running.followed_answers = links.answers
+
+    def me() -> tuple[str, str]:
+        return links.hub_id(), login.state().name
+
+    running.home_here = lambda meet: homes.home(meet, *me()).here
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -132,8 +140,12 @@ def create_app(
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
-    app.include_router(planering_api.router(plans, versions, links, login))
-    app.include_router(synk_api.router(plans, versions, links, follower, running, login, hello))
+    app.include_router(
+        planering_api.router(plans, versions, links, homes, me, login, published=follower.nudge)
+    )
+    app.include_router(
+        synk_api.router(plans, versions, links, follower, running, homes, login, hello)
+    )
     runs = AnyRun(lambda: running.store, lambda: preview)
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))

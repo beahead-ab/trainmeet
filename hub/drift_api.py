@@ -156,9 +156,9 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             _error(error)
         event = next(e for e in reversed(state.history) if e.kind == drift.EventKind.CHANGE_MADE)
         made = drift.ChangeMade.model_validate(event.data)
-        if running.meet != PROVBANAN:
+        if running.meet != PROVBANAN and running.home_here(running.meet):
             # Every driftändring is a proposal for the next version (4.4). Synk carries it when
-            # Planering is elsewhere; on the hub it is handed over here.
+            # Planering is elsewhere; on the meet's home it is handed over here.
             running.planning.propose(
                 running.meet, state.version, made.change_id, made.change, made.train_number
             )
@@ -178,7 +178,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             event = running.store.drop_change(run_id, change_id).history[-1]
         except failures as error:
             _error(error)
-        if running.meet != PROVBANAN:
+        if running.meet != PROVBANAN and running.home_here(running.meet):
             running.planning.withdraw(running.meet, change_id)
         return event.model_dump(mode="json")
 

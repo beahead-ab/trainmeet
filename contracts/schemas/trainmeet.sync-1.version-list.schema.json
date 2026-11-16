@@ -3,6 +3,61 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.version-list.schema.json",
   "title": "trainmeet.sync-1.version-list",
   "$defs": {
+    "Home": {
+      "additionalProperties": true,
+      "description": "Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den\nandra hubben följer och ändrar inget i Planering.",
+      "properties": {
+        "meet": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "hub_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Hub Id",
+          "type": "string"
+        },
+        "hub_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Hub Name",
+          "type": "string"
+        },
+        "here": {
+          "description": "Är hemmet den här hubben?",
+          "title": "Here",
+          "type": "boolean"
+        },
+        "generation": {
+          "default": 0,
+          "description": "Räknas upp varje gång hemmet flyttas.",
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Since"
+        }
+      },
+      "required": [
+        "meet",
+        "hub_id",
+        "hub_name",
+        "here"
+      ],
+      "title": "Home",
+      "type": "object"
+    },
     "Version": {
       "additionalProperties": true,
       "description": "A published version: frozen, never changed, never deleted (Ordlista).",
@@ -91,6 +146,18 @@
       "minLength": 1,
       "title": "Mark",
       "type": "string"
+    },
+    "home": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Home"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffens hem, som molnet ser det."
     }
   },
   "required": [

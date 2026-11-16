@@ -156,11 +156,25 @@ export function Molnet({ admin, initial }: { admin: boolean; initial?: CloudLink
                   <div>
                     <b>{cloud.meet_name}</b>
                     <div className="liten">{`${cloud.cloud_name} · ${cloud.address} · ${cloud.versions === 1 ? "1 version" : `${cloud.versions} versioner`} · hörd ${when(cloud.heard)}`}</div>
+                    <div className="liten">{cloud.home_here ? "Träffens hem är här: planera och publicera här, molnet följer." : `Träffens hem är ${cloud.cloud_name}: där planeras och publiceras den.`}</div>
                     {cloud.problem && <div className="liten varning">{cloud.problem}</div>}
                   </div>
-                  <button type="button" disabled={busy} onClick={() => void act(() => hub.disconnectCloud(cloud.meet), `${cloud.meet_name} följs inte längre. Versionerna finns kvar.`)}>
-                    Koppla bort
-                  </button>
+                  <span className="rad">
+                    {cloud.home_here ? (
+                      <button type="button" className="primar" disabled={busy} onClick={() => void act(() => hub.handBack(cloud.meet), `${cloud.meet_name} är tillbaka i ${cloud.cloud_name}, med det som ändrades här.`)}>
+                        Lämna tillbaka
+                      </button>
+                    ) : (
+                      <>
+                        <button type="button" disabled={busy} onClick={() => void act(() => hub.takeHome(cloud.meet), `Träffens hem är nu här. ${cloud.cloud_name} följer.`)}>
+                          Ta hem träffen hit
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => void act(() => hub.disconnectCloud(cloud.meet), `${cloud.meet_name} följs inte längre. Versionerna finns kvar.`)}>
+                          Koppla bort
+                        </button>
+                      </>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

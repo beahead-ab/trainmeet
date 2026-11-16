@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Final, Literal, NoReturn
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
@@ -32,6 +33,7 @@ from integrationer import (
 )
 from planering import export
 from planering.store import Planning, PlanningError
+from synk.home import Homes
 from synk.link import Links
 from synk.store import SyncError, Versions
 
@@ -49,8 +51,29 @@ def filename(name: str) -> str:
     return _CONTROL.sub("", base).strip()[:200] or "underlag"
 
 
-def router(store: Planning, kept: Versions, links: Links, login: LocalLogin) -> APIRouter:
-    routes = APIRouter(prefix="/api/planering/1")
+def router(
+    store: Planning,
+    kept: Versions,
+    links: Links,
+    homes: Homes,
+    me: Callable[[], tuple[str, str]],
+    login: LocalLogin,
+    published: Callable[[str], None] = lambda meet: None,
+) -> APIRouter:
+    def at_home(request: Request) -> None:
+        """Träffens hem (H35, SYNK-16): a meet is changed only where its home is. Elsewhere it
+        is looked at, and its versions come from the home."""
+        meet = request.path_params.get("meet")
+        if request.method != "POST" or not meet:
+            return
+        hub_id, hub_name = me()
+        home = homes.home(meet, hub_id, hub_name)
+        if not home.here:
+            raise HTTPException(
+                409, f"Träffens hem är {home.hub_name}. Planera där, eller ta hem träffen hit."
+            )
+
+    routes = APIRouter(prefix="/api/planering/1", dependencies=[Depends(at_home)])
 
     def admin(session: str | None, authorization: str | None) -> None:
         require_admin(login, session, authorization)
@@ -61,8 +84,14 @@ def router(store: Planning, kept: Versions, links: Links, login: LocalLogin) -> 
         follows in the cloud (SYNK-02): those are planned there, and run here."""
         response.headers["Cache-Control"] = "no-store"
         published = kept.meets()
+        away = homes.elsewhere(me()[0])
         planned = [
-            summary.model_copy(update={"versions": published.get(summary.meet.id, [])})
+            summary.model_copy(
+                update={
+                    "versions": published.get(summary.meet.id, []),
+                    "home": away.get(summary.meet.id),
+                }
+            )
             for summary in store.meets()
         ]
         mine = {summary.meet.id for summary in planned}
@@ -753,9 +782,11 @@ def router(store: Planning, kept: Versions, links: Links, login: LocalLogin) -> 
         admin(session, authorization)
         try:
             package = store.freeze(meet)
-            return kept.publish(meet, package.model_dump_json().encode()).model_dump(mode="json")
+            version = kept.publish(meet, package.model_dump_json().encode())
         except (PlanningError, SyncError) as error:
             _fail(error)
+        published(meet)  # a hub that follows the meet gets it at once (SYNK-10)
+        return version.model_dump(mode="json")
 
     # Förslag från Drift (4.4, PLAN-03): Ta med or Avslå.
 
@@ -811,9 +842,11 @@ def router(store: Planning, kept: Versions, links: Links, login: LocalLogin) -> 
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            return kept.withdraw(meet, number).model_dump(mode="json")
+            withdrawn = kept.withdraw(meet, number)
         except SyncError as error:
             _fail(error)
+        published(meet)
+        return withdrawn.model_dump(mode="json")
 
     @routes.get("/meets/{meet}/versions/{number}")
     def version(meet: str, number: int, response: Response) -> dict[str, Any]:

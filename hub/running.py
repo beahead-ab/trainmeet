@@ -68,8 +68,10 @@ class Running:
         self.planning = planning
         self.versions = versions
         self.hub_version = hub_version
-        # Planering's answers from the cloud, for a meet this hub follows (4.4, SYNK-02).
+        # Planering's answers from the cloud, for a meet this hub follows (4.4, SYNK-02), and
+        # whether the meet's home is here (H35).
         self.followed_answers: Callable[[str], dict[str, ProposalStatus]] = lambda meet: {}
+        self.home_here: Callable[[str], bool] = lambda meet: True
         self.state_path = data_dir / "drift" / "running.json"
         self._stores: dict[tuple[str, int], PreviewStore] = {}
         self._lock = Lock()
@@ -128,8 +130,9 @@ class Running:
         return Leading(self.meet, self.version, run_id, store.package_key)
 
     def answers(self, meet: str) -> dict[str, ProposalStatus]:
-        """Planering's answer to each driftändring: here, or from the cloud (4.4)."""
-        return {**self.followed_answers(meet), **self.planning.answers(meet)}
+        """Planering's answer to each driftändring: from the meet's home (4.4, H35)."""
+        here, there = self.planning.answers(meet), self.followed_answers(meet)
+        return {**there, **here} if self.home_here(meet) else {**here, **there}
 
     def _led_elsewhere(self, store: PreviewStore) -> str | None:
         try:

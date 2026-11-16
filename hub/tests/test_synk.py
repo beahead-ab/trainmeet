@@ -317,3 +317,96 @@ def test_after_a_break_the_pi_goes_on_from_the_clouds_acknowledgement(
     mirror = cloud.app.state.running.mirror(MEET, 1)  # type: ignore[attr-defined]
     up = [e.seq for e in mirror.events_after(mirror.current(), 0)]
     assert up == list(range(1, len(up) + 1))
+
+
+def test_the_meets_home_moves_to_the_pi_and_back(cloud: TestClient, tmp_path: Path) -> None:
+    """Träffens hem (H35, SYNK-03, SYNK-16): the Pi takes the home with one button and the
+    cloud only looks; the Pi publishes and the cloud follows; after the meet the home goes back
+    with what was changed, and the Pi follows again. Never two version 2."""
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    taken = pi.post(f"/api/hub/cloud/{MEET}/take")
+    assert taken.status_code == 200, taken.text
+    [seen] = taken.json()
+    assert seen["home_here"] is True
+    # The draft came along, and the cloud only looks now.
+    down = planning.Draft.model_validate(pi.get(f"{API}/meets/{MEET}").json())
+    up = planning.Draft.model_validate(cloud.get(f"{API}/meets/{MEET}").json())
+    assert down.package == up.package and down.sources == up.sources
+    refused = cloud.post(f"{API}/meets/{MEET}/versions")
+    assert refused.status_code == 409 and "Träffens hem är Pi:n hemma" in refused.json()["detail"]
+    home = sync.Home.model_validate(cloud.get(f"{SYNC}/meets/{MEET}/home").json())
+    assert (home.hub_name, home.here, home.generation) == ("Pi:n hemma", False, 1)
+    assert cloud.post(f"{SYNC}/meets/{MEET}/code").status_code == 409, "codes only at the home"
+    # The Pi changes and publishes version 2; the cloud follows it, byte for byte.
+    place = down.package.places[0].id if down.package else ""
+    changed = pi.post(
+        f"{API}/meets/{MEET}/changes",
+        json={
+            "revision": down.revision,
+            "changes": [{"kind": "place", "place": place, "phone": "555"}],
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    assert pi.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    follow(pi)
+    up_versions = cloud.get(f"{API}/meets/{MEET}/versions").json()
+    down_versions = pi.get(f"{API}/meets/{MEET}/versions").json()
+    assert [v["checksum"] for v in up_versions] == [v["checksum"] for v in down_versions]
+    assert len(up_versions) == 2
+    # Lämna tillbaka: the cloud has what the Pi changed, and is the home again.
+    back = pi.post(f"/api/hub/cloud/{MEET}/back")
+    assert back.status_code == 200, back.text
+    assert back.json()[0]["home_here"] is False
+    after = planning.Draft.model_validate(cloud.get(f"{API}/meets/{MEET}").json())
+    assert after.package is not None
+    assert next(p.phone for p in after.package.places if p.id == place) == "555"
+    assert pi.post(f"{API}/meets/{MEET}/versions").status_code == 409, "the Pi only looks now"
+    [summary] = [s for s in pi.get(API + "/meets").json() if s["meet"]["id"] == MEET]
+    assert summary["home"] == "Molnet"
+    changed = cloud.post(
+        f"{API}/meets/{MEET}/changes",
+        json={
+            "revision": after.revision,
+            "changes": [{"kind": "place", "place": place, "phone": "556"}],
+        },
+    )
+    assert changed.status_code == 200
+    assert cloud.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    follow(pi)
+    assert [v["number"] for v in pi.get(f"{API}/meets/{MEET}/versions").json()] == [1, 2, 3]
+
+
+def test_the_cloud_takes_the_home_back_from_a_silent_pi(cloud: TestClient, tmp_path: Path) -> None:
+    """Ta tillbaka hem hit: when the Pi with the home is gone, the cloud takes it back with a
+    new generation; what the Pi sends from the old one is refused, and it learns the new home."""
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    assert pi.post(f"/api/hub/cloud/{MEET}/take").status_code == 200
+    taken = cloud.post(f"{SYNC}/meets/{MEET}/home/reclaim")
+    assert taken.status_code == 200 and taken.json()["here"] is True
+    assert taken.json()["generation"] == 2
+    assert pi.post(f"/api/hub/cloud/{MEET}/back").status_code == 409
+    follow(pi)
+    [seen] = pi.get("/api/hub/cloud").json()
+    assert seen["home_here"] is False
+    assert pi.post(f"{API}/meets/{MEET}/versions").status_code == 409
+    assert cloud.post(f"{API}/meets/{MEET}/versions").status_code in (201, 409)
+
+
+def test_while_the_pi_is_home_its_driftandringar_are_proposals_there(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    """4.4 at the meet's home: the Pi's own Planering gets the proposal, the cloud's does not."""
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    assert pi.post(f"/api/hub/cloud/{MEET}/take").status_code == 200
+    assert pi.post(DRIFT + "/start", json={"meet": MEET, "version": 1}).status_code == 201
+    train = pi.get(DRIFT + "/package").json()["trains"][0]["id"]
+    assert (
+        pi.post(DRIFT + "/changes", json={"change": {"kind": "cancel", "train": train}}).status_code
+        == 200
+    )
+    follower(pi).push()
+    assert [p["status"] for p in pi.get(f"{API}/meets/{MEET}/proposals").json()] == ["waiting"]
+    assert cloud.get(f"{API}/meets/{MEET}/proposals").json() == []

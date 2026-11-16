@@ -68,6 +68,12 @@
       "default": null,
       "description": "Varför Pi:n inte når molnet just nu.",
       "title": "Problem"
+    },
+    "home_here": {
+      "default": false,
+      "description": "Träffens hem är Pi:n: här planeras och publiceras (H35).",
+      "title": "Home Here",
+      "type": "boolean"
     }
   },
   "required": [

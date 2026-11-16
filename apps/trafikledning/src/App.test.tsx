@@ -178,7 +178,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   });
 
   it("links the Pi to the cloud with a code, and shows how the synk goes (SYNK-02)", () => {
-    const cloud = { address: "https://test.hub.trainmeet.app", meet: "varnamo", meet_name: "Värnamo Moduldagar", cloud_name: "Testhubben", linked: "2026-11-16T04:00:00Z", heard: "2026-11-16T04:01:00Z", versions: 2, problem: "Molnhubben svarar inte." };
+    const cloud = { address: "https://test.hub.trainmeet.app", meet: "varnamo", meet_name: "Värnamo Moduldagar", cloud_name: "Testhubben", linked: "2026-11-16T04:00:00Z", heard: "2026-11-16T04:01:00Z", versions: 2, problem: "Molnhubben svarar inte.", home_here: false };
     const linked = renderToStaticMarkup(<Molnet admin initial={[cloud]} />);
     expect(linked).toContain("<b>Värnamo Moduldagar</b>");
     expect(linked).toContain("Testhubben · https://test.hub.trainmeet.app · 2 versioner");
@@ -186,6 +186,11 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(linked).toContain("Koppla bort");
     expect(linked).toContain('id="cloud-connect" type="button" class="primar" disabled=""');
     expect(renderToStaticMarkup(<Molnet admin={false} initial={[]} />)).toContain("Logga in för att koppla Pi:n till molnet.");
+    expect(linked).toContain("Ta hem träffen hit");
+    expect(linked).toContain("Träffens hem är Testhubben: där planeras och publiceras den.");
+    const home = renderToStaticMarkup(<Molnet admin initial={[{ ...cloud, home_here: true }]} />);
+    expect(home).toContain("Lämna tillbaka");
+    expect(home).not.toContain("Koppla bort");
   });
 
   it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
