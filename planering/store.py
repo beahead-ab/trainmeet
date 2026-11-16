@@ -160,6 +160,17 @@ class Planning:
                 raise UnknownMeet("Underlaget finns inte.")
             return source, bytes(row[0])
 
+    def sources(self, meet_id: str) -> list[tuple[Source, bytes]]:
+        """Every source of the draft as it came, for Underlaget som ZIP (PLAN-07)."""
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            bodies = dict(
+                db.execute(
+                    "SELECT source_id, body FROM source_file WHERE meet_id=?", (meet_id,)
+                ).fetchall()
+            )
+        return [(s, bytes(bodies[s.id])) for s in draft.sources if s.id in bodies]
+
     def check(self, meet_id: str) -> Check:
         """Trafikkontrollen (PLAN-35): the findings, what stops publishing, and the
         double-track questions."""

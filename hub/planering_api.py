@@ -11,7 +11,7 @@ import hashlib
 import re
 from datetime import UTC, datetime
 from pathlib import PurePosixPath, PureWindowsPath
-from typing import Any, Final, NoReturn
+from typing import Any, Final, Literal, NoReturn
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
@@ -21,6 +21,7 @@ from contracts import planning
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
 from integrationer import planning_json
+from planering import export
 from planering.store import Planning, PlanningError
 
 MAX_UPLOAD: Final = planning_json.MAX_BYTES
@@ -158,6 +159,62 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             headers={
                 "Cache-Control": "no-store",
                 "Content-Disposition": f"attachment; filename*=UTF-8''{_encode(quoted)}",
+            },
+        )
+
+    @routes.get("/meets/{meet}/export/{what}")
+    def export_file(
+        meet: str,
+        what: Literal["stationstidtabeller", "tidtabell", "koruppdrag", "paket", "underlag"],
+        version: int | None = None,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Response:
+        """Exportera (PLAN-07): the draft, or a published version. The timetable is for anyone
+        who may look; the sources only for the administrator, like the files themselves."""
+        try:
+            draft = store.draft(meet)
+            if what == "underlag":
+                admin(session, authorization)
+                files = [(found.filename, body) for found, body in store.sources(meet)]
+                if not files:
+                    raise PlanningError("Träffen har inget underlag än.")
+                body, kind = export.sources_zip(files), "application/zip"
+            else:
+                if version is not None:
+                    package = store.package(meet, version)
+                    told = f"Version {version}"
+                elif draft.package is not None:
+                    package = draft.package.model_copy(update={"meet": draft.meet})
+                    told = "Utkastet, inte publicerat"
+                else:
+                    raise PlanningError("Lägg till underlag först.")
+                if what == "stationstidtabeller":
+                    title = f"{draft.meet.name} · Stationstidtabeller"
+                    body = export.station_timetables(package, title, told)
+                    kind = "text/html; charset=utf-8"
+                elif what == "tidtabell":
+                    body, kind = export.timetable_csv(package), "text/csv; charset=utf-8"
+                elif what == "koruppdrag":
+                    body, kind = export.duties_csv(package), "text/csv; charset=utf-8"
+                else:
+                    body = package.model_dump_json(indent=2).encode("utf-8")
+                    kind = "application/json"
+        except PlanningError as error:
+            _fail(error)
+        suffix = {"stationstidtabeller": "html", "paket": "json", "underlag": "zip"}.get(
+            what, "csv"
+        )
+        name = export.filename(
+            draft.meet.name, what, suffix, None if what == "underlag" else version
+        )
+        return Response(
+            body,
+            media_type=kind,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f'attachment; filename="{name}"',
+                "X-Content-Type-Options": "nosniff",
             },
         )
 

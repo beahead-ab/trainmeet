@@ -183,7 +183,59 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
           </tbody>
         </table>
       </section>
+      {planned && <Exportera admin={admin} meet={meet} versions={versions ?? []} />}
     </>
+  );
+}
+
+/** Exportera (PLAN-07): the draft or a version, as files. The graph is printed from Graf. */
+function Exportera({ admin, meet, versions }: { admin: boolean; meet: string; versions: Version[] }) {
+  const [from, setFrom] = useState("");
+  const base = `/api/planering/1/meets/${encodeURIComponent(meet)}/export`;
+  const query = from ? `?version=${from}` : "";
+  const files: [string, string, string][] = [
+    ["stationstidtabeller", "Stationstidtabeller", "en sida per driftplats, att skriva ut eller spara som PDF"],
+    ["tidtabell", "Hela tidtabellen", "CSV för ett kalkylprogram, en rad per tågbesök"],
+    ["koruppdrag", "Köruppdragen", "CSV, varje del av varje köruppdrag"],
+    ["paket", "Paketets JSON", "så som Drift läser det"],
+  ];
+  return (
+    <section className="kort" aria-labelledby="export-rubrik">
+      <h2 id="export-rubrik">Exportera</h2>
+      <p className="liten">Filerna laddas ner. Grafen skriver du ut från Graf.</p>
+      <label className="valj">
+        Från{" "}
+        <select id="export-from" value={from} onChange={(event) => setFrom(event.target.value)}>
+          <option value="">Utkastet</option>
+          {versions
+            .slice()
+            .reverse()
+            .map((version) => (
+              <option key={version.number} value={String(version.number)}>
+                {`Version ${version.number}`}
+              </option>
+            ))}
+        </select>
+      </label>
+      <ul id="exports" className="export">
+        {files.map(([what, label, note]) => (
+          <li key={what}>
+            <a href={`${base}/${what}${query}`} download>
+              {label}
+            </a>
+            <span className="liten">{note}</span>
+          </li>
+        ))}
+        {admin && (
+          <li>
+            <a href={`${base}/underlag`} download>
+              Underlaget som ZIP
+            </a>
+            <span className="liten">filerna som de kom, bara för den inloggade</span>
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }
 
