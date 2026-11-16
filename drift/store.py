@@ -88,6 +88,11 @@ CREATE TABLE IF NOT EXISTS mirror_run (
     run_id TEXT PRIMARY KEY REFERENCES preview_run(id) ON DELETE CASCADE,
     leader TEXT NOT NULL, heard REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS forked_event (
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    seq INTEGER NOT NULL, body TEXT NOT NULL, set_aside REAL NOT NULL,
+    PRIMARY KEY (run_id, seq)
+);
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL, message_id TEXT NOT NULL, signature TEXT NOT NULL,
@@ -899,8 +904,10 @@ class PreviewStore:
                 db.execute(
                     "INSERT INTO mirror_run VALUES (?, ?, ?)", (run_id, leader, now.timestamp())
                 )
-            elif row[0] != self.package_key or not _mirrored(db, run_id):
+            elif row[0] != self.package_key:
                 raise Refused(Reason.NOT_LEADER)
+            elif not _mirrored(db, run_id):
+                raise Refused(Reason.ALREADY_LEADER)  # this hub took over (H9)
             (last,) = db.execute(
                 "SELECT coalesce(max(seq), 0) FROM preview_event WHERE run_id=?", (run_id,)
             ).fetchone()
@@ -918,6 +925,67 @@ class PreviewStore:
                 (leader, now.timestamp(), run_id),
             )
             return int(last), taken
+
+    def take_over(self, run_id: str, hub_name: str) -> Drift:
+        """Ta över i molnet (H8, H9): the run this hub followed is led from here, with an epoch
+        one higher. Done in one write, so it is either done or not at all (DRIFT-47)."""
+        now = now_utc()
+        with self._transaction() as db:
+            if not _mirrored(db, run_id):
+                raise Refused(Reason.ALREADY_LEADER)
+            drift = self._load(db, run_id, now)
+            db.execute("DELETE FROM mirror_run WHERE run_id=?", (run_id,))
+            size = len(drift.history)
+            drift.take_over(hub_name, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def give_way(self, run_id: str, leader: str, theirs: list[events.DriftEvent]) -> int:
+        """Another hub took over the run this hub led (SYNK-14): this hub follows from here.
+        Its own events after the point where the two part are set aside, kept and never
+        applied, and the leader's events take their place. How many were set aside."""
+        now = now_utc()
+        with self._transaction() as db:
+            mine = {
+                int(seq): str(body)
+                for seq, body in db.execute(
+                    "SELECT seq, body FROM preview_event WHERE run_id=?", (run_id,)
+                )
+            }
+            fork = 0
+            for event in sorted(theirs, key=lambda e: e.seq):
+                here = mine.get(event.seq)
+                if here is None or events.DriftEvent.model_validate_json(here) != event:
+                    break
+                fork = event.seq
+            aside = [(seq, body) for seq, body in sorted(mine.items()) if seq > fork]
+            db.executemany(
+                "INSERT OR REPLACE INTO forked_event VALUES (?, ?, ?, ?)",
+                ((run_id, seq, body, now.timestamp()) for seq, body in aside),
+            )
+            db.execute("DELETE FROM preview_event WHERE run_id=? AND seq>?", (run_id, fork))
+            db.execute(
+                "INSERT OR REPLACE INTO mirror_run VALUES (?, ?, ?)",
+                (run_id, leader, now.timestamp()),
+            )
+            taken = [e for e in sorted(theirs, key=lambda e: e.seq) if e.seq > fork]
+            expected = fork + 1
+            kept = []
+            for event in taken:
+                if event.seq != expected:
+                    break
+                kept.append(event)
+                expected += 1
+            self._save(db, run_id, kept, mirror=True)
+            return len(aside)
+
+    def set_aside(self, run_id: str) -> int:
+        """Events this hub made after another took over, kept but never applied."""
+        with self._transaction() as db:
+            (count,) = db.execute(
+                "SELECT count(*) FROM forked_event WHERE run_id=?", (run_id,)
+            ).fetchone()
+        return int(count)
 
     def leader(self, run_id: str) -> tuple[str, datetime] | None:
         """The hub that leads the run, and when it was last heard; None if this hub leads."""

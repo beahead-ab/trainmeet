@@ -22,6 +22,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import drift
+from contracts.reasons import Reason
 from contracts.sync import (
     HEADER,
     PROTOCOL,
@@ -33,12 +34,14 @@ from contracts.sync import (
     LinkRequest,
     RunAck,
     RunEvents,
+    RunFeed,
     SentVersion,
     SourceFile,
     VersionList,
 )
 from contracts.sync import Follower as FollowerInfo
 from drift.engine import Refused
+from drift.store import MissingRun
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
 from hub.running import Running
@@ -247,6 +250,9 @@ def router(
         try:
             ack, taken = store.receive(sent.run, pi.hub_name, sent.events)
         except Refused as error:
+            if error.reason == Reason.ALREADY_LEADER:
+                # Ta över i molnet (H9): the Pi follows from here.
+                raise HTTPException(410, "Molnhubben har tagit över träffen.") from error
             raise HTTPException(409, "Molnhubben kör själv den körningen.") from error
         for event in taken if home(meet).here else []:
             if event.kind == drift.EventKind.CHANGE_MADE:
@@ -257,6 +263,27 @@ def router(
         if running.meet == meet:
             running.follow(meet, sent.version)
         return RunAck(run=sent.run, ack=ack, answers=plans.answers(meet)).model_dump(mode="json")
+
+    @routes.get("/api/sync/1/meets/{meet}/runs/{run}/events")
+    def feed(
+        meet: str,
+        run: str,
+        response: Response,
+        version: Annotated[int, Query(ge=1)],
+        after: Annotated[int, Query(ge=0)] = 0,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """The run this hub leads after taking over, for the Pi that follows from here (H9)."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        pi(meet, authorization)
+        store = running.mirror(meet, version)
+        try:
+            found = store.events_after(run, after)[:500]
+        except MissingRun as error:
+            raise HTTPException(404, "Körningen finns inte här.") from error
+        return RunFeed(leader=hello().hub_name, events=found).model_dump(mode="json")
 
     # --- Träffens hem (H35, SYNK-03, SYNK-16) -------------------------------------------------
 

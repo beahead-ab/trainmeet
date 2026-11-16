@@ -20,7 +20,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event, Thread
-from typing import Final
+from typing import Final, Protocol
 from urllib.parse import quote, urlsplit
 
 from pydantic import ValidationError
@@ -34,6 +34,7 @@ from contracts.sync import (
     LinkRequest,
     RunAck,
     RunEvents,
+    RunFeed,
     SentVersion,
     VersionList,
 )
@@ -57,12 +58,27 @@ class Unreachable(Exception):
 
 @dataclass(frozen=True)
 class Leading:
-    """The run this hub leads: the meet, the version, the run and the version's checksum."""
+    """A run: the meet, the version, the run and the version's checksum."""
 
     meet: str
     version: int
     run: str
     package: str
+
+
+class Runs(Protocol):
+    """Drift as Synk reaches it, through the hub: the run this hub leads or follows, its events,
+    and taking the leader's events in (SYNK-10, SYNK-14)."""
+
+    def leading(self) -> Leading | None: ...
+
+    def following(self) -> Leading | None: ...
+
+    def events_after(self, run: str, seq: int) -> list[DriftEvent]: ...
+
+    def receive(self, run: str, leader: str, events: list[DriftEvent]) -> int: ...
+
+    def give_way(self, run: str, leader: str, events: list[DriftEvent]) -> int: ...
 
 
 def urllib_call(
@@ -116,19 +132,18 @@ class Follower:
         versions: Versions,
         hello: Callable[[], Hello],
         call: Call = urllib_call,
-        leading: Callable[[], Leading | None] = lambda: None,
-        events_after: Callable[[str, int], list[DriftEvent]] = lambda run, seq: [],
+        runs: Runs | None = None,
         homes: Homes | None = None,
     ) -> None:
         self.links = links
         self.versions = versions
         self.hello = hello
         self.call = call
-        self.leading = leading
-        self.events_after = events_after
+        self.runs = runs
         self.homes = homes
         self._marks: dict[str, str] = {}
         self._acks: dict[str, int] = {}
+        self._pulled: dict[str, int] = {}
 
     def _headers(self, key: str | None = None) -> dict[str, str]:
         headers = {"Content-Type": "application/json", HEADER: PROTOCOL}
@@ -296,13 +311,13 @@ class Follower:
         """The run this hub leads, if its meet is followed from the cloud: the drift events the
         cloud does not have, in order, from its acknowledgement. The cloud's last seq, or None
         when there is no such run."""
-        led = self.leading()
+        led = self.runs.leading() if self.runs else None
         reach = next((r for r in self.links.reaches() if led and r.meet == led.meet), None)
-        if led is None or reach is None:
+        if led is None or reach is None or self.runs is None:
             return None
         ack = self._acks.get(led.run)
         while True:
-            sent = [] if ack is None else self.events_after(led.run, ack)[:BATCH]
+            sent = [] if ack is None else self.runs.events_after(led.run, ack)[:BATCH]
             body = RunEvents(version=led.version, package=led.package, run=led.run, events=sent)
             now = datetime.now(UTC)
             status, answer = self.call(
@@ -312,6 +327,8 @@ class Follower:
                 body.model_dump_json().encode(),
                 30.0,
             )
+            if status == 410:
+                return self._give_way(reach, led, now)
             if status != 200:
                 self.links.heard(
                     led.meet, now, _detail(answer) or f"Molnhubben tog inte emot läget ({status})."
@@ -324,6 +341,48 @@ class Follower:
             ack = self._acks[led.run] = got.ack
             if caught_up:
                 return ack
+
+    def _feed(self, reach: Reach, run: Leading, after: int) -> RunFeed | None:
+        status, answer = self.call(
+            "GET",
+            f"{reach.address}/api/sync/1/meets/{quote(run.meet, safe='')}/runs/"
+            f"{quote(run.run, safe='')}/events?version={run.version}&after={after}",
+            self._headers(reach.key),
+            None,
+            30.0,
+        )
+        return RunFeed.model_validate_json(answer) if status == 200 else None
+
+    def _give_way(self, reach: Reach, led: Leading, now: datetime) -> int | None:
+        """The cloud took over (H9): this hub follows from here. What it did after the cloud's
+        last word is set aside, never applied (SYNK-14)."""
+        assert self.runs is not None
+        feed = self._feed(reach, led, 0)
+        if feed is None:
+            return None
+        aside = self.runs.give_way(led.run, feed.leader, feed.events)
+        self._pulled[led.run] = max((e.seq for e in feed.events), default=0)
+        told = f"{feed.leader} tog över träffen."
+        if aside:
+            told += f" {aside} händelser härifrån efter övertaget är satta åt sidan."
+        self.links.heard(led.meet, now, told)
+        return self._pulled[led.run]
+
+    def pull(self) -> int | None:
+        """The run this hub follows after another took over: the leader's new events (H9)."""
+        run = self.runs.following() if self.runs else None
+        reach = next((r for r in self.links.reaches() if run and r.meet == run.meet), None)
+        if run is None or reach is None or self.runs is None:
+            return None
+        after = self._pulled.get(run.run)
+        if after is None:
+            mine = self.runs.events_after(run.run, 0)
+            after = mine[-1].seq if mine else 0
+        feed = self._feed(reach, run, after)
+        if feed is None:
+            return after
+        self._pulled[run.run] = self.runs.receive(run.run, feed.leader, feed.events)
+        return self._pulled[run.run]
 
     # --- In the background -------------------------------------------------------------------
 
@@ -351,6 +410,7 @@ class Follower:
         while not stop.wait(PUSH if tries == 0 else RETRY[min(tries, len(RETRY)) - 1]):
             try:
                 self.push()
+                self.pull()
                 tries = 0
             except Unreachable:
                 tries += 1

@@ -54,14 +54,32 @@ export function Tillbakadragen({ now }: { now: Now }) {
 
 /** Molnhubben följer Pi:n live (SYNK-04, SYNK-14): another hub leads the meet; this one shows
  * the same and decides nothing. How long since the leader was heard says if it is still there. */
-export function Följer({ now }: { now: Now }) {
+/** How long the leader may be silent before Ta över i molnet is offered (TRAFIK-08). */
+export const SILENT = 45;
+
+export function Följer({ now, admin = false, onTakeOver }: { now: Now; admin?: boolean; onTakeOver?: (confirm: string) => void }) {
+  const [typed, setTyped] = useState("");
   if (!now.leader) return null;
   const { hub_name: name, silent } = now.leader;
   const heard = silent < 5 ? "hörd nyss" : silent < 120 ? `hörd för ${silent} s sedan` : `hörd för ${Math.round(silent / 60)} min sedan`;
   return (
-    <section id="leader" className={"kort" + (silent >= 45 ? " varning" : "")} role="status" aria-labelledby="leader-title">
+    <section id="leader" className={"kort" + (silent >= SILENT ? " varning" : "")} role="status" aria-labelledby="leader-title">
       <h2 id="leader-title">{`Följer ${name} live`}</h2>
       <p>{`${name} leder träffen, och den här hubben visar samma läge. Klockan, klareringarna och ändringarna sköts där. ${heard[0]?.toUpperCase()}${heard.slice(1)}.`}</p>
+      {admin && silent >= SILENT && (
+        <div id="take-over">
+          <p className="liten">{`Har ${name} tystnat kan den här hubben ta över och leda träffen. Klockan stannar där ${name} senast var, och du startar den igen. Kommer ${name} tillbaka följer den härifrån; det den gjorde under tiden sätts åt sidan.`}</p>
+          <div className="rad">
+            <label htmlFor="take-over-name" className="liten">
+              Skriv träffens namn
+            </label>
+            <input id="take-over-name" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" placeholder={now.name} />
+            <button id="take-over-button" type="button" className="fara" disabled={typed.trim().toLowerCase() !== now.name.toLowerCase()} onClick={() => onTakeOver?.(typed)}>
+              Ta över i molnet
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

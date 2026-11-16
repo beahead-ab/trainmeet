@@ -101,8 +101,7 @@ def create_app(
         versions,
         hello,
         sync_call,
-        leading=running.leading,
-        events_after=lambda run, seq: running.store.events_after(run, seq),
+        runs=running,
         homes=homes,
     )
     running.followed_answers = links.answers
