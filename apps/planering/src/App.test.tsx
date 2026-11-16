@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { Check, Draft, MeetSummary, Version } from "./api";
+import type { Check, Draft, MeetSummary, Proposal, Version } from "./api";
 import { isOwn, routeOf } from "./App";
 import { dates, levelText } from "./text";
 import { TraffarPage } from "./Traffar";
@@ -64,6 +64,30 @@ describe("Versioner (S6)", () => {
     expect(empty).toContain("Lägg till underlag under Data först.");
     expect(empty).toContain('disabled="">Publicera version 1<');
     expect(empty).toContain("Ingen version är publicerad än.");
+  });
+
+  it("lists the proposals from Drift with Ta med and Avslå, and what was answered before (PLAN-03)", () => {
+    const planned = { ...draft, package: { places: [{ id: "nby", name: "Norrby", code: "Nby", kind: "manned" }], sections: [], trains: [{ id: "t101", number: "101", calls: [] }] } } as unknown as Draft;
+    const proposal = (id: string, status: Proposal["status"], change: object, number: string | null = null) =>
+      ({ id, meet: "varnamo", version: 1, change, train_number: number, made: "2026-11-16T09:00:00Z", status, answered: null }) as unknown as Proposal;
+    const proposals = [
+      proposal("c1", "waiting", { kind: "cancel", train: "t43" }, "43"),
+      proposal("c2", "waiting", { kind: "extra", number: "9101", departure: "10:00", copy_of: "t101" }),
+      proposal("c3", "taken", { kind: "cancel", train: "t101" }),
+      proposal("c4", "rejected", { kind: "cancel", train: "t101" }),
+    ];
+    const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={planned} check={check} versions={versions} proposals={proposals} />);
+    expect(html).toContain('id="proposal-count" class="liten">· 2 väntar</span>');
+    expect(html).toContain("<b>Inställt tåg 43</b>");
+    expect(html).toContain("<b>Extratåg 9101, kopia av 101 kl. 10:00</b>");
+    expect(html).toContain("körde version 1");
+    expect(html).toContain(">Ta med i version 2<");
+    expect(html).toContain(">Avslå<");
+    expect(html).toContain("Tidigare: 1 tagna med · 1 avslagna");
+    const looking = renderToStaticMarkup(<VersionerPage admin={false} meet="varnamo" draft={planned} check={check} versions={versions} proposals={proposals} />);
+    expect(looking).not.toContain(">Avslå<");
+    expect(looking).toContain("Logga in för att ta med eller avslå.");
+    expect(renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={planned} check={check} versions={versions} proposals={[]} />)).toContain("Inga förslag väntar.");
   });
 });
 

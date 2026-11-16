@@ -17,6 +17,7 @@ from threading import Lock
 from typing import Final
 
 from contracts.common import Id, checksum
+from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import Meet, MeetPackage, Place, Section
 from contracts.planning import (
     PLANNER,
@@ -32,11 +33,15 @@ from contracts.planning import (
     NewMeet,
     Origin,
     PlaceChange,
+    Proposal,
     SectionChange,
     SectionTracksChange,
     Source,
+    TakenChange,
     Version,
 )
+from contracts.reasons import TEXT_SV
+from core import changes as driftchanges
 from planering import compare
 from planering.check import check
 
@@ -62,6 +67,11 @@ CREATE TABLE IF NOT EXISTS version (
     number INTEGER NOT NULL, info TEXT NOT NULL, package TEXT NOT NULL,
     PRIMARY KEY (meet_id, number)
 );
+CREATE TABLE IF NOT EXISTS proposal (
+    meet_id TEXT NOT NULL REFERENCES meet(id) ON DELETE CASCADE,
+    id TEXT NOT NULL, made REAL NOT NULL, body TEXT NOT NULL,
+    PRIMARY KEY (meet_id, id)
+);
 """
 
 
@@ -76,6 +86,10 @@ class UnknownMeet(PlanningError):
 
 
 class UnknownVersion(PlanningError):
+    status = 404
+
+
+class UnknownProposal(PlanningError):
     status = 404
 
 
@@ -297,6 +311,118 @@ class Planning:
             )
             return version
 
+    # --- Förslag från Drift (4.4, PLAN-03) ------------------------------------------------------
+
+    def propose(
+        self,
+        meet_id: str,
+        version: int,
+        change_id: str,
+        change: DriftChange,
+        train_number: str | None,
+    ) -> None:
+        """A driftändring becomes a proposal for the next version. A meet Planering does not
+        have, such as Provbanan, has none; the same change twice is one proposal."""
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM meet WHERE id=?", (meet_id,)).fetchone() is None:
+                return
+            now = datetime.now(UTC)
+            proposal = Proposal(
+                id=change_id,
+                meet=meet_id,
+                version=version,
+                change=change,
+                train_number=train_number,
+                made=now,
+            )
+            db.execute(
+                "INSERT OR IGNORE INTO proposal VALUES (?, ?, ?, ?)",
+                (meet_id, change_id, now.timestamp(), proposal.model_dump_json()),
+            )
+
+    def proposals(self, meet_id: str) -> list[Proposal]:
+        """The proposals, newest first."""
+        with self._transaction() as db:
+            self._draft(db, meet_id)
+            return [
+                Proposal.model_validate_json(body)
+                for (body,) in db.execute(
+                    "SELECT body FROM proposal WHERE meet_id=? ORDER BY made DESC, id",
+                    (meet_id,),
+                )
+            ]
+
+    def answers(self, meet_id: str) -> dict[str, ProposalStatus]:
+        """Planering's answer to each driftändring, for Drift to show (4.4)."""
+        try:
+            return {p.id: p.status for p in self.proposals(meet_id)}
+        except UnknownMeet:
+            return {}
+
+    def withdraw(self, meet_id: str, change_id: str) -> None:
+        """Släppt in Drift before Planering answered: no longer a proposal. One taken stays in
+        the draft; the planner decides about it there."""
+        with self._transaction() as db:
+            proposal = self._find(db, meet_id, change_id)
+            if proposal is not None and proposal.status == ProposalStatus.WAITING:
+                self._answer(db, proposal, ProposalStatus.WITHDRAWN)
+
+    def take(self, meet_id: str, change_id: str) -> Draft:
+        """Ta med: the change is laid on the draft, and stays there when the sources are read
+        again. It is made the same way as in Drift (core/changes.py)."""
+        with self._transaction() as db:
+            proposal = self._proposal(db, meet_id, change_id)
+            if proposal.status != ProposalStatus.WAITING:
+                raise PlanningError("Förslaget är redan besvarat.")
+            draft = self._draft(db, meet_id)
+            if draft.package is None:
+                raise PlanningError("Lägg till underlag först.")
+            try:
+                package = driftchanges.apply(draft.package, proposal.change, proposal.id)
+            except driftchanges.ChangeError as error:
+                raise PlanningError(
+                    f"Förslaget går inte att ta med i utkastet: {TEXT_SV[error.reason]}"
+                ) from error
+            draft = draft.model_copy(
+                update={
+                    "package": package,
+                    "taken": [*draft.taken, TakenChange(id=proposal.id, change=proposal.change)],
+                }
+            )
+            self._save(db, draft)
+            self._answer(db, proposal, ProposalStatus.TAKEN)
+            return draft
+
+    def reject(self, meet_id: str, change_id: str) -> Proposal:
+        """Avslå: the next version is made without it. Drift sees the answer."""
+        with self._transaction() as db:
+            proposal = self._proposal(db, meet_id, change_id)
+            if proposal.status != ProposalStatus.WAITING:
+                raise PlanningError("Förslaget är redan besvarat.")
+            return self._answer(db, proposal, ProposalStatus.REJECTED)
+
+    @staticmethod
+    def _find(db: sqlite3.Connection, meet_id: str, change_id: str) -> Proposal | None:
+        row = db.execute(
+            "SELECT body FROM proposal WHERE meet_id=? AND id=?", (meet_id, change_id)
+        ).fetchone()
+        return None if row is None else Proposal.model_validate_json(row[0])
+
+    def _proposal(self, db: sqlite3.Connection, meet_id: str, change_id: str) -> Proposal:
+        found = self._find(db, meet_id, change_id)
+        if found is None:
+            raise UnknownProposal("Förslaget finns inte.")
+        return found
+
+    @staticmethod
+    def _answer(db: sqlite3.Connection, proposal: Proposal, status: ProposalStatus) -> Proposal:
+        answered = proposal.model_copy(update={"status": status, "answered": datetime.now(UTC)})
+        db.execute(
+            "UPDATE proposal SET body=? WHERE meet_id=? AND id=?",
+            (answered.model_dump_json(), proposal.meet, proposal.id),
+        )
+        return answered
+
     # --- Inside ------------------------------------------------------------------------------
 
     @staticmethod
@@ -364,8 +490,23 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
         questions=result.questions,
         report=result.report,
         changes=draft.changes,
+        taken=draft.taken,
     )
-    return _replay(fresh, answers)
+    return _lay_taken(_replay(fresh, answers))
+
+
+def _lay_taken(draft: Draft) -> Draft:
+    """The driftändringar taken from Drift, on the draft read anew. One that no longer fits the
+    source, because what it pointed at is gone, is left out of the package but kept."""
+    package = draft.package
+    if package is None:
+        return draft
+    for taken in draft.taken:
+        try:
+            package = driftchanges.apply(package, taken.change, taken.id)
+        except driftchanges.ChangeError:
+            continue
+    return draft.model_copy(update={"package": package})
 
 
 def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:

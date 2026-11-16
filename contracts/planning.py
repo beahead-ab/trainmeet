@@ -19,6 +19,7 @@ from typing import Annotated, Any, Final, Literal
 from pydantic import Discriminator, Field, Tag
 
 from contracts.common import Contract, Id, Text
+from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import ClearanceMode, Finding, Meet, MeetPackage, PlaceKind, TrackKind
 
 FORMAT: Final = "trainmeet.planning/1"
@@ -222,6 +223,29 @@ class Changes(Contract):
     changes: list[Change] = Field(min_length=1, max_length=500)
 
 
+class Proposal(Contract):
+    """Förslag från Drift (4.4, PLAN-03): a driftändring made during the meet, for the next
+    version. The planner takes it into the draft (Ta med) or rejects it (Avslå); Drift sees the
+    answer."""
+
+    id: Id = Field(description="Driftändringens id i Drift.")
+    meet: Id
+    version: int = Field(ge=1, description="Versionen som kördes när ändringen gjordes.")
+    change: DriftChange
+    train_number: Text | None = Field(default=None, description="Tågets nummer då.")
+    made: datetime
+    status: ProposalStatus = ProposalStatus.WAITING
+    answered: datetime | None = None
+
+
+class TakenChange(Contract):
+    """A driftändring taken into the draft. It is laid on again when the sources are read
+    again, after the planner's own changes."""
+
+    id: Id
+    change: DriftChange
+
+
 class Answer(Contract):
     """The planner's answer to a question: one of its alternatives."""
 
@@ -243,6 +267,9 @@ class Draft(Contract):
     changes: list[Change] = Field(
         default_factory=list,
         description="Planerarens ändringar, i ordning. De gäller även när underlaget läses om.",
+    )
+    taken: list[TakenChange] = Field(
+        default_factory=list, description="Förslagen från Drift som tagits med, i ordning."
     )
 
 

@@ -1,8 +1,10 @@
-import type { Check, Draft, Version } from "./api";
+import { changeText } from "@trainmeet/hubben";
+import type { Check, Draft, Proposal, Version } from "./api";
 import { when } from "./text";
 
-// Versioner (S6): the traffic check, Publicera for the administrator, and the versions, which
-// never change and are never removed. Kör i Drift opens Byt träff with the version (TRAFIK-29).
+// Versioner (S6): the traffic check, Publicera for the administrator, the proposals from Drift
+// with Ta med and Avslå (PLAN-03, 4.4), and the versions, which never change and are never
+// removed. Kör i Drift opens Byt träff with the version (TRAFIK-29).
 
 export type VersionerProps = {
   admin: boolean;
@@ -12,9 +14,13 @@ export type VersionerProps = {
   versions: Version[] | null;
   busy?: boolean;
   onPublish?: () => void;
+  /** Förslag från Drift, newest first. */
+  proposals?: Proposal[] | null;
+  onTake?: (id: string) => void;
+  onReject?: (id: string) => void;
 };
 
-export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish }: VersionerProps) {
+export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject }: VersionerProps) {
   const next = (versions?.at(-1)?.number ?? 0) + 1;
   const planned = Boolean(draft?.package);
   const findings = check?.findings ?? [];
@@ -57,6 +63,7 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
           </div>
         )}
       </section>
+      <Forslag admin={admin} draft={draft} next={next} proposals={proposals} busy={busy} onTake={onTake} onReject={onReject} />
       <section className="kort lista-kort" aria-labelledby="versioner-rubrik">
         <h2 id="versioner-rubrik">Versioner</h2>
         <p className="liten">En version ändras aldrig och tas aldrig bort. Drift kör en version.</p>
@@ -107,3 +114,59 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
     </>
   );
 }
+
+const how = (proposal: Proposal) => `Trafikledningen · ${when(proposal.made)} · körde version ${proposal.version}`;
+
+/** Förslag från Drift (4.4, PLAN-03): each driftändring, to take into the next version or to
+ * reject. Drift sees the answer. One let go in Drift before an answer is withdrawn. */
+function Forslag({ admin, draft, next, proposals, busy, onTake, onReject }: { admin: boolean; draft: Draft | null; next: number; proposals: Proposal[] | null; busy: boolean; onTake?: (id: string) => void; onReject?: (id: string) => void }) {
+  const waiting = (proposals ?? []).filter((proposal) => proposal.status === "waiting");
+  const count = (status: Proposal["status"]) => (proposals ?? []).filter((proposal) => proposal.status === status).length;
+  const pkg = draft?.package ?? null;
+  return (
+    <section id="forslag" className="kort" aria-labelledby="forslag-rubrik">
+      <h2 id="forslag-rubrik">
+        Förslag från Drift{" "}
+        <span id="proposal-count" className="liten">
+          {proposals ? `· ${waiting.length} väntar` : ""}
+        </span>
+      </h2>
+      <p className="liten">Driftändringarna görs i Nu och gäller direkt. Här tas de med i nästa version eller avslås.</p>
+      <ul id="proposals" className="fynd">
+        {proposals === null ? (
+          <li className="tom">Hämtar förslagen …</li>
+        ) : waiting.length ? (
+          waiting.map((proposal) => (
+            <li key={proposal.id}>
+              <span className="pill observation">Väntar</span>
+              <span>
+                <b>{changeText(proposal.change, pkg, proposal.train_number)}</b>
+                <br />
+                <span className="liten">{how(proposal)}</span>
+              </span>
+              {admin && (
+                <span className="rad">
+                  <button type="button" className="primar" disabled={busy || !pkg} onClick={() => onTake?.(proposal.id)}>
+                    {`Ta med i version ${next}`}
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => onReject?.(proposal.id)}>
+                    Avslå
+                  </button>
+                </span>
+              )}
+            </li>
+          ))
+        ) : (
+          <li className="tom">Inga förslag väntar.</li>
+        )}
+      </ul>
+      {proposals !== null && proposals.length > waiting.length && (
+        <p id="proposal-history" className="liten">
+          {[`Tidigare: ${count("taken")} tagna med`, `${count("rejected")} avslagna`, count("withdrawn") ? `${count("withdrawn")} återtagna i Drift` : ""].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      {!admin && waiting.length > 0 && <p className="liten">Logga in för att ta med eller avslå.</p>}
+    </section>
+  );
+}
+

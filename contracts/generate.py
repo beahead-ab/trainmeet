@@ -95,6 +95,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.answer": planning.Answer,
     "trainmeet.planning-1.check": planning.Check,
     "trainmeet.planning-1.version": planning.Version,
+    "trainmeet.planning-1.proposal": planning.Proposal,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
@@ -441,6 +442,15 @@ def openapi() -> str:
     route("get", m + "/{meet}", "planningDraft", p + "draft")
     route("post", m + "/{meet}/changes", "changeDraft", p + "draft", p + "changes", bearer=True)
     route("post", m + "/{meet}/answers", "answerQuestion", p + "draft", p + "answer", bearer=True)
+    route("get", m + "/{meet}/proposals", "planningProposals", p + "proposal", many=True)
+    route("post", m + "/{meet}/proposals/{proposal}/take", "takeProposal", p + "draft", bearer=True)
+    route(
+        "post",
+        m + "/{meet}/proposals/{proposal}/reject",
+        "rejectProposal",
+        p + "proposal",
+        bearer=True,
+    )
     route("get", m + "/{meet}/check", "planningCheck", p + "check")
     route("get", m + "/{meet}/versions", "planningVersions", p + "version", many=True)
     route("post", m + "/{meet}/versions", "publish", p + "version", bearer=True)
