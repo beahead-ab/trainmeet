@@ -65,6 +65,21 @@
       ],
       "default": null,
       "title": "Message"
+    },
+    "relay": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
+      "title": "Relay"
     }
   },
   "required": [

@@ -126,6 +126,16 @@ def _key_hash(key: str) -> str:
     return sha256(key.encode()).hexdigest()
 
 
+class KeyHash(str):
+    """A station client's key as its hash, as the relay carries it (H31, SYNK-11). A station
+    client's calls take it in place of the key."""
+
+
+def key_hash(key: str) -> KeyHash:
+    """What the relay sends instead of the key."""
+    return KeyHash(_key_hash(key))
+
+
 def epoch_of(run_id: str) -> str:
     """What the boxes see of their run. Never the run id itself: that is the browser's key."""
     return sha256(("epoch:" + run_id).encode()).hexdigest()[:16]
@@ -703,7 +713,11 @@ class PreviewStore:
             "SELECT c.client_id, c.run_id, c.places FROM station_client c "
             "JOIN preview_run r ON r.id=c.run_id "
             "WHERE c.key_hash=? AND c.status=? AND r.expires>?",
-            (_key_hash(key), station.ApprovalStatus.APPROVED.value, now_utc().timestamp()),
+            (
+                str(key) if isinstance(key, KeyHash) else _key_hash(key),
+                station.ApprovalStatus.APPROVED.value,
+                now_utc().timestamp(),
+            ),
         ).fetchone()
         if row is None:
             raise UnknownClient()

@@ -10,10 +10,12 @@ olika programversioner förstår varandra eller säger att de inte gör det (GRU
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Final
 
 from pydantic import Field
 
+from contracts import station
 from contracts.common import Contract, Id, Text
 from contracts.drift import DriftEvent, ProposalStatus
 from contracts.planning import Draft, Proposal, Version
@@ -165,3 +167,53 @@ class SentVersion(Contract):
     generation: int = Field(ge=1)
     version: Version
     package: str = Field(description="Paketet som det publicerades, som JSON-text.")
+
+
+# --- Reläet (SYNK-05, SYNK-11) ------------------------------------------------------------
+
+RELAY_WAIT: Final = 20.0  # seconds a relayed revision may wait for a change
+KEY_HASH = Field(
+    default=None,
+    pattern=r"^[0-9a-f]{64}$",
+    description="Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).",
+)
+
+
+class RelayKind(StrEnum):
+    CONNECT = "connect"
+    CONNECTION = "connection"
+    SNAPSHOT = "snapshot"
+    COMMAND = "command"
+    REVISION = "revision"  # waits until the place changes, for the event stream
+
+
+class RelayCall(Contract):
+    """Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.
+    Molnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse
+    (SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22)."""
+
+    id: Id
+    kind: RelayKind
+    key_hash: str | None = KEY_HASH
+    place: Id | None = None
+    client_id: Id | None = None
+    connect: station.ConnectRequest | None = None
+    command: station.Command | None = None
+    known: int | None = Field(default=None, ge=0, description="Platsens revision som klienten har.")
+    wait: float = Field(default=0.0, ge=0.0, le=RELAY_WAIT)
+
+
+class RelayCalls(Contract):
+    calls: list[RelayCall] = Field(default_factory=list, max_length=100)
+
+
+class RelayAnswer(Contract):
+    """Hubbens svar på ett anrop genom reläet, som molnet ger klienten som det är."""
+
+    id: Id
+    status: int = Field(ge=200, le=599, description="HTTP-status, som om klienten frågat hubben.")
+    detail: Text | None = Field(default=None, description="Varför, när status inte är 2xx.")
+    connected: station.ConnectReply | None = None
+    snapshot: station.Snapshot | None = None
+    reply: station.Reply | None = None
+    revision: int | None = Field(default=None, ge=0)

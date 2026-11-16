@@ -35,6 +35,7 @@ from planering.store import Planning
 from synk.follower import Call, Follower, urllib_call
 from synk.home import Homes
 from synk.link import Links
+from synk.relay import Relay
 from synk.store import Versions
 
 # The automation takes a step about once a second while the hub runs (F14).
@@ -94,8 +95,16 @@ def create_app(
     def hello() -> Hello:
         return Hello(hub_id=links.hub_id(), hub_name=login.state().name, software=info.version)
 
-    # The Pi follows its meets in the cloud (SYNK-10) and sends the run it leads up
-    # (DRIFT-12): it always calls out (SYNK-13).
+    runs = AnyRun(lambda: running.store, lambda: preview)
+
+    def relay_address() -> str | None:
+        """Where a station client reaches this hub outside the meet's network: the relay of
+        the cloud it is linked to (SYNK-11)."""
+        reach = next(iter(links.reaches()), None)
+        return None if reach is None else f"{reach.address}/relay/{links.hub_id()}"
+
+    # The Pi follows its meets in the cloud (SYNK-10), sends the run it leads up (DRIFT-12)
+    # and answers the calls that come through the cloud's relay: it always calls out (SYNK-13).
     follower = Follower(
         links,
         versions,
@@ -103,7 +112,9 @@ def create_app(
         sync_call,
         runs=running,
         homes=homes,
+        station=lambda call: station_api.relayed(runs, call, relay_address),
     )
+    relay = Relay()
     running.followed_answers = links.answers
 
     def me() -> tuple[str, str]:
@@ -136,6 +147,7 @@ def create_app(
     )
     app.state.running = running
     app.state.follower = follower
+    app.state.relay = relay
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
@@ -143,11 +155,11 @@ def create_app(
         planering_api.router(plans, versions, links, homes, me, login, published=follower.nudge)
     )
     app.include_router(
-        synk_api.router(plans, versions, links, follower, running, homes, login, hello)
+        synk_api.router(plans, versions, links, follower, running, homes, login, hello, relay)
     )
-    runs = AnyRun(lambda: running.store, lambda: preview)
     app.include_router(tmbox_web.router(runs))
-    app.include_router(station_api.router(runs))
+    app.include_router(station_api.router(runs, relay_address))
+    app.include_router(station_api.relay_router(relay))
     app.include_router(screen_web.router(runs))
 
     # The pages, built in React under apps/ (H62, GRUND-36).

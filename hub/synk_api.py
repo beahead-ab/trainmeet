@@ -32,6 +32,8 @@ from contracts.sync import (
     HomeBundle,
     Link,
     LinkRequest,
+    RelayAnswer,
+    RelayCalls,
     RunAck,
     RunEvents,
     RunFeed,
@@ -49,6 +51,7 @@ from planering.store import Planning, PlanningError
 from synk.follower import Follower
 from synk.home import Homes
 from synk.link import LinkError, Links
+from synk.relay import Relay
 from synk.store import SyncError, Versions
 
 MAX_WAIT = 25.0
@@ -87,8 +90,10 @@ def router(
     homes: Homes,
     login: LocalLogin,
     hello: Callable[[], Hello],
+    relay: Relay | None = None,
 ) -> APIRouter:
     routes = APIRouter()
+    relay = relay if relay is not None else Relay()
 
     def home(meet: str) -> Home:
         me = hello()
@@ -284,6 +289,37 @@ def router(
         except MissingRun as error:
             raise HTTPException(404, "Körningen finns inte här.") from error
         return RunFeed(leader=hello().hub_name, events=found).model_dump(mode="json")
+
+    # --- Reläet (SYNK-11): the Pi fetches the calls for it and answers them -------------------
+
+    @routes.get("/api/sync/1/meets/{meet}/relay")
+    async def relay_calls(
+        meet: str,
+        response: Response,
+        wait: Annotated[float, Query(ge=0, le=MAX_WAIT)] = 0.0,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> dict[str, Any]:
+        """The calls from phones and the cloud's TKL to this Pi, with long-poll."""
+        response.headers["Cache-Control"] = "no-store"
+        _protocol(spoken)
+        found = await run_in_threadpool(pi, meet, authorization)
+        calls = await relay.take(found.hub_id, wait)
+        return RelayCalls(calls=calls).model_dump(mode="json")
+
+    @routes.post("/api/sync/1/meets/{meet}/relay", status_code=204)
+    async def relay_answer(
+        meet: str,
+        answer: RelayAnswer,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> Response:
+        """The Pi's answer to one call, for the client that waits for it."""
+        _protocol(spoken)
+        found = await run_in_threadpool(pi, meet, authorization)
+        if not relay.answer(found.hub_id, answer):
+            raise HTTPException(410, "Ingen väntar på svaret längre.")
+        return Response(status_code=204)
 
     # --- Träffens hem (H35, SYNK-03, SYNK-16) -------------------------------------------------
 

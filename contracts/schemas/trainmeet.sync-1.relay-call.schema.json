@@ -1,0 +1,536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.relay-call.schema.json",
+  "title": "trainmeet.sync-1.relay-call",
+  "$defs": {
+    "Action": {
+      "enum": [
+        "train.lookup",
+        "train.track.change",
+        "train.departed",
+        "train.arrived",
+        "train.position.set",
+        "train.crew_ready.set",
+        "train.set_aside",
+        "clearance.request",
+        "clearance.response",
+        "clearance.cancel",
+        "line.available.publish",
+        "line.available.acknowledge",
+        "section.occupancy",
+        "signal.exit",
+        "place.leave",
+        "place.take_back"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "ClientKind": {
+      "enum": [
+        "tkl",
+        "tmbox_app",
+        "dispatch"
+      ],
+      "title": "ClientKind",
+      "type": "string"
+    },
+    "Command": {
+      "additionalProperties": true,
+      "properties": {
+        "protocol": {
+          "const": "trainmeet.station/1",
+          "default": "trainmeet.station/1",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "Unikt per klient. Samma id ger samma svar.",
+          "pattern": "^[A-Za-z0-9._:-]{8,120}$",
+          "title": "Message Id",
+          "type": "string"
+        },
+        "client_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Client Id",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "#/$defs/MeetContext"
+        },
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Revision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Exakt en scope och nyckel; utelämnas för train.lookup."
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "message_id",
+        "client_id",
+        "place",
+        "context",
+        "action"
+      ],
+      "title": "Command",
+      "type": "object"
+    },
+    "ConnectRequest": {
+      "additionalProperties": true,
+      "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+      "properties": {
+        "protocol": {
+          "const": "trainmeet.station/1",
+          "default": "trainmeet.station/1",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "protocols": {
+          "description": "Alla versioner klienten talar.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Protocols",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClientKind"
+        },
+        "name": {
+          "description": "Det trafikledningen ser i Klienter.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "software": {
+          "description": "Program och version, till exempel TKL 0.1.0.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Software",
+          "type": "string"
+        },
+        "station_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Station Id"
+        },
+        "outside": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StationOutside"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "wants": {
+          "description": "Driftplatserna den vill köra.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Wants",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "software"
+      ],
+      "title": "ConnectRequest",
+      "type": "object"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "MeetContext": {
+      "additionalProperties": true,
+      "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+      "properties": {
+        "meet_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "epoch": {
+          "description": "Ledarskapets epok; byts vid övertag.",
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "meet_id",
+        "version",
+        "game_day",
+        "epoch"
+      ],
+      "title": "MeetContext",
+      "type": "object"
+    },
+    "RelayKind": {
+      "enum": [
+        "connect",
+        "connection",
+        "snapshot",
+        "command",
+        "revision"
+      ],
+      "title": "RelayKind",
+      "type": "string"
+    },
+    "Revision": {
+      "additionalProperties": true,
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/RevisionScope"
+        },
+        "key": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "minimum": 0,
+          "title": "Value",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scope",
+        "key",
+        "value"
+      ],
+      "title": "Revision",
+      "type": "object"
+    },
+    "RevisionScope": {
+      "description": "Three separate revision spaces, as in v2 §5: never one global counter.",
+      "enum": [
+        "call",
+        "case",
+        "place"
+      ],
+      "title": "RevisionScope",
+      "type": "string"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StationOutside": {
+      "additionalProperties": true,
+      "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+      "properties": {
+        "format": {
+          "const": "trainmeet.station-outside/1",
+          "default": "trainmeet.station-outside/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "station_id": {
+          "description": "Stationens id, skapat i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/StationTrack"
+          },
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/Exit"
+          },
+          "minItems": 1,
+          "title": "Exits",
+          "type": "array"
+        },
+        "sides": {
+          "items": {
+            "$ref": "#/$defs/BoxSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "tracks",
+        "exits"
+      ],
+      "title": "StationOutside",
+      "type": "object"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.\nMolnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse\n(SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).",
+  "properties": {
+    "id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/RelayKind"
+    },
+    "key_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Klientens nyckel som SHA-256: nyckeln själv följer aldrig med (H31).",
+      "title": "Key Hash"
+    },
+    "place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Place"
+    },
+    "client_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Client Id"
+    },
+    "connect": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConnectRequest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "command": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Command"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "known": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Platsens revision som klienten har.",
+      "title": "Known"
+    },
+    "wait": {
+      "default": 0.0,
+      "maximum": 20.0,
+      "minimum": 0.0,
+      "title": "Wait",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "kind"
+  ],
+  "type": "object"
+}
