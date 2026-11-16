@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
 import { api, Problem, type Client, type DriftEvent, type Now, type Refusal } from "./api";
-import { actorName, describe, placeName, trainId, trainNumber } from "./drift";
+import { actorName, csv, describe, eventRows, logFile, placeName, refusalRows, trainId, trainNumber } from "./drift";
 import { Chip, Chips, LoginFirst } from "./ui";
 
 // Logg (TRAFIK-07, B15): what happened in the meet, newest first, and what the clients were
 // told no to. Filters per place and train. Read again every five seconds. Only for the
-// administrator.
+// administrator. What is shown can be exported as CSV or JSON (TRAFIK-20, F27).
+
+/** Hand the browser a file to save. */
+function save(name: string, type: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export type LogRows = { kind: "events"; events: DriftEvent[] } | { kind: "refusals"; refusals: Refusal[] };
 
@@ -73,7 +85,26 @@ export function LoggPage({ admin, now, clients, navigate, onMessage, rows: given
         <label>
           Tåg <input id="log-train" inputMode="numeric" size={6} autoComplete="off" value={train} onChange={(event) => setTrain(event.target.value)} />
         </label>
+        <span className="rad export">
+          <button
+            id="export-csv"
+            type="button"
+            disabled={!shown}
+            onClick={() => shown && save(logFile(now, shown.kind === "events" ? "logg" : "nekade", "csv"), "text/csv;charset=utf-8", csv(shown.kind === "events" ? eventRows(shown.events, now, clients) : refusalRows(shown.refusals, now)))}
+          >
+            Exportera CSV
+          </button>
+          <button
+            id="export-json"
+            type="button"
+            disabled={!shown}
+            onClick={() => shown && save(logFile(now, shown.kind === "events" ? "logg" : "nekade", "json"), "application/json", JSON.stringify(shown.kind === "events" ? shown.events : shown.refusals, null, 2))}
+          >
+            Exportera JSON
+          </button>
+        </span>
       </div>
+      <p className="liten">Exporten tar med det som visas, med filtren, äldst först.</p>
       <Chips label="Driftplats">
         <Chip label="Alla driftplatser" pressed={place === null} onClick={() => setPlace(null)} />
         {(now?.places ?? []).map((option) => (

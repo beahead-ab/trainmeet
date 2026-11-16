@@ -1,7 +1,7 @@
 import { describe as group, expect, it } from "vitest";
 import type { Client, DriftEvent, Now } from "./api";
 import { waitingCount } from "@trainmeet/hubben";
-import { actorName, clientDetails, clockAt, dayDue, dayNote, describe, hhmm, jumpNote, jumpText, minuteOf, modeText } from "./drift";
+import { actorName, clientDetails, clockAt, csv, dayDue, dayNote, describe, eventRows, hhmm, jumpNote, jumpText, logFile, minuteOf, modeText, refusalRows } from "./drift";
 
 const now = {
   meet_id: "provbanan",
@@ -45,6 +45,8 @@ group("Klienter and Logg (TRAFIK-04, TRAFIK-07)", () => {
     expect(describe(event("day.changed", { game_day: 3, traffic_day: "wed", before: 1, seconds: 2, placed: 2, closed: ["c"], automatic: true }))).toBe("Dag 3 · onsdag startade av sig själv, 1 klarering stängd");
     expect(describe(event("day.settings", { mode: "automatic", time: "04:30" }))).toBe("Dygnsskiftet automatiskt, kl. 04:30");
     expect(describe(event("day.settings", { mode: "manual", time: null }))).toBe("Dygnsskiftet manuellt, en timme före första tåget");
+    expect(describe(event("place.phone", { phone: "202" }))).toBe("Telefonnumret 202");
+    expect(describe(event("place.phone", { phone: null }))).toBe("Telefonnumret borttaget");
     expect(describe(event("something.new"))).toBe("something.new");
     expect(actorName({ kind: "system", id: null }, [])).toBe("Hubben");
     expect(actorName({ kind: "dispatcher", id: null }, [])).toBe("Trafikledningen");
@@ -93,6 +95,43 @@ group("Dygnsskiftet (F7, TRAFIK-22)", () => {
 
   it("offers to undo the new day", () => {
     expect(jumpText({ kind: "day", from_time: "23:40", to_time: "05:00", game_day: 2, traffic_day: "tue", closed: 0 })).toBe("Dag 2 · tisdag startade kl. 05:00");
+  });
+});
+
+group("The log as a file (TRAFIK-20, F27)", () => {
+  const events = [
+    { seq: 2, game_day: 1, model_time: "06:01", wall_time: "2026-11-16T09:01:00Z", kind: "clearance.requested", place: "nby", train: "t101", actor: { kind: "client", id: "c1" }, data: {} },
+    { seq: 1, game_day: 1, model_time: "06:00", wall_time: "2026-11-16T09:00:00Z", kind: "meet.started", place: null, train: null, actor: { kind: "system", id: null }, data: {} },
+  ] as unknown as DriftEvent[];
+
+  it("lists the events oldest first, in the words Logg uses", () => {
+    const rows = eventRows(events, now, [client({ name: "Box; 12" })]);
+    expect(rows[0]).toEqual(["Nr", "Speldygn", "Tid", "Händelse", "Tåg", "Driftplats", "Vem", "Klockslag"]);
+    expect(rows[1]).toEqual(["1", "1", "06:00", "Träffen startade", "", "", "Hubben", "2026-11-16T09:00:00Z"]);
+    expect(rows[2]).toEqual(["2", "1", "06:01", "Klarering begärd", "101", "Norrby", "Box; 12", "2026-11-16T09:01:00Z"]);
+  });
+
+  it("writes CSV a Swedish spreadsheet opens, and never a formula", () => {
+    const text = csv([
+      ["Vem", "Tåg"],
+      ["Box; 12", '"A"'],
+      ["=HYPERLINK(1)", "-2"],
+    ]);
+    expect(text.startsWith("\uFEFF")).toBe(true);
+    expect(text.slice(1).split("\r\n")).toEqual(["Vem;Tåg", '"Box; 12";"""A"""', "'=HYPERLINK(1);'-2", ""]);
+  });
+
+  it("lists what the clients were told no to, oldest first", () => {
+    const refusals = [
+      { wall_time: "b", model_time: "06:03", client_id: "box-1", place: "nby", what: "knapp #", reason: null, message: "Nej." },
+      { wall_time: "a", model_time: "06:02", client_id: "box-1", place: null, what: "knapp *", reason: null, message: "Nej igen." },
+    ] as never;
+    expect(refusalRows(refusals, now).slice(1).map((row) => row[0])).toEqual(["06:02", "06:03"]);
+  });
+
+  it("names the file after the meet, the game day and the date", () => {
+    expect(logFile(now, "logg", "csv", new Date("2026-11-16T10:00:00Z"))).toBe("logg-provbanan-dag1-2026-11-16.csv");
+    expect(logFile(null, "nekade", "json", new Date("2026-11-16T10:00:00Z"))).toBe("nekade-traffen-dag1-2026-11-16.json");
   });
 });
 

@@ -90,6 +90,9 @@ describe("Nu, Klienter and Logg (S6)", () => {
     const told = renderToStaticMarkup(<LoggPage admin now={now} clients={[]} navigate={go} rows={{ kind: "refusals", refusals }} />);
     expect(told).toContain("knapp #: Läget ändrades.");
     expect(renderToStaticMarkup(<LoggPage admin now={now} clients={[]} navigate={go} rows={{ kind: "events", events: [] }} />)).toContain("Inget har hänt här än.");
+    // The export (TRAFIK-20): what is shown, as CSV or JSON.
+    expect(html).toContain('id="export-csv" type="button">Exportera CSV</button>');
+    expect(html).toContain('id="export-json" type="button">Exportera JSON</button>');
   });
 });
 
@@ -163,9 +166,19 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(settings(false, now)).toContain("Logga in med hubbens PIN-kod för att se och ändra automatiken.");
   });
 
+  it("lets the administrator change the places' numbers, and asks others to log in (TRAFIK-06)", () => {
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toContain("telefon");
+    const phones = [{ place: "nby", phone: "101" }];
+    const html = renderToStaticMarkup(<SettingsPage admin now={now} hubName="Testhubben" version={null} automation={automation} automationSaved={0} phones={phones} />);
+    expect(html).toContain('<label for="phone-nby" class="etikett">Norrby (Nby)</label>');
+    expect(html).toContain('value="101"');
+    expect(html).toContain('id="phone-save" type="button" class="primar" disabled=""');
+    expect(settings(false, now)).toContain("Logga in med hubbens PIN-kod för att se och ändra telefonnumren.");
+  });
+
   it("lets the administrator choose the day change by hand or automatic, and its time (F7)", () => {
     const day = { mode: "automatic", time: "04:30", fixed: true, next_game_day: 2, next_traffic_day: "tue", suggested: "04:30", due: false, waiting: false };
-    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte"]);
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte", "telefon"]);
     const html = settings(true, { ...now, day } as Now);
     expect(html).toContain('id="dygnsskifte"');
     expect(html).toContain('aria-pressed="true">Automatiskt</button>');

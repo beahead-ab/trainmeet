@@ -266,6 +266,25 @@ class PreviewStore:
             self._save(db, run_id, drift.history[size:])
             return drift.day_status(now)
 
+    def phones(self, run_id: str) -> list[events.PlacePhone]:
+        """Every place's game number, as changed during the meet (H30)."""
+        drift = self.state(run_id)
+        return [events.PlacePhone(place=place, phone=drift.phone(place)) for place in drift.stops()]
+
+    def set_phone(self, run_id: str, change: events.PlacePhone) -> list[events.PlacePhone]:
+        """Trafikledningen changes a place's number during the meet (TRAFIK-06)."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            drift.set_phone(change, now)
+            self._save(db, run_id, drift.history[size:])
+            return [
+                events.PlacePhone(place=place, phone=drift.phone(place)) for place in drift.stops()
+            ]
+
     def command(self, run_id: str, command: station.Command) -> Drift:
         with self._transaction() as db:
             now = now_utc()

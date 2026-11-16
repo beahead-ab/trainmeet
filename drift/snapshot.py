@@ -26,9 +26,9 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
     neighbours = []
     for section in sections:
         other = section.place_b if section.place_a == place else section.place_a
-        neighbours.append(_neighbour(places[other]))
+        neighbours.append(_neighbour(drift, places[other]))
     return station.Snapshot(
-        place=_neighbour(here),
+        place=_neighbour(drift, here),
         context=drift.context,
         clock=station.Clock(
             time=model_time(seconds),
@@ -67,13 +67,16 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
             if line.to_place == place and not line.acknowledged
         ],
         neighbours=neighbours,
-        all_places=[_neighbour(p) for p in drift.package.places if p.kind != PlaceKind.HALT],
+        all_places=[_neighbour(drift, p) for p in drift.package.places if p.kind != PlaceKind.HALT],
         automatic=drift.left_here(place),
     )
 
 
-def _neighbour(place: Place) -> station.Neighbour:
-    return station.Neighbour(place=place.id, code=place.code, name=place.name, phone=place.phone)
+def _neighbour(drift: Drift, place: Place) -> station.Neighbour:
+    """A place and its number, as changed during the meet (H24, H30)."""
+    return station.Neighbour(
+        place=place.id, code=place.code, name=place.name, phone=drift.phone(place.id)
+    )
 
 
 def _cases(drift: Drift) -> list[Case]:
