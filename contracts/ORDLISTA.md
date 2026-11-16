@@ -32,6 +32,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Manuellt tåg | `train.manual` | Ett tåg utan tid, sträcka eller med omöjlig gångtid. Körs för hand, och automatiken rör det inte. |
 | Trafikdag | `train.days`, `Weekday` | Tidtabellens veckodag. |
 | Speldygn | `traffic_week` | Dag 1…N på träffen. Inte samma sak som trafikdag: en åttadagarsträff har två måndagar. |
+| Tidshopp | `clock.jump`, `TimeJumped` | Klockan ställs till en annan tid samma speldygn. Öppna klareringar stängs och tågen ställs där tidtabellen har dem: framme där de senast skulle ha kommit, och kvar på avgångsstationen om de enligt tidtabellen är ute på linjen. En drifthändelse; inget raderas. |
+| Ångra hoppet | `clock.jump_undone`, `TimeJumpUndone` | Läget före det senaste tidshoppet läggs tillbaka, med klockan som den var. Händelserna emellan står kvar i loggen. |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |

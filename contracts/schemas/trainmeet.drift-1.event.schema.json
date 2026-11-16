@@ -137,6 +137,63 @@
       "title": "ClockChanged",
       "type": "object"
     },
+    "TimeJumped": {
+      "additionalProperties": true,
+      "description": "Tidshopp (H37, F6, DRIFT-32): the open cases are closed and every train is placed where\nthe timetable has it at the new time (DRIFT-43). Nothing is deleted, so it can be undone.",
+      "properties": {
+        "before": {
+          "description": "Klockan före hoppet, sekunder in på speldygnet.",
+          "minimum": 0,
+          "title": "Before",
+          "type": "number"
+        },
+        "seconds": {
+          "description": "Klockan efter hoppet.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "number"
+        },
+        "closed": {
+          "description": "Klareringarna som stängdes.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Closed",
+          "type": "array"
+        }
+      },
+      "required": [
+        "before",
+        "seconds"
+      ],
+      "title": "TimeJumped",
+      "type": "object"
+    },
+    "TimeJumpUndone": {
+      "additionalProperties": true,
+      "description": "Ångra (F6): everything is as it was before the jump, and the clock shows the time it\nshowed then. The events in between stay in the log.",
+      "properties": {
+        "jump": {
+          "description": "Tidshoppets händelsenummer.",
+          "minimum": 1,
+          "title": "Jump",
+          "type": "integer"
+        },
+        "seconds": {
+          "description": "Klockan efter ångrandet, som före hoppet.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "jump",
+        "seconds"
+      ],
+      "title": "TimeJumpUndone",
+      "type": "object"
+    },
     "ClearanceRequested": {
       "additionalProperties": true,
       "properties": {
@@ -722,6 +779,36 @@
     {
       "properties": {
         "kind": {
+          "const": "clock.jump",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/TimeJumped"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.jump_undone",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/TimeJumpUndone"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "clearance.requested",
           "type": "string"
         },
@@ -998,6 +1085,8 @@
               "clock.started",
               "clock.stopped",
               "clock.speed",
+              "clock.jump",
+              "clock.jump_undone",
               "clearance.requested",
               "clearance.answered",
               "clearance.cancelled",

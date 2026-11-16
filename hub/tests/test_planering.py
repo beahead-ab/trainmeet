@@ -191,7 +191,10 @@ def test_drift_runs_the_published_version(planned: TestClient) -> None:
 
 def test_two_boxes_run_a_varnamo_train(planned: TestClient) -> None:
     seen = run_varnamo(planned)
-    leg = seen.legs[0]
+    # The meet starts at 05:00: the night's trains stand where the timetable has them, counted
+    # as arrived (DRIFT-43), and the first train still to run is taken.
+    assert next(item for item in seen.legs if item.train_number == "537").state == "arrived"
+    leg = next(item for item in seen.legs if item.state == "planned")
     code = drift.Joining.model_validate(planned.get(DRIFT + "/connect").json()).code
     sender, receiver = Tab(planned, "Box 1", code), Tab(planned, "Box 2", code)
     for box, place in ((sender, leg.from_place), (receiver, leg.to_place)):

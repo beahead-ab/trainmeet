@@ -29,6 +29,8 @@ export const EVENTS: Record<string, string> = {
   "clock.started": "Klockan startade",
   "clock.stopped": "Klockan stoppades",
   "clock.speed": "Ny hastighet",
+  "clock.jump": "Tidshopp",
+  "clock.jump_undone": "Tidshoppet ångrat",
   "clearance.requested": "Klarering begärd",
   "clearance.cancelled": "Begäran återtagen",
   "clearance.invalidated": "Klareringen blev ogiltig (spårbyte)",
@@ -98,9 +100,35 @@ export function actorName(who: Actor | null | undefined, clients: Client[]): str
   return known ? known.name : (who.id ?? who.kind);
 }
 
+// Tidshopp (TRAFIK-01, H37, F6): a minute of the game day on the slider, and what it does.
+const pad = (value: number) => String(value).padStart(2, "0");
+/** The clock time of a minute or a second count of the game day, as HH:MM. */
+export const clockAt = (minutes: number) => `${pad(Math.floor(minutes / 60) % 24)}:${pad(Math.floor(minutes) % 60)}`;
+export const hhmm = (seconds: number) => clockAt(Math.floor(seconds / 60));
+export function minuteOf(time: string): number | null {
+  const found = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!found) return null;
+  const [hours, minutes] = [Number(found[1]), Number(found[2])];
+  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
+}
+const clearances = (count: number) => (count === 1 ? "1 klarering" : `${count} klareringar`);
+/** What a jump will do, said before it is made. */
+export function jumpNote(open: number): string {
+  const closing = open ? `${open === 1 ? "Den öppna klareringen" : `De ${open} öppna klareringarna`} stängs, och tågen` : "Tågen";
+  return `${closing} ställs där tidtabellen har dem. Hoppet kan ångras.`;
+}
+/** The latest jump, as Nu offers to undo it. */
+export const jumpText = (jump: { from_time: string; to_time: string; closed: number }) =>
+  `Tidshopp från ${jump.from_time} till ${jump.to_time}` + (jump.closed ? ` · ${clearances(jump.closed)} stängdes` : "");
+
 export function describe(event: DriftEvent): string {
   const data = event.data ?? {};
   const forward = data["forward"] ? ", flyttat fram" : "";
+  if (event.kind === "clock.jump" && typeof data["seconds"] === "number") {
+    const closed = Array.isArray(data["closed"]) ? data["closed"].length : 0;
+    return `Tidshopp till ${hhmm(data["seconds"])}` + (closed ? `, ${clearances(closed)} stängd${closed === 1 ? "" : "a"}` : "");
+  }
+  if (event.kind === "clock.jump_undone" && typeof data["seconds"] === "number") return `Tidshoppet ångrat, klockan åter ${hhmm(data["seconds"])}`;
   if (event.kind === "clearance.answered") return (data["approved"] ? "Klart givet" : "Begäran nekad") + forward;
   if (event.kind === "clock.speed") return `Ny hastighet ${String(data["speed"])}×`;
   if (event.kind === "clearance.reminded" && data["count"]) return `Påminnelse ${String(data["count"])}, obesvarad begäran`;

@@ -198,7 +198,7 @@ export function ProvbananPage({ initial }: ProvbananProps) {
               <output id="run-clock" className="provklocka" aria-label="Provkörningens klocka">
                 {runClock(state, performance.now() - updated.current)}
               </output>
-              <button id="toggle-clock" type="button" onClick={() => void request(() => provbanan.clock({ action: state.clock.running ? "stop" : "start", speed: null, time: null, game_day: null }))}>
+              <button id="toggle-clock" type="button" onClick={() => void request(() => provbanan.clock({ action: state.clock.running ? "stop" : "start", speed: null, time: null, game_day: null, jump: null }))}>
                 {state.clock.running ? "Stanna klockan" : "Starta klockan"}
               </button>
               <label>
@@ -210,7 +210,7 @@ export function ProvbananPage({ initial }: ProvbananProps) {
                 onClick={(event) => {
                   const field = event.currentTarget.parentElement?.querySelector<HTMLInputElement>("#speed");
                   if (field && !field.reportValidity()) return;
-                  if (speed) void request(() => provbanan.clock({ action: "speed", speed: Number(speed), time: null, game_day: null }));
+                  if (speed) void request(() => provbanan.clock({ action: "speed", speed: Number(speed), time: null, game_day: null, jump: null }));
                 }}
               >
                 Spara hastighet

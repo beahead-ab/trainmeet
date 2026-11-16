@@ -1,7 +1,7 @@
 import { describe as group, expect, it } from "vitest";
 import type { Client, DriftEvent, Now } from "./api";
 import { waitingCount } from "@trainmeet/hubben";
-import { actorName, clientDetails, describe, modeText } from "./drift";
+import { actorName, clientDetails, clockAt, describe, hhmm, jumpNote, jumpText, minuteOf, modeText } from "./drift";
 
 const now = {
   meet_id: "provbanan",
@@ -36,6 +36,10 @@ group("Klienter and Logg (TRAFIK-04, TRAFIK-07)", () => {
     expect(describe(event("train.arrived", { track: "2", forward: true }))).toBe("Ankomst spår 2, flyttat fram");
     expect(describe(event("clearance.answered", { approved: true, forward: true }))).toBe("Klart givet, flyttat fram");
     expect(describe(event("clearance.reminded", { clearance_id: "c", count: 2 }))).toBe("Påminnelse 2, obesvarad begäran");
+    expect(describe(event("clock.jump", { before: 21600, seconds: 30600, closed: ["c1", "c2"] }))).toBe("Tidshopp till 08:30, 2 klareringar stängda");
+    expect(describe(event("clock.jump", { before: 21600, seconds: 30600, closed: ["c1"] }))).toBe("Tidshopp till 08:30, 1 klarering stängd");
+    expect(describe(event("clock.jump", { before: 21600, seconds: 30600, closed: [] }))).toBe("Tidshopp till 08:30");
+    expect(describe(event("clock.jump_undone", { jump: 7, seconds: 21660 }))).toBe("Tidshoppet ångrat, klockan åter 06:01");
     expect(describe(event("something.new"))).toBe("something.new");
     expect(actorName({ kind: "system", id: null }, [])).toBe("Hubben");
     expect(actorName({ kind: "dispatcher", id: null }, [])).toBe("Trafikledningen");
@@ -48,5 +52,21 @@ group("Klienter and Logg (TRAFIK-04, TRAFIK-07)", () => {
     expect(modeText(place, (id) => id)).toBe("Automatiken · lämnad av trafikledningen");
     const manned = { place: "nby", name: "Norrby", code: "Nby", mode: "no_contact", left_by: null, takes_over_in: 90, operator: "c1", present: [] } as never;
     expect(modeText(manned, () => "Box 12")).toBe("Kontakt saknas · automatiken tar över om 2 min · Box 12");
+  });
+});
+
+group("Tidshopp (TRAFIK-01, H37, F6)", () => {
+  it("reads and writes a minute of the game day", () => {
+    expect([clockAt(0), clockAt(6 * 60 + 5), clockAt(1439)]).toEqual(["00:00", "06:05", "23:59"]);
+    expect(hhmm(25 * 3600 + 120)).toBe("01:02");
+    expect([minuteOf("06:05"), minuteOf("6:05"), minuteOf("24:00"), minuteOf("06:60"), minuteOf("")]).toEqual([365, 365, null, null, null]);
+  });
+
+  it("says what the jump does before, and what it did after", () => {
+    expect(jumpNote(0)).toBe("Tågen ställs där tidtabellen har dem. Hoppet kan ångras.");
+    expect(jumpNote(1)).toBe("Den öppna klareringen stängs, och tågen ställs där tidtabellen har dem. Hoppet kan ångras.");
+    expect(jumpNote(3)).toBe("De 3 öppna klareringarna stängs, och tågen ställs där tidtabellen har dem. Hoppet kan ångras.");
+    expect(jumpText({ from_time: "06:12", to_time: "08:00", closed: 2 })).toBe("Tidshopp från 06:12 till 08:00 · 2 klareringar stängdes");
+    expect(jumpText({ from_time: "06:12", to_time: "08:00", closed: 0 })).toBe("Tidshopp från 06:12 till 08:00");
   });
 });

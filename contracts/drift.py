@@ -63,6 +63,11 @@ class ClockControl(Contract):
     speed: float | None = Field(default=None, gt=0, le=60)
     time: TimeOfDay | None = None
     game_day: int | None = Field(default=None, ge=1)
+    jump: int | None = Field(
+        default=None,
+        ge=1,
+        description="Tidshoppet att ångra, som Nu visade det; tomt betyder det senaste.",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> ClockControl:
@@ -159,6 +164,23 @@ class MeetStarted(Contract):
 class ClockChanged(Contract):
     seconds: float = Field(ge=0)
     speed: float = Field(gt=0, le=60)
+
+
+class TimeJumped(Contract):
+    """Tidshopp (H37, F6, DRIFT-32): the open cases are closed and every train is placed where
+    the timetable has it at the new time (DRIFT-43). Nothing is deleted, so it can be undone."""
+
+    before: float = Field(ge=0, description="Klockan före hoppet, sekunder in på speldygnet.")
+    seconds: float = Field(ge=0, description="Klockan efter hoppet.")
+    closed: list[Id] = Field(default_factory=list, description="Klareringarna som stängdes.")
+
+
+class TimeJumpUndone(Contract):
+    """Ångra (F6): everything is as it was before the jump, and the clock shows the time it
+    showed then. The events in between stay in the log."""
+
+    jump: int = Field(ge=1, description="Tidshoppets händelsenummer.")
+    seconds: float = Field(ge=0, description="Klockan efter ångrandet, som före hoppet.")
 
 
 class ClearanceRef(Contract):
@@ -337,6 +359,8 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLOCK_STARTED: ClockChanged,
     EventKind.CLOCK_STOPPED: ClockChanged,
     EventKind.CLOCK_SPEED: ClockChanged,
+    EventKind.TIME_JUMP: TimeJumped,
+    EventKind.TIME_JUMP_UNDONE: TimeJumpUndone,
     EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
@@ -427,6 +451,16 @@ class LegNow(Contract):
     track: Text | None = Field(default=None, description="Ankomstspåret, planerat eller faktiskt.")
 
 
+class LastJump(Contract):
+    """The latest time jump, while it can be undone (F6): until the next jump or undo."""
+
+    seq: int = Field(ge=1, description="Tidshoppets händelsenummer, för Ångra.")
+    from_time: TimeOfDay
+    to_time: TimeOfDay
+    closed: int = Field(ge=0, description="Antalet klareringar som stängdes.")
+    wall_time: datetime
+
+
 class Now(Contract):
     """The meet as it runs: open to everyone, so it holds no names of people, no codes and no
     phone numbers (B13)."""
@@ -440,6 +474,7 @@ class Now(Contract):
     places: list[NowPlace]
     legs: list[LegNow]
     clearances: list[Clearance]
+    jump: LastJump | None = Field(default=None, description="Det senaste tidshoppet, att ångra.")
 
 
 class Joining(Contract):

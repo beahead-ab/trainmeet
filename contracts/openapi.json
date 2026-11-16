@@ -4713,7 +4713,9 @@
           "station_automatic",
           "automatic_station_manned",
           "automation_off",
-          "client_not_present"
+          "client_not_present",
+          "no_jump_to_undo",
+          "other_game_day"
         ],
         "title": "Reason",
         "type": "string"
@@ -7540,6 +7542,20 @@
             ],
             "default": null,
             "title": "Game Day"
+          },
+          "jump": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tidshoppet att ångra, som Nu visade det; tomt betyder det senaste.",
+            "title": "Jump"
           }
         },
         "required": [
@@ -8022,6 +8038,36 @@
           {
             "properties": {
               "kind": {
+                "const": "clock.jump",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.TimeJumped"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "clock.jump_undone",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.TimeJumpUndone"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "clearance.requested",
                 "type": "string"
               },
@@ -8298,6 +8344,8 @@
                     "clock.started",
                     "clock.stopped",
                     "clock.speed",
+                    "clock.jump",
+                    "clock.jump_undone",
                     "clearance.requested",
                     "clearance.answered",
                     "clearance.cancelled",
@@ -8476,6 +8524,63 @@
           "speed"
         ],
         "title": "ClockChanged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.TimeJumped": {
+        "additionalProperties": true,
+        "description": "Tidshopp (H37, F6, DRIFT-32): the open cases are closed and every train is placed where\nthe timetable has it at the new time (DRIFT-43). Nothing is deleted, so it can be undone.",
+        "properties": {
+          "before": {
+            "description": "Klockan före hoppet, sekunder in på speldygnet.",
+            "minimum": 0,
+            "title": "Before",
+            "type": "number"
+          },
+          "seconds": {
+            "description": "Klockan efter hoppet.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "number"
+          },
+          "closed": {
+            "description": "Klareringarna som stängdes.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Closed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "before",
+          "seconds"
+        ],
+        "title": "TimeJumped",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.TimeJumpUndone": {
+        "additionalProperties": true,
+        "description": "Ångra (F6): everything is as it was before the jump, and the clock shows the time it\nshowed then. The events in between stay in the log.",
+        "properties": {
+          "jump": {
+            "description": "Tidshoppets händelsenummer.",
+            "minimum": 1,
+            "title": "Jump",
+            "type": "integer"
+          },
+          "seconds": {
+            "description": "Klockan efter ångrandet, som före hoppet.",
+            "minimum": 0,
+            "title": "Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "jump",
+          "seconds"
+        ],
+        "title": "TimeJumpUndone",
         "type": "object"
       },
       "trainmeet.drift-1.event.ClearanceRequested": {
@@ -8927,6 +9032,18 @@
             },
             "title": "Clearances",
             "type": "array"
+          },
+          "jump": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.LastJump"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Det senaste tidshoppet, att ångra."
           }
         },
         "required": [
@@ -9065,6 +9182,48 @@
           "game_day"
         ],
         "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.LastJump": {
+        "additionalProperties": true,
+        "description": "The latest time jump, while it can be undone (F6): until the next jump or undo.",
+        "properties": {
+          "seq": {
+            "description": "Tidshoppets händelsenummer, för Ångra.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "from_time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "From Time",
+            "type": "string"
+          },
+          "to_time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "To Time",
+            "type": "string"
+          },
+          "closed": {
+            "description": "Antalet klareringar som stängdes.",
+            "minimum": 0,
+            "title": "Closed",
+            "type": "integer"
+          },
+          "wall_time": {
+            "format": "date-time",
+            "title": "Wall Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "from_time",
+          "to_time",
+          "closed",
+          "wall_time"
+        ],
+        "title": "LastJump",
         "type": "object"
       },
       "trainmeet.drift-1.now.LegNow": {
@@ -10131,7 +10290,9 @@
           "station_automatic",
           "automatic_station_manned",
           "automation_off",
-          "client_not_present"
+          "client_not_present",
+          "no_jump_to_undo",
+          "other_game_day"
         ],
         "title": "Reason",
         "type": "string"
