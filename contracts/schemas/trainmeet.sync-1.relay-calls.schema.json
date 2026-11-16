@@ -298,6 +298,34 @@
       "title": "MeetContext",
       "type": "object"
     },
+    "PushToken": {
+      "additionalProperties": true,
+      "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+      "properties": {
+        "platform": {
+          "const": "apns",
+          "default": "apns",
+          "title": "Platform",
+          "type": "string"
+        },
+        "token": {
+          "pattern": "^[0-9a-fA-F]{64,200}$",
+          "title": "Token",
+          "type": "string"
+        },
+        "sandbox": {
+          "default": false,
+          "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+          "title": "Sandbox",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "title": "PushToken",
+      "type": "object"
+    },
     "RelayCall": {
       "additionalProperties": true,
       "description": "Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.\nMolnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse\n(SYNK-11, SYNK-13). Molnet sparar ingenting av trafiken (SYNK-22).",
@@ -392,6 +420,17 @@
           "minimum": 0.0,
           "title": "Wait",
           "type": "number"
+        },
+        "push": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PushToken"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -407,7 +446,8 @@
         "connection",
         "snapshot",
         "command",
-        "revision"
+        "revision",
+        "push"
       ],
       "title": "RelayKind",
       "type": "string"

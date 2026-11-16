@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/station/1/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["stationPush"];
+        post?: never;
+        delete: operations["stationPushOff"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/terminal/session": {
         parameters: {
             query?: never;
@@ -3176,6 +3192,104 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.event.EventKind": "changed" | "train.approaching" | "clearance.requested" | "clearance.answered" | "clearance.reminder" | "line.available" | "approval";
+        /**
+         * PushToken
+         * @description Telefonens adress för push, som appen ger hubben när den är godkänd:
+         *     PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+         *     leder och skrivs aldrig ut.
+         */
+        "trainmeet.station-1.push-token": {
+            /**
+             * Platform
+             * @default apns
+             * @constant
+             */
+            platform: "apns";
+            /** Token */
+            token: string;
+            /**
+             * Sandbox
+             * @description Apples utvecklingsmiljö, för en app som är byggd för prov.
+             * @default false
+             */
+            sandbox: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,
+         *     påminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka
+         *     direkt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna
+         *     expected_revision.
+         */
+        "trainmeet.station-1.notice": {
+            kind: components["schemas"]["trainmeet.station-1.notice.EventKind"];
+            /** Place */
+            place: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Clearance Id
+             * @default null
+             */
+            clearance_id: string | null;
+            context: components["schemas"]["trainmeet.station-1.notice.MeetContext"];
+            /** @default null */
+            expected_revision: components["schemas"]["trainmeet.station-1.notice.Revision"] | null;
+            /**
+             * Seq
+             * @description Drifthändelsen notisen kommer från.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        "trainmeet.station-1.notice.EventKind": "changed" | "train.approaching" | "clearance.requested" | "clearance.answered" | "clearance.reminder" | "line.available" | "approval";
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.station-1.notice.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Revision */
+        "trainmeet.station-1.notice.Revision": {
+            scope: components["schemas"]["trainmeet.station-1.notice.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.station-1.notice.RevisionScope": "call" | "case" | "place";
         /** Hello */
         "trainmeet.terminal16.hello": {
             /** Device Code */
@@ -13246,6 +13360,8 @@ export interface components {
              * @default 0
              */
             wait: number;
+            /** @default null */
+            push: components["schemas"]["trainmeet.sync-1.relay-call.PushToken"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -13399,10 +13515,34 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PushToken
+         * @description Telefonens adress för push, som appen ger hubben när den är godkänd:
+         *     PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+         *     leder och skrivs aldrig ut.
+         */
+        "trainmeet.sync-1.relay-call.PushToken": {
+            /**
+             * Platform
+             * @default apns
+             * @constant
+             */
+            platform: "apns";
+            /** Token */
+            token: string;
+            /**
+             * Sandbox
+             * @description Apples utvecklingsmiljö, för en app som är byggd för prov.
+             * @default false
+             */
+            sandbox: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision";
+        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push";
         /** Revision */
         "trainmeet.sync-1.relay-call.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-call.RevisionScope"];
@@ -13624,6 +13764,30 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PushToken
+         * @description Telefonens adress för push, som appen ger hubben när den är godkänd:
+         *     PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+         *     leder och skrivs aldrig ut.
+         */
+        "trainmeet.sync-1.relay-calls.PushToken": {
+            /**
+             * Platform
+             * @default apns
+             * @constant
+             */
+            platform: "apns";
+            /** Token */
+            token: string;
+            /**
+             * Sandbox
+             * @description Apples utvecklingsmiljö, för en app som är byggd för prov.
+             * @default false
+             */
+            sandbox: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * RelayCall
          * @description Ett anrop i stationsprotokollet från en telefon eller molnets TKL utanför träffens nät.
          *     Molnet ställer det i kö till hubben som leder, och den hämtar det på sin egen förbindelse
@@ -13664,6 +13828,8 @@ export interface components {
              * @default 0
              */
             wait: number;
+            /** @default null */
+            push: components["schemas"]["trainmeet.sync-1.relay-calls.PushToken"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -13671,7 +13837,7 @@ export interface components {
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision";
+        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push";
         /** Revision */
         "trainmeet.sync-1.relay-calls.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-calls.RevisionScope"];
@@ -14233,6 +14399,231 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * Push
+         * @description En notis till en telefon. Pi:n har ingen nyckel till Apple, så den skickar sina notiser
+         *     till molnet, som skickar dem vidare: push går samma väg som reläet (SYNK-11).
+         */
+        "trainmeet.sync-1.push": {
+            token: components["schemas"]["trainmeet.sync-1.push.PushToken"];
+            notice: components["schemas"]["trainmeet.sync-1.push.Notice"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.push.EventKind": "changed" | "train.approaching" | "clearance.requested" | "clearance.answered" | "clearance.reminder" | "line.available" | "approval";
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.sync-1.push.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,
+         *     påminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka
+         *     direkt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna
+         *     expected_revision.
+         */
+        "trainmeet.sync-1.push.Notice": {
+            kind: components["schemas"]["trainmeet.sync-1.push.EventKind"];
+            /** Place */
+            place: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Clearance Id
+             * @default null
+             */
+            clearance_id: string | null;
+            context: components["schemas"]["trainmeet.sync-1.push.MeetContext"];
+            /** @default null */
+            expected_revision: components["schemas"]["trainmeet.sync-1.push.Revision"] | null;
+            /**
+             * Seq
+             * @description Drifthändelsen notisen kommer från.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PushToken
+         * @description Telefonens adress för push, som appen ger hubben när den är godkänd:
+         *     PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+         *     leder och skrivs aldrig ut.
+         */
+        "trainmeet.sync-1.push.PushToken": {
+            /**
+             * Platform
+             * @default apns
+             * @constant
+             */
+            platform: "apns";
+            /** Token */
+            token: string;
+            /**
+             * Sandbox
+             * @description Apples utvecklingsmiljö, för en app som är byggd för prov.
+             * @default false
+             */
+            sandbox: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Revision */
+        "trainmeet.sync-1.push.Revision": {
+            scope: components["schemas"]["trainmeet.sync-1.push.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.push.RevisionScope": "call" | "case" | "place";
+        /** PushBatch */
+        "trainmeet.sync-1.push-batch": {
+            /** Pushes */
+            pushes?: components["schemas"]["trainmeet.sync-1.push-batch.Push"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.push-batch.EventKind": "changed" | "train.approaching" | "clearance.requested" | "clearance.answered" | "clearance.reminder" | "line.available" | "approval";
+        /**
+         * MeetContext
+         * @description Which meet, version and game day the client saw. A command for another is refused
+         *     with stale_meet_context, so an old choice never survives a change of meet or day.
+         */
+        "trainmeet.sync-1.push-batch.MeetContext": {
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /**
+             * Epoch
+             * @description Ledarskapets epok; byts vid övertag.
+             */
+            epoch: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,
+         *     påminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka
+         *     direkt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna
+         *     expected_revision.
+         */
+        "trainmeet.sync-1.push-batch.Notice": {
+            kind: components["schemas"]["trainmeet.sync-1.push-batch.EventKind"];
+            /** Place */
+            place: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Clearance Id
+             * @default null
+             */
+            clearance_id: string | null;
+            context: components["schemas"]["trainmeet.sync-1.push-batch.MeetContext"];
+            /** @default null */
+            expected_revision: components["schemas"]["trainmeet.sync-1.push-batch.Revision"] | null;
+            /**
+             * Seq
+             * @description Drifthändelsen notisen kommer från.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Push
+         * @description En notis till en telefon. Pi:n har ingen nyckel till Apple, så den skickar sina notiser
+         *     till molnet, som skickar dem vidare: push går samma väg som reläet (SYNK-11).
+         */
+        "trainmeet.sync-1.push-batch.Push": {
+            token: components["schemas"]["trainmeet.sync-1.push-batch.PushToken"];
+            notice: components["schemas"]["trainmeet.sync-1.push-batch.Notice"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PushToken
+         * @description Telefonens adress för push, som appen ger hubben när den är godkänd:
+         *     PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+         *     leder och skrivs aldrig ut.
+         */
+        "trainmeet.sync-1.push-batch.PushToken": {
+            /**
+             * Platform
+             * @default apns
+             * @constant
+             */
+            platform: "apns";
+            /** Token */
+            token: string;
+            /**
+             * Sandbox
+             * @description Apples utvecklingsmiljö, för en app som är byggd för prov.
+             * @default false
+             */
+            sandbox: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Revision */
+        "trainmeet.sync-1.push-batch.Revision": {
+            scope: components["schemas"]["trainmeet.sync-1.push-batch.RevisionScope"];
+            /** Key */
+            key: string;
+            /** Value */
+            value: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RevisionScope
+         * @description Three separate revision spaces, as in v2 §5: never one global counter.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.push-batch.RevisionScope": "call" | "case" | "place";
     };
     responses: never;
     parameters: never;
@@ -14353,6 +14744,46 @@ export interface operations {
                 content: {
                     "text/event-stream": string;
                 };
+            };
+        };
+    };
+    stationPush: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.station-1.push-token"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stationPushOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

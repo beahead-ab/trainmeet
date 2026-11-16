@@ -113,6 +113,23 @@ def router(store: AnyRun, relay: Callable[[], str | None] = lambda: None) -> API
         except failures as error:
             _error(error)
 
+    @routes.put("/push", status_code=204)
+    def push(token: station.PushToken, authorization: Authorization = None) -> Response:
+        """The phone's address for push (F20). Kept only here, on the hub that leads."""
+        try:
+            store.set_push(_key(authorization), token)
+        except failures as error:
+            _error(error)
+        return Response(status_code=204)
+
+    @routes.delete("/push", status_code=204)
+    def push_off(authorization: Authorization = None) -> Response:
+        try:
+            store.set_push(_key(authorization), None)
+        except failures as error:
+            _error(error)
+        return Response(status_code=204)
+
     @routes.get("/places/{place}/events")
     async def events(
         place: PlaceId, request: Request, authorization: Authorization = None
@@ -187,6 +204,9 @@ def relayed(store: AnyRun, call: RelayCall, relay: Callable[[], str | None]) -> 
             return answer(200, snapshot=store.place_snapshot(key, call.place))
         if call.kind == RelayKind.COMMAND and call.command is not None:
             return answer(200, reply=store.station_command(key, call.command))
+        if call.kind == RelayKind.PUSH:
+            store.set_push(key, call.push)
+            return answer(204)
         if call.kind == RelayKind.REVISION and call.place is not None:
             deadline = time.monotonic() + call.wait
             while True:
@@ -250,6 +270,19 @@ def relay_router(relay: Relay) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         hashed = key_hash(_key(authorization))
         return given((await ask(hub_id, RelayKind.COMMAND, key_hash=hashed, command=command)).reply)
+
+    @routes.put("/push", status_code=204)
+    async def push(
+        hub_id: HubId, token: station.PushToken, authorization: Authorization = None
+    ) -> Response:
+        hashed = key_hash(_key(authorization))
+        await ask(hub_id, RelayKind.PUSH, key_hash=hashed, push=token)
+        return Response(status_code=204)
+
+    @routes.delete("/push", status_code=204)
+    async def push_off(hub_id: HubId, authorization: Authorization = None) -> Response:
+        await ask(hub_id, RelayKind.PUSH, key_hash=key_hash(_key(authorization)))
+        return Response(status_code=204)
 
     @routes.get("/places/{place}/events")
     async def events(

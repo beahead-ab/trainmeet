@@ -32,6 +32,7 @@ from contracts.sync import (
     HomeBundle,
     Link,
     LinkRequest,
+    PushBatch,
     RelayAnswer,
     RelayCalls,
     RunAck,
@@ -46,6 +47,7 @@ from drift.engine import Refused
 from drift.store import MissingRun
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
+from hub.push import Senders
 from hub.running import Running
 from planering.store import Planning, PlanningError
 from synk.follower import Follower
@@ -91,6 +93,7 @@ def router(
     login: LocalLogin,
     hello: Callable[[], Hello],
     relay: Relay | None = None,
+    pushes: Senders | None = None,
 ) -> APIRouter:
     routes = APIRouter()
     relay = relay if relay is not None else Relay()
@@ -320,6 +323,34 @@ def router(
         if not relay.answer(found.hub_id, answer):
             raise HTTPException(410, "Ingen väntar på svaret längre.")
         return Response(status_code=204)
+
+    # --- Push (F20): the Pi's notices go out from here ---------------------------------------
+
+    @routes.post("/api/sync/1/meets/{meet}/push", status_code=204)
+    def push(
+        meet: str,
+        batch: PushBatch,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> Response:
+        """The Pi has no key to Apple's service: it sends its notices here, and they go out the
+        way this hub's own do (SYNK-11). Nothing is kept."""
+        _protocol(spoken)
+        pi(meet, authorization)
+        if pushes is not None:
+            pushes.own.send(batch.pushes)
+        return Response(status_code=204)
+
+    @routes.get("/api/hub/push")
+    def push_status(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Which way the notices go, and the last ones the pretend service took."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        if pushes is None:
+            return {"service": "none", "recent": []}
+        return {"service": pushes.name, "recent": pushes.fake.recent()}
 
     # --- Träffens hem (H35, SYNK-03, SYNK-16) -------------------------------------------------
 

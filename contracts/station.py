@@ -18,6 +18,8 @@ Transport (Claude, draft): HTTP with JSON under /api/station/1/ and an event str
     GET  /api/station/1/places/{place}     Snapshot
     POST /api/station/1/commands           Command         -> Reply (always with the snapshot)
     GET  /api/station/1/places/{place}/events   Event stream (text/event-stream)
+    PUT  /api/station/1/push               PushToken: the phone's address for push (F20)
+    DELETE /api/station/1/push             no more push to this client
 
 Outside the meet's network the same calls go to the cloud hub's relay, under
 /relay/{hub}/api/station/1/..., with the same key (SYNK-11). The address is in ConnectReply.relay.
@@ -442,3 +444,48 @@ class Event(Contract):
     clearance_id: Id | None = None
     call: Id | None = None
     train_number: Text | None = None
+
+
+# --- Push (SYNK-05, BOXIOS-12, F20) ---------------------------------------------------------
+
+NOTICE_KINDS: Final = (
+    EventKind.CLEARANCE_REQUESTED,
+    EventKind.CLEARANCE_REMINDER,
+    EventKind.CLEARANCE_ANSWERED,
+    EventKind.TRAIN_APPROACHING,
+)
+
+
+class PushToken(Contract):
+    """Telefonens adress för push, som appen ger hubben när den är godkänd:
+    PUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som
+    leder och skrivs aldrig ut."""
+
+    platform: Literal["apns"] = "apns"
+    token: str = Field(pattern=r"^[0-9a-fA-F]{64,200}$")
+    sandbox: bool = Field(
+        default=False, description="Apples utvecklingsmiljö, för en app som är byggd för prov."
+    )
+
+
+class Notice(Contract):
+    """Det en notis säger, till en telefon som är godkänd för platsen (F20): begäran hit,
+    påminnelsen, klart eller nekat, och tåg på väg. En begäran besvaras med Ge klart eller Neka
+    direkt i notisen: appen skickar clearance.response med sin nyckel, detta context och denna
+    expected_revision."""
+
+    kind: EventKind
+    place: Id
+    title: Text
+    body: Text
+    train_number: Text
+    clearance_id: Id | None = None
+    context: MeetContext
+    expected_revision: Revision | None = None
+    seq: int = Field(ge=1, description="Drifthändelsen notisen kommer från.")
+
+    @model_validator(mode="after")
+    def _check(self) -> Notice:
+        if self.kind not in NOTICE_KINDS:
+            raise ValueError("Push finns för begäran, påminnelsen, svaret och tåg på väg.")
+        return self

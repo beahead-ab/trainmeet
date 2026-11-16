@@ -116,6 +116,13 @@ def test_a_phone_outside_the_meets_network_reaches_the_pi_through_the_cloud(
         answered = cloud.post(f"{base}/commands", json=command, headers=headers)
         assert answered.status_code == 200, answered.text
         assert station.Reply.model_validate(answered.json()).message_id == "relay-lookup-1"
+        # The phone's address for push is kept on the Pi, which sends the notices (F20).
+        token = {"token": "ef" * 32}
+        assert cloud.put(f"{base}/push", json=token, headers=headers).status_code == 204
+        store = pi.app.state.running.store  # type: ignore[attr-defined]
+        assert [t.token for t, _ in store.push_targets(store.current())] == ["ef" * 32]
+        assert cloud.delete(f"{base}/push", headers=headers).status_code == 204
+        assert store.push_targets(store.current()) == []
         # The same key is good on the meet's network: it is one client, on the Pi.
         assert pi.get(f"{STATION}/places/{place}", headers=headers).status_code == 200
         # The event stream: a hint that the place changed.

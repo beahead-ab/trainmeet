@@ -21,6 +21,7 @@ from contracts.reasons import TEXT_SV, Reason
 from contracts.terminal import DisplaySize
 from drift.automatik import Automatik
 from drift.engine import Drift, Outcome, Refused, model_time, now_utc
+from drift.notices import notices
 from drift.snapshot import snapshot
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
@@ -70,6 +71,10 @@ CREATE TABLE IF NOT EXISTS station_client (
     places TEXT NOT NULL,
     key_hash TEXT UNIQUE,
     key_once TEXT
+);
+CREATE TABLE IF NOT EXISTS station_push (
+    client_id TEXT PRIMARY KEY REFERENCES station_client(client_id) ON DELETE CASCADE,
+    token TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS screen (
     client_id TEXT PRIMARY KEY,
@@ -722,6 +727,41 @@ class PreviewStore:
         if row is None:
             raise UnknownClient()
         return str(row[0]), str(row[1]), list(json.loads(row[2]))
+
+    # --- Push (F20, SYNK-05) ----------------------------------------------------------------
+
+    def set_push(self, key: str, token: station.PushToken | None) -> None:
+        """The phone's address for push, from the approved client; None stops it."""
+        with self._transaction() as db:
+            client_id, _, _ = self._approved(db, key)
+            if token is None:
+                db.execute("DELETE FROM station_push WHERE client_id=?", (client_id,))
+            else:
+                db.execute(
+                    "INSERT OR REPLACE INTO station_push VALUES (?, ?)",
+                    (client_id, token.model_dump_json()),
+                )
+
+    def push_targets(self, run_id: str) -> list[tuple[station.PushToken, list[str]]]:
+        """The approved clients that want push, and the places each is approved for."""
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT p.token, c.places FROM station_push p "
+                "JOIN station_client c ON c.client_id=p.client_id "
+                "WHERE c.run_id=? AND c.status=?",
+                (run_id, station.ApprovalStatus.APPROVED.value),
+            ).fetchall()
+        return [
+            (station.PushToken.model_validate_json(token), list(json.loads(places)))
+            for token, places in rows
+        ]
+
+    def notices(self, run_id: str, after: int) -> tuple[int, list[station.Notice]]:
+        """The run's last seq, and the notices of the events after seq (F20)."""
+        with self._transaction() as db:
+            drift = self._load(db, run_id, now_utc())
+        last = drift.history[-1].seq if drift.history else 0
+        return last, notices(drift, after)
 
     def place_snapshot(self, key: str, place: str) -> station.Snapshot:
         with self._transaction() as db:

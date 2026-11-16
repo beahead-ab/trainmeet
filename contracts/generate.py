@@ -49,6 +49,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.station-1.reply": station.Reply,
     "trainmeet.station-1.snapshot": station.Snapshot,
     "trainmeet.station-1.event": station.Event,
+    "trainmeet.station-1.push-token": station.PushToken,
+    "trainmeet.station-1.notice": station.Notice,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -123,6 +125,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.sync-1.relay-call": sync.RelayCall,
     "trainmeet.sync-1.relay-calls": sync.RelayCalls,
     "trainmeet.sync-1.relay-answer": sync.RelayAnswer,
+    "trainmeet.sync-1.push": sync.Push,
+    "trainmeet.sync-1.push-batch": sync.PushBatch,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
@@ -315,23 +319,28 @@ def openapi() -> str:
         method: str,
         path: str,
         operation: str,
-        response: str,
+        response: str | None,
         request: str | None = None,
         *,
         bearer: bool = False,
         many: bool = False,
         stream: bool = False,
     ) -> None:
-        body = openapi_ref(response)
-        if many:
-            body = {"type": "array", "items": body}
-        if stream:
-            body = {"type": "string", "x-event-schema": body}
-        media = "text/event-stream" if stream else "application/json"
+        """response None: the answer is 204, with no body."""
         entry: JsonSchemaValue = {
             "operationId": operation,
-            "responses": {"200": {"description": "OK", "content": {media: {"schema": body}}}},
+            "responses": {"204": {"description": "No Content"}},
         }
+        if response is not None:
+            body = openapi_ref(response)
+            if many:
+                body = {"type": "array", "items": body}
+            if stream:
+                body = {"type": "string", "x-event-schema": body}
+            media = "text/event-stream" if stream else "application/json"
+            entry["responses"] = {
+                "200": {"description": "OK", "content": {media: {"schema": body}}}
+            }
         if request:
             entry["requestBody"] = {
                 "required": True,
@@ -377,6 +386,8 @@ def openapi() -> str:
         bearer=True,
         stream=True,
     )
+    route("put", "/api/station/1/push", "stationPush", None, s + "push-token", bearer=True)
+    route("delete", "/api/station/1/push", "stationPushOff", None, bearer=True)
     route("post", "/api/terminal/session", "terminalLogin", w + "session", w + "login")
     route("get", "/api/terminal/frame", "terminalFrame", t + "frame", bearer=True)
     route("post", "/api/terminal/keys", "terminalKey", t + "ack", t + "key-press", bearer=True)

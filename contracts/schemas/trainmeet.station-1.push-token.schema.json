@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.push-token.schema.json",
+  "title": "trainmeet.station-1.push-token",
+  "additionalProperties": true,
+  "description": "Telefonens adress för push, som appen ger hubben när den är godkänd:\nPUT /api/station/1/push med nyckeln, DELETE för att sluta. Den finns bara hos hubben som\nleder och skrivs aldrig ut.",
+  "properties": {
+    "platform": {
+      "const": "apns",
+      "default": "apns",
+      "title": "Platform",
+      "type": "string"
+    },
+    "token": {
+      "pattern": "^[0-9a-fA-F]{64,200}$",
+      "title": "Token",
+      "type": "string"
+    },
+    "sandbox": {
+      "default": false,
+      "description": "Apples utvecklingsmiljö, för en app som är byggd för prov.",
+      "title": "Sandbox",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "token"
+  ],
+  "type": "object"
+}

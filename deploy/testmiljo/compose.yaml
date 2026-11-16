@@ -11,6 +11,11 @@ services:
       TRAINMEET_PREVIEW_DB: /data/provbanan.sqlite3
       # Only Caddy talks to the hub; trust its X-Forwarded-* headers.
       FORWARDED_ALLOW_IPS: "*"
+    # Apple's push key (F20): TRAINMEET_APNS_KEY_ID, _TEAM_ID, _TOPIC and _KEY, written by the
+    # deploy from GitHub's secrets. Without it the notices go to the pretend service.
+    env_file:
+      - path: ./hub-push.env
+        required: false
     volumes:
       - ./hub-data:/data
     ports:
