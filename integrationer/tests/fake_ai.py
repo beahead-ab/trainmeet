@@ -24,7 +24,9 @@ KEY = "test-key-not-real"
 class FakeAi:
     """What the service knows and what it was asked."""
 
-    answers: dict[str, str] = field(default_factory=dict)  # sha256 of a picture: the answer
+    # sha256 of a picture: the answer. Never a picture the hub's probe could draw (three digits
+    # at drawn()'s own scale), or the probe gets that answer instead of its number.
+    answers: dict[str, str] = field(default_factory=dict)
     blind: bool = False  # a model that cannot read pictures
     asked: list[dict[str, Any]] = field(default_factory=list)
     address: str = ""
