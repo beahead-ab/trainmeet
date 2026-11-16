@@ -1741,6 +1741,96 @@
         ]
       }
     },
+    "/api/planering/1/meets/{meet}/deviations/{deviation}/let-stand": {
+      "post": {
+        "operationId": "letStand",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.let-stand"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deviation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/planering/1/meets/{meet}/deviations/{deviation}/take-back": {
+      "post": {
+        "operationId": "takeBack",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deviation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets/{meet}/versions": {
       "get": {
         "operationId": "planningVersions",
@@ -15970,6 +16060,16 @@
             "title": "Taken",
             "type": "array"
           },
+          "let_stand": {
+            "description": "Låt stå i rimlighetskontrollen: avvikelsen och fingeravtrycket (PLAN-36).",
+            "patternProperties": {
+              "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+                "type": "string"
+              }
+            },
+            "title": "Let Stand",
+            "type": "object"
+          },
           "double_track_declined": {
             "description": "Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
             "patternProperties": {
@@ -19396,6 +19496,22 @@
         "title": "DoubleTrackAnswer",
         "type": "object"
       },
+      "trainmeet.planning-1.let-stand": {
+        "additionalProperties": true,
+        "description": "Låt stå: the deviation as the planner saw it.",
+        "properties": {
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fingerprint"
+        ],
+        "title": "LetStand",
+        "type": "object"
+      },
       "trainmeet.planning-1.check": {
         "additionalProperties": true,
         "description": "Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,\nthe structural errors that stop publishing, and the double-track questions.",
@@ -19423,9 +19539,128 @@
             },
             "title": "Double Track",
             "type": "array"
+          },
+          "deviations": {
+            "description": "Rimlighetskontrollen. Råd, inte regler (PLAN-36).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.check.Deviation"
+            },
+            "title": "Deviations",
+            "type": "array"
           }
         },
         "title": "Check",
+        "type": "object"
+      },
+      "trainmeet.planning-1.check.Deviation": {
+        "additionalProperties": true,
+        "description": "Rimlighetskontrollen (PLAN-36): a train whose running time or stop is unlike the other\ntrains' between the same places or at the same place. Advice, never an error: it does not\nstop publishing and does not go with the version.",
+        "properties": {
+          "id": {
+            "description": "Vad och var, aldrig när: slag, tåg och driftplatser.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "slow_leg",
+              "fast_leg",
+              "backwards_leg",
+              "backwards_dwell",
+              "long_dwell"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "calls": {
+            "description": "Tågbesöken, det där avvikelsen är först.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.check.Weekday"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "usual": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "De andra tågens median, i minuter.",
+            "title": "Usual"
+          },
+          "samples": {
+            "description": "Antal andra tåg i jämförelsen.",
+            "minimum": 0,
+            "title": "Samples",
+            "type": "integer"
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "let_stand": {
+            "default": false,
+            "description": "Låt stå, så länge tågbesöken är desamma.",
+            "title": "Let Stand",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "message",
+          "train",
+          "train_number",
+          "calls",
+          "days",
+          "minutes",
+          "samples",
+          "fingerprint"
+        ],
+        "title": "Deviation",
         "type": "object"
       },
       "trainmeet.planning-1.check.DoubleTrackQuestion": {
@@ -19512,6 +19747,20 @@
           "observation"
         ],
         "title": "Severity",
+        "type": "string"
+      },
+      "trainmeet.planning-1.check.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
         "type": "string"
       },
       "trainmeet.planning-1.version": {

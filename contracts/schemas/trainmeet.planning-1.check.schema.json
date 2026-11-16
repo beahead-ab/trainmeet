@@ -3,6 +3,117 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.check.schema.json",
   "title": "trainmeet.planning-1.check",
   "$defs": {
+    "Deviation": {
+      "additionalProperties": true,
+      "description": "Rimlighetskontrollen (PLAN-36): a train whose running time or stop is unlike the other\ntrains' between the same places or at the same place. Advice, never an error: it does not\nstop publishing and does not go with the version.",
+      "properties": {
+        "id": {
+          "description": "Vad och var, aldrig när: slag, tåg och driftplatser.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "slow_leg",
+            "fast_leg",
+            "backwards_leg",
+            "backwards_dwell",
+            "long_dwell"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "calls": {
+          "description": "Tågbesöken, det där avvikelsen är först.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Calls",
+          "type": "array"
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/Weekday"
+          },
+          "title": "Days",
+          "type": "array"
+        },
+        "minutes": {
+          "title": "Minutes",
+          "type": "integer"
+        },
+        "usual": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "De andra tågens median, i minuter.",
+          "title": "Usual"
+        },
+        "samples": {
+          "description": "Antal andra tåg i jämförelsen.",
+          "minimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "let_stand": {
+          "default": false,
+          "description": "Låt stå, så länge tågbesöken är desamma.",
+          "title": "Let Stand",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "message",
+        "train",
+        "train_number",
+        "calls",
+        "days",
+        "minutes",
+        "samples",
+        "fingerprint"
+      ],
+      "title": "Deviation",
+      "type": "object"
+    },
     "DoubleTrackQuestion": {
       "additionalProperties": true,
       "description": "Dubbelspårsfrågan (PLAN-35): a single-track section with at least two A conflicts. A No\nis kept with the fingerprint, and the question comes back only when the trains change.",
@@ -88,6 +199,20 @@
       ],
       "title": "Severity",
       "type": "string"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
     }
   },
   "additionalProperties": true,
@@ -115,6 +240,14 @@
         "$ref": "#/$defs/DoubleTrackQuestion"
       },
       "title": "Double Track",
+      "type": "array"
+    },
+    "deviations": {
+      "description": "Rimlighetskontrollen. Råd, inte regler (PLAN-36).",
+      "items": {
+        "$ref": "#/$defs/Deviation"
+      },
+      "title": "Deviations",
       "type": "array"
     }
   },

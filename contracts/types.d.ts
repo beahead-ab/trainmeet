@@ -932,6 +932,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/deviations/{deviation}/let-stand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["letStand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/deviations/{deviation}/take-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["takeBack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets/{meet}/versions": {
         parameters: {
             query?: never;
@@ -7634,6 +7666,13 @@ export interface components {
              */
             taken?: components["schemas"]["trainmeet.planning-1.draft.TakenChange"][];
             /**
+             * Let Stand
+             * @description Låt stå i rimlighetskontrollen: avvikelsen och fingeravtrycket (PLAN-36).
+             */
+            let_stand?: {
+                [key: string]: string;
+            };
+            /**
              * Double Track Declined
              * @description Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.
              */
@@ -9409,6 +9448,16 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LetStand
+         * @description Låt stå: the deviation as the planner saw it.
+         */
+        "trainmeet.planning-1.let-stand": {
+            /** Fingerprint */
+            fingerprint: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Check
          * @description Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,
          *     the structural errors that stop publishing, and the double-track questions.
@@ -9423,6 +9472,67 @@ export interface components {
             blocking?: string[];
             /** Double Track */
             double_track?: components["schemas"]["trainmeet.planning-1.check.DoubleTrackQuestion"][];
+            /**
+             * Deviations
+             * @description Rimlighetskontrollen. Råd, inte regler (PLAN-36).
+             */
+            deviations?: components["schemas"]["trainmeet.planning-1.check.Deviation"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Deviation
+         * @description Rimlighetskontrollen (PLAN-36): a train whose running time or stop is unlike the other
+         *     trains' between the same places or at the same place. Advice, never an error: it does not
+         *     stop publishing and does not go with the version.
+         */
+        "trainmeet.planning-1.check.Deviation": {
+            /**
+             * Id
+             * @description Vad och var, aldrig när: slag, tåg och driftplatser.
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "slow_leg" | "fast_leg" | "backwards_leg" | "backwards_dwell" | "long_dwell";
+            /** Title */
+            title: string;
+            /** Message */
+            message: string;
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * Calls
+             * @description Tågbesöken, det där avvikelsen är först.
+             */
+            calls: string[];
+            /** Days */
+            days: components["schemas"]["trainmeet.planning-1.check.Weekday"][];
+            /** Minutes */
+            minutes: number;
+            /**
+             * Usual
+             * @description De andra tågens median, i minuter.
+             * @default null
+             */
+            usual: number | null;
+            /**
+             * Samples
+             * @description Antal andra tåg i jämförelsen.
+             */
+            samples: number;
+            /** Fingerprint */
+            fingerprint: string;
+            /**
+             * Let Stand
+             * @description Låt stå, så länge tågbesöken är desamma.
+             * @default false
+             */
+            let_stand: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -9466,6 +9576,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.check.Severity": "conflict" | "observation";
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.check.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
          * Version
          * @description A published version: frozen, never changed, never deleted (Ordlista).
@@ -11191,6 +11307,56 @@ export interface operations {
                 "application/json": components["schemas"]["trainmeet.planning-1.double-track-answer"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    letStand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                deviation: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.let-stand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    takeBack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                deviation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

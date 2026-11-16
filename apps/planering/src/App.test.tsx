@@ -69,6 +69,23 @@ describe("Versioner (S6)", () => {
     expect(looking).not.toContain(">Ja, dubbelspår<");
   });
 
+  it("shows the reasonableness check with Låt stå, Ta tillbaka and Visa i rutnätet (PLAN-36)", () => {
+    const deviation = (id: string, let_stand: boolean) => ({ id, kind: "long_dwell", title: "Ovanligt långt uppehåll", message: "Tåg 5661 står 1 h i Steinsnes (ankomst 07:57, avgång 08:57). Andra tåg står 2 min (median av 33 tåg).", train: "t80", train_number: "5661", calls: ["c1"], days: ["mon", "tue", "wed", "thu", "fri"], minutes: 60, usual: 2, samples: 33, fingerprint: "f".repeat(64), let_stand });
+    const checked = { ...check, deviations: [deviation("a", false), deviation("b", true)] } as Check;
+    const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={checked} versions={versions} />);
+    expect(html).toContain("Rimlighet <span class=\"liten\">· 1 att granska</span>");
+    expect(html).toContain('<span class="pill observation">Ovanligt långt uppehåll</span>');
+    expect(html).toContain("Tåg 5661 står 1 h i Steinsnes");
+    expect(html).toContain(" · Mån–Fre");
+    expect(html).toContain('href="/planering/varnamo/data?block=calls&amp;sok=5661">Visa i rutnätet</a>');
+    expect(html).toContain(">Låt stå<");
+    expect(html).toContain("<summary>1 lämnade som de är</summary>");
+    expect(html).toContain(">Ta tillbaka<");
+    const looking = renderToStaticMarkup(<VersionerPage admin={false} meet="varnamo" draft={draft} check={checked} versions={versions} />);
+    expect(looking).not.toContain(">Låt stå<");
+    expect(looking).toContain("Visa i rutnätet");
+  });
+
   it("marks a withdrawn version and offers Dra tillbaka to the administrator (PLAN-18)", () => {
     const two = [...versions, { ...versions[0]!, number: 2, withdrawn: "2026-11-16T10:00:00Z" }] as Version[];
     const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={two} />);

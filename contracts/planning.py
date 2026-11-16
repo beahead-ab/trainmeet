@@ -326,6 +326,10 @@ class Draft(Contract):
     taken: list[TakenChange] = Field(
         default_factory=list, description="Förslagen från Drift som tagits med, i ordning."
     )
+    let_stand: dict[Id, str] = Field(
+        default_factory=dict,
+        description="Låt stå i rimlighetskontrollen: avvikelsen och fingeravtrycket (PLAN-36).",
+    )
     double_track_declined: dict[Id, str] = Field(
         default_factory=dict,
         description="Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
@@ -349,6 +353,32 @@ class DoubleTrackAnswer(Contract):
     fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class Deviation(Contract):
+    """Rimlighetskontrollen (PLAN-36): a train whose running time or stop is unlike the other
+    trains' between the same places or at the same place. Advice, never an error: it does not
+    stop publishing and does not go with the version."""
+
+    id: Id = Field(description="Vad och var, aldrig när: slag, tåg och driftplatser.")
+    kind: Literal["slow_leg", "fast_leg", "backwards_leg", "backwards_dwell", "long_dwell"]
+    title: Text
+    message: Text
+    train: Id
+    train_number: Text
+    calls: list[Id] = Field(description="Tågbesöken, det där avvikelsen är först.")
+    days: list[Weekday]
+    minutes: int
+    usual: int | None = Field(default=None, description="De andra tågens median, i minuter.")
+    samples: int = Field(ge=0, description="Antal andra tåg i jämförelsen.")
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    let_stand: bool = Field(default=False, description="Låt stå, så länge tågbesöken är desamma.")
+
+
+class LetStand(Contract):
+    """Låt stå: the deviation as the planner saw it."""
+
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
 class Check(Contract):
     """Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,
     the structural errors that stop publishing, and the double-track questions."""
@@ -358,6 +388,9 @@ class Check(Contract):
         default_factory=list, description="Strukturfel. De stoppar publiceringen."
     )
     double_track: list[DoubleTrackQuestion] = Field(default_factory=list)
+    deviations: list[Deviation] = Field(
+        default_factory=list, description="Rimlighetskontrollen. Råd, inte regler (PLAN-36)."
+    )
 
 
 class Difference(Contract):

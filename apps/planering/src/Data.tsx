@@ -608,14 +608,16 @@ export type DataProps = {
   versions: Version[] | null;
   /** For tests: the blocks shown from the start. */
   initialBlocks?: string[];
+  /** Visa i rutnätet: the search Data opens with. */
+  initialSearch?: string;
   onDraft?: (draft: Draft) => void;
   onTell?: (text: string, good?: boolean) => void;
   onFail?: (error: unknown) => void;
 };
 
-export function DataPage({ admin, meet, draft, findings, versions, initialBlocks, onDraft, onTell, onFail }: DataProps) {
+export function DataPage({ admin, meet, draft, findings, versions, initialBlocks, initialSearch, onDraft, onTell, onFail }: DataProps) {
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(initialBlocks ?? ["places", "sections"]));
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [filters, setFilters] = useState<Filters>({ ...NO_FILTERS, search: initialSearch ?? "" });
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<{ block: string; ref: string; row: unknown } | null>(null);
   const [pending, setPending] = useState<Edit[]>([]);

@@ -100,6 +100,9 @@ describe("Data (S6, PLAN-37)", () => {
     expect(html).toContain("<th>Anmärkning</th>");
     expect(html).toContain("<b>P 101</b>");
     expect(html).toContain("Mån–Fre");
+    const asked = renderToStaticMarkup(<DataPage admin meet="varnamo" draft={draft} findings={[]} versions={[]} initialBlocks={["calls"]} initialSearch="999" />);
+    expect(asked).toContain('value="999"');
+    expect(asked).toContain("Inget som passar filtret.");
   });
 
   it("reads the facts, the days and the report as before", () => {

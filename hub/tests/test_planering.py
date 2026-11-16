@@ -197,6 +197,24 @@ def test_the_check_and_publishing(planned: TestClient) -> None:
     assert planned.get(f"{API}/meets/{MEET}/versions/2").status_code == 404
 
 
+def test_the_reasonableness_check_with_låt_stå_and_ta_tillbaka(planned: TestClient) -> None:
+    """PLAN-36 through the hub: Värnamo's long stops, one let stand and taken back."""
+    check = planning.Check.model_validate(planned.get(f"{API}/meets/{MEET}/check").json())
+    assert {d.kind for d in check.deviations} == {"long_dwell"} and len(check.deviations) == 9
+    first = check.deviations[0]
+    assert first.message.startswith("Tåg 5661 står 1 h i Steinsnes")
+    path = f"{API}/meets/{MEET}/deviations/{first.id}"
+    body = {"fingerprint": first.fingerprint}
+    assert TestClient(planned.app).post(path + "/let-stand", json=body).status_code == 401
+    assert planned.post(path + "/let-stand", json=body).status_code == 200
+    after = planning.Check.model_validate(planned.get(f"{API}/meets/{MEET}/check").json())
+    assert [d.let_stand for d in after.deviations].count(True) == 1
+    assert planned.post(path + "/take-back").status_code == 200
+    assert planned.post(path + "/take-back").status_code == 409
+    published = planning.Version.model_validate(planned.post(f"{API}/meets/{MEET}/versions").json())
+    assert published.observations == 7, "advice, not in the version"
+
+
 def later_by(clock: str, minutes: int) -> str:
     total = int(clock[:2]) * 60 + int(clock[3:]) + minutes
     return f"{total // 60 % 24:02d}:{total % 60:02d}"

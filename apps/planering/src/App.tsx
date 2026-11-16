@@ -1,6 +1,6 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { planning, type Check, type Draft, type DoubleTrackQuestion, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
+import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
 import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
 import { GrafPage } from "./Graf";
@@ -30,6 +30,8 @@ export const isOwn = (path: string) => {
 export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
   const route = routeOf(path);
+  // Visa i rutnätet opens Data with a block and a search from the address.
+  const asked = Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)) as { block?: string; sok?: string };
   const meet = route.page === "traffar" ? null : route.meet;
   const hubState = useHub();
   const { admin, act, say, fail } = hubState;
@@ -141,6 +143,20 @@ export function App() {
     setBusy(false);
   };
 
+  // Rimlighetskontrollen (PLAN-36): Låt stå puts a deviation aside until its calls change.
+  const onLetStand = async (deviation: Deviation, stand: boolean) => {
+    if (!meet) return;
+    setBusy(true);
+    let done = false;
+    await act(async () => {
+      setDraft(await (stand ? planning.letStand(meet, deviation) : planning.takeBack(meet, deviation)));
+      done = true;
+    });
+    if (done) tell(stand ? "Avvikelsen står kvar. Den kommer tillbaka om tåget ändras där." : "Avvikelsen är tillbaka att granska.", true);
+    await readVersions(meet);
+    setBusy(false);
+  };
+
   // Dra tillbaka (PLAN-18): the version stays, but can no longer be run.
   const onWithdraw = async (number: number) => {
     if (!meet) return;
@@ -180,6 +196,8 @@ export function App() {
             admin={admin}
             meet={route.meet}
             draft={draft}
+            initialBlocks={asked.block ? asked.block.split(",") : undefined}
+            initialSearch={asked.sok ?? undefined}
             findings={check?.findings ?? []}
             versions={versions}
             onDraft={(next) => {
@@ -218,6 +236,8 @@ export function App() {
             onReject={(id) => void onAnswer(id, false)}
             onWithdraw={(number) => void onWithdraw(number)}
             onDoubleTrack={(question, double) => void onDoubleTrack(question, double)}
+            onLetStand={(deviation) => void onLetStand(deviation, true)}
+            onTakeBack={(deviation) => void onLetStand(deviation, false)}
           />
         )}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">
