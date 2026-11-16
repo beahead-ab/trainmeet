@@ -1104,6 +1104,12 @@ export interface components {
              * @constant
              */
             format: "trainmeet.meet/1";
+            /**
+             * Requires Hub
+             * @description Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.
+             * @default null
+             */
+            requires_hub: string | null;
             meet: components["schemas"]["trainmeet.meet-1.Meet"];
             clock: components["schemas"]["trainmeet.meet-1.Clock"];
             /** Attachments */
@@ -7988,6 +7994,12 @@ export interface components {
              * @constant
              */
             format: "trainmeet.meet/1";
+            /**
+             * Requires Hub
+             * @description Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.
+             * @default null
+             */
+            requires_hub: string | null;
             meet: components["schemas"]["trainmeet.planning-1.import.Meet"];
             clock: components["schemas"]["trainmeet.planning-1.import.Clock"];
             /** Attachments */
@@ -9230,6 +9242,12 @@ export interface components {
              * @constant
              */
             format: "trainmeet.meet/1";
+            /**
+             * Requires Hub
+             * @description Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.
+             * @default null
+             */
+            requires_hub: string | null;
             meet: components["schemas"]["trainmeet.planning-1.draft.Meet"];
             clock: components["schemas"]["trainmeet.planning-1.draft.Clock"];
             /** Attachments */

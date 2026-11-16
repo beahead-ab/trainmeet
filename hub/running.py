@@ -1,4 +1,4 @@
-"""The meet the hub runs: Provbanan or a published version from Planering (steg 4a).
+"""The meet the hub runs: Provbanan or a published version, kept by Synk (steg 4a, SYNK-08).
 
 Each running meet and version has a file of its own (spec 7: Drift has its own file per
 running meet), so an import can never lock Drift. Byt träff starts a run in the new file and
@@ -19,8 +19,10 @@ from typing import Final
 from contracts.common import Weekday
 from contracts.drift import ProposalStatus
 from contracts.meet import MeetPackage
+from drift.engine import Refused
 from drift.store import PreviewStore
 from planering.store import Planning, PlanningError
+from synk.store import SyncError, Versions, newer
 
 PROVBANAN: Final = "provbanan"
 LIFETIME: Final = timedelta(days=3650)
@@ -37,14 +39,31 @@ class WithdrawnVersion(UnknownMeet):
     """A version withdrawn in Planering: it can no longer be started (PLAN-18)."""
 
 
+class NeedsNewerHub(UnknownMeet):
+    """The version needs a newer hub than this one (GRUND-18)."""
+
+    def __init__(self, needed: str, running: str) -> None:
+        super().__init__(
+            f"Versionen kräver Hubben {needed} eller nyare. Den här hubben är {running}."
+        )
+
+
 class Running:
     def __init__(
-        self, data_dir: Path, provbanan: MeetPackage, provbanan_key: str, planning: Planning
+        self,
+        data_dir: Path,
+        provbanan: MeetPackage,
+        provbanan_key: str,
+        planning: Planning,
+        versions: Versions,
+        hub_version: str = "0.0.0",
     ) -> None:
         self.data_dir = data_dir
         self.provbanan = provbanan
         self.provbanan_key = provbanan_key
         self.planning = planning
+        self.versions = versions
+        self.hub_version = hub_version
         self.state_path = data_dir / "drift" / "running.json"
         self._stores: dict[tuple[str, int], PreviewStore] = {}
         self._lock = Lock()
@@ -86,31 +105,27 @@ class Running:
                 raise UnknownMeet()
             return self.provbanan, self.provbanan_key
         try:
-            published = next(v for v in self.planning.versions(meet) if v.number == version)
-            return self.planning.package(meet, version), published.checksum
-        except (PlanningError, StopIteration) as error:
+            published, data = self.versions.stored(meet, version)
+            package = MeetPackage.model_validate_json(data)
+        except SyncError as error:
             raise UnknownMeet() from error
+        if newer(package.requires_hub, self.hub_version):
+            raise NeedsNewerHub(str(package.requires_hub), self.hub_version)
+        return package, published.checksum
 
     def withdrawn(self, meet: str, version: int) -> bool:
         """Is the version withdrawn in Planering (PLAN-18)?"""
         if meet == PROVBANAN:
             return False
-        try:
-            return any(
-                v.number == version and v.withdrawn is not None
-                for v in self.planning.versions(meet)
-            )
-        except PlanningError:
-            return False
+        return any(
+            v.number == version and v.withdrawn is not None for v in self.versions.versions(meet)
+        )
 
     def latest(self, meet: str) -> int | None:
         """The newest version of the meet that is not withdrawn."""
         if meet == PROVBANAN:
             return None
-        try:
-            numbers = [v.number for v in self.planning.versions(meet) if v.withdrawn is None]
-        except PlanningError:
-            return None
+        numbers = [v.number for v in self.versions.versions(meet) if v.withdrawn is None]
         return max(numbers, default=None)
 
     def included(self, version: int) -> list[str]:
@@ -120,7 +135,7 @@ class Running:
             return []
         try:
             published = next(
-                (v.published for v in self.planning.versions(self.meet) if v.number == version),
+                (v.published for v in self.versions.versions(self.meet) if v.number == version),
                 None,
             )
             if published is None:
@@ -149,19 +164,26 @@ class Running:
         if seen in self._looked_at:
             return False
         self._looked_at.add(seen)
-        return store.take_small_correction(run_id, latest, self.included(latest))
+        try:
+            return store.take_small_correction(run_id, latest, self.included(latest))
+        except Refused:
+            return False  # not a version this hub can switch to (GRUND-18, PLAN-18)
 
     def _versions(self, meet: str) -> Callable[[int], MeetPackage]:
         """The meet's versions for a switch in the running meet (DRIFT-29). A version is frozen,
-        so each is read once; one withdrawn or not there is no version to switch to."""
+        so each is read once; one withdrawn, not there or for a newer hub is no version to
+        switch to."""
         cache: dict[int, MeetPackage] = {}
 
         def read(number: int) -> MeetPackage:
             if number not in cache:
                 try:
-                    cache[number] = self.planning.package(meet, number)
-                except PlanningError as error:
+                    package = self.versions.package(meet, number)
+                except SyncError as error:
                     raise LookupError(number) from error
+                if newer(package.requires_hub, self.hub_version):
+                    raise LookupError(number)
+                cache[number] = package
             return cache[number]
 
         return read

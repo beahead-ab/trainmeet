@@ -47,7 +47,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 # One package per part. New parts (contracts, core, drift, ...) are added here as they are built.
-packages = ["catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering"]
+packages = ["catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "synk"]
 exclude = [
     "**/tests",
     "hub/Dockerfile",
@@ -74,7 +74,7 @@ allowed-confusables = ["×", "–"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "deploy", "tests"]
+files = ["catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "synk", "deploy", "tests"]
 
 [[tool.mypy.overrides]]
 # These have type hints but no py.typed marker.
@@ -83,7 +83,7 @@ follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -q"
-testpaths = ["tests", "catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering"]
+testpaths = ["tests", "catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "synk"]
 pythonpath = ["."]
 filterwarnings = [
     "error",

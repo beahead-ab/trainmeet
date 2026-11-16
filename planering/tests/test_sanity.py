@@ -208,5 +208,4 @@ def test_låt_stå_holds_until_the_calls_change_and_can_be_taken_back(planning: 
     assert not planning.check(meet.id).deviations[0].let_stand
     with pytest.raises(PlanningError, match="står inte"):
         planning.take_back(meet.id, back.id)
-    version = planning.publish(meet.id)
-    assert "long_dwell" not in {f.code for f in planning.package(meet.id, version.number).findings}
+    assert "long_dwell" not in {f.code for f in planning.freeze(meet.id).findings}

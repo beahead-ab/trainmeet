@@ -29,6 +29,7 @@ from integrationer import planning_json
 from integrationer.tests.test_station_lists import lists_pdf, lists_zip, odt, rows_for
 from integrationer.tests.test_track_picture import picture_pdf
 from planering.store import Planning
+from synk.store import Versions
 
 PIN = "482915"
 API = "/api/planering/1"
@@ -654,6 +655,23 @@ def test_drift_runs_the_published_version(planned: TestClient) -> None:
     assert planned.get("/api/terminal/frame", headers=old_box.headers).status_code == 401
 
 
+def test_a_version_for_a_newer_hub_is_not_run(planned: TestClient, tmp_path: Path) -> None:
+    """GRUND-18: a package can need a newer hub. This one says so and keeps running the version
+    it has; the automation's small corrections pass it by."""
+    run_varnamo(planned)
+    versions = Versions(tmp_path / "planering.sqlite3")
+    package = versions.package(MEET, 1).model_copy(update={"requires_hub": "9.0.0"})
+    later = versions.publish(MEET, package.model_dump_json().encode())
+    refused = planned.post(DRIFT + "/start", json={"meet": MEET, "version": later.number})
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "Versionen kräver Hubben 9.0.0 eller nyare. Den här hubben är 0.1.0."
+    )
+    running = planned.app.state.running  # type: ignore[attr-defined]
+    assert not running.take_small_corrections()
+    assert drift.Now.model_validate(planned.get(DRIFT + "/now").json()).version == 1
+
+
 def test_two_boxes_run_a_varnamo_train(planned: TestClient) -> None:
     seen = run_varnamo(planned)
     # The meet starts at 05:00: the night's trains stand where the timetable has them, counted
@@ -715,8 +733,9 @@ def test_a_run_keeps_its_package_when_the_contracts_gain_a_field(
     call.exchange in 4a) does not end the meet that runs."""
     run_varnamo(planned)
     plans = Planning(tmp_path / "planering.sqlite3")
-    [version] = plans.versions(MEET)
-    running = Running(tmp_path, provbanan.package(), provbanan.package_key(), plans)
+    versions = Versions(tmp_path / "planering.sqlite3")
+    [version] = versions.versions(MEET)
+    running = Running(tmp_path, provbanan.package(), provbanan.package_key(), plans, versions)
     store = running.store
     assert store.package_key == version.checksum
     run_id = store.current()

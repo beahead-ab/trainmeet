@@ -32,12 +32,13 @@ from integrationer import (
 )
 from planering import export
 from planering.store import Planning, PlanningError
+from synk.store import SyncError, Versions
 
 MAX_UPLOAD: Final = planning_json.MAX_BYTES
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
-def _fail(error: PlanningError) -> NoReturn:
+def _fail(error: PlanningError | SyncError) -> NoReturn:
     raise HTTPException(error.status, str(error)) from error
 
 
@@ -47,7 +48,7 @@ def filename(name: str) -> str:
     return _CONTROL.sub("", base).strip()[:200] or "underlag"
 
 
-def router(store: Planning, login: LocalLogin) -> APIRouter:
+def router(store: Planning, kept: Versions, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/planering/1")
 
     def admin(session: str | None, authorization: str | None) -> None:
@@ -55,8 +56,15 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
 
     @routes.get("/meets")
     def meets(response: Response) -> list[dict[str, Any]]:
+        """The meets with their versions, which Synk keeps (SYNK-08)."""
         response.headers["Cache-Control"] = "no-store"
-        return [summary.model_dump(mode="json") for summary in store.meets()]
+        published = kept.meets()
+        return [
+            summary.model_copy(update={"versions": published.get(summary.meet.id, [])}).model_dump(
+                mode="json"
+            )
+            for summary in store.meets()
+        ]
 
     @routes.post("/meets", status_code=201)
     def create(
@@ -529,7 +537,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 body, kind = export.sources_zip(files), "application/zip"
             else:
                 if version is not None:
-                    package = store.package(meet, version)
+                    package = kept.package(meet, version)
                     told = f"Version {version}"
                 elif draft.package is not None:
                     package = draft.package.model_copy(update={"meet": draft.meet})
@@ -547,7 +555,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 else:
                     body = package.model_dump_json(indent=2).encode("utf-8")
                     kind = "application/json"
-        except PlanningError as error:
+        except (PlanningError, SyncError) as error:
             _fail(error)
         suffix = {"stationstidtabeller": "html", "paket": "json", "underlag": "zip"}.get(
             what, "csv"
@@ -718,7 +726,10 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
     def versions(meet: str, response: Response) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
         try:
-            return [version.model_dump(mode="json") for version in store.versions(meet)]
+            found = kept.versions(meet)
+            if not found:
+                store.draft(meet)  # a meet Planering does not know is not there
+            return [version.model_dump(mode="json") for version in found]
         except PlanningError as error:
             _fail(error)
 
@@ -732,8 +743,9 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            return store.publish(meet).model_dump(mode="json")
-        except PlanningError as error:
+            package = store.freeze(meet)
+            return kept.publish(meet, package.model_dump_json().encode()).model_dump(mode="json")
+        except (PlanningError, SyncError) as error:
             _fail(error)
 
     # Förslag från Drift (4.4, PLAN-03): Ta med or Avslå.
@@ -790,8 +802,8 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            return store.withdraw_version(meet, number).model_dump(mode="json")
-        except PlanningError as error:
+            return kept.withdraw(meet, number).model_dump(mode="json")
+        except SyncError as error:
             _fail(error)
 
     @routes.get("/meets/{meet}/versions/{number}")
@@ -799,8 +811,8 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         """A published version as the meet package Drift runs."""
         response.headers["Cache-Control"] = "no-store"
         try:
-            return store.package(meet, number).model_dump(mode="json")
-        except PlanningError as error:
+            return kept.package(meet, number).model_dump(mode="json")
+        except SyncError as error:
             _fail(error)
 
     return routes
