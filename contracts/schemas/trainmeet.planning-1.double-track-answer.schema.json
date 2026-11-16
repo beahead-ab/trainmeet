@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.double-track-answer.schema.json",
+  "title": "trainmeet.planning-1.double-track-answer",
+  "additionalProperties": true,
+  "description": "Ja makes the section double track; Nej keeps it single for these trains.",
+  "properties": {
+    "double": {
+      "title": "Double",
+      "type": "boolean"
+    },
+    "fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    }
+  },
+  "required": [
+    "double",
+    "fingerprint"
+  ],
+  "type": "object"
+}

@@ -184,16 +184,56 @@ def test_a_source_waits_until_it_is_laid_in(hub: TestClient) -> None:
 def test_the_check_and_publishing(planned: TestClient) -> None:
     check = planning.Check.model_validate(planned.get(f"{API}/meets/{MEET}/check").json())
     codes = {f.code for f in check.findings}
-    assert codes == {"no_section"}, "Värnamo has no track conflicts"
+    assert codes == {"no_section", "track_conflict", "close_following", "unused_places"}
+    assert (check.blocking, check.double_track) == ([], []), "Värnamo meets cleanly on the line"
     published = planned.post(f"{API}/meets/{MEET}/versions")
     assert published.status_code == 201, published.text
     version = planning.Version.model_validate(published.json())
-    assert (version.number, version.conflicts, version.observations) == (1, 0, 2)
+    assert (version.number, version.conflicts, version.observations) == (1, 3, 7)
     again = planned.post(f"{API}/meets/{MEET}/versions")
     assert again.status_code == 409 and "samma som version 1" in again.json()["detail"]
     package = MeetPackage.model_validate(planned.get(f"{API}/meets/{MEET}/versions/1").json())
-    assert package.meet.id == MEET and len(package.findings) == 2
+    assert package.meet.id == MEET and len(package.findings) == 10
     assert planned.get(f"{API}/meets/{MEET}/versions/2").status_code == 404
+
+
+def later_by(clock: str, minutes: int) -> str:
+    total = int(clock[:2]) * 60 + int(clock[3:]) + minutes
+    return f"{total // 60 % 24:02d}:{total % 60:02d}"
+
+
+def test_a_meeting_on_single_track_and_the_double_track_question(planned: TestClient) -> None:
+    """PLAN-35 through the hub: train 538 two minutes later in the grid meets two trains on the
+    single track Nättelund–Mohult. Värnamo asks if it is double track; Nej keeps the question
+    away, and a Struktur error stops publishing."""
+    draft = planning.Draft.model_validate(planned.get(f"{API}/meets/{MEET}").json())
+    assert draft.package is not None
+    train = next(t for t in draft.package.trains if t.id == "t185")
+    later = [
+        {
+            "call": call.id,
+            "field": field,
+            "value": later_by(t, 2),
+        }
+        for call in train.calls
+        for field, t in (("arrival", call.arrival), ("departure", call.departure))
+        if t is not None
+    ]
+    assert save(planned, *later).status_code == 200
+    check = planning.Check.model_validate(planned.get(f"{API}/meets/{MEET}/check").json())
+    conflicts = [f for f in check.findings if f.code == "single_track_conflict"]
+    assert len(conflicts) == 2 and all(
+        "Nättelund–Mohult (enkelspår)" in f.message for f in conflicts
+    )
+    [question] = check.double_track
+    assert question.message.startswith("Är det dubbelspår på Nättelund–Mohult?")
+    path = f"{API}/meets/{MEET}/double-track/{question.section}"
+    answer = {"double": False, "fingerprint": question.fingerprint}
+    assert TestClient(planned.app).post(path, json=answer).status_code == 401
+    assert planned.post(path, json=answer).status_code == 200
+    after = planning.Check.model_validate(planned.get(f"{API}/meets/{MEET}/check").json())
+    assert after.double_track == [] and len(after.findings) == len(check.findings)
+    assert planned.post(path, json=answer).status_code == 409, "no longer asked"
 
 
 def run_varnamo(hub: TestClient) -> drift.Now:

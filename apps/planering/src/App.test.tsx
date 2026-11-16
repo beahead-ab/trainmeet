@@ -57,6 +57,18 @@ describe("Versioner (S6)", () => {
     expect(html).not.toContain('id="publish"');
   });
 
+  it("says what stops publishing and asks the double-track question (PLAN-35)", () => {
+    const asked = { ...check, blocking: ["Träffen saknar första eller sista dag. Ange dem under Träffar."], double_track: [{ section: "d8", conflicts: 2, fingerprint: "f".repeat(64), message: "Är det dubbelspår på Nättelund–Mohult? I så fall försvinner 2 konflikter." }] } as Check;
+    const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={asked} versions={versions} />);
+    expect(html).toContain('<span class="pill conflict">Stoppar</span><span>Träffen saknar första eller sista dag.');
+    expect(html).toContain('disabled="">Publicera version 2<');
+    expect(html).toContain("Rätta det som stoppar först.");
+    expect(html).toContain("Är det dubbelspår på Nättelund–Mohult?");
+    expect(html).toContain(">Ja, dubbelspår<");
+    const looking = renderToStaticMarkup(<VersionerPage admin={false} meet="varnamo" draft={draft} check={asked} versions={versions} />);
+    expect(looking).not.toContain(">Ja, dubbelspår<");
+  });
+
   it("marks a withdrawn version and offers Dra tillbaka to the administrator (PLAN-18)", () => {
     const two = [...versions, { ...versions[0]!, number: 2, withdrawn: "2026-11-16T10:00:00Z" }] as Version[];
     const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={two} />);

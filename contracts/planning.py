@@ -326,12 +326,38 @@ class Draft(Contract):
     taken: list[TakenChange] = Field(
         default_factory=list, description="Förslagen från Drift som tagits med, i ordning."
     )
+    double_track_declined: dict[Id, str] = Field(
+        default_factory=dict,
+        description="Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
+    )
+
+
+class DoubleTrackQuestion(Contract):
+    """Dubbelspårsfrågan (PLAN-35): a single-track section with at least two A conflicts. A No
+    is kept with the fingerprint, and the question comes back only when the trains change."""
+
+    section: Id
+    conflicts: int = Field(ge=2)
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    message: Text
+
+
+class DoubleTrackAnswer(Contract):
+    """Ja makes the section double track; Nej keeps it single for these trains."""
+
+    double: bool
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class Check(Contract):
-    """Trafikkontrollen of the draft: what publishing would carry in its findings."""
+    """Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,
+    the structural errors that stop publishing, and the double-track questions."""
 
     findings: list[Finding] = Field(default_factory=list)
+    blocking: list[Text] = Field(
+        default_factory=list, description="Strukturfel. De stoppar publiceringen."
+    )
+    double_track: list[DoubleTrackQuestion] = Field(default_factory=list)
 
 
 class Difference(Contract):

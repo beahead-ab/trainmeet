@@ -1691,6 +1691,56 @@
         ]
       }
     },
+    "/api/planering/1/meets/{meet}/double-track/{section}": {
+      "post": {
+        "operationId": "answerDoubleTrack",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.planning-1.double-track-answer"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "section",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets/{meet}/versions": {
       "get": {
         "operationId": "planningVersions",
@@ -15919,6 +15969,16 @@
             },
             "title": "Taken",
             "type": "array"
+          },
+          "double_track_declined": {
+            "description": "Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
+            "patternProperties": {
+              "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+                "type": "string"
+              }
+            },
+            "title": "Double Track Declined",
+            "type": "object"
           }
         },
         "required": [
@@ -19315,9 +19375,30 @@
         "title": "Answer",
         "type": "object"
       },
+      "trainmeet.planning-1.double-track-answer": {
+        "additionalProperties": true,
+        "description": "Ja makes the section double track; Nej keeps it single for these trains.",
+        "properties": {
+          "double": {
+            "title": "Double",
+            "type": "boolean"
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "double",
+          "fingerprint"
+        ],
+        "title": "DoubleTrackAnswer",
+        "type": "object"
+      },
       "trainmeet.planning-1.check": {
         "additionalProperties": true,
-        "description": "Trafikkontrollen of the draft: what publishing would carry in its findings.",
+        "description": "Trafikkontrollen of the draft (PLAN-35): what publishing would carry in its findings,\nthe structural errors that stop publishing, and the double-track questions.",
         "properties": {
           "findings": {
             "items": {
@@ -19325,9 +19406,61 @@
             },
             "title": "Findings",
             "type": "array"
+          },
+          "blocking": {
+            "description": "Strukturfel. De stoppar publiceringen.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Blocking",
+            "type": "array"
+          },
+          "double_track": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.check.DoubleTrackQuestion"
+            },
+            "title": "Double Track",
+            "type": "array"
           }
         },
         "title": "Check",
+        "type": "object"
+      },
+      "trainmeet.planning-1.check.DoubleTrackQuestion": {
+        "additionalProperties": true,
+        "description": "Dubbelspårsfrågan (PLAN-35): a single-track section with at least two A conflicts. A No\nis kept with the fingerprint, and the question comes back only when the trains change.",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "conflicts": {
+            "minimum": 2,
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "section",
+          "conflicts",
+          "fingerprint",
+          "message"
+        ],
+        "title": "DoubleTrackQuestion",
         "type": "object"
       },
       "trainmeet.planning-1.check.Finding": {

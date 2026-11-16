@@ -1,6 +1,6 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { planning, type Check, type Draft, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
+import { planning, type Check, type Draft, type DoubleTrackQuestion, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
 import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
 import { GrafPage } from "./Graf";
@@ -127,6 +127,20 @@ export function App() {
     setBusy(false);
   };
 
+  // Dubbelspårsfrågan (PLAN-35): Ja makes the section double track, Nej keeps it single.
+  const onDoubleTrack = async (question: DoubleTrackQuestion, double: boolean) => {
+    if (!meet) return;
+    setBusy(true);
+    let done = false;
+    await act(async () => {
+      setDraft(await planning.doubleTrack(meet, question.section, { double, fingerprint: question.fingerprint }));
+      done = true;
+    });
+    if (done) tell(double ? "Sträckan är dubbelspårig i utkastet." : "Sträckan förblir enkelspårig. Frågan kommer tillbaka om tågen på den ändras.", true);
+    await readVersions(meet);
+    setBusy(false);
+  };
+
   // Dra tillbaka (PLAN-18): the version stays, but can no longer be run.
   const onWithdraw = async (number: number) => {
     if (!meet) return;
@@ -203,6 +217,7 @@ export function App() {
             onTake={(id) => void onAnswer(id, true)}
             onReject={(id) => void onAnswer(id, false)}
             onWithdraw={(number) => void onWithdraw(number)}
+            onDoubleTrack={(question, double) => void onDoubleTrack(question, double)}
           />
         )}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">

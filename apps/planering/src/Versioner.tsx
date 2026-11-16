@@ -1,6 +1,6 @@
 import { changeText } from "@trainmeet/hubben";
 import { Fragment, useState } from "react";
-import type { Check, Draft, Proposal, Version } from "./api";
+import type { Check, Draft, DoubleTrackQuestion, Proposal, Version } from "./api";
 import { when } from "./text";
 
 // Versioner (S6): the traffic check, Publicera for the administrator, the proposals from Drift
@@ -22,13 +22,17 @@ export type VersionerProps = {
   onTake?: (id: string) => void;
   onReject?: (id: string) => void;
   onWithdraw?: (number: number) => void;
+  /** Dubbelspårsfrågan (PLAN-35): Ja or Nej for a single-track section. */
+  onDoubleTrack?: (question: DoubleTrackQuestion, double: boolean) => void;
 };
 
-export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw }: VersionerProps) {
+export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw, onDoubleTrack }: VersionerProps) {
   const [asking, setAsking] = useState<number | null>(null);
   const next = (versions?.at(-1)?.number ?? 0) + 1;
   const planned = Boolean(draft?.package);
   const findings = check?.findings ?? [];
+  const blocking = check?.blocking ?? [];
+  const questions = check?.double_track ?? [];
   return (
     <>
       <div className="sidrubrik">
@@ -40,7 +44,37 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
       </div>
       <section className="kort" aria-labelledby="kontroll-rubrik">
         <h2 id="kontroll-rubrik">Trafikkontroll</h2>
-        <p className="liten">Fynden följer med versionen. De stoppar inte publiceringen.</p>
+        <p className="liten">Fynden följer med versionen. De stoppar inte publiceringen; det gör bara fel i strukturen.</p>
+        {planned && blocking.length > 0 && (
+          <ul id="blocking" className="fynd">
+            {blocking.map((text) => (
+              <li key={text}>
+                <span className="pill conflict">Stoppar</span>
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {planned && questions.length > 0 && (
+          <ul id="double-track" className="fynd">
+            {questions.map((question) => (
+              <li key={question.section}>
+                <span className="pill question">Fråga</span>
+                <span>{question.message}</span>
+                {admin && (
+                  <span className="rad svar">
+                    <button type="button" disabled={busy} onClick={() => onDoubleTrack?.(question, true)}>
+                      Ja, dubbelspår
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => onDoubleTrack?.(question, false)}>
+                      Nej
+                    </button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         <ul id="findings" className="fynd">
           {!draft || !check ? (
             <li className="tom">Kontrollerar …</li>
@@ -59,11 +93,11 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
         </ul>
         {admin && (
           <div className="rad">
-            <button id="publish" type="button" className="primar" disabled={!planned || busy || versions === null} onClick={onPublish}>
+            <button id="publish" type="button" className="primar" disabled={!planned || busy || versions === null || blocking.length > 0} onClick={onPublish}>
               {`Publicera version ${next}`}
             </button>
             <span className="liten" id="publish-text">
-              {planned ? "Utkastet fryses som en ny version. Den ändras aldrig." : ""}
+              {!planned ? "" : blocking.length ? "Rätta det som stoppar först." : "Utkastet fryses som en ny version. Den ändras aldrig."}
             </span>
           </div>
         )}

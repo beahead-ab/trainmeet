@@ -12,12 +12,12 @@ from contracts import drift as changes
 from contracts.drift import ProposalStatus
 from contracts.planning import NewMeet
 from planering.store import Planning, PlanningError, UnknownProposal
-from planering.tests.test_planning import result, source
+from planering.tests.test_planning import MON, SUN, result, source
 
 
 @pytest.fixture
 def meet(planning: Planning) -> str:
-    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    meet = planning.create(NewMeet(name="Grimslöv", first_date=MON, last_date=SUN)).meet
     src = source()
     planning.add_source(meet.id, src, b"1", result(src))
     return meet.id
