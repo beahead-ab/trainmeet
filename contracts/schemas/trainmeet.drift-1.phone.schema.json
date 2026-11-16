@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.phone.schema.json",
+  "title": "trainmeet.drift-1.phone",
+  "additionalProperties": true,
+  "description": "A place's telephone number during the meet (H30, TRAFIK-06): the meet's game number,\nnot personal data. Empty takes it away. TKL and the app read it in their phone list.",
+  "properties": {
+    "place": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Place",
+      "type": "string"
+    },
+    "phone": {
+      "anyOf": [
+        {
+          "maxLength": 24,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffens leknummer.",
+      "title": "Phone"
+    }
+  },
+  "required": [
+    "place"
+  ],
+  "type": "object"
+}

@@ -392,6 +392,64 @@
         ]
       }
     },
+    "/api/drift/1/phones": {
+      "get": {
+        "operationId": "driftPhones",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.phone"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "changePhone",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.phone"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.phone"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/clients": {
       "get": {
         "operationId": "driftClients",
@@ -4780,7 +4838,8 @@
           "client_not_present",
           "no_jump_to_undo",
           "other_game_day",
-          "day_still_running"
+          "day_still_running",
+          "unknown_place"
         ],
         "title": "Reason",
         "type": "string"
@@ -7826,6 +7885,37 @@
         "title": "Weekday",
         "type": "string"
       },
+      "trainmeet.drift-1.phone": {
+        "additionalProperties": true,
+        "description": "A place's telephone number during the meet (H30, TRAFIK-06): the meet's game number,\nnot personal data. Empty takes it away. TKL and the app read it in their phone list.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffens leknummer.",
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "PlacePhone",
+        "type": "object"
+      },
       "trainmeet.drift-1.approve": {
         "additionalProperties": true,
         "properties": {
@@ -8310,6 +8400,21 @@
           {
             "properties": {
               "kind": {
+                "const": "place.phone",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PhoneChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "clearance.requested",
                 "type": "string"
               },
@@ -8590,6 +8695,7 @@
                     "clock.jump_undone",
                     "day.changed",
                     "day.settings",
+                    "place.phone",
                     "clearance.requested",
                     "clearance.answered",
                     "clearance.cancelled",
@@ -8704,7 +8810,8 @@
           "place.manned",
           "place.left",
           "place.taken_back",
-          "automation.set"
+          "automation.set",
+          "place.phone"
         ],
         "title": "EventKind",
         "type": "string"
@@ -8928,6 +9035,28 @@
           }
         },
         "title": "DaySettings",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.PhoneChanged": {
+        "additionalProperties": true,
+        "description": "A place's game number changed during the meet (H30); the event names the place.",
+        "properties": {
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          }
+        },
+        "title": "PhoneChanged",
         "type": "object"
       },
       "trainmeet.drift-1.event.ClearanceRequested": {
@@ -10752,7 +10881,8 @@
           "client_not_present",
           "no_jump_to_undo",
           "other_game_day",
-          "day_still_running"
+          "day_still_running",
+          "unknown_place"
         ],
         "title": "Reason",
         "type": "string"

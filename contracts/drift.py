@@ -101,6 +101,14 @@ class NewDay(Contract):
     time: TimeOfDay | None = None
 
 
+class PlacePhone(Contract):
+    """A place's telephone number during the meet (H30, TRAFIK-06): the meet's game number,
+    not personal data. Empty takes it away. TKL and the app read it in their phone list."""
+
+    place: Id
+    phone: Text | None = Field(default=None, max_length=24, description="Träffens leknummer.")
+
+
 class Approve(Contract):
     client_id: Id
     places: list[Id] = Field(min_length=1)
@@ -165,6 +173,7 @@ class EventKind(StrEnum):
     PLACE_LEFT = "place.left"  # lämnad till automatiken
     PLACE_TAKEN_BACK = "place.taken_back"  # tagen tillbaka från automatiken
     AUTOMATION_SET = "automation.set"
+    PLACE_PHONE = "place.phone"  # telefonnumret under träffen (H30)
 
 
 class ActorKind(StrEnum):
@@ -220,6 +229,12 @@ class DayChanged(Contract):
     placed: float = Field(ge=0, description="Tiden tågen ställdes efter.")
     closed: list[Id] = Field(default_factory=list, description="Klareringarna som stängdes.")
     automatic: bool = Field(default=False, description="Skiftet kom av sig själv, inte från Nu.")
+
+
+class PhoneChanged(Contract):
+    """A place's game number changed during the meet (H30); the event names the place."""
+
+    phone: Text | None = Field(default=None, max_length=24)
 
 
 class ClearanceRef(Contract):
@@ -402,6 +417,7 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.TIME_JUMP_UNDONE: TimeJumpUndone,
     EventKind.DAY_CHANGED: DayChanged,
     EventKind.DAY_SETTINGS: DaySettings,
+    EventKind.PLACE_PHONE: PhoneChanged,
     EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
@@ -427,7 +443,12 @@ _ON_A_CALL: Final = frozenset(
     {EventKind.TRAIN_TRACK_CHANGED, EventKind.TRAIN_POSITIONED, EventKind.TRAIN_CREW_READY}
 )
 _ON_A_PLACE: Final = frozenset(
-    {EventKind.PLACE_MANNED, EventKind.PLACE_LEFT, EventKind.PLACE_TAKEN_BACK}
+    {
+        EventKind.PLACE_MANNED,
+        EventKind.PLACE_LEFT,
+        EventKind.PLACE_TAKEN_BACK,
+        EventKind.PLACE_PHONE,
+    }
 )
 
 

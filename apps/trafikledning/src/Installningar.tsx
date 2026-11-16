@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Automation, AutomationSettings, DaySettings, Now, Version } from "./api";
+import type { Automation, AutomationSettings, DaySettings, Now, PlacePhone, Version } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -19,6 +19,9 @@ export type SettingsProps = {
   automationSaved: number;
   onAutomation?: (settings: AutomationSettings) => void;
   onDay?: (settings: DaySettings) => void;
+  /** The places' game numbers, read only by the administrator (H30). */
+  phones?: PlacePhone[] | null;
+  onPhones?: (changes: PlacePhone[]) => void;
 };
 
 type Heap = { label: string; note: string; items: [string, string][] };
@@ -34,6 +37,7 @@ export function heaps(now: Now | null): Heap[] {
       items: [
         ["automatik", "Automatik"],
         ["dygnsskifte", "Dygnsskifte"],
+        ["telefon", "Telefonnummer"],
       ],
     },
     machine,
@@ -70,6 +74,7 @@ export function SettingsPage(props: SettingsProps) {
           {now && <Meet now={now} />}
           {now && <Automatik {...props} now={now} />}
           {now && <Dygnsskifte {...props} now={now} />}
+          {now && <Telefon {...props} now={now} />}
           <section id="hubben" className="kort" aria-labelledby="hubben-rubrik">
             <h2 id="hubben-rubrik">Namn och version</h2>
             <p className="liten">Gäller den här hubben och alla träffar på den.</p>
@@ -306,3 +311,55 @@ function Dygnsskifte({ admin, now, onDay }: SettingsProps & { now: Now }) {
     </section>
   );
 }
+
+/** Under träffen: the places' telephone numbers (TRAFIK-06, H30): the meet's game numbers, read
+ * by TKL and the app in their phone list. Changed here during the meet; Planering keeps the
+ * package's. Empty takes a number away. */
+function Telefon({ admin, now, phones, onPhones }: SettingsProps & { now: Now }) {
+  const saved = Object.fromEntries((phones ?? []).map((item) => [item.place, item.phone ?? ""]));
+  const key = JSON.stringify(saved);
+  const [draft, setDraft] = useState<Record<string, string>>(saved);
+  const [filledFrom, setFilledFrom] = useState(key);
+  if (filledFrom !== key) {
+    setDraft(saved);
+    setFilledFrom(key);
+  }
+  if (!admin || !phones) {
+    return (
+      <section id="telefon" className="kort" aria-labelledby="telefon-rubrik">
+        <h2 id="telefon-rubrik">Telefonnummer</h2>
+        <p className="liten">{admin ? "Läser numren …" : "Logga in med hubbens PIN-kod för att se och ändra telefonnumren."}</p>
+      </section>
+    );
+  }
+  const changes = phones.filter((item) => (draft[item.place] ?? "").trim() !== (item.phone ?? "")).map((item) => ({ place: item.place, phone: (draft[item.place] ?? "").trim() || null }));
+  return (
+    <section id="telefon" className="kort" aria-labelledby="telefon-rubrik">
+      <h2 id="telefon-rubrik">Telefonnummer</h2>
+      <p className="liten">Träffens leknummer per driftplats. TKL och appen visar dem i telefonlistan.</p>
+      {now.places.map((place) => (
+        <div className="installning" key={place.place}>
+          <label htmlFor={`phone-${place.place}`} className="etikett">
+            {`${place.name} (${place.code})`}
+          </label>
+          <input id={`phone-${place.place}`} inputMode="tel" maxLength={24} autoComplete="off" className="tal" value={draft[place.place] ?? ""} onChange={(event) => setDraft({ ...draft, [place.place]: event.target.value })} />
+        </div>
+      ))}
+      <div className="installningsfot">
+        <span id="phone-state" className="liten" role="status">
+          {changes.length ? `${changes.length} ändrade, inte sparade` : "Inget ändrat"}
+        </span>
+        <span className="rad">
+          <button type="button" disabled={!changes.length} onClick={() => setDraft(saved)}>
+            Avbryt
+          </button>
+          <button id="phone-save" type="button" className="primar" disabled={!changes.length} onClick={() => onPhones?.(changes)}>
+            Spara
+          </button>
+        </span>
+      </div>
+      <p className="liten">Ändringen gäller träffen som körs. Paketets nummer ändras i Planering.</p>
+    </section>
+  );
+}
+

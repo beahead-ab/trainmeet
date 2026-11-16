@@ -214,6 +214,8 @@ class Drift:
         self.held: set[str] = set()
         self.last_jump: events.DriftEvent | None = None
         self.day_settings = events.DaySettings()
+        # The places' game numbers changed during the meet (H30); the rest are the package's.
+        self.phones: dict[str, str | None] = {}
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -407,6 +409,11 @@ class Drift:
                 self.last_jump = event
             case events.EventKind.DAY_SETTINGS:
                 self.day_settings = events.DaySettings.model_validate(event.data)
+            case events.EventKind.PLACE_PHONE:
+                assert event.place is not None
+                self.phones[event.place] = events.PhoneChanged.model_validate(event.data).phone
+                # Every TKL and app has every place's number in its phone list (H24).
+                self._touch_places(*self.stops())
             case events.EventKind.TIME_JUMP_UNDONE:
                 undone = events.TimeJumpUndone.model_validate(event.data)
                 before = self.history[: undone.jump - 1]
@@ -789,6 +796,27 @@ class Drift:
         if clock < SECONDS_PER_DAY + change + DAY_CHANGE_WAIT and self.day_running():
             return
         self.new_day(events.NewDay(), now, automatic=True)
+
+    def phone(self, place: str) -> str | None:
+        """The place's game number: as changed during the meet, else the package's (H30)."""
+        if place in self.phones:
+            return self.phones[place]
+        return next((p.phone for p in self.package.places if p.id == place), None)
+
+    def set_phone(self, change: events.PlacePhone, now: datetime) -> None:
+        """Trafikledningen changes a place's number during the meet (TRAFIK-06)."""
+        if change.place not in self.stops():
+            raise Refused(Reason.UNKNOWN_PLACE)
+        phone = (change.phone or "").strip() or None
+        if phone == self.phone(change.place):
+            return
+        self._record(
+            events.EventKind.PLACE_PHONE,
+            {"phone": phone},
+            now,
+            place=change.place,
+            actor=_DISPATCHER,
+        )
 
     def set_day(self, settings: events.DaySettings, now: datetime) -> None:
         self._record(

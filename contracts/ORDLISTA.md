@@ -10,7 +10,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Driftplats | `place` | En plats i planen: bemannad, fjärrstyrd, obemannad, skuggbangård eller industri/hållplats. Sträckor, tågbesök och protokoll pekar på driftplatsen. |
 | Platstyp | `place.kind` | `manned` bemannad, `remote` fjärrstyrd, `unmanned` obemannad, `shadow_yard` skuggbangård, `halt` industri/hållplats. |
 | Signatur | `place.code` | Driftplatsens förkortning, till exempel Nby. |
-| Leknummer | `place.phone` | Driftplatsens telefonnummer i trafikspelet. Inga personuppgifter. |
+| Leknummer | `place.phone`, `PlacePhone` | Driftplatsens telefonnummer i trafikspelet. Inga personuppgifter. Trafikledningen kan ändra det under träffen (drifthändelsen `place.phone`). |
 | Station | `station` | Det som skapas i TKL Studio och kopplas till en driftplats, i förväg eller när den ansluter. |
 | Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. |
 | Insida | – | Spårplan, signaler och adresser. Stannar alltid hos TKL. |

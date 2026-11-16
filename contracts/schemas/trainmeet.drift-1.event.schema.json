@@ -71,7 +71,8 @@
         "place.manned",
         "place.left",
         "place.taken_back",
-        "automation.set"
+        "automation.set",
+        "place.phone"
       ],
       "title": "EventKind",
       "type": "string"
@@ -295,6 +296,28 @@
         }
       },
       "title": "DaySettings",
+      "type": "object"
+    },
+    "PhoneChanged": {
+      "additionalProperties": true,
+      "description": "A place's game number changed during the meet (H30); the event names the place.",
+      "properties": {
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "title": "PhoneChanged",
       "type": "object"
     },
     "ClearanceRequested": {
@@ -942,6 +965,21 @@
     {
       "properties": {
         "kind": {
+          "const": "place.phone",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PhoneChanged"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "clearance.requested",
           "type": "string"
         },
@@ -1222,6 +1260,7 @@
               "clock.jump_undone",
               "day.changed",
               "day.settings",
+              "place.phone",
               "clearance.requested",
               "clearance.answered",
               "clearance.cancelled",

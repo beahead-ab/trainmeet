@@ -244,3 +244,16 @@ def test_the_event_stream_needs_the_administrator(
         text: Any = "".join(response.iter_text())
     assert text.startswith(": hubben lyssnar")
     assert TestClient(running.app).get(API + "/events").status_code == 401
+
+
+def test_the_administrator_changes_a_places_number(running: TestClient) -> None:
+    """The telephone number during the meet (TRAFIK-06, H30): only for the dispatcher."""
+    anonymous = TestClient(running.app)
+    assert anonymous.get(API + "/phones").status_code == 401
+    assert anonymous.post(API + "/phones", json={"place": "asn", "phone": "9"}).status_code == 401
+    listed = [drift.PlacePhone.model_validate(item) for item in running.get(API + "/phones").json()]
+    assert {item.place: item.phone for item in listed}["asn"] == "102"
+    changed = running.post(API + "/phones", json={"place": "asn", "phone": "202"})
+    assert {item["place"]: item["phone"] for item in changed.json()}["asn"] == "202"
+    unknown = running.post(API + "/phones", json={"place": "lvh", "phone": "9"})
+    assert (unknown.status_code, unknown.json()["detail"]) == (409, TEXT_SV[Reason.UNKNOWN_PLACE])

@@ -342,7 +342,8 @@
         "client_not_present",
         "no_jump_to_undo",
         "other_game_day",
-        "day_still_running"
+        "day_still_running",
+        "unknown_place"
       ],
       "title": "Reason",
       "type": "string"

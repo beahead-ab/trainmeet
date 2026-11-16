@@ -1,6 +1,6 @@
 import { DRIFT_TABS, hub, Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay } from "./api";
+import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type PlacePhone } from "./api";
 import { SettingsPage } from "./Installningar";
 import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
@@ -67,6 +67,15 @@ export function App() {
     }
   }, []);
 
+  const [phones, setPhones] = useState<PlacePhone[] | null>(null);
+  const readPhones = useCallback(async () => {
+    try {
+      setPhones(await api.phones());
+    } catch {
+      setPhones(null);
+    }
+  }, []);
+
   const running = now !== null;
   useEffect(() => {
     if (!admin || (page !== "nu" && page !== "installningar") || !running) return setAutomation(null);
@@ -74,6 +83,12 @@ export function App() {
     const timer = window.setInterval(() => void readAutomation(), 3000);
     return () => window.clearInterval(timer);
   }, [admin, page, running, readAutomation]);
+
+  // The numbers are read under the gear only, and only by the administrator (B13).
+  useEffect(() => {
+    if (!admin || page !== "installningar" || !running) return setPhones(null);
+    void readPhones();
+  }, [admin, page, running, readPhones]);
 
   const navigate = useCallback(
     (href: string) => {
@@ -100,6 +115,13 @@ export function App() {
 
   const onDay = async (settings: DaySettings) => {
     if (await act(() => api.daySettings(settings))) await readNow();
+  };
+
+  const onPhones = async (changes: PlacePhone[]) => {
+    for (const change of changes) {
+      if (!(await act(() => api.setPhone(change)))) break;
+    }
+    await readPhones();
   };
 
   const onClient = async (change: ClientAction) => {
@@ -171,7 +193,7 @@ export function App() {
         {page === "logg" && <LoggPage admin={admin} now={now} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
-          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} />
+          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} />
         )}
         {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">

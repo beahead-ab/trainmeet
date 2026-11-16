@@ -119,6 +119,35 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         except failures as error:
             _error(error)
 
+    @routes.get("/phones")
+    def phones(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> list[dict[str, Any]]:
+        """Every place's game number (H30). Only for the dispatcher: Nu shows no numbers (B13)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return [phone.model_dump(mode="json") for phone in running.store.phones(run_id)]
+        except failures as error:
+            _error(error)
+
+    @routes.post("/phones")
+    def change_phone(
+        change: drift.PlacePhone,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> list[dict[str, Any]]:
+        """A place's number changed during the meet (TRAFIK-06); TKL and the app read it."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return [
+                phone.model_dump(mode="json") for phone in running.store.set_phone(run_id, change)
+            ]
+        except failures as error:
+            _error(error)
+
     @routes.get("/now")
     def nu(response: Response) -> dict[str, Any]:
         """Nu, open to everyone who looks (S1)."""

@@ -1,6 +1,6 @@
 // What Trafikledningen says, and the small rules behind it, without React: the same words and
 // choices as the old pages (hub/static/drift.js), so they can be tested on their own.
-import type { Actor, AutomationPlace, Client, DayStatus, DriftEvent, LastJump, Leg, Now, Weekday } from "./api";
+import type { Actor, AutomationPlace, Client, DayStatus, DriftEvent, LastJump, Leg, Now, Refusal, Weekday } from "./api";
 import { dayName } from "@trainmeet/hubben";
 export { dayName, WEEKDAYS } from "@trainmeet/hubben";
 
@@ -34,6 +34,7 @@ export const EVENTS: Record<string, string> = {
   "clock.jump_undone": "Tidshoppet ångrat",
   "day.changed": "Ny dag",
   "day.settings": "Dygnsskiftet ändrat",
+  "place.phone": "Telefonnumret ändrat",
   "clearance.requested": "Klarering begärd",
   "clearance.cancelled": "Begäran återtagen",
   "clearance.invalidated": "Klareringen blev ogiltig (spårbyte)",
@@ -155,6 +156,7 @@ export function describe(event: DriftEvent): string {
     const closed = Array.isArray(data["closed"]) ? data["closed"].length : 0;
     return `${dayTitle(data["game_day"], data["traffic_day"] as Weekday)} startade` + (data["automatic"] ? " av sig själv" : "") + (closed ? `, ${clearances(closed)} stängd${closed === 1 ? "" : "a"}` : "");
   }
+  if (event.kind === "place.phone") return typeof data["phone"] === "string" ? `Telefonnumret ${data["phone"]}` : "Telefonnumret borttaget";
   if (event.kind === "day.settings") {
     const how = data["mode"] === "automatic" ? "automatiskt" : "manuellt";
     return `Dygnsskiftet ${how}, ` + (typeof data["time"] === "string" ? `kl. ${data["time"]}` : "en timme före första tåget");
@@ -178,3 +180,32 @@ export function modeText(place: AutomationPlace, clientName: (id: string) => str
   if (place.operator && place.mode !== "automatic") text += ` · ${clientName(place.operator)}`;
   return text;
 }
+
+// The log as a file (TRAFIK-20, F27): what Logg shows, oldest first, as CSV for a spreadsheet
+// or as JSON. Semicolons and a byte order mark, so that a Swedish spreadsheet opens it as it is.
+const cell = (value: string) => {
+  // A cell a spreadsheet could take for a formula is written as text (CSV injection).
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[";\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+};
+export const csv = (rows: string[][]) => "\uFEFF" + rows.map((row) => row.map(cell).join(";")).join("\r\n") + "\r\n";
+
+export function eventRows(events: DriftEvent[], now: Now | null, clients: Client[]): string[][] {
+  const oldest = [...events].sort((a, b) => a.seq - b.seq);
+  return [
+    ["Nr", "Speldygn", "Tid", "Händelse", "Tåg", "Driftplats", "Vem", "Klockslag"],
+    ...oldest.map((event) => [String(event.seq), String(event.game_day), event.model_time, describe(event), trainNumber(now, event.train), event.place ? placeName(now, event.place) : "", actorName(event.actor, clients), event.wall_time]),
+  ];
+}
+
+export function refusalRows(refusals: Refusal[], now: Now | null): string[][] {
+  return [
+    ["Tid", "Vad", "Svar", "Driftplats", "Klient", "Klockslag"],
+    ...[...refusals].reverse().map((refusal) => [refusal.model_time, refusal.what, refusal.message, refusal.place ? placeName(now, refusal.place) : "", refusal.client_id, refusal.wall_time]),
+  ];
+}
+
+/** The file's name: the meet, the game day and the date. */
+export const logFile = (now: Now | null, what: "logg" | "nekade", ending: "csv" | "json", today: Date = new Date()) =>
+  `${what}-${now?.meet_id ?? "traffen"}-dag${now?.game_day ?? 1}-${today.toISOString().slice(0, 10)}.${ending}`;
+
