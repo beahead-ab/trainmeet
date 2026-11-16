@@ -843,6 +843,14 @@ class SwitchWaiting(Contract):
     waits_for: list[Text] = Field(default_factory=list)
 
 
+class Leader(Contract):
+    """Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14)."""
+
+    hub_name: Text
+    heard: datetime
+    silent: int = Field(ge=0, description="Sekunder sedan ledaren senast hördes av.")
+
+
 class Now(Contract):
     """The meet as it runs: open to everyone, so it holds no names of people, no codes and no
     phone numbers (B13)."""
@@ -872,6 +880,10 @@ class Now(Contract):
     )
     withdrawn: bool = Field(
         default=False, description="Versionen som körs är tillbakadragen i Planering (H68)."
+    )
+    leader: Leader | None = Field(
+        default=None,
+        description="En annan hubb leder träffen och den här följer den live (SYNK-14).",
     )
 
 

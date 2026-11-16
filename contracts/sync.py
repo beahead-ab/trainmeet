@@ -15,6 +15,7 @@ from typing import Final
 from pydantic import Field
 
 from contracts.common import Contract, Id, Text
+from contracts.drift import DriftEvent, ProposalStatus
 from contracts.planning import Version
 
 PROTOCOL: Final = "trainmeet.sync/1"
@@ -93,3 +94,24 @@ class CloudLinkChange(Contract):
 
     address: str = Field(min_length=8, max_length=200)
     code: str = CODE
+
+
+class RunEvents(Contract):
+    """Under träffen (SYNK-10, DRIFT-12): Pi:n leder och skickar körningens drifthändelser i
+    ordning, efter molnets senaste kvittens. Utan händelser frågar Pi:n bara efter kvittensen,
+    till exempel efter en omstart."""
+
+    version: int = Field(ge=1)
+    package: str = Field(
+        pattern=r"^[0-9a-f]{64}$", description="Versionens kontrollsumma: samma paket i båda."
+    )
+    run: Text = Field(max_length=80, description="Körningens id, som på Pi:n.")
+    events: list[DriftEvent] = Field(default_factory=list, max_length=500)
+
+
+class RunAck(Contract):
+    """Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4)."""
+
+    run: Text
+    ack: int = Field(ge=0)
+    answers: dict[Id, ProposalStatus] = Field(default_factory=dict)

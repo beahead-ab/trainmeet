@@ -19,15 +19,19 @@ from typing import Final
 from contracts.common import Weekday
 from contracts.drift import ProposalStatus
 from contracts.meet import MeetPackage
-from drift.engine import Refused
-from drift.store import PreviewStore
+from drift.engine import Refused, now_utc
+from drift.store import MissingRun, PreviewStore
 from planering.store import Planning, PlanningError
+from synk.follower import Leading
 from synk.store import SyncError, Versions, newer
 
 PROVBANAN: Final = "provbanan"
 LIFETIME: Final = timedelta(days=3650)
 MAX_RUNS: Final = 64
 MAX_ACTIONS: Final = 1_000_000
+# A run another hub leads and was heard from this recently is followed, never started anew
+# (SYNK-14): two hubs never decide for the same meet.
+FOLLOW_WINDOW: Final = timedelta(minutes=5)
 _SAFE = re.compile(r"^[a-z0-9-]{1,80}$")
 
 
@@ -64,6 +68,8 @@ class Running:
         self.planning = planning
         self.versions = versions
         self.hub_version = hub_version
+        # Planering's answers from the cloud, for a meet this hub follows (4.4, SYNK-02).
+        self.followed_answers: Callable[[str], dict[str, ProposalStatus]] = lambda meet: {}
         self.state_path = data_dir / "drift" / "running.json"
         self._stores: dict[tuple[str, int], PreviewStore] = {}
         self._lock = Lock()
@@ -90,13 +96,53 @@ class Running:
             raise WithdrawnVersion()
         with self._lock:
             store = self._store(meet, version)
-            run_id = store.start(traffic_day, game_day, replace=True)
-            self.meet, self.version = meet, version
-            self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            self.state_path.write_text(
-                json.dumps({"meet": meet, "version": version}), encoding="utf-8"
-            )
+            run_id = self._led_elsewhere(store) or store.start(traffic_day, game_day, replace=True)
+            self._select(meet, version)
             return store, run_id
+
+    def follow(self, meet: str, version: int) -> None:
+        """Molnhubben följer Pi:n live (SYNK-14): the run the Pi leads becomes this hub's meet,
+        without a run of its own."""
+        with self._lock:
+            self._store(meet, version)
+            if (self.meet, self.version) != (meet, version):
+                self._select(meet, version)
+
+    def mirror(self, meet: str, version: int) -> PreviewStore:
+        """The store the runs of the meet and version are kept in, also those another hub
+        leads."""
+        with self._lock:
+            return self._store(meet, version)
+
+    def leading(self) -> Leading | None:
+        """The run this hub leads, for Synk to send up: none in Provbanan or while following."""
+        if self.meet == PROVBANAN:
+            return None
+        store = self.store
+        try:
+            run_id = store.current()
+        except MissingRun:
+            return None
+        if store.leader(run_id) is not None:
+            return None
+        return Leading(self.meet, self.version, run_id, store.package_key)
+
+    def answers(self, meet: str) -> dict[str, ProposalStatus]:
+        """Planering's answer to each driftändring: here, or from the cloud (4.4)."""
+        return {**self.followed_answers(meet), **self.planning.answers(meet)}
+
+    def _led_elsewhere(self, store: PreviewStore) -> str | None:
+        try:
+            run_id = store.current()
+        except MissingRun:
+            return None
+        led = store.leader(run_id)
+        return run_id if led is not None and now_utc() - led[1] < FOLLOW_WINDOW else None
+
+    def _select(self, meet: str, version: int) -> None:
+        self.meet, self.version = meet, version
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.state_path.write_text(json.dumps({"meet": meet, "version": version}), encoding="utf-8")
 
     def _package(self, meet: str, version: int) -> tuple[MeetPackage, str]:
         """The package and the key its runs carry: the checksum it was published with."""

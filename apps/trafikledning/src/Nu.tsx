@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Package, Weekday } from "./api";
 import { Andringar } from "./Andringar";
-import { Spärrad, Tillbakadragen, Versionsbyte, type SwitchProps } from "./Versionsbyte";
+import { Följer, Spärrad, Tillbakadragen, Versionsbyte, type SwitchProps } from "./Versionsbyte";
 import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
 import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
@@ -34,7 +34,8 @@ export type NuProps = {
 
 export function NuPage(props: NuProps) {
   const { now } = props;
-  return now ? <Meet {...props} now={now} /> : <NoMeet {...props} />;
+  // While another hub leads the meet this one only shows it (SYNK-14): no controls to refuse.
+  return now ? <Meet {...props} admin={props.admin && !now.leader} now={now} /> : <NoMeet {...props} />;
 }
 
 /** An unanswered request is reminded of every third minute (H39, DRIFT-33). */
@@ -184,6 +185,7 @@ function Meet(props: NuProps & { now: Now }) {
           {now.clock.running ? `klockan går i ${now.clock.speed}×` : "klockan står still"}
         </p>
       </div>
+      <Följer now={now} />
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
       <Tillbakadragen now={now} />
       {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}

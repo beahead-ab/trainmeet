@@ -2656,7 +2656,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader";
         /**
          * ReplyStatus
          * @enum {string}
@@ -5520,6 +5520,11 @@ export interface components {
              * @default false
              */
             withdrawn: boolean;
+            /**
+             * @description En annan hubb leder träffen och den här följer den live (SYNK-14).
+             * @default null
+             */
+            leader: components["schemas"]["trainmeet.drift-1.now.Leader"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5927,6 +5932,26 @@ export interface components {
              * Format: date-time
              */
             wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Leader
+         * @description Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14).
+         */
+        "trainmeet.drift-1.now.Leader": {
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Heard
+             * Format: date-time
+             */
+            heard: string;
+            /**
+             * Silent
+             * @description Sekunder sedan ledaren senast hördes av.
+             */
+            silent: number;
         } & {
             [key: string]: unknown;
         };
@@ -6530,7 +6555,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -7090,6 +7115,26 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * Leader
+         * @description Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14).
+         */
+        "trainmeet.screen-1.picture.Leader": {
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Heard
+             * Format: date-time
+             */
+            heard: string;
+            /**
+             * Silent
+             * @description Sekunder sedan ledaren senast hördes av.
+             */
+            silent: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LegNow
          * @description One train between two places today, and where it stands.
          */
@@ -7221,6 +7266,11 @@ export interface components {
              * @default false
              */
             withdrawn: boolean;
+            /**
+             * @description En annan hubb leder träffen och den här följer den live (SYNK-14).
+             * @default null
+             */
+            leader: components["schemas"]["trainmeet.screen-1.picture.Leader"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -11195,6 +11245,134 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * RunEvents
+         * @description Under träffen (SYNK-10, DRIFT-12): Pi:n leder och skickar körningens drifthändelser i
+         *     ordning, efter molnets senaste kvittens. Utan händelser frågar Pi:n bara efter kvittensen,
+         *     till exempel efter en omstart.
+         */
+        "trainmeet.sync-1.run-events": {
+            /** Version */
+            version: number;
+            /**
+             * Package
+             * @description Versionens kontrollsumma: samma paket i båda.
+             */
+            package: string;
+            /**
+             * Run
+             * @description Körningens id, som på Pi:n.
+             */
+            run: string;
+            /** Events */
+            events?: components["schemas"]["trainmeet.sync-1.run-events.DriftEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Actor */
+        "trainmeet.sync-1.run-events.Actor": {
+            kind: components["schemas"]["trainmeet.sync-1.run-events.ActorKind"];
+            /**
+             * Id
+             * @default null
+             */
+            id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ActorKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.run-events.ActorKind": "client" | "dispatcher" | "automation" | "system";
+        /** DriftEvent */
+        "trainmeet.sync-1.run-events.DriftEvent": {
+            /**
+             * Protocol
+             * @default trainmeet.drift/1
+             * @constant
+             */
+            protocol: "trainmeet.drift/1";
+            /**
+             * Seq
+             * @description Händelsens nummer i den körande träffen.
+             */
+            seq: number;
+            /**
+             * Epoch
+             * @description Ledarens epok; högre epok vinner.
+             */
+            epoch: number;
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+            kind: components["schemas"]["trainmeet.sync-1.run-events.EventKind"];
+            actor: components["schemas"]["trainmeet.sync-1.run-events.Actor"];
+            /**
+             * Message Id
+             * @description Kommandots id, för spårbarhet.
+             * @default null
+             */
+            message_id: string | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        /**
+         * RunAck
+         * @description Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4).
+         */
+        "trainmeet.sync-1.run-ack": {
+            /** Run */
+            run: string;
+            /** Ack */
+            ack: number;
+            /** Answers */
+            answers?: {
+                [key: string]: components["schemas"]["trainmeet.sync-1.run-ack.ProposalStatus"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ProposalStatus
+         * @description Planering's answer to a driftändring (4.4, PLAN-03).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.run-ack.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
     };
     responses: never;
     parameters: never;

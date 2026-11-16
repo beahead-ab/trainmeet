@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { DriftEvent, Now, PlanVersion } from "./api";
 import { describe as text, shown } from "./drift";
-import { newer, Spärrad, Tillbakadragen, Versionsbyte } from "./Versionsbyte";
+import { Följer, newer, Spärrad, Tillbakadragen, Versionsbyte } from "./Versionsbyte";
 
 const now = { meet_id: "varnamo", version: 1, changes: [{ change_id: "c1", change: { kind: "cancel", train: "t43" }, status: "applied", train_number: "43", made: "06:00", waiting_for: [] }, { change_id: "c2", change: { kind: "number", train: "t44", number: "144" }, status: "applied", train_number: "44", made: "06:01", waiting_for: [] }] } as unknown as Now;
 const versions = [1, 2].map((number) => ({ meet: "varnamo", number, published: "2026-11-16T09:00:00Z", checksum: "a".repeat(64) })) as PlanVersion[];
@@ -59,5 +59,16 @@ describe("Versionsbyte (TRAFIK-03, DRIFT-29, H4, H38, H66)", () => {
     expect(html).toContain("Version 1 är tillbakadragen");
     expect(html).toContain("Träffen fortsätter på den, men den kan inte startas igen.");
     expect(renderToStaticMarkup(<Tillbakadragen now={now} />)).toBe("");
+  });
+
+  it("says when another hub leads the meet and this one follows it live (SYNK-14)", () => {
+    const leader = (silent: number) => ({ ...now, leader: { hub_name: "Pi:n hemma", heard: "2026-11-16T05:00:00Z", silent } }) as Now;
+    const live = renderToStaticMarkup(<Följer now={leader(2)} />);
+    expect(live).toContain("Följer Pi:n hemma live");
+    expect(live).toContain("Klockan, klareringarna och ändringarna sköts där. Hörd nyss.");
+    expect(live).not.toContain("varning");
+    expect(renderToStaticMarkup(<Följer now={leader(60)} />)).toContain('class="kort varning"');
+    expect(renderToStaticMarkup(<Följer now={leader(300)} />)).toContain("Hörd för 5 min sedan.");
+    expect(renderToStaticMarkup(<Följer now={now} />)).toBe("");
   });
 });

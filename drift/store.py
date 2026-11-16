@@ -84,6 +84,10 @@ CREATE TABLE IF NOT EXISTS drift_refusal (
     at REAL NOT NULL, model_time TEXT NOT NULL, client_id TEXT NOT NULL, place TEXT,
     what TEXT NOT NULL, reason TEXT, message TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS mirror_run (
+    run_id TEXT PRIMARY KEY REFERENCES preview_run(id) ON DELETE CASCADE,
+    leader TEXT NOT NULL, heard REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL, message_id TEXT NOT NULL, signature TEXT NOT NULL,
@@ -172,7 +176,17 @@ class PreviewStore:
             yield db
 
     @staticmethod
-    def _save(db: sqlite3.Connection, run_id: str, new_events: list[events.DriftEvent]) -> None:
+    def _save(
+        db: sqlite3.Connection,
+        run_id: str,
+        new_events: list[events.DriftEvent],
+        *,
+        mirror: bool = False,
+    ) -> None:
+        """The new events, written before Drift answers (DRIFT-21). A run this hub follows
+        takes events only from the hub that leads it (SYNK-14)."""
+        if new_events and not mirror and _mirrored(db, run_id):
+            raise Refused(Reason.NOT_LEADER)
         db.executemany(
             "INSERT INTO preview_event VALUES (?, ?, ?)",
             ((run_id, event.seq, event.model_dump_json()) for event in new_events),
@@ -192,7 +206,7 @@ class PreviewStore:
             )
         ]
         drift = Drift(self.package, history, now=now, version=self.version, packages=self.packages)
-        if row[0] != self.boot:
+        if row[0] != self.boot and not _mirrored(db, run_id):
             size = len(history)
             drift.pause_after_restart(now)
             self._save(db, run_id, drift.history[size:])
@@ -796,8 +810,10 @@ class PreviewStore:
     def tick(self, run_id: str) -> None:
         """One round every second or so while the hub runs: the reminders of unanswered
         requests (H39), the automatic day change (F7) and the automation (F14). Nothing
-        happens while the clock stands."""
+        happens while the clock stands, nor in a run another hub leads."""
         with self._transaction() as db:
+            if _mirrored(db, run_id):
+                return
             now = now_utc()
             drift = self._load(db, run_id, now)
             if not drift.clock.running or drift.locked is not None:
@@ -862,6 +878,54 @@ class PreviewStore:
         if row is None:
             raise MissingRun()
         return str(row[0])
+
+    # --- Följa en annan hubb (SYNK-04, SYNK-14) ------------------------------------------------
+
+    def receive(
+        self, run_id: str, leader: str, new_events: list[events.DriftEvent]
+    ) -> tuple[int, list[events.DriftEvent]]:
+        """The events of a run another hub leads, in order (SYNK-10): kept as they came, after
+        the last one here. One already here is passed over; after a gap nothing more is
+        taken, so the leader sends again from the answer. The last seq kept, and the events
+        taken now."""
+        now = now_utc()
+        with self._transaction() as db:
+            row = db.execute("SELECT package FROM preview_run WHERE id=?", (run_id,)).fetchone()
+            if row is None:
+                db.execute(
+                    "INSERT INTO preview_run VALUES (?, ?, ?, ?)",
+                    (run_id, (now + self.lifetime).timestamp(), self.package_key, self.boot),
+                )
+                db.execute(
+                    "INSERT INTO mirror_run VALUES (?, ?, ?)", (run_id, leader, now.timestamp())
+                )
+            elif row[0] != self.package_key or not _mirrored(db, run_id):
+                raise Refused(Reason.NOT_LEADER)
+            (last,) = db.execute(
+                "SELECT coalesce(max(seq), 0) FROM preview_event WHERE run_id=?", (run_id,)
+            ).fetchone()
+            taken = []
+            for event in sorted(new_events, key=lambda e: e.seq):
+                if event.seq <= last:
+                    continue
+                if event.seq != last + 1:
+                    break
+                taken.append(event)
+                last = event.seq
+            self._save(db, run_id, taken, mirror=True)
+            db.execute(
+                "UPDATE mirror_run SET leader=?, heard=? WHERE run_id=?",
+                (leader, now.timestamp(), run_id),
+            )
+            return int(last), taken
+
+    def leader(self, run_id: str) -> tuple[str, datetime] | None:
+        """The hub that leads the run, and when it was last heard; None if this hub leads."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT leader, heard FROM mirror_run WHERE run_id=?", (run_id,)
+            ).fetchone()
+        return None if row is None else (str(row[0]), datetime.fromtimestamp(row[1], UTC))
 
     def events_after(self, run_id: str, seq: int) -> list[events.DriftEvent]:
         """The run's events after seq, read as they are stored: no replay, so a stream can ask
@@ -1015,3 +1079,7 @@ class PreviewStore:
             if row is None:
                 raise UnknownClient()
             return str(row[0]), row[1], self._load(db, str(row[2]), now_utc())
+
+
+def _mirrored(db: sqlite3.Connection, run_id: str) -> bool:
+    return db.execute("SELECT 1 FROM mirror_run WHERE run_id=?", (run_id,)).fetchone() is not None

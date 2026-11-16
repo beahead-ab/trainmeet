@@ -21,6 +21,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Final
 
+from contracts.drift import ProposalStatus
 from contracts.sync import CloudLink, Follower, Hello, LinkCode
 
 CODE_LIFETIME: Final = timedelta(minutes=15)
@@ -36,6 +37,10 @@ CREATE TABLE IF NOT EXISTS sync_failure (at REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS sync_follower (
     key_hash TEXT PRIMARY KEY, meet_id TEXT NOT NULL, hub_id TEXT NOT NULL,
     hello TEXT NOT NULL, linked REAL NOT NULL, heard REAL
+);
+CREATE TABLE IF NOT EXISTS sync_answer (
+    meet_id TEXT NOT NULL, change_id TEXT NOT NULL, status TEXT NOT NULL,
+    PRIMARY KEY (meet_id, change_id)
 );
 CREATE TABLE IF NOT EXISTS sync_leader (
     meet_id TEXT PRIMARY KEY, address TEXT NOT NULL, key TEXT NOT NULL,
@@ -262,6 +267,21 @@ class Links:
                 )
             else:
                 db.execute("UPDATE sync_leader SET problem=? WHERE meet_id=?", (problem, meet))
+
+    def keep_answers(self, meet: str, answers: dict[str, ProposalStatus]) -> None:
+        """Planering's answers in the cloud to the Pi's driftändringar (4.4)."""
+        with self._transaction() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO sync_answer VALUES (?, ?, ?)",
+                ((meet, change, status.value) for change, status in answers.items()),
+            )
+
+    def answers(self, meet: str) -> dict[str, ProposalStatus]:
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT change_id, status FROM sync_answer WHERE meet_id=?", (meet,)
+            ).fetchall()
+        return {str(change): ProposalStatus(status) for change, status in rows}
 
     def forget(self, meet: str) -> bool:
         """Koppla bort: the Pi no longer follows the meet. Its versions stay, frozen."""
