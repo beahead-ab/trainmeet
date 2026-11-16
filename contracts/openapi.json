@@ -15433,6 +15433,12 @@
           },
           "report": {
             "$ref": "#/components/schemas/trainmeet.planning-1.import.ImportReport"
+          },
+          "checks_only": {
+            "default": false,
+            "description": "Underlaget prövas mot utkastet och ändrar det inte: stationslistorna mot planeringsfilen (IMPORT-27).",
+            "title": "Checks Only",
+            "type": "boolean"
           }
         },
         "required": [
@@ -16266,6 +16272,14 @@
             },
             "title": "Left Out",
             "type": "array"
+          },
+          "verdicts": {
+            "description": "Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.import.ListVerdict"
+            },
+            "title": "Verdicts",
+            "type": "array"
           }
         },
         "required": [
@@ -16285,6 +16299,62 @@
         ],
         "title": "Language",
         "type": "string"
+      },
+      "trainmeet.planning-1.import.ListVerdict": {
+        "additionalProperties": true,
+        "description": "Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.",
+        "properties": {
+          "document": {
+            "description": "Listans fil, till exempel Lek Lekby.odt.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Document",
+            "type": "string"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsen listan gäller, i planen.",
+            "title": "Place"
+          },
+          "rows": {
+            "description": "Listans rader, ett uppehåll på två rader räknat en gång.",
+            "minimum": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "agreeing": {
+            "description": "Rader som stämmer med planen.",
+            "minimum": 0,
+            "title": "Agreeing",
+            "type": "integer"
+          },
+          "differences": {
+            "description": "Det som skiljer, i klartext.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document",
+          "rows",
+          "agreeing"
+        ],
+        "title": "ListVerdict",
+        "type": "object"
       },
       "trainmeet.planning-1.import.MapPoint": {
         "additionalProperties": true,
@@ -18635,6 +18705,14 @@
             },
             "title": "Left Out",
             "type": "array"
+          },
+          "verdicts": {
+            "description": "Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.draft.ListVerdict"
+            },
+            "title": "Verdicts",
+            "type": "array"
           }
         },
         "required": [
@@ -18654,6 +18732,62 @@
         ],
         "title": "Language",
         "type": "string"
+      },
+      "trainmeet.planning-1.draft.ListVerdict": {
+        "additionalProperties": true,
+        "description": "Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.",
+        "properties": {
+          "document": {
+            "description": "Listans fil, till exempel Lek Lekby.odt.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Document",
+            "type": "string"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsen listan gäller, i planen.",
+            "title": "Place"
+          },
+          "rows": {
+            "description": "Listans rader, ett uppehåll på två rader räknat en gång.",
+            "minimum": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "agreeing": {
+            "description": "Rader som stämmer med planen.",
+            "minimum": 0,
+            "title": "Agreeing",
+            "type": "integer"
+          },
+          "differences": {
+            "description": "Det som skiljer, i klartext.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document",
+          "rows",
+          "agreeing"
+        ],
+        "title": "ListVerdict",
+        "type": "object"
       },
       "trainmeet.planning-1.draft.MapPoint": {
         "additionalProperties": true,
@@ -19446,7 +19580,8 @@
       },
       "trainmeet.planning-1.draft.SourceKind": {
         "enum": [
-          "planning_json"
+          "planning_json",
+          "station_lists"
         ],
         "title": "SourceKind",
         "type": "string"
@@ -20690,6 +20825,14 @@
             },
             "title": "Left Out",
             "type": "array"
+          },
+          "verdicts": {
+            "description": "Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.import-preview.ListVerdict"
+            },
+            "title": "Verdicts",
+            "type": "array"
           }
         },
         "required": [
@@ -20697,6 +20840,62 @@
           "level"
         ],
         "title": "ImportReport",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import-preview.ListVerdict": {
+        "additionalProperties": true,
+        "description": "Domen för en stationslista mot planeringsfilen (IMPORT-27): rad för rad.",
+        "properties": {
+          "document": {
+            "description": "Listans fil, till exempel Lek Lekby.odt.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Document",
+            "type": "string"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsen listan gäller, i planen.",
+            "title": "Place"
+          },
+          "rows": {
+            "description": "Listans rader, ett uppehåll på två rader räknat en gång.",
+            "minimum": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "agreeing": {
+            "description": "Rader som stämmer med planen.",
+            "minimum": 0,
+            "title": "Agreeing",
+            "type": "integer"
+          },
+          "differences": {
+            "description": "Det som skiljer, i klartext.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document",
+          "rows",
+          "agreeing"
+        ],
+        "title": "ListVerdict",
         "type": "object"
       },
       "trainmeet.planning-1.import-preview.PlaceKind": {
@@ -20766,7 +20965,8 @@
       },
       "trainmeet.planning-1.import-preview.SourceKind": {
         "enum": [
-          "planning_json"
+          "planning_json",
+          "station_lists"
         ],
         "title": "SourceKind",
         "type": "string"

@@ -139,4 +139,29 @@ describe("Lägg till underlag", () => {
     expect(html).toContain('id="apply" type="button" class="primar">Lägg in i utkastet');
     expect(renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} />)).toContain('id="apply" type="button" class="primar" disabled=""');
   });
+  it("shows each station list's verdict against the planning file (IMPORT-27)", () => {
+    const lists = {
+      ...preview,
+      source: { id: "src3", kind: "station_lists", filename: "lists.zip" },
+      report: {
+        level: 1,
+        trains: 0,
+        sections: 0,
+        verdicts: [
+          { document: "Lek Lekby.odt", place: "lek", rows: 52, agreeing: 52, differences: [] },
+          { document: "R Rotebro.odt", place: "r", rows: 72, agreeing: 71, differences: ["Tåg 538 vid Rotebro: avgång 10:42 i listan, 10:40 i planen."] },
+        ],
+      },
+      trains: { added: 0, removed: 0, changed: 0 },
+      sections: { added: 0, removed: 0, changed: 0 },
+      times: 0,
+      questions: 0,
+      kept: 0,
+    } as unknown as ImportPreview;
+    const html = renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "lists.zip", state: "read", preview: lists }} />);
+    expect(html).toContain("Stationslistor · 2 listor · 124 tågbesök");
+    expect(html).toContain("52 av 52 tågbesök stämmer");
+    expect(html).toContain("Skiljer");
+    expect(html).toContain("avgång 10:42 i listan, 10:40 i planen.");
+  });
 });
