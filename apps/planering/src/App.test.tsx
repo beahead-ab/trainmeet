@@ -57,6 +57,17 @@ describe("Versioner (S6)", () => {
     expect(html).not.toContain('id="publish"');
   });
 
+  it("marks a withdrawn version and offers Dra tillbaka to the administrator (PLAN-18)", () => {
+    const two = [...versions, { ...versions[0]!, number: 2, withdrawn: "2026-11-16T10:00:00Z" }] as Version[];
+    const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={two} />);
+    expect(html).toContain('<tr class="tillbakadragen"><td><b>Version 2</b>');
+    expect(html).toContain("Tillbakadragen ");
+    expect(html).not.toContain("version=2#ny-traff");
+    expect(html).toContain('aria-controls="withdraw-1">Dra tillbaka</button>');
+    const looking = renderToStaticMarkup(<VersionerPage admin={false} meet="varnamo" draft={draft} check={check} versions={two} />);
+    expect(looking).not.toContain("Dra tillbaka</button>");
+  });
+
   it("lets the administrator publish the next version, once there is a plan", () => {
     const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={versions} />);
     expect(html).toContain(">Publicera version 2<");

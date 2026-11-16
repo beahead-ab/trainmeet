@@ -20,13 +20,13 @@ from fastapi.responses import StreamingResponse
 
 from contracts import drift, screen
 from contracts.common import Id
-from contracts.reasons import TEXT_SV
+from contracts.reasons import TEXT_SV, Reason
 from drift.engine import Refused, now_utc
 from drift.now import now
 from drift.store import MissingRun, RunLimit, UnknownBox, UnknownClient
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from hub.running import PROVBANAN, Running, UnknownMeet
+from hub.running import PROVBANAN, Running, UnknownMeet, WithdrawnVersion
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -77,6 +77,10 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
                 request.meet, request.version, request.traffic_day, request.game_day
             )
             return store.state(run_id).history[0].model_dump(mode="json")
+        except WithdrawnVersion as error:
+            raise HTTPException(
+                409, "Versionen är tillbakadragen i Planering och kan inte startas."
+            ) from error
         except UnknownMeet as error:
             raise HTTPException(409, "Den versionen av träffen finns inte i hubben.") from error
         except failures as error:
@@ -193,24 +197,10 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
 
     # --- Versionsbyte (TRAFIK-03, DRIFT-29) and påbörjat och klart (DRIFT-47) -----------------
 
-    def included(version: int) -> list[str]:
-        """The driftändringar the planner took into the version: they fall away at the switch
-        (H4). Taken before the version was published, that is."""
-        if running.meet == PROVBANAN:
-            return []
-        published = next(
-            (v.published for v in running.planning.versions(running.meet) if v.number == version),
-            None,
-        )
-        if published is None:
-            return []
-        return [
-            p.id
-            for p in running.planning.proposals(running.meet)
-            if p.status == drift.ProposalStatus.TAKEN
-            and p.answered is not None
-            and p.answered <= published
-        ]
+    def switchable(version: int) -> None:
+        """A version withdrawn in Planering is no version to switch to (PLAN-18)."""
+        if running.withdrawn(running.meet, version):
+            _error(Refused(Reason.UNKNOWN_VERSION))
 
     @routes.get("/switch/{version}")
     def switch_preview(
@@ -223,12 +213,13 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         trains it waits for (H4, H38)."""
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
+        switchable(version)
         try:
             state = running.store.state(run_id)
             waits = state.switch_waits_for(version)
         except failures as error:
             _error(error)
-        taken = set(included(version))
+        taken = set(running.included(version))
         return drift.SwitchPreview(
             version=version,
             changes=[
@@ -249,8 +240,9 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         """Byt till en ny version (TRAFIK-03): made, or waiting for the trains that are out."""
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
+        switchable(request.version)
         try:
-            state = running.store.switch(run_id, request, included(request.version))
+            state = running.store.switch(run_id, request, running.included(request.version))
         except failures as error:
             _error(error)
         kinds = (drift.EventKind.VERSION_SWITCHED, drift.EventKind.VERSION_WAITING)
@@ -341,6 +333,8 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             seen = now(running.store.state(running.store.current()), now_utc())
         except MissingRun as error:
             _error(error)
+        if running.withdrawn(running.meet, seen.version):
+            seen = seen.model_copy(update={"withdrawn": True})
         if seen.changes and running.meet != PROVBANAN:
             answers = running.planning.answers(running.meet)
             seen = seen.model_copy(

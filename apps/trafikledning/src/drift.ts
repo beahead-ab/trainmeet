@@ -158,7 +158,10 @@ export function describe(event: DriftEvent, pkg: Package | null = null): string 
     const text = changeText(data["change"] as DriftChange, pkg, data["train_number"] as string | null);
     return `Driftändring: ${text}` + (data["waiting"] ? ", väntar på tåget" : "") + (data["forced"] ? ", tvingad igenom" : "");
   }
-  if (event.kind === "version.switched" && typeof data["version"] === "number") return `Version ${data["version"]} körs nu` + (data["forced"] ? ", tvingad igenom" : "");
+  if (event.kind === "version.switched" && typeof data["version"] === "number") {
+    if (data["small"]) return `Version ${data["version"]} togs direkt: små rättelser av tider och spår`;
+    return `Version ${data["version"]} körs nu` + (data["forced"] ? ", tvingad igenom" : "");
+  }
   if (event.kind === "version.waiting" && typeof data["version"] === "number") return `Byte till version ${data["version"]} väntar på tåg som är ute`;
   if (event.kind === "change.applied") return "Driftändringen gäller nu" + (data["forced"] ? ", tvingad igenom" : "");
   const forward = data["forward"] ? ", flyttat fram" : "";

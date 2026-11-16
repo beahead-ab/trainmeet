@@ -22,6 +22,7 @@ from contracts.reasons import Reason
 from core.changes import apply
 from drift.engine import Drift, Refused
 from drift.now import now as nu
+from drift.tests.test_day import last
 
 START = datetime(2026, 11, 16, 9, 0, tzinfo=UTC)
 Action = station.Action
@@ -38,13 +39,19 @@ def first() -> MeetPackage:
     return MeetPackage.model_validate_json(raw)
 
 
+def corrected() -> MeetPackage:
+    """Version 3: only små rättelser, 105 ten minutes later and on another track."""
+    package = apply(first(), events.ChangeTimes(train="t105", minutes=10), "p4")
+    return apply(package, events.ChangeTrack(call="t105-nby", track="2"), "p5")
+
+
 def second() -> MeetPackage:
     package = apply(first(), events.ChangeTimes(train="t103", minutes=10), "p1")
     package = apply(package, events.TrainNote(train="t101", text="Ånglok"), "p2")
     return apply(package, EXTRA, "c3")
 
 
-VERSIONS = {1: first(), 2: second()}
+VERSIONS = {1: first(), 2: second(), 3: corrected()}
 
 
 @pytest.fixture
@@ -213,3 +220,23 @@ def test_begun_and_never_done_starts_locked_until_unlocked(drift: Drift) -> None
     with pytest.raises(Refused) as refused:
         locked.unlock(at(6))
     assert refused.value.reason == Reason.NOT_LOCKED
+
+
+def test_små_rättelser_are_told_from_other_versions(drift: Drift) -> None:
+    """F5, DRIFT-31: a version that only moves times and tracks of trains that have not run is
+    taken at once; one with a new train or a note waits for Trafikledningen."""
+    assert drift.small_correction(3)
+    assert not drift.small_correction(2), "a new train and a note"
+    drift.switch_version(events.SwitchVersion(version=3), [], at(1), small=True)
+    switched = last(drift, events.EventKind.VERSION_SWITCHED)
+    assert events.VersionSwitch.model_validate(switched.data).small
+    assert drift.version == 3
+
+
+def test_a_train_that_has_run_makes_it_no_small_correction(drift: Drift) -> None:
+    clearance = request(drift, "t105", "nby", "s-nby-asn", at(1))
+    assert not drift.small_correction(3), "105 is out"
+    send(drift, "asn", Action.CLEARANCE_RESPONSE, at(2), clearance_id=clearance, approved=True)
+    send(drift, "nby", Action.TRAIN_DEPARTED, at(3), call="t105-nby")
+    send(drift, "asn", Action.TRAIN_ARRIVED, at(4), call="t105-asn")
+    assert not drift.small_correction(3), "105 has run"

@@ -498,6 +498,10 @@ class VersionSwitch(Contract):
     drop: list[Id] = Field(default_factory=list)
     included: list[Id] = Field(default_factory=list)
     forced: bool = False
+    small: bool = Field(
+        default=False,
+        description="Små rättelser, tagna direkt: tider och spår för tåg som inte gått (F5).",
+    )
 
 
 class ChangeMade(Contract):

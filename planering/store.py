@@ -311,6 +311,26 @@ class Planning:
             )
             return version
 
+    def withdraw_version(self, meet_id: str, number: int) -> Version:
+        """Dra tillbaka en version (PLAN-18, F21): it can no longer be started or switched to,
+        but it stays, frozen, so that history and logs hold. A meet that runs it goes on, with
+        a warning (H68)."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT info FROM version WHERE meet_id=? AND number=?", (meet_id, number)
+            ).fetchone()
+            if row is None:
+                raise UnknownVersion("Versionen finns inte.")
+            version = Version.model_validate_json(row[0])
+            if version.withdrawn is not None:
+                raise PlanningError("Versionen är redan tillbakadragen.")
+            withdrawn = version.model_copy(update={"withdrawn": datetime.now(UTC)})
+            db.execute(
+                "UPDATE version SET info=? WHERE meet_id=? AND number=?",
+                (withdrawn.model_dump_json(), meet_id, number),
+            )
+            return withdrawn
+
     # --- Förslag från Drift (4.4, PLAN-03) ------------------------------------------------------
 
     def propose(

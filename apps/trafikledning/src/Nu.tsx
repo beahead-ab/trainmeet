@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Package, Weekday } from "./api";
 import { Andringar } from "./Andringar";
-import { Spärrad, Versionsbyte, type SwitchProps } from "./Versionsbyte";
+import { Spärrad, Tillbakadragen, Versionsbyte, type SwitchProps } from "./Versionsbyte";
 import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
 import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
@@ -185,6 +185,7 @@ function Meet(props: NuProps & { now: Now }) {
         </p>
       </div>
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
+      <Tillbakadragen now={now} />
       {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}
       {admin && (
         <div className="rad" id="clock-controls">

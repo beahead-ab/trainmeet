@@ -127,6 +127,20 @@ export function App() {
     setBusy(false);
   };
 
+  // Dra tillbaka (PLAN-18): the version stays, but can no longer be run.
+  const onWithdraw = async (number: number) => {
+    if (!meet) return;
+    setBusy(true);
+    let done = false;
+    await act(async () => {
+      await planning.withdraw(meet, number);
+      done = true;
+    });
+    if (done) tell(`Version ${number} är tillbakadragen. Den kan inte längre startas eller tas i drift.`, true);
+    await readVersions(meet);
+    setBusy(false);
+  };
+
   // Förslag från Drift (PLAN-03): Ta med lays it on the draft; Avslå leaves it out.
   const onAnswer = async (id: string, take: boolean) => {
     if (!meet) return;
@@ -188,6 +202,7 @@ export function App() {
             proposals={proposals}
             onTake={(id) => void onAnswer(id, true)}
             onReject={(id) => void onAnswer(id, false)}
+            onWithdraw={(number) => void onWithdraw(number)}
           />
         )}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">

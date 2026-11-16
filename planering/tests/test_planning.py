@@ -200,6 +200,23 @@ def test_publishing_freezes_the_draft_as_numbered_versions(planning: Planning) -
         planning.package(meet.id, 3)
 
 
+def test_a_withdrawn_version_stays_but_is_marked(planning: Planning) -> None:
+    """Dra tillbaka (PLAN-18, F21): the version is kept, frozen, so that history and logs hold."""
+    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    src = source()
+    planning.add_source(meet.id, src, b"1", result(src))
+    planning.publish(meet.id)
+    withdrawn = planning.withdraw_version(meet.id, 1)
+    assert withdrawn.withdrawn is not None
+    (listed,) = planning.versions(meet.id)
+    assert listed.withdrawn == withdrawn.withdrawn
+    assert planning.package(meet.id, 1).meet.id == meet.id, "still there to be read"
+    with pytest.raises(PlanningError, match="redan"):
+        planning.withdraw_version(meet.id, 1)
+    with pytest.raises(UnknownVersion):
+        planning.withdraw_version(meet.id, 2)
+
+
 def test_the_check_finds_trains_without_a_section_and_shared_tracks() -> None:
     plan = package()
     # Without the last section, every train there is noted once for the pair of places.

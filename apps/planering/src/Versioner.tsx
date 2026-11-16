@@ -1,10 +1,13 @@
 import { changeText } from "@trainmeet/hubben";
+import { Fragment, useState } from "react";
 import type { Check, Draft, Proposal, Version } from "./api";
 import { when } from "./text";
 
 // Versioner (S6): the traffic check, Publicera for the administrator, the proposals from Drift
 // with Ta med and Avslå (PLAN-03, 4.4), and the versions, which never change and are never
-// removed. Kör i Drift opens Byt träff with the version (TRAFIK-29).
+// removed. Kör i Drift opens Byt träff with the version (TRAFIK-29). Dra tillbaka (PLAN-18,
+// F21) keeps the version but it can no longer be started or switched to; a meet that runs it
+// goes on, with a warning in Nu (H68).
 
 export type VersionerProps = {
   admin: boolean;
@@ -18,9 +21,11 @@ export type VersionerProps = {
   proposals?: Proposal[] | null;
   onTake?: (id: string) => void;
   onReject?: (id: string) => void;
+  onWithdraw?: (number: number) => void;
 };
 
-export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject }: VersionerProps) {
+export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw }: VersionerProps) {
+  const [asking, setAsking] = useState<number | null>(null);
   const next = (versions?.at(-1)?.number ?? 0) + 1;
   const planned = Boolean(draft?.package);
   const findings = check?.findings ?? [];
@@ -66,7 +71,7 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
       <Forslag admin={admin} draft={draft} next={next} proposals={proposals} busy={busy} onTake={onTake} onReject={onReject} />
       <section className="kort lista-kort" aria-labelledby="versioner-rubrik">
         <h2 id="versioner-rubrik">Versioner</h2>
-        <p className="liten">En version ändras aldrig och tas aldrig bort. Drift kör en version.</p>
+        <p className="liten">En version ändras aldrig och tas aldrig bort. Drift kör en version. En tillbakadragen version finns kvar, men kan inte köras.</p>
         <table className="tabell">
           <thead>
             <tr>
@@ -86,20 +91,48 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
                 .slice()
                 .reverse()
                 .map((version) => (
-                  <tr key={version.number}>
-                    <td>
-                      <b>{`Version ${version.number}`}</b>
-                    </td>
-                    <td>{when(version.published)}</td>
-                    <td className="tal">{String(version.conflicts ?? 0)}</td>
-                    <td className="tal">{String(version.observations ?? 0)}</td>
-                    <td className="kod" title={version.checksum}>
-                      {version.checksum.slice(0, 12)}
-                    </td>
-                    <td>
-                      <a href={`/drift?traff=${encodeURIComponent(meet)}&version=${version.number}#ny-traff`}>Kör i Drift →</a>
-                    </td>
-                  </tr>
+                  <Fragment key={version.number}>
+                    <tr className={version.withdrawn ? "tillbakadragen" : undefined}>
+                      <td>
+                        <b>{`Version ${version.number}`}</b>
+                      </td>
+                      <td>{when(version.published)}</td>
+                      <td className="tal">{String(version.conflicts ?? 0)}</td>
+                      <td className="tal">{String(version.observations ?? 0)}</td>
+                      <td className="kod" title={version.checksum}>
+                        {version.checksum.slice(0, 12)}
+                      </td>
+                      <td>
+                        {version.withdrawn ? (
+                          <span className="pill tillbaka">{`Tillbakadragen ${when(version.withdrawn)}`}</span>
+                        ) : (
+                          <span className="rad">
+                            <a href={`/drift?traff=${encodeURIComponent(meet)}&version=${version.number}#ny-traff`}>Kör i Drift →</a>
+                            {admin && (
+                              <button type="button" className="fara" aria-expanded={asking === version.number} aria-controls={`withdraw-${version.number}`} disabled={busy} onClick={() => setAsking(asking === version.number ? null : version.number)}>
+                                Dra tillbaka
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    {admin && asking === version.number && !version.withdrawn && (
+                      <tr id={`withdraw-${version.number}`} className="bekrafta">
+                        <td colSpan={6}>
+                          <p>{`Version ${version.number} kan sedan inte startas eller tas i drift. Den finns kvar, och en träff som redan kör den fortsätter, med en varning i Nu.`}</p>
+                          <span className="rad">
+                            <button type="button" className="fara" id="withdraw-confirm" disabled={busy} onClick={() => (setAsking(null), onWithdraw?.(version.number))}>
+                              {`Dra tillbaka version ${version.number}`}
+                            </button>
+                            <button type="button" onClick={() => setAsking(null)}>
+                              Avbryt
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))
             ) : (
               <tr>

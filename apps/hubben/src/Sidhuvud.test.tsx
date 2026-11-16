@@ -65,6 +65,11 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(html).toContain("Börja om med samma träff");
   });
 
+  it("leaves a withdrawn version out of Byt träff (PLAN-18)", () => {
+    const choices = meetChoices([{ meet: { id: "grimslov", name: "Grimslöv 2027" }, versions: [{ number: 1 }, { number: 2, withdrawn: "2026-11-16T10:00:00Z" }] }] as never);
+    expect(choices.map((choice) => choice.value)).toEqual(["grimslov:1", "provbanan:1"]);
+  });
+
   it("shows Anslut with the code, the box's and the screen's addresses and the QR code", () => {
     const html = header({ admin: true, menu: "anslut", joining: { code: "123456", url: "https://hub.example/box#kod=123456" }, joinedAt: 7 });
     expect(html).toContain('id="connect-code" class="anslutkod">123456<');

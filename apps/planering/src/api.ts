@@ -25,6 +25,7 @@ export const planning = {
   check: (id: string) => call<Check>(`${meet(id)}/check`),
   versions: (id: string) => call<Version[]>(`${meet(id)}/versions`),
   publish: (id: string) => call<Version>(`${meet(id)}/versions`, {}),
+  withdraw: (id: string, number: number) => call<Version>(`${meet(id)}/versions/${number}/withdraw`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
   answer: (id: string, given: Answer) => call<Draft>(`${meet(id)}/answers`, given),
   proposals: (id: string) => call<Proposal[]>(`${meet(id)}/proposals`),

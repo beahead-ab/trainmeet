@@ -932,6 +932,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/versions/{number}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdrawVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets/{meet}/versions/{number}": {
         parameters: {
             query?: never;
@@ -4769,6 +4785,12 @@ export interface components {
              * @default false
              */
             forced: boolean;
+            /**
+             * Small
+             * @description Små rättelser, tagna direkt: tider och spår för tåg som inte gått (F5).
+             * @default false
+             */
+            small: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -8966,6 +8988,12 @@ export interface components {
              * @default 0
              */
             observations: number;
+            /**
+             * Withdrawn
+             * @description Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.
+             * @default null
+             */
+            withdrawn: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -9277,6 +9305,12 @@ export interface components {
              * @default 0
              */
             observations: number;
+            /**
+             * Withdrawn
+             * @description Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.
+             * @default null
+             */
+            withdrawn: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10983,6 +11017,29 @@ export interface operations {
             header?: never;
             path: {
                 meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.version"];
+                };
+            };
+        };
+    };
+    withdrawVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                number: string;
             };
             cookie?: never;
         };
