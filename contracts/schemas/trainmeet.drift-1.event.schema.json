@@ -48,6 +48,7 @@
         "clock.jump",
         "clock.jump_undone",
         "day.changed",
+        "day.settings",
         "client.approved",
         "client.revoked",
         "client.assigned",
@@ -175,7 +176,7 @@
       "description": "Ångra (F6): everything is as it was before the jump, and the clock shows the time it\nshowed then. The events in between stay in the log.",
       "properties": {
         "jump": {
-          "description": "Tidshoppets händelsenummer.",
+          "description": "Tidshoppets eller den nya dagens händelsenummer.",
           "minimum": 1,
           "title": "Jump",
           "type": "integer"
@@ -185,6 +186,16 @@
           "minimum": 0,
           "title": "Seconds",
           "type": "number"
+        },
+        "kind": {
+          "default": "time",
+          "description": "Tidshopp eller ny dag.",
+          "enum": [
+            "time",
+            "day"
+          ],
+          "title": "Kind",
+          "type": "string"
         }
       },
       "required": [
@@ -192,6 +203,98 @@
         "seconds"
       ],
       "title": "TimeJumpUndone",
+      "type": "object"
+    },
+    "DayChanged": {
+      "additionalProperties": true,
+      "description": "Dygnsskiftet (F7, DRIFT-45): the next game day with its traffic day. The open cases are\nclosed and every train stands where the timetable has it just before the day's first\ndeparture (DRIFT-43). Yesterday's events stay; it can be undone as a time jump (F6).",
+      "properties": {
+        "game_day": {
+          "description": "Det nya speldygnet.",
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "traffic_day": {
+          "$ref": "#/$defs/Weekday",
+          "description": "Det nya speldygnets trafikdag."
+        },
+        "before": {
+          "description": "Klockan före, sekunder in på förra speldygnet.",
+          "minimum": 0,
+          "title": "Before",
+          "type": "number"
+        },
+        "seconds": {
+          "description": "Klockan efter, sekunder in på det nya speldygnet.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "number"
+        },
+        "placed": {
+          "description": "Tiden tågen ställdes efter.",
+          "minimum": 0,
+          "title": "Placed",
+          "type": "number"
+        },
+        "closed": {
+          "description": "Klareringarna som stängdes.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Closed",
+          "type": "array"
+        },
+        "automatic": {
+          "default": false,
+          "description": "Skiftet kom av sig själv, inte från Nu.",
+          "title": "Automatic",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "game_day",
+        "traffic_day",
+        "before",
+        "seconds",
+        "placed"
+      ],
+      "title": "DayChanged",
+      "type": "object"
+    },
+    "DayChangeMode": {
+      "enum": [
+        "manual",
+        "automatic"
+      ],
+      "title": "DayChangeMode",
+      "type": "string"
+    },
+    "DaySettings": {
+      "additionalProperties": true,
+      "description": "Dygnsskiftet (F7): by hand by default, automatic as a choice. The next game day starts\nan hour before its first train, never before midnight, unless a time is set here.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/DayChangeMode",
+          "default": "manual"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fast tid för dygnsskiftet; tomt betyder en timme före första tåget.",
+          "title": "Time"
+        }
+      },
+      "title": "DaySettings",
       "type": "object"
     },
     "ClearanceRequested": {
@@ -809,6 +912,36 @@
     {
       "properties": {
         "kind": {
+          "const": "day.changed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DayChanged"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "day.settings",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DaySettings"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "clearance.requested",
           "type": "string"
         },
@@ -1087,6 +1220,8 @@
               "clock.speed",
               "clock.jump",
               "clock.jump_undone",
+              "day.changed",
+              "day.settings",
               "clearance.requested",
               "clearance.answered",
               "clearance.cancelled",

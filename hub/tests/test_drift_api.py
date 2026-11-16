@@ -108,6 +108,36 @@ def test_the_administrator_runs_the_clock(running: TestClient) -> None:
     assert other_day.json()["detail"] == TEXT_SV[Reason.OTHER_GAME_DAY]
 
 
+def test_the_administrator_starts_the_next_day(running: TestClient) -> None:
+    """Dygnsskiftet (F7): by hand by default, automatic as a choice, and Starta ny dag."""
+    anonymous = TestClient(running.app)
+    day = nu(running).day
+    assert day is not None
+    assert (day.mode, day.next_game_day, day.next_traffic_day) == ("manual", 2, "tue")
+    automatic = {"mode": "automatic", "time": "04:30"}
+    assert anonymous.post(API + "/day/settings", json=automatic).status_code == 401
+    status = drift.DayStatus.model_validate(
+        running.post(API + "/day/settings", json=automatic).json()
+    )
+    assert (status.mode, status.time, status.fixed) == ("automatic", "04:30", True)
+    assert anonymous.post(API + "/day", json={}).status_code == 401
+    code = code_of(running)
+    box = Tab(running, "Box Norrby", code)
+    running.post(API + "/clients/assign", json={"client_id": box.client_id, "places": ["nby"]})
+    box.number("101")  # An open request: the day still runs.
+    refused = running.post(API + "/day", json={})
+    assert (refused.status_code, refused.json()["detail"]) == (
+        409,
+        TEXT_SV[Reason.DAY_STILL_RUNNING],
+    )
+    running.post(API + "/clock", json={"action": "jump", "time": "10:00"})  # Closes it.
+    started = running.post(API + "/day", json={"time": "05:15"})
+    assert drift.DriftEvent.model_validate(started.json()).kind == drift.EventKind.DAY_CHANGED
+    seen = nu(running)
+    assert (seen.game_day, seen.traffic_day, seen.clock.time) == (2, "tue", "05:15")
+    assert seen.jump is not None and seen.jump.kind == "day"
+
+
 def test_boxes_join_the_meet_with_its_code_and_are_assigned(running: TestClient) -> None:
     code = code_of(running)
     box = Tab(running, "Box Norrby", code)

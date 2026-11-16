@@ -38,19 +38,34 @@ def now(drift: Drift, at: datetime) -> contract.Now:
         legs=[_leg(drift, leg) for leg in _in_order(drift)],
         clearances=[clearance_of(drift, case) for case in drift.cases.values() if case.active],
         jump=_jump(drift),
+        day=drift.day_status(at),
     )
 
 
 def _jump(drift: Drift) -> contract.LastJump | None:
-    """The latest time jump, while Ångra can take it back (F6)."""
+    """The latest time jump or new day, while Ångra can take it back (F6)."""
     event = drift.last_jump
     if event is None:
         return None
+    if event.kind == contract.EventKind.DAY_CHANGED:
+        day = contract.DayChanged.model_validate(event.data)
+        return contract.LastJump(
+            seq=event.seq,
+            kind="day",
+            from_time=model_time(day.before),
+            to_time=model_time(day.seconds),
+            game_day=day.game_day,
+            traffic_day=day.traffic_day,
+            closed=len(day.closed),
+            wall_time=event.wall_time,
+        )
     jump = contract.TimeJumped.model_validate(event.data)
     return contract.LastJump(
         seq=event.seq,
         from_time=model_time(jump.before),
         to_time=model_time(jump.seconds),
+        game_day=drift.game_day,
+        traffic_day=drift.traffic_day,
         closed=len(jump.closed),
         wall_time=event.wall_time,
     )

@@ -1,6 +1,7 @@
 // What Trafikledningen says, and the small rules behind it, without React: the same words and
 // choices as the old pages (hub/static/drift.js), so they can be tested on their own.
-import type { Actor, AutomationPlace, Client, DriftEvent, Leg, Now } from "./api";
+import type { Actor, AutomationPlace, Client, DayStatus, DriftEvent, LastJump, Leg, Now, Weekday } from "./api";
+import { dayName } from "@trainmeet/hubben";
 export { dayName, WEEKDAYS } from "@trainmeet/hubben";
 
 export const STATES: Record<Leg["state"], string> = {
@@ -31,6 +32,8 @@ export const EVENTS: Record<string, string> = {
   "clock.speed": "Ny hastighet",
   "clock.jump": "Tidshopp",
   "clock.jump_undone": "Tidshoppet ångrat",
+  "day.changed": "Ny dag",
+  "day.settings": "Dygnsskiftet ändrat",
   "clearance.requested": "Klarering begärd",
   "clearance.cancelled": "Begäran återtagen",
   "clearance.invalidated": "Klareringen blev ogiltig (spårbyte)",
@@ -117,9 +120,28 @@ export function jumpNote(open: number): string {
   const closing = open ? `${open === 1 ? "Den öppna klareringen" : `De ${open} öppna klareringarna`} stängs, och tågen` : "Tågen";
   return `${closing} ställs där tidtabellen har dem. Hoppet kan ångras.`;
 }
-/** The latest jump, as Nu offers to undo it. */
-export const jumpText = (jump: { from_time: string; to_time: string; closed: number }) =>
-  `Tidshopp från ${jump.from_time} till ${jump.to_time}` + (jump.closed ? ` · ${clearances(jump.closed)} stängdes` : "");
+const closedAfter = (count: number) => (count ? ` · ${clearances(count)} stängdes` : "");
+/** The latest jump or new day, as Nu offers to undo it. */
+export function jumpText(jump: Pick<LastJump, "from_time" | "to_time" | "closed"> & Partial<LastJump>): string {
+  if (jump.kind === "day" && jump.game_day && jump.traffic_day) return `${dayTitle(jump.game_day, jump.traffic_day)} startade kl. ${jump.to_time}` + closedAfter(jump.closed);
+  return `Tidshopp från ${jump.from_time} till ${jump.to_time}` + closedAfter(jump.closed);
+}
+
+// Dygnsskiftet (F7, TRAFIK-22, DRIFT-45): the next game day and its traffic day.
+export const dayTitle = (gameDay: number, day: Weekday) => `Dag ${gameDay} · ${dayName(day)}`;
+/** When the next day starts, and who starts it. */
+export function dayNote(day: DayStatus): string {
+  const reason = day.fixed ? "" : day.first ? `, en timme före första tåget ${day.first}` : ", dagen har inga tåg";
+  const when = `Dygnsskiftet kl. ${day.time}${reason}`;
+  const who = day.mode === "automatic" ? "Dagen startar av sig själv." : "Trafikledningen startar dagen.";
+  return `Nästa: ${dayTitle(day.next_game_day, day.next_traffic_day).toLowerCase()}. ${when}. ${who}`;
+}
+/** Said when the time of the change has passed: by hand it is time, automatic it waits. */
+export function dayDue(day: DayStatus): string | null {
+  if (day.waiting) return "Dygnsskiftet väntar på tåg som är ute, högst 30 minuter.";
+  if (day.due) return `Klockan har passerat dygnsskiftet. Starta dag ${day.next_game_day} när dagens tåg är inne.`;
+  return null;
+}
 
 export function describe(event: DriftEvent): string {
   const data = event.data ?? {};
@@ -128,7 +150,15 @@ export function describe(event: DriftEvent): string {
     const closed = Array.isArray(data["closed"]) ? data["closed"].length : 0;
     return `Tidshopp till ${hhmm(data["seconds"])}` + (closed ? `, ${clearances(closed)} stängd${closed === 1 ? "" : "a"}` : "");
   }
-  if (event.kind === "clock.jump_undone" && typeof data["seconds"] === "number") return `Tidshoppet ångrat, klockan åter ${hhmm(data["seconds"])}`;
+  if (event.kind === "clock.jump_undone" && typeof data["seconds"] === "number") return `${data["kind"] === "day" ? "Nya dagen ångrad" : "Tidshoppet ångrat"}, klockan åter ${hhmm(data["seconds"])}`;
+  if (event.kind === "day.changed" && typeof data["game_day"] === "number") {
+    const closed = Array.isArray(data["closed"]) ? data["closed"].length : 0;
+    return `${dayTitle(data["game_day"], data["traffic_day"] as Weekday)} startade` + (data["automatic"] ? " av sig själv" : "") + (closed ? `, ${clearances(closed)} stängd${closed === 1 ? "" : "a"}` : "");
+  }
+  if (event.kind === "day.settings") {
+    const how = data["mode"] === "automatic" ? "automatiskt" : "manuellt";
+    return `Dygnsskiftet ${how}, ` + (typeof data["time"] === "string" ? `kl. ${data["time"]}` : "en timme före första tåget");
+  }
   if (event.kind === "clearance.answered") return (data["approved"] ? "Klart givet" : "Begäran nekad") + forward;
   if (event.kind === "clock.speed") return `Ny hastighet ${String(data["speed"])}×`;
   if (event.kind === "clearance.reminded" && data["count"]) return `Påminnelse ${String(data["count"])}, obesvarad begäran`;

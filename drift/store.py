@@ -243,6 +243,29 @@ class PreviewStore:
             self._save(db, run_id, drift.history[size:])
             return drift
 
+    def new_day(self, run_id: str, request: events.NewDay) -> Drift:
+        """Starta ny dag (F7): the next game day, from Nu."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            drift.new_day(request, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift
+
+    def set_day(self, run_id: str, settings: events.DaySettings) -> events.DayStatus:
+        """Dygnsskiftet by hand or automatic, and its time (F7)."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if settings != drift.day_settings:
+                drift.set_day(settings, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift.day_status(now)
+
     def command(self, run_id: str, command: station.Command) -> Drift:
         with self._transaction() as db:
             now = now_utc()
@@ -662,7 +685,8 @@ class PreviewStore:
 
     def tick(self, run_id: str) -> None:
         """One round every second or so while the hub runs: the reminders of unanswered
-        requests (H39), and the automation (F14). Nothing happens while the clock stands."""
+        requests (H39), the automatic day change (F7) and the automation (F14). Nothing
+        happens while the clock stands."""
         with self._transaction() as db:
             now = now_utc()
             drift = self._load(db, run_id, now)
@@ -672,6 +696,7 @@ class PreviewStore:
             if size >= self.max_actions:
                 raise RunLimit()
             drift.remind(now)
+            drift.day_tick(now)
             if drift.automation.enabled:
                 self.automatik(run_id).tick(drift, now)
             self._save(db, run_id, drift.history[size:])

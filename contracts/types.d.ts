@@ -180,6 +180,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["newDay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/day/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["daySettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/clients": {
         parameters: {
             query?: never;
@@ -2273,7 +2305,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3558,6 +3590,96 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.clock.ClockAction": "start" | "stop" | "speed" | "jump" | "undo_jump";
+        /**
+         * NewDay
+         * @description Starta ny dag: the next game day, with the clock at the time given, or else the one Nu
+         *     suggests: where the clock is after midnight, before midnight the time of the day change.
+         */
+        "trainmeet.drift-1.new-day": {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DaySettings
+         * @description Dygnsskiftet (F7): by hand by default, automatic as a choice. The next game day starts
+         *     an hour before its first train, never before midnight, unless a time is set here.
+         */
+        "trainmeet.drift-1.day-settings": {
+            /** @default manual */
+            mode: components["schemas"]["trainmeet.drift-1.day-settings.DayChangeMode"];
+            /**
+             * Time
+             * @description Fast tid för dygnsskiftet; tomt betyder en timme före första tåget.
+             * @default null
+             */
+            time: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DayChangeMode
+         * @enum {string}
+         */
+        "trainmeet.drift-1.day-settings.DayChangeMode": "manual" | "automatic";
+        /**
+         * DayStatus
+         * @description Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time.
+         */
+        "trainmeet.drift-1.day": {
+            mode: components["schemas"]["trainmeet.drift-1.day.DayChangeMode"];
+            /**
+             * Time
+             * @description När nästa speldygn börjar, efter midnatt.
+             */
+            time: string;
+            /**
+             * Fixed
+             * @description Tiden är satt av trafikledningen, inte räknad.
+             */
+            fixed: boolean;
+            /**
+             * First
+             * @description Nästa dags första tåg; tomt om dagen saknar tåg.
+             * @default null
+             */
+            first: string | null;
+            /** Next Game Day */
+            next_game_day: number;
+            next_traffic_day: components["schemas"]["trainmeet.drift-1.day.Weekday"];
+            /**
+             * Suggested
+             * @description Klockan som Starta ny dag föreslår.
+             */
+            suggested: string;
+            /**
+             * Due
+             * @description Manuellt: tiden har passerats, och nästa dag kan startas.
+             */
+            due: boolean;
+            /**
+             * Waiting
+             * @description Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).
+             */
+            waiting: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DayChangeMode
+         * @enum {string}
+         */
+        "trainmeet.drift-1.day.DayChangeMode": "manual" | "automatic";
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.day.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /** Approve */
         "trainmeet.drift-1.approve": {
             /** Client Id */
@@ -3749,6 +3871,14 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.TimeJumpUndone"];
         } | {
             /** @constant */
+            kind: "day.changed";
+            data: components["schemas"]["trainmeet.drift-1.event.DayChanged"];
+        } | {
+            /** @constant */
+            kind: "day.settings";
+            data: components["schemas"]["trainmeet.drift-1.event.DaySettings"];
+        } | {
+            /** @constant */
             kind: "clearance.requested";
             data: components["schemas"]["trainmeet.drift-1.event.ClearanceRequested"];
         } | {
@@ -3842,7 +3972,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -3903,7 +4033,7 @@ export interface components {
         "trainmeet.drift-1.event.TimeJumpUndone": {
             /**
              * Jump
-             * @description Tidshoppets händelsenummer.
+             * @description Tidshoppets eller den nya dagens händelsenummer.
              */
             jump: number;
             /**
@@ -3911,6 +4041,78 @@ export interface components {
              * @description Klockan efter ångrandet, som före hoppet.
              */
             seconds: number;
+            /**
+             * Kind
+             * @description Tidshopp eller ny dag.
+             * @default time
+             * @enum {string}
+             */
+            kind: "time" | "day";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DayChanged
+         * @description Dygnsskiftet (F7, DRIFT-45): the next game day with its traffic day. The open cases are
+         *     closed and every train stands where the timetable has it just before the day's first
+         *     departure (DRIFT-43). Yesterday's events stay; it can be undone as a time jump (F6).
+         */
+        "trainmeet.drift-1.event.DayChanged": {
+            /**
+             * Game Day
+             * @description Det nya speldygnet.
+             */
+            game_day: number;
+            /** @description Det nya speldygnets trafikdag. */
+            traffic_day: components["schemas"]["trainmeet.drift-1.event.Weekday"];
+            /**
+             * Before
+             * @description Klockan före, sekunder in på förra speldygnet.
+             */
+            before: number;
+            /**
+             * Seconds
+             * @description Klockan efter, sekunder in på det nya speldygnet.
+             */
+            seconds: number;
+            /**
+             * Placed
+             * @description Tiden tågen ställdes efter.
+             */
+            placed: number;
+            /**
+             * Closed
+             * @description Klareringarna som stängdes.
+             */
+            closed?: string[];
+            /**
+             * Automatic
+             * @description Skiftet kom av sig själv, inte från Nu.
+             * @default false
+             */
+            automatic: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DayChangeMode
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.DayChangeMode": "manual" | "automatic";
+        /**
+         * DaySettings
+         * @description Dygnsskiftet (F7): by hand by default, automatic as a choice. The next game day starts
+         *     an hour before its first train, never before midnight, unless a time is set here.
+         */
+        "trainmeet.drift-1.event.DaySettings": {
+            /** @default manual */
+            mode: components["schemas"]["trainmeet.drift-1.event.DayChangeMode"];
+            /**
+             * Time
+             * @description Fast tid för dygnsskiftet; tomt betyder en timme före första tåget.
+             * @default null
+             */
+            time: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4178,10 +4380,15 @@ export interface components {
             /** Clearances */
             clearances: components["schemas"]["trainmeet.drift-1.now.Clearance"][];
             /**
-             * @description Det senaste tidshoppet, att ångra.
+             * @description Det senaste tidshoppet eller nya dygnet, att ångra.
              * @default null
              */
             jump: components["schemas"]["trainmeet.drift-1.now.LastJump"] | null;
+            /**
+             * @description Dygnsskiftet.
+             * @default null
+             */
+            day: components["schemas"]["trainmeet.drift-1.now.DayStatus"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4245,19 +4452,81 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DayChangeMode
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.DayChangeMode": "manual" | "automatic";
+        /**
+         * DayStatus
+         * @description Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time.
+         */
+        "trainmeet.drift-1.now.DayStatus": {
+            mode: components["schemas"]["trainmeet.drift-1.now.DayChangeMode"];
+            /**
+             * Time
+             * @description När nästa speldygn börjar, efter midnatt.
+             */
+            time: string;
+            /**
+             * Fixed
+             * @description Tiden är satt av trafikledningen, inte räknad.
+             */
+            fixed: boolean;
+            /**
+             * First
+             * @description Nästa dags första tåg; tomt om dagen saknar tåg.
+             * @default null
+             */
+            first: string | null;
+            /** Next Game Day */
+            next_game_day: number;
+            next_traffic_day: components["schemas"]["trainmeet.drift-1.now.Weekday"];
+            /**
+             * Suggested
+             * @description Klockan som Starta ny dag föreslår.
+             */
+            suggested: string;
+            /**
+             * Due
+             * @description Manuellt: tiden har passerats, och nästa dag kan startas.
+             */
+            due: boolean;
+            /**
+             * Waiting
+             * @description Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).
+             */
+            waiting: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LastJump
-         * @description The latest time jump, while it can be undone (F6): until the next jump or undo.
+         * @description The latest time jump or new day, while it can be undone (F6): until the next one.
          */
         "trainmeet.drift-1.now.LastJump": {
             /**
              * Seq
-             * @description Tidshoppets händelsenummer, för Ångra.
+             * @description Händelsens nummer, för Ångra.
              */
             seq: number;
+            /**
+             * Kind
+             * @description Tidshopp eller ny dag.
+             * @default time
+             * @enum {string}
+             */
+            kind: "time" | "day";
             /** From Time */
             from_time: string;
             /** To Time */
             to_time: string;
+            /**
+             * Game Day
+             * @description Speldygnet efter.
+             */
+            game_day: number;
+            /** @description Trafikdagen efter. */
+            traffic_day: components["schemas"]["trainmeet.drift-1.now.Weekday"];
             /**
              * Closed
              * @description Antalet klareringar som stängdes.
@@ -4806,7 +5075,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -7671,6 +7940,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.drift-1.event"];
+                };
+            };
+        };
+    };
+    newDay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.new-day"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.event"];
+                };
+            };
+        };
+    };
+    daySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.day-settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.day"];
                 };
             };
         };

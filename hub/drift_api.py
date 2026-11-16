@@ -89,6 +89,36 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         except failures as error:
             _error(error)
 
+    @routes.post("/day")
+    def new_day(
+        request: drift.NewDay,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Starta ny dag (F7): the next game day with its traffic day."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.new_day(run_id, request).history[-1].model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/day/settings")
+    def day_settings(
+        settings: drift.DaySettings,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Dygnsskiftet by hand (förval) or automatic, and its time (F7)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return running.store.set_day(run_id, settings).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
     @routes.get("/now")
     def nu(response: Response) -> dict[str, Any]:
         """Nu, open to everyone who looks (S1)."""

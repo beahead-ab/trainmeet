@@ -282,6 +282,12 @@ input.tal {
 .lista li.vantar {
   border-color: var(--gul);
 }
+.pamin {
+  border-left: 3px solid var(--gul);
+  background: var(--tm-panel);
+  padding: 8px 12px;
+  margin: 8px 0;
+}
 .lista .vem {
   display: grid;
   gap: 2px;

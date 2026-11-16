@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { Automation, ChangePlace, Client, ClockControl, Leg, Now, Weekday } from "./api";
+import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Weekday } from "./api";
 import type { MeetChoice } from "@trainmeet/hubben";
-import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayName, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
+import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
 import { Chip, Chips } from "./ui";
 
 // Nu (S6, TRAFIK-01): the meet, its clock, the open clearances and the trains. Everyone sees
@@ -16,6 +16,7 @@ export type NuProps = {
   automation: Automation | null;
   openAutomation?: boolean;
   onClock?: (control: ClockControl) => void;
+  onNewDay?: (request: NewDay) => void;
   onStart?: (choice: MeetChoice, day: Weekday) => void;
   onPlace?: (change: ChangePlace) => void;
 };
@@ -117,10 +118,42 @@ function Tidshopp({ now, onClock }: { now: Now; onClock?: (control: ClockControl
         <div className="rad" id="jump-undo">
           <span>{jumpText(last)}</span>
           <button id="undo-jump" type="button" onClick={() => onClock?.({ action: "undo_jump", jump: last.seq, speed: null, time: null, game_day: null })}>
-            Ångra hoppet
+            {last.kind === "day" ? "Ångra nya dagen" : "Ångra hoppet"}
           </button>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Dygnsskiftet (F7, TRAFIK-22): Starta ny dag, by hand by default. The clock stands where it
+ * is after midnight, else at the time of the change; the trains stand just before the day's
+ * first departure. Whether it is automatic, and its time, is set under the gear. */
+function Dygnsskifte({ now, onNewDay }: { now: Now; onNewDay?: (request: NewDay) => void }) {
+  const [time, setTime] = useState<string | null>(null);
+  const day = now.day;
+  if (!day) return null;
+  const chosen = time ?? day.suggested;
+  const due = dayDue(day);
+  return (
+    <section id="day-change" aria-labelledby="day-change-title">
+      <h2 id="day-change-title">Dygnsskifte</h2>
+      <p className="liten">{dayNote(day)}</p>
+      {due && (
+        <p id="day-due" className="pamin" role="status">
+          {due}
+        </p>
+      )}
+      <div className="rad">
+        <label>
+          Klockan
+          <input id="new-day-time" type="time" step={60} value={chosen} onChange={(event) => setTime(event.target.value || null)} />
+        </label>
+        <button id="new-day" type="button" className={day.due ? "primar" : undefined} onClick={() => onNewDay?.({ time: chosen })}>
+          {`Starta ${dayTitle(day.next_game_day, day.next_traffic_day).toLowerCase()}`}
+        </button>
+      </div>
+      <p className="liten">Tågen ställs strax före dagens första avgång. Ett tåg som är ute kör klart först. Den nya dagen kan ångras.</p>
     </section>
   );
 }
@@ -153,6 +186,7 @@ function Meet(props: NuProps & { now: Now }) {
         </div>
       )}
       {admin && <Tidshopp now={now} onClock={onClock} />}
+      {admin && <Dygnsskifte now={now} onNewDay={props.onNewDay} />}
       {admin && props.automation && <Automatiken {...props} automation={props.automation} />}
       <h2>
         Öppna klareringar{" "}

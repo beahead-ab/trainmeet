@@ -1,6 +1,6 @@
 import { DRIFT_TABS, hub, Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl } from "./api";
+import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay } from "./api";
 import { SettingsPage } from "./Installningar";
 import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
@@ -94,6 +94,14 @@ export function App() {
     if (await act(() => api.clock(control))) await readNow();
   };
 
+  const onNewDay = async (request: NewDay) => {
+    if (await act(() => api.newDay(request))) await readNow();
+  };
+
+  const onDay = async (settings: DaySettings) => {
+    if (await act(() => api.daySettings(settings))) await readNow();
+  };
+
   const onClient = async (change: ClientAction) => {
     const sent = await act(() => {
       switch (change.action) {
@@ -154,6 +162,7 @@ export function App() {
             automation={automation}
             openAutomation={window.location.hash === "#automatiken"}
             onClock={(control) => void onClock(control)}
+            onNewDay={(request) => void onNewDay(request)}
             onStart={(choice, day) => void hubState.start(choice, day)}
             onPlace={(change) => void onPlace(change)}
           />
@@ -162,7 +171,7 @@ export function App() {
         {page === "logg" && <LoggPage admin={admin} now={now} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
-          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} />
+          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} />
         )}
         {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">

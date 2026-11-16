@@ -59,6 +59,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.terminal-web-1.session": terminal.WebSession,
     "trainmeet.drift-1.start": drift.StartMeet,
     "trainmeet.drift-1.clock": drift.ClockControl,
+    "trainmeet.drift-1.new-day": drift.NewDay,
+    "trainmeet.drift-1.day-settings": drift.DaySettings,
+    "trainmeet.drift-1.day": drift.DayStatus,
     "trainmeet.drift-1.approve": drift.Approve,
     "trainmeet.drift-1.revoke": drift.Revoke,
     "trainmeet.drift-1.assign": drift.Assign,
@@ -350,6 +353,15 @@ def openapi() -> str:
     route("get", "/api/terminal/events", "terminalEvents", t + "frame", bearer=True, stream=True)
     route("post", "/api/drift/1/start", "startMeet", d + "event", d + "start", bearer=True)
     route("post", "/api/drift/1/clock", "driftClock", d + "event", d + "clock", bearer=True)
+    route("post", "/api/drift/1/day", "newDay", d + "event", d + "new-day", bearer=True)
+    route(
+        "post",
+        "/api/drift/1/day/settings",
+        "daySettings",
+        d + "day",
+        d + "day-settings",
+        bearer=True,
+    )
     route("get", "/api/drift/1/clients", "driftClients", d + "client", bearer=True, many=True)
     for action in ("approve", "revoke", "assign"):
         route(
