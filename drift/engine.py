@@ -378,6 +378,9 @@ class Drift:
                 self.clock = replace(self.clock, seconds=jump.seconds, updated=event.wall_time)
                 self._place(jump.seconds)
                 self._touch_everything()
+                if self.first_run is not None:
+                    # Back before the automation started: the trains from there are no history.
+                    self.first_run = min(self.first_run, jump.seconds)
                 self.last_jump = event
             case events.EventKind.TIME_JUMP_UNDONE:
                 undone = events.TimeJumpUndone.model_validate(event.data)

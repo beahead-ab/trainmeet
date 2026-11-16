@@ -297,3 +297,19 @@ def test_the_automation_continues_from_the_placed_trains(drift: Drift) -> None:
     asked = {case.leg.departure.id for case in drift.cases.values()}
     assert "t101-asn" in asked, "sent at once, late"
     assert "t101-nby" not in asked, "already in Åsen, never sent again"
+
+
+def test_a_jump_back_before_the_automation_started_runs_the_trains_from_there(
+    drift: Drift,
+) -> None:
+    automatik = Automatik(now=lambda: 0.0)
+    drift.set_automation(events.AutomationSettings(enabled=False), at(0))
+    jump(drift, "08:00", at(0))
+    drift.control_clock(events.ClockControl(action=Clock.START), at(1))
+    # Turned on at 08:00: what was planned before is history (F14).
+    drift.set_automation(events.AutomationSettings(answer_seconds=0), at(1))
+    jump(drift, "06:50", at(2))
+    # 103 leaves Norrby 07:00 and is asked for two minutes before; 4× makes 8 minutes 120 s.
+    automatik.tick(drift, at(2 + 120))
+    asked = {case.leg.departure.id for case in drift.cases.values() if case.active}
+    assert "t103-nby" in asked
