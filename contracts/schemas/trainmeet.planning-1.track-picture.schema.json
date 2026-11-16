@@ -83,6 +83,18 @@
       },
       "title": "Links",
       "type": "array"
+    },
+    "photo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MapPoint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "En fotograferad banbild (4c2, IMPORT-17): bildens bredd och höjd i kartans enheter, från övre vänstra hörnet. Bilden hämtas från /picture/photo."
     }
   },
   "required": [

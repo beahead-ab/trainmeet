@@ -189,3 +189,21 @@ def lists(name: str, found_pages: list[Page], transcript: Callable[[Page], str])
             f"{name}: AI:n hittade ingen stationslista. " + " ".join(found.left_out[:2])
         )
     return found
+
+
+def dimensions(image: Image) -> tuple[int, int]:
+    """A JPEG's or PNG's width and height in pixels, from its header."""
+    data = image.data
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    at = 2
+    while at + 9 < len(data):
+        if data[at] != 0xFF:
+            break
+        marker, length = data[at + 1], int.from_bytes(data[at + 2 : at + 4], "big")
+        if marker in (0xC0, 0xC1, 0xC2):  # start of frame: height, then width
+            return int.from_bytes(data[at + 7 : at + 9], "big"), int.from_bytes(
+                data[at + 5 : at + 7], "big"
+            )
+        at += 2 + length
+    raise ListError("Bildens storlek gick inte att läsa.")

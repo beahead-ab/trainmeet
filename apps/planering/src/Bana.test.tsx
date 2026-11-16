@@ -61,13 +61,15 @@ describe("Bana: the derived confirmed, on the organiser's picture (IMPORT-04, PL
     const points = { A: { x: 40, y: 100 }, B: { x: 80, y: 100 }, C: { x: 120, y: 100 }, D: { x: 160, y: 100 }, E: { x: 80, y: 140 } };
     const ids: Record<string, string> = { a: "A", b: "B", c: "C", d: "D", e: "E" };
     const placed = { ...pkg, display: { ...pkg.display, reference_layout: Object.fromEntries(Object.entries(ids).map(([id, code]) => [id, points[code as keyof typeof points]])) } } as unknown as Package;
-    const picture = { source: "u-pic", page: 1, points, links: [{ a: "A", b: "B", double: true }, { a: "B", b: "C", double: true }, { a: "C", b: "D", double: false }, { a: "B", b: "E", double: false }] };
+    const picture = { source: "u-pic", page: 1, points, photo: null, links: [{ a: "A", b: "B", double: true }, { a: "B", b: "C", double: true }, { a: "C", b: "D", double: false }, { a: "B", b: "E", double: false }] };
     const html = renderToStaticMarkup(<Karta pkg={placed} choice={null} unsure={new Set()} picture={picture} onSelect={go} />);
     expect(html).toContain('id="picture"');
     expect((html.match(/<line /g) ?? []).length).toBe(4);
     expect(html).toContain('class="dubbel"');
     expect(html).toContain("M90,70 L210,70");
     expect(renderToStaticMarkup(<Karta pkg={pkg} choice={null} unsure={new Set()} picture={picture} onSelect={go} />)).not.toContain('id="picture"');
+    const photographed = renderToStaticMarkup(<Karta pkg={placed} choice={null} unsure={new Set()} picture={{ ...picture, photo: { x: 200, y: 160 } }} photo="/foto" onSelect={go} />);
+    expect(photographed).toContain('<image href="/foto" x="90" y="70" width="600" height="480"');
   });
 });
 

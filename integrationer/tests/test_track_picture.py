@@ -8,6 +8,7 @@ locally, it gives the same 31 places and 30 links, with double track where the p
 
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -89,3 +90,40 @@ def test_what_is_not_a_track_picture_is_refused(plan: MeetPackage) -> None:
         read(b"%PDF-1.4\nnot really\n")
     assert track_picture.is_picture(picture_pdf(plan))
     assert not track_picture.is_picture(b"%PDF-1.4\n")
+
+
+def photo_transcript(plan: MeetPackage, width: float = 560.0, height: float = 330.0) -> str:
+    """What the AI writes for a photo of the test's own map: each signature where it stands, in
+    per cent, and the lines between places."""
+    places = [{"code": c, "x": x / width * 100, "y": y / height * 100} for c, (x, y) in AT.items()]
+    lines = [
+        {"a": a, "b": b, "double": d} for pair, d in links(plan).items() for a, b in [sorted(pair)]
+    ]
+    return "Här är banan:\n" + json.dumps({"places": places, "links": lines}, ensure_ascii=False)
+
+
+def test_a_photo_of_the_track_written_down_is_the_same_picture(plan: MeetPackage) -> None:
+    """4c2 (IMPORT-17): the AI's transcription of a photo, read with code, in map units as wide
+    as a printed page."""
+    from integrationer.track_picture import PHOTO_WIDTH, from_photo
+
+    picture = from_photo(photo_transcript(plan), 1600, 943)
+    assert set(picture.places) == set(AT) and picture.links == links(plan)
+    x, y = picture.places["Gdö"]
+    assert x == pytest.approx(155 / 560 * PHOTO_WIDTH, abs=0.2)
+    assert y == pytest.approx(140 / 330 * PHOTO_WIDTH * 943 / 1600, abs=0.2)
+    with pytest.raises(PictureError, match="gick inte att läsa"):
+        from_photo("Jag ser en bana.", 100, 100)
+    with pytest.raises(PictureError, match="inga driftplatser"):
+        from_photo('{"places": [], "links": []}', 100, 100)
+
+
+def test_the_size_of_a_picture() -> None:
+    from integrationer.ai import Image, drawn
+    from integrationer.scanned import dimensions
+
+    assert dimensions(Image("image/png", drawn("12", 10))) == (90, 70)
+    jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" + (
+        b"\xff\xc0\x00\x11\x08\x01\xe0\x02\x80\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01"
+    )
+    assert dimensions(Image("image/jpeg", jpeg)) == (640, 480)

@@ -99,7 +99,7 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
             <span id="map-count" className="liten">{`${plural(sections.length, "sträcka", "sträckor")} · ${plural(pkg.places.length, "driftplats", "driftplatser")}`}</span>
           </header>
           <div id="map" className="karta-yta">
-            <Karta pkg={pkg} choice={choice} unsure={unsure} picture={picture} onSelect={(kind, id) => setChoice({ kind, id })} />
+            <Karta pkg={pkg} choice={choice} unsure={unsure} picture={picture} photo={`/api/planering/1/meets/${encodeURIComponent(meet)}/picture/photo`} onSelect={(kind, id) => setChoice({ kind, id })} />
           </div>
           <footer className="forklaring">
             <span>Fyrkant = driftplats med klarering</span>
@@ -131,7 +131,7 @@ const PICTURE_SCALE = 3;
 const nameOf = (pkg: Package, id: string) => pkg.places.find((place) => place.id === id)?.name ?? id;
 
 /** The map itself: an SVG fitted to the card's width, never smaller than the names can be read. */
-export function Karta({ pkg, choice, unsure, picture = null, onSelect }: { pkg: Package; choice: Choice; unsure: Set<string>; picture?: TrackPicture | null; onSelect: (kind: "section" | "place", id: string) => void }) {
+export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: { pkg: Package; choice: Choice; unsure: Set<string>; picture?: TrackPicture | null; photo?: string; onSelect: (kind: "section" | "place", id: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState(0);
   useEffect(() => {
@@ -146,7 +146,9 @@ export function Karta({ pkg, choice, unsure, picture = null, onSelect }: { pkg: 
   const reference = (pkg.display?.reference_layout ?? {}) as Record<string, { x: number; y: number }>;
   const drawnIds = [...plan.at.keys()];
   const onPicture = drawnIds.length > 1 && drawnIds.every((id) => reference[id]);
-  const spots = onPicture ? [...drawnIds.map((id) => reference[id] as { x: number; y: number }), ...Object.values(picture?.points ?? {})] : [];
+  // A photographed picture is drawn whole under the map (IMPORT-17): its corners count too.
+  const corners = picture?.photo ? [{ x: 0, y: 0 }, picture.photo] : [];
+  const spots = onPicture ? [...drawnIds.map((id) => reference[id] as { x: number; y: number }), ...Object.values(picture?.points ?? {}), ...corners] : [];
   const minX = Math.min(...spots.map((spot) => spot.x));
   const minY = Math.min(...spots.map((spot) => spot.y));
   const at = (spot: { x: number; y: number }): [number, number] => [margin.x + (spot.x - minX) * PICTURE_SCALE, margin.y + (spot.y - minY) * PICTURE_SCALE];
@@ -181,6 +183,9 @@ export function Karta({ pkg, choice, unsure, picture = null, onSelect }: { pkg: 
       <svg className="karta" viewBox={`0 0 ${width} ${height}`} width={Math.round(width * scale)} height={Math.round(height * scale)} role="group" aria-label="Banan">
         {onPicture && picture && (
           <g className="banbild" id="picture" aria-hidden="true">
+            {picture.photo && photo && (
+              <image href={photo} x={at({ x: 0, y: 0 })[0]} y={at({ x: 0, y: 0 })[1]} width={picture.photo.x * PICTURE_SCALE} height={picture.photo.y * PICTURE_SCALE} preserveAspectRatio="none" opacity={0.5} id="photo" />
+            )}
             {(picture.links ?? []).map((link) => {
               const a = picture.points?.[link.a];
               const b = picture.points?.[link.b];

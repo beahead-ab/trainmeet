@@ -57,13 +57,13 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
     }
   };
 
-  // Skriv av (IMPORT-05): only now does anything go to the AI.
-  const transcribe = async () => {
+  // Skriv av (IMPORT-05): only now does anything go to the AI, as lists or as the track picture.
+  const transcribe = async (kind: "lists" | "picture") => {
     if (read?.state !== "ai" || !read.file) return;
     const { name, pages, file } = read;
     setRead({ name, state: "writing", pages });
     try {
-      const answer = await planning.read(meet, file, true);
+      const answer = await planning.read(meet, file, kind);
       setRead("pages" in answer ? { name, state: "ai", pages: answer.pages, file } : { name, state: "read", preview: answer.preview, transcribed: true });
     } catch (error) {
       setRead({ name, state: "ai", pages, file });
@@ -174,7 +174,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               )}
             </div>
           )}
-          {(read?.state === "ai" || read?.state === "writing") && <Skriv pages={read.pages} writing={read.state === "writing"} onWrite={() => void transcribe()} />}
+          {(read?.state === "ai" || read?.state === "writing") && <Skriv pages={read.pages} writing={read.state === "writing"} onWrite={(kind) => void transcribe(kind)} />}
         </div>
         <footer>
           <button id="apply" type="button" className="primar" disabled={!preview || busy} onClick={() => void apply()}>
@@ -216,7 +216,7 @@ function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
 
 
 /** Sidor att skriva av (IMPORT-05): what the scanned file needs, before anything goes to the AI. */
-export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: () => void }) {
+export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: "lists" | "picture") => void }) {
   const left = pages.pages - pages.saved;
   return (
     <div id="ai-pages">
@@ -226,7 +226,7 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
           {`${plural(pages.pages, "sida", "sidor")} att skriva av`}
           {pages.saved ? ` · ${plural(pages.saved, "redan avskriven", "redan avskrivna")}, kostar inget` : ""}
         </p>
-        <p className="liten">AI:n skriver bara av vad som står. Koden läser raderna, och allt blir osäkert tills du bekräftar det. Det som står om fordonen i tåget skrivs inte av.</p>
+        <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), eller en bild av banan, som blir bakgrunden i Bana.</p>
       </div>
       <div className="kostnad">
         <b>Egen AI</b>
@@ -242,9 +242,14 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
           </span>
         )}
       </div>
-      <button type="button" id="transcribe" className="primar" disabled={writing} onClick={onWrite}>
-        {writing ? "Skriver av …" : left ? `Skriv av ${plural(left, "sida", "sidor")}` : "Läs avskriften"}
-      </button>
+      <div className="knapprad">
+        <button type="button" id="transcribe" className="primar" disabled={writing} onClick={() => onWrite("lists")}>
+          {writing ? "Skriver av …" : left ? `Skriv av ${plural(left, "sida", "sidor")} som stationslista` : "Läs avskriften"}
+        </button>
+        <button type="button" id="transcribe-picture" className="sekundar" disabled={writing} onClick={() => onWrite("picture")}>
+          Skriv av som banbild
+        </button>
+      </div>
     </div>
   );
 }
