@@ -73,7 +73,7 @@ from contracts.planning import (
 )
 from integrationer import rulebook
 from integrationer.planning_json import CONTENT_WORD
-from integrationer.station_lists import ListError, Lists, Row, merged
+from integrationer.station_lists import ListError, Lists, Row, abbreviates, merged
 from integrationer.track_picture import Picture
 
 LEVEL: Final = 1  # Stationstidtabeller: underlagsnivå 1 (I1)
@@ -145,15 +145,6 @@ def draft(
     """The draft the lists give, with the track picture when there is one (drawn is its
     source). Raises ListError when no train can be read."""
     return _Derivation(found, meet, source, picture if drawn else None, drawn).run()
-
-
-def abbreviates(code: str, name: str) -> bool:
-    """Tve for Tveiten: the signature's letters in the name, in order, from its first."""
-    letters, text = code.casefold(), name.casefold()
-    if not letters or not text.startswith(letters[0]):
-        return False
-    rest = iter(text)
-    return all(letter in rest for letter in letters)
 
 
 def _minutes(clock: str) -> int:
@@ -238,7 +229,7 @@ class _Derivation:
         trains = self._trains(runs)
         self._kinds(stops)
         if self.picture is not None:
-            self._from_picture()
+            self._from_picture(trains)
         sections = self._sections(trains)
         rules, questions = self._rulebook(trains)
         places = [self._place(p) for p in self.places.values()]
@@ -350,8 +341,7 @@ class _Derivation:
                 place = self._new(first.code or first.station, first.station, document)
                 if not first.code:
                     self.notes.append(
-                        f"{document} har ingen signatur i filnamnet; namnet {first.station} "
-                        "används."
+                        f"{document} har ingen signatur; namnet {first.station} används."
                     )
             place.listed = True
             homes.append((place, rows))
@@ -415,43 +405,64 @@ class _Derivation:
             ],
         )
 
-    def _from_picture(self) -> None:
-        """The picture's signatures on the places: by signature, by the rule for a place named
-        only in Från or Till, and the rest as places in between."""
+    def _from_picture(self, trains: list[Train]) -> None:
+        """The picture's signatures on the places: by signature, by the rule for a place
+        without one in the lists, and the rest as places in between."""
         assert self.picture is not None
-        codes = {code.casefold(): code for code in self.picture.places}
+        picture = self.picture
+        codes = {code.casefold(): code for code in picture.places}
         for place in self.places.values():
             code = codes.get(place.code.casefold())
             if code is not None and not (place.code == place.name and place.kind == PlaceKind.HALT):
                 place.drawn = code
-        free = {c for c in self.picture.places if c not in {p.drawn for p in self.places.values()}}
+        free = {c for c in picture.places if c not in {p.drawn for p in self.places.values()}}
+        through = {c.place for t in trains for c in t.calls[1:-1]}
+        waiting = [p for p in self.places.values() if p.drawn is None and p.code == p.name]
+
+        def candidates(place: _Place) -> tuple[list[str], list[str]]:
+            """The free signatures that begin as the name, and those that abbreviate it. A
+            place trains run through has at least two lines on the picture."""
+            first = sorted(
+                c
+                for c in free
+                if c.casefold()[0] == place.name.casefold()[0]
+                and (place.id not in through or picture.branches(c) >= 2)
+            )
+            return first, [c for c in first if abbreviates(c, place.name)]
+
         guessed: list[str] = []
-        unclear: list[str] = []
-        for place in self.places.values():
-            if place.drawn is not None or place.code != place.name:
-                continue
-            first = [c for c in free if c.casefold()[0] == place.name.casefold()[0]]
-            short = [c for c in first if abbreviates(c, place.name)]
-            if len(short) == 1:
-                code, rule = short[0], f"{short[0]} är en förkortning av {place.name}"
-            elif len(first) == 1:
-                code, rule = (
-                    first[0],
-                    (
-                        f"{first[0]} är den enda signaturen på banbilden som börjar som "
-                        f"{place.name} och inte har en lista"
-                    ),
-                )
-            else:
-                if first:
-                    shown = _joined(sorted(short or first)).replace(" och ", " eller ")
-                    unclear.append(f"{place.name} ({shown})")
-                continue
-            free.discard(code)
-            self.by_code[code.casefold()] = place
-            place.code, place.drawn = code, code
-            place.code_note = f"Signaturen ur banbilden: {rule}."
-            guessed.append(f"{code} för {place.name}")
+        # Settled one at a time until nothing more is settled: a signature taken by one place
+        # is no longer one of the others' choices (Ste for Steinsnes leaves Spn for Spiten).
+        settled = True
+        while settled:
+            settled = False
+            for loose in (False, True):
+                for place in [p for p in waiting if p.drawn is None]:
+                    first, short = candidates(place)
+                    if len(short) == 1:
+                        code, rule = short[0], f"{short[0]} är en förkortning av {place.name}"
+                    elif loose and not short and len(first) == 1:
+                        code, rule = (
+                            first[0],
+                            f"{first[0]} är den enda signaturen på banbilden som börjar som "
+                            f"{place.name} och inte har en lista",
+                        )
+                    else:
+                        continue
+                    free.discard(code)
+                    self.by_code[code.casefold()] = place
+                    place.code, place.drawn = code, code
+                    place.code_note = f"Signaturen ur banbilden: {rule}."
+                    guessed.append(f"{code} för {place.name}")
+                    settled = True
+                if settled:
+                    break
+        unclear = []
+        for place in waiting:
+            first, short = candidates(place)
+            if place.drawn is None and first:
+                shown = _joined(short or first).replace(" och ", " eller ")
+                unclear.append(f"{place.name} ({shown})")
         if guessed:
             self.notes.append(
                 f"Signaturerna ur banbilden, osäkra tills du bekräftar dem: {_joined(guessed)}."

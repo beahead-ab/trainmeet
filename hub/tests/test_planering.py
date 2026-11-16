@@ -26,7 +26,7 @@ from hub.build_info import BuildInfo
 from hub.running import Running
 from hub.tests.test_tmbox_web import Tab
 from integrationer import planning_json
-from integrationer.tests.test_station_lists import lists_zip, odt, rows_for
+from integrationer.tests.test_station_lists import lists_pdf, lists_zip, odt, rows_for
 from integrationer.tests.test_track_picture import picture_pdf
 from planering.store import Planning
 
@@ -366,6 +366,19 @@ def test_the_track_picture_builds_on_the_lists(hub: TestClient) -> None:
     )
     assert after.package is not None and len(after.package.trains) == 228
     assert after.report is not None and after.report.verdicts, "the lists' verdicts stay"
+
+
+def test_station_lists_as_pdf(hub: TestClient) -> None:
+    """The planning program's lists as PDF: read from the text layer, and the draft built from
+    them as from ODT. A PDF that is neither lists nor a track picture is refused."""
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    data = lists_pdf(varnamo_plan(), {"Mkd": "Mkd Munkerød", "Lek": "Lek Lekby"})
+    seen = upload(hub, data=data, name="Stationslistor.pdf")
+    assert seen.status_code == 201, seen.text
+    preview = planning.ImportPreview.model_validate(seen.json())
+    assert preview.source.kind == planning.SourceKind.STATION_LISTS and preview.report.trains > 30
+    other = upload(hub, data=b"%PDF-1.4\n", name="x.pdf")
+    assert other.status_code == 422 and "PDF:en gick inte att läsa" in other.json()["detail"]
 
 
 def varnamo_plan() -> MeetPackage:
