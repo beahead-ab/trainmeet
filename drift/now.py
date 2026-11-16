@@ -39,6 +39,13 @@ def now(drift: Drift, at: datetime) -> contract.Now:
         clearances=[clearance_of(drift, case) for case in drift.cases.values() if case.active],
         jump=_jump(drift),
         day=drift.day_status(at),
+        switch=contract.SwitchWaiting(
+            version=drift.waiting_switch.version,
+            waits_for=drift.switch_waits_for(drift.waiting_switch.version),
+        )
+        if drift.waiting_switch is not None
+        else None,
+        locked=drift.locked,
         changes=[
             contract.ChangeNow(
                 change_id=state.id,

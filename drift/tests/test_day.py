@@ -31,6 +31,11 @@ Action = station.Action
 DAY = 86400
 
 
+def last(drift: Drift, kind: events.EventKind) -> events.DriftEvent:
+    """The latest event of a kind: a jump or a new day is written between begun and done."""
+    return next(event for event in reversed(drift.history) if event.kind == kind)
+
+
 def at(seconds: float) -> datetime:
     return START + timedelta(seconds=seconds)
 
@@ -137,7 +142,7 @@ def test_by_hand_nu_says_it_is_time_and_starta_ny_dag_starts_the_next_day() -> N
     status = drift.day_status(at(real(change + 600)))
     assert (status.due, status.suggested) == (True, "05:10"), "where the clock is"
     drift.new_day(events.NewDay(), at(real(change + 600)))
-    event = drift.history[-1]
+    event = last(drift, events.EventKind.DAY_CHANGED)
     assert (event.kind, event.actor.kind) == (
         events.EventKind.DAY_CHANGED,
         events.ActorKind.DISPATCHER,
@@ -167,7 +172,7 @@ def test_the_trains_stand_just_before_the_days_first_departure() -> None:
     assert {leg.state for leg in seen.legs} == {"planned"}, "every train at its start"
     assert not drift.held and not drift.arrived
     assert model_time(drift.clock.at(at(31))) == "09:30", "the clock stands where asked"
-    placed = events.DayChanged.model_validate(drift.history[-1].data).placed
+    placed = events.DayChanged.model_validate(last(drift, events.EventKind.DAY_CHANGED).data).placed
     assert model_time(placed) == "05:59", "just before 101 leaves Norrby 06:00"
 
 
@@ -212,7 +217,7 @@ def test_automatic_changes_the_day_by_itself_and_waits_for_trains_out() -> None:
     assert drift.game_day == 1
     drift.day_tick(at(real(change + 1800)))
     assert drift.game_day == 2, "at most 30 game minutes"
-    event = drift.history[-1]
+    event = last(drift, events.EventKind.DAY_CHANGED)
     assert event.actor.kind == events.ActorKind.SYSTEM
     assert events.DayChanged.model_validate(event.data).automatic
     assert not drift.lines, "ledig linje is let go with the day"
@@ -252,7 +257,8 @@ def test_a_new_day_can_be_undone() -> None:
         "05:00",
     )
     drift.control_clock(events.ClockControl(action=events.ClockAction.UNDO_JUMP), at(40))
-    assert events.TimeJumpUndone.model_validate(drift.history[-1].data).kind == "day"
+    undone = last(drift, events.EventKind.TIME_JUMP_UNDONE)
+    assert events.TimeJumpUndone.model_validate(undone.data).kind == "day"
     assert (drift.game_day, drift.traffic_day) == (1, Weekday.MON)
     assert "t101-nby" in drift.arrived, "yesterday as it was"
     assert model_time(drift.clock.at(at(40))) == "06:02"

@@ -65,6 +65,12 @@ class Reason(StrEnum):
     TRAIN_NUMBER_TAKEN = "train_number_taken"
     UNKNOWN_CHANGE = "unknown_change"
     SECTION_CLOSED = "section_closed"
+    # Versionsbyte and påbörjat och klart (DRIFT-29, DRIFT-47)
+    UNKNOWN_VERSION = "unknown_version"
+    SAME_VERSION = "same_version"
+    NO_SWITCH_WAITING = "no_switch_waiting"
+    DRIFT_LOCKED = "drift_locked"
+    NOT_LOCKED = "not_locked"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -109,6 +115,14 @@ TEXT_SV: dict[Reason, str] = {
     Reason.TRAIN_NUMBER_TAKEN: "Tågnumret finns redan samma dag.",
     Reason.UNKNOWN_CHANGE: "Driftändringen finns inte, eller är redan släppt.",
     Reason.SECTION_CLOSED: "Sträckan är stängd.",
+    Reason.UNKNOWN_VERSION: "Versionen finns inte, eller är tillbakadragen.",
+    Reason.SAME_VERSION: "Den versionen körs redan.",
+    Reason.NO_SWITCH_WAITING: "Inget versionsbyte väntar.",
+    Reason.DRIFT_LOCKED: (
+        "Drift är spärrad: något påbörjades och blev aldrig klart. Kontrollera läget i Nu och "
+        "lås upp."
+    ),
+    Reason.NOT_LOCKED: "Drift är inte spärrad.",
     Reason.DAY_STILL_RUNNING: (
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."

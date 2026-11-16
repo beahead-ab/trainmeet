@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 from threading import Lock
@@ -82,6 +83,21 @@ class Running:
         except (PlanningError, StopIteration) as error:
             raise UnknownMeet() from error
 
+    def _versions(self, meet: str) -> Callable[[int], MeetPackage]:
+        """The meet's versions for a switch in the running meet (DRIFT-29). A version is frozen,
+        so each is read once; one withdrawn or not there is no version to switch to."""
+        cache: dict[int, MeetPackage] = {}
+
+        def read(number: int) -> MeetPackage:
+            if number not in cache:
+                try:
+                    cache[number] = self.planning.package(meet, number)
+                except PlanningError as error:
+                    raise LookupError(number) from error
+            return cache[number]
+
+        return read
+
     def _store(self, meet: str, version: int) -> PreviewStore:
         key = (meet, version)
         if key not in self._stores:
@@ -96,6 +112,7 @@ class Running:
             self._stores[key] = PreviewStore(
                 path,
                 package,
+                packages=None if meet == PROVBANAN else self._versions(meet),
                 lifetime=LIFETIME,
                 max_runs=MAX_RUNS,
                 max_actions=MAX_ACTIONS,

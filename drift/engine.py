@@ -6,6 +6,7 @@ same state back. Ported from the old Server's engine and protocol_v2 with their 
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -185,12 +186,16 @@ class Drift:
         *,
         now: datetime,
         version: int = VERSION,
+        packages: Callable[[int], MeetPackage] | None = None,
     ) -> None:
         # The version that runs, and the package Drift goes by: the version with the
         # driftändringar laid on top, in the order they applied (DRIFT-41).
         self.base = package
         self.package = package
         self.version = version
+        # The run's first version, and how to read another one for a version switch (DRIFT-29).
+        self.start_package, self.start_version = package, version
+        self.packages = packages
         self.history: list[events.DriftEvent] = []
         self.traffic_day = package.meet.traffic_week.start_weekday
         self.game_day = 1
@@ -236,9 +241,14 @@ class Drift:
         self.applied: list[str] = []
         # Places a driftändring made unmanned: the automation runs them (F2).
         self.unmanned: set[str] = set()
+        # Påbörjat och klart (DRIFT-47), and a version switch waiting for trains that are out.
+        self.transition: str | None = None
+        self.waiting_switch: events.VersionSwitch | None = None
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
+        # Begun and never done: Drift starts locked and says so, rather than run a mixed state.
+        self.locked = self.transition
 
     @property
     def context(self) -> station.MeetContext:
@@ -331,12 +341,13 @@ class Drift:
         )
 
     def control_clock(self, control: events.ClockControl, now: datetime) -> None:
+        self._writable()
         if control.action == events.ClockAction.JUMP:
-            self._jump(control, now)
+            self._transition("jump", now, lambda: self._jump(control, now))
             self._apply_if_waiting(now)
             return
         if control.action == events.ClockAction.UNDO_JUMP:
-            self._undo_jump(control, now)
+            self._transition("undo", now, lambda: self._undo_jump(control, now))
             self._apply_if_waiting(now)
             return
         match control.action:
@@ -353,6 +364,123 @@ class Drift:
         self._record(
             kind, {"seconds": seconds, "speed": speed}, now, seconds=seconds, actor=_DISPATCHER
         )
+
+    # --- Påbörjat och klart (DRIFT-47) -----------------------------------------------------
+
+    def _transition(
+        self,
+        kind: str,
+        now: datetime,
+        action: Callable[[], None],
+        actor: events.Actor | None = None,
+    ) -> None:
+        """A version switch, a time jump, Ångra or a new day, between two events. Written in one
+        transaction, so a restart sees both or neither; should it ever see only the first,
+        Drift starts locked."""
+        who = actor or _DISPATCHER
+        self._record(events.EventKind.TRANSITION_BEGUN, {"kind": kind}, now, actor=who)
+        action()
+        self._record(events.EventKind.TRANSITION_DONE, {"kind": kind}, now, actor=who)
+
+    def _writable(self) -> None:
+        if self.locked is not None:
+            raise Refused(Reason.DRIFT_LOCKED)
+
+    def unlock(self, now: datetime) -> None:
+        """Lås upp: Trafikledningen has looked at the state and lets Drift go on from it."""
+        if self.locked is None:
+            raise Refused(Reason.NOT_LOCKED)
+        self._record(
+            events.EventKind.TRANSITION_DONE,
+            {"kind": self.locked, "unlocked": True},
+            now,
+            actor=_DISPATCHER,
+        )
+
+    # --- Versionsbyte (TRAFIK-03, DRIFT-29, H2, H4, H38, H66) ---------------------------------
+
+    def _version(self, number: int) -> MeetPackage:
+        if number == self.start_version:
+            return self.start_package
+        try:
+            if self.packages is None:
+                raise LookupError(number)
+            return self.packages(number)
+        except LookupError as error:
+            raise Refused(Reason.UNKNOWN_VERSION) from error
+
+    def switch_waits_for(self, number: int) -> list[str]:
+        """The trains the new version changes that are out or have an open clearance (H38)."""
+        new = self._version(number)
+        old_trains = {t.id: t for t in self.base.trains}
+        new_trains = {t.id: t for t in new.trains}
+        trains = {
+            k
+            for k in old_trains.keys() | new_trains.keys()
+            if old_trains.get(k) != new_trains.get(k)
+        }
+        old_sections = {s.id: s for s in self.base.sections}
+        new_sections = {s.id: s for s in new.sections}
+        sections = {
+            k
+            for k in old_sections.keys() | new_sections.keys()
+            if old_sections.get(k) != new_sections.get(k)
+        }
+        return sorted(
+            {
+                case.leg.train.number
+                for case in self.cases.values()
+                if case.active and (case.leg.train.id in trains or case.leg.section.id in sections)
+            }
+        )
+
+    def switch_version(
+        self, request: events.SwitchVersion, included: list[str], now: datetime
+    ) -> None:
+        """Byt till en ny version (DRIFT-29): the clock, where the trains stand and the open
+        clearances go with it. The changes the planner took into it fall away, those let go
+        too; the rest stay on top (H4, H66). A train that the version changes and that is out
+        makes the switch wait until it is in, unless it is forced through (H38)."""
+        self._writable()
+        if request.version == self.version:
+            raise Refused(Reason.SAME_VERSION)
+        waits = self.switch_waits_for(request.version)
+        switch = {
+            "version": request.version,
+            "drop": [c for c in request.drop if c in self.changes],
+            "included": [c for c in included if c in self.changes],
+            "forced": bool(waits) and request.force,
+        }
+        if waits and not request.force:
+            self._record(events.EventKind.VERSION_WAITING, switch, now, actor=_DISPATCHER)
+            return
+        self._transition(
+            "version",
+            now,
+            lambda: self._record(events.EventKind.VERSION_SWITCHED, switch, now, actor=_DISPATCHER),
+        )
+        self._apply_if_waiting(now)
+
+    def force_switch(self, now: datetime) -> None:
+        """Tvinga igenom the waiting switch, with what was kept and let go (H38)."""
+        self._writable()
+        waiting = self.waiting_switch
+        if waiting is None:
+            raise Refused(Reason.NO_SWITCH_WAITING)
+        forced = waiting.model_copy(update={"forced": True}).model_dump(mode="json")
+        self._transition(
+            "version",
+            now,
+            lambda: self._record(events.EventKind.VERSION_SWITCHED, forced, now, actor=_DISPATCHER),
+        )
+        self._apply_if_waiting(now)
+
+    def call_off_switch(self, now: datetime) -> None:
+        """Avbryt bytet: the waiting switch is not made."""
+        self._writable()
+        if self.waiting_switch is None:
+            raise Refused(Reason.NO_SWITCH_WAITING)
+        self._record(events.EventKind.VERSION_CALLED_OFF, {}, now, actor=_DISPATCHER)
 
     def _jump(self, control: events.ClockControl, now: datetime) -> None:
         """Tidshopp (H37, F6): one event, so it is all or nothing. The open cases are closed
@@ -430,6 +558,27 @@ class Drift:
                 self.last_jump = event
             case events.EventKind.DAY_SETTINGS:
                 self.day_settings = events.DaySettings.model_validate(event.data)
+            case events.EventKind.TRANSITION_BEGUN:
+                self.transition = events.Transition.model_validate(event.data).kind
+            case events.EventKind.TRANSITION_DONE:
+                self.transition = None
+                self.locked = None
+            case events.EventKind.VERSION_WAITING:
+                self.waiting_switch = events.VersionSwitch.model_validate(event.data)
+            case events.EventKind.VERSION_CALLED_OFF:
+                self.waiting_switch = None
+            case events.EventKind.VERSION_SWITCHED:
+                switch = events.VersionSwitch.model_validate(event.data)
+                self.base = self._version(switch.version)
+                self.version = switch.version
+                for change_id in (*switch.drop, *switch.included):
+                    state = self.changes.get(change_id)
+                    if state is not None:
+                        self.changes[change_id] = replace(state, status=events.ChangeStatus.DROPPED)
+                self.waiting_switch = None
+                # Ångra goes no further back than a version switch.
+                self.last_jump = None
+                self._relay()
             case events.EventKind.CHANGE_MADE:
                 made = events.ChangeMade.model_validate(event.data)
                 self.changes[made.change_id] = ChangeState(
@@ -469,7 +618,13 @@ class Drift:
                 self._restore(
                     # From the version itself: the driftändringar before the jump are in the
                     # events and are laid on again as they replay.
-                    Drift(self.base, before, now=event.wall_time, version=self.version),
+                    Drift(
+                        self.start_package,
+                        before,
+                        now=event.wall_time,
+                        version=self.start_version,
+                        packages=self.packages,
+                    ),
                     undone.seconds,
                     event.wall_time,
                 )
@@ -806,6 +961,7 @@ class Drift:
         stands at the time asked for and goes on if it ran. Every train stands where the
         timetable has it just before the day's first departure, so each is at its start
         (DRIFT-43). Started from Nu, a train still out stops it: it runs to the end first."""
+        self._writable()
         if not automatic and self.day_running():
             raise Refused(Reason.DAY_STILL_RUNNING)
         clock = self.clock.at(now)
@@ -817,21 +973,26 @@ class Drift:
         day = next_weekday(self.traffic_day)
         first = self._first(day, departures=True)
         placed = seconds if first is None else max(0.0, min(seconds, first - 1))
-        self._record(
-            events.EventKind.DAY_CHANGED,
-            {
-                "game_day": self.game_day + 1,
-                "traffic_day": day.value,
-                "before": clock,
-                "seconds": seconds,
-                "placed": placed,
-                "closed": [case.id for case in self.cases.values() if case.active],
-                "automatic": automatic,
-            },
-            now,
-            seconds=clock,
-            actor=events.Actor(kind=events.ActorKind.SYSTEM) if automatic else _DISPATCHER,
-        )
+        who = events.Actor(kind=events.ActorKind.SYSTEM) if automatic else _DISPATCHER
+
+        def record() -> None:
+            self._record(
+                events.EventKind.DAY_CHANGED,
+                {
+                    "game_day": self.game_day + 1,
+                    "traffic_day": day.value,
+                    "before": clock,
+                    "seconds": seconds,
+                    "placed": placed,
+                    "closed": [case.id for case in self.cases.values() if case.active],
+                    "automatic": automatic,
+                },
+                now,
+                seconds=clock,
+                actor=events.Actor(kind=events.ActorKind.SYSTEM) if automatic else _DISPATCHER,
+            )
+
+        self._transition("day", now, record, actor=who)
         self._apply_if_waiting(now)
 
     def day_tick(self, now: datetime) -> None:
@@ -864,6 +1025,7 @@ class Drift:
     def make_change(self, request: events.MakeChange, now: datetime, change_id: str) -> None:
         """A driftändring from Nu. It applies at once, or waits until the trains it touches
         are in, unless it is forced through (H38). One that cannot be made is refused."""
+        self._writable()
         try:
             driftchanges.apply(self.package, request.change, change_id)
             busy = self.waiting_for(request.change)
@@ -888,6 +1050,7 @@ class Drift:
 
     def drop_change(self, change_id: str, now: datetime) -> None:
         """Släpp: the change no longer applies. The version that runs is as before it."""
+        self._writable()
         state = self.changes.get(change_id)
         if state is None or state.status == events.ChangeStatus.DROPPED:
             raise Refused(Reason.UNKNOWN_CHANGE)
@@ -904,6 +1067,7 @@ class Drift:
     def force_change(self, change_id: str, now: datetime) -> None:
         """Tvinga igenom (H38): a waiting change applies now, though its train is out. What no
         longer runs is closed."""
+        self._writable()
         state = self.changes.get(change_id)
         if state is None or state.status != events.ChangeStatus.WAITING:
             raise Refused(Reason.UNKNOWN_CHANGE)
@@ -1018,6 +1182,7 @@ class Drift:
 
     def set_phone(self, change: events.PlacePhone, now: datetime) -> None:
         """Trafikledningen changes a place's number during the meet (TRAFIK-06)."""
+        self._writable()
         if change.place not in self.stops():
             raise Refused(Reason.UNKNOWN_PLACE)
         phone = (change.phone or "").strip() or None
@@ -1032,6 +1197,7 @@ class Drift:
         )
 
     def set_day(self, settings: events.DaySettings, now: datetime) -> None:
+        self._writable()
         self._record(
             events.EventKind.DAY_SETTINGS, settings.model_dump(mode="json"), now, actor=_DISPATCHER
         )
@@ -1518,6 +1684,7 @@ class Drift:
     def command(self, command: station.Command, now: datetime) -> Outcome:
         """Carry out one station command, or refuse it with a reason and change nothing. A
         driftändring waiting for the train applies as soon as it is in (H38)."""
+        self._writable()
         outcome = self._command(command, now)
         self._apply_if_waiting(now)
         return outcome
@@ -1525,6 +1692,18 @@ class Drift:
     def _apply_if_waiting(self, now: datetime) -> None:
         if any(state.status == events.ChangeStatus.WAITING for state in self.changes.values()):
             self.apply_waiting(now)
+        waiting = self.waiting_switch
+        if waiting is not None and not self.switch_waits_for(waiting.version):
+            self._transition(
+                "version",
+                now,
+                lambda: self._record(
+                    events.EventKind.VERSION_SWITCHED,
+                    waiting.model_dump(mode="json"),
+                    now,
+                    actor=_DISPATCHER,
+                ),
+            )
 
     def _command(self, command: station.Command, now: datetime) -> Outcome:
         if command.context != self.context:

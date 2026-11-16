@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.switch-preview.schema.json",
+  "title": "trainmeet.drift-1.switch-preview",
+  "$defs": {
+    "SwitchChange": {
+      "additionalProperties": true,
+      "properties": {
+        "change_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Change Id",
+          "type": "string"
+        },
+        "included": {
+          "description": "Planeraren har tagit med den i den nya versionen.",
+          "title": "Included",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "change_id",
+        "included"
+      ],
+      "title": "SwitchChange",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What a switch to a version would do, before it is made.",
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/SwitchChange"
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "waits_for": {
+      "description": "Tåg som får ändringar i versionen och är ute eller har öppen klarering.",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Waits For",
+      "type": "array"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "type": "object"
+}

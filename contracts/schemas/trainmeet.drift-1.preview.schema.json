@@ -349,7 +349,12 @@
         "invalid_time",
         "train_number_taken",
         "unknown_change",
-        "section_closed"
+        "section_closed",
+        "unknown_version",
+        "same_version",
+        "no_switch_waiting",
+        "drift_locked",
+        "not_locked"
       ],
       "title": "Reason",
       "type": "string"

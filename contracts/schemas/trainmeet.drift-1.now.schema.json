@@ -998,6 +998,30 @@
       "title": "ProposalStatus",
       "type": "string"
     },
+    "SwitchWaiting": {
+      "additionalProperties": true,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "waits_for": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Waits For",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "SwitchWaiting",
+      "type": "object"
+    },
     "TrackKind": {
       "enum": [
         "single",
@@ -1153,6 +1177,43 @@
       },
       "title": "Changes",
       "type": "array"
+    },
+    "switch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SwitchWaiting"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ett versionsbyte som väntar på tåg som är ute (H38)."
+    },
+    "locked": {
+      "anyOf": [
+        {
+          "enum": [
+            "version",
+            "jump",
+            "undo",
+            "day"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Drift startade spärrad: det som påbörjades och aldrig blev klart (DRIFT-47).",
+      "title": "Locked"
+    },
+    "withdrawn": {
+      "default": false,
+      "description": "Versionen som körs är tillbakadragen i Planering (H68).",
+      "title": "Withdrawn",
+      "type": "boolean"
     }
   },
   "required": [

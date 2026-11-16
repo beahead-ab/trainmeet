@@ -22,9 +22,14 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
     POST /api/drift/1/changes/{id}/force -> DriftEvent                  tvinga igenom (H38)
     POST /api/drift/1/changes/{id}/drop  -> DriftEvent                  släpp
     GET  /api/drift/1/package            MeetPackage                    the version with them on
+    GET  /api/drift/1/switch/{version}   SwitchPreview                  what a switch would do
+    POST /api/drift/1/switch             SwitchVersion -> DriftEvent    versionsbyte (DRIFT-29)
+    POST /api/drift/1/switch/force       -> DriftEvent                  tvinga igenom (H38)
+    POST /api/drift/1/switch/call-off    -> DriftEvent                  avbryt bytet
+    POST /api/drift/1/unlock             -> DriftEvent                  lås upp (DRIFT-47)
 
-Still to come, each in the step that builds it: the proposals to Planering and the version
-switch (ärende 69), takeover (steps 4–5), screen data for Banöversikt and Tågdiagram.
+Still to come, each in the step that builds it: takeover (steps 4–5), screen data for
+Banöversikt and Tågdiagram.
 
 Every drift event is kept in order with the leader's epoch. The events are what a restart
 reads back and what the Pi sends to the cloud; there is no separate audit log.
@@ -305,6 +310,38 @@ class ChangeNow(Contract):
     )
 
 
+# --- Versionsbyte (TRAFIK-03, DRIFT-29, H2, H4, H38, H66) -------------------------------------
+
+
+class SwitchVersion(Contract):
+    """Byt till en ny version under träffen: the clock, where the trains stand and the open
+    clearances go with it. Each driftändring is kept unless let go; one the planner took into
+    the new version falls away (H4, H66)."""
+
+    version: int = Field(ge=1)
+    drop: list[Id] = Field(default_factory=list, description="Driftändringarna som släpps.")
+    force: bool = Field(
+        default=False,
+        description="Tvinga igenom fast ett tåg som ändras är ute eller har öppen klarering (H38).",
+    )
+
+
+class SwitchChange(Contract):
+    change_id: Id
+    included: bool = Field(description="Planeraren har tagit med den i den nya versionen.")
+
+
+class SwitchPreview(Contract):
+    """What a switch to a version would do, before it is made."""
+
+    version: int = Field(ge=1)
+    changes: list[SwitchChange] = Field(default_factory=list)
+    waits_for: list[Text] = Field(
+        default_factory=list,
+        description="Tåg som får ändringar i versionen och är ute eller har öppen klarering.",
+    )
+
+
 class Approve(Contract):
     client_id: Id
     places: list[Id] = Field(min_length=1)
@@ -370,6 +407,13 @@ class EventKind(StrEnum):
     PLACE_TAKEN_BACK = "place.taken_back"  # tagen tillbaka från automatiken
     AUTOMATION_SET = "automation.set"
     PLACE_PHONE = "place.phone"  # telefonnumret under träffen (H30)
+    # Påbörjat och klart (DRIFT-47), and the version switch (DRIFT-29): made, or waiting for
+    # the trains that are out, or called off.
+    TRANSITION_BEGUN = "transition.begun"
+    TRANSITION_DONE = "transition.done"
+    VERSION_SWITCHED = "version.switched"
+    VERSION_WAITING = "version.waiting"
+    VERSION_CALLED_OFF = "version.called_off"
     # Driftändringar (DRIFT-41): made, applied when the train is in, and let go.
     CHANGE_MADE = "change.made"
     CHANGE_APPLIED = "change.applied"
@@ -435,6 +479,25 @@ class PhoneChanged(Contract):
     """A place's game number changed during the meet (H30); the event names the place."""
 
     phone: Text | None = Field(default=None, max_length=24)
+
+
+class Transition(Contract):
+    """Påbörjat och klart (DRIFT-47): a version switch, a time jump, Ångra and a new day are
+    written between two events. Drift that starts with one begun and not done is locked and
+    says so, until Trafikledningen unlocks it."""
+
+    kind: Literal["version", "jump", "undo", "day"]
+    unlocked: bool = Field(default=False, description="Klart för att trafikledningen låste upp.")
+
+
+class VersionSwitch(Contract):
+    """Drift goes over to another version of the meet (DRIFT-29). The driftändringar dropped
+    and those the planner took into the version fall away; the rest stay on top."""
+
+    version: int = Field(ge=1)
+    drop: list[Id] = Field(default_factory=list)
+    included: list[Id] = Field(default_factory=list)
+    forced: bool = False
 
 
 class ChangeMade(Contract):
@@ -638,6 +701,10 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.DAY_CHANGED: DayChanged,
     EventKind.DAY_SETTINGS: DaySettings,
     EventKind.PLACE_PHONE: PhoneChanged,
+    EventKind.TRANSITION_BEGUN: Transition,
+    EventKind.TRANSITION_DONE: Transition,
+    EventKind.VERSION_SWITCHED: VersionSwitch,
+    EventKind.VERSION_WAITING: VersionSwitch,
     EventKind.CHANGE_MADE: ChangeMade,
     EventKind.CHANGE_APPLIED: ChangeRef,
     EventKind.CHANGE_DROPPED: ChangeRef,
@@ -767,6 +834,11 @@ class DayStatus(Contract):
     )
 
 
+class SwitchWaiting(Contract):
+    version: int = Field(ge=1)
+    waits_for: list[Text] = Field(default_factory=list)
+
+
 class Now(Contract):
     """The meet as it runs: open to everyone, so it holds no names of people, no codes and no
     phone numbers (B13)."""
@@ -786,6 +858,16 @@ class Now(Contract):
     day: DayStatus | None = Field(default=None, description="Dygnsskiftet.")
     changes: list[ChangeNow] = Field(
         default_factory=list, description="Driftändringarna ovanpå versionen (DRIFT-41)."
+    )
+    switch: SwitchWaiting | None = Field(
+        default=None, description="Ett versionsbyte som väntar på tåg som är ute (H38)."
+    )
+    locked: Literal["version", "jump", "undo", "day"] | None = Field(
+        default=None,
+        description="Drift startade spärrad: det som påbörjades och aldrig blev klart (DRIFT-47).",
+    )
+    withdrawn: bool = Field(
+        default=False, description="Versionen som körs är tillbakadragen i Planering (H68)."
     )
 
 

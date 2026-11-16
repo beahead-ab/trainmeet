@@ -73,6 +73,11 @@
         "place.taken_back",
         "automation.set",
         "place.phone",
+        "transition.begun",
+        "transition.done",
+        "version.switched",
+        "version.waiting",
+        "version.called_off",
         "change.made",
         "change.applied",
         "change.dropped"
@@ -321,6 +326,70 @@
         }
       },
       "title": "PhoneChanged",
+      "type": "object"
+    },
+    "Transition": {
+      "additionalProperties": true,
+      "description": "Påbörjat och klart (DRIFT-47): a version switch, a time jump, Ångra and a new day are\nwritten between two events. Drift that starts with one begun and not done is locked and\nsays so, until Trafikledningen unlocks it.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "version",
+            "jump",
+            "undo",
+            "day"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "unlocked": {
+          "default": false,
+          "description": "Klart för att trafikledningen låste upp.",
+          "title": "Unlocked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Transition",
+      "type": "object"
+    },
+    "VersionSwitch": {
+      "additionalProperties": true,
+      "description": "Drift goes over to another version of the meet (DRIFT-29). The driftändringar dropped\nand those the planner took into the version fall away; the rest stay on top.",
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "drop": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Drop",
+          "type": "array"
+        },
+        "included": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Included",
+          "type": "array"
+        },
+        "forced": {
+          "default": false,
+          "title": "Forced",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "VersionSwitch",
       "type": "object"
     },
     "CallTime": {
@@ -1585,6 +1654,66 @@
     {
       "properties": {
         "kind": {
+          "const": "transition.begun",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/Transition"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "transition.done",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/Transition"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "version.switched",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/VersionSwitch"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "version.waiting",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/VersionSwitch"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "change.made",
           "type": "string"
         },
@@ -1911,6 +2040,10 @@
               "day.changed",
               "day.settings",
               "place.phone",
+              "transition.begun",
+              "transition.done",
+              "version.switched",
+              "version.waiting",
               "change.made",
               "change.applied",
               "change.dropped",

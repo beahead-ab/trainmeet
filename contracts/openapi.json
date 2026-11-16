@@ -563,6 +563,136 @@
         }
       }
     },
+    "/api/drift/1/switch/{version}": {
+      "get": {
+        "operationId": "switchPreview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.switch-preview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/drift/1/switch": {
+      "post": {
+        "operationId": "switchVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.switch"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/switch/force": {
+      "post": {
+        "operationId": "forceSwitch",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/switch/call-off": {
+      "post": {
+        "operationId": "callOffSwitch",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/unlock": {
+      "post": {
+        "operationId": "unlockDrift",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.event"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/clients": {
       "get": {
         "operationId": "driftClients",
@@ -5074,7 +5204,12 @@
           "invalid_time",
           "train_number_taken",
           "unknown_change",
-          "section_closed"
+          "section_closed",
+          "unknown_version",
+          "same_version",
+          "no_switch_waiting",
+          "drift_locked",
+          "not_locked"
         ],
         "title": "Reason",
         "type": "string"
@@ -8720,6 +8855,91 @@
         "title": "Weekday",
         "type": "string"
       },
+      "trainmeet.drift-1.switch": {
+        "additionalProperties": true,
+        "description": "Byt till en ny version under träffen: the clock, where the trains stand and the open\nclearances go with it. Each driftändring is kept unless let go; one the planner took into\nthe new version falls away (H4, H66).",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "drop": {
+            "description": "Driftändringarna som släpps.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Drop",
+            "type": "array"
+          },
+          "force": {
+            "default": false,
+            "description": "Tvinga igenom fast ett tåg som ändras är ute eller har öppen klarering (H38).",
+            "title": "Force",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "SwitchVersion",
+        "type": "object"
+      },
+      "trainmeet.drift-1.switch-preview": {
+        "additionalProperties": true,
+        "description": "What a switch to a version would do, before it is made.",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.switch-preview.SwitchChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "waits_for": {
+            "description": "Tåg som får ändringar i versionen och är ute eller har öppen klarering.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Waits For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "SwitchPreview",
+        "type": "object"
+      },
+      "trainmeet.drift-1.switch-preview.SwitchChange": {
+        "additionalProperties": true,
+        "properties": {
+          "change_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Change Id",
+            "type": "string"
+          },
+          "included": {
+            "description": "Planeraren har tagit med den i den nya versionen.",
+            "title": "Included",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "change_id",
+          "included"
+        ],
+        "title": "SwitchChange",
+        "type": "object"
+      },
       "trainmeet.drift-1.approve": {
         "additionalProperties": true,
         "properties": {
@@ -9219,6 +9439,66 @@
           {
             "properties": {
               "kind": {
+                "const": "transition.begun",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.Transition"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "transition.done",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.Transition"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "version.switched",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.VersionSwitch"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "version.waiting",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.VersionSwitch"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "change.made",
                 "type": "string"
               },
@@ -9545,6 +9825,10 @@
                     "day.changed",
                     "day.settings",
                     "place.phone",
+                    "transition.begun",
+                    "transition.done",
+                    "version.switched",
+                    "version.waiting",
                     "change.made",
                     "change.applied",
                     "change.dropped",
@@ -9664,6 +9948,11 @@
           "place.taken_back",
           "automation.set",
           "place.phone",
+          "transition.begun",
+          "transition.done",
+          "version.switched",
+          "version.waiting",
+          "version.called_off",
           "change.made",
           "change.applied",
           "change.dropped"
@@ -9912,6 +10201,70 @@
           }
         },
         "title": "PhoneChanged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.Transition": {
+        "additionalProperties": true,
+        "description": "Påbörjat och klart (DRIFT-47): a version switch, a time jump, Ångra and a new day are\nwritten between two events. Drift that starts with one begun and not done is locked and\nsays so, until Trafikledningen unlocks it.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "version",
+              "jump",
+              "undo",
+              "day"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "unlocked": {
+            "default": false,
+            "description": "Klart för att trafikledningen låste upp.",
+            "title": "Unlocked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Transition",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.VersionSwitch": {
+        "additionalProperties": true,
+        "description": "Drift goes over to another version of the meet (DRIFT-29). The driftändringar dropped\nand those the planner took into the version fall away; the rest stay on top.",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "drop": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Drop",
+            "type": "array"
+          },
+          "included": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Included",
+            "type": "array"
+          },
+          "forced": {
+            "default": false,
+            "title": "Forced",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "VersionSwitch",
         "type": "object"
       },
       "trainmeet.drift-1.event.CallTime": {
@@ -10997,6 +11350,43 @@
             },
             "title": "Changes",
             "type": "array"
+          },
+          "switch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.SwitchWaiting"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Ett versionsbyte som väntar på tåg som är ute (H38)."
+          },
+          "locked": {
+            "anyOf": [
+              {
+                "enum": [
+                  "version",
+                  "jump",
+                  "undo",
+                  "day"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Drift startade spärrad: det som påbörjades och aldrig blev klart (DRIFT-47).",
+            "title": "Locked"
+          },
+          "withdrawn": {
+            "default": false,
+            "description": "Versionen som körs är tillbakadragen i Planering (H68).",
+            "title": "Withdrawn",
+            "type": "boolean"
           }
         },
         "required": [
@@ -12007,6 +12397,30 @@
         "title": "ProposalStatus",
         "type": "string"
       },
+      "trainmeet.drift-1.now.SwitchWaiting": {
+        "additionalProperties": true,
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "waits_for": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Waits For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "SwitchWaiting",
+        "type": "object"
+      },
       "trainmeet.drift-1.now.TrackKind": {
         "enum": [
           "single",
@@ -12981,7 +13395,12 @@
           "invalid_time",
           "train_number_taken",
           "unknown_change",
-          "section_closed"
+          "section_closed",
+          "unknown_version",
+          "same_version",
+          "no_switch_waiting",
+          "drift_locked",
+          "not_locked"
         ],
         "title": "Reason",
         "type": "string"

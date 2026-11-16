@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Problem, type Client, type DriftEvent, type Now, type Package, type Refusal } from "./api";
-import { actorName, csv, describe, eventRows, logFile, placeName, refusalRows, trainId, trainNumber } from "./drift";
+import { actorName, csv, describe, eventRows, logFile, placeName, refusalRows, shown as inLogg, trainId, trainNumber } from "./drift";
 import { Chip, Chips, LoginFirst } from "./ui";
 
 // Logg (TRAFIK-07, B15): what happened in the meet, newest first, and what the clients were
@@ -46,7 +46,7 @@ export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage,
       try {
         const next: LogRows =
           kind === "events"
-            ? { kind, events: await api.log(place, train.trim() ? trainId(now, train.trim()) : null) }
+            ? { kind, events: (await api.log(place, train.trim() ? trainId(now, train.trim()) : null)).filter(inLogg) }
             : { kind, refusals: (await api.refusals()).filter((refusal) => !place || refusal.place === place) };
         if (live) {
           setRows(next);
