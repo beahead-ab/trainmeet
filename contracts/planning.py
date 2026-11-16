@@ -18,7 +18,7 @@ from typing import Annotated, Any, Final, Literal
 
 from pydantic import Discriminator, Field, Tag
 
-from contracts.common import Contract, Id, Text
+from contracts.common import Contract, Id, Text, Weekday
 from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import ClearanceMode, Finding, Meet, MeetPackage, PlaceKind, TrackKind
 
@@ -204,26 +204,74 @@ class SectionTracksChange(Contract):
     tracks: TrackKind
 
 
+class CallChange(Contract):
+    """One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.
+    Empty clears it."""
+
+    call: Id
+    field: Literal["arrival", "departure", "track"]
+    value: Text | None = None
+
+
+class TrainChange(Contract):
+    """One field of a train in the draft (PLAN-01): its number or its note. Empty clears the
+    note; a train always has a number."""
+
+    train: Id
+    field: Literal["number", "note"]
+    value: Text | None = None
+
+
+class TrainDaysChange(Contract):
+    """A train's days in the draft (PLAN-01)."""
+
+    train: Id
+    days: list[Weekday] = Field(min_length=1, max_length=7)
+
+
 def _change_kind(value: Any) -> str:
-    """Which change it is, from its fields: a place, a section's tracks or its clearance."""
+    """Which change it is, from its fields: a place, a section's tracks or its clearance, a
+    call, a train's field or its days."""
     if isinstance(value, dict):
-        return "place" if "place" in value else "tracks" if "tracks" in value else "section"
-    if isinstance(value, PlaceChange):
-        return "place"
-    return "tracks" if isinstance(value, SectionTracksChange) else "section"
+        for key, kind in (
+            ("call", "call"),
+            ("days", "days"),
+            ("train", "train"),
+            ("place", "place"),
+            ("tracks", "tracks"),
+        ):
+            if key in value:
+                return kind
+        return "section"
+    for model, kind in (
+        (CallChange, "call"),
+        (TrainDaysChange, "days"),
+        (TrainChange, "train"),
+        (PlaceChange, "place"),
+        (SectionTracksChange, "tracks"),
+    ):
+        if isinstance(value, model):
+            return kind
+    return "section"
 
 
 Change = Annotated[
     Annotated[PlaceChange, Tag("place")]
     | Annotated[SectionTracksChange, Tag("tracks")]
-    | Annotated[SectionChange, Tag("section")],
+    | Annotated[SectionChange, Tag("section")]
+    | Annotated[CallChange, Tag("call")]
+    | Annotated[TrainChange, Tag("train")]
+    | Annotated[TrainDaysChange, Tag("days")],
     Discriminator(_change_kind),
 ]
 
 
 class Changes(Contract):
-    """Several changes saved at once (Spara in Data). They are kept in order."""
+    """Several changes saved at once (Spara in Data). They are kept in order. They carry the
+    draft's revision they were made against: one saved by someone else in between is refused,
+    so that no change is written over in silence (PLAN-38)."""
 
+    revision: int = Field(ge=0, description="Utkastets revision som ändringarna gjordes mot.")
     changes: list[Change] = Field(min_length=1, max_length=500)
 
 
@@ -262,6 +310,9 @@ class Draft(Contract):
 
     format: Literal["trainmeet.planning/1"] = FORMAT
     meet: Meet
+    revision: int = Field(
+        default=0, ge=0, description="Räknas upp varje gång utkastet sparas (PLAN-38)."
+    )
     package: MeetPackage | None = Field(default=None, description="Tomt tills underlag finns.")
     facts: list[Fact] = Field(default_factory=list)
     rulebook: Rulebook = Field(default_factory=Rulebook)

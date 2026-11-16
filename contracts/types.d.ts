@@ -7588,6 +7588,12 @@ export interface components {
             format: "trainmeet.planning/1";
             meet: components["schemas"]["trainmeet.planning-1.draft.Meet"];
             /**
+             * Revision
+             * @description Räknas upp varje gång utkastet sparas (PLAN-38).
+             * @default 0
+             */
+            revision: number;
+            /**
              * @description Tomt tills underlag finns.
              * @default null
              */
@@ -7605,7 +7611,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -7734,6 +7740,27 @@ export interface components {
              * @default null
              */
             note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CallChange
+         * @description One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.
+         *     Empty clears it.
+         */
+        "trainmeet.planning-1.draft.CallChange": {
+            /** Call */
+            call: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "arrival" | "departure" | "track";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -8761,6 +8788,39 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TrainChange
+         * @description One field of a train in the draft (PLAN-01): its number or its note. Empty clears the
+         *     note; a train always has a number.
+         */
+        "trainmeet.planning-1.draft.TrainChange": {
+            /** Train */
+            train: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "number" | "note";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainDaysChange
+         * @description A train's days in the draft (PLAN-01).
+         */
+        "trainmeet.planning-1.draft.TrainDaysChange": {
+            /** Train */
+            train: string;
+            /** Days */
+            days: components["schemas"]["trainmeet.planning-1.draft.Weekday"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TrainNote
          * @description Anmärkning: text that follows the train, or one of its calls. Empty takes it away.
          */
@@ -9005,11 +9065,39 @@ export interface components {
         "trainmeet.planning-1.meet-summary.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
          * Changes
-         * @description Several changes saved at once (Spara in Data). They are kept in order.
+         * @description Several changes saved at once (Spara in Data). They are kept in order. They carry the
+         *     draft's revision they were made against: one saved by someone else in between is refused,
+         *     so that no change is written over in silence (PLAN-38).
          */
         "trainmeet.planning-1.changes": {
+            /**
+             * Revision
+             * @description Utkastets revision som ändringarna gjordes mot.
+             */
+            revision: number;
             /** Changes */
-            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"])[];
+            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"])[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CallChange
+         * @description One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.
+         *     Empty clears it.
+         */
+        "trainmeet.planning-1.changes.CallChange": {
+            /** Call */
+            call: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "arrival" | "departure" | "track";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -9063,6 +9151,45 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.changes.TrackKind": "single" | "double";
+        /**
+         * TrainChange
+         * @description One field of a train in the draft (PLAN-01): its number or its note. Empty clears the
+         *     note; a train always has a number.
+         */
+        "trainmeet.planning-1.changes.TrainChange": {
+            /** Train */
+            train: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "number" | "note";
+            /**
+             * Value
+             * @default null
+             */
+            value: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainDaysChange
+         * @description A train's days in the draft (PLAN-01).
+         */
+        "trainmeet.planning-1.changes.TrainDaysChange": {
+            /** Train */
+            train: string;
+            /** Days */
+            days: components["schemas"]["trainmeet.planning-1.changes.Weekday"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.changes.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
          * ImportPreview
          * @description Lägg till underlag before anything changes: the level, what the source gave and exactly

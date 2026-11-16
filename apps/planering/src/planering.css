@@ -530,3 +530,19 @@ tr.bekrafta p {
   margin: 0;
   justify-content: flex-end;
 }
+
+/* Rutnätet (PLAN-01): a train's days as seven toggles on the chosen row. */
+.dagar {
+  display: inline-flex;
+  gap: 2px;
+}
+main.planering .dagar button {
+  padding: 2px 5px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+main.planering .dagar button[aria-pressed="true"] {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: #ffffff;
+}

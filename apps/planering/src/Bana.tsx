@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Problem } from "@trainmeet/hubben";
 import { planning, type Draft } from "./api";
 import { CERTAINTY, Facts, KINDS, MODES, TRACKS, plural, sourceKind, type Package, type Place, type Section } from "./data";
 import { layout, links, sectionLabel, STEP_X, STEP_Y } from "./karta";
@@ -51,9 +52,11 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
 
   const saveNow = async (change: { section: string; tracks: "single" | "double" } | { section: string; clearance_mode: "requested" | "direct" | null }, text: string) => {
     try {
-      onDraft?.(await planning.change(meet, { changes: [change] }));
+      onDraft?.(await planning.change(meet, { revision: draft?.revision ?? 0, changes: [change] }));
       onTell?.(text, true);
     } catch (error) {
+      // PLAN-38: someone else saved in between; show the new draft with the message.
+      if (error instanceof Problem && error.status === 412) onDraft?.(await planning.draft(meet).catch(() => draft as Draft));
       onFail?.(error);
     }
   };

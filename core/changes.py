@@ -69,7 +69,8 @@ def _with_times(call: Call, arrival: int | None, departure: int | None) -> Call:
     )
 
 
-def _in_order(calls: list[Call]) -> bool:
+def in_order(calls: list[Call]) -> bool:
+    """The train's times go forward, call by call."""
     previous: int | None = None
     for call in calls:
         for moment in times(call):
@@ -239,7 +240,7 @@ def _times(found: Train, change: changes.ChangeTimes) -> Train:
         calls[found_at] = calls[found_at].model_copy(
             update={key: value for key, value in update.items() if value is not None}
         )
-    if not _in_order(calls):
+    if not in_order(calls):
         raise ChangeError(Reason.INVALID_TIME)
     return found.model_copy(update={"calls": calls})
 

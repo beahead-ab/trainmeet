@@ -12,10 +12,12 @@ from pathlib import Path
 
 import pytest
 
+from contracts.common import Weekday
 from contracts.meet import ClearanceMode, MeetPackage, PlaceKind
 from contracts.planning import (
     Alternative,
     Answer,
+    CallChange,
     Certainty,
     Draft,
     Fact,
@@ -29,10 +31,19 @@ from contracts.planning import (
     SectionChange,
     Source,
     SourceKind,
+    TrainChange,
+    TrainDaysChange,
     TrainTypeRule,
 )
 from planering.check import check
-from planering.store import Planning, PlanningError, UnknownMeet, UnknownVersion, slug
+from planering.store import (
+    Planning,
+    PlanningError,
+    StaleDraft,
+    UnknownMeet,
+    UnknownVersion,
+    slug,
+)
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "contracts" / "examples" / "provbanan.meet.json"
 
@@ -158,6 +169,68 @@ def test_a_change_needs_a_draft_and_a_known_place(planning: Planning) -> None:
         planning.change(meet.id, PlaceChange(place="nowhere", phone="1"))
     with pytest.raises(UnknownMeet):
         planning.draft("nowhere")
+
+
+def test_the_planner_corrects_trains_and_calls_in_the_grid(planning: Planning) -> None:
+    """Rutnätet (PLAN-01): a call's times and track, a train's number, note and days. Each is
+    the planner's, confirmed, and stays when the source is read again."""
+    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    src = source()
+    planning.add_source(meet.id, src, b"1", result(src))
+    planning.change(
+        meet.id,
+        CallChange(call="t101-asn", field="arrival", value="06:09"),
+        CallChange(call="t101-asn", field="departure", value="06:11"),
+        CallChange(call="t101-asn", field="track", value="2"),
+        TrainChange(train="t101", field="number", value="111"),
+        TrainChange(train="t101", field="note", value="Ånglok"),
+        TrainDaysChange(train="t101", days=[Weekday.SAT, Weekday.SUN]),
+    )
+    again = planning.add_source(meet.id, source(digest="b"), b"2", result(source(digest="b")))
+    assert again.package is not None
+    train = next(t for t in again.package.trains if t.id == "t101")
+    call = next(c for c in train.calls if c.id == "t101-asn")
+    assert (call.arrival, call.departure, call.track) == ("06:09", "06:11", "2")
+    assert (train.number, train.note, train.days) == ("111", "Ånglok", ["sat", "sun"])
+    refs = {f.ref: f for f in again.facts}
+    for ref in ("call:t101-asn.departure", "train:t101.number", "train:t101.days"):
+        assert refs[ref].certainty == Certainty.CONFIRMED
+    cleared = planning.change(meet.id, TrainChange(train="t101", field="note", value=None))
+    assert cleared.package is not None
+    assert next(t.note for t in cleared.package.trains if t.id == "t101") is None
+
+
+def test_the_grid_refuses_what_does_not_fit(planning: Planning) -> None:
+    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    src = source()
+    planning.add_source(meet.id, src, b"1", result(src))
+    before = planning.draft(meet.id)
+    for change, says in (
+        (CallChange(call="t101-asn", field="departure", value="05:00"), "inte i ordning"),
+        (CallChange(call="t101-asn", field="departure", value="6:5"), "TT:MM"),
+        (CallChange(call="t101-asn", field="track", value="9"), "Spåret 9 finns inte"),
+        (TrainChange(train="t101", field="number", value=None), "nummer"),
+        (CallChange(call="t999-asn", field="track", value="1"), "finns inte i utkastet"),
+    ):
+        with pytest.raises(PlanningError, match=says):
+            planning.change(meet.id, change)
+    assert planning.draft(meet.id) == before, "nothing saved"
+
+
+def test_spara_against_an_old_revision_is_refused(planning: Planning) -> None:
+    """PLAN-38: two who save the same draft do not write over each other."""
+    meet = planning.create(NewMeet(name="Grimslöv")).meet
+    src = source()
+    planning.add_source(meet.id, src, b"1", result(src))
+    seen = planning.draft(meet.id).revision
+    first = planning.change(meet.id, PlaceChange(place="asn", phone="211"), revision=seen)
+    assert first.revision == seen + 1 == planning.draft(meet.id).revision
+    with pytest.raises(StaleDraft) as stale:
+        planning.change(meet.id, PlaceChange(place="asn", phone="999"), revision=seen)
+    assert stale.value.status == 412
+    draft = planning.draft(meet.id)
+    assert draft.package is not None
+    assert next(p.phone for p in draft.package.places if p.id == "asn") == "211"
 
 
 def test_an_answer_becomes_the_rule(planning: Planning) -> None:
