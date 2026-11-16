@@ -329,6 +329,18 @@ button.traffval[aria-expanded="true"] {
     padding: 8px 12px;
     gap: 8px;
   }
+  /* On a phone the right side wraps too, so Logga ut never runs off the screen. */
+  .hubbhuvud .tm-hoger {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    min-width: 0;
+    gap: 6px;
+  }
+  .hubbhuvud .hknapp,
+  .hubbhuvud .klocka {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
   .hubbhuvud .tm-namn {
     display: none;
   }
