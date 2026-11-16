@@ -2,6 +2,8 @@ import { Skylt } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { fetchPackage, fetchPicture, join, savedKey, saveKey, type Package, type ScreenPicture } from "./api";
 import { BanaView } from "./Bana";
+import { DiagramView } from "./Diagram";
+import { OversiktView } from "./Oversikt";
 import { Klocka } from "./Klocka";
 
 export { clockText } from "./Klocka";
@@ -34,6 +36,8 @@ export function Screen({ picture, pkg = null, fetchedAt, now, message, code, onJ
     );
   }
   if (picture?.view === "tracks") return <BanaView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
+  if (picture?.view === "graph") return <DiagramView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
+  if (picture?.view === "overview") return <OversiktView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
   if (picture) return <Klocka picture={picture} fetchedAt={fetchedAt} now={now} />;
   return <JoinForm message={message} code={code} onJoin={onJoin} />;
 }

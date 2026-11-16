@@ -25,7 +25,7 @@ export const APPROVAL: Record<string, string> = { waiting: "Väntar", approved: 
 export const SIDES: Record<Client["side"], string> = { both: "Båda sidor", left: "Vänster", right: "Höger" };
 export const LANGUAGES: Record<string, string> = { sv: "Svenska", en: "English", da: "Dansk", nb: "Norsk", de: "Deutsch" };
 export const SPEEDS = [1, 2, 3, 4, 6, 8, 12];
-export const VIEWS: Record<string, string> = { clock: "Klocka, analog", clock_digital: "Klocka, digital", tracks: "Banöversikt" };
+export const VIEWS: Record<string, string> = { clock: "Klocka, analog", clock_digital: "Klocka, digital", tracks: "Banöversikt", graph: "Tågdiagram", overview: "Översikt" };
 export const EVENTS: Record<string, string> = {
   "meet.started": "Träffen startade",
   "clock.started": "Klockan startade",

@@ -74,6 +74,9 @@ def test_banoversikten_gets_the_meet_as_it_runs_and_the_package(hub: TestClient)
     drawn = TestClient(hub.app).get("/api/screen/package", headers=headers)
     assert drawn.status_code == 200 and drawn.json()["meet"]["name"] == "Provbanan"
     assert TestClient(hub.app).get("/api/screen/package").status_code == 401
+    for view in ("graph", "overview"):
+        hub.post(API + "/clients/view", json={"client_id": client_id, "view": view})
+        assert picture(hub, headers).now is not None, f"{view} draws on the meet as it runs"
     cancel = {"change": {"kind": "cancel", "train": "t108"}}
     assert hub.post(API + "/changes", json=cancel).status_code == 200
     assert picture(hub, headers).package != seen.package, "fetched again after a driftändring"
@@ -87,7 +90,7 @@ def test_only_the_administrator_gives_a_view(hub: TestClient) -> None:
         hub.post(API + "/clients/view", json={"client_id": "screen-x", "view": "clock"}).status_code
         == 404
     )
-    assert hub.post(API + "/clients/view", json={**body, "view": "graph"}).status_code == 422
+    assert hub.post(API + "/clients/view", json={**body, "view": "karta"}).status_code == 422
 
 
 def test_a_screen_needs_the_right_code_and_its_key(hub: TestClient) -> None:

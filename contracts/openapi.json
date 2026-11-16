@@ -13900,7 +13900,9 @@
         "enum": [
           "clock",
           "clock_digital",
-          "tracks"
+          "tracks",
+          "graph",
+          "overview"
         ],
         "title": "ScreenView",
         "type": "string"
@@ -15110,7 +15112,9 @@
         "enum": [
           "clock",
           "clock_digital",
-          "tracks"
+          "tracks",
+          "graph",
+          "overview"
         ],
         "title": "ScreenView",
         "type": "string"
