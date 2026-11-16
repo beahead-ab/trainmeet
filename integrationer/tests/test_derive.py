@@ -11,27 +11,43 @@ from __future__ import annotations
 import csv
 import io
 from collections import deque
+from itertools import pairwise
 
 import pytest
 
 from contracts.meet import Meet, MeetPackage, PlaceKind, TrackKind, Train
 from contracts.planning import Certainty, ImportResult
-from integrationer import derive
+from integrationer import derive, track_picture
+from integrationer.derive import abbreviates
 from integrationer.station_lists import ListError, Lists, read
 from integrationer.tests.test_station_lists import HEADER, lists_zip, odt, plan, rows_for, source
+from integrationer.tests.test_track_picture import AT, picture_pdf
 
 __all__ = ["plan"]
 
 LISTED = ("Ebh", "Ful", "Gbg", "Gdö", "Lek", "Mkd", "Mot", "Nlu", "R", "Rse", "Sbg", "Sku", "Spn")
 
 
-@pytest.fixture(scope="module")
-def derived(plan: MeetPackage) -> ImportResult:
+def varnamo(plan: MeetPackage) -> Lists:
     names = {p.code: p.name for p in plan.places}
     files = {f"{code} {names[code]}.odt": odt(rows_for(plan, code, twice=True)) for code in LISTED}
     files["Ste Steinsnes.odt"] = odt(rows_for(plan, "Ste", remote=("Tri",), twice=True))
-    found = read(lists_zip(files), "Station dispatch lists.zip")
-    return derive.draft(found, meet=plan.meet, source=source())
+    return read(lists_zip(files), "Station dispatch lists.zip")
+
+
+@pytest.fixture(scope="module")
+def derived(plan: MeetPackage) -> ImportResult:
+    return derive.draft(varnamo(plan), meet=plan.meet, source=source())
+
+
+@pytest.fixture(scope="module")
+def drawn(plan: MeetPackage) -> ImportResult:
+    """The lists and the track picture: underlagsnivå 2."""
+    picture = track_picture.read(picture_pdf(plan))
+    given = source().model_copy(update={"id": "u-picture", "filename": "Banan.pdf", "level": 2})
+    return derive.draft(
+        varnamo(plan), meet=plan.meet, source=source(), picture=picture, drawn=given
+    )
 
 
 def key(train: Train, package: MeetPackage) -> tuple[str, tuple[str, ...], str, str]:
@@ -203,3 +219,72 @@ def test_nothing_to_build_from() -> None:
 
 def meet() -> Meet:
     return Meet(id="m", name="Provträffen", country="se", timezone="Europe/Stockholm")
+
+
+def test_the_picture_confirms_the_sections_and_gives_the_places_in_between(
+    plan: MeetPackage, drawn: ImportResult
+) -> None:
+    """Level 2: every section the trains give is on the picture, with the places in between
+    as its parts, and double track where the plan has it (I4)."""
+    package, report = drawn.package, drawn.report
+    assert report.level == 2 and report.trains == 228
+    codes = {p.id: p.code for p in package.places}
+    assert set(codes.values()) == set(AT), "every place on the picture is in the draft"
+    planned = {p.id: p.code for p in plan.places}
+    double = {
+        frozenset((planned[part.from_place], planned[part.to_place]))
+        for s in plan.sections
+        if s.tracks == TrackKind.DOUBLE
+        for part in s.parts
+    }
+    facts = {f.ref: f for f in drawn.facts}
+    ways: dict[frozenset[str], list[str]] = {}
+    for section in package.sections:
+        way = [codes[section.place_a], *(codes[p.to_place] for p in section.parts)]
+        ways[frozenset((way[0], way[-1]))] = way
+        assert facts[f"section:{section.id}"].certainty == Certainty.SURE
+        assert [o.source for o in facts[f"section:{section.id}"].origins][-1] == "u-picture"
+        on_double = all(frozenset(pair) in double for pair in pairwise(way))
+        assert (section.tracks == TrackKind.DOUBLE) == on_double, way
+    assert ways[frozenset(("Gdö", "R"))] in (["Gdö", "Tby", "R"], ["R", "Tby", "Gdö"])
+    assert len(ways[frozenset(("Ebh", "Gdö"))]) == 5, "through Tjärby, Hammarlind and Ryr"
+    assert sum(s.tracks == TrackKind.DOUBLE for s in package.sections) == 6
+    assert set(package.display.reference_layout) == set(codes)
+    assert report.notes[0].startswith(
+        "Utkastet är härlett ur 14 stationslistor och banbilden. Banbilden visar 14 av 14 "
+        "sträckor, 9 platser emellan och dubbelspår på 6 sträckor."
+    )
+    assert any(n.startswith("Banan grenar sig vid Stv och Tby") for n in report.notes)
+
+
+def test_a_place_named_only_in_the_lists_takes_its_signature_from_the_picture(
+    drawn: ImportResult,
+) -> None:
+    places = {p.name: p for p in drawn.package.places}
+    assert {name: places[name].code for name in (
+        "Tveiten", "Kjøllstad", "Skuggvik havn", "Industriparken", "Godsterminalen",
+        "Hammarlind", "Tremetsrud",
+    )} == {
+        "Tveiten": "Tve", "Kjøllstad": "Kje", "Skuggvik havn": "Skh", "Industriparken": "Idp",
+        "Godsterminalen": "Gtn", "Hammarlind": "Hld", "Tremetsrud": "Tre",
+    }  # fmt: skip
+    facts = {f.ref: f for f in drawn.facts}
+    kje = facts[f"place:{places['Kjøllstad'].id}.code"]
+    assert kje.certainty == Certainty.UNSURE
+    assert kje.note == (
+        "Signaturen ur banbilden: Kje är den enda signaturen på banbilden som börjar som "
+        "Kjøllstad och inte har en lista."
+    )
+    assert facts[f"place:{places['Tveiten'].id}.code"].note == (
+        "Signaturen ur banbilden: Tve är en förkortning av Tveiten."
+    )
+    assert facts[f"place:{places['Lekby'].id}"].certainty == Certainty.SURE, "list and picture"
+    tby = next(p for p in drawn.package.places if p.code == "Tby")
+    assert tby.kind == PlaceKind.HALT and tby.name == "Tby"
+    assert "grenar sig" in (facts[f"place:{tby.id}.kind"].note or "")
+
+
+def test_abbreviations() -> None:
+    assert abbreviates("Tve", "Tveiten") and abbreviates("Skh", "Skuggvik havn")
+    assert abbreviates("Gdö", "Gårdsjö") and not abbreviates("Gbg", "Gårdsjö")
+    assert not abbreviates("Kje", "Kjøllstad") and not abbreviates("Tby", "Tveiten")

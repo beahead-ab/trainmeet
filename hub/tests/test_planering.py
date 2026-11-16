@@ -27,6 +27,7 @@ from hub.running import Running
 from hub.tests.test_tmbox_web import Tab
 from integrationer import planning_json
 from integrationer.tests.test_station_lists import lists_zip, odt, rows_for
+from integrationer.tests.test_track_picture import picture_pdf
 from planering.store import Planning
 
 PIN = "482915"
@@ -109,8 +110,10 @@ def test_the_file_gives_the_draft_and_the_report(planned: TestClient) -> None:
 
 def test_files_that_are_not_a_plan_are_refused(planned: TestClient) -> None:
     assert upload(planned, b"{not json", "plan.json").status_code == 422
-    refused = upload(planned, b"%PDF-1.7", "Banan.pdf")
+    refused = upload(planned, b"PK\x03\x04", "Banan.docx")
     assert refused.status_code == 415 and "planeringsfil" in refused.json()["detail"]
+    broken = upload(planned, b"%PDF-1.7", "Banan.pdf")
+    assert broken.status_code == 422 and "PDF:en gick inte att läsa" in broken.json()["detail"]
     assert upload(planned, b"", "plan.json").status_code == 422
     missing = planned.post(f"{API}/meets/nowhere/sources", params={"name": "a.json"}, content=b"{}")
     assert missing.status_code == 404
@@ -310,6 +313,68 @@ def test_station_lists_are_judged_against_the_plan(hub: TestClient) -> None:
         planning.SourceKind.STATION_LISTS,
     }
     assert after.report is not None and after.report.verdicts[0].agreeing > 20
+
+
+def test_the_track_picture_builds_on_the_lists(hub: TestClient) -> None:
+    """4c1, level 2 (I4): the picture after the lists derives the draft again, with the places
+    in between, the sections it shows and double track, and the map in Bana. Before the lists
+    it waits for them; beside the planning file it is kept as a source."""
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    picture = picture_pdf(varnamo_plan())
+    early = upload(hub, data=picture, name="Banan.pdf")
+    assert early.status_code == 422 and "stationslistorna först" in early.json()["detail"]
+    lists = planning.ImportPreview.model_validate(
+        upload(hub, data=station_lists_zip("Mkd", "Lek", "Gdö", "R"), name="lists.zip").json()
+    )
+    hub.post(f"{API}/meets/{MEET}/sources/{lists.source.id}/apply")
+    seen = planning.ImportPreview.model_validate(upload(hub, data=picture, name="Banan.pdf").json())
+    assert seen.source.kind == planning.SourceKind.TRACK_PICTURE and seen.report.level == 2
+    assert seen.report.source == seen.source.id and not seen.first
+    draft = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply").json()
+    )
+    assert draft.package is not None
+    codes = {p.id: p.code for p in draft.package.places}
+    gdo_r = next(
+        s for s in draft.package.sections if {codes[s.place_a], codes[s.place_b]} == {"Gdö", "R"}
+    )
+    way = [codes[gdo_r.place_a], *(codes[p.to_place] for p in gdo_r.parts)]
+    assert way in (["Gdö", "Tby", "R"], ["R", "Tby", "Gdö"])
+    assert gdo_r.tracks == "double"
+    facts = {f.ref: f for f in draft.facts}
+    assert facts[f"section:{gdo_r.id}"].certainty == planning.Certainty.SURE
+    assert {s.kind for s in draft.sources} == {
+        planning.SourceKind.STATION_LISTS,
+        planning.SourceKind.TRACK_PICTURE,
+    }
+    drawn = {codes[p] for p in draft.package.display.reference_layout}
+    assert drawn >= {"Mkd", "Lek", "Gdö", "R", "Tby", "Sbg", "Nlu"}
+    assert "Spiten" not in drawn, "Spn or Ste: no guess"
+    assert any(
+        "flera signaturer som kan vara Spiten (Spn eller Ste)" in n for n in seen.report.notes
+    )
+    again = planning.ImportPreview.model_validate(
+        upload(hub, data=station_lists_zip("Mkd", "Lek", "Gdö", "R", "Nlu"), name="l2.zip").json()
+    )
+    assert again.report.level == 2, "new lists are read with the picture already added"
+    plan = planning.ImportPreview.model_validate(upload(hub).json())
+    hub.post(f"{API}/meets/{MEET}/sources/{plan.source.id}/apply")
+    kept = planning.ImportPreview.model_validate(upload(hub, data=picture, name="B2.pdf").json())
+    assert kept.report.notes == ["Planeringsfilen har redan banan; banbilden sparas som underlag."]
+    after = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{kept.source.id}/apply").json()
+    )
+    assert after.package is not None and len(after.package.trains) == 228
+    assert after.report is not None and after.report.verdicts, "the lists' verdicts stay"
+
+
+def varnamo_plan() -> MeetPackage:
+    meet = Meet(id=MEET, name="Värnamo", country="se", timezone="Europe/Stockholm")
+    given = planning.Source(
+        id="u-x", kind=planning.SourceKind.PLANNING_JSON, filename="v", size=1,
+        sha256="a" * 64, level=4, added=datetime(2026, 11, 16, tzinfo=UTC),
+    )  # fmt: skip
+    return planning_json.read(VARNAMO, meet=meet, source=given).package
 
 
 def station_lists_zip(*codes: str) -> bytes:

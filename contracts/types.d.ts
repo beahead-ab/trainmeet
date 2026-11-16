@@ -9461,7 +9461,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists";
+        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture";
         /**
          * StationOutside
          * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
@@ -10206,7 +10206,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists";
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.
