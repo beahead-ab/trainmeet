@@ -39,6 +39,10 @@ _AT_ARRIVAL: Final = frozenset(
 )
 
 
+# The clock is the dispatcher's: Nu, or the page of a Provbanan run (TRAFIK-01).
+_DISPATCHER: Final = events.Actor(kind=events.ActorKind.DISPATCHER)
+
+
 class Refused(Exception):
     def __init__(self, reason: Reason) -> None:
         self.reason = reason
@@ -80,6 +84,28 @@ class Leg:
     def channel(self) -> tuple[str, str | None]:
         side = self.departure.place if self.section.tracks == TrackKind.DOUBLE else None
         return self.section.id, side
+
+
+def _at(time: str | None, day_offset: int) -> float | None:
+    return None if time is None else parse_time(time) + day_offset * SECONDS_PER_DAY
+
+
+def leg_times(leg: Leg) -> tuple[float | None, float, float] | None:
+    """When the train comes to the departure call, leaves it and arrives, in model seconds of
+    the game day; None for a leg without times or with an impossible running time. A visit
+    spanning midnight has one day offset, but two clock times."""
+    came = _at(leg.departure.arrival, leg.departure.day_offset)
+    departure = _at(leg.departure.departure, leg.departure.day_offset)
+    arrival = _at(leg.arrival.arrival or leg.arrival.departure, leg.arrival.day_offset)
+    if departure is None or arrival is None:
+        return None
+    if came is not None and departure < came:
+        departure += SECONDS_PER_DAY
+    if arrival < departure:
+        arrival += SECONDS_PER_DAY
+    if not 0 < arrival - departure <= SECONDS_PER_DAY:
+        return None
+    return came, departure, arrival
 
 
 @dataclass
@@ -168,6 +194,11 @@ class Drift:
         self.arrived_seconds: dict[str, float] = {}
         # When the clock last started, in real time: the reminders count from there (H39).
         self.running_since = now
+        # The legs the timetable had on the line when the trains were last placed: the train
+        # waits at the departure place for a clearance (DRIFT-43). And the latest time jump,
+        # while it can be undone (F6).
+        self.held: set[str] = set()
+        self.last_jump: events.DriftEvent | None = None
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -264,6 +295,12 @@ class Drift:
         )
 
     def control_clock(self, control: events.ClockControl, now: datetime) -> None:
+        if control.action == events.ClockAction.JUMP:
+            self._jump(control, now)
+            return
+        if control.action == events.ClockAction.UNDO_JUMP:
+            self._undo_jump(control, now)
+            return
         match control.action:
             case events.ClockAction.START:
                 kind = events.EventKind.CLOCK_STARTED
@@ -275,7 +312,40 @@ class Drift:
                 raise Refused(Reason.UNKNOWN_ACTION)
         seconds = self.clock.at(now)
         speed = control.speed if control.action == events.ClockAction.SPEED else self.clock.speed
-        self._record(kind, {"seconds": seconds, "speed": speed}, now, seconds=seconds)
+        self._record(
+            kind, {"seconds": seconds, "speed": speed}, now, seconds=seconds, actor=_DISPATCHER
+        )
+
+    def _jump(self, control: events.ClockControl, now: datetime) -> None:
+        """Tidshopp (H37, F6): one event, so it is all or nothing. The open cases are closed
+        and the trains placed by the timetable at the new time; the clock goes on from there
+        if it ran. Logg shows it at the time it was made."""
+        if control.game_day not in (None, self.game_day):
+            raise Refused(Reason.OTHER_GAME_DAY)
+        assert control.time is not None  # The contract asks for it.
+        before = self.clock.at(now)
+        closed = [case.id for case in self.cases.values() if case.active]
+        self._record(
+            events.EventKind.TIME_JUMP,
+            {"before": before, "seconds": float(parse_time(control.time)), "closed": closed},
+            now,
+            seconds=before,
+            actor=_DISPATCHER,
+        )
+
+    def _undo_jump(self, control: events.ClockControl, now: datetime) -> None:
+        """Ångra (F6): only the latest jump, until the next one. Asked for by number, a jump
+        someone else has made since is not undone by mistake."""
+        jump = self.last_jump
+        if jump is None or control.jump not in (None, jump.seq):
+            raise Refused(Reason.NO_JUMP_TO_UNDO)
+        before = events.TimeJumped.model_validate(jump.data).before
+        self._record(
+            events.EventKind.TIME_JUMP_UNDONE,
+            {"jump": jump.seq, "seconds": before},
+            now,
+            actor=_DISPATCHER,
+        )
 
     def pause_after_restart(self, now: datetime) -> None:
         if self.clock.running:
@@ -294,6 +364,31 @@ class Drift:
                 self._set_traffic_day(meet.traffic_day)
                 self.game_day = meet.game_day
                 self.clock = Clock(parse_time(event.model_time), meet.speed, False, event.wall_time)
+                self.last_jump = None
+                self._place(self.clock.seconds)
+            case events.EventKind.TIME_JUMP:
+                jump = events.TimeJumped.model_validate(event.data)
+                for case in list(self.cases.values()):
+                    if case.active:
+                        self.cases[case.id] = replace(
+                            case,
+                            status=station.ClearanceStatus.CANCELLED,
+                            revision=case.revision + 1,
+                        )
+                self.clock = replace(self.clock, seconds=jump.seconds, updated=event.wall_time)
+                self._place(jump.seconds)
+                self._touch_everything()
+                self.last_jump = event
+            case events.EventKind.TIME_JUMP_UNDONE:
+                undone = events.TimeJumpUndone.model_validate(event.data)
+                before = self.history[: undone.jump - 1]
+                assert self.history[undone.jump - 1].kind == events.EventKind.TIME_JUMP
+                self._restore(
+                    Drift(self.package, before, now=event.wall_time, version=self.version),
+                    undone.seconds,
+                    event.wall_time,
+                )
+                self.last_jump = None
             case (
                 events.EventKind.CLOCK_STARTED
                 | events.EventKind.CLOCK_STOPPED
@@ -502,13 +597,85 @@ class Drift:
             events.EventKind.AUTOMATION_SET,
             settings.model_dump(mode="json"),
             now,
-            actor=events.Actor(kind=events.ActorKind.DISPATCHER),
+            actor=_DISPATCHER,
         )
 
     def _arrive(self, leg: Leg, track: str | None) -> None:
         self.arrived.add(leg.departure.id)
         if track is not None:
             self.tracks[leg.departure.id] = track
+
+    # --- Where the trains stand by the timetable (DRIFT-43), and Ångra (F6) ---------------
+
+    def _place(self, seconds: float) -> None:
+        """Every train where the timetable has it at the time, as the old Server's
+        timetable_placement: what it should have run is run, and it stands where it last came
+        in, on the planned track, counted as arrived. A train the timetable has on the line
+        has no clearance and waits at the departure place (held). One without a track gets a
+        free standard track of its own. What was reported before is let go: the hand-set
+        tracks, TKL's two declarations, the trains put away and ledig linje."""
+        self.arrived.clear()
+        self.held.clear()
+        self.tracks.clear()
+        self.set_aside.clear()
+        self.assigned.clear()
+        self.positioned.clear()
+        self.crew_ready.clear()
+        self.lines.clear()
+        self.departed_seconds.clear()
+        self.arrived_seconds.clear()
+        arrivals: dict[str, float] = {}
+        for key, leg in self.legs.items():
+            times = leg_times(leg)
+            if times is None or (leg.previous in self.legs and leg.previous not in self.arrived):
+                continue  # Without times the train stops here, as in the old Server.
+            _, departure, arrival = times
+            if arrival <= seconds:
+                self.arrived.add(key)
+                arrivals[key] = arrival
+            elif departure < seconds:
+                self.held.add(key)
+        for key in sorted(arrivals, key=lambda found: (arrivals[found], found)):
+            leg = self.legs[key]
+            track = leg.arrival.track if self._gone_on(key) else self.planned_track(leg)
+            if track is not None:
+                self.tracks[key] = track
+
+    def _touch_everything(self) -> None:
+        """Every call and place has changed: each client reads again."""
+        for call in self.calls:
+            self.call_revision[call] = self.call_revision.get(call, 0) + 1
+        self._touch_places(*self.stops())
+
+    def _restore(self, before: Drift, seconds: float, now: datetime) -> None:
+        """Ångra (F6): the trains, the cases and the messages as they were before the jump,
+        and the clock at the time it showed then. Who works each place, the automation's
+        settings and the clock's speed and running stay as they are. Every revision goes up,
+        so that no client acts on what it saw in between."""
+        if before.traffic_day != self.traffic_day:
+            self._set_traffic_day(before.traffic_day)
+        self.game_day = before.game_day
+        self.cases = {
+            case.id: replace(
+                case,
+                revision=max(case.revision, getattr(self.cases.get(case.id), "revision", 0)) + 1,
+            )
+            for case in before.cases.values()
+        }
+        self.arrived, self.tracks, self.set_aside = before.arrived, before.tracks, before.set_aside
+        self.assigned, self.positioned = before.assigned, before.positioned
+        self.crew_ready, self.lines, self.held = before.crew_ready, before.lines, before.held
+        self.requested_at, self.departed_at = before.requested_at, before.departed_at
+        self.departed_seconds = before.departed_seconds
+        self.arrived_seconds = before.arrived_seconds
+        if before.first_run is not None:
+            self.first_run = before.first_run
+        elif self.automation.enabled and self.clock.running:
+            self.first_run = seconds
+        self.clock = replace(self.clock, seconds=seconds, updated=now)
+        # A restored request waits anew: the reminders count from now (H39).
+        self.running_since = now
+        self._touch_everything()
 
     # --- Revisions: per call, per case and per place, never one counter (v2 §5) -------
 

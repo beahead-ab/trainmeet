@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from contracts import drift
+from contracts.reasons import TEXT_SV, Reason
 from hub import drift_api
 from hub.app import create_app
 from hub.build_info import BuildInfo
@@ -87,9 +88,24 @@ def test_the_administrator_runs_the_clock(running: TestClient) -> None:
     assert faster.status_code == 200 and nu(running).clock.speed == 6
     running.post(API + "/clock", json={"action": "stop"})
     assert nu(running).clock.running is False
-    assert running.post(API + "/clock", json={"action": "jump", "time": "08:00"}).status_code == (
-        409
-    ), "the time jump comes later (F6, H37)"
+    # Tidshopp and Ångra (H37, F6): one event each; Nu offers the undo until it is used.
+    jumped = running.post(API + "/clock", json={"action": "jump", "time": "08:00"})
+    assert drift.DriftEvent.model_validate(jumped.json()).kind == drift.EventKind.TIME_JUMP
+    seen = nu(running)
+    assert seen.jump is not None
+    assert (seen.clock.time, seen.jump.from_time, seen.jump.to_time) == ("08:00", "06:00", "08:00")
+    assert anonymous.post(API + "/clock", json={"action": "undo_jump"}).status_code == 401
+    other = running.post(API + "/clock", json={"action": "undo_jump", "jump": seen.jump.seq + 1})
+    assert (other.status_code, other.json()["detail"]) == (409, TEXT_SV[Reason.NO_JUMP_TO_UNDO])
+    undone = running.post(API + "/clock", json={"action": "undo_jump", "jump": seen.jump.seq})
+    kind = drift.DriftEvent.model_validate(undone.json()).kind
+    assert kind == drift.EventKind.TIME_JUMP_UNDONE
+    assert (nu(running).clock.time, nu(running).jump) == ("06:00", None)
+    assert running.post(API + "/clock", json={"action": "undo_jump"}).status_code == 409
+    other_day = running.post(
+        API + "/clock", json={"action": "jump", "time": "08:00", "game_day": 2}
+    )
+    assert other_day.json()["detail"] == TEXT_SV[Reason.OTHER_GAME_DAY]
 
 
 def test_boxes_join_the_meet_with_its_code_and_are_assigned(running: TestClient) -> None:

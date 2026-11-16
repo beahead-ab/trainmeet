@@ -59,6 +59,20 @@
       ],
       "default": null,
       "title": "Game Day"
+    },
+    "jump": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tidshoppet att ångra, som Nu visade det; tomt betyder det senaste.",
+      "title": "Jump"
     }
   },
   "required": [

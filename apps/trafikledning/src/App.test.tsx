@@ -31,6 +31,15 @@ describe("Nu, Klienter and Logg (S6)", () => {
     expect(running).toContain('id="clock-toggle"');
     expect(running).toContain(">Starta klockan<");
     expect(running).toContain('aria-pressed="true">4×</button>');
+    // Tidshopp (TRAFIK-01): the slider starts at the clock, and Ångra comes after a jump (F6).
+    expect(looking).not.toContain('id="jump"');
+    expect(running).toContain('id="jump-slider"');
+    expect(running).toContain(">Hoppa till 06:00<");
+    expect(running).not.toContain('id="undo-jump"');
+    const jumped = { ...now, jump: { seq: 9, from_time: "06:00", to_time: "08:00", closed: 1, wall_time: "2026-11-16T09:00:00Z" } } as Now;
+    const after = renderToStaticMarkup(<NuPage admin now={jumped} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(after).toContain("Tidshopp från 06:00 till 08:00 · 1 klarering stängdes");
+    expect(after).toContain(">Ångra hoppet<");
   });
 
   it("asks to start a meet when none runs, and to log in first when looking", () => {

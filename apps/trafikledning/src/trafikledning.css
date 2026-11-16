@@ -119,6 +119,13 @@ main input {
   border-radius: 8px;
   padding: 6px 8px;
 }
+main input[type="range"] {
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--tm-blue);
+  width: min(420px, 60vw);
+}
 main button {
   font: inherit;
   font-weight: 600;

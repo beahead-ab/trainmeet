@@ -34,7 +34,7 @@ from uuid import uuid4
 from contracts import drift as events
 from contracts import station
 from contracts.reasons import TEXT_SV
-from drift.engine import AUTOMATION, SECONDS_PER_DAY, Drift, Leg, Refused, parse_time
+from drift.engine import AUTOMATION, Drift, Leg, Refused, leg_times
 
 # The automation asks at the earliest two model minutes before the departure (F14).
 REQUEST_LEAD_SECONDS: Final = 120
@@ -67,29 +67,15 @@ class Planned:
         return self.arrival - self.departure
 
 
-def _seconds(time: str | None, day_offset: int) -> float | None:
-    return None if time is None else parse_time(time) + day_offset * SECONDS_PER_DAY
-
-
 def plan(drift: Drift) -> dict[str, Planned]:
     """Every leg of the day the automation can run. A manual train, or a leg without times or
     with an impossible running time, is left to people and stops nothing else (F10)."""
     planned: dict[str, Planned] = {}
     for key, leg in drift.legs.items():
-        if leg.train.manual:
+        times = None if leg.train.manual else leg_times(leg)
+        if times is None:
             continue
-        came = _seconds(leg.departure.arrival, leg.departure.day_offset)
-        departure = _seconds(leg.departure.departure, leg.departure.day_offset)
-        arrival = _seconds(leg.arrival.arrival or leg.arrival.departure, leg.arrival.day_offset)
-        if departure is None or arrival is None:
-            continue
-        # A visit spanning midnight has one day offset, but two clock times.
-        if came is not None and departure < came:
-            departure += SECONDS_PER_DAY
-        if arrival < departure:
-            arrival += SECONDS_PER_DAY
-        if not 0 < arrival - departure <= SECONDS_PER_DAY:
-            continue
+        came, departure, arrival = times
         dwell = departure - came if came is not None else 0.0
         planned[key] = Planned(leg, departure, arrival, dwell)
     return planned
@@ -243,8 +229,9 @@ class Automatik:
             if math.isinf(ready):
                 return "Väntar på föregående ankomst"
             # A train planned before the automation started is history, not a queue to send
-            # all at once.
-            if leg.previous is None and planned.departure < start:
+            # all at once. One the timetable had on the line when the trains were placed waits
+            # at its departure place for a clearance, and is sent (DRIFT-43).
+            if leg.previous is None and planned.departure < start and key not in drift.held:
                 return ""
             if seconds < ready - REQUEST_LEAD_SECONDS:
                 return ""

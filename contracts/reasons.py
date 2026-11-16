@@ -52,6 +52,9 @@ class Reason(StrEnum):
     PLACE_MANNED = "automatic_station_manned"
     AUTOMATION_OFF = "automation_off"
     CLIENT_NOT_PRESENT = "client_not_present"
+    # The clock: tidshopp and Ångra (H37, F6)
+    NO_JUMP_TO_UNDO = "no_jump_to_undo"
+    OTHER_GAME_DAY = "other_game_day"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -87,4 +90,6 @@ TEXT_SV: dict[Reason, str] = {
     Reason.PLACE_MANNED: "Driftplatsen är bemannad.",
     Reason.AUTOMATION_OFF: "Automatiken är avstängd av trafikledningen.",
     Reason.CLIENT_NOT_PRESENT: "Klienten måste vara ansluten till driftplatsen.",
+    Reason.NO_JUMP_TO_UNDO: "Det finns inget tidshopp att ångra.",
+    Reason.OTHER_GAME_DAY: "Ett hopp till ett annat speldygn görs med dygnsskiftet.",
 }

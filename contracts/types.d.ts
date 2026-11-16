@@ -2273,7 +2273,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3533,6 +3533,12 @@ export interface components {
              * @default null
              */
             game_day: number | null;
+            /**
+             * Jump
+             * @description Tidshoppet att ångra, som Nu visade det; tomt betyder det senaste.
+             * @default null
+             */
+            jump: number | null;
         } & {
             [key: string]: unknown;
         }) & ({
@@ -3735,6 +3741,14 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.ClockChanged"];
         } | {
             /** @constant */
+            kind: "clock.jump";
+            data: components["schemas"]["trainmeet.drift-1.event.TimeJumped"];
+        } | {
+            /** @constant */
+            kind: "clock.jump_undone";
+            data: components["schemas"]["trainmeet.drift-1.event.TimeJumpUndone"];
+        } | {
+            /** @constant */
             kind: "clearance.requested";
             data: components["schemas"]["trainmeet.drift-1.event.ClearanceRequested"];
         } | {
@@ -3854,6 +3868,49 @@ export interface components {
             seconds: number;
             /** Speed */
             speed: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TimeJumped
+         * @description Tidshopp (H37, F6, DRIFT-32): the open cases are closed and every train is placed where
+         *     the timetable has it at the new time (DRIFT-43). Nothing is deleted, so it can be undone.
+         */
+        "trainmeet.drift-1.event.TimeJumped": {
+            /**
+             * Before
+             * @description Klockan före hoppet, sekunder in på speldygnet.
+             */
+            before: number;
+            /**
+             * Seconds
+             * @description Klockan efter hoppet.
+             */
+            seconds: number;
+            /**
+             * Closed
+             * @description Klareringarna som stängdes.
+             */
+            closed?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TimeJumpUndone
+         * @description Ångra (F6): everything is as it was before the jump, and the clock shows the time it
+         *     showed then. The events in between stay in the log.
+         */
+        "trainmeet.drift-1.event.TimeJumpUndone": {
+            /**
+             * Jump
+             * @description Tidshoppets händelsenummer.
+             */
+            jump: number;
+            /**
+             * Seconds
+             * @description Klockan efter ångrandet, som före hoppet.
+             */
+            seconds: number;
         } & {
             [key: string]: unknown;
         };
@@ -4120,6 +4177,11 @@ export interface components {
             legs: components["schemas"]["trainmeet.drift-1.now.LegNow"][];
             /** Clearances */
             clearances: components["schemas"]["trainmeet.drift-1.now.Clearance"][];
+            /**
+             * @description Det senaste tidshoppet, att ångra.
+             * @default null
+             */
+            jump: components["schemas"]["trainmeet.drift-1.now.LastJump"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4179,6 +4241,33 @@ export interface components {
             speed: number;
             /** Game Day */
             game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LastJump
+         * @description The latest time jump, while it can be undone (F6): until the next jump or undo.
+         */
+        "trainmeet.drift-1.now.LastJump": {
+            /**
+             * Seq
+             * @description Tidshoppets händelsenummer, för Ångra.
+             */
+            seq: number;
+            /** From Time */
+            from_time: string;
+            /** To Time */
+            to_time: string;
+            /**
+             * Closed
+             * @description Antalet klareringar som stängdes.
+             */
+            closed: number;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
         } & {
             [key: string]: unknown;
         };
@@ -4717,7 +4806,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
