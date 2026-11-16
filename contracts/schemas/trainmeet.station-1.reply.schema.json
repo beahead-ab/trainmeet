@@ -593,7 +593,13 @@
         "no_jump_to_undo",
         "other_game_day",
         "day_still_running",
-        "unknown_place"
+        "unknown_place",
+        "unknown_train",
+        "no_route",
+        "invalid_time",
+        "train_number_taken",
+        "unknown_change",
+        "section_closed"
       ],
       "title": "Reason",
       "type": "string"

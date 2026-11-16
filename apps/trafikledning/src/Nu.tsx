@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Weekday } from "./api";
+import type { Automation, ChangePlace, Client, ClockControl, Leg, NewDay, Now, Package, Weekday } from "./api";
+import { Andringar } from "./Andringar";
+import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
 import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
 import { Chip, Chips } from "./ui";
@@ -17,6 +19,11 @@ export type NuProps = {
   openAutomation?: boolean;
   onClock?: (control: ClockControl) => void;
   onNewDay?: (request: NewDay) => void;
+  /** The package Drift goes by, for Ny driftändring (TRAFIK-02). */
+  pkg?: Package | null;
+  onChange?: (change: DriftChange) => void;
+  onDrop?: (id: string) => void;
+  onForce?: (id: string) => void;
   onStart?: (choice: MeetChoice, day: Weekday) => void;
   onPlace?: (change: ChangePlace) => void;
 };
@@ -187,6 +194,7 @@ function Meet(props: NuProps & { now: Now }) {
       )}
       {admin && <Tidshopp now={now} onClock={onClock} />}
       {admin && <Dygnsskifte now={now} onNewDay={props.onNewDay} />}
+      {admin && <Andringar now={now} pkg={props.pkg ?? null} onMake={props.onChange} onDrop={props.onDrop} onForce={props.onForce} />}
       {admin && props.automation && <Automatiken {...props} automation={props.automation} />}
       <h2>
         Öppna klareringar{" "}

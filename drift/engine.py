@@ -17,6 +17,7 @@ from contracts import station
 from contracts.common import Side, Weekday
 from contracts.meet import Call, ClearanceMode, MeetPackage, PlaceKind, Section, TrackKind, Train
 from contracts.reasons import Reason
+from core import changes as driftchanges
 
 VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
@@ -164,6 +165,18 @@ class Case:
         }
 
 
+@dataclass(frozen=True)
+class ChangeState:
+    """A driftändring in the running meet (DRIFT-41): what it is, and whether it applies."""
+
+    id: str
+    change: events.DriftChange
+    status: events.ChangeStatus
+    forced: bool
+    made: str
+    train_number: str | None = None
+
+
 class Drift:
     def __init__(
         self,
@@ -173,6 +186,9 @@ class Drift:
         now: datetime,
         version: int = VERSION,
     ) -> None:
+        # The version that runs, and the package Drift goes by: the version with the
+        # driftändringar laid on top, in the order they applied (DRIFT-41).
+        self.base = package
         self.package = package
         self.version = version
         self.history: list[events.DriftEvent] = []
@@ -216,6 +232,10 @@ class Drift:
         self.day_settings = events.DaySettings()
         # The places' game numbers changed during the meet (H30); the rest are the package's.
         self.phones: dict[str, str | None] = {}
+        self.changes: dict[str, ChangeState] = {}
+        self.applied: list[str] = []
+        # Places a driftändring made unmanned: the automation runs them (F2).
+        self.unmanned: set[str] = set()
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -263,14 +283,13 @@ class Drift:
         call: str | None = None,
         place: str | None = None,
         actor: events.Actor | None = None,
+        train: str | None = None,
     ) -> None:
-        if call is not None:
-            train: str | None = self.calls[call][0].id if call in self.calls else None
-        elif leg is not None:
+        if train is None and call is not None:
+            train = self.calls[call][0].id if call in self.calls else None
+        elif train is None and leg is not None:
             train = leg.train.id
             call = leg.arrival.id if kind in _AT_ARRIVAL else leg.departure.id
-        else:
-            train = None
         self._apply(
             events.DriftEvent(
                 seq=len(self.history) + 1,
@@ -314,9 +333,11 @@ class Drift:
     def control_clock(self, control: events.ClockControl, now: datetime) -> None:
         if control.action == events.ClockAction.JUMP:
             self._jump(control, now)
+            self._apply_if_waiting(now)
             return
         if control.action == events.ClockAction.UNDO_JUMP:
             self._undo_jump(control, now)
+            self._apply_if_waiting(now)
             return
         match control.action:
             case events.ClockAction.START:
@@ -409,6 +430,33 @@ class Drift:
                 self.last_jump = event
             case events.EventKind.DAY_SETTINGS:
                 self.day_settings = events.DaySettings.model_validate(event.data)
+            case events.EventKind.CHANGE_MADE:
+                made = events.ChangeMade.model_validate(event.data)
+                self.changes[made.change_id] = ChangeState(
+                    made.change_id,
+                    made.change,
+                    events.ChangeStatus.WAITING if made.waiting else events.ChangeStatus.APPLIED,
+                    made.forced,
+                    event.model_time,
+                    made.train_number,
+                )
+                if not made.waiting:
+                    self._lay(made.change_id)
+            case events.EventKind.CHANGE_APPLIED:
+                ref = events.ChangeRef.model_validate(event.data)
+                state = self.changes[ref.change_id]
+                self.changes[ref.change_id] = replace(
+                    state,
+                    status=events.ChangeStatus.APPLIED,
+                    forced=state.forced or ref.forced,
+                )
+                self._lay(ref.change_id)
+            case events.EventKind.CHANGE_DROPPED:
+                change_id = events.ChangeRef.model_validate(event.data).change_id
+                state = self.changes[change_id]
+                self.changes[change_id] = replace(state, status=events.ChangeStatus.DROPPED)
+                if change_id in self.applied:
+                    self._relay()
             case events.EventKind.PLACE_PHONE:
                 assert event.place is not None
                 self.phones[event.place] = events.PhoneChanged.model_validate(event.data).phone
@@ -564,13 +612,13 @@ class Drift:
     def automatic(self, place: str) -> bool:
         """Does the automation work the place? Left to it, or never worked by a box or TKL.
         A manned place out of contact is still manned: it waits for its operator."""
-        return place in self.left or place not in self.manned
+        return place in self.unmanned or place in self.left or place not in self.manned
 
     def left_here(self, place: str) -> bool:
         """What a box or TKL at the place goes by: the automation is on and someone left
         this place to it. A place nobody has worked yet is automatic too, but the first box
         or TKL there simply mans it."""
-        return self.automation.enabled and place in self.left
+        return self.automation.enabled and (place in self.left or place in self.unmanned)
 
     def man(self, place: str, client: str, now: datetime) -> bool:
         """The first box or TKL that works a place mans it. Not a place left to the
@@ -782,6 +830,7 @@ class Drift:
             seconds=clock,
             actor=events.Actor(kind=events.ActorKind.SYSTEM) if automatic else _DISPATCHER,
         )
+        self._apply_if_waiting(now)
 
     def day_tick(self, now: datetime) -> None:
         """The automatic day change, in the hub's round: when the clock passes the time after
@@ -796,6 +845,168 @@ class Drift:
         if clock < SECONDS_PER_DAY + change + DAY_CHANGE_WAIT and self.day_running():
             return
         self.new_day(events.NewDay(), now, automatic=True)
+
+    # --- Driftändringar (DRIFT-41, TRAFIK-02, H38) -------------------------------------------
+
+    def waiting_for(self, change: events.DriftChange) -> list[str]:
+        """The trains a change touches that are out or have an open clearance (H38)."""
+        trains, sections = driftchanges.touches(self.package, change)
+        return sorted(
+            {
+                case.leg.train.number
+                for case in self.cases.values()
+                if case.active and (case.leg.train.id in trains or case.leg.section.id in sections)
+            }
+        )
+
+    def make_change(self, request: events.MakeChange, now: datetime, change_id: str) -> None:
+        """A driftändring from Nu. It applies at once, or waits until the trains it touches
+        are in, unless it is forced through (H38). One that cannot be made is refused."""
+        try:
+            driftchanges.apply(self.package, request.change, change_id)
+            busy = self.waiting_for(request.change)
+        except driftchanges.ChangeError as error:
+            raise Refused(error.reason) from error
+        train, place = self._target(request.change)
+        self._record(
+            events.EventKind.CHANGE_MADE,
+            {
+                "change_id": change_id,
+                "change": request.change.model_dump(mode="json"),
+                "waiting": bool(busy) and not request.force,
+                "forced": bool(busy) and request.force,
+                "train_number": self._number(train),
+            },
+            now,
+            actor=_DISPATCHER,
+            train=train,
+            place=place,
+        )
+        self.apply_waiting(now)
+
+    def drop_change(self, change_id: str, now: datetime) -> None:
+        """Släpp: the change no longer applies. The version that runs is as before it."""
+        state = self.changes.get(change_id)
+        if state is None or state.status == events.ChangeStatus.DROPPED:
+            raise Refused(Reason.UNKNOWN_CHANGE)
+        train, place = self._target(state.change)
+        self._record(
+            events.EventKind.CHANGE_DROPPED,
+            {"change_id": change_id},
+            now,
+            actor=_DISPATCHER,
+            train=train,
+            place=place,
+        )
+
+    def force_change(self, change_id: str, now: datetime) -> None:
+        """Tvinga igenom (H38): a waiting change applies now, though its train is out. What no
+        longer runs is closed."""
+        state = self.changes.get(change_id)
+        if state is None or state.status != events.ChangeStatus.WAITING:
+            raise Refused(Reason.UNKNOWN_CHANGE)
+        try:
+            driftchanges.apply(self.package, state.change, change_id)
+        except driftchanges.ChangeError as error:
+            raise Refused(error.reason) from error
+        train, place = self._target(state.change)
+        self._record(
+            events.EventKind.CHANGE_APPLIED,
+            {"change_id": change_id, "forced": True},
+            now,
+            actor=_DISPATCHER,
+            train=train,
+            place=place,
+        )
+
+    def _number(self, train: str | None) -> str | None:
+        return next((t.number for t in self.package.trains if t.id == train), None)
+
+    def apply_waiting(self, now: datetime) -> None:
+        """A waiting change applies as soon as the trains it touches are in (H38). One that
+        can no longer be made, because what it pointed at is gone, is let go."""
+        for state in list(self.changes.values()):
+            if state.status != events.ChangeStatus.WAITING or self.waiting_for(state.change):
+                continue
+            try:
+                driftchanges.apply(self.package, state.change, state.id)
+                kind = events.EventKind.CHANGE_APPLIED
+            except driftchanges.ChangeError:
+                kind = events.EventKind.CHANGE_DROPPED
+            train, place = self._target(state.change)
+            self._record(kind, {"change_id": state.id}, now, train=train, place=place)
+
+    def _target(self, change: events.DriftChange) -> tuple[str | None, str | None]:
+        """What Logg files a change under: its train, or its place."""
+        train = getattr(change, "train", None)
+        call = getattr(change, "call", None)
+        if train is None and call is not None:
+            try:
+                train = driftchanges.train_of_call(self.package, call)[0].id
+            except driftchanges.ChangeError:
+                train = None
+        if train is not None:
+            return train, None
+        place = getattr(change, "place", None) or getattr(change, "from_place", None)
+        return None, place if isinstance(place, str) else None
+
+    def _lay(self, change_id: str) -> None:
+        state = self.changes[change_id]
+        self.package = driftchanges.apply(self.package, state.change, change_id)
+        self.applied.append(change_id)
+        self._rebuild()
+
+    def _relay(self) -> None:
+        """A change let go: the version again, with the others laid on in their order. One that
+        leaned on the change let go goes too."""
+        self.package = self.base
+        kept: list[str] = []
+        for change_id in self.applied:
+            state = self.changes[change_id]
+            if state.status != events.ChangeStatus.APPLIED:
+                continue
+            try:
+                self.package = driftchanges.apply(self.package, state.change, change_id)
+                kept.append(change_id)
+            except driftchanges.ChangeError:
+                self.changes[change_id] = replace(state, status=events.ChangeStatus.DROPPED)
+        self.applied = kept
+        self._rebuild()
+
+    def _rebuild(self) -> None:
+        """The day's legs again from the package, and what the trains had done, for those
+        still there. A case on a leg that is gone is closed; the rest see their new leg."""
+        self._set_traffic_day(self.traffic_day)
+        self._prune()
+        base_kinds = {p.id: p.kind for p in self.base.places}
+        self.unmanned = {
+            p.id
+            for p in self.package.places
+            if p.kind == PlaceKind.UNMANNED and base_kinds.get(p.id) != PlaceKind.UNMANNED
+        }
+        self._touch_everything()
+
+    def _prune(self) -> None:
+        legs, calls = set(self.legs), set(self.calls)
+        self.arrived &= legs
+        self.held &= legs
+        self.set_aside &= legs
+        self.tracks = {key: track for key, track in self.tracks.items() if key in legs}
+        self.departed_seconds = {k: v for k, v in self.departed_seconds.items() if k in legs}
+        self.arrived_seconds = {k: v for k, v in self.arrived_seconds.items() if k in legs}
+        self.assigned = {key: track for key, track in self.assigned.items() if key in calls}
+        self.positioned &= calls
+        self.crew_ready &= calls
+        for case in list(self.cases.values()):
+            if not case.active:
+                continue
+            leg = self.legs.get(case.leg.departure.id)
+            if leg is None:
+                self.cases[case.id] = replace(
+                    case, status=station.ClearanceStatus.CANCELLED, revision=case.revision + 1
+                )
+            else:
+                self.cases[case.id] = replace(case, leg=leg)
 
     def phone(self, place: str) -> str | None:
         """The place's game number: as changed during the meet, else the package's (H30)."""
@@ -834,8 +1045,8 @@ class Drift:
         and the clock at the time it showed then. Who works each place, the automation's
         settings and the clock's speed and running stay as they are. Every revision goes up,
         so that no client acts on what it saw in between."""
-        if before.traffic_day != self.traffic_day:
-            self._set_traffic_day(before.traffic_day)
+        # The driftändringar are Trafikledningen's, like its settings: they stay.
+        self.traffic_day = before.traffic_day
         self.game_day = before.game_day
         self.cases = {
             case.id: replace(
@@ -857,6 +1068,8 @@ class Drift:
         self.clock = replace(self.clock, seconds=seconds, updated=now)
         # A restored request waits anew: the reminders count from now (H39).
         self.running_since = now
+        self._set_traffic_day(self.traffic_day)
+        self._prune()
         self._touch_everything()
 
     # --- Revisions: per call, per case and per place, never one counter (v2 §5) -------
@@ -961,6 +1174,8 @@ class Drift:
         return requested
 
     def request_block(self, leg: Leg) -> Reason | None:
+        if leg.section.closed:
+            return Reason.SECTION_CLOSED
         # A through train's next leg may be asked for while it is still on its way in; sent
         # on, it jumps here with the departure (old Server, Casper 2026-10-02).
         if leg.departure.id in self.arrived:
@@ -1299,7 +1514,17 @@ class Drift:
             raise Refused(Reason.STALE_REVISION)
 
     def command(self, command: station.Command, now: datetime) -> Outcome:
-        """Carry out one station command, or refuse it with a reason and change nothing."""
+        """Carry out one station command, or refuse it with a reason and change nothing. A
+        driftändring waiting for the train applies as soon as it is in (H38)."""
+        outcome = self._command(command, now)
+        self._apply_if_waiting(now)
+        return outcome
+
+    def _apply_if_waiting(self, now: datetime) -> None:
+        if any(state.status == events.ChangeStatus.WAITING for state in self.changes.values()):
+            self.apply_waiting(now)
+
+    def _command(self, command: station.Command, now: datetime) -> Outcome:
         if command.context != self.context:
             raise Refused(Reason.STALE_MEET_CONTEXT)
         if command.client_id == AUTOMATION:

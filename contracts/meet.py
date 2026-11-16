@@ -184,6 +184,9 @@ class Section(Contract):
     parts: list[SectionPart] = Field(
         default_factory=list, description="Delsträckorna i ordning från place_a till place_b."
     )
+    closed: bool = Field(
+        default=False, description="Stängd: inga tåg klareras över sträckan (DRIFT-41)."
+    )
     source_ids: dict[str, str] = Field(default_factory=dict)
 
 

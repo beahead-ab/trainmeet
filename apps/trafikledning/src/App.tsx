@@ -1,6 +1,7 @@
 import { DRIFT_TABS, hub, Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type PlacePhone } from "./api";
+import { api, type Automation, type AutomationSettings, type ChangePlace, type ClockControl, type DaySettings, type NewDay, type Package, type PlacePhone } from "./api";
+import type { DriftChange } from "./changes";
 import { SettingsPage } from "./Installningar";
 import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
@@ -84,6 +85,16 @@ export function App() {
     return () => window.clearInterval(timer);
   }, [admin, page, running, readAutomation]);
 
+  // The package Drift goes by, for Ny driftändring and Logg's words: read again when a change
+  // is made or let go (TRAFIK-02).
+  const [pkg, setPkg] = useState<Package | null>(null);
+  const changeCount = now?.changes?.length ?? 0;
+  const changeState = (now?.changes ?? []).map((change) => change.status).join();
+  useEffect(() => {
+    if (!admin || (page !== "nu" && page !== "logg") || !running) return setPkg(null);
+    void api.package().then(setPkg, () => setPkg(null));
+  }, [admin, page, running, changeCount, changeState]);
+
   // The numbers are read under the gear only, and only by the administrator (B13).
   useEffect(() => {
     if (!admin || page !== "installningar" || !running) return setPhones(null);
@@ -122,6 +133,16 @@ export function App() {
       if (!(await act(() => api.setPhone(change)))) break;
     }
     await readPhones();
+  };
+
+  const onChange = async (change: DriftChange) => {
+    if (await act(() => api.makeChange({ change, force: false }))) await readNow();
+  };
+  const onDrop = async (id: string) => {
+    if (await act(() => api.dropChange(id))) await readNow();
+  };
+  const onForce = async (id: string) => {
+    if (await act(() => api.forceChange(id))) await readNow();
   };
 
   const onClient = async (change: ClientAction) => {
@@ -185,12 +206,16 @@ export function App() {
             openAutomation={window.location.hash === "#automatiken"}
             onClock={(control) => void onClock(control)}
             onNewDay={(request) => void onNewDay(request)}
+            pkg={pkg}
+            onChange={(change) => void onChange(change)}
+            onDrop={(id) => void onDrop(id)}
+            onForce={(id) => void onForce(id)}
             onStart={(choice, day) => void hubState.start(choice, day)}
             onPlace={(change) => void onPlace(change)}
           />
         )}
         {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} />}
-        {page === "logg" && <LoggPage admin={admin} now={now} clients={clients} navigate={navigate} onMessage={say} />}
+        {page === "logg" && <LoggPage admin={admin} now={now} pkg={pkg} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
           <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} />

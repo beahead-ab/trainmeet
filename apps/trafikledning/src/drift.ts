@@ -1,6 +1,7 @@
 // What Trafikledningen says, and the small rules behind it, without React: the same words and
 // choices as the old pages (hub/static/drift.js), so they can be tested on their own.
-import type { Actor, AutomationPlace, Client, DayStatus, DriftEvent, LastJump, Leg, Now, Refusal, Weekday } from "./api";
+import type { Actor, AutomationPlace, Client, DayStatus, DriftEvent, LastJump, Leg, Now, Package, Refusal, Weekday } from "./api";
+import { changeText, type DriftChange } from "./changes";
 import { dayName } from "@trainmeet/hubben";
 export { dayName, WEEKDAYS } from "@trainmeet/hubben";
 
@@ -35,6 +36,9 @@ export const EVENTS: Record<string, string> = {
   "day.changed": "Ny dag",
   "day.settings": "Dygnsskiftet ändrat",
   "place.phone": "Telefonnumret ändrat",
+  "change.made": "Driftändring",
+  "change.applied": "Driftändringen gäller nu",
+  "change.dropped": "Driftändringen släppt",
   "clearance.requested": "Klarering begärd",
   "clearance.cancelled": "Begäran återtagen",
   "clearance.invalidated": "Klareringen blev ogiltig (spårbyte)",
@@ -144,8 +148,13 @@ export function dayDue(day: DayStatus): string | null {
   return null;
 }
 
-export function describe(event: DriftEvent): string {
+export function describe(event: DriftEvent, pkg: Package | null = null): string {
   const data = event.data ?? {};
+  if (event.kind === "change.made" && data["change"]) {
+    const text = changeText(data["change"] as DriftChange, pkg, data["train_number"] as string | null);
+    return `Driftändring: ${text}` + (data["waiting"] ? ", väntar på tåget" : "") + (data["forced"] ? ", tvingad igenom" : "");
+  }
+  if (event.kind === "change.applied") return "Driftändringen gäller nu" + (data["forced"] ? ", tvingad igenom" : "");
   const forward = data["forward"] ? ", flyttat fram" : "";
   if (event.kind === "clock.jump" && typeof data["seconds"] === "number") {
     const closed = Array.isArray(data["closed"]) ? data["closed"].length : 0;
@@ -190,11 +199,11 @@ const cell = (value: string) => {
 };
 export const csv = (rows: string[][]) => "\uFEFF" + rows.map((row) => row.map(cell).join(";")).join("\r\n") + "\r\n";
 
-export function eventRows(events: DriftEvent[], now: Now | null, clients: Client[]): string[][] {
+export function eventRows(events: DriftEvent[], now: Now | null, clients: Client[], pkg: Package | null = null): string[][] {
   const oldest = [...events].sort((a, b) => a.seq - b.seq);
   return [
     ["Nr", "Speldygn", "Tid", "Händelse", "Tåg", "Driftplats", "Vem", "Klockslag"],
-    ...oldest.map((event) => [String(event.seq), String(event.game_day), event.model_time, describe(event), trainNumber(now, event.train), event.place ? placeName(now, event.place) : "", actorName(event.actor, clients), event.wall_time]),
+    ...oldest.map((event) => [String(event.seq), String(event.game_day), event.model_time, describe(event, pkg), trainNumber(now, event.train), event.place ? placeName(now, event.place) : "", actorName(event.actor, clients), event.wall_time]),
   ];
 }
 

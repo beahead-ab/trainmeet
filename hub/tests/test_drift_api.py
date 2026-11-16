@@ -257,3 +257,26 @@ def test_the_administrator_changes_a_places_number(running: TestClient) -> None:
     assert {item["place"]: item["phone"] for item in changed.json()}["asn"] == "202"
     unknown = running.post(API + "/phones", json={"place": "lvh", "phone": "9"})
     assert (unknown.status_code, unknown.json()["detail"]) == (409, TEXT_SV[Reason.UNKNOWN_PLACE])
+
+
+def test_the_administrator_makes_and_lets_go_a_drift_change(running: TestClient) -> None:
+    """Driftändringar (TRAFIK-02, DRIFT-41): made from Nu, seen by everyone in Nu and in the
+    package Drift goes by, and let go again."""
+    anonymous = TestClient(running.app)
+    cancel = {"change": {"kind": "cancel", "train": "t102"}}
+    assert anonymous.post(API + "/changes", json=cancel).status_code == 401
+    made = drift.DriftEvent.model_validate(running.post(API + "/changes", json=cancel).json())
+    assert made.kind == drift.EventKind.CHANGE_MADE
+    seen = nu(running)
+    assert "102" not in {leg.train_number for leg in seen.legs}
+    (listed,) = seen.changes
+    assert (listed.status, listed.change.kind) == ("applied", "cancel")
+    package = anonymous.get(API + "/package").json()
+    assert "t102" not in {train["id"] for train in package["trains"]}
+    unknown = running.post(API + "/changes", json={"change": {"kind": "cancel", "train": "t9"}})
+    assert (unknown.status_code, unknown.json()["detail"]) == (409, TEXT_SV[Reason.UNKNOWN_TRAIN])
+    drop = API + f"/changes/{listed.change_id}/drop"
+    assert anonymous.post(drop).status_code == 401
+    assert running.post(drop).status_code == 200
+    assert "102" in {leg.train_number for leg in nu(running).legs}
+    assert running.post(drop).status_code == 409
