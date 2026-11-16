@@ -599,4 +599,5 @@ ul.domar .pill.sure {
 a.understruken { text-decoration: underline; }
 #transcribe { margin-top: 12px; }
 .knapprad { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.lada .problem { color: var(--rod); background: #fdf0ef; border: 1px solid #f3c9c4; border-radius: 8px; padding: 10px 12px; margin: 12px 0 0; }
 .knapprad #transcribe { margin-top: 0; }

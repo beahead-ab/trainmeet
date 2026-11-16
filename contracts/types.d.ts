@@ -9563,7 +9563,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture";
+        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
         /**
          * StationOutside
          * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
@@ -10322,7 +10322,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture";
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.
@@ -10556,6 +10556,12 @@ export interface components {
              * @default null
              */
             model: string | null;
+            /**
+             * Tokens
+             * @description Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: bilderna och uppmaningen. Svaret kommer till.
+             * @default 0
+             */
+            tokens: number;
         } & {
             [key: string]: unknown;
         };

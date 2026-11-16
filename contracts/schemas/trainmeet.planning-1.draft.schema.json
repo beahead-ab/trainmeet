@@ -2157,7 +2157,8 @@
       "enum": [
         "planning_json",
         "station_lists",
-        "track_picture"
+        "track_picture",
+        "graph_picture"
       ],
       "title": "SourceKind",
       "type": "string"

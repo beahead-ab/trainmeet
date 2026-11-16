@@ -48,6 +48,7 @@ class SourceKind(StrEnum):
     PLANNING_JSON = "planning_json"  # Tellurians planeringsfil
     STATION_LISTS = "station_lists"  # Stationslistorna: ODT, Excel eller CSV (4c1)
     TRACK_PICTURE = "track_picture"  # Banbilden: Tellurians topologi-PDF (4c1)
+    GRAPH_PICTURE = "graph_picture"  # Grafen som bild, avskriven av egen AI (4c2)
 
 
 class Source(Contract):
@@ -241,6 +242,12 @@ class AiPages(Contract):
     )
     model: Text | None = Field(
         default=None, description="Den egna AI:n som skriver av; tomt när ingen är inkopplad."
+    )
+    tokens: int = Field(
+        default=0,
+        ge=0,
+        description="Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: "
+        "bilderna och uppmaningen. Svaret kommer till.",
     )
 
 

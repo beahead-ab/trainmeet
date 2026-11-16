@@ -31,6 +31,7 @@ PICTURES: Final = (".jpg", ".jpeg", ".png")
 MAX_PICTURE: Final = 5 * 1024 * 1024  # what the AI services take per picture
 MAX_PAGES: Final = 40
 VERSION: Final = "listor-1"  # a new prompt is a new transcription
+PICTURE_TOKENS: Final = 1600  # the most a picture costs: the services make larger ones smaller
 PROMPT: Final = """Bilden är en sida ur en stationslista för en modelljärnvägsträff: en tabell med
 kolumnerna Tåg, Dagar, Spår, Ank, Från, Avg, Till och Anmärkningar (på danska eller norska Tog,
 Dage, Spor, Ank, Fra, Afg, Til och Bemærkninger). Skriv av den exakt som den står, utan att
@@ -189,6 +190,21 @@ def lists(name: str, found_pages: list[Page], transcript: Callable[[Page], str])
             f"{name}: AI:n hittade ingen stationslista. " + " ".join(found.left_out[:2])
         )
     return found
+
+
+def tokens(found_pages: list[Page], prompt: str = PROMPT) -> int:
+    """About how many tokens the pages cost to send (IMPORT-05): each picture as the services
+    count it, its pixels over 750 and never more than PICTURE_TOKENS, and the prompt at about
+    four characters a token. The answer comes on top."""
+    total = 0
+    for page in found_pages:
+        try:
+            width, height = dimensions(page.image)
+        except ListError:
+            width = height = 0
+        total += min(PICTURE_TOKENS, width * height // 750) if width else PICTURE_TOKENS
+        total += len(prompt) // 4
+    return total
 
 
 def dimensions(image: Image) -> tuple[int, int]:

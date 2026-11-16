@@ -21,7 +21,15 @@ from contracts import planning
 from contracts.meet import MapPoint
 from hub.hubben import Authorization, SessionCookie, require_admin, service_of
 from hub.local import LocalLogin
-from integrationer import ai, derive, planning_json, scanned, station_lists, track_picture
+from integrationer import (
+    ai,
+    derive,
+    graph_picture,
+    planning_json,
+    scanned,
+    station_lists,
+    track_picture,
+)
 from planering import export
 from planering.store import Planning, PlanningError
 
@@ -78,7 +86,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         request: Request,
         response: Response,
         name: str = Query(min_length=1, max_length=300),
-        transcribe: Literal["lists", "picture"] | None = Query(default=None),
+        transcribe: Literal["lists", "picture", "graph"] | None = Query(default=None),
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
@@ -175,8 +183,34 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             track_picture.PHOTO_VERSION.encode() + b"\0" + page.image.data
         ).hexdigest()
 
+    def _graph_key(page: scanned.Page) -> str:
+        """The key a page's transcription as the graph is kept by."""
+        version = graph_picture.VERSION.encode()
+        return hashlib.sha256(version + b"\0" + page.image.data).hexdigest()
+
+    def _graphed(
+        meet: str, current: planning.Draft
+    ) -> tuple[list[graph_picture.Line] | None, planning.Source | None]:
+        """The graph already among the sources, from its saved transcription."""
+        graphed = next(
+            (s for s in current.sources if s.kind == planning.SourceKind.GRAPH_PICTURE), None
+        )
+        if graphed is None:
+            return None, None
+        _, body = store.source_file(meet, graphed.id)
+        try:
+            texts = [store.transcript(_graph_key(p)) for p in scanned.pages(body, graphed.filename)]
+            if any(text is None for text in texts):
+                return None, None
+            return [line for text in texts for line in graph_picture.lines(text or "")], graphed
+        except (graph_picture.GraphError, station_lists.ListError):
+            return None, None
+
     def _scanned(
-        meet: str, name: str, data: bytes, transcribe: Literal["lists", "picture"] | None
+        meet: str,
+        name: str,
+        data: bytes,
+        transcribe: Literal["lists", "picture", "graph"] | None,
     ) -> planning.AiPages | dict[str, Any]:
         """Skannade stationslistor (4c2): the pages to write down first, then, asked to, the
         hub's own AI writes down the pages not already written, and code reads the rows. Each
@@ -191,6 +225,8 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         if transcribe == "picture":
             pages = pages[:1]
             pages = [scanned.Page(p.number, p.image, _photo(p)) for p in pages]
+        elif transcribe == "graph":
+            pages = [scanned.Page(p.number, p.image, _graph_key(p)) for p in pages]
         saved = {p.digest: text for p in pages if (text := store.transcript(p.digest))}
         setting = login.ai()
         if transcribe is None:
@@ -199,6 +235,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 pages=len(pages),
                 saved=len(saved),
                 model=setting.model if setting else None,
+                tokens=scanned.tokens([p for p in pages if p.digest not in saved]),
             )
         if len(saved) < len(pages) and setting is None:
             raise HTTPException(
@@ -211,7 +248,13 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             if page.digest in saved:
                 return saved[page.digest]
             assert setting is not None
-            prompt = track_picture.PHOTO_PROMPT if transcribe == "picture" else scanned.PROMPT
+            prompt = (
+                track_picture.PHOTO_PROMPT
+                if transcribe == "picture"
+                else graph_picture.PROMPT
+                if transcribe == "graph"
+                else scanned.PROMPT
+            )
             text = ai.ask(service_of(setting), prompt, [page.image], max_tokens=8192)
             store.keep_transcript(page.digest, setting.model, text)
             return text
@@ -227,6 +270,16 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             except (track_picture.PictureError, station_lists.ListError) as error:
                 raise HTTPException(422, str(error)) from error
             return _picture(meet, name, data, current, digest, picture)
+        if transcribe == "graph":
+            try:
+                found_lines = [
+                    line for page in pages for line in graph_picture.lines(transcript(page))
+                ]
+            except ai.AiError as error:
+                raise HTTPException(502, f"Avskriften stannade: {error}") from None
+            except graph_picture.GraphError as error:
+                raise HTTPException(422, str(error)) from error
+            return _graph(meet, name, data, current, digest, found_lines)
         try:
             found = scanned.lists(name, pages, transcript)
         except ai.AiError as error:
@@ -264,8 +317,15 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 result = station_lists.judge(found, plan=current.package, source=source)
             else:
                 picture, drawn = _drawn(meet, current)
+                graph, graphed = _graphed(meet, current)
                 result = derive.draft(
-                    found, meet=current.meet, source=source, picture=picture, drawn=drawn
+                    found,
+                    meet=current.meet,
+                    source=source,
+                    picture=picture,
+                    drawn=drawn,
+                    graph=graph,
+                    graphed=graphed,
                 )
         except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
@@ -334,14 +394,77 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             elif (lists := kinds.get(planning.SourceKind.STATION_LISTS)) is not None and (
                 found := _stored_lists(meet, lists)
             ) is not None:
+                graph, graphed = _graphed(meet, current)
                 result = derive.draft(
-                    found, meet=current.meet, source=lists, picture=picture, drawn=source
+                    found,
+                    meet=current.meet,
+                    source=lists,
+                    picture=picture,
+                    drawn=source,
+                    graph=graph,
+                    graphed=graphed,
                 )
                 report = result.report.model_copy(update={"source": source.id})
                 result = result.model_copy(update={"report": report})
             else:
                 raise HTTPException(
                     422, "Lägg till stationslistorna först. Banbilden bygger vidare på dem."
+                )
+            return store.preview(meet, source, data, result).model_dump(mode="json")
+        except station_lists.ListError as error:
+            raise HTTPException(422, str(error)) from error
+        except PlanningError as error:
+            _fail(error)
+
+    def _graph(
+        meet: str,
+        name: str,
+        data: bytes,
+        current: planning.Draft,
+        digest: str,
+        lines: list[graph_picture.Line],
+    ) -> dict[str, Any]:
+        """Grafen (4c2, level 3): with the station lists and no planning file, the draft is
+        derived again with the graph's lines: the order along each line, the lines in Graf, and
+        the sections it confirms. With the planning file it is kept as a source."""
+        source = planning.Source(
+            id=f"u-{digest[:12]}",
+            kind=planning.SourceKind.GRAPH_PICTURE,
+            filename=name,
+            size=len(data),
+            sha256=digest,
+            level=graph_picture.LEVEL,
+            added=datetime.now(UTC),
+        )
+        kinds = {s.kind: s for s in current.sources}
+        try:
+            if planning.SourceKind.PLANNING_JSON in kinds and current.package is not None:
+                note = "Planeringsfilen har redan grafen; grafen sparas som underlag."
+                result = planning.ImportResult(
+                    package=current.package,
+                    report=planning.ImportReport(
+                        source=source.id, level=graph_picture.LEVEL, notes=[note]
+                    ),
+                    checks_only=True,
+                )
+            elif (lists := kinds.get(planning.SourceKind.STATION_LISTS)) is not None and (
+                found := _stored_lists(meet, lists)
+            ) is not None:
+                picture, drawn = _drawn(meet, current)
+                result = derive.draft(
+                    found,
+                    meet=current.meet,
+                    source=lists,
+                    picture=picture,
+                    drawn=drawn,
+                    graph=lines,
+                    graphed=source,
+                )
+                report = result.report.model_copy(update={"source": source.id})
+                result = result.model_copy(update={"report": report})
+            else:
+                raise HTTPException(
+                    422, "Lägg till stationslistorna först. Grafen bygger vidare på dem."
                 )
             return store.preview(meet, source, data, result).model_dump(mode="json")
         except station_lists.ListError as error:

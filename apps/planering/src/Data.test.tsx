@@ -118,13 +118,14 @@ describe("Data (S6, PLAN-37)", () => {
 
 describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
   it("says the pages to write down and who pays, and asks first", () => {
-    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: "en-modell" };
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: "en-modell", tokens: 3460 };
     const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
-    expect(html).toContain("3 sidor att skriva av · 1 redan avskriven, kostar inget");
+    expect(html).toContain("3 sidor att skriva av · cirka 3\u00a0460 tokens · 1 redan avskriven, kostar inget");
     expect(html).toContain("2 sidor betalas av din AI-tjänst (en-modell).");
     expect(html).toContain('id="transcribe"');
     expect(html).toContain(">Skriv av 2 sidor som stationslista</button>");
     expect(html).toContain('id="transcribe-picture"');
+    expect(html).toContain(">Skriv av som graf</button>");
     const none = renderToStaticMarkup(<Skriv pages={{ ...pages, model: null }} writing={false} onWrite={go} />);
     expect(none).toContain('href="/installningar#ai"');
     expect(none).toContain("och tryck sedan Skriv av.");

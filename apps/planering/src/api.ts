@@ -46,7 +46,7 @@ export const planning = {
   /** Lägg till underlag: the file's own bytes, its name in the address; nothing is put in yet. */
   /** The file read and what it would change; or, for a scanned file, the pages its own AI has
    * to write down first (202). Sent again with transcribe, the AI writes them down. */
-  read: async (id: string, file: File, transcribe?: "lists" | "picture"): Promise<{ preview: ImportPreview } | { pages: AiPages }> => {
+  read: async (id: string, file: File, transcribe?: "lists" | "picture" | "graph"): Promise<{ preview: ImportPreview } | { pages: AiPages }> => {
     const asked = transcribe ? `&transcribe=${transcribe}` : "";
     const response = await fetch(`${meet(id)}/sources?name=${encodeURIComponent(file.name)}${asked}`, {
       method: "POST",

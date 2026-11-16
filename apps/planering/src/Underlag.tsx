@@ -15,13 +15,14 @@ type Read =
   | { name: string; state: "writing"; pages: AiPages }
   | { name: string; state: "failed" };
 
-const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD" };
+const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD", graph_picture: "GRAF" };
 
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
   const verdicts = report.verdicts ?? [];
   const lists = preview.source.kind === "station_lists";
   if (preview.source.kind === "track_picture" && !report.trains) return "Banbild · sparas som underlag";
+  if (preview.source.kind === "graph_picture" && !report.trains) return "Graf · sparas som underlag";
   if (lists && verdicts.length) {
     const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
     return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
@@ -29,6 +30,7 @@ export function readLine(preview: ImportPreview): string {
   const places = Object.values(report.places ?? {}).reduce((sum, value) => sum + value, 0);
   const counts = `${plural(report.trains, "tåg", "tåg")} · ${plural(places, "driftplats", "driftplatser")} · ${plural(report.sections, "sträcka", "sträckor")}`;
   if (preview.source.kind === "track_picture") return `Banbild och stationslistor · ${counts}`;
+  if (preview.source.kind === "graph_picture") return `Graf och stationslistor · ${counts}`;
   return lists ? `Stationslistor · ${counts}, härledda` : `Tellurians plan · ${counts}`;
 }
 
@@ -36,7 +38,13 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
   const [read, setRead] = useState<Read | null>(initial ?? null);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
   const panel = useRef<HTMLDivElement>(null);
+  // A failure is said in the panel too, where the planner is looking.
+  const failed = (error: unknown) => {
+    setProblem(error instanceof Error ? error.message : "Det gick inte.");
+    onFail?.(error);
+  };
 
   useEffect(() => {
     panel.current?.focus();
@@ -48,36 +56,39 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
   const take = async (file: File | undefined) => {
     if (!file) return;
     setRead({ name: file.name, state: "reading" });
+    setProblem("");
     try {
       const answer = await planning.read(meet, file);
       setRead("pages" in answer ? { name: file.name, state: "ai", pages: answer.pages, file } : { name: file.name, state: "read", preview: answer.preview });
     } catch (error) {
       setRead({ name: file.name, state: "failed" });
-      onFail?.(error);
+      failed(error);
     }
   };
 
   // Skriv av (IMPORT-05): only now does anything go to the AI, as lists or as the track picture.
-  const transcribe = async (kind: "lists" | "picture") => {
+  const transcribe = async (kind: "lists" | "picture" | "graph") => {
     if (read?.state !== "ai" || !read.file) return;
     const { name, pages, file } = read;
     setRead({ name, state: "writing", pages });
+    setProblem("");
     try {
       const answer = await planning.read(meet, file, kind);
       setRead("pages" in answer ? { name, state: "ai", pages: answer.pages, file } : { name, state: "read", preview: answer.preview, transcribed: true });
     } catch (error) {
       setRead({ name, state: "ai", pages, file });
-      onFail?.(error);
+      failed(error);
     }
   };
 
   const apply = async () => {
     if (read?.state !== "read") return;
     setBusy(true);
+    setProblem("");
     try {
       onApplied(await planning.apply(meet, read.preview.source.id));
     } catch (error) {
-      onFail?.(error);
+      failed(error);
     }
     setBusy(false);
   };
@@ -110,7 +121,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
           >
             <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv,.pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" className="osynlig" onChange={(event) => (void take(event.target.files?.[0]), (event.target.value = ""))} />
             <b>Släpp filen här</b>
-            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan. Skannade listor och foton (JPEG eller PNG) skrivs av med hubbens egna AI.</span>
+            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan. Skannade listor, foton av banan och grafen som bild (JPEG eller PNG) skrivs av med hubbens egna AI.</span>
           </label>
           {read && (
             <ul id="files" className="filer">
@@ -127,6 +138,11 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                 {read.state === "failed" && <span className="pill conflict">Gick inte</span>}
               </li>
             </ul>
+          )}
+          {problem && (
+            <p id="drawer-problem" className="problem" role="alert">
+              {problem}
+            </p>
           )}
           {preview && (
             <div id="preview">
@@ -149,7 +165,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                     <p className="liten" id="derived">
                       Härlett ur listorna: platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana. Banbilden, grafen eller planeringsfilen höjer nivån.
                     </p>
-                  ) : preview.source.kind === "track_picture" ? (
+                  ) : preview.source.kind === "track_picture" || preview.source.kind === "graph_picture" ? (
                     <p className="liten" id="derived">
                       {preview.report.notes?.[0] ?? "Banbilden sparas som underlag."}
                     </p>
@@ -216,17 +232,29 @@ function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
 
 
 /** Sidor att skriva av (IMPORT-05): what the scanned file needs, before anything goes to the AI. */
-export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: "lists" | "picture") => void }) {
+type Avskrift = "lists" | "picture" | "graph";
+
+/** 12 400 as Swedish writes it, with a space that does not break. */
+const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+
+export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: Avskrift) => void }) {
   const left = pages.pages - pages.saved;
+  const [chosen, setChosen] = useState<Avskrift>("lists");
+  const write = (kind: Avskrift) => {
+    setChosen(kind);
+    onWrite(kind);
+  };
+  const label = (kind: Avskrift, text: string) => (writing && chosen === kind ? "Skriver av …" : text);
   return (
     <div id="ai-pages">
       <div className="andras">
         <b>Filen är skannad och behöver AI</b>
         <p id="ai-count">
           {`${plural(pages.pages, "sida", "sidor")} att skriva av`}
+          {pages.tokens ? ` · cirka ${thousands(pages.tokens)} tokens` : ""}
           {pages.saved ? ` · ${plural(pages.saved, "redan avskriven", "redan avskrivna")}, kostar inget` : ""}
         </p>
-        <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), eller en bild av banan, som blir bakgrunden i Bana.</p>
+        <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), en bild av banan, som blir bakgrunden i Bana, eller grafen, där linjernas stationer skrivs av.</p>
       </div>
       <div className="kostnad">
         <b>Egen AI</b>
@@ -243,11 +271,14 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
         )}
       </div>
       <div className="knapprad">
-        <button type="button" id="transcribe" className="primar" disabled={writing} onClick={() => onWrite("lists")}>
-          {writing ? "Skriver av …" : left ? `Skriv av ${plural(left, "sida", "sidor")} som stationslista` : "Läs avskriften"}
+        <button type="button" id="transcribe" className="primar" disabled={writing} onClick={() => write("lists")}>
+          {label("lists", left ? `Skriv av ${plural(left, "sida", "sidor")} som stationslista` : "Läs avskriften")}
         </button>
-        <button type="button" id="transcribe-picture" className="sekundar" disabled={writing} onClick={() => onWrite("picture")}>
-          Skriv av som banbild
+        <button type="button" id="transcribe-picture" className="sekundar" disabled={writing} onClick={() => write("picture")}>
+          {label("picture", "Skriv av som banbild")}
+        </button>
+        <button type="button" id="transcribe-graph" className="sekundar" disabled={writing} onClick={() => write("graph")}>
+          {label("graph", "Skriv av som graf")}
         </button>
       </div>
     </div>
