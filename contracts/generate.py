@@ -440,6 +440,7 @@ def openapi() -> str:
     v = "trainmeet.screen-1."
     route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")
     route("get", "/api/screen/picture", "screenPicture", v + "picture", bearer=True)
+    route("get", "/api/screen/package", "screenPackage", "trainmeet.meet-1", bearer=True)
     route("post", "/api/drift/1/clients/view", "showView", d + "client", v + "show", bearer=True)
     h = "trainmeet.hub-1."
     route("get", "/api/hub", "hubInfo", h + "info")

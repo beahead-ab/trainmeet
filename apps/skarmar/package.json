@@ -2,7 +2,7 @@
   "name": "@trainmeet/skarmar",
   "private": true,
   "version": "0.1.0",
-  "description": "Träffens skärmar in the Hub: a TV joins with the meet's code and shows the view the dispatcher gives it (SKARM-14). Served by hub/ at /skarm.",
+  "description": "Träffens skärmar in the Hub: a TV joins with the meet's code and shows the view the dispatcher gives it: the clock, analog or digital, or Banöversikten (SKARM-14). Served by hub/ at /skarm.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@trainmeet/design": "0.1.0",
+    "@trainmeet/hubben": "0.1.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

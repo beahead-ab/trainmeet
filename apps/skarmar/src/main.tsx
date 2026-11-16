@@ -1,4 +1,5 @@
 import "@trainmeet/design/fonts.css";
+import "@trainmeet/hubben/bana.css";
 import "./skarm.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

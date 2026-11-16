@@ -6,6 +6,7 @@ type Schemas = components["schemas"];
 export type ScreenPicture = Schemas["trainmeet.screen-1.picture"];
 export type ScreenLogin = Schemas["trainmeet.screen-1.login"];
 export type ScreenSession = Schemas["trainmeet.screen-1.session"];
+export type Package = Schemas["trainmeet.meet-1"];
 
 /** The key lives in sessionStorage and goes as Authorization: Bearer, never in the address. */
 export const STORE = "trainmeet-skarm";
@@ -49,4 +50,11 @@ export async function join(login: ScreenLogin): Promise<{ key: string } | { prob
   const answer = (await response.json().catch(() => ({}))) as Partial<ScreenSession> & { detail?: unknown };
   if (!response.ok || !answer.session_key) return { problem: typeof answer.detail === "string" ? answer.detail : "Det gick inte." };
   return { key: answer.session_key };
+}
+
+/** The package the views draw on, fetched once and again when the picture's key changes. */
+export async function fetchPackage(key: string): Promise<Package | null> {
+  const response = await fetch("/api/screen/package", { headers: { Authorization: `Bearer ${key}` } }).catch(() => null);
+  if (!response?.ok) return null;
+  return (await response.json()) as Package;
 }

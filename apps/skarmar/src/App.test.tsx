@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ScreenPicture } from "./api";
+import type { Package, ScreenPicture } from "./api";
 import { clockText, Screen } from "./App";
 import { clockSeconds, hands } from "./Klocka";
+import provbanan from "../../../contracts/examples/provbanan.meet.json";
 
 const picture = (change: Partial<ScreenPicture> = {}): ScreenPicture => ({
   name: "TV vid entrén",
@@ -10,6 +11,8 @@ const picture = (change: Partial<ScreenPicture> = {}): ScreenPicture => ({
   meet: "Provbanan",
   traffic_day: "mon",
   clock: { time: "06:00", seconds: 6 * 3600, running: true, speed: 4, game_day: 1 },
+  now: null,
+  package: null,
   ...change,
 });
 
@@ -47,5 +50,20 @@ describe("a meet screen (SKARM-14)", () => {
     const html = renderToStaticMarkup(<Screen picture={picture({ clock: { ...picture().clock, running: false } })} fetchedAt={0} now={0} message="" code="" />);
     expect(html).toContain("klocka star");
     expect(html).toContain('<p id="state" class="lage stopp">Klockan står still</p>');
+  });
+
+  it("draws Banöversikten with the trains, the clock and the four lists (SKARM-21)", () => {
+    const pkg = provbanan as unknown as Package;
+    const legs = [{ leg: "t101-nby", train: "t101", train_number: "101", section: "s-nby-asn", from_place: "nby", to_place: "asn", departure: "06:00", arrival: "06:08", state: "on_the_way", clearance_id: null, track: "1" }];
+    const seen = { meet_id: "provbanan", name: "Provbanan", version: 1, traffic_day: "mon", game_day: 1, clock: picture().clock, places: [], legs, clearances: [], changes: [] };
+    const shown = picture({ view: "tracks", now: seen as unknown as ScreenPicture["now"], package: "k1" });
+    const html = renderToStaticMarkup(<Screen picture={shown} pkg={pkg} fetchedAt={0} now={0} message="" code="" />);
+    expect(html).toContain('id="tracks-view"');
+    expect(html).toContain("Banöversikt · 1 tåg på linjen · 0 klart, inte avgått · 0 väntar på svar · 0 slutar här");
+    expect(html).toContain('class="banoversikt"');
+    expect(html).toContain(">Norrby</text>");
+    expect(html).toContain("101 ▶");
+    expect(html).toContain("Norrby → Åsen");
+    expect(renderToStaticMarkup(<Screen picture={shown} pkg={null} fetchedAt={0} now={0} message="" code="" />)).toContain("Hämtar banan");
   });
 });

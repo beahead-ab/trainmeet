@@ -1,0 +1,134 @@
+/* Banöversikten (SKARM-21): dark like the control room. Green is cleared, red occupied, yellow
+   dashed requested, blue dashed on the way here, dotted ends here (the screen's legend). */
+.banoversikt {
+  --bana-bg: #0b0d10;
+  --bana-ruta: #14181d;
+  --bana-kant: #2c333c;
+  --bana-text: #e9ebef;
+  --bana-mute: #8d94a0;
+  --bana-spar: #4a525d;
+  --bana-gron: #46d36b;
+  --bana-rod: #ff5b4f;
+  --bana-gul: #f5c518;
+  --bana-bla: #5aa9ff;
+  width: 100%;
+  height: 100%;
+  font-family: Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.banoversikt .spar {
+  fill: none;
+  stroke: var(--bana-spar);
+  stroke-width: 5;
+}
+.banoversikt .spar.dubbel {
+  stroke-width: 13;
+}
+.banoversikt .spar.mellan {
+  stroke: var(--bana-bg);
+  stroke-width: 4;
+}
+.banoversikt .spar.utan {
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+  opacity: 0.6;
+}
+.banoversikt .spar-traff {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 20;
+}
+.banoversikt .klar .spar:not(.mellan) {
+  stroke: var(--bana-gron);
+}
+.banoversikt .belagd .spar:not(.mellan) {
+  stroke: var(--bana-rod);
+}
+.banoversikt .begard .spar:not(.mellan) {
+  stroke: var(--bana-gul);
+  stroke-dasharray: 14 10;
+}
+.banoversikt .strecka-namn {
+  fill: var(--bana-mute);
+  font-size: 13px;
+  font-weight: 700;
+}
+.banoversikt .strecka-not,
+.banoversikt .plats-sort,
+.banoversikt .plats-tel {
+  fill: var(--bana-mute);
+  font-size: 12px;
+}
+.banoversikt .falt {
+  fill: #050607;
+  stroke: var(--bana-kant);
+  stroke-width: 1.5;
+}
+.banoversikt .falt.belagt {
+  stroke: var(--bana-rod);
+  stroke-width: 2.5;
+}
+.banoversikt .falt.klar {
+  stroke: var(--bana-gron);
+  stroke-width: 2.5;
+}
+.banoversikt .falt.begard {
+  stroke: var(--bana-gul);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 3;
+}
+.banoversikt .falt.kommer {
+  stroke: var(--bana-bla);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 3;
+}
+.banoversikt .falt.slutar {
+  stroke: var(--bana-mute);
+  stroke-dasharray: 2 3;
+}
+.banoversikt .tagnummer {
+  fill: var(--bana-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+.banoversikt .ruta {
+  fill: var(--bana-ruta);
+  stroke: var(--bana-kant);
+  stroke-width: 1.5;
+}
+.banoversikt .skugga .ruta {
+  stroke-dasharray: 6 4;
+}
+.banoversikt .plats-namn {
+  fill: var(--bana-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+.banoversikt .plats-antal {
+  fill: var(--bana-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.banoversikt .spar-namn {
+  fill: var(--bana-mute);
+  font-size: 13px;
+}
+.banoversikt .hallplats line {
+  stroke: var(--bana-text);
+  stroke-width: 2;
+}
+.banoversikt .hallplats text {
+  fill: var(--bana-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.banoversikt .pratbubbla rect {
+  fill: #2a2408;
+  stroke: var(--bana-gul);
+  stroke-width: 2;
+}
+.banoversikt .pratbubbla text {
+  fill: var(--bana-gul);
+  font-size: 13px;
+  font-weight: 700;
+}

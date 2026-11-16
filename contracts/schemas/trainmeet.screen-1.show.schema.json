@@ -6,7 +6,8 @@
     "ScreenView": {
       "enum": [
         "clock",
-        "clock_digital"
+        "clock_digital",
+        "tracks"
       ],
       "title": "ScreenView",
       "type": "string"
