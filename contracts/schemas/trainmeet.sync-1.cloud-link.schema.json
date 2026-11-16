@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.cloud-link.schema.json",
+  "title": "trainmeet.sync-1.cloud-link",
+  "additionalProperties": true,
+  "description": "Molnet, som Pi:n ser det: en träff Pi:n följer. Nyckeln visas aldrig.",
+  "properties": {
+    "address": {
+      "description": "Molnhubbens adress, till exempel https://test.hub.trainmeet.app.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
+    "meet_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Meet Name",
+      "type": "string"
+    },
+    "cloud_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Cloud Name",
+      "type": "string"
+    },
+    "linked": {
+      "format": "date-time",
+      "title": "Linked",
+      "type": "string"
+    },
+    "heard": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heard"
+    },
+    "versions": {
+      "default": 0,
+      "description": "Versioner Pi:n har av träffen.",
+      "minimum": 0,
+      "title": "Versions",
+      "type": "integer"
+    },
+    "problem": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför Pi:n inte når molnet just nu.",
+      "title": "Problem"
+    }
+  },
+  "required": [
+    "address",
+    "meet",
+    "meet_name",
+    "cloud_name",
+    "linked"
+  ],
+  "type": "object"
+}

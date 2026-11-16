@@ -14,6 +14,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import PlainTextResponse
 
 from contracts import hub
+from contracts.sync import Hello
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
@@ -23,6 +24,7 @@ from hub import (
     provbanan,
     screen_web,
     station_api,
+    synk_api,
     tmbox_web,
     web,
 )
@@ -30,6 +32,8 @@ from hub.local import LocalLogin
 from hub.running import Running
 from hub.stores import AnyRun
 from planering.store import Planning
+from synk.follower import Call, Follower, urllib_call
+from synk.link import Links
 from synk.store import Versions
 
 # The automation takes a step about once a second while the hub runs (F14).
@@ -61,6 +65,7 @@ def create_app(
     *,
     preview_db: Path | None = None,
     web_root: Path | None = None,
+    sync_call: Call = urllib_call,
 ) -> FastAPI:
     info = info if info is not None else build_info.from_env()
     preview_path = provbanan.database_path(preview_db)
@@ -75,6 +80,7 @@ def create_app(
     plans = Planning(data_dir / "planering.sqlite3")
     # Synk keeps the versions, in Planering's file (SYNK-20).
     versions = Versions(data_dir / "planering.sqlite3")
+    links = Links(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
     running = Running(
         data_dir, package, provbanan.package_key(), plans, versions, hub_version=info.version
@@ -83,11 +89,19 @@ def create_app(
     def current() -> build_info.BuildInfo:
         return replace(info, hub_name=login.state().name)
 
+    def hello() -> Hello:
+        return Hello(hub_id=links.hub_id(), hub_name=login.state().name, software=info.version)
+
+    # The Pi follows its meets in the cloud (SYNK-10): it always calls out (SYNK-13).
+    follower = Follower(links, versions, hello, sync_call)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         stop = Event()
         thread = Thread(target=_ticker, args=(running, stop), name="automatiken", daemon=True)
         thread.start()
+        synk = Thread(target=follower.run, args=(stop,), name="synken", daemon=True)
+        synk.start()
         try:
             yield
         finally:
@@ -105,10 +119,12 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.running = running
+    app.state.follower = follower
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
-    app.include_router(planering_api.router(plans, versions, login))
+    app.include_router(planering_api.router(plans, versions, links, login))
+    app.include_router(synk_api.router(plans, versions, links, follower, login, hello))
     runs = AnyRun(lambda: running.store, lambda: preview)
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))

@@ -26,6 +26,7 @@ from contracts import (
     screen,
     station,
     station_outside,
+    sync,
     terminal,
 )
 from contracts import id as id_api
@@ -104,6 +105,14 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.ai-pages": planning.AiPages,
     "trainmeet.planning-1.version": planning.Version,
     "trainmeet.planning-1.proposal": planning.Proposal,
+    "trainmeet.sync-1.hello": sync.Hello,
+    "trainmeet.sync-1.link-code": sync.LinkCode,
+    "trainmeet.sync-1.link-request": sync.LinkRequest,
+    "trainmeet.sync-1.link": sync.Link,
+    "trainmeet.sync-1.version-list": sync.VersionList,
+    "trainmeet.sync-1.follower": sync.Follower,
+    "trainmeet.sync-1.cloud-link": sync.CloudLink,
+    "trainmeet.sync-1.cloud-link-change": sync.CloudLinkChange,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,

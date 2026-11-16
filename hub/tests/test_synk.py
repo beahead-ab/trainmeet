@@ -1,0 +1,241 @@
+"""Synk, steg 5 del 2 (SYNK-02, SYNK-10, SYNK-13): a Pi is linked to a meet in the cloud with a
+six-digit code and follows its versions. Two hubs run here in one process: the Pi's calls go
+to the cloud's app, as they would over the internet."""
+
+from __future__ import annotations
+
+import logging
+import time
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+import pytest
+from fastapi.testclient import TestClient
+
+from contracts import drift, planning, sync
+from hub.app import create_app
+from hub.build_info import BuildInfo
+from hub.tests.test_planering import API, DRIFT, MEET, PIN, upload
+from synk.follower import Call, Follower, check_address
+from synk.link import LinkError
+
+SYNC = "/api/sync/1"
+
+
+def wire(cloud: TestClient, spoil: bool = False) -> Call:
+    """The internet between the Pi and the cloud: the cloud's own app, without its login."""
+    other = TestClient(cloud.app)
+
+    def call(
+        method: str, url: str, headers: Mapping[str, str], body: bytes | None, timeout: float
+    ) -> tuple[int, bytes]:
+        path = url.split("://", 1)[1]
+        response = other.request(
+            method, path[path.index("/") :], headers=dict(headers), content=body
+        )
+        data = response.content
+        if spoil and "/versions/" in path:
+            data = data.replace(b'"101"', b'"102"', 1)
+        return response.status_code, data
+
+    return call
+
+
+def set_up(client: TestClient, name: str) -> TestClient:
+    assert client.post("/api/hub/setup", json={"name": name, "pin": PIN}).status_code == 201
+    return client
+
+
+@pytest.fixture
+def cloud(tmp_path: Path) -> TestClient:
+    client = set_up(
+        TestClient(create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "moln" / "p.db")),
+        "Molnet",
+    )
+    created = client.post(
+        API + "/meets",
+        json={"name": "Värnamo Moduldagar", "first_date": "2026-10-30", "last_date": "2026-11-01"},
+    )
+    assert created.status_code == 201
+    source = upload(client).json()["source"]["id"]
+    assert client.post(f"{API}/meets/{MEET}/sources/{source}/apply").status_code == 200
+    assert client.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    return client
+
+
+def pi_for(cloud: TestClient, tmp_path: Path, spoil: bool = False) -> TestClient:
+    app = create_app(
+        BuildInfo(version="0.1.0"),
+        preview_db=tmp_path / "pi" / "p.db",
+        sync_call=wire(cloud, spoil),
+    )
+    return set_up(TestClient(app), "Pi:n hemma")
+
+
+def code(cloud: TestClient) -> str:
+    given = cloud.post(f"{SYNC}/meets/{MEET}/code")
+    assert given.status_code == 201, given.text
+    return sync.LinkCode.model_validate(given.json()).code
+
+
+def link(pi: TestClient, cloud: TestClient) -> Any:
+    return pi.post("/api/hub/cloud", json={"address": "http://moln", "code": code(cloud)})
+
+
+def follower(pi: TestClient) -> Follower:
+    found: Follower = pi.app.state.follower  # type: ignore[attr-defined]
+    return found
+
+
+def follow(pi: TestClient) -> bool:
+    [reach] = follower(pi).links.reaches()
+    return follower(pi).follow(reach, wait=0)
+
+
+def test_a_pi_linked_with_a_code_follows_the_meets_versions(
+    cloud: TestClient, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    pi = pi_for(cloud, tmp_path)
+    linked = link(pi, cloud)
+    assert linked.status_code == 200, linked.text
+    [seen] = [sync.CloudLink.model_validate(c) for c in linked.json()]
+    assert (seen.meet, seen.meet_name, seen.cloud_name, seen.versions) == (
+        MEET,
+        "Värnamo Moduldagar",
+        "Molnet",
+        1,
+    )
+    assert seen.problem is None and seen.heard is not None
+    # The version is the same, byte for byte: the checksum says so (SYNK-10).
+    up = planning.Version.model_validate(cloud.get(f"{API}/meets/{MEET}/versions").json()[0])
+    down = planning.Version.model_validate(pi.get(f"{API}/meets/{MEET}/versions").json()[0])
+    assert down.checksum == up.checksum and down.number == 1
+    # The meet is in the Pi's list, planned in the cloud, and the Pi runs it.
+    [summary] = [planning.MeetSummary.model_validate(m) for m in pi.get(API + "/meets").json()]
+    assert (summary.meet.id, summary.home, [v.number for v in summary.versions]) == (
+        MEET,
+        "Molnet",
+        [1],
+    )
+    started = pi.post(DRIFT + "/start", json={"meet": MEET, "version": 1})
+    assert started.status_code == 201, started.text
+    now = drift.Now.model_validate(pi.get(DRIFT + "/now").json())
+    assert (now.meet_id, now.name, now.version) == (MEET, "Värnamo Moduldagar", 1)
+    # The key never shows: not in the Pi's answer, not in a log.
+    [reach] = follower(pi).links.reaches()
+    assert reach.key not in linked.text and reach.key not in caplog.text
+    assert reach.key not in pi.get("/api/hub/cloud").text
+
+
+def test_a_new_version_and_a_withdrawal_follow(cloud: TestClient, tmp_path: Path) -> None:
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    assert not follow(pi), "nothing new"
+    draft = planning.Draft.model_validate(cloud.get(f"{API}/meets/{MEET}").json())
+    assert draft.package is not None
+    place = draft.package.places[0].id
+    changed = cloud.post(
+        f"{API}/meets/{MEET}/changes",
+        json={
+            "revision": draft.revision,
+            "changes": [{"kind": "place", "place": place, "phone": "777"}],
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    assert cloud.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    assert follow(pi)
+    assert [v["number"] for v in pi.get(f"{API}/meets/{MEET}/versions").json()] == [1, 2]
+    assert cloud.post(f"{API}/meets/{MEET}/versions/1/withdraw").status_code == 200
+    assert follow(pi)
+    [first, _] = pi.get(f"{API}/meets/{MEET}/versions").json()
+    assert first["withdrawn"] is not None
+    assert pi.post(DRIFT + "/start", json={"meet": MEET, "version": 1}).status_code == 409
+
+
+def test_a_code_works_once_and_wrong_codes_make_the_cloud_wait(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    pi = pi_for(cloud, tmp_path)
+    given = code(cloud)
+    assert (
+        pi.post("/api/hub/cloud", json={"address": "http://moln", "code": given}).status_code == 200
+    )
+    again = pi.post("/api/hub/cloud", json={"address": "http://moln", "code": given})
+    assert again.status_code == 403 and "gäller inte" in again.json()["detail"]
+    hello = {"hub_id": "hub-annan", "hub_name": "En annan", "software": "0.1.0"}
+    for _ in range(9):
+        wrong = cloud.post(f"{SYNC}/link", json={"code": "000000", "hello": hello})
+        assert wrong.status_code == 403
+    assert cloud.post(f"{SYNC}/link", json={"code": "000000", "hello": hello}).status_code == 429
+    # Codes can only be given by the administrator.
+    assert TestClient(cloud.app).post(f"{SYNC}/meets/{MEET}/code").status_code == 401
+
+
+def test_a_revoked_pi_is_told_to_link_again(cloud: TestClient, tmp_path: Path) -> None:
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    [shown] = [
+        sync.Follower.model_validate(f) for f in cloud.get(f"{SYNC}/meets/{MEET}/followers").json()
+    ]
+    assert shown.hub_name == "Pi:n hemma"
+    assert cloud.post(f"{SYNC}/meets/{MEET}/followers/{shown.hub_id}/revoke").status_code == 204
+    assert not follow(pi)
+    [seen] = pi.get("/api/hub/cloud").json()
+    assert "Koppla om" in seen["problem"]
+    # The Pi lets go of the meet; the versions it has stay, frozen.
+    assert pi.post(f"/api/hub/cloud/{MEET}/disconnect").json() == []
+    assert [v["number"] for v in pi.get(f"{API}/meets/{MEET}/versions").json()] == [1]
+
+
+def test_a_version_that_does_not_come_whole_is_not_kept(cloud: TestClient, tmp_path: Path) -> None:
+    pi = pi_for(cloud, tmp_path, spoil=True)
+    assert link(pi, cloud).status_code == 200
+    [seen] = pi.get("/api/hub/cloud").json()
+    assert "kom inte hel" in seen["problem"] and seen["versions"] == 0
+
+
+def test_the_protocol_is_said_and_a_newer_one_refused(cloud: TestClient) -> None:
+    hello = {
+        "hub_id": "hub-ny",
+        "hub_name": "Ny",
+        "software": "9.0.0",
+        "protocols": ["trainmeet.sync/2"],
+    }
+    refused = cloud.post(f"{SYNC}/link", json={"code": code(cloud), "hello": hello})
+    assert refused.status_code == 426 and "trainmeet.sync/1" in refused.json()["detail"]
+    other = cloud.get(
+        f"{SYNC}/meets/{MEET}/versions",
+        headers={"Authorization": "Bearer " + "x" * 40, sync.HEADER: "trainmeet.sync/2"},
+    )
+    assert other.status_code == 426
+    assert cloud.get(f"{SYNC}/meets/{MEET}/versions").status_code == 401
+
+
+def test_the_cloud_holds_the_question_until_something_changes(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    """Long-poll: with the mark it has, the Pi waits; a version published answers at once."""
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    [reach] = follower(pi).links.reaches()
+    headers = {"Authorization": f"Bearer {reach.key}", sync.HEADER: sync.PROTOCOL}
+    first = sync.VersionList.model_validate(
+        cloud.get(f"{SYNC}/meets/{MEET}/versions", headers=headers).json()
+    )
+    began = time.monotonic()
+    same = cloud.get(
+        f"{SYNC}/meets/{MEET}/versions", params={"known": first.mark, "wait": 1}, headers=headers
+    )
+    assert time.monotonic() - began >= 0.9 and same.json()["mark"] == first.mark
+
+
+def test_the_address_is_https_except_nearby() -> None:
+    assert check_address("https://test.hub.trainmeet.app/") == "https://test.hub.trainmeet.app"
+    assert check_address("http://hub:8080") == "http://hub:8080"
+    assert check_address("http://192.168.1.20") == "http://192.168.1.20"
+    with pytest.raises(LinkError, match="https"):
+        check_address("http://test.hub.trainmeet.app")
+    with pytest.raises(LinkError, match="adress"):
+        check_address("ftp://moln")

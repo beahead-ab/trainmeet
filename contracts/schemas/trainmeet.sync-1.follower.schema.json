@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.follower.schema.json",
+  "title": "trainmeet.sync-1.follower",
+  "additionalProperties": true,
+  "description": "En Pi som följer träffen, som molnets administratör ser den.",
+  "properties": {
+    "hub_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Hub Id",
+      "type": "string"
+    },
+    "hub_name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Hub Name",
+      "type": "string"
+    },
+    "software": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Software",
+      "type": "string"
+    },
+    "linked": {
+      "format": "date-time",
+      "title": "Linked",
+      "type": "string"
+    },
+    "heard": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "När Pi:n senast hördes av.",
+      "title": "Heard"
+    }
+  },
+  "required": [
+    "hub_id",
+    "hub_name",
+    "software",
+    "linked"
+  ],
+  "type": "object"
+}

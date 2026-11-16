@@ -17,6 +17,8 @@ export type TrackPicture = Schemas["trainmeet.planning-1.track-picture"];
 export type Answer = Schemas["trainmeet.planning-1.answer"];
 export type Proposal = Schemas["trainmeet.planning-1.proposal"];
 export type DoubleTrackAnswer = Schemas["trainmeet.planning-1.double-track-answer"];
+export type LinkCode = Schemas["trainmeet.sync-1.link-code"];
+export type Follower = Schemas["trainmeet.sync-1.follower"];
 export type DoubleTrackQuestion = NonNullable<Check["double_track"]>[number];
 export type Deviation = NonNullable<Check["deviations"]>[number];
 
@@ -35,6 +37,10 @@ export const planning = {
   letStand: (id: string, deviation: Deviation) => call<Draft>(`${meet(id)}/deviations/${encodeURIComponent(deviation.id)}/let-stand`, { fingerprint: deviation.fingerprint }),
   takeBack: (id: string, deviation: Deviation) => call<Draft>(`${meet(id)}/deviations/${encodeURIComponent(deviation.id)}/take-back`, {}),
   withdraw: (id: string, number: number) => call<Version>(`${meet(id)}/versions/${number}/withdraw`, {}),
+  // Koppla en Pi (SYNK-02): a code for the meet, and the Pis that follow it.
+  linkCode: (id: string) => call<LinkCode>(`/api/sync/1/meets/${encodeURIComponent(id)}/code`, {}),
+  followers: (id: string) => call<Follower[]>(`/api/sync/1/meets/${encodeURIComponent(id)}/followers`),
+  revoke: (id: string, hub: string) => call<unknown>(`/api/sync/1/meets/${encodeURIComponent(id)}/followers/${encodeURIComponent(hub)}/revoke`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
   answer: (id: string, given: Answer) => call<Draft>(`${meet(id)}/answers`, given),
   proposals: (id: string) => call<Proposal[]>(`${meet(id)}/proposals`),

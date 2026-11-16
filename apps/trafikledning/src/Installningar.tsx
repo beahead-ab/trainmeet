@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { AiService, AiServiceChange, Automation, AutomationSettings, DaySettings, Now, PlacePhone, Version } from "./api";
+import { useEffect, useState } from "react";
+import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type Version } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -37,6 +37,7 @@ export function heaps(now: Now | null): Heap[] {
     note: "bara maskinen",
     items: [
       ["hubben", "Namn och version"],
+      ["molnet", "Molnet"],
       ["ai", "AI"],
     ],
   };
@@ -95,12 +96,99 @@ export function SettingsPage(props: SettingsProps) {
               <dd>{hubName}</dd>
             </dl>
             {version && <Built version={version} />}
-            <p className="liten">Pi:ns nät, PIN och skärmlås och språk kommer hit med Synk i steg 5.</p>
+            <p className="liten">Pi:ns nät, PIN och skärmlås och språk kommer hit senare i steg 5.</p>
           </section>
+          <Molnet admin={props.admin} />
           <EgenAi {...props} />
         </div>
       </div>
     </>
+  );
+}
+
+const when = (at: string | null | undefined) => (at ? new Date(at).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "medium" }) : "aldrig");
+
+/** Den här hubben → Molnet (SYNK-02, SYNK-10): a Pi follows meets planned in the cloud. The
+ * administrator there gives a six-digit code under Versioner; the Pi gets a key of its own,
+ * which is never shown, and fetches each version the moment it is published. */
+export function Molnet({ admin, initial }: { admin: boolean; initial?: CloudLink[] }) {
+  const [clouds, setClouds] = useState<CloudLink[] | null>(initial ?? null);
+  const [address, setAddress] = useState("https://test.hub.trainmeet.app");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
+  useEffect(() => {
+    if (!admin || initial) return;
+    const read = () => void hub.cloud().then(setClouds, () => undefined);
+    read();
+    const timer = window.setInterval(read, 5000);
+    return () => window.clearInterval(timer);
+  }, [admin, initial]);
+  const act = async (doing: () => Promise<CloudLink[]>, done: string) => {
+    setBusy(true);
+    setSaid("");
+    try {
+      setClouds(await doing());
+      setSaid(done);
+      return true;
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const link = async () => {
+    if (await act(() => hub.connectCloud({ address: address.trim(), code: code.trim() }), "Pi:n följer träffen.")) setCode("");
+  };
+  return (
+    <section id="molnet" className="kort" aria-labelledby="molnet-rubrik">
+      <h2 id="molnet-rubrik">Molnet</h2>
+      <p className="liten">En Pi följer en träff som planeras i molnhubben och hämtar varje version när den publiceras. Pi:n ringer alltid ut; ingen port öppnas på träffen.</p>
+      {!admin ? (
+        <p className="liten">Logga in för att koppla Pi:n till molnet.</p>
+      ) : (
+        <>
+          {clouds && clouds.length > 0 && (
+            <ul className="moln" id="clouds">
+              {clouds.map((cloud) => (
+                <li key={cloud.meet}>
+                  <div>
+                    <b>{cloud.meet_name}</b>
+                    <div className="liten">{`${cloud.cloud_name} · ${cloud.address} · ${cloud.versions === 1 ? "1 version" : `${cloud.versions} versioner`} · hörd ${when(cloud.heard)}`}</div>
+                    {cloud.problem && <div className="liten varning">{cloud.problem}</div>}
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => void act(() => hub.disconnectCloud(cloud.meet), `${cloud.meet_name} följs inte längre. Versionerna finns kvar.`)}>
+                    Koppla bort
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="installning">
+            <label htmlFor="cloud-address" className="etikett">
+              Molnhubben
+            </label>
+            <input id="cloud-address" className="tm-mono" value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="off" spellCheck={false} />
+          </div>
+          <div className="installning">
+            <label htmlFor="cloud-code" className="etikett">
+              Kod
+            </label>
+            <input id="cloud-code" className="tm-mono" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} autoComplete="off" placeholder="sex siffror" />
+            <span className="liten">från Planering → Versioner → Koppla en Pi i molnhubben; gäller en gång i 15 minuter</span>
+          </div>
+          <div className="installningsfot">
+            <span className="liten" role="status" id="cloud-said">
+              {busy ? "Kopplar …" : said}
+            </span>
+            <button id="cloud-connect" type="button" className="primar" disabled={busy || code.length !== 6 || !address.trim()} onClick={() => void link()}>
+              Koppla till molnet
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

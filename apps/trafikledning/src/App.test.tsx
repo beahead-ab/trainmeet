@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, newSeed, SettingsPage } from "./Installningar";
+import { heaps, Molnet, newSeed, SettingsPage } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
@@ -174,8 +174,19 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(outside).toContain("<dd>Testhubben</dd>");
   });
 
+  it("links the Pi to the cloud with a code, and shows how the synk goes (SYNK-02)", () => {
+    const cloud = { address: "https://test.hub.trainmeet.app", meet: "varnamo", meet_name: "Värnamo Moduldagar", cloud_name: "Testhubben", linked: "2026-11-16T04:00:00Z", heard: "2026-11-16T04:01:00Z", versions: 2, problem: "Molnhubben svarar inte." };
+    const linked = renderToStaticMarkup(<Molnet admin initial={[cloud]} />);
+    expect(linked).toContain("<b>Värnamo Moduldagar</b>");
+    expect(linked).toContain("Testhubben · https://test.hub.trainmeet.app · 2 versioner");
+    expect(linked).toContain("Molnhubben svarar inte.");
+    expect(linked).toContain("Koppla bort");
+    expect(linked).toContain('id="cloud-connect" type="button" class="primar" disabled=""');
+    expect(renderToStaticMarkup(<Molnet admin={false} initial={[]} />)).toContain("Logga in för att koppla Pi:n till molnet.");
+  });
+
   it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
-    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "ai"]);
+    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "molnet", "ai"]);
     const none = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={null} />);
     expect(none).toContain("Ingen egen AI är inkopplad");
     expect(none).toContain('id="ai-connect" type="button" class="primar" disabled=""');

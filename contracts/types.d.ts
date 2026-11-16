@@ -9878,6 +9878,12 @@ export interface components {
             questions: number;
             /** Versions */
             versions?: components["schemas"]["trainmeet.planning-1.meet-summary.Version"][];
+            /**
+             * Home
+             * @description Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.
+             * @default null
+             */
+            home: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10937,6 +10943,258 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.proposal.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * Hello
+         * @description Vem som ringer: hubben, dess program och de versioner av protokollet den talar.
+         */
+        "trainmeet.sync-1.hello": {
+            /** Protocols */
+            protocols?: string[];
+            /**
+             * Hub Id
+             * @description Hubbens id: slumpat vid första start, inte hemligt.
+             */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Software
+             * @description Hubbens programversion, till exempel 0.1.0.
+             */
+            software: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LinkCode
+         * @description Koppla en Pi (SYNK-02): koden som administratören i molnet ger Pi:n.
+         */
+        "trainmeet.sync-1.link-code": {
+            /** Meet */
+            meet: string;
+            /**
+             * Code
+             * @description Sex siffror. Gäller en gång, i 15 minuter.
+             */
+            code: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LinkRequest */
+        "trainmeet.sync-1.link-request": {
+            /**
+             * Code
+             * @description Sex siffror. Gäller en gång, i 15 minuter.
+             */
+            code: string;
+            hello: components["schemas"]["trainmeet.sync-1.link-request.Hello"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Hello
+         * @description Vem som ringer: hubben, dess program och de versioner av protokollet den talar.
+         */
+        "trainmeet.sync-1.link-request.Hello": {
+            /** Protocols */
+            protocols?: string[];
+            /**
+             * Hub Id
+             * @description Hubbens id: slumpat vid första start, inte hemligt.
+             */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Software
+             * @description Hubbens programversion, till exempel 0.1.0.
+             */
+            software: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Link
+         * @description Molnets svar: träffen Pi:n nu följer och dess nyckel, som bara ges här, en gång.
+         */
+        "trainmeet.sync-1.link": {
+            /** Meet */
+            meet: string;
+            /** Meet Name */
+            meet_name: string;
+            /**
+             * Key
+             * @description Pi:ns nyckel mot molnet. Skrivs aldrig ut.
+             */
+            key: string;
+            /** @description Molnets hälsning. */
+            hello: components["schemas"]["trainmeet.sync-1.link.Hello"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Hello
+         * @description Vem som ringer: hubben, dess program och de versioner av protokollet den talar.
+         */
+        "trainmeet.sync-1.link.Hello": {
+            /** Protocols */
+            protocols?: string[];
+            /**
+             * Hub Id
+             * @description Hubbens id: slumpat vid första start, inte hemligt.
+             */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Software
+             * @description Hubbens programversion, till exempel 0.1.0.
+             */
+            software: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VersionList
+         * @description Träffens versioner, som molnet har dem. Följaren skickar tillbaka mark och får svar när
+         *     något har ändrats, eller när väntan är slut (long-poll).
+         */
+        "trainmeet.sync-1.version-list": {
+            /** Meet */
+            meet: string;
+            /** Meet Name */
+            meet_name: string;
+            /** Versions */
+            versions: components["schemas"]["trainmeet.sync-1.version-list.Version"][];
+            /**
+             * Mark
+             * @description Listans kännetecken: ändras när en version publiceras.
+             */
+            mark: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Version
+         * @description A published version: frozen, never changed, never deleted (Ordlista).
+         */
+        "trainmeet.sync-1.version-list.Version": {
+            /** Meet */
+            meet: string;
+            /** Number */
+            number: number;
+            /**
+             * Published
+             * Format: date-time
+             */
+            published: string;
+            /** Checksum */
+            checksum: string;
+            /**
+             * Conflicts
+             * @default 0
+             */
+            conflicts: number;
+            /**
+             * Observations
+             * @default 0
+             */
+            observations: number;
+            /**
+             * Withdrawn
+             * @description Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.
+             * @default null
+             */
+            withdrawn: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Follower
+         * @description En Pi som följer träffen, som molnets administratör ser den.
+         */
+        "trainmeet.sync-1.follower": {
+            /** Hub Id */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /** Software */
+            software: string;
+            /**
+             * Linked
+             * Format: date-time
+             */
+            linked: string;
+            /**
+             * Heard
+             * @description När Pi:n senast hördes av.
+             * @default null
+             */
+            heard: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CloudLink
+         * @description Molnet, som Pi:n ser det: en träff Pi:n följer. Nyckeln visas aldrig.
+         */
+        "trainmeet.sync-1.cloud-link": {
+            /**
+             * Address
+             * @description Molnhubbens adress, till exempel https://test.hub.trainmeet.app.
+             */
+            address: string;
+            /** Meet */
+            meet: string;
+            /** Meet Name */
+            meet_name: string;
+            /** Cloud Name */
+            cloud_name: string;
+            /**
+             * Linked
+             * Format: date-time
+             */
+            linked: string;
+            /**
+             * Heard
+             * @default null
+             */
+            heard: string | null;
+            /**
+             * Versions
+             * @description Versioner Pi:n har av träffen.
+             * @default 0
+             */
+            versions: number;
+            /**
+             * Problem
+             * @description Varför Pi:n inte når molnet just nu.
+             * @default null
+             */
+            problem: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CloudLinkChange
+         * @description Koppla Pi:n till molnet: molnhubbens adress och koden därifrån.
+         */
+        "trainmeet.sync-1.cloud-link-change": {
+            /** Address */
+            address: string;
+            /**
+             * Code
+             * @description Sex siffror. Gäller en gång, i 15 minuter.
+             */
+            code: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
