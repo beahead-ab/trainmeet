@@ -17,6 +17,22 @@ services:
       # Reachable from the server itself for the deploy check, never from outside.
       - "127.0.0.1:8080:8080"
 
+  # Låtsas-Pi (#73, H64): the same hub, run as a Pi would run it, so that Synk can be tried
+  # without hardware. It calls out to the test hub over compose's own network (Den här hubben
+  # → Molnet, address http://hub:8080), as a Pi calls out to the cloud. Its data is in a volume
+  # of its own; the image makes /data the hub user's.
+  pi:
+    image: trainmeet-hub:${HUB_TAG}
+    restart: unless-stopped
+    environment:
+      TRAINMEET_HUB_NAME: Låtsas-Pi
+      TRAINMEET_PREVIEW_DB: /data/provbanan.sqlite3
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - pi-data:/data
+    ports:
+      - "127.0.0.1:8084:8080"
+
   # TrainMeet Catalog's own PostgreSQL. No port outside: only Catalog reaches it, on
   # compose's own network. The data lives in the volume catalog-db.
   catalog-db:
@@ -160,6 +176,7 @@ services:
       - id
     environment:
       HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN saknas}
+      PI_DOMAIN: ${PI_DOMAIN:?PI_DOMAIN saknas}
       CATALOG_DOMAIN: ${CATALOG_DOMAIN:?CATALOG_DOMAIN saknas}
       ID_DOMAIN: ${ID_DOMAIN:?ID_DOMAIN saknas}
       TAGS_DOMAIN: ${TAGS_DOMAIN:?TAGS_DOMAIN saknas}
@@ -177,3 +194,4 @@ volumes:
   caddy-config:
   catalog-db:
   id-db:
+  pi-data:

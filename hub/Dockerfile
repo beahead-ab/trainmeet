@@ -54,7 +54,8 @@ COPY hub ./hub
 RUN uv sync --locked --no-default-groups --no-editable
 
 FROM python:3.12-slim
-RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin hub
+RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin hub \
+    && mkdir /data && chown hub:hub /data
 COPY --from=build /app/.venv /app/.venv
 COPY --from=web /src/apps/skarmar/dist /app/web/skarmar
 COPY --from=web /src/apps/tmbox-webb/dist /app/web/tmbox-webb

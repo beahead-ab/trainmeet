@@ -1,6 +1,6 @@
-# Caddy framför testhubben, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt från
-# Let's Encrypt när DNS-raderna för HUB_DOMAIN, CATALOG_DOMAIN, ID_DOMAIN och TAGS_DOMAIN pekar
-# på servern.
+# Caddy framför testhubben, Låtsas-Pi, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt
+# från Let's Encrypt när DNS-raderna för HUB_DOMAIN, PI_DOMAIN, CATALOG_DOMAIN, ID_DOMAIN och
+# TAGS_DOMAIN pekar på servern.
 # Saknas en rad väntar den adressen; de andra fungerar ändå.
 {
 	admin off
@@ -21,6 +21,14 @@
 {$HUB_DOMAIN} {
 	import skydd
 	reverse_proxy hub:8080
+}
+
+# Låtsas-Pi (#73): the same hub as a Pi runs it, following the test hub, so that Synk can be
+# tried without hardware.
+{$PI_DOMAIN} {
+	import skydd
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy pi:8080
 }
 
 # TrainMeet Catalog (C35, CAT-218). Catalog sets its own Content-Security-Policy.

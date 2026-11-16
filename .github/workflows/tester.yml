@@ -111,9 +111,50 @@ jobs:
           SCRIPT=$(curl -fsS http://localhost:8080/box | grep -o '/box/assets/[^"]*\.js' | head -1)
           curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Koppla från"
 
+      - name: Två hubbar ur bilden, Pi:n följer molnet (Synk, ärende 73)
+        run: |
+          # Molnet och en Pi på ett eget nät: Pi:n ringer ut till http://moln:8080, som på testmiljöns
+          # Låtsas-Pi. Pi:n kopplas med en kod, följer versionen, startar träffen och leder den;
+          # molnet följer Pi:ns körning live.
+          docker network create synk
+          docker run -d --name moln --network synk -p 8090:8080 trainmeet-hub:prov
+          docker run -d --name pi --network synk -p 8091:8080 trainmeet-hub:prov
+          for port in 8090 8091; do
+            for i in $(seq 1 30); do
+              curl -fsS "http://localhost:$port/healthz" >/dev/null 2>&1 && break
+              sleep 1
+            done
+          done
+          JSON='Content-Type: application/json'
+          curl -fsS -c moln.txt -H "$JSON" -d '{"name":"Molnet","pin":"482915"}' http://localhost:8090/api/hub/setup >/dev/null
+          curl -fsS -c pi.txt -H "$JSON" -d '{"name":"Pi:n","pin":"482915"}' http://localhost:8091/api/hub/setup >/dev/null
+          MOLN=http://localhost:8090/api/planering/1/meets
+          curl -fsS -b moln.txt -H "$JSON" -d '{"name":"Värnamo","first_date":"2026-10-30","last_date":"2026-11-01"}' "$MOLN" >/dev/null
+          SRC=$(curl -fsS -b moln.txt -H 'Content-Type: application/octet-stream' \
+            --data-binary @integrationer/tests/fixtures/varnamo.json.gz "$MOLN/varnamo/sources?name=varnamo.json.gz" |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["id"])')
+          curl -fsS -b moln.txt -H "$JSON" -d '{}' "$MOLN/varnamo/sources/$SRC/apply" >/dev/null
+          curl -fsS -b moln.txt -H "$JSON" -d '{}' "$MOLN/varnamo/versions" >/dev/null
+          CODE=$(curl -fsS -b moln.txt -H "$JSON" -d '{}' http://localhost:8090/api/sync/1/meets/varnamo/code |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["code"])')
+          curl -fsS -b pi.txt -H "$JSON" -d "{\"address\":\"http://moln:8080\",\"code\":\"$CODE\"}" \
+            http://localhost:8091/api/hub/cloud | grep -q '"versions":1'
+          curl -fsS -b pi.txt -H "$JSON" -d '{"meet":"varnamo","version":1}' http://localhost:8091/api/drift/1/start >/dev/null
+          sleep 3
+          curl -fsS -b moln.txt -H "$JSON" -d '{"meet":"varnamo","version":1}' http://localhost:8090/api/drift/1/start >/dev/null
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8090/api/drift/1/now | grep -q '"hub_name":"Pi:n"' && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8090/api/drift/1/now | grep -q '"hub_name":"Pi:n"'
+          echo "Pi:n leder träffen och molnet följer den."
+
       - name: Visa loggen om något gick fel
         if: failure()
-        run: docker logs hub || true
+        run: |
+          docker logs hub || true
+          docker logs moln || true
+          docker logs pi || true
 
   # TrainMeet Catalog: webbappens typer och tester körs när bilden byggs. Sedan provas bilden
   # med testmiljöns egen compose-fil: databasen, säkerhetskopian före migreringen, migreringen,
@@ -141,6 +182,7 @@ jobs:
           {
             echo "HUB_TAG=prov"
             echo "HUB_DOMAIN=localhost"
+            echo "PI_DOMAIN=localhost"
             echo "CATALOG_TAG=prov"
             echo "CATALOG_DOMAIN=localhost"
             echo "CATALOG_DB_PASSWORD=$(openssl rand -hex 24)"
@@ -326,6 +368,7 @@ jobs:
       DOMAIN: ${{ vars.TESTHUB_DOMAIN || 'test.hub.trainmeet.app' }}
       CATALOG_DOMAIN: ${{ vars.TESTCATALOG_DOMAIN || 'test.catalog.trainmeet.app' }}
       ID_DOMAIN: ${{ vars.TESTID_DOMAIN || 'test.id.trainmeet.app' }}
+      PI_DOMAIN: ${{ vars.TESTPI_DOMAIN || 'test.pi.trainmeet.app' }}
       TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}
       TAG: ${{ github.sha }}
     steps:
@@ -442,7 +485,7 @@ jobs:
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
             TAG_BASE="https://$TAGS_DOMAIN/t/"
           fi
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" < deploy/testmiljo/up.sh
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
@@ -540,6 +583,36 @@ jobs:
             sleep 5
           done
           echo "::error::https://$ID_DOMAIN svarar inte."
+          exit 1
+
+      - name: Prova Låtsas-Pi:ns adress
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$PI_DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$PI_DOMAIN pekar inte på servern än. Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### Låtsas-Pi är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **CNAME**, namn **${PI_DOMAIN%%.trainmeet.app}**, mål **$DOMAIN**, proxy **av** (grått moln)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$PI_DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
+              {
+                echo "### Låtsas-Pi är ute"
+                echo ""
+                echo "- https://$PI_DOMAIN"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$PI_DOMAIN svarar inte."
           exit 1
 
       - name: Prova taggarnas adress
