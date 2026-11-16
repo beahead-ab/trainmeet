@@ -243,6 +243,12 @@ class AiPages(Contract):
     model: Text | None = Field(
         default=None, description="Den egna AI:n som skriver av; tomt när ingen är inkopplad."
     )
+    tokens: int = Field(
+        default=0,
+        ge=0,
+        description="Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: "
+        "bilderna och uppmaningen. Svaret kommer till.",
+    )
 
 
 class PictureLink(Contract):

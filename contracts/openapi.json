@@ -21652,6 +21652,13 @@
             "default": null,
             "description": "Den egna AI:n som skriver av; tomt när ingen är inkopplad.",
             "title": "Model"
+          },
+          "tokens": {
+            "default": 0,
+            "description": "Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: bilderna och uppmaningen. Svaret kommer till.",
+            "minimum": 0,
+            "title": "Tokens",
+            "type": "integer"
           }
         },
         "required": [

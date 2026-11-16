@@ -234,6 +234,9 @@ function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
 /** Sidor att skriva av (IMPORT-05): what the scanned file needs, before anything goes to the AI. */
 type Avskrift = "lists" | "picture" | "graph";
 
+/** 12 400 as Swedish writes it, with a space that does not break. */
+const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+
 export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: Avskrift) => void }) {
   const left = pages.pages - pages.saved;
   const [chosen, setChosen] = useState<Avskrift>("lists");
@@ -248,6 +251,7 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
         <b>Filen är skannad och behöver AI</b>
         <p id="ai-count">
           {`${plural(pages.pages, "sida", "sidor")} att skriva av`}
+          {pages.tokens ? ` · cirka ${thousands(pages.tokens)} tokens` : ""}
           {pages.saved ? ` · ${plural(pages.saved, "redan avskriven", "redan avskrivna")}, kostar inget` : ""}
         </p>
         <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), en bild av banan, som blir bakgrunden i Bana, eller grafen, där linjernas stationer skrivs av.</p>

@@ -429,9 +429,11 @@ def test_a_scanned_list_is_written_down_by_the_hubs_own_ai(hub: TestClient) -> N
 
     asked = send(False)
     assert asked.status_code == 202, asked.text
-    assert planning.AiPages.model_validate(asked.json()) == planning.AiPages(
+    priced = planning.AiPages.model_validate(asked.json())
+    assert priced.model_copy(update={"tokens": 0}) == planning.AiPages(
         filename="Lekby.png", pages=1, saved=0, model=None
     )
+    assert priced.tokens > 0, "the price before the AI starts (IMPORT-05)"
     refused = send(True)
     assert refused.status_code == 422 and "Den här hubben → AI" in refused.json()["detail"]
     said = transcript(varnamo_plan(), "Lek", "Lek Lekby")

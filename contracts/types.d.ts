@@ -10556,6 +10556,12 @@ export interface components {
              * @default null
              */
             model: string | null;
+            /**
+             * Tokens
+             * @description Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: bilderna och uppmaningen. Svaret kommer till.
+             * @default 0
+             */
+            tokens: number;
         } & {
             [key: string]: unknown;
         };

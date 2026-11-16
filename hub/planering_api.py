@@ -235,6 +235,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 pages=len(pages),
                 saved=len(saved),
                 model=setting.model if setting else None,
+                tokens=scanned.tokens([p for p in pages if p.digest not in saved]),
             )
         if len(saved) < len(pages) and setting is None:
             raise HTTPException(

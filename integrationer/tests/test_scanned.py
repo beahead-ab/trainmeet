@@ -66,6 +66,15 @@ def test_the_pages_of_a_scanned_pdf_are_pictures() -> None:
         pages(b"GIF89a", "bild.png")
 
 
+def test_the_price_before_the_ai_starts() -> None:
+    """IMPORT-05: the tokens it costs to send the pages, before anything is sent."""
+    small = Page(1, Image("image/png", drawn("12", 10)), "d")  # 90 × 70 pixels
+    assert scanned.tokens([small]) == 6300 // 750 + len(scanned.PROMPT) // 4
+    large = Page(2, Image("image/png", drawn("12", 200)), "e")
+    assert scanned.tokens([large], "") == scanned.PICTURE_TOKENS, "the services make it smaller"
+    assert scanned.tokens([]) == 0
+
+
 def test_the_transcription_is_read_with_code(plan: MeetPackage) -> None:
     heading, rows = transcribed(transcript(plan, "Lek", "Lek Lekby"))
     assert heading == "Lek Lekby" and len(rows) > 20 and all(len(r) == 8 for r in rows)
