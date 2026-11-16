@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.ai-pages.schema.json",
+  "title": "trainmeet.planning-1.ai-pages",
+  "additionalProperties": true,
+  "description": "Sidor att skriva av (IMPORT-05): what a scanned file needs before AI starts. Nothing is\nsent to the AI until the planner says Skriv av.",
+  "properties": {
+    "filename": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Filename",
+      "type": "string"
+    },
+    "pages": {
+      "minimum": 1,
+      "title": "Pages",
+      "type": "integer"
+    },
+    "saved": {
+      "description": "Sidor som redan är avskrivna; de används igen och kostar inget.",
+      "minimum": 0,
+      "title": "Saved",
+      "type": "integer"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Den egna AI:n som skriver av; tomt när ingen är inkopplad.",
+      "title": "Model"
+    }
+  },
+  "required": [
+    "filename",
+    "pages",
+    "saved"
+  ],
+  "type": "object"
+}

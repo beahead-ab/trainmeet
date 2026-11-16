@@ -87,6 +87,7 @@ class Row:
     destination: str
     stops: bool
     remote: str | None = None  # the code before the track: a place the station clears for
+    page: int | None = None  # the page of a transcribed list
 
 
 @dataclass
@@ -95,6 +96,7 @@ class Lists:
 
     rows: dict[str, list[Row]] = field(default_factory=dict)
     left_out: list[str] = field(default_factory=list)
+    transcribed: bool = False  # written down by AI (4c2): everything in it is osäker
 
 
 def header_key(text: str) -> str:
@@ -229,6 +231,7 @@ PRINTED: Final = [
     "F",
     "L",
 ]
+HEADER_WORDS: Final = [*PRINTED, "Anmärkningar"]
 
 
 def abbreviates(code: str, name: str) -> bool:
@@ -240,7 +243,7 @@ def abbreviates(code: str, name: str) -> bool:
     return all(letter in rest for letter in letters)
 
 
-def _title(text: str) -> tuple[str, str]:
+def title(text: str) -> tuple[str, str]:
     """ "Ste Steinsnes" is Steinsnes with the signature Ste; "Sura by" has no signature."""
     first, _, rest = text.partition(" ")
     if rest and len(first) <= 4 and first[:1].isupper() and abbreviates(first, rest):
@@ -304,8 +307,8 @@ def _pdf_tables(data: bytes, name: str) -> list[tuple[str, str, list[list[str]]]
             text = re.split(r"\s+\+\s+", text)[0].strip()
             if not text:
                 raise ListError(f"{where}: stationens namn saknas över tabellen.")
-            station, code = _title(text)
-            out.append((station, code, [[*PRINTED, "Anmärkningar"]]))
+            station, code = title(text)
+            out.append((station, code, [list(HEADER_WORDS)]))
             top = head.top + 5
         # A row begins where Dagar has a value: a long train label may go on to a second line.
         tops = sorted({w.top for w in words if bounds[1] <= w.x0 < bounds[2] and w.top > top})
@@ -358,11 +361,18 @@ def _time(text: str) -> str | None:
     return f"{hour % 24:02d}:{minute:02d}"
 
 
+def rows_from(document: str, table: list[list[str]], found: Lists, heading: str, page: int) -> None:
+    """A transcribed page of a list (4c2): its rows, read as any list's, under the station the
+    heading names."""
+    _rows(document, [table], found, title(heading), page)
+
+
 def _rows(
     name: str,
     tables: list[list[list[str]]],
     found: Lists,
     station_code: tuple[str, str] | None = None,
+    page: int | None = None,
 ) -> None:
     station, code = station_code or _station(name)
     read = False
@@ -408,6 +418,7 @@ def _rows(
                     destination=cells[6].strip(),
                     stops=not any(s in note for s in NO_STOP),
                     remote=remote[1] if remote else None,
+                    page=page,
                 )
             )
             if sum(len(rows) for rows in found.rows.values()) > MAX_ROWS:
@@ -584,7 +595,11 @@ def summary(judged: list[ListVerdict]) -> str:
 
 def check(data: bytes, name: str, *, plan: MeetPackage, source: Source) -> ImportResult:
     """The lists as the check of the plan: a verdict per list; the draft does not change."""
-    found = read(data, name)
+    return judge(read(data, name), plan=plan, source=source)
+
+
+def judge(found: Lists, *, plan: MeetPackage, source: Source) -> ImportResult:
+    """Lists already read, as the check of the plan."""
     judged = verdicts(found, plan)
     return ImportResult(
         package=plan,
@@ -599,13 +614,10 @@ def check(data: bytes, name: str, *, plan: MeetPackage, source: Source) -> Impor
     )
 
 
-def judged_anew(data: bytes, name: str, result: ImportResult) -> ImportResult:
+def judged_anew(found: Lists, result: ImportResult) -> ImportResult:
     """The planning file read with the lists already among the sources: they become its check,
     a verdict per list (level 4: the other sources are checks)."""
-    try:
-        judged = verdicts(read(data, name), result.package)
-    except ListError:
-        return result
+    judged = verdicts(found, result.package)
     report = result.report.model_copy(
         update={"verdicts": judged, "notes": [*result.report.notes, summary(judged)]}
     )

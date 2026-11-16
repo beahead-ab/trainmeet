@@ -1,8 +1,10 @@
 """A small PDF writer for the tests: text, lines and round marks on one A4 page, laid out as the
-planning program prints its pages. Coordinates from the top left, as on the screen."""
+planning program prints its pages, or a scanned page as a picture without text. Coordinates from
+the top left, as on the screen."""
 
 from __future__ import annotations
 
+import zlib
 from dataclasses import dataclass, field
 
 WIDTH, HEIGHT = 842.0, 595.0
@@ -12,6 +14,13 @@ KAPPA = 0.5523  # a quarter circle as a Bézier curve
 @dataclass
 class Sheet:
     ops: list[str] = field(default_factory=list)
+    scan: tuple[int, int, bytes] | None = None  # a scanned page: width, height, grey pixels
+
+    def scanned(self, width: int, height: int, pixels: bytes) -> Sheet:
+        """The whole page a picture, as a scanner makes it: 8-bit grey, no text."""
+        self.scan = (width, height, pixels)
+        self.ops.append(f"q {WIDTH} 0 0 {HEIGHT} 0 0 cm /Im0 Do Q")
+        return self
 
     def text(self, x: float, baseline: float, words: str, size: float = 9) -> Sheet:
         raw = words.encode("cp1252").replace(b"\\", b"\\\\").replace(b"(", b"\\(")
@@ -44,16 +53,31 @@ def pdf(*sheets: Sheet) -> bytes:
     font = 3 + 2 * len(sheets)
     objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
     objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {len(sheets)} >>".encode())
+    images: list[bytes] = []
     for i, sheet in enumerate(sheets):
         stream = "\n".join(sheet.ops).encode("latin-1")
+        xobject = ""
+        if sheet.scan:
+            width, height, pixels = sheet.scan
+            body = zlib.compress(pixels)
+            xobject = f" /XObject << /Im0 {font + 1 + len(images)} 0 R >>"
+            images.append(
+                f"<< /Type /XObject /Subtype /Image /Width {width} /Height {height} "
+                f"/ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode "
+                f"/Length {len(body)} >>\nstream\n".encode()
+                + body
+                + b"\nendstream"
+            )
         objects.append(
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {WIDTH} {HEIGHT}] "
-            f"/Contents {4 + 2 * i} 0 R /Resources << /Font << /F1 {font} 0 R >> >> >>".encode()
+            f"/Contents {4 + 2 * i} 0 R "
+            f"/Resources << /Font << /F1 {font} 0 R >>{xobject} >> >>".encode()
         )
         objects.append(f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream")
     objects.append(
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
     )
+    objects.extend(images)
     out = bytearray(b"%PDF-1.4\n")
     offsets = []
     for number, body in enumerate(objects, 1):

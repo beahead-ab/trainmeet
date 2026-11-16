@@ -19,9 +19,9 @@ from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
 from contracts.meet import MapPoint
-from hub.hubben import Authorization, SessionCookie, require_admin
+from hub.hubben import Authorization, SessionCookie, require_admin, service_of
 from hub.local import LocalLogin
-from integrationer import derive, planning_json, station_lists, track_picture
+from integrationer import ai, derive, planning_json, scanned, station_lists, track_picture
 from planering import export
 from planering.store import Planning, PlanningError
 
@@ -78,11 +78,14 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         request: Request,
         response: Response,
         name: str = Query(min_length=1, max_length=300),
+        transcribe: bool = Query(default=False),
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         """Lägg till underlag: the file's bytes in the body, its name in the address. The file
-        is read and what it would change is shown; nothing changes until it is laid in."""
+        is read and what it would change is shown; nothing changes until it is laid in. A
+        scanned file first answers 202 with the pages to transcribe (IMPORT-05); sent again with
+        transcribe, the hub's own AI writes them down."""
         response.headers["Cache-Control"] = "no-store"
         await run_in_threadpool(admin, session, authorization)
         chunks: list[bytes] = []
@@ -95,6 +98,12 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         data = b"".join(chunks)
         if not data:
             raise HTTPException(422, "Filen är tom.")
+        if scanned.needs_ai(data, filename(name)):
+            asked = await run_in_threadpool(_scanned, meet, filename(name), data, transcribe)
+            if isinstance(asked, planning.AiPages):
+                response.status_code = 202
+                return asked.model_dump(mode="json")
+            return asked
         return await run_in_threadpool(_read, meet, filename(name), data)
 
     def _read(meet: str, name: str, data: bytes) -> dict[str, Any]:
@@ -138,15 +147,80 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             (s for s in current.sources if s.kind == planning.SourceKind.STATION_LISTS), None
         )
         try:
-            if added is not None:
-                _, body = store.source_file(meet, added.id)
-                result = station_lists.judged_anew(body, added.filename, result)
+            if added is not None and (found := _stored_lists(meet, added)) is not None:
+                result = station_lists.judged_anew(found, result)
             return store.preview(meet, source, data, result).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
 
+    def _stored_lists(meet: str, source: planning.Source) -> station_lists.Lists | None:
+        """Lists already among the sources, read again from the file as it came: with code, or
+        from the saved transcriptions of a scanned file."""
+        _, body = store.source_file(meet, source.id)
+        try:
+            if scanned.needs_ai(body, source.filename):
+                pages = scanned.pages(body, source.filename)
+                saved = {p.digest: store.transcript(p.digest) for p in pages}
+                if any(text is None for text in saved.values()):
+                    return None
+                return scanned.lists(source.filename, pages, lambda p: saved[p.digest] or "")
+            return station_lists.read(body, source.filename)
+        except station_lists.ListError:
+            return None
+
+    def _scanned(
+        meet: str, name: str, data: bytes, transcribe: bool
+    ) -> planning.AiPages | dict[str, Any]:
+        """Skannade stationslistor (4c2): the pages to write down first, then, asked to, the
+        hub's own AI writes down the pages not already written, and code reads the rows. Each
+        page's transcription is kept, so the same file never costs twice (IMPORT-15)."""
+        try:
+            current = store.draft(meet)
+            pages = scanned.pages(data, name)
+        except station_lists.ListError as error:
+            raise HTTPException(422, str(error)) from error
+        except PlanningError as error:
+            _fail(error)
+        saved = {p.digest: text for p in pages if (text := store.transcript(p.digest))}
+        setting = login.ai()
+        if not transcribe:
+            return planning.AiPages(
+                filename=name,
+                pages=len(pages),
+                saved=len(saved),
+                model=setting.model if setting else None,
+            )
+        if len(saved) < len(pages) and setting is None:
+            raise HTTPException(
+                422,
+                "Den här filen behöver AI. Koppla in egen AI under Inställningar → Den här "
+                "hubben → AI först.",
+            )
+
+        def transcript(page: scanned.Page) -> str:
+            if page.digest in saved:
+                return saved[page.digest]
+            assert setting is not None
+            text = ai.ask(service_of(setting), scanned.PROMPT, [page.image], max_tokens=8192)
+            store.keep_transcript(page.digest, setting.model, text)
+            return text
+
+        try:
+            found = scanned.lists(name, pages, transcript)
+        except ai.AiError as error:
+            raise HTTPException(502, f"Avskriften stannade: {error}") from None
+        except station_lists.ListError as error:
+            raise HTTPException(422, str(error)) from error
+        digest = hashlib.sha256(data).hexdigest()
+        return _lists(meet, name, data, current, digest, found)
+
     def _lists(
-        meet: str, name: str, data: bytes, current: planning.Draft, digest: str
+        meet: str,
+        name: str,
+        data: bytes,
+        current: planning.Draft,
+        digest: str,
+        given: station_lists.Lists | None = None,
     ) -> dict[str, Any]:
         """Stationslistorna (4c1): with the planning file in the draft, each list is judged
         against it, row by row (IMPORT-27). Without it, the lists build the draft: trains,
@@ -164,10 +238,10 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             added=datetime.now(UTC),
         )
         try:
+            found = given or station_lists.read(data, name)
             if planned and current.package is not None:
-                result = station_lists.check(data, name, plan=current.package, source=source)
+                result = station_lists.judge(found, plan=current.package, source=source)
             else:
-                found = station_lists.read(data, name)
                 picture, drawn = _drawn(meet, current)
                 result = derive.draft(
                     found, meet=current.meet, source=source, picture=picture, drawn=drawn
@@ -224,9 +298,9 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                     ),
                     checks_only=True,
                 )
-            elif (lists := kinds.get(planning.SourceKind.STATION_LISTS)) is not None:
-                _, body = store.source_file(meet, lists.id)
-                found = station_lists.read(body, lists.filename)
+            elif (lists := kinds.get(planning.SourceKind.STATION_LISTS)) is not None and (
+                found := _stored_lists(meet, lists)
+            ) is not None:
                 result = derive.draft(
                     found, meet=current.meet, source=lists, picture=picture, drawn=source
                 )

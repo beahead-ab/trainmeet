@@ -11,6 +11,7 @@ export type Check = Schemas["trainmeet.planning-1.check"];
 export type Finding = Schemas["trainmeet.planning-1.check.Finding"];
 export type Version = Schemas["trainmeet.planning-1.version"];
 export type ImportPreview = Schemas["trainmeet.planning-1.import-preview"];
+export type AiPages = Schemas["trainmeet.planning-1.ai-pages"];
 export type Changes = Schemas["trainmeet.planning-1.changes"];
 export type TrackPicture = Schemas["trainmeet.planning-1.track-picture"];
 export type Answer = Schemas["trainmeet.planning-1.answer"];
@@ -43,8 +44,11 @@ export const planning = {
   /** The source file as it came, for the administrator. */
   sourceFile: (id: string, source: string) => `${meet(id)}/sources/${encodeURIComponent(source)}`,
   /** Lägg till underlag: the file's own bytes, its name in the address; nothing is put in yet. */
-  read: async (id: string, file: File): Promise<ImportPreview> => {
-    const response = await fetch(`${meet(id)}/sources?name=${encodeURIComponent(file.name)}`, {
+  /** The file read and what it would change; or, for a scanned file, the pages its own AI has
+   * to write down first (202). Sent again with transcribe, the AI writes them down. */
+  read: async (id: string, file: File, transcribe = false): Promise<{ preview: ImportPreview } | { pages: AiPages }> => {
+    const asked = transcribe ? "&transcribe=true" : "";
+    const response = await fetch(`${meet(id)}/sources?name=${encodeURIComponent(file.name)}${asked}`, {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream" },
       body: file,
@@ -56,6 +60,7 @@ export const planning = {
       const said = (answer as { detail?: unknown } | null)?.detail;
       throw new Problem(typeof said === "string" ? said : "Filen gick inte att läsa.", response.status);
     }
-    return answer as ImportPreview;
+    if (response.status === 202) return { pages: answer as AiPages };
+    return { preview: answer as ImportPreview };
   },
 };

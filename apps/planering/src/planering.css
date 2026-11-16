@@ -596,3 +596,5 @@ ul.domar .pill.sure {
 .notis #confirm-all { margin-left: 12px; }
 .bekrafta { display: flex; gap: 12px; align-items: center; justify-content: space-between;
   background: #fbf5e6; border: 1px solid #ecdcae; border-radius: 10px; padding: 10px 12px; margin: 12px 0; }
+a.understruken { text-decoration: underline; }
+#transcribe { margin-top: 12px; }

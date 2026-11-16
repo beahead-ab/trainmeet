@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { planning, type Draft, type ImportPreview } from "./api";
+import { planning, type AiPages, type Draft, type ImportPreview } from "./api";
 import { LEVELS, describePreview, plural } from "./data";
 
 // Lägg till underlag (S6), opened from Data: drop or choose Tellurian's planning file (JSON) or
@@ -8,7 +8,12 @@ import { LEVELS, describePreview, plural } from "./data";
 // planning file get a verdict each instead (IMPORT-27); without it they build the draft, with
 // places, kinds and sections derived and osäkra (IMPORT-17).
 
-type Read = { name: string; state: "reading" } | { name: string; state: "read"; preview: ImportPreview } | { name: string; state: "failed" };
+type Read =
+  | { name: string; state: "reading" }
+  | { name: string; state: "read"; preview: ImportPreview; transcribed?: boolean }
+  | { name: string; state: "ai"; pages: AiPages; file?: File }
+  | { name: string; state: "writing"; pages: AiPages }
+  | { name: string; state: "failed" };
 
 const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD" };
 
@@ -44,9 +49,24 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
     if (!file) return;
     setRead({ name: file.name, state: "reading" });
     try {
-      setRead({ name: file.name, state: "read", preview: await planning.read(meet, file) });
+      const answer = await planning.read(meet, file);
+      setRead("pages" in answer ? { name: file.name, state: "ai", pages: answer.pages, file } : { name: file.name, state: "read", preview: answer.preview });
     } catch (error) {
       setRead({ name: file.name, state: "failed" });
+      onFail?.(error);
+    }
+  };
+
+  // Skriv av (IMPORT-05): only now does anything go to the AI.
+  const transcribe = async () => {
+    if (read?.state !== "ai" || !read.file) return;
+    const { name, pages, file } = read;
+    setRead({ name, state: "writing", pages });
+    try {
+      const answer = await planning.read(meet, file, true);
+      setRead("pages" in answer ? { name, state: "ai", pages: answer.pages, file } : { name, state: "read", preview: answer.preview, transcribed: true });
+    } catch (error) {
+      setRead({ name, state: "ai", pages, file });
       onFail?.(error);
     }
   };
@@ -88,19 +108,21 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               void take(event.dataTransfer.files[0]);
             }}
           >
-            <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv,.pdf,application/pdf" className="osynlig" onChange={(event) => void take(event.target.files?.[0])} />
+            <input id="file" type="file" accept=".json,.gz,application/json,.odt,.zip,.xlsx,.csv,.pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" className="osynlig" onChange={(event) => (void take(event.target.files?.[0]), (event.target.value = ""))} />
             <b>Släpp filen här</b>
-            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan.</span>
+            <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan. Skannade listor och foton (JPEG eller PNG) skrivs av med hubbens egna AI.</span>
           </label>
           {read && (
             <ul id="files" className="filer">
               <li>
-                <span className="kalla">{read.state === "read" ? TAG[read.preview.source.kind] : /\.(odt|zip|xlsx|csv|pdf)$/i.test(read.name) ? "ST" : "JSON"}</span>
+                <span className="kalla">{read.state === "read" ? TAG[read.preview.source.kind] : /\.(odt|zip|xlsx|csv|pdf|jpe?g|png)$/i.test(read.name) ? "ST" : "JSON"}</span>
                 <div>
                   <b>{read.name}</b>
-                  <div className="liten">{preview ? readLine(preview) : "Tellurians plan"}</div>
+                  <div className="liten">{preview ? readLine(preview) : read.state === "ai" || read.state === "writing" ? "Skannad · skrivs av med AI" : "Tellurians plan"}</div>
                 </div>
                 {read.state === "reading" && <span className="pill likely">Läser …</span>}
+                {read.state === "ai" && <span className="pill unsure">Behöver AI</span>}
+                {read.state === "writing" && <span className="pill likely">Skriver av …</span>}
                 {read.state === "read" && <span className="pill sure">Läst</span>}
                 {read.state === "failed" && <span className="pill conflict">Gick inte</span>}
               </li>
@@ -139,12 +161,20 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               {preview.source.kind !== "station_lists" && preview.report.verdicts?.length ? (
                 <Domar preview={preview} text="Stationslistorna som redan är underlag får en dom var, rad för rad, mot planeringsfilen (IMPORT-27)." />
               ) : null}
-              <div className="kostnad">
-                <b>Ingen AI</b>
-                <span>Filen läses med kod. Inga tokens.</span>
-              </div>
+              {read?.state === "read" && read.transcribed ? (
+                <div className="kostnad">
+                  <b>Egen AI</b>
+                  <span>Skrivet av hubbens egna AI och läst med kod. Allt är osäkert tills du bekräftar det.</span>
+                </div>
+              ) : (
+                <div className="kostnad">
+                  <b>Ingen AI</b>
+                  <span>Filen läses med kod. Inga tokens.</span>
+                </div>
+              )}
             </div>
           )}
+          {(read?.state === "ai" || read?.state === "writing") && <Skriv pages={read.pages} writing={read.state === "writing"} onWrite={() => void transcribe()} />}
         </div>
         <footer>
           <button id="apply" type="button" className="primar" disabled={!preview || busy} onClick={() => void apply()}>
@@ -180,6 +210,41 @@ function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+
+/** Sidor att skriva av (IMPORT-05): what the scanned file needs, before anything goes to the AI. */
+export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: () => void }) {
+  const left = pages.pages - pages.saved;
+  return (
+    <div id="ai-pages">
+      <div className="andras">
+        <b>Filen är skannad och behöver AI</b>
+        <p id="ai-count">
+          {`${plural(pages.pages, "sida", "sidor")} att skriva av`}
+          {pages.saved ? ` · ${plural(pages.saved, "redan avskriven", "redan avskrivna")}, kostar inget` : ""}
+        </p>
+        <p className="liten">AI:n skriver bara av vad som står. Koden läser raderna, och allt blir osäkert tills du bekräftar det. Det som står om fordonen i tåget skrivs inte av.</p>
+      </div>
+      <div className="kostnad">
+        <b>Egen AI</b>
+        {pages.model ? (
+          <span>{left ? `${plural(left, "sida", "sidor")} betalas av din AI-tjänst (${pages.model}).` : "Allt är redan avskrivet. Inget skickas till AI:n."}</span>
+        ) : (
+          <span>
+            Ingen egen AI är inkopplad än. Koppla in den under{" "}
+            <a href="/installningar#ai" className="understruken">
+              Inställningar → Den här hubben → AI
+            </a>{" "}
+            och tryck sedan Skriv av.
+          </span>
+        )}
+      </div>
+      <button type="button" id="transcribe" className="primar" disabled={writing} onClick={onWrite}>
+        {writing ? "Skriver av …" : left ? `Skriv av ${plural(left, "sida", "sidor")}` : "Läs avskriften"}
+      </button>
     </div>
   );
 }

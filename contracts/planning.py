@@ -230,6 +230,20 @@ class SectionChange(Contract):
     clearance_mode: ClearanceMode | None = None
 
 
+class AiPages(Contract):
+    """Sidor att skriva av (IMPORT-05): what a scanned file needs before AI starts. Nothing is
+    sent to the AI until the planner says Skriv av."""
+
+    filename: Text
+    pages: int = Field(ge=1)
+    saved: int = Field(
+        ge=0, description="Sidor som redan är avskrivna; de används igen och kostar inget."
+    )
+    model: Text | None = Field(
+        default=None, description="Den egna AI:n som skriver av; tomt när ingen är inkopplad."
+    )
+
+
 class PictureLink(Contract):
     """A line on the track picture between two signatures: two side by side is double track."""
 

@@ -10531,6 +10531,30 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * AiPages
+         * @description Sidor att skriva av (IMPORT-05): what a scanned file needs before AI starts. Nothing is
+         *     sent to the AI until the planner says Skriv av.
+         */
+        "trainmeet.planning-1.ai-pages": {
+            /** Filename */
+            filename: string;
+            /** Pages */
+            pages: number;
+            /**
+             * Saved
+             * @description Sidor som redan är avskrivna; de används igen och kostar inget.
+             */
+            saved: number;
+            /**
+             * Model
+             * @description Den egna AI:n som skriver av; tomt när ingen är inkopplad.
+             * @default null
+             */
+            model: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Version
          * @description A published version: frozen, never changed, never deleted (Ordlista).
          */

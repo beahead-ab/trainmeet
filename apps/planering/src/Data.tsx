@@ -671,7 +671,7 @@ export function DataPage({ admin, meet, draft, findings, versions, initialBlocks
         {heading}
         <section className="kort data-kort" id="empty" aria-labelledby="empty-rubrik">
           <h2 id="empty-rubrik">Inget underlag än</h2>
-          <p className="liten">Lägg till Tellurians planeringsfil eller stationslistorna. De läses med kod, utan AI, och allt i dem får sitt ursprung och sin säkerhet.</p>
+          <p className="liten">Lägg till Tellurians planeringsfil eller stationslistorna. De läses med kod, skannade listor skrivs av med hubbens egna AI, och allt får sitt ursprung och sin säkerhet.</p>
           {admin && (
             <div className="rad">
               <button id="add-first" type="button" className="sekundar" onClick={() => setDrawer(true)}>
