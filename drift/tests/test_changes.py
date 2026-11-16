@@ -210,3 +210,13 @@ def test_the_changes_stay_through_a_jump_ångra_a_new_day_and_a_replay(drift: Dr
     again = Drift(drift.base, drift.history, now=at(5))
     assert again.package == drift.package
     assert [c.status for c in again.changes.values()] == [Status.APPLIED]
+
+
+def test_ångra_after_a_jump_lays_the_changes_on_the_version_once(drift: Drift) -> None:
+    """A cancelled train before the jump is cancelled once, not twice, when Ångra builds the
+    state before the jump again."""
+    change(drift, events.CancelTrain(train="t101"), at(1))
+    drift.control_clock(events.ClockControl(action=events.ClockAction.JUMP, time="08:00"), at(2))
+    drift.control_clock(events.ClockControl(action=events.ClockAction.UNDO_JUMP), at(3))
+    assert "101" not in trains(drift)
+    assert [c.status for c in drift.changes.values()] == [Status.APPLIED]
