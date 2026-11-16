@@ -265,6 +265,46 @@
       "title": "Call",
       "type": "object"
     },
+    "CallChange": {
+      "additionalProperties": true,
+      "description": "One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.\nEmpty clears it.",
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "arrival",
+            "departure",
+            "track"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "call",
+        "field"
+      ],
+      "title": "CallChange",
+      "type": "object"
+    },
     "CallTime": {
       "additionalProperties": true,
       "properties": {
@@ -2300,6 +2340,71 @@
       "title": "Train",
       "type": "object"
     },
+    "TrainChange": {
+      "additionalProperties": true,
+      "description": "One field of a train in the draft (PLAN-01): its number or its note. Empty clears the\nnote; a train always has a number.",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "number",
+            "note"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "train",
+        "field"
+      ],
+      "title": "TrainChange",
+      "type": "object"
+    },
+    "TrainDaysChange": {
+      "additionalProperties": true,
+      "description": "A train's days in the draft (PLAN-01).",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/Weekday"
+          },
+          "maxItems": 7,
+          "minItems": 1,
+          "title": "Days",
+          "type": "array"
+        }
+      },
+      "required": [
+        "train",
+        "days"
+      ],
+      "title": "TrainDaysChange",
+      "type": "object"
+    },
     "TrainNote": {
       "additionalProperties": true,
       "description": "Anmärkning: text that follows the train, or one of its calls. Empty takes it away.",
@@ -2466,6 +2571,13 @@
     "meet": {
       "$ref": "#/$defs/Meet"
     },
+    "revision": {
+      "default": 0,
+      "description": "Räknas upp varje gång utkastet sparas (PLAN-38).",
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
     "package": {
       "anyOf": [
         {
@@ -2525,6 +2637,15 @@
           },
           {
             "$ref": "#/$defs/SectionChange"
+          },
+          {
+            "$ref": "#/$defs/CallChange"
+          },
+          {
+            "$ref": "#/$defs/TrainChange"
+          },
+          {
+            "$ref": "#/$defs/TrainDaysChange"
           }
         ]
       },

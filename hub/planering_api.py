@@ -169,11 +169,15 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
-        """Spara: the planner's changes from Data, in order."""
+        """Spara: the planner's changes from Data, in order, against the draft's revision
+        (PLAN-38). Someone else's save in between gives 412, and the client reads the draft
+        anew."""
         response.headers["Cache-Control"] = "no-store"
         admin(session, authorization)
         try:
-            return store.change(meet, *given.changes).model_dump(mode="json")
+            return store.change(meet, *given.changes, revision=given.revision).model_dump(
+                mode="json"
+            )
         except PlanningError as error:
             _fail(error)
 

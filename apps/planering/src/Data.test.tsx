@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Draft, ImportPreview } from "./api";
-import { changesOf, DataPage, shownValue, type Edit } from "./Data";
+import { changesOf, clockValue, DataPage, shownValue, type Edit } from "./Data";
 import { days, describePreview, Facts, reportSummary } from "./data";
 import { Underlag } from "./Underlag";
 
@@ -75,6 +75,31 @@ describe("Data (S6, PLAN-37)", () => {
     expect(shownValue(pending, "place", "sjv", null)).toBeNull();
     expect(shownValue(pending.slice(0, 1), "place", "nby", "101")).toBe("102");
     expect(changesOf(pending)).toEqual([{ place: "nby", phone: "102" }, { place: "nby", phone: null }, { section: "s1", tracks: "double" }, { section: "s1", clearance_mode: "direct" }]);
+  });
+
+  it("sends the grid's changes to calls and trains, and reads times as the planner types them (PLAN-01)", () => {
+    const pending: Edit[] = [
+      { kind: "departure", id: "c1", before: "06:00", after: "06:05" },
+      { kind: "track", id: "c1", before: null, after: "1" },
+      { kind: "number", id: "t1", before: "101", after: "111" },
+      { kind: "note", id: "t1", before: null, after: "Ånglok" },
+      { kind: "days", id: "t1", before: "mon,tue", after: "sat,sun" },
+    ];
+    expect(changesOf(pending)).toEqual([
+      { call: "c1", field: "departure", value: "06:05" },
+      { call: "c1", field: "track", value: "1" },
+      { train: "t1", field: "number", value: "111" },
+      { train: "t1", field: "note", value: "Ånglok" },
+      { train: "t1", days: ["sat", "sun"] },
+    ]);
+    expect(["615", "6.15", "6:15", "0615", "06:15", "x"].map(clockValue)).toEqual(["06:15", "06:15", "06:15", "06:15", "06:15", "x"]);
+  });
+
+  it("shows the trains with their note, and every call in order", () => {
+    const html = renderToStaticMarkup(<DataPage admin meet="varnamo" draft={draft} findings={[]} versions={[]} initialBlocks={["trains", "calls"]} />);
+    expect(html).toContain("<th>Anmärkning</th>");
+    expect(html).toContain("<b>P 101</b>");
+    expect(html).toContain("Mån–Fre");
   });
 
   it("reads the facts, the days and the report as before", () => {

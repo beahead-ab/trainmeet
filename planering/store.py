@@ -18,10 +18,11 @@ from typing import Final
 
 from contracts.common import Id, checksum
 from contracts.drift import DriftChange, ProposalStatus
-from contracts.meet import Meet, MeetPackage, Place, Section
+from contracts.meet import Meet, MeetPackage, Place, Section, Train
 from contracts.planning import (
     PLANNER,
     Answer,
+    CallChange,
     Certainty,
     Change,
     Check,
@@ -38,6 +39,8 @@ from contracts.planning import (
     SectionTracksChange,
     Source,
     TakenChange,
+    TrainChange,
+    TrainDaysChange,
     Version,
 )
 from contracts.reasons import TEXT_SV
@@ -48,6 +51,7 @@ from planering.check import check
 RESERVED: Final = {"provbanan"}
 MAX_MEETS: Final = 200
 
+_TIME: Final = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS meet (
@@ -87,6 +91,12 @@ class UnknownMeet(PlanningError):
 
 class UnknownVersion(PlanningError):
     status = 404
+
+
+class StaleDraft(PlanningError):
+    """Someone else saved the draft since it was read (PLAN-38)."""
+
+    status = 412
 
 
 class UnknownProposal(PlanningError):
@@ -242,29 +252,36 @@ class Planning:
         db.execute(
             "INSERT OR REPLACE INTO source_file VALUES (?, ?, ?)", (meet_id, source.id, body)
         )
-        fresh = _laid_in(draft, source, result)
-        self._save(db, fresh)
-        return fresh
+        return self._save(db, _laid_in(draft, source, result))
 
-    def change(self, meet_id: str, *changes: Change) -> Draft:
-        """The planner's changes, kept in order; the last change per field counts."""
+    def change(self, meet_id: str, *changes: Change, revision: int | None = None) -> Draft:
+        """The planner's changes, kept in order; the last change per field counts. Made against
+        a revision that is no longer the draft's, they are refused (PLAN-38)."""
         with self._transaction() as db:
             draft = self._draft(db, meet_id)
+            if revision is not None and revision != draft.revision:
+                raise StaleDraft(
+                    "Någon annan har sparat utkastet under tiden. Det nya utkastet visas, med "
+                    "dina ändringar ovanpå. Titta igenom dem och spara igen."
+                )
             if draft.package is None:
                 raise PlanningError("Lägg till underlag först.")
-            places = {p.id for p in draft.package.places}
-            sections = {s.id for s in draft.package.sections}
+            known = _things(draft.package)
             kept = list(draft.changes)
             for change in changes:
                 kind, target = _target(change)
-                if target not in (places if kind == "place" else sections):
+                if target not in known[kind]:
                     raise PlanningError("Det finns inte i utkastet.")
+                _check_value(draft.package, change)
                 kept = [c for c in kept if _target(c) != (kind, target)] + [change]
-            draft = draft.model_copy(update={"changes": kept})
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
-            draft = _replay(draft, answers)
-            self._save(db, draft)
-            return draft
+            draft = _replay(draft.model_copy(update={"changes": kept}), answers)
+            assert draft.package is not None
+            touched = {_train_of(draft.package, c) for c in changes} - {None}
+            for train in draft.package.trains:
+                if train.id in touched and not driftchanges.in_order(train.calls):
+                    raise PlanningError(f"Tiderna för tåg {train.number} kommer inte i ordning.")
+            return self._save(db, draft)
 
     def answer(self, meet_id: str, answer: Answer) -> Draft:
         with self._transaction() as db:
@@ -276,9 +293,7 @@ class Planning:
                 raise PlanningError("Svaret är inte ett av alternativen.")
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
             answers[question.id] = answer.value
-            draft = _replay(draft, answers)
-            self._save(db, draft)
-            return draft
+            return self._save(db, _replay(draft, answers))
 
     def publish(self, meet_id: str) -> Version:
         """The draft as the next version, with the traffic check's findings in it."""
@@ -409,9 +424,9 @@ class Planning:
                     "taken": [*draft.taken, TakenChange(id=proposal.id, change=proposal.change)],
                 }
             )
-            self._save(db, draft)
+            saved = self._save(db, draft)
             self._answer(db, proposal, ProposalStatus.TAKEN)
-            return draft
+            return saved
 
     def reject(self, meet_id: str, change_id: str) -> Proposal:
         """Avslå: the next version is made without it. Drift sees the answer."""
@@ -453,11 +468,14 @@ class Planning:
         return Draft.model_validate_json(row[0])
 
     @staticmethod
-    def _save(db: sqlite3.Connection, draft: Draft) -> None:
+    def _save(db: sqlite3.Connection, draft: Draft) -> Draft:
+        """Save the draft as its next revision (PLAN-38)."""
+        saved = draft.model_copy(update={"revision": draft.revision + 1})
         db.execute(
             "UPDATE meet SET summary=?, draft=? WHERE id=?",
-            (_summary(draft), draft.model_dump_json(), draft.meet.id),
+            (_summary(saved), saved.model_dump_json(), saved.meet.id),
         )
+        return saved
 
     @staticmethod
     def _versions(db: sqlite3.Connection, meet_id: str) -> list[Version]:
@@ -487,7 +505,46 @@ def _target(change: Change) -> tuple[str, Id]:
         return "place", change.place
     if isinstance(change, SectionTracksChange):
         return "tracks", change.section
+    if isinstance(change, CallChange):
+        return f"call.{change.field}", change.call
+    if isinstance(change, TrainChange):
+        return f"train.{change.field}", change.train
+    if isinstance(change, TrainDaysChange):
+        return "train.days", change.train
     return "section", change.section
+
+
+def _things(package: MeetPackage) -> dict[str, set[Id]]:
+    """What each kind of change may point at in the draft."""
+    places = {p.id for p in package.places}
+    sections = {s.id for s in package.sections}
+    calls = {c.id for t in package.trains for c in t.calls}
+    trains = {t.id for t in package.trains}
+    kinds: dict[str, set[Id]] = {"place": places, "tracks": sections, "section": sections}
+    kinds.update({f"call.{field}": calls for field in ("arrival", "departure", "track")})
+    kinds.update({f"train.{field}": trains for field in ("number", "note", "days")})
+    return kinds
+
+
+def _check_value(package: MeetPackage, change: Change) -> None:
+    """A time as TT:MM, a track the place has, and a train with a number."""
+    if isinstance(change, CallChange) and change.value is not None:
+        if change.field in ("arrival", "departure") and not _TIME.match(change.value):
+            raise PlanningError("Skriv tiden som TT:MM, till exempel 06:15.")
+        if change.field == "track":
+            at = next(c.place for t in package.trains for c in t.calls if c.id == change.call)
+            place = next(p for p in package.places if p.id == at)
+            if place.tracks and change.value not in {t.name for t in place.tracks}:
+                raise PlanningError(f"Spåret {change.value} finns inte på {place.name}.")
+    if isinstance(change, TrainChange) and change.field == "number" and not change.value:
+        raise PlanningError("Ett tåg måste ha ett nummer.")
+
+
+def _train_of(package: MeetPackage, change: Change) -> Id | None:
+    """The train a call's time changes, whose times must still come in order."""
+    if isinstance(change, CallChange) and change.field != "track":
+        return next((t.id for t in package.trains for c in t.calls if c.id == change.call), None)
+    return None
 
 
 def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
@@ -503,6 +560,7 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
     answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
     fresh = Draft(
         meet=meet,
+        revision=draft.revision,
         package=result.package.model_copy(update={"meet": meet}),
         facts=result.facts,
         rulebook=result.rulebook,
@@ -538,8 +596,31 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     planner = [Origin(source=PLANNER, at="Planering")]
     places: dict[Id, Place] = {p.id: p for p in package.places}
     sections: dict[Id, Section] = {s.id: s for s in package.sections}
+    trains: dict[Id, Train] = {t.id: t for t in package.trains}
+    owner = {c.id: t.id for t in package.trains for c in t.calls}
     for change in draft.changes:
-        if isinstance(change, PlaceChange) and change.place in places:
+        if isinstance(change, CallChange) and change.call in owner:
+            train = trains[owner[change.call]]
+            trains[train.id] = train.model_copy(
+                update={
+                    "calls": [
+                        c.model_copy(update={change.field: change.value})
+                        if c.id == change.call
+                        else c
+                        for c in train.calls
+                    ]
+                }
+            )
+            ref = f"call:{change.call}.{change.field}"
+        elif isinstance(change, TrainChange) and change.train in trains:
+            trains[change.train] = trains[change.train].model_copy(
+                update={change.field: change.value}
+            )
+            ref = f"train:{change.train}.{change.field}"
+        elif isinstance(change, TrainDaysChange) and change.train in trains:
+            trains[change.train] = trains[change.train].model_copy(update={"days": change.days})
+            ref = f"train:{change.train}.days"
+        elif isinstance(change, PlaceChange) and change.place in places:
             places[change.place] = places[change.place].model_copy(update={"phone": change.phone})
             ref = f"place:{change.place}.phone"
         elif isinstance(change, SectionTracksChange) and change.section in sections:
@@ -575,7 +656,11 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     return draft.model_copy(
         update={
             "package": package.model_copy(
-                update={"places": list(places.values()), "sections": list(sections.values())}
+                update={
+                    "places": list(places.values()),
+                    "sections": list(sections.values()),
+                    "trains": list(trains.values()),
+                }
             ),
             "facts": list(facts.values()),
             "questions": questions,

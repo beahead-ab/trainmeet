@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { planning, type Draft, type Finding, type Version } from "./api";
+import { Problem } from "@trainmeet/hubben";
+import { planning, type Changes, type Draft, type Finding, type Version } from "./api";
 import {
   CERTAINTY,
   CONTENT,
@@ -32,10 +33,34 @@ import { Underlag } from "./Underlag";
 
 // Data (S6, PLAN-37): everything in the meet, in blocks, each row with where it comes from and
 // how sure it is. Filters for place, source and certainty, and a search. Logged in, one changes
-// a place's phone and a section's tracks and clearance mode, with undo, redo and Spara, answers
-// the import's questions, and adds a source (Lägg till underlag). Everyone may look (S1).
+// a place's phone, a section's tracks and clearance mode, and in the grid (PLAN-01) a call's
+// times and track and a train's number, days and note, with undo, redo and Spara. Spara carries
+// the draft's revision; if someone else saved in between, the new draft is shown with the
+// changes on top (PLAN-38). One also answers the import's questions and adds a source (Lägg
+// till underlag). Everyone may look (S1).
 
-export type Edit = { kind: "place" | "tracks" | "section"; id: string; before: string | null; after: string | null };
+export type Edit = { kind: "place" | "tracks" | "section" | "arrival" | "departure" | "track" | "number" | "note" | "days"; id: string; before: string | null; after: string | null };
+
+type AnyChange = Changes["changes"][number];
+type Days = Extract<AnyChange, { days: unknown }>["days"];
+const WEEK: [Days[number], string][] = [
+  ["mon", "Mån"],
+  ["tue", "Tis"],
+  ["wed", "Ons"],
+  ["thu", "Tor"],
+  ["fri", "Fre"],
+  ["sat", "Lör"],
+  ["sun", "Sön"],
+];
+
+/** A time as the planner types it, 615, 6.15 or 6:15, as TT:MM. Anything else stays as typed,
+ * and Spara says what is wrong. */
+export function clockValue(text: string): string {
+  const digits = text.replace(/[.:]/g, "");
+  if (!/^\d{3,4}$/.test(digits)) return text;
+  const padded = digits.padStart(4, "0");
+  return `${padded.slice(0, 2)}:${padded.slice(2)}`;
+}
 
 type Column<Row> = { name: string; cls?: string; text: (row: Row) => string; cell?: (row: Row) => ReactNode };
 
@@ -68,15 +93,28 @@ export function shownValue(pending: Edit[], kind: Edit["kind"], id: string, orig
   return original;
 }
 
-/** The changes Spara sends: a place's phone, a section's tracks or its clearance mode. */
-export function changesOf(pending: Edit[]) {
-  return pending.map((change) =>
-    change.kind === "place"
-      ? { place: change.id, phone: change.after }
-      : change.kind === "tracks"
-        ? { section: change.id, tracks: change.after as "single" | "double" }
-        : { section: change.id, clearance_mode: change.after as "requested" | "direct" | null },
-  );
+/** The changes Spara sends: a place's phone, a section's tracks or its clearance mode, a
+ * call's time or track, a train's number, note or days. */
+export function changesOf(pending: Edit[]): AnyChange[] {
+  return pending.map((change): AnyChange => {
+    switch (change.kind) {
+      case "place":
+        return { place: change.id, phone: change.after };
+      case "tracks":
+        return { section: change.id, tracks: change.after as "single" | "double" };
+      case "section":
+        return { section: change.id, clearance_mode: change.after as "requested" | "direct" | null };
+      case "arrival":
+      case "departure":
+      case "track":
+        return { call: change.id, field: change.kind, value: change.after };
+      case "number":
+      case "note":
+        return { train: change.id, field: change.kind, value: change.after };
+      case "days":
+        return { train: change.id, days: (change.after ?? "").split(",").filter(Boolean) as Days };
+    }
+  });
 }
 
 type Context = {
@@ -94,14 +132,26 @@ function makeBlocks(context: Context): AnyBlock[] {
   const { draft, pkg, admin, meet, findings, pending, selectedRef, edit } = context;
   const places = pkg.places;
   const sections = pkg.sections ?? [];
-  const trains = pkg.trains ?? [];
+  const value = (kind: Edit["kind"], id: string, original: string | null) => shownValue(pending, kind, id, original);
+  // The trains as the grid shows them: with the unsaved changes on top.
+  const trains: Train[] = (pkg.trains ?? []).map((train) => ({
+    ...train,
+    number: value("number", train.id, train.number) ?? train.number,
+    note: value("note", train.id, train.note ?? null),
+    days: (value("days", train.id, train.days.join(",")) ?? "").split(",").filter(Boolean) as Train["days"],
+    calls: train.calls.map((call) => ({
+      ...call,
+      arrival: value("arrival", call.id, call.arrival ?? null),
+      departure: value("departure", call.id, call.departure ?? null),
+      track: value("track", call.id, call.track ?? null),
+    })),
+  }));
   const placeName = (id: string) => places.find((place) => place.id === id)?.name ?? id;
   const trainLabel = (id: string) => {
     const train = trains.find((item) => item.id === id);
     return train ? trainName(train) : id;
   };
   const trainCalls = (id: string) => trains.find((train) => train.id === id)?.calls ?? [];
-  const value = (kind: Edit["kind"], id: string, original: string | null) => shownValue(pending, kind, id, original);
   const via = (section: Section) => {
     const names = (section.parts ?? []).slice(0, -1).map((part) => placeName(part.to_place));
     return names.length ? `via ${names.join(", ")}` : "–";
@@ -164,6 +214,63 @@ function makeBlocks(context: Context): AnyBlock[] {
     );
   };
 
+  // Rutnätet (PLAN-01): the chosen row's fields open; the others read as text.
+  const open = (ref: string) => admin && selectedRef === ref;
+  const textCell = (kind: Edit["kind"], id: string, ref: string, shown: string | null, label: string, time = false) => {
+    if (!open(ref)) return shown ?? (time ? "" : "–");
+    return (
+      <input
+        key={shown ?? ""}
+        className="cell"
+        defaultValue={shown ?? ""}
+        size={time ? 5 : kind === "note" ? 24 : 7}
+        maxLength={time ? 5 : 200}
+        inputMode={time ? "numeric" : undefined}
+        placeholder={time ? "TT:MM" : "–"}
+        aria-label={label}
+        onClick={stop}
+        onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        onBlur={(event) => {
+          const typed = event.currentTarget.value.trim();
+          const next = typed ? (time ? clockValue(typed) : typed) : null;
+          if (next !== shown) edit({ kind, id, before: shown, after: next });
+        }}
+      />
+    );
+  };
+  const trackCell = (row: { train: Train; call: Call }) => {
+    const shown = row.call.track ?? null;
+    const known = places.find((place) => place.id === row.call.place)?.tracks ?? [];
+    if (!open(`call:${row.call.id}`) || !known.length) return textCell("track", row.call.id, `call:${row.call.id}`, shown, `Spår, tåg ${trainName(row.train)} i ${placeName(row.call.place)}`);
+    return (
+      <select className="cell" aria-label={`Spår, tåg ${trainName(row.train)} i ${placeName(row.call.place)}`} value={shown ?? ""} onClick={stop} onChange={(event) => edit({ kind: "track", id: row.call.id, before: shown, after: event.target.value || null })}>
+        <option value="">–</option>
+        {known.map((track) => (
+          <option key={track.name} value={track.name}>
+            {track.name}
+          </option>
+        ))}
+      </select>
+    );
+  };
+  const daysCell = (train: Train) => {
+    if (!open(`train:${train.id}`)) return days(train.days);
+    const shown = train.days.join(",");
+    return (
+      <span className="dagar" role="group" aria-label={`Trafikdagar, tåg ${trainName(train)}`} onClick={stop}>
+        {WEEK.map(([day, name]) => {
+          const on = train.days.includes(day);
+          const next = WEEK.map(([key]) => key).filter((key) => (key === day ? !on : train.days.includes(key)));
+          return (
+            <button key={day} type="button" aria-pressed={on} disabled={on && next.length === 0} onClick={() => edit({ kind: "days", id: train.id, before: shown, after: next.join(",") })}>
+              {name}
+            </button>
+          );
+        })}
+      </span>
+    );
+  };
+
   const calls = trains.flatMap((train) => train.calls.map((call, index) => ({ train, call, index })));
   type CallRow = { train: Train; call: Call; index: number };
   const offset = (call: Call | undefined) => (call?.arrival ?? "–") + (call?.day_offset ? " +1" : "");
@@ -181,19 +288,21 @@ function makeBlocks(context: Context): AnyBlock[] {
       ref: (train) => `train:${train.id}`,
       places: (train) => train.calls.map((call) => call.place),
       columns: [
-        { name: "Tåg", text: trainName, cell: (train) => <b>{trainName(train)}</b> },
+        { name: "Tåg", text: trainName, cell: (train) => (open(`train:${train.id}`) ? textCell("number", train.id, `train:${train.id}`, train.number, `Tågnummer, tåg ${trainName(train)}`) : <b>{trainName(train)}</b>) },
         { name: "Bolag", text: (train) => train.operator ?? "–" },
-        { name: "Dagar", text: (train) => days(train.days) },
+        { name: "Dagar", text: (train) => days(train.days), cell: daysCell },
         { name: "Från", text: (train) => placeName(train.calls[0]?.place ?? "") },
         { name: "Avg", text: (train) => train.calls[0]?.departure ?? "–" },
         { name: "Till", text: (train) => placeName(train.calls.at(-1)?.place ?? "") },
         { name: "Ank", text: (train) => offset(train.calls.at(-1)) },
         { name: "Besök", cls: "tal", text: (train) => String(train.calls.length) },
+        { name: "Anmärkning", text: (train) => train.note ?? "", cell: (train) => (open(`train:${train.id}`) ? textCell("note", train.id, `train:${train.id}`, train.note ?? null, `Anmärkning, tåg ${trainName(train)}`) : <span className="liten">{train.note ?? ""}</span>) },
       ],
       title: trainName,
       detail: (train) => [
         ["Bolag", train.operator ?? "–"],
         ["Dagar", days(train.days)],
+        ["Anmärkning", train.note ?? "–"],
         ["Isärhållning", train.service_key ?? "–"],
         [
           "Väg",
@@ -215,9 +324,17 @@ function makeBlocks(context: Context): AnyBlock[] {
       columns: [
         { name: "Tåg", text: (row) => trainName(row.train), cell: (row) => <b>{trainName(row.train)}</b> },
         { name: "Driftplats", text: (row) => placeName(row.call.place) },
-        { name: "Spår", text: (row) => row.call.track ?? "–" },
-        { name: "Ank", text: (row) => (row.call.arrival ?? "") + (row.call.arrival && row.call.day_offset ? " +1" : "") },
-        { name: "Avg", text: (row) => row.call.departure ?? "" },
+        { name: "Spår", text: (row) => row.call.track ?? "–", cell: trackCell },
+        {
+          name: "Ank",
+          text: (row) => (row.call.arrival ?? "") + (row.call.arrival && row.call.day_offset ? " +1" : ""),
+          cell: (row) => (open(`call:${row.call.id}`) ? textCell("arrival", row.call.id, `call:${row.call.id}`, row.call.arrival ?? null, `Ankomst, tåg ${trainName(row.train)} i ${placeName(row.call.place)}`, true) : (row.call.arrival ?? "") + (row.call.arrival && row.call.day_offset ? " +1" : "")),
+        },
+        {
+          name: "Avg",
+          text: (row) => row.call.departure ?? "",
+          cell: (row) => textCell("departure", row.call.id, `call:${row.call.id}`, row.call.departure ?? null, `Avgång, tåg ${trainName(row.train)} i ${placeName(row.call.place)}`, true),
+        },
         { name: "Sort", text: (row) => callKind(row.train, row.call, row.index) },
         { name: "Anmärkning", text: (row) => row.call.note ?? "", cell: (row) => <span className="liten">{row.call.note ?? ""}</span> },
       ],
@@ -598,12 +715,20 @@ export function DataPage({ admin, meet, draft, findings, versions, initialBlocks
   const save = async () => {
     setSaving(true);
     try {
-      const next = await planning.change(meet, { changes: changesOf(pending) });
+      const next = await planning.change(meet, { revision: draft?.revision ?? 0, changes: changesOf(pending) });
       onDraft?.(next);
       onTell?.(pending.length === 1 ? "Ändringen är sparad." : `${number(pending.length)} ändringar är sparade.`, true);
       setPending([]);
       setUndone([]);
     } catch (error) {
+      // PLAN-38: someone else saved in between. The new draft is shown, the changes stay on top.
+      if (error instanceof Problem && error.status === 412) {
+        try {
+          onDraft?.(await planning.draft(meet));
+        } catch {
+          // The message below says what happened; the draft is read again on the next visit.
+        }
+      }
       onFail?.(error);
     }
     setSaving(false);

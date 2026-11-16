@@ -52,6 +52,17 @@ def upload(hub: TestClient, data: bytes = VARNAMO, name: str = "Värnamo.json.gz
     )
 
 
+def revision(hub: TestClient) -> int:
+    """The draft's revision, which Spara carries (PLAN-38)."""
+    return int(hub.get(f"{API}/meets/{MEET}").json()["revision"])
+
+
+def save(hub: TestClient, *changes: dict[str, Any], at: int | None = None) -> Any:
+    """Spara in Data: the changes, against the draft as it is unless told otherwise."""
+    given = {"revision": revision(hub) if at is None else at, "changes": list(changes)}
+    return hub.post(f"{API}/meets/{MEET}/changes", json=given)
+
+
 @pytest.fixture
 def planned(hub: TestClient) -> TestClient:
     created = hub.post(
@@ -71,8 +82,7 @@ def test_only_the_administrator_changes_and_everyone_may_look(planned: TestClien
     anonymous = TestClient(planned.app)
     assert anonymous.post(API + "/meets", json={"name": "X"}).status_code == 401
     assert anonymous.post(f"{API}/meets/{MEET}/versions").status_code == 401
-    change = {"changes": [{"place": "p2", "phone": "1"}]}
-    assert anonymous.post(f"{API}/meets/{MEET}/changes", json=change).status_code == 401
+    assert save(anonymous, {"place": "p2", "phone": "1"}).status_code == 401
     assert anonymous.post(f"{API}/meets/{MEET}/sources/u-x/apply").status_code == 401
     [summary] = anonymous.get(API + "/meets").json()
     assert (summary["meet"]["id"], summary["level"], summary["trains"]) == (MEET, 4, 228)
@@ -102,16 +112,12 @@ def test_files_that_are_not_a_plan_are_refused(planned: TestClient) -> None:
 
 
 def test_the_planner_saves_several_changes_at_once(planned: TestClient) -> None:
-    saved = planned.post(
-        f"{API}/meets/{MEET}/changes",
-        json={
-            "changes": [
-                {"place": "p2", "phone": "241"},
-                {"section": "d2", "clearance_mode": "direct"},
-                {"section": "d2", "tracks": "double"},
-                {"place": "p2", "phone": "242"},
-            ]
-        },
+    saved = save(
+        planned,
+        {"place": "p2", "phone": "241"},
+        {"section": "d2", "clearance_mode": "direct"},
+        {"section": "d2", "tracks": "double"},
+        {"place": "p2", "phone": "242"},
     )
     assert saved.status_code == 200, saved.text
     draft = planning.Draft.model_validate(saved.json())
@@ -120,10 +126,33 @@ def test_the_planner_saves_several_changes_at_once(planned: TestClient) -> None:
     section = next(s for s in draft.package.sections if s.id == "d2")
     assert (section.clearance_mode, section.tracks) == ("direct", "double")
     assert len(draft.changes) == 3, "the last change per field counts"
-    unknown = planned.post(
-        f"{API}/meets/{MEET}/changes", json={"changes": [{"place": "p999", "phone": "1"}]}
-    )
+    unknown = save(planned, {"place": "p999", "phone": "1"})
     assert unknown.status_code == 409
+
+
+def test_two_who_save_the_same_draft_do_not_write_over_each_other(planned: TestClient) -> None:
+    """PLAN-38 and the grid (PLAN-01) through the hub: the second Spara made against the same
+    revision is refused with 412, and the first one stands."""
+    seen = revision(planned)
+    draft = planning.Draft.model_validate(planned.get(f"{API}/meets/{MEET}").json())
+    assert draft.package is not None
+    train = draft.package.trains[0]
+    call = train.calls[0]
+    first = save(
+        planned,
+        {"call": call.id, "field": "track", "value": None},
+        {"train": train.id, "field": "note", "value": "Ånglok"},
+        at=seen,
+    )
+    assert first.status_code == 200, first.text
+    assert planning.Draft.model_validate(first.json()).revision == seen + 1
+    second = save(planned, {"train": train.id, "field": "number", "value": "9"}, at=seen)
+    assert second.status_code == 412
+    assert "Någon annan har sparat utkastet" in second.json()["detail"]
+    now = planning.Draft.model_validate(planned.get(f"{API}/meets/{MEET}").json())
+    assert now.package is not None
+    after = next(t for t in now.package.trains if t.id == train.id)
+    assert (after.number, after.note, after.calls[0].track) == (train.number, "Ånglok", None)
 
 
 def test_a_source_waits_until_it_is_laid_in(hub: TestClient) -> None:
@@ -137,7 +166,7 @@ def test_a_source_waits_until_it_is_laid_in(hub: TestClient) -> None:
     wrong = hub.post(f"{API}/meets/{MEET}/sources/u-other/apply")
     assert wrong.status_code == 409
     hub.post(f"{API}/meets/{MEET}/sources/{preview.source.id}/apply")
-    hub.post(f"{API}/meets/{MEET}/changes", json={"changes": [{"place": "p2", "phone": "241"}]})
+    assert save(hub, {"place": "p2", "phone": "241"}).status_code == 200
     # The same file again changes nothing, and the planner's change stays.
     again = planning.ImportPreview.model_validate(upload(hub).json())
     assert not again.first and again.kept == 1

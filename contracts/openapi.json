@@ -15831,6 +15831,13 @@
           "meet": {
             "$ref": "#/components/schemas/trainmeet.planning-1.draft.Meet"
           },
+          "revision": {
+            "default": 0,
+            "description": "Räknas upp varje gång utkastet sparas (PLAN-38).",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "package": {
             "anyOf": [
               {
@@ -15890,6 +15897,15 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.draft.SectionChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.CallChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.TrainChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.TrainDaysChange"
                 }
               ]
             },
@@ -16171,6 +16187,46 @@
           "place"
         ],
         "title": "Call",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.CallChange": {
+        "additionalProperties": true,
+        "description": "One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.\nEmpty clears it.",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "arrival",
+              "departure",
+              "track"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "call",
+          "field"
+        ],
+        "title": "CallChange",
         "type": "object"
       },
       "trainmeet.planning-1.draft.CallTime": {
@@ -18208,6 +18264,71 @@
         "title": "Train",
         "type": "object"
       },
+      "trainmeet.planning-1.draft.TrainChange": {
+        "additionalProperties": true,
+        "description": "One field of a train in the draft (PLAN-01): its number or its note. Empty clears the\nnote; a train always has a number.",
+        "properties": {
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "number",
+              "note"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "train",
+          "field"
+        ],
+        "title": "TrainChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.TrainDaysChange": {
+        "additionalProperties": true,
+        "description": "A train's days in the draft (PLAN-01).",
+        "properties": {
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.draft.Weekday"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train",
+          "days"
+        ],
+        "title": "TrainDaysChange",
+        "type": "object"
+      },
       "trainmeet.planning-1.draft.TrainNote": {
         "additionalProperties": true,
         "description": "Anmärkning: text that follows the train, or one of its calls. Empty takes it away.",
@@ -18659,8 +18780,14 @@
       },
       "trainmeet.planning-1.changes": {
         "additionalProperties": true,
-        "description": "Several changes saved at once (Spara in Data). They are kept in order.",
+        "description": "Several changes saved at once (Spara in Data). They are kept in order. They carry the\ndraft's revision they were made against: one saved by someone else in between is refused,\nso that no change is written over in silence (PLAN-38).",
         "properties": {
+          "revision": {
+            "description": "Utkastets revision som ändringarna gjordes mot.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "changes": {
             "items": {
               "oneOf": [
@@ -18672,6 +18799,15 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.changes.SectionChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.CallChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.TrainChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.TrainDaysChange"
                 }
               ]
             },
@@ -18682,9 +18818,50 @@
           }
         },
         "required": [
+          "revision",
           "changes"
         ],
         "title": "Changes",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.CallChange": {
+        "additionalProperties": true,
+        "description": "One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.\nEmpty clears it.",
+        "properties": {
+          "call": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Call",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "arrival",
+              "departure",
+              "track"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "call",
+          "field"
+        ],
+        "title": "CallChange",
         "type": "object"
       },
       "trainmeet.planning-1.changes.ClearanceMode": {
@@ -18779,6 +18956,85 @@
           "double"
         ],
         "title": "TrackKind",
+        "type": "string"
+      },
+      "trainmeet.planning-1.changes.TrainChange": {
+        "additionalProperties": true,
+        "description": "One field of a train in the draft (PLAN-01): its number or its note. Empty clears the\nnote; a train always has a number.",
+        "properties": {
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "number",
+              "note"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "train",
+          "field"
+        ],
+        "title": "TrainChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.TrainDaysChange": {
+        "additionalProperties": true,
+        "description": "A train's days in the draft (PLAN-01).",
+        "properties": {
+          "train": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Train",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.changes.Weekday"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "train",
+          "days"
+        ],
+        "title": "TrainDaysChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.Weekday": {
+        "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "title": "Weekday",
         "type": "string"
       },
       "trainmeet.planning-1.import-preview": {

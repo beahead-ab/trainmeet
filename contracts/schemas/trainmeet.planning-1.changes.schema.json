@@ -3,6 +3,46 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.changes.schema.json",
   "title": "trainmeet.planning-1.changes",
   "$defs": {
+    "CallChange": {
+      "additionalProperties": true,
+      "description": "One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.\nEmpty clears it.",
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "arrival",
+            "departure",
+            "track"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "call",
+        "field"
+      ],
+      "title": "CallChange",
+      "type": "object"
+    },
     "ClearanceMode": {
       "description": "Klareringsläge. Requested: the receiving place answers. Direct: Drift answers at once\nif the section is free. The meet has one; a section may have the other (decided 1 Nov).",
       "enum": [
@@ -96,11 +136,96 @@
       ],
       "title": "TrackKind",
       "type": "string"
+    },
+    "TrainChange": {
+      "additionalProperties": true,
+      "description": "One field of a train in the draft (PLAN-01): its number or its note. Empty clears the\nnote; a train always has a number.",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "number",
+            "note"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "train",
+        "field"
+      ],
+      "title": "TrainChange",
+      "type": "object"
+    },
+    "TrainDaysChange": {
+      "additionalProperties": true,
+      "description": "A train's days in the draft (PLAN-01).",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/Weekday"
+          },
+          "maxItems": 7,
+          "minItems": 1,
+          "title": "Days",
+          "type": "array"
+        }
+      },
+      "required": [
+        "train",
+        "days"
+      ],
+      "title": "TrainDaysChange",
+      "type": "object"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "Several changes saved at once (Spara in Data). They are kept in order.",
+  "description": "Several changes saved at once (Spara in Data). They are kept in order. They carry the\ndraft's revision they were made against: one saved by someone else in between is refused,\nso that no change is written over in silence (PLAN-38).",
   "properties": {
+    "revision": {
+      "description": "Utkastets revision som ändringarna gjordes mot.",
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
     "changes": {
       "items": {
         "oneOf": [
@@ -112,6 +237,15 @@
           },
           {
             "$ref": "#/$defs/SectionChange"
+          },
+          {
+            "$ref": "#/$defs/CallChange"
+          },
+          {
+            "$ref": "#/$defs/TrainChange"
+          },
+          {
+            "$ref": "#/$defs/TrainDaysChange"
           }
         ]
       },
@@ -122,6 +256,7 @@
     }
   },
   "required": [
+    "revision",
     "changes"
   ],
   "type": "object"
