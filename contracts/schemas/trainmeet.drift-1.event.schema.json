@@ -384,6 +384,12 @@
           "default": false,
           "title": "Forced",
           "type": "boolean"
+        },
+        "small": {
+          "default": false,
+          "description": "Små rättelser, tagna direkt: tider och spår för tåg som inte gått (F5).",
+          "title": "Small",
+          "type": "boolean"
         }
       },
       "required": [

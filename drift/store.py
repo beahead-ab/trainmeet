@@ -312,6 +312,24 @@ class PreviewStore:
             self._save(db, run_id, drift.history[size:])
             return drift
 
+    def take_small_correction(self, run_id: str, version: int, included: list[str]) -> bool:
+        """Små rättelser (F5, DRIFT-31): a version that only corrects times and tracks of trains
+        that have not run is taken at once. True if it was."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            if (
+                drift.locked is not None
+                or drift.waiting_switch is not None
+                or version <= drift.version
+                or not drift.small_correction(version)
+            ):
+                return False
+            size = len(drift.history)
+            drift.switch_version(events.SwitchVersion(version=version), included, now, small=True)
+            self._save(db, run_id, drift.history[size:])
+            return True
+
     def force_switch(self, run_id: str) -> Drift:
         with self._transaction() as db:
             now = now_utc()

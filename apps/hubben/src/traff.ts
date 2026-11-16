@@ -40,7 +40,8 @@ export const PROVBANAN: MeetChoice = { value: "provbanan:1", meet: "provbanan", 
 export function meetChoices(meets: MeetSummary[]): MeetChoice[] {
   const choices: MeetChoice[] = [];
   for (const summary of meets) {
-    for (const version of (summary.versions ?? []).slice().reverse()) {
+    // A withdrawn version can no longer be started (PLAN-18).
+    for (const version of (summary.versions ?? []).filter((v) => !v.withdrawn).reverse()) {
       choices.push({
         value: `${summary.meet.id}:${version.number}`,
         meet: summary.meet.id,

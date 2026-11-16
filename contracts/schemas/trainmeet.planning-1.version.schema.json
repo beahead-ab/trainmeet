@@ -36,6 +36,20 @@
       "minimum": 0,
       "title": "Observations",
       "type": "integer"
+    },
+    "withdrawn": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+      "title": "Withdrawn"
     }
   },
   "required": [

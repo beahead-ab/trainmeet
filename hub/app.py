@@ -37,10 +37,12 @@ LOGGER = logging.getLogger("hub.automatik")
 
 
 def tick_once(running: Running) -> None:
-    """One round of the automation for the hub's meet, if one is started."""
+    """One round of the automation for the hub's meet, if one is started, and a new version
+    with only små rättelser taken at once (F5)."""
     store = running.store
     try:
         store.tick(store.current())
+        running.take_small_corrections()
     except MissingRun:
         return
 

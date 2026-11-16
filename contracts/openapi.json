@@ -1751,6 +1751,46 @@
         ]
       }
     },
+    "/api/planering/1/meets/{meet}/versions/{number}/withdraw": {
+      "post": {
+        "operationId": "withdrawVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.version"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets/{meet}/versions/{number}": {
       "get": {
         "operationId": "planningVersion",
@@ -10259,6 +10299,12 @@
             "default": false,
             "title": "Forced",
             "type": "boolean"
+          },
+          "small": {
+            "default": false,
+            "description": "Små rättelser, tagna direkt: tider och spår för tåg som inte gått (F5).",
+            "title": "Small",
+            "type": "boolean"
           }
         },
         "required": [
@@ -18572,6 +18618,20 @@
             "minimum": 0,
             "title": "Observations",
             "type": "integer"
+          },
+          "withdrawn": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+            "title": "Withdrawn"
           }
         },
         "required": [
@@ -19100,6 +19160,20 @@
             "minimum": 0,
             "title": "Observations",
             "type": "integer"
+          },
+          "withdrawn": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+            "title": "Withdrawn"
           }
         },
         "required": [

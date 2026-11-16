@@ -264,6 +264,22 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except PlanningError as error:
             _fail(error)
 
+    @routes.post("/meets/{meet}/versions/{number}/withdraw")
+    def withdraw(
+        meet: str,
+        number: int,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Dra tillbaka en version (PLAN-18)."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.withdraw_version(meet, number).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
     @routes.get("/meets/{meet}/versions/{number}")
     def version(meet: str, number: int, response: Response) -> dict[str, Any]:
         """A published version as the meet package Drift runs."""

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { DriftEvent, Now, PlanVersion } from "./api";
 import { describe as text, shown } from "./drift";
-import { newer, Spärrad, Versionsbyte } from "./Versionsbyte";
+import { newer, Spärrad, Tillbakadragen, Versionsbyte } from "./Versionsbyte";
 
 const now = { meet_id: "varnamo", version: 1, changes: [{ change_id: "c1", change: { kind: "cancel", train: "t43" }, status: "applied", train_number: "43", made: "06:00", waiting_for: [] }, { change_id: "c2", change: { kind: "number", train: "t44", number: "144" }, status: "applied", train_number: "44", made: "06:01", waiting_for: [] }] } as unknown as Now;
 const versions = [1, 2].map((number) => ({ meet: "varnamo", number, published: "2026-11-16T09:00:00Z", checksum: "a".repeat(64) })) as PlanVersion[];
@@ -10,6 +10,7 @@ const versions = [1, 2].map((number) => ({ meet: "varnamo", number, published: "
 describe("Versionsbyte (TRAFIK-03, DRIFT-29, H4, H38, H66)", () => {
   it("offers the newest version after the one that runs", () => {
     expect(newer(versions, 1).map((v) => v.number)).toEqual([2]);
+    expect(newer([...versions, { ...versions[1]!, number: 3, withdrawn: "2026-11-16T10:00:00Z" }], 1).map((v) => v.number)).toEqual([2]);
     const html = renderToStaticMarkup(<Versionsbyte now={now} pkg={null} versions={versions} preview={null} />);
     expect(html).toContain(">Version 2 finns<");
     expect(html).toContain(">Byt till version 2<");
@@ -47,8 +48,16 @@ describe("Versionsbyte (TRAFIK-03, DRIFT-29, H4, H38, H66)", () => {
   it("tells Logg of the switch, and keeps begun and done to Drift's own record", () => {
     const event = (kind: string, data: object = {}) => ({ kind, data }) as unknown as DriftEvent;
     expect(text(event("version.switched", { version: 2, forced: true }))).toBe("Version 2 körs nu, tvingad igenom");
+    expect(text(event("version.switched", { version: 3, small: true }))).toBe("Version 3 togs direkt: små rättelser av tider och spår");
     expect(text(event("version.waiting", { version: 2 }))).toBe("Byte till version 2 väntar på tåg som är ute");
     expect([shown(event("transition.begun")), shown(event("transition.done")), shown(event("transition.done", { unlocked: true }))]).toEqual([false, false, true]);
     expect(text(event("transition.done", { kind: "version", unlocked: true }))).toBe("Drift upplåst");
+  });
+
+  it("warns when the version that runs is withdrawn (H68)", () => {
+    const html = renderToStaticMarkup(<Tillbakadragen now={{ ...now, withdrawn: true } as Now} />);
+    expect(html).toContain("Version 1 är tillbakadragen");
+    expect(html).toContain("Träffen fortsätter på den, men den kan inte startas igen.");
+    expect(renderToStaticMarkup(<Tillbakadragen now={now} />)).toBe("");
   });
 });

@@ -463,6 +463,13 @@ def openapi() -> str:
     route("get", m + "/{meet}/check", "planningCheck", p + "check")
     route("get", m + "/{meet}/versions", "planningVersions", p + "version", many=True)
     route("post", m + "/{meet}/versions", "publish", p + "version", bearer=True)
+    route(
+        "post",
+        m + "/{meet}/versions/{number}/withdraw",
+        "withdrawVersion",
+        p + "version",
+        bearer=True,
+    )
     route("get", m + "/{meet}/versions/{number}", "planningVersion", "trainmeet.meet-1")
     # Lägg till underlag: the file's own bytes, its name in the address.
     route("post", m + "/{meet}/sources", "addSource", p + "import-preview", bearer=True)

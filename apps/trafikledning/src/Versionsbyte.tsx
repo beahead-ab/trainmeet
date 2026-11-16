@@ -37,8 +37,20 @@ export type SwitchProps = {
   onCallOff?: () => void;
 };
 
-/** The versions after the one that runs, newest last. */
-export const newer = (versions: PlanVersion[] | null, running: number) => (versions ?? []).filter((v) => v.number > running);
+/** The versions after the one that runs, newest last. One withdrawn is no version to switch to
+ * (PLAN-18). */
+export const newer = (versions: PlanVersion[] | null, running: number) => (versions ?? []).filter((v) => v.number > running && !v.withdrawn);
+
+/** The version that runs is withdrawn in Planering: the meet goes on, with a warning (H68). */
+export function Tillbakadragen({ now }: { now: Now }) {
+  if (!now.withdrawn) return null;
+  return (
+    <section id="withdrawn" className="kort varning" role="status" aria-labelledby="withdrawn-title">
+      <h2 id="withdrawn-title">{`Version ${now.version} är tillbakadragen`}</h2>
+      <p>Planeringen har dragit tillbaka versionen som körs. Träffen fortsätter på den, men den kan inte startas igen. Byt till en nyare version när det passar.</p>
+    </section>
+  );
+}
 
 export function Versionsbyte({ now, pkg, versions, preview, onPreview, onSwitch, onForce, onCallOff }: SwitchProps) {
   const [drop, setDrop] = useState<string[]>([]);

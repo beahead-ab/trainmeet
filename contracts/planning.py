@@ -165,6 +165,10 @@ class Version(Contract):
     checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
     conflicts: int = Field(default=0, ge=0)
     observations: int = Field(default=0, ge=0)
+    withdrawn: datetime | None = Field(
+        default=None,
+        description="Tillbakadragen (PLAN-18): kan inte startas eller följas, men finns kvar.",
+    )
 
 
 class MeetSummary(Contract):

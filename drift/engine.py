@@ -434,8 +434,49 @@ class Drift:
             }
         )
 
+    def small_correction(self, number: int) -> bool:
+        """Små rättelser (F5, DRIFT-31): the version changes only times and tracks, and only of
+        trains that have not run yet and have no open clearance. Such a version is taken at
+        once; anything else waits for Trafikledningen."""
+        new = self._version(number)
+        same = ("places", "sections", "duties", "turns")
+        if any(getattr(new, part) != getattr(self.base, part) for part in same):
+            return False
+        if new.meet.clearance_mode != self.base.meet.clearance_mode:
+            return False
+        old_trains = {t.id: t for t in self.base.trains}
+        new_trains = {t.id: t for t in new.trains}
+        if old_trains.keys() != new_trains.keys():
+            return False
+        ran = {leg.train.id for key, leg in self.legs.items() if key in self.arrived}
+        ran |= {case.leg.train.id for case in self.cases.values() if case.active or case.departed}
+
+        def bare(call: Call) -> Call:
+            return call.model_copy(
+                update={"arrival": None, "departure": None, "track": None, "day_offset": 0}
+            )
+
+        changed = False
+        for train_id, old in old_trains.items():
+            new_train = new_trains[train_id]
+            if old == new_train:
+                continue
+            changed = True
+            if train_id in ran:
+                return False
+            if old.model_copy(update={"calls": []}) != new_train.model_copy(update={"calls": []}):
+                return False
+            if [bare(c) for c in old.calls] != [bare(c) for c in new_train.calls]:
+                return False
+        return changed
+
     def switch_version(
-        self, request: events.SwitchVersion, included: list[str], now: datetime
+        self,
+        request: events.SwitchVersion,
+        included: list[str],
+        now: datetime,
+        *,
+        small: bool = False,
     ) -> None:
         """Byt till en ny version (DRIFT-29): the clock, where the trains stand and the open
         clearances go with it. The changes the planner took into it fall away, those let go
@@ -450,6 +491,7 @@ class Drift:
             "drop": [c for c in request.drop if c in self.changes],
             "included": [c for c in included if c in self.changes],
             "forced": bool(waits) and request.force,
+            "small": small,
         }
         if waits and not request.force:
             self._record(events.EventKind.VERSION_WAITING, switch, now, actor=_DISPATCHER)

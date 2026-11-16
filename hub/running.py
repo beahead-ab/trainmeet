@@ -17,6 +17,7 @@ from threading import Lock
 from typing import Final
 
 from contracts.common import Weekday
+from contracts.drift import ProposalStatus
 from contracts.meet import MeetPackage
 from drift.store import PreviewStore
 from planering.store import Planning, PlanningError
@@ -32,6 +33,10 @@ class UnknownMeet(LookupError):
     """No such meet or version to run."""
 
 
+class WithdrawnVersion(UnknownMeet):
+    """A version withdrawn in Planering: it can no longer be started (PLAN-18)."""
+
+
 class Running:
     def __init__(
         self, data_dir: Path, provbanan: MeetPackage, provbanan_key: str, planning: Planning
@@ -43,6 +48,7 @@ class Running:
         self.state_path = data_dir / "drift" / "running.json"
         self._stores: dict[tuple[str, int], PreviewStore] = {}
         self._lock = Lock()
+        self._looked_at: set[tuple[str, str, int]] = set()
         self.meet, self.version = PROVBANAN, 1
         try:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
@@ -61,6 +67,8 @@ class Running:
         self, meet: str, version: int, traffic_day: Weekday | None, game_day: int
     ) -> tuple[PreviewStore, str]:
         """Start the meet and version as the hub's meet, in place of the one before."""
+        if meet != PROVBANAN and self.withdrawn(meet, version):
+            raise WithdrawnVersion()
         with self._lock:
             store = self._store(meet, version)
             run_id = store.start(traffic_day, game_day, replace=True)
@@ -82,6 +90,66 @@ class Running:
             return self.planning.package(meet, version), published.checksum
         except (PlanningError, StopIteration) as error:
             raise UnknownMeet() from error
+
+    def withdrawn(self, meet: str, version: int) -> bool:
+        """Is the version withdrawn in Planering (PLAN-18)?"""
+        if meet == PROVBANAN:
+            return False
+        try:
+            return any(
+                v.number == version and v.withdrawn is not None
+                for v in self.planning.versions(meet)
+            )
+        except PlanningError:
+            return False
+
+    def latest(self, meet: str) -> int | None:
+        """The newest version of the meet that is not withdrawn."""
+        if meet == PROVBANAN:
+            return None
+        try:
+            numbers = [v.number for v in self.planning.versions(meet) if v.withdrawn is None]
+        except PlanningError:
+            return None
+        return max(numbers, default=None)
+
+    def included(self, version: int) -> list[str]:
+        """The driftändringar the planner took into the version: they fall away at the switch
+        (H4). Taken before the version was published, that is."""
+        if self.meet == PROVBANAN:
+            return []
+        try:
+            published = next(
+                (v.published for v in self.planning.versions(self.meet) if v.number == version),
+                None,
+            )
+            if published is None:
+                return []
+            return [
+                p.id
+                for p in self.planning.proposals(self.meet)
+                if p.status == ProposalStatus.TAKEN
+                and p.answered is not None
+                and p.answered <= published
+            ]
+        except PlanningError:
+            return []
+
+    def take_small_corrections(self) -> bool:
+        """Små rättelser (F5, DRIFT-31): the newest version of the running meet is looked at
+        once, and taken at once if it only corrects times and tracks of trains that have not
+        run. True if it was taken."""
+        meet = self.meet
+        latest = self.latest(meet)
+        if latest is None:
+            return False
+        store = self.store
+        run_id = store.current()
+        seen = (meet, run_id, latest)
+        if seen in self._looked_at:
+            return False
+        self._looked_at.add(seen)
+        return store.take_small_correction(run_id, latest, self.included(latest))
 
     def _versions(self, meet: str) -> Callable[[int], MeetPackage]:
         """The meet's versions for a switch in the running meet (DRIFT-29). A version is frozen,

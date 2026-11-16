@@ -146,6 +146,10 @@ main.planering button.primar {
   color: #ffffff;
   min-height: 40px;
 }
+main.planering button.fara {
+  border-color: var(--rod);
+  color: var(--rod);
+}
 main.planering button:disabled {
   opacity: 0.55;
   cursor: default;
@@ -504,4 +508,25 @@ main.planering label.valj {
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+/* Dra tillbaka (PLAN-18): the version stays in the list, struck through as one not to run. */
+.pill.tillbaka {
+  color: var(--tm-mute);
+}
+tr.tillbakadragen b {
+  text-decoration: line-through;
+}
+tr.bekrafta td {
+  background: var(--tm-panel-2);
+}
+tr.bekrafta p {
+  margin: 0 0 8px;
+}
+#versions td {
+  vertical-align: middle;
+}
+#versions td > .rad {
+  margin: 0;
+  justify-content: flex-end;
 }

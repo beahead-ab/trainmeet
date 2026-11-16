@@ -18,7 +18,7 @@ from contracts.common import checksum
 from contracts.meet import MeetPackage
 from drift.store import PreviewStore
 from hub import provbanan
-from hub.app import create_app
+from hub.app import create_app, tick_once
 from hub.build_info import BuildInfo
 from hub.running import Running
 from hub.tests.test_tmbox_web import Tab
@@ -340,3 +340,44 @@ def test_the_dispatcher_switches_to_a_new_version_during_the_meet(planned: TestC
     assert trains[noted]["note"] == "Ånglok", "from version 2 itself"
     assert cancelled not in trains, "kept on top of version 2"
     assert planned.post(DRIFT + "/switch", json={"version": 2}).status_code == 409
+
+
+def test_små_rättelser_are_taken_at_once_and_a_withdrawn_version_is_not(
+    planned: TestClient,
+) -> None:
+    """Små rättelser (F5, DRIFT-31) and Dra tillbaka (PLAN-18, H68) through the hub: a version
+    that only moves times of a train that has not run is taken by the automation's next step;
+    a withdrawn version can no longer be started or switched to, and Nu warns of one that
+    runs."""
+    seen = run_varnamo(planned)
+    started = {leg.train for leg in seen.legs if leg.state != "planned"}
+    train = next(leg.train for leg in seen.legs if leg.train not in started)
+    later = {"change": {"kind": "times", "train": train, "minutes": 5}}
+    made = planned.post(DRIFT + "/changes", json=later)
+    change_id = drift.ChangeMade.model_validate(made.json()["data"]).change_id
+    assert planned.post(f"{API}/meets/{MEET}/proposals/{change_id}/take").status_code == 200
+    assert planned.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    running: Running = planned.app.state.running  # type: ignore[attr-defined]
+    tick_once(running)
+    after = drift.Now.model_validate(planned.get(DRIFT + "/now").json())
+    assert after.version == 2, "taken at once"
+    assert [c.status for c in after.changes] == ["dropped"], "it is in version 2 now"
+    log = planned.get(DRIFT + "/log").json()
+    switched = next(e for e in reversed(log) if e["kind"] == drift.EventKind.VERSION_SWITCHED)
+    assert drift.VersionSwitch.model_validate(switched["data"]).small
+    tick_once(running)
+    assert len(planned.get(DRIFT + "/log").json()) == len(log), "looked at once"
+
+    anonymous = TestClient(planned.app)
+    assert anonymous.post(f"{API}/meets/{MEET}/versions/2/withdraw").status_code == 401
+    withdrawn = planned.post(f"{API}/meets/{MEET}/versions/2/withdraw")
+    assert withdrawn.status_code == 200, withdrawn.text
+    assert planning.Version.model_validate(withdrawn.json()).withdrawn is not None
+    assert planned.post(f"{API}/meets/{MEET}/versions/2/withdraw").status_code == 409
+    assert drift.Now.model_validate(planned.get(DRIFT + "/now").json()).withdrawn, "H68"
+    again = planned.post(DRIFT + "/start", json={"meet": MEET, "version": 2})
+    assert again.status_code == 409 and "tillbakadragen" in again.json()["detail"]
+    assert planned.post(f"{API}/meets/{MEET}/versions/1/withdraw").status_code == 200
+    assert planned.get(DRIFT + "/switch/1").status_code == 409
+    back = planned.post(DRIFT + "/switch", json={"version": 1})
+    assert back.status_code == 409 and "tillbakadragen" in back.json()["detail"]
