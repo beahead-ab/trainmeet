@@ -15,7 +15,7 @@ type Read =
   | { name: string; state: "writing"; pages: AiPages }
   | { name: string; state: "failed" };
 
-const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD", graph_picture: "GRAF" };
+const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD", graph_picture: "GRAF", station_outside: "STN" };
 
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
@@ -23,6 +23,7 @@ export function readLine(preview: ImportPreview): string {
   const lists = preview.source.kind === "station_lists";
   if (preview.source.kind === "track_picture" && !report.trains) return "Banbild · sparas som underlag";
   if (preview.source.kind === "graph_picture" && !report.trains) return "Graf · sparas som underlag";
+  if (preview.source.kind === "station_outside") return "Stationens utsida · kopplas till en driftplats i Data";
   if (lists && verdicts.length) {
     const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
     return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
@@ -165,7 +166,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                     <p className="liten" id="derived">
                       Härlett ur listorna: platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana. Banbilden, grafen eller planeringsfilen höjer nivån.
                     </p>
-                  ) : preview.source.kind === "track_picture" || preview.source.kind === "graph_picture" ? (
+                  ) : preview.source.kind === "track_picture" || preview.source.kind === "graph_picture" || preview.source.kind === "station_outside" ? (
                     <p className="liten" id="derived">
                       {preview.report.notes?.[0] ?? "Banbilden sparas som underlag."}
                     </p>

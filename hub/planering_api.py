@@ -20,6 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
 from contracts.meet import MapPoint
+from contracts.station_outside import StationOutside
 from hub.hubben import Authorization, SessionCookie, require_admin, service_of
 from hub.local import LocalLogin
 from integrationer import (
@@ -181,6 +182,8 @@ def router(
         except PlanningError as error:
             _fail(error)
         digest = hashlib.sha256(data).hexdigest()
+        if _is_outside(data):
+            return _station(meet, name, data, current, digest)
         if drawn and track_picture.is_picture(data):
             return _picture(meet, name, data, current, digest)
         if lists or drawn:
@@ -207,6 +210,50 @@ def router(
             return store.preview(meet, source, data, result).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
+
+    def _station(
+        meet: str, name: str, data: bytes, current: planning.Draft, digest: str
+    ) -> dict[str, Any]:
+        """Stationens utsida från TKL (IMPORT-10): its tracks and exits, to couple to a place
+        in Data. The plan's track names that differ become questions (IMPORT-18)."""
+        try:
+            outside = StationOutside.model_validate_json(data)
+        except ValueError as error:
+            raise HTTPException(422, "Stationens utsida gick inte att läsa.") from error
+        source = planning.Source(
+            id=f"u-{digest[:12]}",
+            kind=planning.SourceKind.STATION_OUTSIDE,
+            filename=name,
+            size=len(data),
+            sha256=digest,
+            level=current.report.level if current.report else 4,
+            added=datetime.now(UTC),
+        )
+        try:
+            store.stage_station(meet, source, data)
+        except PlanningError as error:
+            _fail(error)
+        before = next(
+            (s for s in current.stations if s.outside.station_id == outside.station_id), None
+        )
+        told = (
+            "Samma utsida som redan finns; inget ändras."
+            if before is not None and before.outside == outside
+            else f"Version {before.version + 1} av stationen ersätter version {before.version}."
+            if before is not None
+            else "Koppla stationen till en driftplats i Data."
+        )
+        report = planning.ImportReport(
+            source=source.id,
+            level=source.level,
+            notes=[
+                f"Stationen {outside.name}: {len(outside.tracks)} spår och "
+                f"{len(outside.exits)} utfarter. {told}"
+            ],
+        )
+        return planning.ImportPreview(source=source, report=report, first=False).model_dump(
+            mode="json"
+        )
 
     def _stored_lists(meet: str, source: planning.Source) -> station_lists.Lists | None:
         """Lists already among the sources, read again from the file as it came: with code, or
@@ -862,3 +909,9 @@ def router(
 
 def _encode(name: str) -> str:
     return quote(name, safe="")
+
+
+def _is_outside(data: bytes) -> bool:
+    """A station's outside, trainmeet.station-outside/1, as TKL Studio writes it."""
+    head = data[:400].lstrip()
+    return head.startswith(b"{") and b'"trainmeet.station-outside/1"' in data[:2000]

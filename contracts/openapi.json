@@ -17773,6 +17773,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.draft.ConfirmChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.StationChange"
                 }
               ]
             },
@@ -17806,6 +17809,14 @@
             },
             "title": "Double Track Declined",
             "type": "object"
+          },
+          "stations": {
+            "description": "Stationernas utsidor bland underlagen (IMPORT-10).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.draft.StationVersion"
+            },
+            "title": "Stations",
+            "type": "array"
           }
         },
         "required": [
@@ -19985,10 +19996,41 @@
           "planning_json",
           "station_lists",
           "track_picture",
-          "graph_picture"
+          "graph_picture",
+          "station_outside"
         ],
         "title": "SourceKind",
         "type": "string"
+      },
+      "trainmeet.planning-1.draft.StationChange": {
+        "additionalProperties": true,
+        "description": "Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the\nnext version (PLAN-11). Empty station: koppla bort.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "station": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stationens id bland utkastets stationer, eller tomt.",
+            "title": "Station"
+          }
+        },
+        "required": [
+          "place",
+          "station"
+        ],
+        "title": "StationChange",
+        "type": "object"
       },
       "trainmeet.planning-1.draft.StationOutside": {
         "additionalProperties": true,
@@ -20067,6 +20109,32 @@
           "label"
         ],
         "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.StationVersion": {
+        "additionalProperties": true,
+        "description": "En stations utsida bland utkastets underlag (IMPORT-10). En ny utsida för samma station\nfår nästa nummer; samma utsida igen ändrar inget (IMPORT-31).",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "source": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "outside": {
+            "$ref": "#/components/schemas/trainmeet.planning-1.draft.StationOutside"
+          }
+        },
+        "required": [
+          "version",
+          "source",
+          "outside"
+        ],
+        "title": "StationVersion",
         "type": "object"
       },
       "trainmeet.planning-1.draft.TakenChange": {
@@ -20844,6 +20912,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.changes.ConfirmChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.StationChange"
                 }
               ]
             },
@@ -21002,6 +21073,36 @@
           "tracks"
         ],
         "title": "SectionTracksChange",
+        "type": "object"
+      },
+      "trainmeet.planning-1.changes.StationChange": {
+        "additionalProperties": true,
+        "description": "Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the\nnext version (PLAN-11). Empty station: koppla bort.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "station": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stationens id bland utkastets stationer, eller tomt.",
+            "title": "Station"
+          }
+        },
+        "required": [
+          "place",
+          "station"
+        ],
+        "title": "StationChange",
         "type": "object"
       },
       "trainmeet.planning-1.changes.TrackKind": {
@@ -21408,7 +21509,8 @@
           "planning_json",
           "station_lists",
           "track_picture",
-          "graph_picture"
+          "graph_picture",
+          "station_outside"
         ],
         "title": "SourceKind",
         "type": "string"
@@ -24652,6 +24754,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.ConfirmChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.StationChange"
                 }
               ]
             },
@@ -24685,6 +24790,14 @@
             },
             "title": "Double Track Declined",
             "type": "object"
+          },
+          "stations": {
+            "description": "Stationernas utsidor bland underlagen (IMPORT-10).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.StationVersion"
+            },
+            "title": "Stations",
+            "type": "array"
           }
         },
         "required": [
@@ -26186,10 +26299,41 @@
           "planning_json",
           "station_lists",
           "track_picture",
-          "graph_picture"
+          "graph_picture",
+          "station_outside"
         ],
         "title": "SourceKind",
         "type": "string"
+      },
+      "trainmeet.sync-1.home-bundle.StationChange": {
+        "additionalProperties": true,
+        "description": "Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the\nnext version (PLAN-11). Empty station: koppla bort.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "station": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stationens id bland utkastets stationer, eller tomt.",
+            "title": "Station"
+          }
+        },
+        "required": [
+          "place",
+          "station"
+        ],
+        "title": "StationChange",
+        "type": "object"
       },
       "trainmeet.sync-1.home-bundle.StationOutside": {
         "additionalProperties": true,
@@ -26268,6 +26412,32 @@
           "label"
         ],
         "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.home-bundle.StationVersion": {
+        "additionalProperties": true,
+        "description": "En stations utsida bland utkastets underlag (IMPORT-10). En ny utsida för samma station\nfår nästa nummer; samma utsida igen ändrar inget (IMPORT-31).",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "source": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "outside": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.StationOutside"
+          }
+        },
+        "required": [
+          "version",
+          "source",
+          "outside"
+        ],
+        "title": "StationVersion",
         "type": "object"
       },
       "trainmeet.sync-1.home-bundle.TakenChange": {

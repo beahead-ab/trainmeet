@@ -29,6 +29,7 @@ from contracts.meet import (
     PlaceKind,
     TrackKind,
 )
+from contracts.station_outside import StationOutside
 
 FORMAT: Final = "trainmeet.planning/1"
 PLANNER: Final = "planner"
@@ -49,6 +50,7 @@ class SourceKind(StrEnum):
     STATION_LISTS = "station_lists"  # Stationslistorna: ODT, Excel eller CSV (4c1)
     TRACK_PICTURE = "track_picture"  # Banbilden: Tellurians topologi-PDF (4c1)
     GRAPH_PICTURE = "graph_picture"  # Grafen som bild, avskriven av egen AI (4c2)
+    STATION_OUTSIDE = "station_outside"  # Stationens utsida från TKL (IMPORT-10)
 
 
 class Source(Contract):
@@ -228,6 +230,23 @@ class PlaceChange(Contract):
     phone: Text | None = None
 
 
+class StationChange(Contract):
+    """Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
+    next version (PLAN-11). Empty station: koppla bort."""
+
+    place: Id
+    station: Id | None = Field(description="Stationens id bland utkastets stationer, eller tomt.")
+
+
+class StationVersion(Contract):
+    """En stations utsida bland utkastets underlag (IMPORT-10). En ny utsida för samma station
+    får nästa nummer; samma utsida igen ändrar inget (IMPORT-31)."""
+
+    version: int = Field(ge=1)
+    source: Id
+    outside: StationOutside
+
+
 class SectionChange(Contract):
     """A change to one section in the draft. Clearance mode empty follows the meet."""
 
@@ -325,6 +344,7 @@ def _change_kind(value: Any) -> str:
     if isinstance(value, dict):
         for key, kind in (
             ("confirm", "confirm"),
+            ("station", "station"),
             ("call", "call"),
             ("days", "days"),
             ("train", "train"),
@@ -336,6 +356,7 @@ def _change_kind(value: Any) -> str:
         return "section"
     for model, kind in (
         (ConfirmChange, "confirm"),
+        (StationChange, "station"),
         (CallChange, "call"),
         (TrainDaysChange, "days"),
         (TrainChange, "train"),
@@ -354,7 +375,8 @@ Change = Annotated[
     | Annotated[CallChange, Tag("call")]
     | Annotated[TrainChange, Tag("train")]
     | Annotated[TrainDaysChange, Tag("days")]
-    | Annotated[ConfirmChange, Tag("confirm")],
+    | Annotated[ConfirmChange, Tag("confirm")]
+    | Annotated[StationChange, Tag("station")],
     Discriminator(_change_kind),
 ]
 
@@ -426,6 +448,9 @@ class Draft(Contract):
     double_track_declined: dict[Id, str] = Field(
         default_factory=dict,
         description="Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
+    )
+    stations: list[StationVersion] = Field(
+        default_factory=list, description="Stationernas utsidor bland underlagen (IMPORT-10)."
     )
 
 

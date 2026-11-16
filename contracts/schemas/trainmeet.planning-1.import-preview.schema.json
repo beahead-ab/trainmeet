@@ -256,7 +256,8 @@
         "planning_json",
         "station_lists",
         "track_picture",
-        "graph_picture"
+        "graph_picture",
+        "station_outside"
       ],
       "title": "SourceKind",
       "type": "string"

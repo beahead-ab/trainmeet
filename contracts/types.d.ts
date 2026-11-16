@@ -8523,7 +8523,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.draft.StationChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -8543,6 +8543,11 @@ export interface components {
             double_track_declined?: {
                 [key: string]: string;
             };
+            /**
+             * Stations
+             * @description Stationernas utsidor bland underlagen (IMPORT-10).
+             */
+            stations?: components["schemas"]["trainmeet.planning-1.draft.StationVersion"][];
         } & {
             [key: string]: unknown;
         };
@@ -9658,7 +9663,23 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
+        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
+        /**
+         * StationChange
+         * @description Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
+         *     next version (PLAN-11). Empty station: koppla bort.
+         */
+        "trainmeet.planning-1.draft.StationChange": {
+            /** Place */
+            place: string;
+            /**
+             * Station
+             * @description Stationens id bland utkastets stationer, eller tomt.
+             */
+            station: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * StationOutside
          * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
@@ -9698,6 +9719,20 @@ export interface components {
              * @description Det som står på skärmen, till exempel Spår 1a.
              */
             label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationVersion
+         * @description En stations utsida bland utkastets underlag (IMPORT-10). En ny utsida för samma station
+         *     får nästa nummer; samma utsida igen ändrar inget (IMPORT-31).
+         */
+        "trainmeet.planning-1.draft.StationVersion": {
+            /** Version */
+            version: number;
+            /** Source */
+            source: string;
+            outside: components["schemas"]["trainmeet.planning-1.draft.StationOutside"];
         } & {
             [key: string]: unknown;
         };
@@ -10086,7 +10121,7 @@ export interface components {
              */
             revision: number;
             /** Changes */
-            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"])[];
+            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.changes.StationChange"])[];
         } & {
             [key: string]: unknown;
         };
@@ -10167,6 +10202,22 @@ export interface components {
             /** Section */
             section: string;
             tracks: components["schemas"]["trainmeet.planning-1.changes.TrackKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationChange
+         * @description Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
+         *     next version (PLAN-11). Empty station: koppla bort.
+         */
+        "trainmeet.planning-1.changes.StationChange": {
+            /** Place */
+            place: string;
+            /**
+             * Station
+             * @description Stationens id bland utkastets stationer, eller tomt.
+             */
+            station: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10423,7 +10474,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.
@@ -12063,7 +12114,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"])[];
+            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.StationChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -12083,6 +12134,11 @@ export interface components {
             double_track_declined?: {
                 [key: string]: string;
             };
+            /**
+             * Stations
+             * @description Stationernas utsidor bland underlagen (IMPORT-10).
+             */
+            stations?: components["schemas"]["trainmeet.sync-1.home-bundle.StationVersion"][];
         } & {
             [key: string]: unknown;
         };
@@ -12824,7 +12880,23 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.sync-1.home-bundle.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture";
+        "trainmeet.sync-1.home-bundle.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
+        /**
+         * StationChange
+         * @description Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
+         *     next version (PLAN-11). Empty station: koppla bort.
+         */
+        "trainmeet.sync-1.home-bundle.StationChange": {
+            /** Place */
+            place: string;
+            /**
+             * Station
+             * @description Stationens id bland utkastets stationer, eller tomt.
+             */
+            station: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * StationOutside
          * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
@@ -12864,6 +12936,20 @@ export interface components {
              * @description Det som står på skärmen, till exempel Spår 1a.
              */
             label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationVersion
+         * @description En stations utsida bland utkastets underlag (IMPORT-10). En ny utsida för samma station
+         *     får nästa nummer; samma utsida igen ändrar inget (IMPORT-31).
+         */
+        "trainmeet.sync-1.home-bundle.StationVersion": {
+            /** Version */
+            version: number;
+            /** Source */
+            source: string;
+            outside: components["schemas"]["trainmeet.sync-1.home-bundle.StationOutside"];
         } & {
             [key: string]: unknown;
         };

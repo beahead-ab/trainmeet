@@ -39,7 +39,7 @@ import { Underlag } from "./Underlag";
 // changes on top (PLAN-38). One also answers the import's questions and adds a source (Lägg
 // till underlag). Everyone may look (S1).
 
-export type Edit = { kind: "place" | "tracks" | "section" | "arrival" | "departure" | "track" | "number" | "note" | "days"; id: string; before: string | null; after: string | null };
+export type Edit = { kind: "place" | "station" | "tracks" | "section" | "arrival" | "departure" | "track" | "number" | "note" | "days"; id: string; before: string | null; after: string | null };
 
 type AnyChange = Changes["changes"][number];
 type Days = Extract<AnyChange, { days: unknown }>["days"];
@@ -100,6 +100,8 @@ export function changesOf(pending: Edit[]): AnyChange[] {
     switch (change.kind) {
       case "place":
         return { place: change.id, phone: change.after };
+      case "station":
+        return { place: change.id, station: change.after };
       case "tracks":
         return { section: change.id, tracks: change.after as "single" | "double" };
       case "section":
@@ -184,6 +186,30 @@ function makeBlocks(context: Context): AnyBlock[] {
           if (next !== shown) edit({ kind: "place", id: place.id, before: shown, after: next });
         }}
       />
+    );
+  };
+  // Kopplad (PLAN-05): a station's outside among the sources, coupled to the place in advance.
+  const stations = draft.stations ?? [];
+  const stationName = (id: string | null) => (id ? (stations.find((s) => s.outside.station_id === id)?.outside.name ?? id) : null);
+  const stationCell = (place: Place) => {
+    const shown = value("station", place.id, place.station?.station_id ?? null);
+    if (!admin || !stations.length || selectedRef !== `place:${place.id}`) return shown ? <span>{stationName(shown)}</span> : <span className="svag">–</span>;
+    return (
+      <select
+        className="cell"
+        value={shown ?? ""}
+        aria-label={`Station för ${place.name}`}
+        onClick={stop}
+        onChange={(event) => {
+          const next = event.currentTarget.value || null;
+          if (next !== shown) edit({ kind: "station", id: place.id, before: shown, after: next });
+        }}
+      >
+        <option value="">–</option>
+        {stations.map((s) => (
+          <option key={s.outside.station_id} value={s.outside.station_id}>{`${s.outside.name} · version ${s.version}`}</option>
+        ))}
+      </select>
     );
   };
   const tracksCell = (section: Section) => {
@@ -370,7 +396,7 @@ function makeBlocks(context: Context): AnyBlock[] {
           ),
         },
         { name: "Telefon", text: (place) => value("place", place.id, place.phone ?? null) ?? "–", cell: phoneCell },
-        { name: "Kopplad", text: () => "–", cell: () => <span className="svag">–</span> },
+        { name: "Kopplad", text: (place) => stationName(value("station", place.id, place.station?.station_id ?? null)) ?? "–", cell: stationCell },
         { name: "Spår", cls: "tal", text: (place) => String((place.tracks ?? []).length) },
       ],
       title: (place) => `${place.code} · ${place.name}`,
