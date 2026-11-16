@@ -1,0 +1,31 @@
+# Pi:ns nätverkstjänst (SYNK-26): ändrar bara Pi:ns Wi-Fi, genom NetworkManager, och tar bara
+# emot från hubbens användare på en Unix-socket. Ingen TCP och inget skal.
+[Unit]
+Description=TrainMeet, Pi:ns nätverkstjänst
+After=NetworkManager.service
+Requires=NetworkManager.service
+ConditionPathExists=/proc/device-tree/model
+
+[Service]
+Type=simple
+User=root
+Group=trainmeet
+Environment=TRAINMEET_NETWORK_USER=trainmeet
+RuntimeDirectory=trainmeet-network
+RuntimeDirectoryMode=0750
+ExecStart=/opt/trainmeet/current/venv/bin/python -m synk.network_host
+Restart=on-failure
+RestartSec=5
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/trainmeet-network
+
+[Install]
+WantedBy=multi-user.target

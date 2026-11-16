@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type Version, type WifiProfile, type WifiStatus } from "./api";
+import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -42,6 +42,7 @@ export function heaps(now: Now | null): Heap[] {
     items: [
       ["hubben", "Namn och version"],
       ["natet", "Pi:ns nät"],
+      ["uppdatering", "Uppdatering"],
       ["molnet", "Molnet"],
       ["ai", "AI"],
     ],
@@ -108,6 +109,7 @@ export function SettingsPage(props: SettingsProps) {
             <p className="liten">Språket kommer hit senare i steg 5.</p>
           </section>
           <Natet admin={props.admin} />
+          <Uppdatering admin={props.admin} />
           <Molnet admin={props.admin} />
           <EgenAi {...props} />
         </div>
@@ -117,6 +119,75 @@ export function SettingsPage(props: SettingsProps) {
 }
 
 const when = (at: string | null | undefined) => (at ? new Date(at).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "medium" }) : "aldrig");
+
+const UPDATE_STATES: Record<string, string> = {
+  checking: "Söker efter en nyare version",
+  downloading: "Hämtar den nya versionen",
+  installing: "Installerar",
+  restarting: "Startar om hubben",
+  done: "Klart",
+  current: "Hubben har redan den senaste versionen",
+  failed: "Uppdateringen gick inte",
+};
+const WORKING = new Set(["checking", "downloading", "installing", "restarting"]);
+
+/** Den här hubben → Uppdatering (SYNK-23): on a Pi, on the button and never during a meet. The
+ * Pi fetches the latest package, tries it and goes back if the hub does not answer. */
+export function Uppdatering({ admin, initial }: { admin: boolean; initial?: UpdateStatus }) {
+  const [state, setState] = useState<UpdateStatus | null>(initial ?? null);
+  const [said, setSaid] = useState("");
+  const working = WORKING.has(state?.state ?? "");
+  useEffect(() => {
+    if (!admin || initial) return;
+    const read = () => void hub.update().then(setState, () => undefined);
+    read();
+    const timer = window.setInterval(read, working ? 2000 : 30000);
+    return () => window.clearInterval(timer);
+  }, [admin, initial, working]);
+  const start = async () => {
+    setSaid("");
+    try {
+      setState(await hub.startUpdate());
+      setSaid("Uppdateringen har startat. Hubben startar om när den är klar; sidan kan tappa kontakten en stund.");
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    }
+  };
+  return (
+    <section id="uppdatering" className="kort" aria-labelledby="uppdatering-rubrik">
+      <h2 id="uppdatering-rubrik">Uppdatering</h2>
+      <p className="liten">Pi:n hämtar den senaste versionen, provar den och går tillbaka till den förra om hubben inte svarar. Träffarna och inställningarna finns kvar.</p>
+      {!admin ? (
+        <p className="liten">Logga in för att uppdatera hubben.</p>
+      ) : !state ? (
+        <p className="liten">Läser …</p>
+      ) : !state.available ? (
+        <p className="liten" id="uppdatering-saknas">{state.reason}</p>
+      ) : (
+        <>
+          <dl className="bygge" id="uppdatering-lage">
+            <dt>Körs nu</dt>
+            <dd className="tm-mono">{state.build ?? "okänd"}</dd>
+            {state.state && (
+              <>
+                <dt>Senast</dt>
+                <dd>{`${UPDATE_STATES[state.state] ?? state.state}${state.message ? `: ${state.message}` : ""}${state.at ? ` · ${when(state.at)}` : ""}`}</dd>
+              </>
+            )}
+          </dl>
+          <div className="installningsfot">
+            <span className="liten" role="status" id="uppdatering-said">
+              {said || (state.meet_running ? "En träff pågår. Uppdatera när klockan står still och träffen är slut." : "Aldrig under en träff.")}
+            </span>
+            <button id="update-start" type="button" className="primar" disabled={working || Boolean(state.meet_running)} onClick={() => void start()}>
+              {working ? "Uppdaterar …" : "Sök och installera"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 const SECURITY: [WifiProfile["security"], string][] = [
   ["wpa2", "WPA2"],

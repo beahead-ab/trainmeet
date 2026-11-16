@@ -1,0 +1,11 @@
+# Uppdateringen på knapptryck (SYNK-23): startas av hubben, aldrig under en träff. Hämtar det
+# senaste Pi-paketet, provar det och går tillbaka om hubben inte svarar.
+[Unit]
+Description=TrainMeet, uppdatera hubben
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/trainmeet/current/pi/install.sh --update
+Nice=10

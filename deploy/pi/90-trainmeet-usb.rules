@@ -1,0 +1,4 @@
+# Ett USB-minne monteras där hubben letar (DRIFT-21, H46): /media/trainmeet-usb, skrivbart för
+# hubbens användare. Kopian av drifthändelserna och en fil med en ny PIN-kod läses där.
+ACTION=="add", SUBSYSTEMS=="usb", SUBSYSTEM=="block", ENV{ID_FS_USAGE}=="filesystem", ENV{ID_FS_TYPE}=="vfat|exfat", RUN{program}+="/usr/bin/systemd-mount --no-block --collect --options=uid=trainmeet,gid=trainmeet,umask=0007,flush $devnode /media/trainmeet-usb"
+ACTION=="remove", SUBSYSTEMS=="usb", SUBSYSTEM=="block", RUN{program}+="/usr/bin/systemd-umount /media/trainmeet-usb"
