@@ -41,6 +41,9 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Väntar | `ChangeStatus.waiting` | En driftändring mot ett tåg som är ute eller har öppen klarering gäller först när tåget är framme (H38). |
 | Tvinga igenom | `force`, `change.applied` | Trafikledningen låter en väntande driftändring gälla direkt, med en varning. Det som inte längre körs stängs (H38). |
 | Släpp | `change.dropped` | En driftändring gäller inte längre; versionen körs som den är. |
+| Förslag | `Proposal` | En driftändring som förslag till nästa version (4.4). Planeraren tar med den i utkastet eller avslår den i Versioner, och Drift ser svaret. Släpps den i Drift innan svaret är den återtagen. |
+| Ta med | `take`, `Draft.taken` | Förslaget läggs på utkastet, på samma sätt som Drift gjorde, och står kvar när underlaget läses om. |
+| Avslå | `reject` | Nästa version görs utan förslaget. |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |

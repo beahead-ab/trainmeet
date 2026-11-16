@@ -279,6 +279,15 @@ class ChangeStatus(StrEnum):
     DROPPED = "dropped"  # släppt
 
 
+class ProposalStatus(StrEnum):
+    """Planering's answer to a driftändring (4.4, PLAN-03)."""
+
+    WAITING = "waiting"  # väntar i Planering
+    TAKEN = "taken"  # tagen med i utkastet till nästa version
+    REJECTED = "rejected"  # avslagen
+    WITHDRAWN = "withdrawn"  # släppt i Drift innan Planering svarat
+
+
 class ChangeNow(Contract):
     """A Drift change as Nu lists it, with what it waits for."""
 
@@ -288,6 +297,9 @@ class ChangeNow(Contract):
     forced: bool = False
     train_number: Text | None = Field(default=None, description="Tågets nummer då.")
     made: TimeOfDay = Field(description="Modelltiden när ändringen gjordes.")
+    proposal: ProposalStatus | None = Field(
+        default=None, description="Svaret från Planering; tomt för Provbanan."
+    )
     waiting_for: list[Text] = Field(
         default_factory=list, description="Tågnumren som är ute och som ändringen väntar på."
     )

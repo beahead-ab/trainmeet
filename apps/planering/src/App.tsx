@@ -1,6 +1,6 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { planning, type Check, type Draft, type MeetSummary, type NewMeet, type Version } from "./api";
+import { planning, type Check, type Draft, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
 import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
 import { GrafPage } from "./Graf";
@@ -38,6 +38,7 @@ export function App() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
   const [versions, setVersions] = useState<Version[] | null>(null);
+  const [proposals, setProposals] = useState<Proposal[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -58,9 +59,10 @@ export function App() {
   const readVersions = useCallback(
     async (id: string) => {
       try {
-        const [checked, listed] = await Promise.all([planning.check(id), planning.versions(id)]);
+        const [checked, listed, proposed] = await Promise.all([planning.check(id), planning.versions(id), planning.proposals(id)]);
         setCheck(checked);
         setVersions(listed);
+        setProposals(proposed);
       } catch (error) {
         fail(error);
       }
@@ -76,6 +78,7 @@ export function App() {
     setDraft(null);
     setCheck(null);
     setVersions(null);
+    setProposals(null);
     void (async () => {
       try {
         const found = await planning.draft(meet);
@@ -124,6 +127,21 @@ export function App() {
     setBusy(false);
   };
 
+  // Förslag från Drift (PLAN-03): Ta med lays it on the draft; Avslå leaves it out.
+  const onAnswer = async (id: string, take: boolean) => {
+    if (!meet) return;
+    setBusy(true);
+    let done = false;
+    await act(async () => {
+      if (take) setDraft(await planning.take(meet, id));
+      else await planning.reject(meet, id);
+      done = true;
+    });
+    if (done) tell(take ? "Förslaget är med i utkastet till nästa version." : "Förslaget är avslaget.", true);
+    await readVersions(meet);
+    setBusy(false);
+  };
+
   return (
     <>
       <Sidhuvud {...hubState.header({ current: route.page === "traffar" ? "/planering" : `/planering/${encodeURIComponent(route.meet)}/${route.page}`, viewed: meet, navigate })} />
@@ -158,7 +176,20 @@ export function App() {
           />
         )}
         {route.page === "graf" && <GrafPage draft={draft} findings={check?.findings ?? []} />}
-        {route.page === "versioner" && <VersionerPage admin={admin} meet={route.meet} draft={draft} check={check} versions={versions} busy={busy} onPublish={() => void onPublish()} />}
+        {route.page === "versioner" && (
+          <VersionerPage
+            admin={admin}
+            meet={route.meet}
+            draft={draft}
+            check={check}
+            versions={versions}
+            busy={busy}
+            onPublish={() => void onPublish()}
+            proposals={proposals}
+            onTake={(id) => void onAnswer(id, true)}
+            onReject={(id) => void onAnswer(id, false)}
+          />
+        )}
         <p id="message" className={"meddelande" + (ok ? " ok" : "")} role="alert">
           {hubState.message}
         </p>

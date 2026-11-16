@@ -467,7 +467,9 @@ class Drift:
                 before = self.history[: undone.jump - 1]
                 assert self.history[undone.jump - 1].kind in _UNDOABLE
                 self._restore(
-                    Drift(self.package, before, now=event.wall_time, version=self.version),
+                    # From the version itself: the driftändringar before the jump are in the
+                    # events and are laid on again as they replay.
+                    Drift(self.base, before, now=event.wall_time, version=self.version),
                     undone.seconds,
                     event.wall_time,
                 )

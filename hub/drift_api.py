@@ -26,7 +26,7 @@ from drift.now import now
 from drift.store import MissingRun, RunLimit, UnknownBox, UnknownClient
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from hub.running import Running, UnknownMeet
+from hub.running import PROVBANAN, Running, UnknownMeet
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -130,9 +130,18 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return running.store.make_change(run_id, request).history[-1].model_dump(mode="json")
+            state = running.store.make_change(run_id, request)
         except failures as error:
             _error(error)
+        event = next(e for e in reversed(state.history) if e.kind == drift.EventKind.CHANGE_MADE)
+        made = drift.ChangeMade.model_validate(event.data)
+        if running.meet != PROVBANAN:
+            # Every driftändring is a proposal for the next version (4.4). Synk carries it when
+            # Planering is elsewhere; on the hub it is handed over here.
+            running.planning.propose(
+                running.meet, running.version, made.change_id, made.change, made.train_number
+            )
+        return event.model_dump(mode="json")
 
     @routes.post("/changes/{change_id}/drop")
     def drop_change(
@@ -145,9 +154,12 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         run_id = admin(session, authorization)
         try:
-            return running.store.drop_change(run_id, change_id).history[-1].model_dump(mode="json")
+            event = running.store.drop_change(run_id, change_id).history[-1]
         except failures as error:
             _error(error)
+        if running.meet != PROVBANAN:
+            running.planning.withdraw(running.meet, change_id)
+        return event.model_dump(mode="json")
 
     @routes.post("/changes/{change_id}/force")
     def force_change(
@@ -205,14 +217,24 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
 
     @routes.get("/now")
     def nu(response: Response) -> dict[str, Any]:
-        """Nu, open to everyone who looks (S1)."""
+        """Nu, open to everyone who looks (S1), with Planering's answer to each driftändring
+        (4.4)."""
         response.headers["Cache-Control"] = "no-store"
         try:
-            return now(running.store.state(running.store.current()), now_utc()).model_dump(
-                mode="json"
-            )
+            seen = now(running.store.state(running.store.current()), now_utc())
         except MissingRun as error:
             _error(error)
+        if seen.changes and running.meet != PROVBANAN:
+            answers = running.planning.answers(running.meet)
+            seen = seen.model_copy(
+                update={
+                    "changes": [
+                        c.model_copy(update={"proposal": answers.get(c.change_id)})
+                        for c in seen.changes
+                    ]
+                }
+            )
+        return seen.model_dump(mode="json")
 
     @routes.get("/clients")
     def clients(

@@ -222,6 +222,48 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except PlanningError as error:
             _fail(error)
 
+    # Förslag från Drift (4.4, PLAN-03): Ta med or Avslå.
+
+    @routes.get("/meets/{meet}/proposals")
+    def proposals(meet: str, response: Response) -> list[dict[str, Any]]:
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            return [proposal.model_dump(mode="json") for proposal in store.proposals(meet)]
+        except PlanningError as error:
+            _fail(error)
+
+    @routes.post("/meets/{meet}/proposals/{proposal}/take")
+    def take(
+        meet: str,
+        proposal: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Ta med: the driftändring into the draft for the next version."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.take(meet, proposal).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
+    @routes.post("/meets/{meet}/proposals/{proposal}/reject")
+    def reject(
+        meet: str,
+        proposal: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Avslå: the next version is made without it."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.reject(meet, proposal).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
     @routes.get("/meets/{meet}/versions/{number}")
     def version(meet: str, number: int, response: Response) -> dict[str, Any]:
         """A published version as the meet package Drift runs."""

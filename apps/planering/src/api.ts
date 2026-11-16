@@ -13,6 +13,7 @@ export type Version = Schemas["trainmeet.planning-1.version"];
 export type ImportPreview = Schemas["trainmeet.planning-1.import-preview"];
 export type Changes = Schemas["trainmeet.planning-1.changes"];
 export type Answer = Schemas["trainmeet.planning-1.answer"];
+export type Proposal = Schemas["trainmeet.planning-1.proposal"];
 
 const MEETS = "/api/planering/1/meets";
 const meet = (id: string) => `${MEETS}/${encodeURIComponent(id)}`;
@@ -26,6 +27,9 @@ export const planning = {
   publish: (id: string) => call<Version>(`${meet(id)}/versions`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
   answer: (id: string, given: Answer) => call<Draft>(`${meet(id)}/answers`, given),
+  proposals: (id: string) => call<Proposal[]>(`${meet(id)}/proposals`),
+  take: (id: string, proposal: string) => call<Draft>(`${meet(id)}/proposals/${encodeURIComponent(proposal)}/take`, {}),
+  reject: (id: string, proposal: string) => call<Proposal>(`${meet(id)}/proposals/${encodeURIComponent(proposal)}/reject`, {}),
   apply: (id: string, source: string) => call<Draft>(`${meet(id)}/sources/${encodeURIComponent(source)}/apply`, {}),
   /** The source file as it came, for the administrator. */
   sourceFile: (id: string, source: string) => `${meet(id)}/sources/${encodeURIComponent(source)}`,

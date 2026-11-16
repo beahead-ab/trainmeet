@@ -264,3 +264,42 @@ def test_a_run_keeps_its_package_when_the_contracts_gain_a_field(
             (Path(__file__).parents[2] / "contracts/examples/provbanan.meet.json").read_text()
         )
     )
+
+
+def test_a_driftändring_becomes_a_proposal_and_drift_sees_the_answer(planned: TestClient) -> None:
+    """Förslag från Drift (4.4, PLAN-03, TRAFIK-16) through the hub: made in Nu, answered in
+    Versioner, seen again in Nu. Släppt before an answer, it is withdrawn."""
+    seen = run_varnamo(planned)
+    first, second, third = [leg.train for leg in seen.legs if leg.state == "planned"][:3]
+    for train in (first, second, third):
+        made = planned.post(
+            DRIFT + "/changes", json={"change": {"kind": "note", "train": train, "text": "Ånglok"}}
+        )
+        assert made.status_code == 200, made.text
+    proposals = planned.get(f"{API}/meets/{MEET}/proposals").json()
+    assert [p["status"] for p in proposals] == ["waiting"] * 3
+    by_train = {p["change"]["train"]: p["id"] for p in proposals}
+    assert (
+        TestClient(planned.app)
+        .post(f"{API}/meets/{MEET}/proposals/{by_train[first]}/take")
+        .status_code
+        == 401
+    )
+    taken = planned.post(f"{API}/meets/{MEET}/proposals/{by_train[first]}/take")
+    assert taken.status_code == 200, taken.text
+    draft = planning.Draft.model_validate(taken.json())
+    assert draft.package is not None
+    assert next(t.note for t in draft.package.trains if t.id == first) == "Ånglok"
+    assert (
+        planned.post(f"{API}/meets/{MEET}/proposals/{by_train[second]}/reject").status_code == 200
+    )
+    assert planned.post(DRIFT + f"/changes/{by_train[third]}/drop").status_code == 200
+    answers = {
+        c.change_id: c.proposal
+        for c in drift.Now.model_validate(planned.get(DRIFT + "/now").json()).changes
+    }
+    assert answers == {
+        by_train[first]: "taken",
+        by_train[second]: "rejected",
+        by_train[third]: "withdrawn",
+    }

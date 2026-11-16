@@ -48,6 +48,9 @@ group("Driftändringar (DRIFT-41, TRAFIK-02)", () => {
     expect(statusText(change({ forced: true }))).toBe("Gäller, tvingad igenom");
     expect(statusText(change({ status: "waiting", waiting_for: ["101"] }))).toBe("Väntar på tåg 101");
     expect(statusText(change({ status: "dropped" }))).toBe("Släppt");
+    expect(statusText(change({ proposal: "waiting" }))).toBe("Gäller · förslaget väntar i Planering");
+    expect(statusText(change({ proposal: "taken" }))).toBe("Gäller · tagen med i nästa version");
+    expect(statusText(change({ status: "dropped", proposal: "withdrawn" }))).toBe("Släppt · förslaget återtaget");
   });
 
   it("turns the form into a change, or says what is missing", () => {
