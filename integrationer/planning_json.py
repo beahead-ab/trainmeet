@@ -46,6 +46,7 @@ from contracts.meet import (
     Duty,
     DutyLeg,
     GraphPage,
+    MapPoint,
     Meet,
     MeetPackage,
     Place,
@@ -356,7 +357,9 @@ class _Importer:
         try:
             package = MeetPackage(
                 meet=meet,
-                display=Display(graph_pages=self._graph_pages()),
+                display=Display(
+                    graph_pages=self._graph_pages(), reference_layout=self._reference_layout()
+                ),
                 clock=clock_settings,
                 places=self.places,
                 sections=sections,
@@ -850,6 +853,20 @@ class _Importer:
         return turns
 
     # --- The graph's lines -------------------------------------------------------------------
+
+    def _reference_layout(self) -> dict[str, MapPoint]:
+        """Kartans lägen (PLAN-26): Layout.TopologyPositions, where the planner put the places
+        on the plan's map. Often only some places have one; the rest are drawn after the
+        sections."""
+        points: dict[str, MapPoint] = {}
+        for position in self.plan.items(self.layout, "TopologyPositions"):
+            place = self.place_ids.get(position.get("LocationId"))
+            x, y = position.get("X"), position.get("Y")
+            if place is None or isinstance(x, bool) or isinstance(y, bool):
+                continue
+            if isinstance(x, int | float) and isinstance(y, int | float):
+                points[place] = MapPoint(x=float(x), y=float(y))
+        return points
 
     def _graph_pages(self) -> list[GraphPage]:
         """The plan's graph lines (TimetableStretches): the organiser's sheets of the train

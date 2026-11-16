@@ -274,9 +274,23 @@ class GraphPage(Contract):
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
+class MapPoint(Contract):
+    """Where the organiser's map has a place, in the map's own units (PLAN-26)."""
+
+    x: float
+    y: float
+
+
 class Display(Contract):
     graph_order: list[Id] = Field(default_factory=list, description="Platserna i grafen.")
     graph_pages: list[GraphPage] = Field(default_factory=list)
+    reference_layout: dict[Id, MapPoint] = Field(
+        default_factory=dict,
+        description=(
+            "Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara "
+            "ritningen av banan; en plats utan läge ritas efter sträckorna."
+        ),
+    )
 
 
 class About(Contract):
@@ -428,6 +442,8 @@ def _structural_problems(package: MeetPackage) -> list[str]:
                 problems.append(f"Omloppet {turn.id} pekar på ett okänt tåg {ref}.")
     for task in package.shunting:
         place_ref(task.place, f"Växlingsuppdraget {task.id}")
+    for ref in package.display.reference_layout:
+        place_ref(ref, "Kartans lägen")
     for ref in package.display.graph_order:
         place_ref(ref, "Grafens ordning")
     for page in package.display.graph_pages:

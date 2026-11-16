@@ -591,6 +591,20 @@ def test_the_same_file_gives_the_same_result() -> None:
     assert imported(plan()) == imported(plan())
 
 
+def test_the_maps_places_are_read_and_odd_ones_left_out() -> None:
+    data = plan()
+    data["Timetable"]["Layout"]["TopologyPositions"] = {
+        "$values": [
+            {"LocationId": 10, "X": 56, "Y": -32.5},
+            {"LocationId": 999, "X": 1, "Y": 1},
+            {"LocationId": 20, "X": True, "Y": 1},
+            {"LocationId": 30, "X": "8", "Y": 1},
+        ]
+    }
+    layout = imported(data).package.display.reference_layout
+    assert {place: (point.x, point.y) for place, point in layout.items()} == {"p10": (56, -32.5)}
+
+
 def test_a_plan_without_dispatch_stretches_has_no_sections() -> None:
     data = plan()
     del data["Timetable"]["Layout"]["DispatchStretches"]

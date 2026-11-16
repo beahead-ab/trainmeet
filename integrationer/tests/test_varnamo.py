@@ -152,3 +152,13 @@ def test_the_graphs_lines_come_from_the_plan(result: ImportResult) -> None:
     assert [codes[ref] for ref in main.places] == ["Mkd", "Lek", "Gdö", "Tby", "R", "Nlu", "Mot"]
     assert main.distances == [0, 12, 24, 28, 37, 55, 67]
     assert main.color == "#1a3a5c"
+
+
+def test_the_maps_places_come_from_the_plan(result: ImportResult) -> None:
+    """Kartans lägen (PLAN-26): the plan's map has six of the places; the rest are drawn after
+    the sections."""
+    layout = result.package.display.reference_layout
+    assert len(layout) == 6
+    assert (layout["p2"].x, layout["p2"].y) == (56, 112)
+    places = {place.id for place in result.package.places}
+    assert set(layout) <= places
