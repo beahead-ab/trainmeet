@@ -94,7 +94,10 @@ button {
   min-height: 1.4em;
 }
 
+/* Klockskärmen (SKARM-23, H74): the meet and its day top left, the clock in the middle. When
+   the clock stands still, that is said in red glass over the lower half. */
 .klocka {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -102,11 +105,66 @@ button {
   justify-content: center;
   cursor: none;
 }
-.traff {
+.klocka-rubrik {
+  position: absolute;
+  top: 4.5vh;
+  left: 2.3vw;
+}
+.klocka-rubrik h1 {
   margin: 0;
-  font-size: 3.2vw;
-  font-weight: 600;
+  font-size: 3.3vh;
+  font-weight: 700;
+}
+.klocka-rubrik p {
+  margin: 0.4vh 0 0;
+  font-size: 2vh;
   color: var(--mute);
+  font-variant-numeric: tabular-nums;
+}
+.urtavla {
+  height: 86vh;
+  width: auto;
+}
+.tavla {
+  fill: #161a20;
+  stroke: #2a313b;
+  stroke-width: 6;
+}
+.streck {
+  stroke: #6b7380;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.streck.langt {
+  stroke: var(--text);
+  stroke-width: 9;
+}
+.siffra {
+  fill: var(--text);
+  font-size: 92px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.visare {
+  stroke: var(--text);
+  stroke-linecap: round;
+}
+.visare.timme {
+  stroke-width: 22;
+}
+.visare.minut {
+  stroke-width: 13;
+}
+.visare.sekund {
+  stroke: #f5a524;
+  stroke-width: 4;
+}
+.nav {
+  fill: #f5a524;
+}
+.nav-mitt {
+  fill: #161a20;
 }
 .tid {
   margin: 0;
@@ -117,17 +175,32 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .lage {
-  margin: 1vw 0 0;
-  font-size: 2.2vw;
+  position: absolute;
+  bottom: 3vh;
+  margin: 0;
+  font-size: 2.2vh;
   color: var(--mute);
-}
-.klocka.star .tid {
-  color: #9aa1ab;
 }
 .klocka.gar .lage::before {
   content: "● ";
   color: var(--green);
 }
-.klocka.star .lage::before {
-  content: "■ ";
+.klocka.star .tid,
+.klocka.star .visare {
+  opacity: 0.75;
+}
+/* Stopp: red glass over the lower half, with the words large. */
+.lage.stopp {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(176, 28, 28, 0.42);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 7vh;
+  font-weight: 700;
 }

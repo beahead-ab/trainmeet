@@ -6600,7 +6600,7 @@ export interface components {
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.show.ScreenView": "clock";
+        "trainmeet.screen-1.show.ScreenView": "clock" | "clock_digital";
         /**
          * ScreenPicture
          * @description What the screen shows now. Without a view it waits, and says its name.
@@ -6642,7 +6642,7 @@ export interface components {
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.picture.ScreenView": "clock";
+        "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).

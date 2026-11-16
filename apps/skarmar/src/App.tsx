@@ -1,27 +1,12 @@
 import { Skylt } from "@trainmeet/design";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { fetchPicture, join, savedKey, saveKey, type ScreenPicture } from "./api";
+import { Klocka } from "./Klocka";
+
+export { clockText } from "./Klocka";
 
 // A meet screen in the browser (SKARM-14): join with the code, wait under Väntar for a view,
-// then show it. Steg 3 has the clock, drawn for 1920 × 1080 and scaled to the screen.
-
-const DAYS: Record<ScreenPicture["traffic_day"], string> = {
-  mon: "måndag",
-  tue: "tisdag",
-  wed: "onsdag",
-  thu: "torsdag",
-  fri: "fredag",
-  sat: "lördag",
-  sun: "söndag",
-};
-
-/** The meet clock now: the hub's time, run on at its speed since it was fetched. */
-export function clockText(picture: ScreenPicture, fetchedAt: number, now: number): string {
-  const { clock } = picture;
-  const passed = clock.running ? ((now - fetchedAt) / 1000) * clock.speed : 0;
-  const minutes = Math.floor((clock.seconds + passed) / 60) % 1440;
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
+// then show it, drawn for 1920 × 1080 and scaled to the screen.
 
 export type ScreenProps = {
   picture: ScreenPicture | null;
@@ -45,21 +30,7 @@ export function Screen({ picture, fetchedAt, now, message, code, onJoin }: Scree
       </section>
     );
   }
-  if (picture) {
-    return (
-      <section id="clock-view" className={`klocka ${picture.clock.running ? "gar" : "star"}`}>
-        <h1 id="meet" className="traff">
-          {picture.meet} · trafikdag {DAYS[picture.traffic_day]}
-        </h1>
-        <p id="time" className="tid">
-          {clockText(picture, fetchedAt, now)}
-        </p>
-        <p id="state" className="lage">
-          {picture.clock.running ? `Klockan går i ${picture.clock.speed}×` : "Klockan står still"}
-        </p>
-      </section>
-    );
-  }
+  if (picture) return <Klocka picture={picture} fetchedAt={fetchedAt} now={now} />;
   return <JoinForm message={message} code={code} onJoin={onJoin} />;
 }
 

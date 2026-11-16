@@ -53,6 +53,11 @@ def test_a_screen_waits_under_vantar_until_it_gets_the_clock(hub: TestClient) ->
     assert (clock.meet, clock.clock.time, clock.clock.running) == ("Provbanan", "06:00", False)
     hub.post(API + "/clock", json={"action": "start"})
     assert picture(hub, headers).clock.running is True
+    digital = hub.post(
+        API + "/clients/view", json={"client_id": client_id, "view": "clock_digital"}
+    )
+    assert digital.status_code == 200
+    assert picture(hub, headers).view == screen.ScreenView.CLOCK_DIGITAL, "the two styles (H74)"
 
 
 def test_only_the_administrator_gives_a_view(hub: TestClient) -> None:

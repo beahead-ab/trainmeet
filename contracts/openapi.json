@@ -13876,7 +13876,8 @@
       },
       "trainmeet.screen-1.show.ScreenView": {
         "enum": [
-          "clock"
+          "clock",
+          "clock_digital"
         ],
         "title": "ScreenView",
         "type": "string"
@@ -13966,7 +13967,8 @@
       },
       "trainmeet.screen-1.picture.ScreenView": {
         "enum": [
-          "clock"
+          "clock",
+          "clock_digital"
         ],
         "title": "ScreenView",
         "type": "string"
