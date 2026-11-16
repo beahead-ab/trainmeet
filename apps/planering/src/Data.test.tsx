@@ -75,6 +75,11 @@ describe("Data (S6, PLAN-37)", () => {
     expect(shownValue(pending, "place", "sjv", null)).toBeNull();
     expect(shownValue(pending.slice(0, 1), "place", "nby", "101")).toBe("102");
     expect(changesOf(pending)).toEqual([{ place: "nby", phone: "102" }, { place: "nby", phone: null }, { section: "s1", tracks: "double" }, { section: "s1", clearance_mode: "direct" }]);
+    // Koppla station (PLAN-05): the place and the station among the sources, or none.
+    expect(changesOf([{ kind: "station", id: "p4", before: null, after: "lekby-tkl" }, { kind: "station", id: "p4", before: "lekby-tkl", after: null }])).toEqual([
+      { place: "p4", station: "lekby-tkl" },
+      { place: "p4", station: null },
+    ]);
   });
 
   it("sends the grid's changes to calls and trains, and reads times as the planner types them (PLAN-01)", () => {

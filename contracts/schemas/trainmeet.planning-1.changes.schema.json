@@ -147,6 +147,36 @@
       "title": "SectionTracksChange",
       "type": "object"
     },
+    "StationChange": {
+      "additionalProperties": true,
+      "description": "Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the\nnext version (PLAN-11). Empty station: koppla bort.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "station": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Stationens id bland utkastets stationer, eller tomt.",
+          "title": "Station"
+        }
+      },
+      "required": [
+        "place",
+        "station"
+      ],
+      "title": "StationChange",
+      "type": "object"
+    },
     "TrackKind": {
       "enum": [
         "single",
@@ -267,6 +297,9 @@
           },
           {
             "$ref": "#/$defs/ConfirmChange"
+          },
+          {
+            "$ref": "#/$defs/StationChange"
           }
         ]
       },

@@ -18,9 +18,10 @@ from typing import Final
 
 from contracts.common import Id
 from contracts.drift import DriftChange, ProposalStatus
-from contracts.meet import Meet, MeetPackage, Place, Section, TrackKind, Train
+from contracts.meet import CoupledStation, Meet, MeetPackage, Place, Section, TrackKind, Train
 from contracts.planning import (
     PLANNER,
+    Alternative,
     Answer,
     CallChange,
     Certainty,
@@ -31,6 +32,7 @@ from contracts.planning import (
     Draft,
     Fact,
     ImportPreview,
+    ImportReport,
     ImportResult,
     LetStand,
     MeetSummary,
@@ -38,14 +40,19 @@ from contracts.planning import (
     Origin,
     PlaceChange,
     Proposal,
+    Question,
     SectionChange,
     SectionTracksChange,
     Source,
+    SourceKind,
+    StationChange,
+    StationVersion,
     TakenChange,
     TrainChange,
     TrainDaysChange,
 )
 from contracts.reasons import TEXT_SV
+from contracts.station_outside import StationOutside
 from core import changes as driftchanges
 from planering import compare
 from planering.check import review
@@ -285,6 +292,23 @@ class Planning:
             )
             return compare.preview(draft, _laid_in(draft, source, result), source, result)
 
+    def stage_station(self, meet_id: str, source: Source, body: bytes) -> None:
+        """Stationens utsida (IMPORT-10) waits to be laid in, as other sources do. It is coupled
+        to a place of the plan, so the plan comes first."""
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            if draft.package is None:
+                raise PlanningError(
+                    "Lägg till planeringsfilen eller stationslistorna först. Stationen kopplas "
+                    "till en av deras driftplatser."
+                )
+            report = ImportReport(source=source.id, level=draft.report.level if draft.report else 4)
+            result = ImportResult(package=draft.package, report=report)
+            db.execute(
+                "INSERT OR REPLACE INTO pending VALUES (?, ?, ?, ?)",
+                (meet_id, source.model_dump_json(), body, result.model_dump_json()),
+            )
+
     def apply(self, meet_id: str, source_id: str) -> Draft:
         """Lägg in i utkastet: the waiting source comes into the draft."""
         with self._transaction() as db:
@@ -296,8 +320,41 @@ class Planning:
                 raise PlanningError("Underlaget väntar inte längre. Lägg till det igen.")
             db.execute("DELETE FROM pending WHERE meet_id=?", (meet_id,))
             source = Source.model_validate_json(row[0])
+            if source.kind == SourceKind.STATION_OUTSIDE:
+                return self._add_station(db, meet_id, source, bytes(row[1]))
             result = ImportResult.model_validate_json(row[2])
             return self._add(db, meet_id, source, bytes(row[1]), result)
+
+    def _add_station(
+        self, db: sqlite3.Connection, meet_id: str, source: Source, body: bytes
+    ) -> Draft:
+        """The station's outside among the sources (IMPORT-10). The same outside again changes
+        nothing (IMPORT-31); a new one for the same station gets the next number, and a place
+        coupled to the station follows it into the next version."""
+        draft = self._draft(db, meet_id)
+        outside = StationOutside.model_validate_json(body)
+        before = next(
+            (s for s in draft.stations if s.outside.station_id == outside.station_id), None
+        )
+        if before is not None and before.outside == outside:
+            return draft
+        if before is not None:
+            db.execute(
+                "DELETE FROM source_file WHERE meet_id=? AND source_id=?", (meet_id, before.source)
+            )
+        db.execute(
+            "INSERT OR REPLACE INTO source_file VALUES (?, ?, ?)", (meet_id, source.id, body)
+        )
+        kept = StationVersion(
+            version=(before.version + 1) if before else 1, source=source.id, outside=outside
+        )
+        stations = [s for s in draft.stations if s.outside.station_id != outside.station_id]
+        sources = [s for s in draft.sources if before is None or s.id != before.source]
+        updated = draft.model_copy(
+            update={"stations": [*stations, kept], "sources": [*sources, source]}
+        )
+        answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
+        return self._save(db, _replay(updated, answers))
 
     def add_source(self, meet_id: str, source: Source, body: bytes, result: ImportResult) -> Draft:
         """A source read by Integrationer comes into the draft at once."""
@@ -342,6 +399,9 @@ class Planning:
                 if target not in known[kind]:
                     raise PlanningError("Det finns inte i utkastet.")
                 _check_value(draft.package, change)
+                pool = {s.outside.station_id for s in draft.stations}
+                if isinstance(change, StationChange) and change.station not in {None, *pool}:
+                    raise PlanningError("Stationen finns inte bland underlagen.")
                 kept = [c for c in kept if _target(c) != (kind, target)] + [change]
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
             draft = _replay(draft.model_copy(update={"changes": kept}), answers)
@@ -583,6 +643,8 @@ def _target(change: Change) -> tuple[str, Id]:
         return "train.days", change.train
     if isinstance(change, ConfirmChange):
         return "confirm", change.confirm
+    if isinstance(change, StationChange):
+        return "station", change.place
     return "section", change.section
 
 
@@ -592,7 +654,12 @@ def _things(package: MeetPackage) -> dict[str, set[Id]]:
     sections = {s.id for s in package.sections}
     calls = {c.id for t in package.trains for c in t.calls}
     trains = {t.id for t in package.trains}
-    kinds: dict[str, set[Id]] = {"place": places, "tracks": sections, "section": sections}
+    kinds: dict[str, set[Id]] = {
+        "place": places,
+        "station": places,
+        "tracks": sections,
+        "section": sections,
+    }
     kinds.update({f"call.{field}": calls for field in ("arrival", "departure", "track")})
     kinds.update({f"train.{field}": trains for field in ("number", "note", "days")})
     return kinds
@@ -684,6 +751,7 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     sections: dict[Id, Section] = {s.id: s for s in package.sections}
     trains: dict[Id, Train] = {t.id: t for t in package.trains}
     owner = {c.id: t.id for t in package.trains for c in t.calls}
+    coupled: dict[Id, Id | None] = {}
     for change in draft.changes:
         if isinstance(change, ConfirmChange):
             found = facts.get(change.confirm)
@@ -722,6 +790,9 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                 update={"tracks": change.tracks}
             )
             ref = f"section:{change.section}.tracks"
+        elif isinstance(change, StationChange) and change.place in places:
+            coupled[change.place] = change.station
+            ref = f"place:{change.place}.station"
         elif isinstance(change, SectionChange) and change.section in sections:
             sections[change.section] = sections[change.section].model_copy(
                 update={"clearance_mode": change.clearance_mode}
@@ -730,7 +801,33 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
         else:
             continue
         facts[ref] = Fact(ref=ref, certainty=Certainty.CONFIRMED, origins=planner)
-    questions = [q.model_copy(update={"answer": answers.get(q.id)}) for q in draft.questions]
+    questions = [
+        q.model_copy(update={"answer": answers.get(q.id)})
+        for q in draft.questions
+        if q.cause != STATION_TRACK
+    ]
+    pool = {s.outside.station_id: s for s in draft.stations}
+    for place_id, station_id in coupled.items():
+        place = places[place_id]
+        entry = pool.get(station_id) if station_id else None
+        if entry is None:
+            places[place_id] = place.model_copy(update={"station": None})
+            continue
+        named = [t.name for t in place.tracks] or sorted(
+            {c.track for t in trains.values() for c in t.calls if c.place == place_id and c.track}
+        )
+        track_map, asked = _station_tracks(place, named, entry.outside, answers)
+        questions += asked
+        places[place_id] = place.model_copy(
+            update={
+                "station": CoupledStation(
+                    station_id=entry.outside.station_id,
+                    version=entry.version,
+                    outside=entry.outside,
+                    track_map=track_map,
+                )
+            }
+        )
     rules = []
     for rule in draft.rulebook.train_types:
         question = next((q for q in questions if f"train_type:{rule.code}" in q.refs), None)
@@ -761,3 +858,42 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
             "rulebook": draft.rulebook.model_copy(update={"train_types": rules}),
         }
     )
+
+
+STATION_TRACK: Final = "station_track"
+
+
+def _station_tracks(
+    place: Place, named: list[str], outside: StationOutside, answers: Mapping[str, str]
+) -> tuple[dict[str, str], list[Question]]:
+    """Planens spår mot stationens (IMPORT-18, H27): a name that is the station track's id or
+    label is taken as it is; one that differs becomes a question, and the answer is kept."""
+    ids = {t.id for t in outside.tracks}
+    found: dict[str, str] = {}
+    asked: list[Question] = []
+    for name in named:
+        key = name.casefold().removeprefix("spår ").strip()
+        match = [
+            t.id
+            for t in outside.tracks
+            if key in (t.id.casefold(), t.label.casefold().removeprefix("spår ").strip())
+        ]
+        if len(match) == 1:
+            found[name] = match[0]
+            continue
+        question_id = f"station-track:{place.id}:" + re.sub(r"[^A-Za-z0-9]+", "-", name)[:40]
+        answer = answers.get(question_id)
+        if answer in ids:
+            found[name] = answer
+        asked.append(
+            Question(
+                id=question_id[:80],
+                cause=STATION_TRACK,
+                message=f"Vilket spår i stationen {outside.name} är planens spår {name} i "
+                f"{place.name}?",
+                refs=[f"place:{place.id}.station"],
+                alternatives=[Alternative(value=t.id, label=t.label) for t in outside.tracks],
+                answer=answer if answer in ids else None,
+            )
+        )
+    return found, asked
