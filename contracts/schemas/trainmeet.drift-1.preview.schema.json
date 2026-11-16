@@ -341,7 +341,8 @@
         "automation_off",
         "client_not_present",
         "no_jump_to_undo",
-        "other_game_day"
+        "other_game_day",
+        "day_still_running"
       ],
       "title": "Reason",
       "type": "string"

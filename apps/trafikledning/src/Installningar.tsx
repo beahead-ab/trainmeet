@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Automation, AutomationSettings, Now, Version } from "./api";
+import type { Automation, AutomationSettings, DaySettings, Now, Version } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -18,6 +18,7 @@ export type SettingsProps = {
   /** Changes when Automatiken's settings were saved, so that the form starts over from them. */
   automationSaved: number;
   onAutomation?: (settings: AutomationSettings) => void;
+  onDay?: (settings: DaySettings) => void;
 };
 
 type Heap = { label: string; note: string; items: [string, string][] };
@@ -27,7 +28,14 @@ export function heaps(now: Now | null): Heap[] {
   if (!now) return [machine];
   return [
     { label: "I paketet", note: "följer versionen", items: [["traffen", "Träffen och trafikdagarna"]] },
-    { label: "Under träffen", note: "gäller medan den körs", items: [["automatik", "Automatik"]] },
+    {
+      label: "Under träffen",
+      note: "gäller medan den körs",
+      items: [
+        ["automatik", "Automatik"],
+        ["dygnsskifte", "Dygnsskifte"],
+      ],
+    },
     machine,
   ];
 }
@@ -61,6 +69,7 @@ export function SettingsPage(props: SettingsProps) {
         <div className="kortlista">
           {now && <Meet now={now} />}
           {now && <Automatik {...props} now={now} />}
+          {now && <Dygnsskifte {...props} now={now} />}
           <section id="hubben" className="kort" aria-labelledby="hubben-rubrik">
             <h2 id="hubben-rubrik">Namn och version</h2>
             <p className="liten">Gäller den här hubben och alla träffar på den.</p>
@@ -236,6 +245,64 @@ function Automatik({ admin, now, automation, automationSaved, onAutomation }: Se
         </span>
       </div>
       <p className="liten">Ändrar aldrig versionen. Undanställningen räknas i spelminuter.</p>
+    </section>
+  );
+}
+
+/** Under träffen: Dygnsskiftet (F7), by hand by default or automatic, and its time: empty is an
+ * hour before the new day's first train, never before midnight. Saved with Spara. */
+function Dygnsskifte({ admin, now, onDay }: SettingsProps & { now: Now }) {
+  const day = now.day;
+  const saved = { mode: day?.mode ?? "manual", time: day?.fixed ? day.time : "" };
+  const key = `${saved.mode}|${saved.time}`;
+  const [draft, setDraft] = useState(saved);
+  const [filledFrom, setFilledFrom] = useState(key);
+  // The form starts from what the hub has, and again when that changes.
+  if (filledFrom !== key) {
+    setDraft(saved);
+    setFilledFrom(key);
+  }
+  if (!admin || !day) {
+    return (
+      <section id="dygnsskifte" className="kort" aria-labelledby="dygnsskifte-rubrik">
+        <h2 id="dygnsskifte-rubrik">Dygnsskifte</h2>
+        <p className="liten">Logga in med hubbens PIN-kod för att se och ändra dygnsskiftet.</p>
+      </section>
+    );
+  }
+  const changed = draft.mode !== saved.mode || draft.time !== saved.time;
+  return (
+    <section id="dygnsskifte" className="kort" aria-labelledby="dygnsskifte-rubrik">
+      <h2 id="dygnsskifte-rubrik">Dygnsskifte</h2>
+      <p className="liten">När nästa speldygn börjar. Natten hör till dygnet före fram till skiftet.</p>
+      <div className="installning">
+        <span className="etikett">Ny dag</span>
+        <Chips label="Ny dag">
+          <Chip label="Manuellt" pressed={draft.mode === "manual"} onClick={() => setDraft({ ...draft, mode: "manual" })} />
+          <Chip label="Automatiskt" pressed={draft.mode === "automatic"} onClick={() => setDraft({ ...draft, mode: "automatic" })} />
+        </Chips>
+        <span className="liten">{draft.mode === "manual" ? "Trafikledningen trycker Starta ny dag i Nu" : "startar av sig själv, och väntar högst 30 minuter på tåg som är ute"}</span>
+      </div>
+      <div className="installning">
+        <label htmlFor="set-day-time" className="etikett">
+          Tid
+        </label>
+        <input id="set-day-time" type="time" step={60} value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
+        <span className="liten">tomt: en timme före första tåget, aldrig före midnatt</span>
+      </div>
+      <div className="installningsfot">
+        <span id="day-settings-state" className="liten" role="status">
+          {changed ? "Ändrat, inte sparat" : "Inget ändrat"}
+        </span>
+        <span className="rad">
+          <button type="button" disabled={!changed} onClick={() => setDraft(saved)}>
+            Avbryt
+          </button>
+          <button id="day-save" type="button" className="primar" disabled={!changed} onClick={() => onDay?.({ mode: draft.mode, time: draft.time || null })}>
+            Spara
+          </button>
+        </span>
+      </div>
     </section>
   );
 }

@@ -34,6 +34,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Speldygn | `traffic_week` | Dag 1…N på träffen. Inte samma sak som trafikdag: en åttadagarsträff har två måndagar. |
 | Tidshopp | `clock.jump`, `TimeJumped` | Klockan ställs till en annan tid samma speldygn. Öppna klareringar stängs och tågen ställs där tidtabellen har dem: framme där de senast skulle ha kommit, och kvar på avgångsstationen om de enligt tidtabellen är ute på linjen. En drifthändelse; inget raderas. |
 | Ångra hoppet | `clock.jump_undone`, `TimeJumpUndone` | Läget före det senaste tidshoppet läggs tillbaka, med klockan som den var. Händelserna emellan står kvar i loggen. |
+| Dygnsskifte | `day.changed`, `DayChanged` | Nästa speldygn börjar, med nästa veckodag som trafikdag: en timme före den dagens första tåg, aldrig före midnatt, eller vid en tid trafikledningen satt. Natten hör till dygnet före fram till dess. Tågen ställs strax före dagens första avgång. Manuellt är förval, automatiskt ett val (`DaySettings`). |
+| Starta ny dag | `POST /api/drift/1/day`, `NewDay` | Trafikledningen startar nästa speldygn. Nekas medan dagens tåg är ute eller har en öppen klarering. |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
 | Köruppdrag | `duty` | En förares tjänst. |

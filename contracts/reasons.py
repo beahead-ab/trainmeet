@@ -55,6 +55,7 @@ class Reason(StrEnum):
     # The clock: tidshopp and Ångra (H37, F6)
     NO_JUMP_TO_UNDO = "no_jump_to_undo"
     OTHER_GAME_DAY = "other_game_day"
+    DAY_STILL_RUNNING = "day_still_running"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -92,4 +93,8 @@ TEXT_SV: dict[Reason, str] = {
     Reason.CLIENT_NOT_PRESENT: "Klienten måste vara ansluten till driftplatsen.",
     Reason.NO_JUMP_TO_UNDO: "Det finns inget tidshopp att ångra.",
     Reason.OTHER_GAME_DAY: "Ett hopp till ett annat speldygn görs med dygnsskiftet.",
+    Reason.DAY_STILL_RUNNING: (
+        "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
+        "eller gör ett tidshopp."
+    ),
 }

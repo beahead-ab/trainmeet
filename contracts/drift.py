@@ -78,6 +78,29 @@ class ClockControl(Contract):
         return self
 
 
+class DayChangeMode(StrEnum):
+    MANUAL = "manual"  # förval: Trafikledningen startar nästa dag (Starta ny dag)
+    AUTOMATIC = "automatic"
+
+
+class DaySettings(Contract):
+    """Dygnsskiftet (F7): by hand by default, automatic as a choice. The next game day starts
+    an hour before its first train, never before midnight, unless a time is set here."""
+
+    mode: DayChangeMode = DayChangeMode.MANUAL
+    time: TimeOfDay | None = Field(
+        default=None,
+        description="Fast tid för dygnsskiftet; tomt betyder en timme före första tåget.",
+    )
+
+
+class NewDay(Contract):
+    """Starta ny dag: the next game day, with the clock at the time given, or else the one Nu
+    suggests: where the clock is after midnight, before midnight the time of the day change."""
+
+    time: TimeOfDay | None = None
+
+
 class Approve(Contract):
     client_id: Id
     places: list[Id] = Field(min_length=1)
@@ -117,6 +140,7 @@ class EventKind(StrEnum):
     TIME_JUMP = "clock.jump"
     TIME_JUMP_UNDONE = "clock.jump_undone"
     DAY_CHANGED = "day.changed"
+    DAY_SETTINGS = "day.settings"
     CLIENT_APPROVED = "client.approved"
     CLIENT_REVOKED = "client.revoked"
     CLIENT_ASSIGNED = "client.assigned"
@@ -179,8 +203,23 @@ class TimeJumpUndone(Contract):
     """Ångra (F6): everything is as it was before the jump, and the clock shows the time it
     showed then. The events in between stay in the log."""
 
-    jump: int = Field(ge=1, description="Tidshoppets händelsenummer.")
+    jump: int = Field(ge=1, description="Tidshoppets eller den nya dagens händelsenummer.")
     seconds: float = Field(ge=0, description="Klockan efter ångrandet, som före hoppet.")
+    kind: Literal["time", "day"] = Field(default="time", description="Tidshopp eller ny dag.")
+
+
+class DayChanged(Contract):
+    """Dygnsskiftet (F7, DRIFT-45): the next game day with its traffic day. The open cases are
+    closed and every train stands where the timetable has it just before the day's first
+    departure (DRIFT-43). Yesterday's events stay; it can be undone as a time jump (F6)."""
+
+    game_day: int = Field(ge=1, description="Det nya speldygnet.")
+    traffic_day: Weekday = Field(description="Det nya speldygnets trafikdag.")
+    before: float = Field(ge=0, description="Klockan före, sekunder in på förra speldygnet.")
+    seconds: float = Field(ge=0, description="Klockan efter, sekunder in på det nya speldygnet.")
+    placed: float = Field(ge=0, description="Tiden tågen ställdes efter.")
+    closed: list[Id] = Field(default_factory=list, description="Klareringarna som stängdes.")
+    automatic: bool = Field(default=False, description="Skiftet kom av sig själv, inte från Nu.")
 
 
 class ClearanceRef(Contract):
@@ -361,6 +400,8 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLOCK_SPEED: ClockChanged,
     EventKind.TIME_JUMP: TimeJumped,
     EventKind.TIME_JUMP_UNDONE: TimeJumpUndone,
+    EventKind.DAY_CHANGED: DayChanged,
+    EventKind.DAY_SETTINGS: DaySettings,
     EventKind.CLEARANCE_REQUESTED: ClearanceRequested,
     EventKind.CLEARANCE_ANSWERED: ClearanceAnswered,
     EventKind.CLEARANCE_CANCELLED: ClearanceRef,
@@ -452,13 +493,34 @@ class LegNow(Contract):
 
 
 class LastJump(Contract):
-    """The latest time jump, while it can be undone (F6): until the next jump or undo."""
+    """The latest time jump or new day, while it can be undone (F6): until the next one."""
 
-    seq: int = Field(ge=1, description="Tidshoppets händelsenummer, för Ångra.")
+    seq: int = Field(ge=1, description="Händelsens nummer, för Ångra.")
+    kind: Literal["time", "day"] = Field(default="time", description="Tidshopp eller ny dag.")
     from_time: TimeOfDay
     to_time: TimeOfDay
+    game_day: int = Field(ge=1, description="Speldygnet efter.")
+    traffic_day: Weekday = Field(description="Trafikdagen efter.")
     closed: int = Field(ge=0, description="Antalet klareringar som stängdes.")
     wall_time: datetime
+
+
+class DayStatus(Contract):
+    """Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time."""
+
+    mode: DayChangeMode
+    time: TimeOfDay = Field(description="När nästa speldygn börjar, efter midnatt.")
+    fixed: bool = Field(description="Tiden är satt av trafikledningen, inte räknad.")
+    first: TimeOfDay | None = Field(
+        default=None, description="Nästa dags första tåg; tomt om dagen saknar tåg."
+    )
+    next_game_day: int = Field(ge=1)
+    next_traffic_day: Weekday
+    suggested: TimeOfDay = Field(description="Klockan som Starta ny dag föreslår.")
+    due: bool = Field(description="Manuellt: tiden har passerats, och nästa dag kan startas.")
+    waiting: bool = Field(
+        description="Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min)."
+    )
 
 
 class Now(Contract):
@@ -474,7 +536,10 @@ class Now(Contract):
     places: list[NowPlace]
     legs: list[LegNow]
     clearances: list[Clearance]
-    jump: LastJump | None = Field(default=None, description="Det senaste tidshoppet, att ångra.")
+    jump: LastJump | None = Field(
+        default=None, description="Det senaste tidshoppet eller nya dygnet, att ångra."
+    )
+    day: DayStatus | None = Field(default=None, description="Dygnsskiftet.")
 
 
 class Joining(Contract):

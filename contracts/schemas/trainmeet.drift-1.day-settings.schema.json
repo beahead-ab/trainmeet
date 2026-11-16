@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.day-settings.schema.json",
+  "title": "trainmeet.drift-1.day-settings",
+  "$defs": {
+    "DayChangeMode": {
+      "enum": [
+        "manual",
+        "automatic"
+      ],
+      "title": "DayChangeMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Dygnsskiftet (F7): by hand by default, automatic as a choice. The next game day starts\nan hour before its first train, never before midnight, unless a time is set here.",
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/DayChangeMode",
+      "default": "manual"
+    },
+    "time": {
+      "anyOf": [
+        {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Fast tid för dygnsskiftet; tomt betyder en timme före första tåget.",
+      "title": "Time"
+    }
+  },
+  "type": "object"
+}

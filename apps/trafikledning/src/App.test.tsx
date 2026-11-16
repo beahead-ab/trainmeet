@@ -40,6 +40,13 @@ describe("Nu, Klienter and Logg (S6)", () => {
     const after = renderToStaticMarkup(<NuPage admin now={jumped} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
     expect(after).toContain("Tidshopp från 06:00 till 08:00 · 1 klarering stängdes");
     expect(after).toContain(">Ångra hoppet<");
+    // Dygnsskiftet (F7): Starta ny dag, and Nu says when it is time.
+    const day = { mode: "manual", time: "05:00", fixed: false, next_game_day: 2, next_traffic_day: "tue", suggested: "05:00", due: true, waiting: false };
+    const due = renderToStaticMarkup(<NuPage admin now={{ ...now, day } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(due).toContain(">Starta dag 2 · tisdag<");
+    expect(due).toContain("Klockan har passerat dygnsskiftet. Starta dag 2 när dagens tåg är inne.");
+    expect(due).toContain('id="new-day-time"');
+    expect(renderToStaticMarkup(<NuPage admin={false} now={{ ...now, day } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />)).not.toContain('id="new-day"');
   });
 
   it("asks to start a meet when none runs, and to log in first when looking", () => {
@@ -154,6 +161,17 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(html).toContain("Inget ändrat");
     expect(html).toContain('id="settings-save" type="button" class="primar" disabled=""');
     expect(settings(false, now)).toContain("Logga in med hubbens PIN-kod för att se och ändra automatiken.");
+  });
+
+  it("lets the administrator choose the day change by hand or automatic, and its time (F7)", () => {
+    const day = { mode: "automatic", time: "04:30", fixed: true, next_game_day: 2, next_traffic_day: "tue", suggested: "04:30", due: false, waiting: false };
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte"]);
+    const html = settings(true, { ...now, day } as Now);
+    expect(html).toContain('id="dygnsskifte"');
+    expect(html).toContain('aria-pressed="true">Automatiskt</button>');
+    expect(html).toContain('id="set-day-time" type="time" step="60" value="04:30"');
+    expect(html).toContain('id="day-save" type="button" class="primar" disabled=""');
+    expect(settings(false, { ...now, day } as Now)).toContain("Logga in med hubbens PIN-kod för att se och ändra dygnsskiftet.");
   });
 
   it("makes a new scenario key of two groups of four", () => {

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.day.schema.json",
+  "title": "trainmeet.drift-1.day",
+  "$defs": {
+    "DayChangeMode": {
+      "enum": [
+        "manual",
+        "automatic"
+      ],
+      "title": "DayChangeMode",
+      "type": "string"
+    },
+    "Weekday": {
+      "description": "The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "title": "Weekday",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time.",
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/DayChangeMode"
+    },
+    "time": {
+      "description": "När nästa speldygn börjar, efter midnatt.",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Time",
+      "type": "string"
+    },
+    "fixed": {
+      "description": "Tiden är satt av trafikledningen, inte räknad.",
+      "title": "Fixed",
+      "type": "boolean"
+    },
+    "first": {
+      "anyOf": [
+        {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Nästa dags första tåg; tomt om dagen saknar tåg.",
+      "title": "First"
+    },
+    "next_game_day": {
+      "minimum": 1,
+      "title": "Next Game Day",
+      "type": "integer"
+    },
+    "next_traffic_day": {
+      "$ref": "#/$defs/Weekday"
+    },
+    "suggested": {
+      "description": "Klockan som Starta ny dag föreslår.",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Suggested",
+      "type": "string"
+    },
+    "due": {
+      "description": "Manuellt: tiden har passerats, och nästa dag kan startas.",
+      "title": "Due",
+      "type": "boolean"
+    },
+    "waiting": {
+      "description": "Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).",
+      "title": "Waiting",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "mode",
+    "time",
+    "fixed",
+    "next_game_day",
+    "next_traffic_day",
+    "suggested",
+    "due",
+    "waiting"
+  ],
+  "type": "object"
+}

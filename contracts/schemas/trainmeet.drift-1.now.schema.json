@@ -128,15 +128,103 @@
       "title": "Clock",
       "type": "object"
     },
+    "DayChangeMode": {
+      "enum": [
+        "manual",
+        "automatic"
+      ],
+      "title": "DayChangeMode",
+      "type": "string"
+    },
+    "DayStatus": {
+      "additionalProperties": true,
+      "description": "Dygnsskiftet as Nu shows it (F7): when the next game day starts, and whether it is time.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/DayChangeMode"
+        },
+        "time": {
+          "description": "När nästa speldygn börjar, efter midnatt.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "fixed": {
+          "description": "Tiden är satt av trafikledningen, inte räknad.",
+          "title": "Fixed",
+          "type": "boolean"
+        },
+        "first": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nästa dags första tåg; tomt om dagen saknar tåg.",
+          "title": "First"
+        },
+        "next_game_day": {
+          "minimum": 1,
+          "title": "Next Game Day",
+          "type": "integer"
+        },
+        "next_traffic_day": {
+          "$ref": "#/$defs/Weekday"
+        },
+        "suggested": {
+          "description": "Klockan som Starta ny dag föreslår.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Suggested",
+          "type": "string"
+        },
+        "due": {
+          "description": "Manuellt: tiden har passerats, och nästa dag kan startas.",
+          "title": "Due",
+          "type": "boolean"
+        },
+        "waiting": {
+          "description": "Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).",
+          "title": "Waiting",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "time",
+        "fixed",
+        "next_game_day",
+        "next_traffic_day",
+        "suggested",
+        "due",
+        "waiting"
+      ],
+      "title": "DayStatus",
+      "type": "object"
+    },
     "LastJump": {
       "additionalProperties": true,
-      "description": "The latest time jump, while it can be undone (F6): until the next jump or undo.",
+      "description": "The latest time jump or new day, while it can be undone (F6): until the next one.",
       "properties": {
         "seq": {
-          "description": "Tidshoppets händelsenummer, för Ångra.",
+          "description": "Händelsens nummer, för Ångra.",
           "minimum": 1,
           "title": "Seq",
           "type": "integer"
+        },
+        "kind": {
+          "default": "time",
+          "description": "Tidshopp eller ny dag.",
+          "enum": [
+            "time",
+            "day"
+          ],
+          "title": "Kind",
+          "type": "string"
         },
         "from_time": {
           "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
@@ -147,6 +235,16 @@
           "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
           "title": "To Time",
           "type": "string"
+        },
+        "game_day": {
+          "description": "Speldygnet efter.",
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "traffic_day": {
+          "$ref": "#/$defs/Weekday",
+          "description": "Trafikdagen efter."
         },
         "closed": {
           "description": "Antalet klareringar som stängdes.",
@@ -164,6 +262,8 @@
         "seq",
         "from_time",
         "to_time",
+        "game_day",
+        "traffic_day",
         "closed",
         "wall_time"
       ],
@@ -404,7 +504,19 @@
         }
       ],
       "default": null,
-      "description": "Det senaste tidshoppet, att ångra."
+      "description": "Det senaste tidshoppet eller nya dygnet, att ångra."
+    },
+    "day": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DayStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Dygnsskiftet."
     }
   },
   "required": [

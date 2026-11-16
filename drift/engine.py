@@ -22,6 +22,12 @@ VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
 # An unanswered request is reminded of after this long, and then as often, real time (H39).
 REMINDER_SECONDS: Final = 180
+# Dygnsskiftet (F7, old Server): an hour before the new day's first train, never before
+# midnight; 05:00 for a day without trains. Automatic, it waits at most 30 game minutes for
+# the day's trains still out (DRIFT-46).
+DAY_CHANGE_LEAD: Final = 3600
+DAY_CHANGE_DEFAULT: Final = 5 * 3600
+DAY_CHANGE_WAIT: Final = 30 * 60
 # The automation acts through the same station commands as a box, under its own name (F14).
 AUTOMATION: Final = "automatik"
 # What a box or TKL may still do at a place left to the automation: look, and take it back.
@@ -41,6 +47,8 @@ _AT_ARRIVAL: Final = frozenset(
 
 # The clock is the dispatcher's: Nu, or the page of a Provbanan run (TRAFIK-01).
 _DISPATCHER: Final = events.Actor(kind=events.ActorKind.DISPATCHER)
+# What Ångra takes back (F6): a time jump, or a new game day.
+_UNDOABLE: Final = frozenset({events.EventKind.TIME_JUMP, events.EventKind.DAY_CHANGED})
 
 
 class Refused(Exception):
@@ -84,6 +92,12 @@ class Leg:
     def channel(self) -> tuple[str, str | None]:
         side = self.departure.place if self.section.tracks == TrackKind.DOUBLE else None
         return self.section.id, side
+
+
+def next_weekday(day: Weekday) -> Weekday:
+    """The traffic day of the next game day: the weekday after (DRIFT-45)."""
+    days = list(Weekday)
+    return days[(days.index(day) + 1) % len(days)]
 
 
 def _at(time: str | None, day_offset: int) -> float | None:
@@ -199,6 +213,7 @@ class Drift:
         # while it can be undone (F6).
         self.held: set[str] = set()
         self.last_jump: events.DriftEvent | None = None
+        self.day_settings = events.DaySettings()
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -339,10 +354,12 @@ class Drift:
         jump = self.last_jump
         if jump is None or control.jump not in (None, jump.seq):
             raise Refused(Reason.NO_JUMP_TO_UNDO)
-        before = events.TimeJumped.model_validate(jump.data).before
+        day = jump.kind == events.EventKind.DAY_CHANGED
+        model = events.DayChanged if day else events.TimeJumped
+        before = model.model_validate(jump.data).before
         self._record(
             events.EventKind.TIME_JUMP_UNDONE,
-            {"jump": jump.seq, "seconds": before},
+            {"jump": jump.seq, "seconds": before, "kind": "day" if day else "time"},
             now,
             actor=_DISPATCHER,
         )
@@ -368,13 +385,7 @@ class Drift:
                 self._place(self.clock.seconds)
             case events.EventKind.TIME_JUMP:
                 jump = events.TimeJumped.model_validate(event.data)
-                for case in list(self.cases.values()):
-                    if case.active:
-                        self.cases[case.id] = replace(
-                            case,
-                            status=station.ClearanceStatus.CANCELLED,
-                            revision=case.revision + 1,
-                        )
+                self._close_cases()
                 self.clock = replace(self.clock, seconds=jump.seconds, updated=event.wall_time)
                 self._place(jump.seconds)
                 self._touch_everything()
@@ -382,10 +393,24 @@ class Drift:
                     # Back before the automation started: the trains from there are no history.
                     self.first_run = min(self.first_run, jump.seconds)
                 self.last_jump = event
+            case events.EventKind.DAY_CHANGED:
+                changed = events.DayChanged.model_validate(event.data)
+                self._close_cases()
+                self._set_traffic_day(changed.traffic_day)
+                self.game_day = changed.game_day
+                self.clock = replace(self.clock, seconds=changed.seconds, updated=event.wall_time)
+                self._place(changed.placed)
+                self._touch_everything()
+                if self.first_run is not None:
+                    # The automation runs the new day from its first train (old new_day).
+                    self.first_run = changed.placed
+                self.last_jump = event
+            case events.EventKind.DAY_SETTINGS:
+                self.day_settings = events.DaySettings.model_validate(event.data)
             case events.EventKind.TIME_JUMP_UNDONE:
                 undone = events.TimeJumpUndone.model_validate(event.data)
                 before = self.history[: undone.jump - 1]
-                assert self.history[undone.jump - 1].kind == events.EventKind.TIME_JUMP
+                assert self.history[undone.jump - 1].kind in _UNDOABLE
                 self._restore(
                     Drift(self.package, before, now=event.wall_time, version=self.version),
                     undone.seconds,
@@ -643,6 +668,132 @@ class Drift:
             track = leg.arrival.track if self._gone_on(key) else self.planned_track(leg)
             if track is not None:
                 self.tracks[key] = track
+
+    def _close_cases(self) -> None:
+        """A jump or a new day closes the open cases (H37)."""
+        for case in list(self.cases.values()):
+            if case.active:
+                self.cases[case.id] = replace(
+                    case, status=station.ClearanceStatus.CANCELLED, revision=case.revision + 1
+                )
+
+    # --- Dygnsskiftet (F7, DRIFT-45): the next game day and its traffic day -----------------
+
+    def _first(self, day: Weekday, *, departures: bool) -> float | None:
+        """The day's first train movement in its timetable: an arrival or a departure, or only
+        a departure, before midnight's calls of the night after."""
+        times = [
+            parse_time(time)
+            for train in self.package.trains
+            if day in train.days
+            for call in train.calls
+            if call.day_offset == 0
+            for time in ((call.departure,) if departures else (call.arrival, call.departure))
+            if time
+        ]
+        return min(times, default=None)
+
+    def day_change_at(self) -> tuple[float, bool]:
+        """When the next game day starts, in seconds after midnight, and whether the time is
+        set by Trafikledningen."""
+        if self.day_settings.time is not None:
+            return float(parse_time(self.day_settings.time)), True
+        first = self._first(next_weekday(self.traffic_day), departures=False)
+        if first is None:
+            return float(DAY_CHANGE_DEFAULT), False
+        return float(max(0, first - DAY_CHANGE_LEAD)), False
+
+    def day_running(self) -> bool:
+        """Do the day's trains still run (old Server's _old_day_running)? An open clearance, a
+        ledig linje not yet acknowledged, or a train that has left for real and has calls
+        after midnight still to come."""
+        if any(case.active for case in self.cases.values()):
+            return True
+        if any(not line.acknowledged for line in self.lines.values()):
+            return True
+        by_train: dict[str, list[Leg]] = {}
+        for leg in self.legs.values():
+            by_train.setdefault(leg.train.id, []).append(leg)
+        for legs in by_train.values():
+            if not any(leg.arrival.day_offset for leg in legs):
+                continue
+            run = any(
+                leg.departure.id in self.departed_seconds
+                or leg.departure.id in self.arrived_seconds
+                for leg in legs
+            )
+            if run and legs[-1].departure.id not in self.arrived:
+                return True
+        return False
+
+    def day_status(self, now: datetime) -> events.DayStatus:
+        clock = self.clock.at(now)
+        change, fixed = self.day_change_at()
+        passed = clock >= SECONDS_PER_DAY + change
+        manual = self.day_settings.mode == events.DayChangeMode.MANUAL
+        first = self._first(next_weekday(self.traffic_day), departures=False)
+        return events.DayStatus(
+            mode=self.day_settings.mode,
+            time=model_time(change),
+            fixed=fixed,
+            first=None if first is None else model_time(first),
+            next_game_day=self.game_day + 1,
+            next_traffic_day=next_weekday(self.traffic_day),
+            suggested=model_time(clock - SECONDS_PER_DAY if clock >= SECONDS_PER_DAY else change),
+            due=manual and passed,
+            waiting=not manual and passed and self.day_running(),
+        )
+
+    def new_day(self, request: events.NewDay, now: datetime, *, automatic: bool = False) -> None:
+        """Starta ny dag (old Server's start_new_day), or the automatic day change. The clock
+        stands at the time asked for and goes on if it ran. Every train stands where the
+        timetable has it just before the day's first departure, so each is at its start
+        (DRIFT-43). Started from Nu, a train still out stops it: it runs to the end first."""
+        if not automatic and self.day_running():
+            raise Refused(Reason.DAY_STILL_RUNNING)
+        clock = self.clock.at(now)
+        change, _ = self.day_change_at()
+        if request.time is not None:
+            seconds = float(parse_time(request.time))
+        else:
+            seconds = clock - SECONDS_PER_DAY if clock >= SECONDS_PER_DAY else change
+        day = next_weekday(self.traffic_day)
+        first = self._first(day, departures=True)
+        placed = seconds if first is None else max(0.0, min(seconds, first - 1))
+        self._record(
+            events.EventKind.DAY_CHANGED,
+            {
+                "game_day": self.game_day + 1,
+                "traffic_day": day.value,
+                "before": clock,
+                "seconds": seconds,
+                "placed": placed,
+                "closed": [case.id for case in self.cases.values() if case.active],
+                "automatic": automatic,
+            },
+            now,
+            seconds=clock,
+            actor=events.Actor(kind=events.ActorKind.SYSTEM) if automatic else _DISPATCHER,
+        )
+
+    def day_tick(self, now: datetime) -> None:
+        """The automatic day change, in the hub's round: when the clock passes the time after
+        midnight, unless the day's trains are still out; for them it waits at most 30 game
+        minutes (old Server). By hand, Nu only says it is time (due)."""
+        if not self.clock.running or self.day_settings.mode != events.DayChangeMode.AUTOMATIC:
+            return
+        clock = self.clock.at(now)
+        change, _ = self.day_change_at()
+        if clock < SECONDS_PER_DAY + change:
+            return
+        if clock < SECONDS_PER_DAY + change + DAY_CHANGE_WAIT and self.day_running():
+            return
+        self.new_day(events.NewDay(), now, automatic=True)
+
+    def set_day(self, settings: events.DaySettings, now: datetime) -> None:
+        self._record(
+            events.EventKind.DAY_SETTINGS, settings.model_dump(mode="json"), now, actor=_DISPATCHER
+        )
 
     def _touch_everything(self) -> None:
         """Every call and place has changed: each client reads again."""
