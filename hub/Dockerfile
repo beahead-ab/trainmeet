@@ -49,6 +49,7 @@ COPY drift ./drift
 COPY integrationer ./integrationer
 COPY core ./core
 COPY planering ./planering
+COPY synk ./synk
 COPY hub ./hub
 RUN uv sync --locked --no-default-groups --no-editable
 

@@ -6,7 +6,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | --- | --- | --- |
 | Träffpaket | `trainmeet.meet/1`, `MeetPackage` | Allt som behövs för att köra en träff, i ett paket. |
 | Version | – | En publicering av träffpaketet. Fryst, ändras aldrig och raderas aldrig. Synk lagrar den med kontrollsumman. |
-| Kontrollsumma | `checksum` | SHA-256 av paketets kanoniska JSON. Avgör om ett paket är helt. |
+| Kontrollsumma | `checksum` | SHA-256 av paketets kanoniska JSON, räknad på byten som publicerades och aldrig på ett paket som lästs och skrivits om (A11). Avgör om ett paket är helt. |
+| Lägsta Hubbversion | `requires_hub` | Den äldsta Hubb som kan köra paketet (GRUND-18). En äldre hubb startar inte versionen och säger vilken version som krävs. Tomt: alla. |
 | Driftplats | `place` | En plats i planen: bemannad, fjärrstyrd, obemannad, skuggbangård eller industri/hållplats. Sträckor, tågbesök och protokoll pekar på driftplatsen. |
 | Platstyp | `place.kind` | `manned` bemannad, `remote` fjärrstyrd, `unmanned` obemannad, `shadow_yard` skuggbangård, `halt` industri/hållplats. |
 | Signatur | `place.code` | Driftplatsens förkortning, till exempel Nby. |

@@ -41,7 +41,6 @@ from planering.store import (
     PlanningError,
     StaleDraft,
     UnknownMeet,
-    UnknownVersion,
     slug,
 )
 
@@ -252,47 +251,24 @@ def test_an_answer_becomes_the_rule(planning: Planning) -> None:
     assert planning.meets()[0].questions == 0
 
 
-def test_publishing_freezes_the_draft_as_numbered_versions(planning: Planning) -> None:
+def test_the_draft_is_frozen_for_the_next_version(planning: Planning) -> None:
+    """Publicera: Planering makes the next version of the draft, checked first; Synk keeps it
+    and gives it its number (SYNK-08)."""
     meet = planning.create(NewMeet(name="Grimslöv")).meet
     with pytest.raises(PlanningError, match="underlag"):
-        planning.publish(meet.id)
+        planning.freeze(meet.id)
     src = source()
     planning.add_source(meet.id, src, b"1", result(src))
     with pytest.raises(PlanningError, match="första eller sista dag"):
-        planning.publish(meet.id)  # Struktur stops it (PLAN-35)
+        planning.freeze(meet.id)  # Struktur stops it (PLAN-35)
     meet = planning.create(NewMeet(name="Grimslöv", first_date=MON, last_date=SUN)).meet
     planning.add_source(meet.id, src, b"1", result(src))
-    first = planning.publish(meet.id)
-    with pytest.raises(PlanningError, match="samma som version 1"):
-        planning.publish(meet.id)
+    frozen = planning.freeze(meet.id)
+    assert (frozen.meet.id, frozen.meet.name) == (meet.id, "Grimslöv")
+    assert next(p.phone for p in frozen.places if p.id == "nby") == "101"
+    assert [f.code for f in frozen.findings] == ["unanswered_questions"]
     planning.change(meet.id, PlaceChange(place="nby", phone="999"))
-    second = planning.publish(meet.id)
-    assert (first.number, second.number) == (1, 2)
-    old, new = planning.package(meet.id, 1), planning.package(meet.id, 2)
-    assert (old.meet.id, old.meet.name) == (meet.id, "Grimslöv")
-    assert next(p.phone for p in old.places if p.id == "nby") == "101"
-    assert next(p.phone for p in new.places if p.id == "nby") == "999"
-    assert [v.number for v in planning.versions(meet.id)] == [1, 2]
-    assert [f.code for f in old.findings] == ["unanswered_questions"]
-    with pytest.raises(UnknownVersion):
-        planning.package(meet.id, 3)
-
-
-def test_a_withdrawn_version_stays_but_is_marked(planning: Planning) -> None:
-    """Dra tillbaka (PLAN-18, F21): the version is kept, frozen, so that history and logs hold."""
-    meet = planning.create(NewMeet(name="Grimslöv", first_date=MON, last_date=SUN)).meet
-    src = source()
-    planning.add_source(meet.id, src, b"1", result(src))
-    planning.publish(meet.id)
-    withdrawn = planning.withdraw_version(meet.id, 1)
-    assert withdrawn.withdrawn is not None
-    (listed,) = planning.versions(meet.id)
-    assert listed.withdrawn == withdrawn.withdrawn
-    assert planning.package(meet.id, 1).meet.id == meet.id, "still there to be read"
-    with pytest.raises(PlanningError, match="redan"):
-        planning.withdraw_version(meet.id, 1)
-    with pytest.raises(UnknownVersion):
-        planning.withdraw_version(meet.id, 2)
+    assert next(p.phone for p in planning.freeze(meet.id).places if p.id == "nby") == "999"
 
 
 def test_the_check_finds_trains_without_a_section_and_shared_tracks() -> None:

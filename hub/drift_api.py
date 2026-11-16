@@ -26,7 +26,7 @@ from drift.now import now
 from drift.store import MissingRun, RunLimit, UnknownBox, UnknownClient
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
-from hub.running import PROVBANAN, Running, UnknownMeet, WithdrawnVersion
+from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -81,6 +81,8 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             raise HTTPException(
                 409, "Versionen är tillbakadragen i Planering och kan inte startas."
             ) from error
+        except NeedsNewerHub as error:
+            raise HTTPException(409, str(error)) from error
         except UnknownMeet as error:
             raise HTTPException(409, "Den versionen av träffen finns inte i hubben.") from error
         except failures as error:

@@ -58,8 +58,7 @@ def test_ta_med_lays_it_on_the_draft_and_it_stays_when_the_source_is_read_again(
     assert {t.id for t in again.package.trains} == set(trains)
     assert [t.id for t in again.taken] == ["c1", "c2"]
     assert planning.answers(meet) == {"c1": ProposalStatus.TAKEN, "c2": ProposalStatus.TAKEN}
-    version = planning.publish(meet)
-    package = planning.package(meet, version.number)
+    package = planning.freeze(meet)
     assert "x-c2" in {t.id for t in package.trains}, "the next version has it"
 
 

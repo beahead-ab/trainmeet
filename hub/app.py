@@ -30,6 +30,7 @@ from hub.local import LocalLogin
 from hub.running import Running
 from hub.stores import AnyRun
 from planering.store import Planning
+from synk.store import Versions
 
 # The automation takes a step about once a second while the hub runs (F14).
 TICK_SECONDS: Final = 1.0
@@ -72,8 +73,12 @@ def create_app(
         preview_path, package, package_key=provbanan.package_key(), automation=False
     )
     plans = Planning(data_dir / "planering.sqlite3")
+    # Synk keeps the versions, in Planering's file (SYNK-20).
+    versions = Versions(data_dir / "planering.sqlite3")
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
-    running = Running(data_dir, package, provbanan.package_key(), plans)
+    running = Running(
+        data_dir, package, provbanan.package_key(), plans, versions, hub_version=info.version
+    )
 
     def current() -> build_info.BuildInfo:
         return replace(info, hub_name=login.state().name)
@@ -103,7 +108,7 @@ def create_app(
     app.include_router(hubben.router(login))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
-    app.include_router(planering_api.router(plans, login))
+    app.include_router(planering_api.router(plans, versions, login))
     runs = AnyRun(lambda: running.store, lambda: preview)
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs))

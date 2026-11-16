@@ -2170,6 +2170,22 @@
             "title": "Format",
             "type": "string"
           },
+          "requires_hub": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.",
+            "title": "Requires Hub"
+          },
           "meet": {
             "$ref": "#/components/schemas/trainmeet.meet-1.Meet"
           },
@@ -16652,6 +16668,22 @@
             "title": "Format",
             "type": "string"
           },
+          "requires_hub": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.",
+            "title": "Requires Hub"
+          },
           "meet": {
             "$ref": "#/components/schemas/trainmeet.planning-1.import.Meet"
           },
@@ -19105,6 +19137,22 @@
             "default": "trainmeet.meet/1",
             "title": "Format",
             "type": "string"
+          },
+          "requires_hub": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "pattern": "^\\d+\\.\\d+\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.",
+            "title": "Requires Hub"
           },
           "meet": {
             "$ref": "#/components/schemas/trainmeet.planning-1.draft.Meet"

@@ -1,7 +1,7 @@
-"""Planering's file: the meets with their drafts, the sources as they came, and the versions.
+"""Planering's file: the meets with their drafts and the sources as they came.
 
-One SQLite file (spec 7: Planering and Synk share one; Synk comes later). A version is frozen:
-it is written once with its checksum and never changed or deleted.
+One SQLite file, shared with Synk (spec 7, SYNK-20). Planering makes the next version of the
+draft (freeze); Synk keeps the versions, frozen, with their checksums (SYNK-08, SYNK-09).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Final
 
-from contracts.common import Id, checksum
+from contracts.common import Id
 from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import Meet, MeetPackage, Place, Section, TrackKind, Train
 from contracts.planning import (
@@ -44,7 +44,6 @@ from contracts.planning import (
     TakenChange,
     TrainChange,
     TrainDaysChange,
-    Version,
 )
 from contracts.reasons import TEXT_SV
 from core import changes as driftchanges
@@ -73,11 +72,6 @@ CREATE TABLE IF NOT EXISTS pending (
     meet_id TEXT PRIMARY KEY REFERENCES meet(id) ON DELETE CASCADE,
     source TEXT NOT NULL, body BLOB NOT NULL, result TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS version (
-    meet_id TEXT NOT NULL REFERENCES meet(id),
-    number INTEGER NOT NULL, info TEXT NOT NULL, package TEXT NOT NULL,
-    PRIMARY KEY (meet_id, number)
-);
 CREATE TABLE IF NOT EXISTS proposal (
     meet_id TEXT NOT NULL REFERENCES meet(id) ON DELETE CASCADE,
     id TEXT NOT NULL, made REAL NOT NULL, body TEXT NOT NULL,
@@ -93,10 +87,6 @@ class PlanningError(Exception):
 
 
 class UnknownMeet(PlanningError):
-    status = 404
-
-
-class UnknownVersion(PlanningError):
     status = 404
 
 
@@ -139,14 +129,10 @@ class Planning:
     # --- Reading -----------------------------------------------------------------------------
 
     def meets(self) -> list[MeetSummary]:
+        """The meets, newest first. Their versions are Synk's: the hub puts them in."""
         with self._transaction() as db:
-            rows = db.execute("SELECT id, summary FROM meet ORDER BY created DESC").fetchall()
-            return [
-                MeetSummary.model_validate_json(summary).model_copy(
-                    update={"versions": self._versions(db, meet_id)}
-                )
-                for meet_id, summary in rows
-            ]
+            rows = db.execute("SELECT summary FROM meet ORDER BY created DESC").fetchall()
+            return [MeetSummary.model_validate_json(summary) for (summary,) in rows]
 
     def draft(self, meet_id: str) -> Draft:
         with self._transaction() as db:
@@ -201,20 +187,6 @@ class Planning:
             double_track=found.double_track,
             deviations=odd,
         )
-
-    def versions(self, meet_id: str) -> list[Version]:
-        with self._transaction() as db:
-            self._draft(db, meet_id)
-            return self._versions(db, meet_id)
-
-    def package(self, meet_id: str, number: int) -> MeetPackage:
-        with self._transaction() as db:
-            row = db.execute(
-                "SELECT package FROM version WHERE meet_id=? AND number=?", (meet_id, number)
-            ).fetchone()
-        if row is None:
-            raise UnknownVersion("Den versionen av träffen finns inte.")
-        return MeetPackage.model_validate_json(row[0])
 
     # --- Changing ----------------------------------------------------------------------------
 
@@ -383,61 +355,21 @@ class Planning:
             answers[question.id] = answer.value
             return self._save(db, _replay(draft, answers))
 
-    def publish(self, meet_id: str) -> Version:
-        """The draft as the next version, with the traffic check's findings in it."""
+    def freeze(self, meet_id: str) -> MeetPackage:
+        """The draft as the next version, with the traffic check's findings in it. Synk keeps
+        it and gives it its number (SYNK-08)."""
         with self._transaction() as db:
             draft = self._draft(db, meet_id)
-            if draft.package is None:
-                raise PlanningError("Lägg till underlag innan du publicerar.")
-            found = review(draft)
-            if found.blocking:
-                raise PlanningError(
-                    "Rätta det här innan du publicerar: " + " ".join(found.blocking)
-                )
-            findings = found.findings
-            package = MeetPackage.model_validate(
-                draft.package.model_copy(
-                    update={"meet": draft.meet, "findings": findings}
-                ).model_dump(mode="json")
-            )
-            data = package.model_dump(mode="json")
-            digest = checksum(data)
-            versions = self._versions(db, meet_id)
-            if versions and versions[-1].checksum == digest:
-                raise PlanningError(f"Utkastet är detsamma som version {versions[-1].number}.")
-            version = Version(
-                meet=meet_id,
-                number=(versions[-1].number + 1) if versions else 1,
-                published=datetime.now(UTC),
-                checksum=digest,
-                conflicts=sum(f.severity == "conflict" for f in findings),
-                observations=sum(f.severity == "observation" for f in findings),
-            )
-            db.execute(
-                "INSERT INTO version VALUES (?, ?, ?, ?)",
-                (meet_id, version.number, version.model_dump_json(), package.model_dump_json()),
-            )
-            return version
-
-    def withdraw_version(self, meet_id: str, number: int) -> Version:
-        """Dra tillbaka en version (PLAN-18, F21): it can no longer be started or switched to,
-        but it stays, frozen, so that history and logs hold. A meet that runs it goes on, with
-        a warning (H68)."""
-        with self._transaction() as db:
-            row = db.execute(
-                "SELECT info FROM version WHERE meet_id=? AND number=?", (meet_id, number)
-            ).fetchone()
-            if row is None:
-                raise UnknownVersion("Versionen finns inte.")
-            version = Version.model_validate_json(row[0])
-            if version.withdrawn is not None:
-                raise PlanningError("Versionen är redan tillbakadragen.")
-            withdrawn = version.model_copy(update={"withdrawn": datetime.now(UTC)})
-            db.execute(
-                "UPDATE version SET info=? WHERE meet_id=? AND number=?",
-                (withdrawn.model_dump_json(), meet_id, number),
-            )
-            return withdrawn
+        if draft.package is None:
+            raise PlanningError("Lägg till underlag innan du publicerar.")
+        found = review(draft)
+        if found.blocking:
+            raise PlanningError("Rätta det här innan du publicerar: " + " ".join(found.blocking))
+        return MeetPackage.model_validate(
+            draft.package.model_copy(
+                update={"meet": draft.meet, "findings": found.findings}
+            ).model_dump(mode="json")
+        )
 
     # --- Förslag från Drift (4.4, PLAN-03) ------------------------------------------------------
 
@@ -569,15 +501,6 @@ class Planning:
             (_summary(saved), saved.model_dump_json(), saved.meet.id),
         )
         return saved
-
-    @staticmethod
-    def _versions(db: sqlite3.Connection, meet_id: str) -> list[Version]:
-        return [
-            Version.model_validate_json(info)
-            for (info,) in db.execute(
-                "SELECT info FROM version WHERE meet_id=? ORDER BY number", (meet_id,)
-            )
-        ]
 
 
 def _summary(draft: Draft) -> str:

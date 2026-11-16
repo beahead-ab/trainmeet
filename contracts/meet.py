@@ -315,6 +315,11 @@ class Finding(Contract):
 
 class MeetPackage(Contract):
     format: Literal["trainmeet.meet/1"] = FORMAT
+    requires_hub: Text | None = Field(
+        default=None,
+        pattern=r"^\d+\.\d+\.\d+$",
+        description="Lägsta Hubbversion som kan köra paketet (GRUND-18). Tomt: alla.",
+    )
     meet: Meet
     clock: Clock
     attachments: list[Attachment] = Field(default_factory=list)
