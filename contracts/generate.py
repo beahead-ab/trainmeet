@@ -98,6 +98,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.double-track-answer": planning.DoubleTrackAnswer,
     "trainmeet.planning-1.let-stand": planning.LetStand,
     "trainmeet.planning-1.check": planning.Check,
+    "trainmeet.planning-1.track-picture": planning.TrackPicture,
     "trainmeet.planning-1.version": planning.Version,
     "trainmeet.planning-1.proposal": planning.Proposal,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
@@ -464,6 +465,7 @@ def openapi() -> str:
         bearer=True,
     )
     route("get", m + "/{meet}/check", "planningCheck", p + "check")
+    route("get", m + "/{meet}/picture", "planningTrackPicture", p + "track-picture")
     route(
         "post",
         m + "/{meet}/double-track/{section}",

@@ -687,6 +687,24 @@
       "title": "Clock",
       "type": "object"
     },
+    "ConfirmChange": {
+      "additionalProperties": true,
+      "description": "Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An\nosäker or trolig fact becomes bekräftad, which counts as säker.",
+      "properties": {
+        "confirm": {
+          "description": "Faktumets ref, till exempel section:s-gdo-r.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Confirm",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirm"
+      ],
+      "title": "ConfirmChange",
+      "type": "object"
+    },
     "CoupledStation": {
       "additionalProperties": true,
       "description": "A station coupled to the place in advance: its outside pinned to a version (H28).",
@@ -2742,6 +2760,9 @@
           },
           {
             "$ref": "#/$defs/TrainDaysChange"
+          },
+          {
+            "$ref": "#/$defs/ConfirmChange"
           }
         ]
       },

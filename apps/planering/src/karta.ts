@@ -117,4 +117,5 @@ export function layout(pkg: Package): Layout {
 }
 
 /** A section's short name: the plan's number for its clearance section. */
-export const sectionLabel = (section: Section) => (section.source_ids as Record<string, string> | undefined)?.["planning_json"] ?? section.id;
+/** The plan's number for the section; a section derived from the station lists has none. */
+export const sectionLabel = (section: Section) => (section.source_ids as Record<string, string> | undefined)?.["planning_json"] ?? "";

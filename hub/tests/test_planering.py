@@ -368,6 +368,44 @@ def test_the_track_picture_builds_on_the_lists(hub: TestClient) -> None:
     assert after.report is not None and after.report.verdicts, "the lists' verdicts stay"
 
 
+def test_the_derived_is_confirmed_in_bana(hub: TestClient) -> None:
+    """IMPORT-04, PLAN-02: the planner confirms a derived section or place type, or all at
+    once; a confirmed fact stays confirmed when the lists are read again. Bana gets the track
+    picture to draw under the map."""
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    assert hub.get(f"{API}/meets/{MEET}/picture").status_code == 404
+    lists = station_lists_zip("Mkd", "Lek", "Gdö", "R")
+    for data, name in ((lists, "lists.zip"), (picture_pdf(varnamo_plan()), "Banan.pdf")):
+        seen = planning.ImportPreview.model_validate(upload(hub, data=data, name=name).json())
+        hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply")
+    picture = planning.TrackPicture.model_validate(hub.get(f"{API}/meets/{MEET}/picture").json())
+    assert len(picture.points) == 31 and len(picture.links) == 30
+    assert planning.PictureLink(a="Gdö", b="Tby", double=True) in picture.links
+    draft = planning.Draft.model_validate(hub.get(f"{API}/meets/{MEET}").json())
+    assert draft.package is not None
+    assert draft.package.display.reference_layout["l-gdo"] == picture.points["Gdö"]
+    unsure = [f.ref for f in draft.facts if f.certainty == planning.Certainty.UNSURE]
+    kind = "place:l-lek.kind"
+    assert kind in unsure
+    one = save(hub, {"confirm": kind})
+    assert one.status_code == 200, one.text
+    facts = {f.ref: f for f in planning.Draft.model_validate(one.json()).facts}
+    assert facts[kind].certainty == planning.Certainty.CONFIRMED
+    assert [o.source for o in facts[kind].origins][-1] == planning.PLANNER
+    assert len(facts[kind].origins) >= 2, "where it came from is kept"
+    assert save(hub, {"confirm": "place:nowhere"}).status_code == 409
+    every = save(hub, *({"confirm": ref} for ref in unsure if ref != kind))
+    assert every.status_code == 200, every.text
+    after = planning.Draft.model_validate(every.json())
+    assert not [f for f in after.facts if f.certainty == planning.Certainty.UNSURE]
+    again = planning.ImportPreview.model_validate(upload(hub, data=lists, name="l.zip").json())
+    read = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{again.source.id}/apply").json()
+    )
+    facts = {f.ref: f for f in read.facts}
+    assert facts[kind].certainty == planning.Certainty.CONFIRMED, "kept over a new import"
+
+
 def test_station_lists_as_pdf(hub: TestClient) -> None:
     """The planning program's lists as PDF: read from the text layer, and the draft built from
     them as from ODT. A PDF that is neither lists nor a track picture is refused."""

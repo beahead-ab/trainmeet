@@ -932,6 +932,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/picture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["planningTrackPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets/{meet}/double-track/{section}": {
         parameters: {
             query?: never;
@@ -8346,7 +8362,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -8719,6 +8735,20 @@ export interface components {
              * @description Urtavlorna, som bilagor (F13).
              */
             faces?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ConfirmChange
+         * @description Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
+         *     osäker or trolig fact becomes bekräftad, which counts as säker.
+         */
+        "trainmeet.planning-1.draft.ConfirmChange": {
+            /**
+             * Confirm
+             * @description Faktumets ref, till exempel section:s-gdo-r.
+             */
+            confirm: string;
         } & {
             [key: string]: unknown;
         };
@@ -9883,7 +9913,7 @@ export interface components {
              */
             revision: number;
             /** Changes */
-            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"])[];
+            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"])[];
         } & {
             [key: string]: unknown;
         };
@@ -9915,6 +9945,20 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.changes.ClearanceMode": "requested" | "direct";
+        /**
+         * ConfirmChange
+         * @description Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
+         *     osäker or trolig fact becomes bekräftad, which counts as säker.
+         */
+        "trainmeet.planning-1.changes.ConfirmChange": {
+            /**
+             * Confirm
+             * @description Faktumets ref, till exempel section:s-gdo-r.
+             */
+            confirm: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * PlaceChange
          * @description A change to one place in the draft. Only the fields sent are changed.
@@ -10366,6 +10410,54 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.check.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * TrackPicture
+         * @description Banbilden som bakgrund i Bana (PLAN-02): the signatures where the picture has them, in
+         *     the same units as the draft's map (reference_layout), and the lines between them.
+         */
+        "trainmeet.planning-1.track-picture": {
+            /** Source */
+            source: string;
+            /** Page */
+            page: number;
+            /** Points */
+            points?: {
+                [key: string]: components["schemas"]["trainmeet.planning-1.track-picture.MapPoint"];
+            };
+            /** Links */
+            links?: components["schemas"]["trainmeet.planning-1.track-picture.PictureLink"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MapPoint
+         * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
+         */
+        "trainmeet.planning-1.track-picture.MapPoint": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLink
+         * @description A line on the track picture between two signatures: two side by side is double track.
+         */
+        "trainmeet.planning-1.track-picture.PictureLink": {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * Double
+             * @default false
+             */
+            double: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Version
          * @description A published version: frozen, never changed, never deleted (Ordlista).
@@ -12092,6 +12184,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.planning-1.check"];
+                };
+            };
+        };
+    };
+    planningTrackPicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.track-picture"];
                 };
             };
         };

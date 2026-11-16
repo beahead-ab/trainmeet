@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Draft, ImportPreview } from "./api";
 import { changesOf, clockValue, DataPage, shownValue, type Edit } from "./Data";
-import { days, describePreview, Facts, reportSummary } from "./data";
+import { days, describePreview, Facts, reportSummary, sourceKind } from "./data";
 import { Underlag } from "./Underlag";
 
 const go = () => undefined;
@@ -113,6 +113,17 @@ describe("Data (S6, PLAN-37)", () => {
     expect(days(["mon", "wed"])).toBe("Mån, Ons");
     expect(days(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).toBe("Dagl");
     expect(reportSummary(draft.report as NonNullable<Draft["report"]>)).toContain("2 driftplatser (1 bemannade, 1 fjärrstyrda), 1 klareringssträcka, 1 tåg med 2 besök");
+  });
+});
+
+describe("where a fact comes from", () => {
+  it("tags the source by its kind", () => {
+    const sources = [
+      { id: "u1", kind: "planning_json", filename: "plan.json" },
+      { id: "u2", kind: "station_lists", filename: "listor.zip" },
+      { id: "u3", kind: "track_picture", filename: "Banan.pdf" },
+    ] as unknown as Draft["sources"];
+    expect(["u1", "u2", "u3", "planner"].map((source) => sourceKind({ source, at: "x" }, sources)[0])).toEqual(["JSON", "ST", "BILD", "PLAN"]);
   });
 });
 

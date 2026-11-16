@@ -288,7 +288,8 @@ export const KIND_TEXT: Record<string, string> = {
 };
 
 /** A section's short name: the plan's number for it, as the stations know it. */
-export const sectionLabel = (section: Section) => (section.source_ids as Record<string, string> | undefined)?.["planning_json"] ?? section.id;
+/** The plan's number for the section; a section derived from the station lists has none. */
+export const sectionLabel = (section: Section) => (section.source_ids as Record<string, string> | undefined)?.["planning_json"] ?? "";
 
 /** What the section is: begärd or direkt, and dubbel when it is double track. */
 export function sectionNote(section: Section, pkg: Package): string {
