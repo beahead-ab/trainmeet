@@ -546,3 +546,21 @@ main.planering .dagar button[aria-pressed="true"] {
   border-color: var(--tm-blue);
   color: #ffffff;
 }
+
+/* Exportera (PLAN-07): one line per file. */
+ul.export {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+ul.export li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+ul.export a {
+  font-weight: 600;
+}

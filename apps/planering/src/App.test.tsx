@@ -86,6 +86,17 @@ describe("Versioner (S6)", () => {
     expect(looking).toContain("Visa i rutnätet");
   });
 
+  it("offers the exports of the draft, and the sources only to the administrator (PLAN-07)", () => {
+    const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={versions} />);
+    expect(html).toContain('<option value="" selected="">Utkastet</option><option value="1">Version 1</option>');
+    expect(html).toContain('href="/api/planering/1/meets/varnamo/export/stationstidtabeller" download="">Stationstidtabeller</a>');
+    expect(html).toContain('href="/api/planering/1/meets/varnamo/export/tidtabell" download="">Hela tidtabellen</a>');
+    expect(html).toContain(">Underlaget som ZIP<");
+    const looking = renderToStaticMarkup(<VersionerPage admin={false} meet="varnamo" draft={draft} check={check} versions={versions} />);
+    expect(looking).toContain(">Köruppdragen<");
+    expect(looking).not.toContain("Underlaget som ZIP");
+  });
+
   it("marks a withdrawn version and offers Dra tillbaka to the administrator (PLAN-18)", () => {
     const two = [...versions, { ...versions[0]!, number: 2, withdrawn: "2026-11-16T10:00:00Z" }] as Version[];
     const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={two} />);

@@ -6,7 +6,9 @@ Värnamo Moduldagar is the key (H54).
 
 from __future__ import annotations
 
+import io
 import json
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -213,6 +215,38 @@ def test_the_reasonableness_check_with_låt_stå_and_ta_tillbaka(planned: TestCl
     assert planned.post(path + "/take-back").status_code == 409
     published = planning.Version.model_validate(planned.post(f"{API}/meets/{MEET}/versions").json())
     assert published.observations == 7, "advice, not in the version"
+
+
+def test_the_exports_of_the_draft_and_of_a_version(planned: TestClient) -> None:
+    """Exportera (PLAN-07): anyone who may look gets the timetable; the sources need the
+    administrator."""
+    anonymous = TestClient(planned.app)
+    path = f"{API}/meets/{MEET}/export"
+    pages = anonymous.get(path + "/stationstidtabeller")
+    assert pages.status_code == 200
+    assert pages.headers["content-type"] == "text/html; charset=utf-8"
+    assert pages.headers["content-disposition"] == (
+        'attachment; filename="varnamo-moduldagar-utkast-stationstidtabeller.html"'
+    )
+    assert "<title>Värnamo Moduldagar · Stationstidtabeller</title>" in pages.text
+    assert "<h2>Steinsnes</h2>" in pages.text
+    timetable = anonymous.get(path + "/tidtabell")
+    assert timetable.content.decode("utf-8-sig").startswith("Tåg;Tågslag;Bolag;Dagar")
+    assert timetable.content.count(b"\r\n") == 1 + 1366
+    duties = anonymous.get(path + "/koruppdrag")
+    assert duties.content.decode("utf-8-sig").startswith("Köruppdrag;Del;Tåg")
+    assert planned.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    version = anonymous.get(path + "/paket", params={"version": 1})
+    assert "v1-paket.json" in version.headers["content-disposition"]
+    assert MeetPackage.model_validate_json(version.content).meet.id == MEET
+    assert anonymous.get(path + "/paket", params={"version": 9}).status_code == 404
+    assert anonymous.get(path + "/underlag").status_code == 401
+    sources = planned.get(path + "/underlag")
+    assert sources.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(sources.content)) as archive:
+        assert archive.namelist() == ["Värnamo.json.gz"]
+        assert archive.read("Värnamo.json.gz") == VARNAMO
+    assert anonymous.get(path + "/allt").status_code == 422
 
 
 def later_by(clock: str, minutes: int) -> str:
