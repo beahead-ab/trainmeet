@@ -20,6 +20,8 @@ COPY apps/trafikledning/package.json apps/trafikledning/
 COPY apps/planering/package.json apps/planering/
 RUN npm ci --no-audit --no-fund
 COPY contracts/types.d.ts contracts/
+# Provbanan, which the web apps' tests draw on.
+COPY contracts/examples/provbanan.meet.json contracts/examples/
 COPY apps/design apps/design
 COPY apps/hubben apps/hubben
 COPY apps/skarmar apps/skarmar
