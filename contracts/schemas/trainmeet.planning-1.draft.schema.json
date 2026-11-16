@@ -800,6 +800,16 @@
           },
           "title": "Graph Pages",
           "type": "array"
+        },
+        "reference_layout": {
+          "description": "Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara ritningen av banan; en plats utan läge ritas efter sträckorna.",
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "$ref": "#/$defs/MapPoint"
+            }
+          },
+          "title": "Reference Layout",
+          "type": "object"
         }
       },
       "title": "Display",
@@ -1271,6 +1281,26 @@
       ],
       "title": "Language",
       "type": "string"
+    },
+    "MapPoint": {
+      "additionalProperties": true,
+      "description": "Where the organiser's map has a place, in the map's own units (PLAN-26).",
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "MapPoint",
+      "type": "object"
     },
     "Meet": {
       "additionalProperties": true,

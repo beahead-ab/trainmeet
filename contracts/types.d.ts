@@ -1292,6 +1292,13 @@ export interface components {
             graph_order?: string[];
             /** Graph Pages */
             graph_pages?: components["schemas"]["trainmeet.meet-1.GraphPage"][];
+            /**
+             * Reference Layout
+             * @description Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara ritningen av banan; en plats utan läge ritas efter sträckorna.
+             */
+            reference_layout?: {
+                [key: string]: components["schemas"]["trainmeet.meet-1.MapPoint"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -1401,6 +1408,18 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.meet-1.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * MapPoint
+         * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
+         */
+        "trainmeet.meet-1.MapPoint": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** Meet */
         "trainmeet.meet-1.Meet": {
             /** Id */
@@ -6968,6 +6987,13 @@ export interface components {
             graph_order?: string[];
             /** Graph Pages */
             graph_pages?: components["schemas"]["trainmeet.planning-1.import.GraphPage"][];
+            /**
+             * Reference Layout
+             * @description Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara ritningen av banan; en plats utan läge ritas efter sträckorna.
+             */
+            reference_layout?: {
+                [key: string]: components["schemas"]["trainmeet.planning-1.import.MapPoint"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -7165,6 +7191,18 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.import.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * MapPoint
+         * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
+         */
+        "trainmeet.planning-1.import.MapPoint": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** Meet */
         "trainmeet.planning-1.import.Meet": {
             /** Id */
@@ -8095,6 +8133,13 @@ export interface components {
             graph_order?: string[];
             /** Graph Pages */
             graph_pages?: components["schemas"]["trainmeet.planning-1.draft.GraphPage"][];
+            /**
+             * Reference Layout
+             * @description Kartans lägen: där arrangörens karta har driftplatserna (PLAN-26, H69). Styr bara ritningen av banan; en plats utan läge ritas efter sträckorna.
+             */
+            reference_layout?: {
+                [key: string]: components["schemas"]["trainmeet.planning-1.draft.MapPoint"];
+            };
         } & {
             [key: string]: unknown;
         };
@@ -8335,6 +8380,18 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.draft.Language": "sv" | "en" | "da" | "nb" | "de";
+        /**
+         * MapPoint
+         * @description Where the organiser's map has a place, in the map's own units (PLAN-26).
+         */
+        "trainmeet.planning-1.draft.MapPoint": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** Meet */
         "trainmeet.planning-1.draft.Meet": {
             /** Id */
