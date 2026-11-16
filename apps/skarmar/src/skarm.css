@@ -353,3 +353,196 @@ button {
 .teckning.slutar::before {
   border-top: 3px dotted var(--mute);
 }
+
+/* Skärm · Tågdiagram (SKARM-18): run in blue, planned in grey, now in yellow. */
+.diagram-vy {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--bg);
+}
+.diagram {
+  width: 100%;
+  height: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.diagram .tidslinje line,
+.diagram .platslinje line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.diagram .tidslinje text {
+  fill: var(--mute);
+  font-size: 18px;
+}
+.diagram .platslinje text {
+  fill: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+}
+.diagram .tag {
+  fill: none;
+  stroke-width: 2;
+}
+.diagram .tag.planerat {
+  stroke: #6b7380;
+}
+.diagram .tag.kort {
+  stroke: var(--blue);
+  stroke-width: 4;
+}
+.diagram .tagnr {
+  fill: #c4c9d1;
+  font-size: 16px;
+  font-weight: 700;
+}
+.diagram .tagnr.kort {
+  fill: var(--blue);
+}
+.diagram .nu {
+  stroke: var(--yellow);
+  stroke-width: 3;
+}
+.diagram .nu-bricka {
+  fill: var(--yellow);
+}
+.diagram .nu-text {
+  fill: #111;
+  font-size: 15px;
+  font-weight: 800;
+}
+.teckning.kort-teckning::before {
+  border-top-color: var(--blue);
+}
+.teckning.nu-teckning::before {
+  width: 0;
+  height: 1.6vh;
+  border-top: 0;
+  border-left: 4px solid var(--yellow);
+}
+
+/* Skärm · Översikt (SKARM-18): the clock and four numbers, Banöversikten, the next things that
+   happen and the trains on the line. */
+.oversikt-vy {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.6vh;
+  padding: 2vh 1.3vw;
+}
+.kort {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.oversikt-topp {
+  display: grid;
+  grid-template-columns: 2.6fr repeat(4, 1fr);
+  gap: 1vw;
+}
+.klock-kort {
+  display: flex;
+  align-items: center;
+  gap: 1.5vw;
+  padding: 1.6vh 1.4vw;
+}
+.klock-kort .tid-stor {
+  margin: 0;
+  color: var(--text);
+  font-size: 9vh;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.klock-kort h1 {
+  margin: 0;
+  font-size: 3vh;
+}
+.klock-kort p {
+  margin: 0.3vh 0 0;
+  font-size: 2vh;
+  color: var(--mute);
+}
+.klock-kort .gar {
+  color: var(--green);
+}
+.klock-kort .gar::before {
+  content: "● ";
+}
+.tal-kort {
+  padding: 1.6vh 1.2vw;
+}
+.tal-kort .tal {
+  margin: 0;
+  font-size: 7vh;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.tal-kort p {
+  margin: 0.4vh 0 0;
+  color: var(--mute);
+  font-size: 1.9vh;
+}
+.oversikt-bana {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 1.2vh 1vw;
+}
+.oversikt-bana h2,
+.lista-kort h2 {
+  margin: 0 0 0.6vh;
+  font-size: 2.4vh;
+}
+.oversikt-bana .liten,
+.lista-kort .liten {
+  color: var(--mute);
+  font-size: 1.7vh;
+  font-weight: 400;
+}
+.oversikt-ritning {
+  min-height: 0;
+}
+.oversikt-botten {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 1vw;
+}
+.lista-kort {
+  padding: 1.4vh 1vw;
+}
+.lista-kort ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista-kort li {
+  display: flex;
+  gap: 1.4vw;
+  align-items: baseline;
+  padding: 0.7vh 0;
+  border-top: 1px solid var(--line);
+  font-size: 2.3vh;
+  font-variant-numeric: tabular-nums;
+}
+.lista-kort .tid-kol {
+  color: var(--mute);
+  min-width: 4.5vw;
+}
+.lista-kort b {
+  min-width: 5vw;
+}
+.lista-kort .vad {
+  flex: 1;
+}
+.lista-kort .not {
+  color: var(--mute);
+}
+.lista-kort .not.gul {
+  color: var(--yellow);
+}
+.lista-kort .tom {
+  color: var(--mute);
+  font-size: 1.9vh;
+}

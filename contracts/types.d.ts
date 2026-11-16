@@ -6616,7 +6616,7 @@ export interface components {
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.show.ScreenView": "clock" | "clock_digital" | "tracks";
+        "trainmeet.screen-1.show.ScreenView": "clock" | "clock_digital" | "tracks" | "graph" | "overview";
         /**
          * ScreenPicture
          * @description What the screen shows now. Without a view it waits, and says its name.
@@ -7207,7 +7207,7 @@ export interface components {
          * ScreenView
          * @enum {string}
          */
-        "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital" | "tracks";
+        "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital" | "tracks" | "graph" | "overview";
         /** SwitchWaiting */
         "trainmeet.screen-1.picture.SwitchWaiting": {
             /** Version */
