@@ -177,7 +177,7 @@ export function Banoversikt({ pkg, now, traffic = trafficOf(pkg, now), label = "
               </g>
             )}
             <polyline points={path} className="spar-traff">
-              <title>{`Sträcka ${sectionLabel(section)}, ${name(section.place_a)}–${name(section.place_b)}`}</title>
+              <title>{`Sträcka ${sectionLabel(section) ? `${sectionLabel(section)}, ` : ""}${name(section.place_a)}–${name(section.place_b)}`}</title>
             </polyline>
           </g>
         );

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Draft } from "./api";
-import { BanaPage } from "./Bana";
+import { BanaPage, Karta } from "./Bana";
 import type { Package } from "./data";
 import { GrafPage, sheet } from "./Graf";
 import { DAY, lines, marksOf, onLine, runs, times, trafficDays } from "./graf";
@@ -29,6 +29,47 @@ const pkg = {
     { id: "t2", number: "202", train_type: "G", days: ["thu"], calls: [{ id: "c4", place: "a", departure: "23:50" }, { id: "c5", place: "b", arrival: "00:05", day_offset: 1 }] },
   ],
 } as unknown as Package;
+
+describe("Bana: the derived confirmed, on the organiser's picture (IMPORT-04, PLAN-02)", () => {
+  const draft = {
+    meet: { id: "m", name: "Mellby", clearance_mode: "requested" },
+    package: pkg,
+    facts: [
+      { ref: "section:s2", certainty: "unsure", origins: [] },
+      { ref: "part:s2.1", certainty: "unsure", origins: [] },
+      { ref: "place:d.kind", certainty: "unsure", origins: [] },
+      { ref: "section:s1", certainty: "sure", origins: [] },
+    ],
+    sources: [],
+  } as unknown as Draft;
+
+  it("asks the administrator to confirm, one thing or all at once", () => {
+    const all = renderToStaticMarkup(<BanaPage admin meet="m" draft={draft} />);
+    expect(all).toContain('id="confirm-all"');
+    expect(all).toContain("Bekräfta dem på kartan en i taget, eller alla på en gång om banan stämmer.");
+    expect(renderToStaticMarkup(<BanaPage admin={false} meet="m" draft={draft} />)).not.toContain('id="confirm-all"');
+    const section = renderToStaticMarkup(<BanaPage admin meet="m" draft={draft} initialChoice={{ kind: "section", id: "s2" }} />);
+    expect(section).toContain("Sträckan är härledd och osäker. Stämmer den med banan?");
+    expect(section).toContain('id="confirm-choice"');
+    const place = renderToStaticMarkup(<BanaPage admin meet="m" draft={draft} initialChoice={{ kind: "place", id: "d" }} />);
+    expect(place).toContain("Platsen är härledd och osäker.");
+    const sure = renderToStaticMarkup(<BanaPage admin meet="m" draft={draft} initialChoice={{ kind: "section", id: "s1" }} />);
+    expect(sure).not.toContain('id="confirm-choice"');
+  });
+
+  it("stands where the picture has the places, with the picture's lines under", () => {
+    const points = { A: { x: 40, y: 100 }, B: { x: 80, y: 100 }, C: { x: 120, y: 100 }, D: { x: 160, y: 100 }, E: { x: 80, y: 140 } };
+    const ids: Record<string, string> = { a: "A", b: "B", c: "C", d: "D", e: "E" };
+    const placed = { ...pkg, display: { ...pkg.display, reference_layout: Object.fromEntries(Object.entries(ids).map(([id, code]) => [id, points[code as keyof typeof points]])) } } as unknown as Package;
+    const picture = { source: "u-pic", page: 1, points, links: [{ a: "A", b: "B", double: true }, { a: "B", b: "C", double: true }, { a: "C", b: "D", double: false }, { a: "B", b: "E", double: false }] };
+    const html = renderToStaticMarkup(<Karta pkg={placed} choice={null} unsure={new Set()} picture={picture} onSelect={go} />);
+    expect(html).toContain('id="picture"');
+    expect((html.match(/<line /g) ?? []).length).toBe(4);
+    expect(html).toContain('class="dubbel"');
+    expect(html).toContain("M90,70 L210,70");
+    expect(renderToStaticMarkup(<Karta pkg={pkg} choice={null} unsure={new Set()} picture={picture} onSelect={go} />)).not.toContain('id="picture"');
+  });
+});
 
 describe("Bana (S6, H47)", () => {
   it("lays the longest way level and hangs the rest off, with track without clearance dashed", () => {

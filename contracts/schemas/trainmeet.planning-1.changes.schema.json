@@ -52,6 +52,24 @@
       "title": "ClearanceMode",
       "type": "string"
     },
+    "ConfirmChange": {
+      "additionalProperties": true,
+      "description": "Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An\nosäker or trolig fact becomes bekräftad, which counts as säker.",
+      "properties": {
+        "confirm": {
+          "description": "Faktumets ref, till exempel section:s-gdo-r.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Confirm",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirm"
+      ],
+      "title": "ConfirmChange",
+      "type": "object"
+    },
     "PlaceChange": {
       "additionalProperties": true,
       "description": "A change to one place in the draft. Only the fields sent are changed.",
@@ -246,6 +264,9 @@
           },
           {
             "$ref": "#/$defs/TrainDaysChange"
+          },
+          {
+            "$ref": "#/$defs/ConfirmChange"
           }
         ]
       },

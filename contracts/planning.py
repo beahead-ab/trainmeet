@@ -20,7 +20,15 @@ from pydantic import Discriminator, Field, Tag
 
 from contracts.common import Contract, Id, Text, Weekday
 from contracts.drift import DriftChange, ProposalStatus
-from contracts.meet import ClearanceMode, Finding, Meet, MeetPackage, PlaceKind, TrackKind
+from contracts.meet import (
+    ClearanceMode,
+    Finding,
+    MapPoint,
+    Meet,
+    MeetPackage,
+    PlaceKind,
+    TrackKind,
+)
 
 FORMAT: Final = "trainmeet.planning/1"
 PLANNER: Final = "planner"
@@ -222,6 +230,31 @@ class SectionChange(Contract):
     clearance_mode: ClearanceMode | None = None
 
 
+class PictureLink(Contract):
+    """A line on the track picture between two signatures: two side by side is double track."""
+
+    a: Text
+    b: Text
+    double: bool = False
+
+
+class TrackPicture(Contract):
+    """Banbilden som bakgrund i Bana (PLAN-02): the signatures where the picture has them, in
+    the same units as the draft's map (reference_layout), and the lines between them."""
+
+    source: Id
+    page: int = Field(ge=1)
+    points: dict[Text, MapPoint] = Field(default_factory=dict)
+    links: list[PictureLink] = Field(default_factory=list)
+
+
+class ConfirmChange(Contract):
+    """Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
+    osäker or trolig fact becomes bekräftad, which counts as säker."""
+
+    confirm: Text = Field(description="Faktumets ref, till exempel section:s-gdo-r.")
+
+
 class SectionTracksChange(Contract):
     """Enkel- eller dubbelspår for one section in the draft."""
 
@@ -259,6 +292,7 @@ def _change_kind(value: Any) -> str:
     call, a train's field or its days."""
     if isinstance(value, dict):
         for key, kind in (
+            ("confirm", "confirm"),
             ("call", "call"),
             ("days", "days"),
             ("train", "train"),
@@ -269,6 +303,7 @@ def _change_kind(value: Any) -> str:
                 return kind
         return "section"
     for model, kind in (
+        (ConfirmChange, "confirm"),
         (CallChange, "call"),
         (TrainDaysChange, "days"),
         (TrainChange, "train"),
@@ -286,7 +321,8 @@ Change = Annotated[
     | Annotated[SectionChange, Tag("section")]
     | Annotated[CallChange, Tag("call")]
     | Annotated[TrainChange, Tag("train")]
-    | Annotated[TrainDaysChange, Tag("days")],
+    | Annotated[TrainDaysChange, Tag("days")]
+    | Annotated[ConfirmChange, Tag("confirm")],
     Discriminator(_change_kind),
 ]
 

@@ -588,3 +588,11 @@ ul.domar .pill.sure {
 .skillnad {
   color: var(--rod);
 }
+
+/* Banbilden under kartan (PLAN-02) and Bekräfta (IMPORT-04). */
+.banbild line { stroke: #d6d3cc; stroke-width: 7; stroke-linecap: round; }
+.banbild line.dubbel { stroke-width: 12; }
+.banbild circle { fill: #d6d3cc; }
+.notis #confirm-all { margin-left: 12px; }
+.bekrafta { display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: #fbf5e6; border: 1px solid #ecdcae; border-radius: 10px; padding: 10px 12px; margin: 12px 0; }

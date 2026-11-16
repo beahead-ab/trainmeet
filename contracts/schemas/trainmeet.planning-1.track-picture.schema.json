@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.track-picture.schema.json",
+  "title": "trainmeet.planning-1.track-picture",
+  "$defs": {
+    "MapPoint": {
+      "additionalProperties": true,
+      "description": "Where the organiser's map has a place, in the map's own units (PLAN-26).",
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "MapPoint",
+      "type": "object"
+    },
+    "PictureLink": {
+      "additionalProperties": true,
+      "description": "A line on the track picture between two signatures: two side by side is double track.",
+      "properties": {
+        "a": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "A",
+          "type": "string"
+        },
+        "b": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "B",
+          "type": "string"
+        },
+        "double": {
+          "default": false,
+          "title": "Double",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "PictureLink",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Banbilden som bakgrund i Bana (PLAN-02): the signatures where the picture has them, in\nthe same units as the draft's map (reference_layout), and the lines between them.",
+  "properties": {
+    "source": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Source",
+      "type": "string"
+    },
+    "page": {
+      "minimum": 1,
+      "title": "Page",
+      "type": "integer"
+    },
+    "points": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MapPoint"
+      },
+      "propertyNames": {
+        "maxLength": 500,
+        "minLength": 1
+      },
+      "title": "Points",
+      "type": "object"
+    },
+    "links": {
+      "items": {
+        "$ref": "#/$defs/PictureLink"
+      },
+      "title": "Links",
+      "type": "array"
+    }
+  },
+  "required": [
+    "source",
+    "page"
+  ],
+  "type": "object"
+}

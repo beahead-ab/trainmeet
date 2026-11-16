@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
+from contracts.meet import MapPoint
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
 from integrationer import derive, planning_json, station_lists, track_picture
@@ -376,6 +377,29 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             return store.check(meet).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
+
+    @routes.get("/meets/{meet}/picture")
+    def picture(meet: str, response: Response) -> dict[str, Any]:
+        """Banbilden som bakgrund i Bana (PLAN-02): the track picture among the sources, read
+        again from the file as it came."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            current = store.draft(meet)
+            read, drawn = _drawn(meet, current)
+        except PlanningError as error:
+            _fail(error)
+        if read is None or drawn is None:
+            raise HTTPException(404, "Träffen har ingen banbild.")
+        return planning.TrackPicture(
+            source=drawn.id,
+            page=read.page,
+            points={code: MapPoint(x=x, y=y) for code, (x, y) in read.places.items()},
+            links=[
+                planning.PictureLink(a=a, b=b, double=double)
+                for pair, double in sorted(read.links.items(), key=lambda i: sorted(i[0]))
+                for a, b in [sorted(pair)]
+            ],
+        ).model_dump(mode="json")
 
     @routes.post("/meets/{meet}/double-track/{section}")
     def double_track(

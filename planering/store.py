@@ -26,6 +26,7 @@ from contracts.planning import (
     Certainty,
     Change,
     Check,
+    ConfirmChange,
     DoubleTrackAnswer,
     Draft,
     Fact,
@@ -291,6 +292,7 @@ class Planning:
             if draft.package is None:
                 raise PlanningError("Lägg till underlag först.")
             known = _things(draft.package)
+            known["confirm"] = {fact.ref for fact in draft.facts}
             kept = list(draft.changes)
             for change in changes:
                 kind, target = _target(change)
@@ -585,6 +587,8 @@ def _target(change: Change) -> tuple[str, Id]:
         return f"train.{change.field}", change.train
     if isinstance(change, TrainDaysChange):
         return "train.days", change.train
+    if isinstance(change, ConfirmChange):
+        return "confirm", change.confirm
     return "section", change.section
 
 
@@ -687,6 +691,14 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     trains: dict[Id, Train] = {t.id: t for t in package.trains}
     owner = {c.id: t.id for t in package.trains for c in t.calls}
     for change in draft.changes:
+        if isinstance(change, ConfirmChange):
+            found = facts.get(change.confirm)
+            if found is not None and found.certainty in (Certainty.UNSURE, Certainty.LIKELY):
+                kept = [o for o in found.origins if o.source != PLANNER]
+                facts[found.ref] = found.model_copy(
+                    update={"certainty": Certainty.CONFIRMED, "origins": [*kept, *planner]}
+                )
+            continue
         if isinstance(change, CallChange) and change.call in owner:
             train = trains[owner[change.call]]
             trains[train.id] = train.model_copy(

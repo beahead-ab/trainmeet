@@ -1713,6 +1713,33 @@
         ]
       }
     },
+    "/api/planering/1/meets/{meet}/picture": {
+      "get": {
+        "operationId": "planningTrackPicture",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.track-picture"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets/{meet}/double-track/{section}": {
       "post": {
         "operationId": "answerDoubleTrack",
@@ -17405,6 +17432,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.draft.TrainDaysChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.draft.ConfirmChange"
                 }
               ]
             },
@@ -18128,6 +18158,24 @@
           "start_time"
         ],
         "title": "Clock",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.ConfirmChange": {
+        "additionalProperties": true,
+        "description": "Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An\nosäker or trolig fact becomes bekräftad, which counts as säker.",
+        "properties": {
+          "confirm": {
+            "description": "Faktumets ref, till exempel section:s-gdo-r.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "ConfirmChange",
         "type": "object"
       },
       "trainmeet.planning-1.draft.CoupledStation": {
@@ -20423,6 +20471,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/trainmeet.planning-1.changes.TrainDaysChange"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.planning-1.changes.ConfirmChange"
                 }
               ]
             },
@@ -20487,6 +20538,24 @@
         ],
         "title": "ClearanceMode",
         "type": "string"
+      },
+      "trainmeet.planning-1.changes.ConfirmChange": {
+        "additionalProperties": true,
+        "description": "Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An\nosäker or trolig fact becomes bekräftad, which counts as säker.",
+        "properties": {
+          "confirm": {
+            "description": "Faktumets ref, till exempel section:s-gdo-r.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "ConfirmChange",
+        "type": "object"
       },
       "trainmeet.planning-1.changes.PlaceChange": {
         "additionalProperties": true,
@@ -21283,6 +21352,95 @@
         ],
         "title": "Weekday",
         "type": "string"
+      },
+      "trainmeet.planning-1.track-picture": {
+        "additionalProperties": true,
+        "description": "Banbilden som bakgrund i Bana (PLAN-02): the signatures where the picture has them, in\nthe same units as the draft's map (reference_layout), and the lines between them.",
+        "properties": {
+          "source": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "points": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.track-picture.MapPoint"
+            },
+            "propertyNames": {
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "title": "Points",
+            "type": "object"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.track-picture.PictureLink"
+            },
+            "title": "Links",
+            "type": "array"
+          }
+        },
+        "required": [
+          "source",
+          "page"
+        ],
+        "title": "TrackPicture",
+        "type": "object"
+      },
+      "trainmeet.planning-1.track-picture.MapPoint": {
+        "additionalProperties": true,
+        "description": "Where the organiser's map has a place, in the map's own units (PLAN-26).",
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "MapPoint",
+        "type": "object"
+      },
+      "trainmeet.planning-1.track-picture.PictureLink": {
+        "additionalProperties": true,
+        "description": "A line on the track picture between two signatures: two side by side is double track.",
+        "properties": {
+          "a": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "B",
+            "type": "string"
+          },
+          "double": {
+            "default": false,
+            "title": "Double",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "PictureLink",
+        "type": "object"
       },
       "trainmeet.planning-1.version": {
         "additionalProperties": true,
