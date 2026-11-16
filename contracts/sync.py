@@ -125,6 +125,14 @@ class RunEvents(Contract):
     events: list[DriftEvent] = Field(default_factory=list, max_length=500)
 
 
+class RunFeed(Contract):
+    """Körningen som molnet leder efter ett övertag (H9): ledarens händelser, för en Pi som
+    följer från nu."""
+
+    leader: Text
+    events: list[DriftEvent] = Field(default_factory=list, max_length=500)
+
+
 class RunAck(Contract):
     """Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4)."""
 

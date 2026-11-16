@@ -42,6 +42,7 @@
     "EventKind": {
       "enum": [
         "meet.started",
+        "leader.taken",
         "clock.started",
         "clock.stopped",
         "clock.speed",
@@ -123,6 +124,29 @@
         "speed"
       ],
       "title": "MeetStarted",
+      "type": "object"
+    },
+    "LeaderTaken": {
+      "additionalProperties": true,
+      "description": "Ta över i molnet (H8, H9, TRAFIK-08): the hub that followed leads from here, with an epoch\none higher. The clock stands until the dispatcher starts it.",
+      "properties": {
+        "hub_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Hub Name",
+          "type": "string"
+        },
+        "epoch": {
+          "minimum": 1,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hub_name",
+        "epoch"
+      ],
+      "title": "LeaderTaken",
       "type": "object"
     },
     "ClockChanged": {
@@ -1540,6 +1564,21 @@
     {
       "properties": {
         "kind": {
+          "const": "leader.taken",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/LeaderTaken"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "clock.started",
           "type": "string"
         },
@@ -2038,6 +2077,7 @@
           "not": {
             "enum": [
               "meet.started",
+              "leader.taken",
               "clock.started",
               "clock.stopped",
               "clock.speed",

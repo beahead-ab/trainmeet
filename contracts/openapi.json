@@ -5537,7 +5537,8 @@
           "no_switch_waiting",
           "drift_locked",
           "not_locked",
-          "not_leader"
+          "not_leader",
+          "already_leader"
         ],
         "title": "Reason",
         "type": "string"
@@ -8436,6 +8437,23 @@
         "title": "ClockAction",
         "type": "string"
       },
+      "trainmeet.drift-1.take-over": {
+        "additionalProperties": true,
+        "description": "Ta över: the dispatcher writes the meet's name, so it is never done by mistake.",
+        "properties": {
+          "confirm": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "TakeOver",
+        "type": "object"
+      },
       "trainmeet.drift-1.new-day": {
         "additionalProperties": true,
         "description": "Starta ny dag: the next game day, with the clock at the time given, or else the one Nu\nsuggests: where the clock is after midnight, before midnight the time of the day change.",
@@ -9647,6 +9665,21 @@
           {
             "properties": {
               "kind": {
+                "const": "leader.taken",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.LeaderTaken"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "clock.started",
                 "type": "string"
               },
@@ -10145,6 +10178,7 @@
                 "not": {
                   "enum": [
                     "meet.started",
+                    "leader.taken",
                     "clock.started",
                     "clock.stopped",
                     "clock.speed",
@@ -10245,6 +10279,7 @@
       "trainmeet.drift-1.event.EventKind": {
         "enum": [
           "meet.started",
+          "leader.taken",
           "clock.started",
           "clock.stopped",
           "clock.speed",
@@ -10326,6 +10361,29 @@
           "speed"
         ],
         "title": "MeetStarted",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.LeaderTaken": {
+        "additionalProperties": true,
+        "description": "Ta över i molnet (H8, H9, TRAFIK-08): the hub that followed leads from here, with an epoch\none higher. The clock stands until the dispatcher starts it.",
+        "properties": {
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "epoch": {
+            "minimum": 1,
+            "title": "Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hub_name",
+          "epoch"
+        ],
+        "title": "LeaderTaken",
         "type": "object"
       },
       "trainmeet.drift-1.event.ClockChanged": {
@@ -13777,7 +13835,8 @@
           "no_switch_waiting",
           "drift_locked",
           "not_locked",
-          "not_leader"
+          "not_leader",
+          "already_leader"
         ],
         "title": "Reason",
         "type": "string"
@@ -23250,6 +23309,7 @@
       "trainmeet.sync-1.run-events.EventKind": {
         "enum": [
           "meet.started",
+          "leader.taken",
           "clock.started",
           "clock.stopped",
           "clock.speed",
@@ -23334,6 +23394,240 @@
           "withdrawn"
         ],
         "title": "ProposalStatus",
+        "type": "string"
+      },
+      "trainmeet.sync-1.run-feed": {
+        "additionalProperties": true,
+        "description": "Körningen som molnet leder efter ett övertag (H9): ledarens händelser, för en Pi som\nföljer från nu.",
+        "properties": {
+          "leader": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Leader",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.run-feed.DriftEvent"
+            },
+            "maxItems": 500,
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "leader"
+        ],
+        "title": "RunFeed",
+        "type": "object"
+      },
+      "trainmeet.sync-1.run-feed.Actor": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.run-feed.ActorKind"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Actor",
+        "type": "object"
+      },
+      "trainmeet.sync-1.run-feed.ActorKind": {
+        "enum": [
+          "client",
+          "dispatcher",
+          "automation",
+          "system"
+        ],
+        "title": "ActorKind",
+        "type": "string"
+      },
+      "trainmeet.sync-1.run-feed.DriftEvent": {
+        "additionalProperties": true,
+        "properties": {
+          "protocol": {
+            "const": "trainmeet.drift/1",
+            "default": "trainmeet.drift/1",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "seq": {
+            "description": "Händelsens nummer i den körande träffen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "epoch": {
+            "description": "Ledarens epok; högre epok vinner.",
+            "minimum": 0,
+            "title": "Epoch",
+            "type": "integer"
+          },
+          "meet_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "game_day": {
+            "minimum": 1,
+            "title": "Game Day",
+            "type": "integer"
+          },
+          "model_time": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Model Time",
+            "type": "string"
+          },
+          "wall_time": {
+            "format": "date-time",
+            "title": "Wall Time",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.run-feed.EventKind"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.run-feed.Actor"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Kommandots id, för spårbarhet.",
+            "title": "Message Id"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Place"
+          },
+          "train": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Train"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "seq",
+          "epoch",
+          "meet_id",
+          "version",
+          "game_day",
+          "model_time",
+          "wall_time",
+          "kind",
+          "actor"
+        ],
+        "title": "DriftEvent",
+        "type": "object"
+      },
+      "trainmeet.sync-1.run-feed.EventKind": {
+        "enum": [
+          "meet.started",
+          "leader.taken",
+          "clock.started",
+          "clock.stopped",
+          "clock.speed",
+          "clock.jump",
+          "clock.jump_undone",
+          "day.changed",
+          "day.settings",
+          "client.approved",
+          "client.revoked",
+          "client.assigned",
+          "clearance.requested",
+          "clearance.answered",
+          "clearance.cancelled",
+          "clearance.reminded",
+          "clearance.invalidated",
+          "train.departed",
+          "train.arrived",
+          "train.moved_here",
+          "train.track_changed",
+          "train.set_aside",
+          "train.positioned",
+          "train.crew_ready",
+          "line.available",
+          "line.acknowledged",
+          "section.occupancy",
+          "signal.exit",
+          "place.manned",
+          "place.left",
+          "place.taken_back",
+          "automation.set",
+          "place.phone",
+          "transition.begun",
+          "transition.done",
+          "version.switched",
+          "version.waiting",
+          "version.called_off",
+          "change.made",
+          "change.applied",
+          "change.dropped"
+        ],
+        "title": "EventKind",
         "type": "string"
       },
       "trainmeet.sync-1.home": {

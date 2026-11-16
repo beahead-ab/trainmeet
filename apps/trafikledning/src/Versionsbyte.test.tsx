@@ -71,4 +71,14 @@ describe("Versionsbyte (TRAFIK-03, DRIFT-29, H4, H38, H66)", () => {
     expect(renderToStaticMarkup(<Följer now={leader(300)} />)).toContain("Hörd för 5 min sedan.");
     expect(renderToStaticMarkup(<Följer now={now} />)).toBe("");
   });
+
+  it("offers Ta över i molnet to the administrator once the leader has been silent (TRAFIK-08)", () => {
+    const leader = (silent: number) => ({ ...now, name: "Värnamo Moduldagar", leader: { hub_name: "Låtsas-Pi", heard: "2026-11-16T05:00:00Z", silent } }) as Now;
+    expect(renderToStaticMarkup(<Följer now={leader(10)} admin />)).not.toContain("Ta över i molnet");
+    expect(renderToStaticMarkup(<Följer now={leader(60)} />)).not.toContain("Ta över i molnet");
+    const silent = renderToStaticMarkup(<Följer now={leader(60)} admin />);
+    expect(silent).toContain("Ta över i molnet");
+    expect(silent).toContain('id="take-over-button" type="button" class="fara" disabled=""');
+    expect(silent).toContain("Klockan stannar där Låtsas-Pi senast var");
+  });
 });

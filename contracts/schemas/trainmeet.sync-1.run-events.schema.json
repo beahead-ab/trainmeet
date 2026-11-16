@@ -168,6 +168,7 @@
     "EventKind": {
       "enum": [
         "meet.started",
+        "leader.taken",
         "clock.started",
         "clock.stopped",
         "clock.speed",

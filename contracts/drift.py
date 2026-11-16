@@ -375,6 +375,7 @@ class Client(Contract):
 
 class EventKind(StrEnum):
     MEET_STARTED = "meet.started"
+    LEADER_TAKEN = "leader.taken"
     CLOCK_STARTED = "clock.started"
     CLOCK_STOPPED = "clock.stopped"
     CLOCK_SPEED = "clock.speed"
@@ -441,6 +442,20 @@ class MeetStarted(Contract):
 class ClockChanged(Contract):
     seconds: float = Field(ge=0)
     speed: float = Field(gt=0, le=60)
+
+
+class LeaderTaken(Contract):
+    """Ta över i molnet (H8, H9, TRAFIK-08): the hub that followed leads from here, with an epoch
+    one higher. The clock stands until the dispatcher starts it."""
+
+    hub_name: Text
+    epoch: int = Field(ge=1)
+
+
+class TakeOver(Contract):
+    """Ta över: the dispatcher writes the meet's name, so it is never done by mistake."""
+
+    confirm: Text = Field(max_length=200)
 
 
 class TimeJumped(Contract):
@@ -697,6 +712,7 @@ class AutomationStatus(Contract):
 
 EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.MEET_STARTED: MeetStarted,
+    EventKind.LEADER_TAKEN: LeaderTaken,
     EventKind.CLOCK_STARTED: ClockChanged,
     EventKind.CLOCK_STOPPED: ClockChanged,
     EventKind.CLOCK_SPEED: ClockChanged,

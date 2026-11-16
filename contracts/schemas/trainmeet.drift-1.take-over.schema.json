@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.take-over.schema.json",
+  "title": "trainmeet.drift-1.take-over",
+  "additionalProperties": true,
+  "description": "Ta över: the dispatcher writes the meet's name, so it is never done by mistake.",
+  "properties": {
+    "confirm": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Confirm",
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirm"
+  ],
+  "type": "object"
+}

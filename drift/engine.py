@@ -244,6 +244,8 @@ class Drift:
         # Påbörjat och klart (DRIFT-47), and a version switch waiting for trains that are out.
         self.transition: str | None = None
         self.waiting_switch: events.VersionSwitch | None = None
+        # The leader's epoch (DRIFT-21): one higher each time another hub takes over (H8).
+        self.epoch = 0
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -253,7 +255,10 @@ class Drift:
     @property
     def context(self) -> station.MeetContext:
         return station.MeetContext(
-            meet_id=self.package.meet.id, version=self.version, game_day=self.game_day, epoch=0
+            meet_id=self.package.meet.id,
+            version=self.version,
+            game_day=self.game_day,
+            epoch=self.epoch,
         )
 
     def _set_traffic_day(self, day: Weekday) -> None:
@@ -557,6 +562,18 @@ class Drift:
             actor=_DISPATCHER,
         )
 
+    def take_over(self, hub_name: str, now: datetime) -> None:
+        """Ta över i molnet (H8, H9, TRAFIK-08): this hub leads from here, with a higher epoch.
+        The clock stops, as after a restart, and the dispatcher starts it again."""
+        self.pause_after_restart(now)
+        self.epoch += 1
+        self._record(
+            events.EventKind.LEADER_TAKEN,
+            {"hub_name": hub_name, "epoch": self.epoch},
+            now,
+            actor=_DISPATCHER,
+        )
+
     def pause_after_restart(self, now: datetime) -> None:
         if self.clock.running:
             seconds = self.clock.at(self.history[-1].wall_time)
@@ -569,6 +586,8 @@ class Drift:
 
     def _apply(self, event: events.DriftEvent) -> None:
         match event.kind:
+            case events.EventKind.LEADER_TAKEN:
+                self.epoch = events.LeaderTaken.model_validate(event.data).epoch
             case events.EventKind.MEET_STARTED:
                 meet = events.MeetStarted.model_validate(event.data)
                 self._set_traffic_day(meet.traffic_day)

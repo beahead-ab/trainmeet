@@ -17,7 +17,7 @@ from threading import Lock
 from typing import Final
 
 from contracts.common import Weekday
-from contracts.drift import ProposalStatus
+from contracts.drift import DriftEvent, ProposalStatus
 from contracts.meet import MeetPackage
 from drift.engine import Refused, now_utc
 from drift.store import MissingRun, PreviewStore
@@ -128,6 +128,28 @@ class Running:
         if store.leader(run_id) is not None:
             return None
         return Leading(self.meet, self.version, run_id, store.package_key)
+
+    def following(self) -> Leading | None:
+        """The run of this hub's meet that another hub leads (SYNK-14)."""
+        if self.meet == PROVBANAN:
+            return None
+        store = self.store
+        try:
+            run_id = store.current()
+        except MissingRun:
+            return None
+        if store.leader(run_id) is None:
+            return None
+        return Leading(self.meet, self.version, run_id, store.package_key)
+
+    def events_after(self, run: str, seq: int) -> list[DriftEvent]:
+        return self.store.events_after(run, seq)
+
+    def receive(self, run: str, leader: str, events: list[DriftEvent]) -> int:
+        return self.store.receive(run, leader, events)[0]
+
+    def give_way(self, run: str, leader: str, events: list[DriftEvent]) -> int:
+        return self.store.give_way(run, leader, events)
 
     def answers(self, meet: str) -> dict[str, ProposalStatus]:
         """Planering's answer to each driftändring: from the meet's home (4.4, H35)."""

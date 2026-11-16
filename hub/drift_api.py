@@ -88,6 +88,26 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         except failures as error:
             _error(error)
 
+    @routes.post("/takeover")
+    def take_over(
+        request: drift.TakeOver,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Ta över i molnet (TRAFIK-08, H8, H9): the run another hub led is led from here, with
+        a higher epoch, and the clock stopped. Only by hand, with the meet's name written."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        name = running.store.package.meet.name
+        if request.confirm.strip().casefold() != name.casefold():
+            raise HTTPException(422, f"Skriv träffens namn, {name}, för att ta över.")
+        try:
+            state = running.store.take_over(run_id, login.state().name)
+        except failures as error:
+            _error(error)
+        return state.history[-1].model_dump(mode="json")
+
     @routes.post("/clock")
     def clock(
         control: drift.ClockControl,

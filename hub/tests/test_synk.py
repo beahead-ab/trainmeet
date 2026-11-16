@@ -310,8 +310,7 @@ def test_after_a_break_the_pi_goes_on_from_the_clouds_acknowledgement(
         follower(pi).versions,
         follower(pi).hello,
         follower(pi).call,
-        leading=follower(pi).leading,
-        events_after=follower(pi).events_after,
+        runs=follower(pi).runs,
     )
     assert again.push() == count(pi) == count(cloud)
     mirror = cloud.app.state.running.mirror(MEET, 1)  # type: ignore[attr-defined]
@@ -410,3 +409,46 @@ def test_while_the_pi_is_home_its_driftandringar_are_proposals_there(
     follower(pi).push()
     assert [p["status"] for p in pi.get(f"{API}/meets/{MEET}/proposals").json()] == ["waiting"]
     assert cloud.get(f"{API}/meets/{MEET}/proposals").json() == []
+
+
+def test_ta_over_i_molnet_and_the_pi_follows_when_it_comes_back(
+    cloud: TestClient, tmp_path: Path
+) -> None:
+    """Ta över i molnet (TRAFIK-08, H8, H9, SYNK-14): only by hand, with the meet's name; the
+    cloud leads with a higher epoch and the clock stopped. The Pi that comes back follows, and
+    what it did meanwhile is set aside, never applied."""
+    pi = started(pi_for(cloud, tmp_path), cloud)
+    assert pi.post(DRIFT + "/clock", json={"action": "jump", "time": "08:00"}).status_code == 200
+    follower(pi).push()
+    assert cloud.post(DRIFT + "/start", json={"meet": MEET, "version": 1}).status_code == 201
+    wrong = cloud.post(DRIFT + "/takeover", json={"confirm": "Fel träff"})
+    assert wrong.status_code == 422 and "Värnamo Moduldagar" in wrong.json()["detail"]
+    taken = drift.DriftEvent.model_validate(
+        cloud.post(DRIFT + "/takeover", json={"confirm": "värnamo moduldagar"}).json()
+    )
+    assert (taken.kind, taken.epoch, taken.data["hub_name"]) == ("leader.taken", 1, "Molnet")
+    led = drift.Now.model_validate(cloud.get(DRIFT + "/now").json())
+    assert led.leader is None and not led.clock.running and led.clock.time == "08:00"
+    assert (
+        cloud.post(DRIFT + "/takeover", json={"confirm": "Värnamo Moduldagar"}).status_code == 409
+    )
+    # The Pi was cut off and went on deciding; when it calls again, the cloud has taken over.
+    assert pi.post(DRIFT + "/clock", json={"action": "jump", "time": "09:00"}).status_code == 200
+    follower(pi).push()
+    after = drift.Now.model_validate(pi.get(DRIFT + "/now").json())
+    assert after.leader is not None and after.leader.hub_name == "Molnet"
+    assert after.clock.time == "08:00", "the cloud's word, not the Pi's own"
+    refused = pi.post(DRIFT + "/clock", json={"action": "start"})
+    assert refused.status_code == 409 and "leder träffen" in refused.json()["detail"]
+    store = pi.app.state.running.store  # type: ignore[attr-defined]
+    assert store.set_aside(store.current()) >= 1
+    [seen] = pi.get("/api/hub/cloud").json()
+    assert "Molnet tog över träffen." in seen["problem"]
+    # From here the Pi follows the cloud.
+    assert cloud.post(DRIFT + "/clock", json={"action": "jump", "time": "10:00"}).status_code == 200
+    follower(pi).pull()
+    up = drift.Now.model_validate(cloud.get(DRIFT + "/now").json())
+    down = drift.Now.model_validate(pi.get(DRIFT + "/now").json())
+    assert (down.clock.time, down.legs) == (up.clock.time, up.legs) and up.clock.time == "10:00"
+    last = cloud.app.state.running.store  # type: ignore[attr-defined]
+    assert last.events_after(last.current(), 0)[-1].epoch == 1

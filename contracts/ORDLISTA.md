@@ -9,6 +9,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Kontrollsumma | `checksum` | SHA-256 av paketets kanoniska JSON, räknad på byten som publicerades och aldrig på ett paket som lästs och skrivits om (A11). Avgör om ett paket är helt. |
 | Lägsta Hubbversion | `requires_hub` | Den äldsta Hubb som kan köra paketet (GRUND-18). En äldre hubb startar inte versionen och säger vilken version som krävs. Tomt: alla. |
 | Träffens hem | `sync.Home`, `HomeBundle`, `/home/take`, `/home/back`, `/home/reclaim` | Hubben där träffen planeras och versionerna publiceras (H35). Flyttas med en knapp till Pi:n före träffen och tillbaka efter, med utkastet, underlagen och förslagen. Den andra hubben tittar och ändrar inget. Varje flytt räknar upp generationen, så det aldrig blir två version 5 (SYNK-16). |
+| Ta över i molnet | `leader.taken`, `TakeOver`, `/api/drift/1/takeover` | Molnhubben leder träffen när Pi:n har tystnat (H8, H9, TRAFIK-08). Bara för hand, med träffens namn skrivet. Epoken räknas upp och klockan stannar där Pi:n senast var. Kommer Pi:n tillbaka följer den molnet, och det den gjorde under tiden sätts åt sidan. |
 | Driftplats | `place` | En plats i planen: bemannad, fjärrstyrd, obemannad, skuggbangård eller industri/hållplats. Sträckor, tågbesök och protokoll pekar på driftplatsen. |
 | Platstyp | `place.kind` | `manned` bemannad, `remote` fjärrstyrd, `unmanned` obemannad, `shadow_yard` skuggbangård, `halt` industri/hållplats. |
 | Signatur | `place.code` | Driftplatsens förkortning, till exempel Nby. |

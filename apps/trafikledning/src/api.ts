@@ -52,6 +52,8 @@ export const api = {
   forceSwitch: () => call<DriftEvent>(`${DRIFT}/switch/force`, {}),
   callOffSwitch: () => call<DriftEvent>(`${DRIFT}/switch/call-off`, {}),
   unlock: () => call<DriftEvent>(`${DRIFT}/unlock`, {}),
+  // Ta över i molnet (TRAFIK-08, H8, H9): only by hand, with the meet's name written.
+  takeOver: (confirm: string) => call<DriftEvent>(`${DRIFT}/takeover`, { confirm }),
   assign: (change: Assign) => call<Client>(`${DRIFT}/clients/assign`, change),
   approve: (change: Approve) => call<Client>(`${DRIFT}/clients/approve`, change),
   revoke: (change: Revoke) => call<Client>(`${DRIFT}/clients/revoke`, change),

@@ -190,6 +190,9 @@ export function App() {
   const onUnlock = async () => {
     if (await act(() => api.unlock())) await readNow();
   };
+  const onTakeOver = async (confirm: string) => {
+    if (await act(() => api.takeOver(confirm))) await readNow();
+  };
 
   const onChange = async (change: DriftChange) => {
     if (await act(() => api.makeChange({ change, force: false }))) await readNow();
@@ -275,6 +278,7 @@ export function App() {
               onCallOff: () => void onCallOff(),
             }}
             onUnlock={() => void onUnlock()}
+            onTakeOver={(confirm) => void onTakeOver(confirm)}
             onStart={(choice, day) => void hubState.start(choice, day)}
             onPlace={(change) => void onPlace(change)}
           />

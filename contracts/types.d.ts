@@ -2656,7 +2656,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3942,6 +3942,16 @@ export interface components {
          */
         "trainmeet.drift-1.clock.ClockAction": "start" | "stop" | "speed" | "jump" | "undo_jump";
         /**
+         * TakeOver
+         * @description Ta över: the dispatcher writes the meet's name, so it is never done by mistake.
+         */
+        "trainmeet.drift-1.take-over": {
+            /** Confirm */
+            confirm: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * NewDay
          * @description Starta ny dag: the next game day, with the clock at the time given, or else the one Nu
          *     suggests: where the clock is after midnight, before midnight the time of the day change.
@@ -4558,6 +4568,10 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.MeetStarted"];
         } | {
             /** @constant */
+            kind: "leader.taken";
+            data: components["schemas"]["trainmeet.drift-1.event.LeaderTaken"];
+        } | {
+            /** @constant */
             kind: "clock.started";
             data: components["schemas"]["trainmeet.drift-1.event.ClockChanged"];
         } | {
@@ -4711,7 +4725,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -4728,6 +4742,19 @@ export interface components {
              * @default 1
              */
             game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LeaderTaken
+         * @description Ta över i molnet (H8, H9, TRAFIK-08): the hub that followed leads from here, with an epoch
+         *     one higher. The clock stands until the dispatcher starts it.
+         */
+        "trainmeet.drift-1.event.LeaderTaken": {
+            /** Hub Name */
+            hub_name: string;
+            /** Epoch */
+            epoch: number;
         } & {
             [key: string]: unknown;
         };
@@ -6555,7 +6582,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -11392,7 +11419,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
         /**
          * RunAck
          * @description Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4).
@@ -11415,6 +11442,101 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.run-ack.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
+         * RunFeed
+         * @description Körningen som molnet leder efter ett övertag (H9): ledarens händelser, för en Pi som
+         *     följer från nu.
+         */
+        "trainmeet.sync-1.run-feed": {
+            /** Leader */
+            leader: string;
+            /** Events */
+            events?: components["schemas"]["trainmeet.sync-1.run-feed.DriftEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** Actor */
+        "trainmeet.sync-1.run-feed.Actor": {
+            kind: components["schemas"]["trainmeet.sync-1.run-feed.ActorKind"];
+            /**
+             * Id
+             * @default null
+             */
+            id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ActorKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.run-feed.ActorKind": "client" | "dispatcher" | "automation" | "system";
+        /** DriftEvent */
+        "trainmeet.sync-1.run-feed.DriftEvent": {
+            /**
+             * Protocol
+             * @default trainmeet.drift/1
+             * @constant
+             */
+            protocol: "trainmeet.drift/1";
+            /**
+             * Seq
+             * @description Händelsens nummer i den körande träffen.
+             */
+            seq: number;
+            /**
+             * Epoch
+             * @description Ledarens epok; högre epok vinner.
+             */
+            epoch: number;
+            /** Meet Id */
+            meet_id: string;
+            /** Version */
+            version: number;
+            /** Game Day */
+            game_day: number;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+            kind: components["schemas"]["trainmeet.sync-1.run-feed.EventKind"];
+            actor: components["schemas"]["trainmeet.sync-1.run-feed.Actor"];
+            /**
+             * Message Id
+             * @description Kommandots id, för spårbarhet.
+             * @default null
+             */
+            message_id: string | null;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EventKind
+         * @enum {string}
+         */
+        "trainmeet.sync-1.run-feed.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
         /**
          * Home
          * @description Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den

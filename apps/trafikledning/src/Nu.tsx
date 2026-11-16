@@ -28,14 +28,16 @@ export type NuProps = {
   /** Versionsbyte (TRAFIK-03) and Lås upp (DRIFT-47). */
   switching?: Omit<SwitchProps, "now" | "pkg">;
   onUnlock?: () => void;
+  onTakeOver?: (confirm: string) => void;
   onStart?: (choice: MeetChoice, day: Weekday) => void;
   onPlace?: (change: ChangePlace) => void;
 };
 
 export function NuPage(props: NuProps) {
   const { now } = props;
-  // While another hub leads the meet this one only shows it (SYNK-14): no controls to refuse.
-  return now ? <Meet {...props} admin={props.admin && !now.leader} now={now} /> : <NoMeet {...props} />;
+  // While another hub leads the meet this one only shows it (SYNK-14): no controls to refuse,
+  // only Ta över when the leader has gone silent.
+  return now ? <Meet {...props} admin={props.admin && !now.leader} leaderAdmin={props.admin} now={now} /> : <NoMeet {...props} />;
 }
 
 /** An unanswered request is reminded of every third minute (H39, DRIFT-33). */
@@ -170,7 +172,7 @@ function Dygnsskifte({ now, onNewDay }: { now: Now; onNewDay?: (request: NewDay)
   );
 }
 
-function Meet(props: NuProps & { now: Now }) {
+function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
   const { admin, now, onClock } = props;
   const [filter, setFilter] = useState<Leg["state"] | "all">("all");
   const counts: Record<string, number> = {};
@@ -185,7 +187,7 @@ function Meet(props: NuProps & { now: Now }) {
           {now.clock.running ? `klockan går i ${now.clock.speed}×` : "klockan står still"}
         </p>
       </div>
-      <Följer now={now} />
+      <Följer now={now} admin={props.leaderAdmin} onTakeOver={props.onTakeOver} />
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
       <Tillbakadragen now={now} />
       {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}
