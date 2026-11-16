@@ -123,7 +123,8 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
     expect(html).toContain("3 sidor att skriva av · 1 redan avskriven, kostar inget");
     expect(html).toContain("2 sidor betalas av din AI-tjänst (en-modell).");
     expect(html).toContain('id="transcribe"');
-    expect(html).toContain(">Skriv av 2 sidor</button>");
+    expect(html).toContain(">Skriv av 2 sidor som stationslista</button>");
+    expect(html).toContain('id="transcribe-picture"');
     const none = renderToStaticMarkup(<Skriv pages={{ ...pages, model: null }} writing={false} onWrite={go} />);
     expect(none).toContain('href="/installningar#ai"');
     expect(none).toContain("och tryck sedan Skriv av.");

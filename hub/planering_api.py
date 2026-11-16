@@ -78,14 +78,15 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         request: Request,
         response: Response,
         name: str = Query(min_length=1, max_length=300),
-        transcribe: bool = Query(default=False),
+        transcribe: Literal["lists", "picture"] | None = Query(default=None),
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         """Lägg till underlag: the file's bytes in the body, its name in the address. The file
         is read and what it would change is shown; nothing changes until it is laid in. A
         scanned file first answers 202 with the pages to transcribe (IMPORT-05); sent again with
-        transcribe, the hub's own AI writes them down."""
+        transcribe, the hub's own AI writes them down: as station lists, or as the track
+        picture."""
         response.headers["Cache-Control"] = "no-store"
         await run_in_threadpool(admin, session, authorization)
         chunks: list[bytes] = []
@@ -168,8 +169,14 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except station_lists.ListError:
             return None
 
+    def _photo(page: scanned.Page) -> str:
+        """The key a photo's transcription as the track picture is kept by."""
+        return hashlib.sha256(
+            track_picture.PHOTO_VERSION.encode() + b"\0" + page.image.data
+        ).hexdigest()
+
     def _scanned(
-        meet: str, name: str, data: bytes, transcribe: bool
+        meet: str, name: str, data: bytes, transcribe: Literal["lists", "picture"] | None
     ) -> planning.AiPages | dict[str, Any]:
         """Skannade stationslistor (4c2): the pages to write down first, then, asked to, the
         hub's own AI writes down the pages not already written, and code reads the rows. Each
@@ -181,9 +188,12 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             raise HTTPException(422, str(error)) from error
         except PlanningError as error:
             _fail(error)
+        if transcribe == "picture":
+            pages = pages[:1]
+            pages = [scanned.Page(p.number, p.image, _photo(p)) for p in pages]
         saved = {p.digest: text for p in pages if (text := store.transcript(p.digest))}
         setting = login.ai()
-        if not transcribe:
+        if transcribe is None:
             return planning.AiPages(
                 filename=name,
                 pages=len(pages),
@@ -201,17 +211,28 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             if page.digest in saved:
                 return saved[page.digest]
             assert setting is not None
-            text = ai.ask(service_of(setting), scanned.PROMPT, [page.image], max_tokens=8192)
+            prompt = track_picture.PHOTO_PROMPT if transcribe == "picture" else scanned.PROMPT
+            text = ai.ask(service_of(setting), prompt, [page.image], max_tokens=8192)
             store.keep_transcript(page.digest, setting.model, text)
             return text
 
+        digest = hashlib.sha256(data).hexdigest()
+        if transcribe == "picture":
+            try:
+                picture = track_picture.from_photo(
+                    transcript(pages[0]), *scanned.dimensions(pages[0].image)
+                )
+            except ai.AiError as error:
+                raise HTTPException(502, f"Avskriften stannade: {error}") from None
+            except (track_picture.PictureError, station_lists.ListError) as error:
+                raise HTTPException(422, str(error)) from error
+            return _picture(meet, name, data, current, digest, picture)
         try:
             found = scanned.lists(name, pages, transcript)
         except ai.AiError as error:
             raise HTTPException(502, f"Avskriften stannade: {error}") from None
         except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
-        digest = hashlib.sha256(data).hexdigest()
         return _lists(meet, name, data, current, digest, found)
 
     def _lists(
@@ -264,12 +285,24 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             return None, None
         _, body = store.source_file(meet, drawn.id)
         try:
+            if scanned.needs_ai(body, drawn.filename):
+                page = scanned.pages(body, drawn.filename)[0]
+                text = store.transcript(_photo(page))
+                if text is None:
+                    return None, None
+                size = scanned.dimensions(page.image)
+                return track_picture.from_photo(text, *size), drawn
             return track_picture.read(body), drawn
-        except track_picture.PictureError:
+        except (track_picture.PictureError, station_lists.ListError):
             return None, None
 
     def _picture(
-        meet: str, name: str, data: bytes, current: planning.Draft, digest: str
+        meet: str,
+        name: str,
+        data: bytes,
+        current: planning.Draft,
+        digest: str,
+        given: track_picture.Picture | None = None,
     ) -> dict[str, Any]:
         """Banbilden (4c1, level 2): with the station lists and no planning file, the draft is
         derived again with the picture: the places in between, the sections it shows and
@@ -284,7 +317,7 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             added=datetime.now(UTC),
         )
         try:
-            picture = track_picture.read(data)
+            picture = given or track_picture.read(data)
         except track_picture.PictureError as error:
             raise HTTPException(422, str(error)) from error
         kinds = {s.kind: s for s in current.sources}
@@ -464,9 +497,16 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
             _fail(error)
         if read is None or drawn is None:
             raise HTTPException(404, "Träffen har ingen banbild.")
+        photo = _photo_of(meet, drawn)
+        size = None
+        if photo is not None:
+            width, height = scanned.dimensions(photo)
+            tall = track_picture.PHOTO_WIDTH * height / max(width, 1)
+            size = MapPoint(x=track_picture.PHOTO_WIDTH, y=round(tall, 1))
         return planning.TrackPicture(
             source=drawn.id,
             page=read.page,
+            photo=size,
             points={code: MapPoint(x=x, y=y) for code, (x, y) in read.places.items()},
             links=[
                 planning.PictureLink(a=a, b=b, double=double)
@@ -474,6 +514,32 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
                 for a, b in [sorted(pair)]
             ],
         ).model_dump(mode="json")
+
+    def _photo_of(meet: str, drawn: planning.Source) -> ai.Image | None:
+        _, body = store.source_file(meet, drawn.id)
+        if not scanned.needs_ai(body, drawn.filename):
+            return None
+        try:
+            return scanned.pages(body, drawn.filename)[0].image
+        except station_lists.ListError:
+            return None
+
+    @routes.get("/meets/{meet}/picture/photo")
+    def picture_photo(meet: str) -> Response:
+        """The photographed track picture itself, the background in Bana (IMPORT-17)."""
+        try:
+            current = store.draft(meet)
+        except PlanningError as error:
+            _fail(error)
+        drawn = next(
+            (s for s in current.sources if s.kind == planning.SourceKind.TRACK_PICTURE), None
+        )
+        photo = _photo_of(meet, drawn) if drawn else None
+        if photo is None:
+            raise HTTPException(404, "Träffen har ingen fotograferad banbild.")
+        return Response(
+            photo.data, media_type=photo.media_type, headers={"Cache-Control": "no-store"}
+        )
 
     @routes.post("/meets/{meet}/double-track/{section}")
     def double_track(

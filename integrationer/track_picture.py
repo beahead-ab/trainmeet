@@ -11,10 +11,15 @@ track, two side by side for double track. What the picture gives:
 
 Ported from the old Cloud (cloud/overview_import.py), which read only the signatures; the lines
 are new. The picture has no names, only signatures.
+
+A photo or a drawing of the track (4c2, IMPORT-17) is written down by the hub's own AI instead:
+the signatures with where they stand, in per cent of the picture, and the lines between them.
+Code makes the same Picture of it, and the photo is the background in Bana.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections import defaultdict, deque
@@ -31,6 +36,20 @@ NEAR: Final = 3.0  # a line ends at a mark when it ends this close to its middle
 BESIDE: Final = 6.0  # a signature stands this close to its mark
 SIDE: Final = 0.5  # two lines this far either side of the middle are double track
 LEVEL: Final = 2
+PHOTO_WIDTH: Final = 800.0  # a photo's map units: as wide as a printed page, in points
+PHOTO_VERSION: Final = "banbild-1"
+PHOTO_PROMPT: Final = """Bilden visar banan på en modelljärnvägsträff: driftplatserna med sina
+signaturer (korta namn som "Mkd", "Lek" eller "Gdö") och spåren mellan dem. Skriv av den, utan
+att tolka eller lägga till något.
+
+Svara bara med JSON, så här:
+{"places": [{"code": "Mkd", "x": 12.5, "y": 30.0}, ...],
+ "links": [{"a": "Mkd", "b": "Lek", "double": false}, ...]}
+
+En post i places per signatur som står i bilden, med x och y där platsens markering står, i
+procent av bildens bredd och höjd från övre vänstra hörnet. En post i links per spår som går
+direkt mellan två platser, utan någon plats emellan; double är true bara när två spår går
+bredvid varandra hela vägen. Ta inte med något annat."""
 
 
 class PictureError(ValueError):
@@ -172,3 +191,29 @@ def _offset(segment: Segment, a: tuple[float, float], b: tuple[float, float]) ->
     mx = (segment.a[0] + segment.b[0]) / 2 - (a[0] + b[0]) / 2
     my = (segment.a[1] + segment.b[1]) / 2 - (a[1] + b[1]) / 2
     return mx * nx + my * ny
+
+
+def from_photo(text: str, width: int, height: int) -> Picture:
+    """The Picture the AI's transcription of a photo says: its signatures where they stand, in
+    map units as wide as a printed page, and its lines. Raises PictureError."""
+    match = re.search(r"\{.*\}", text, re.S)
+    try:
+        answer = json.loads(match[0] if match else text)
+        places = {str(p["code"]).strip(): (float(p["x"]), float(p["y"])) for p in answer["places"]}
+        links = [
+            (str(k["a"]).strip(), str(k["b"]).strip(), bool(k.get("double")))
+            for k in answer["links"]
+        ]
+    except (ValueError, KeyError, TypeError, AttributeError) as error:
+        raise PictureError("AI:ns avskrift av banbilden gick inte att läsa.") from error
+    tall = PHOTO_WIDTH * height / max(width, 1)
+    picture = Picture(page=1)
+    for code, (x, y) in places.items():
+        if code and 0 <= x <= 100 and 0 <= y <= 100:
+            picture.places[code] = (round(x * PHOTO_WIDTH / 100, 1), round(y * tall / 100, 1))
+    for a, b, double in links:
+        if a in picture.places and b in picture.places and a != b:
+            picture.links[frozenset((a, b))] = double
+    if len(picture.places) < MIN_PLACES:
+        raise PictureError("AI:n hittade inga driftplatser med signaturer i bilden.")
+    return picture

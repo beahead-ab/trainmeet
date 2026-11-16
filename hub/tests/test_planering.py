@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from contracts import drift, planning
 from contracts.common import checksum
-from contracts.meet import Meet, MeetPackage
+from contracts.meet import MapPoint, Meet, MeetPackage
 from drift.store import PreviewStore
 from hub import provbanan
 from hub.app import create_app, tick_once
@@ -422,7 +422,7 @@ def test_a_scanned_list_is_written_down_by_the_hubs_own_ai(hub: TestClient) -> N
     def send(transcribe: bool) -> Any:
         return hub.post(
             f"{API}/meets/{MEET}/sources",
-            params={"name": "Lekby.png", "transcribe": transcribe},
+            params={"name": "Lekby.png", **({"transcribe": "lists"} if transcribe else {})},
             content=photo,
             headers={"Content-Type": "application/octet-stream"},
         )
@@ -457,6 +457,56 @@ def test_a_scanned_list_is_written_down_by_the_hubs_own_ai(hub: TestClient) -> N
     assert facts[f"train:{draft.package.trains[0].id}"].certainty == planning.Certainty.UNSURE
     picture = upload(hub, data=picture_pdf(varnamo_plan()), name="Banan.pdf")
     assert picture.status_code == 201, "the saved transcription is read again, without AI"
+
+
+def test_a_photo_of_the_track_is_written_down_as_the_picture(hub: TestClient) -> None:
+    """4c2 (IMPORT-17): a photo of the track, written down by the hub's own AI as the track
+    picture, builds on the lists as Tellurian's PDF does, and is the background in Bana."""
+    import hashlib
+
+    from integrationer.ai import drawn
+    from integrationer.tests.fake_ai import KEY, FakeAi, serving
+    from integrationer.tests.test_track_picture import photo_transcript
+
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    lists = planning.ImportPreview.model_validate(
+        upload(hub, data=station_lists_zip("Mkd", "Lek", "Gdö", "R"), name="lists.zip").json()
+    )
+    hub.post(f"{API}/meets/{MEET}/sources/{lists.source.id}/apply")
+    photo = drawn("777", 20)
+
+    def send(kind: str | None) -> Any:
+        return hub.post(
+            f"{API}/meets/{MEET}/sources",
+            params={"name": "Banan.png", **({"transcribe": kind} if kind else {})},
+            content=photo,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+
+    assert send(None).status_code == 202
+    fake = FakeAi(answers={hashlib.sha256(photo).hexdigest(): photo_transcript(varnamo_plan())})
+    with serving(fake):
+        given = {"format": "claude", "address": fake.address, "model": "m", "key": KEY}
+        assert hub.post("/api/hub/ai", json=given).status_code == 200
+        written = send("picture")
+        assert written.status_code == 201, written.text
+    seen = planning.ImportPreview.model_validate(written.json())
+    assert seen.source.kind == planning.SourceKind.TRACK_PICTURE and seen.report.level == 2
+    draft = planning.Draft.model_validate(
+        hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply").json()
+    )
+    assert draft.package is not None
+    codes = {p.id: p.code for p in draft.package.places}
+    gdo_r = next(
+        s for s in draft.package.sections if {codes[s.place_a], codes[s.place_b]} == {"Gdö", "R"}
+    )
+    assert gdo_r.tracks == "double" and len(gdo_r.parts) == 2, "Tjärby from the photo"
+    picture = planning.TrackPicture.model_validate(hub.get(f"{API}/meets/{MEET}/picture").json())
+    assert picture.photo == MapPoint(x=800.0, y=430.8), "260 × 140 pixels, 800 units wide"
+    assert len(picture.points) == 31
+    shown = hub.get(f"{API}/meets/{MEET}/picture/photo")
+    assert shown.status_code == 200 and shown.content == photo
+    assert shown.headers["content-type"] == "image/png"
 
 
 def test_station_lists_as_pdf(hub: TestClient) -> None:

@@ -260,6 +260,13 @@ class TrackPicture(Contract):
     page: int = Field(ge=1)
     points: dict[Text, MapPoint] = Field(default_factory=dict)
     links: list[PictureLink] = Field(default_factory=list)
+    photo: MapPoint | None = Field(
+        default=None,
+        description=(
+            "En fotograferad banbild (4c2, IMPORT-17): bildens bredd och höjd i kartans "
+            "enheter, från övre vänstra hörnet. Bilden hämtas från /picture/photo."
+        ),
+    )
 
 
 class ConfirmChange(Contract):

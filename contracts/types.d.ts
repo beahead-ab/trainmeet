@@ -10498,6 +10498,11 @@ export interface components {
             };
             /** Links */
             links?: components["schemas"]["trainmeet.planning-1.track-picture.PictureLink"][];
+            /**
+             * @description En fotograferad banbild (4c2, IMPORT-17): bildens bredd och höjd i kartans enheter, från övre vänstra hörnet. Bilden hämtas från /picture/photo.
+             * @default null
+             */
+            photo: components["schemas"]["trainmeet.planning-1.track-picture.MapPoint"] | null;
         } & {
             [key: string]: unknown;
         };
