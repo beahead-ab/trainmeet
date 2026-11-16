@@ -107,7 +107,8 @@ class _Stop:
 
     @property
     def at(self) -> str:
-        return f"{self.row.document}, rad {self.row.row}"
+        page = f", sida {self.row.page}" if self.row.page else ""
+        return f"{self.row.document}{page}, rad {self.row.row}"
 
     @property
     def time(self) -> int:
@@ -200,6 +201,8 @@ class _Derivation:
         self.left_out: list[str] = list(found.left_out)
         self.unnamed: list[str] = []
         self.midnight: list[str] = []
+        # Read with code from text: trolig. Written down by AI: osäker until confirmed (I2).
+        self.read = Certainty.UNSURE if found.transcribed else Certainty.LIKELY
         self.confirmed: set[str] = set()
 
     def origin(self, at: str) -> Origin:
@@ -285,6 +288,8 @@ class _Derivation:
 
     def _summary(self, sections: list[Section]) -> str:
         lists = f"Utkastet är härlett ur {len(self.found.rows)} stationslistor"
+        if self.found.transcribed:
+            lists += " som AI har skrivit av, så tågen och tiderna är också osäkra"
         if self.picture is None:
             return (
                 f"{lists}. Platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana; "
@@ -383,7 +388,7 @@ class _Derivation:
     def _place(self, place: _Place) -> Place:
         drawn = [self.on_picture(place.drawn)] if place.drawn else []
         at = [] if place.only_drawn else [place.at]
-        both = Certainty.SURE if at and drawn else Certainty.LIKELY
+        both = Certainty.SURE if at and drawn else self.read if at else Certainty.LIKELY
         self.fact(f"place:{place.id}", both, at, also=drawn)
         self.fact(f"place:{place.id}.kind", Certainty.UNSURE, at, place.kind_note, also=drawn)
         if place.code_note:
@@ -611,7 +616,7 @@ class _Derivation:
             calls.append(self._untimed(train_id, len(calls), run.origin, run.stops[0], "börjar"))
         for stop in run.stops:
             call_id = f"{train_id}.{len(calls) + 1}"
-            self.fact(f"call:{call_id}", Certainty.LIKELY, [stop.at])
+            self.fact(f"call:{call_id}", self.read, [stop.at])
             calls.append(
                 Call(
                     id=call_id,
@@ -630,7 +635,7 @@ class _Derivation:
             )
         if any(call.day_offset for call in calls):
             self.midnight.append(run.number)
-        self.fact(f"train:{train_id}", Certainty.LIKELY, at)
+        self.fact(f"train:{train_id}", self.read, at)
         return Train(
             id=train_id,
             number=run.number,

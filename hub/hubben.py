@@ -142,6 +142,12 @@ def router(login: LocalLogin) -> APIRouter:
     return routes
 
 
+def service_of(setting: AiSetting) -> ai.Service:
+    """The stored setting as the service to ask."""
+    form: ai.Format = "claude" if setting.format == "claude" else "chat"
+    return ai.Service(form, setting.address, setting.model, setting.key)
+
+
 def _ai_view(setting: AiSetting) -> dict[str, Any]:
     return hub.AiService(
         format=hub.AiFormat(setting.format),

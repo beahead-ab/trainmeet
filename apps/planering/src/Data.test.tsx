@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Draft, ImportPreview } from "./api";
 import { changesOf, clockValue, DataPage, shownValue, type Edit } from "./Data";
 import { days, describePreview, Facts, reportSummary, sourceKind } from "./data";
-import { Underlag } from "./Underlag";
+import { Skriv, Underlag } from "./Underlag";
 
 const go = () => undefined;
 const draft = {
@@ -113,6 +113,25 @@ describe("Data (S6, PLAN-37)", () => {
     expect(days(["mon", "wed"])).toBe("Mån, Ons");
     expect(days(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).toBe("Dagl");
     expect(reportSummary(draft.report as NonNullable<Draft["report"]>)).toContain("2 driftplatser (1 bemannade, 1 fjärrstyrda), 1 klareringssträcka, 1 tåg med 2 besök");
+  });
+});
+
+describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
+  it("says the pages to write down and who pays, and asks first", () => {
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: "en-modell" };
+    const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
+    expect(html).toContain("3 sidor att skriva av · 1 redan avskriven, kostar inget");
+    expect(html).toContain("2 sidor betalas av din AI-tjänst (en-modell).");
+    expect(html).toContain('id="transcribe"');
+    expect(html).toContain(">Skriv av 2 sidor</button>");
+    const none = renderToStaticMarkup(<Skriv pages={{ ...pages, model: null }} writing={false} onWrite={go} />);
+    expect(none).toContain('href="/installningar#ai"');
+    expect(none).toContain("och tryck sedan Skriv av.");
+    const kept = renderToStaticMarkup(<Skriv pages={{ ...pages, saved: 3, model: null }} writing={false} onWrite={go} />);
+    expect(kept).toContain("Läs avskriften");
+    const panel = renderToStaticMarkup(<Underlag meet="m" onClose={go} onApplied={go} initial={{ name: "Lekby.png", state: "ai", pages }} />);
+    expect(panel).toContain("Skannad · skrivs av med AI");
+    expect(panel).toContain("Behöver AI");
   });
 });
 

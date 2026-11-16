@@ -406,6 +406,59 @@ def test_the_derived_is_confirmed_in_bana(hub: TestClient) -> None:
     assert facts[kind].certainty == planning.Certainty.CONFIRMED, "kept over a new import"
 
 
+def test_a_scanned_list_is_written_down_by_the_hubs_own_ai(hub: TestClient) -> None:
+    """4c2 (IMPORT-05, IMPORT-15): a photo of a list first says how many pages it has to write
+    down; nothing goes to the AI before Skriv av. Without own AI the hub says where to connect
+    it. Written down once, the same page is never sent again."""
+    import hashlib
+
+    from integrationer.ai import drawn
+    from integrationer.tests.fake_ai import KEY, FakeAi, serving
+    from integrationer.tests.test_scanned import transcript
+
+    hub.post(API + "/meets", json={"name": "Värnamo Moduldagar"})
+    photo = drawn("123")
+
+    def send(transcribe: bool) -> Any:
+        return hub.post(
+            f"{API}/meets/{MEET}/sources",
+            params={"name": "Lekby.png", "transcribe": transcribe},
+            content=photo,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+
+    asked = send(False)
+    assert asked.status_code == 202, asked.text
+    assert planning.AiPages.model_validate(asked.json()) == planning.AiPages(
+        filename="Lekby.png", pages=1, saved=0, model=None
+    )
+    refused = send(True)
+    assert refused.status_code == 422 and "Den här hubben → AI" in refused.json()["detail"]
+    said = transcript(varnamo_plan(), "Lek", "Lek Lekby")
+    fake = FakeAi(answers={hashlib.sha256(photo).hexdigest(): said})
+    with serving(fake):
+        given = {"format": "chat", "address": fake.address, "model": "en-modell", "key": KEY}
+        assert hub.post("/api/hub/ai", json=given).status_code == 200
+        before = len(fake.asked)
+        written = send(True)
+        assert written.status_code == 201, written.text
+        seen = planning.ImportPreview.model_validate(written.json())
+        assert seen.source.kind == planning.SourceKind.STATION_LISTS
+        assert seen.report.trains > 20 and "som AI har skrivit av" in seen.report.notes[0]
+        assert len(fake.asked) == before + 1
+        assert planning.AiPages.model_validate(send(False).json()).saved == 1
+        again = send(True)
+        assert again.status_code == 201 and len(fake.asked) == before + 1, "kept, not asked again"
+        assert again.json()["report"] == written.json()["report"], "the same page, the same result"
+    applied = hub.post(f"{API}/meets/{MEET}/sources/{seen.source.id}/apply")
+    draft = planning.Draft.model_validate(applied.json())
+    assert draft.package is not None
+    facts = {f.ref: f for f in draft.facts}
+    assert facts[f"train:{draft.package.trains[0].id}"].certainty == planning.Certainty.UNSURE
+    picture = upload(hub, data=picture_pdf(varnamo_plan()), name="Banan.pdf")
+    assert picture.status_code == 201, "the saved transcription is read again, without AI"
+
+
 def test_station_lists_as_pdf(hub: TestClient) -> None:
     """The planning program's lists as PDF: read from the text layer, and the draft built from
     them as from ODT. A PDF that is neither lists nor a track picture is refused."""

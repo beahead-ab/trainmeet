@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS source_file (
     source_id TEXT NOT NULL, body BLOB NOT NULL,
     PRIMARY KEY (meet_id, source_id)
 );
+CREATE TABLE IF NOT EXISTS transcript (
+    digest TEXT PRIMARY KEY, model TEXT NOT NULL, text TEXT NOT NULL, made REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS pending (
     meet_id TEXT PRIMARY KEY REFERENCES meet(id) ON DELETE CASCADE,
     source TEXT NOT NULL, body BLOB NOT NULL, result TEXT NOT NULL
@@ -160,6 +163,20 @@ class Planning:
             if row is None or source is None:
                 raise UnknownMeet("Underlaget finns inte.")
             return source, bytes(row[0])
+
+    def transcript(self, digest: str) -> str | None:
+        """A page's transcription by AI (4c2), by the page's picture: the same page is never
+        written down twice (IMPORT-15)."""
+        with self._transaction() as db:
+            row = db.execute("SELECT text FROM transcript WHERE digest=?", (digest,)).fetchone()
+        return str(row[0]) if row else None
+
+    def keep_transcript(self, digest: str, model: str, text: str) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO transcript VALUES (?, ?, ?, ?)",
+                (digest, model, text, datetime.now(UTC).timestamp()),
+            )
 
     def sources(self, meet_id: str) -> list[tuple[Source, bytes]]:
         """Every source of the draft as it came, for Underlaget som ZIP (PLAN-07)."""
