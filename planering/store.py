@@ -31,6 +31,7 @@ from contracts.planning import (
     Fact,
     ImportPreview,
     ImportResult,
+    LetStand,
     MeetSummary,
     NewMeet,
     Origin,
@@ -48,6 +49,7 @@ from contracts.reasons import TEXT_SV
 from core import changes as driftchanges
 from planering import compare
 from planering.check import review
+from planering.sanity import deviations
 
 RESERVED: Final = {"provbanan"}
 MAX_MEETS: Final = 200
@@ -161,9 +163,14 @@ class Planning:
     def check(self, meet_id: str) -> Check:
         """Trafikkontrollen (PLAN-35): the findings, what stops publishing, and the
         double-track questions."""
-        found = review(self.draft(meet_id))
+        draft = self.draft(meet_id)
+        found = review(draft)
+        odd = deviations(draft.package, draft.let_stand) if draft.package else []
         return Check(
-            findings=found.findings, blocking=found.blocking, double_track=found.double_track
+            findings=found.findings,
+            blocking=found.blocking,
+            double_track=found.double_track,
+            deviations=odd,
         )
 
     def versions(self, meet_id: str) -> list[Version]:
@@ -288,6 +295,32 @@ class Planning:
                 if train.id in touched and not driftchanges.in_order(train.calls):
                     raise PlanningError(f"Tiderna för tåg {train.number} kommer inte i ordning.")
             return self._save(db, draft)
+
+    def let_stand(self, meet_id: str, deviation: Id, given: LetStand) -> Draft:
+        """Låt stå (PLAN-36): the deviation is put aside until the calls it is about change."""
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            found = next(
+                (d for d in deviations(draft.package, {}) if d.id == deviation)
+                if draft.package
+                else iter(()),
+                None,
+            )
+            if found is None:
+                raise PlanningError("Avvikelsen finns inte längre.")
+            if found.fingerprint != given.fingerprint:
+                raise PlanningError("Tåget har ändrats sedan avvikelsen visades. Titta igen.")
+            kept = {**draft.let_stand, deviation: given.fingerprint}
+            return self._save(db, draft.model_copy(update={"let_stand": kept}))
+
+    def take_back(self, meet_id: str, deviation: Id) -> Draft:
+        """Ta tillbaka a Låt stå."""
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            if deviation not in draft.let_stand:
+                raise PlanningError("Avvikelsen står inte som lämnad.")
+            kept = {k: v for k, v in draft.let_stand.items() if k != deviation}
+            return self._save(db, draft.model_copy(update={"let_stand": kept}))
 
     def double_track(self, meet_id: str, section: Id, answer: DoubleTrackAnswer) -> Draft:
         """Dubbelspårsfrågan (PLAN-35): Ja makes the section double track, as the planner's
@@ -600,6 +633,7 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
         changes=draft.changes,
         taken=draft.taken,
         double_track_declined=draft.double_track_declined,
+        let_stand=draft.let_stand,
     )
     return _lay_taken(_replay(fresh, answers))
 

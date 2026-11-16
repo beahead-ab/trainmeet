@@ -1,6 +1,7 @@
 import { changeText } from "@trainmeet/hubben";
-import { Fragment, useState } from "react";
-import type { Check, Draft, DoubleTrackQuestion, Proposal, Version } from "./api";
+import { Fragment, useState, type ReactNode } from "react";
+import type { Check, Deviation, Draft, DoubleTrackQuestion, Proposal, Version } from "./api";
+import { days } from "./data";
 import { when } from "./text";
 
 // Versioner (S6): the traffic check, Publicera for the administrator, the proposals from Drift
@@ -24,9 +25,12 @@ export type VersionerProps = {
   onWithdraw?: (number: number) => void;
   /** Dubbelspårsfrågan (PLAN-35): Ja or Nej for a single-track section. */
   onDoubleTrack?: (question: DoubleTrackQuestion, double: boolean) => void;
+  /** Rimlighetskontrollen (PLAN-36): Låt stå and Ta tillbaka. */
+  onLetStand?: (deviation: Deviation) => void;
+  onTakeBack?: (deviation: Deviation) => void;
 };
 
-export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw, onDoubleTrack }: VersionerProps) {
+export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw, onDoubleTrack, onLetStand, onTakeBack }: VersionerProps) {
   const [asking, setAsking] = useState<number | null>(null);
   const next = (versions?.at(-1)?.number ?? 0) + 1;
   const planned = Boolean(draft?.package);
@@ -102,6 +106,7 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
           </div>
         )}
       </section>
+      {planned && <Rimlighet admin={admin} meet={meet} deviations={check?.deviations ?? null} busy={busy} onLetStand={onLetStand} onTakeBack={onTakeBack} />}
       <Forslag admin={admin} draft={draft} next={next} proposals={proposals} busy={busy} onTake={onTake} onReject={onReject} />
       <section className="kort lista-kort" aria-labelledby="versioner-rubrik">
         <h2 id="versioner-rubrik">Versioner</h2>
@@ -186,6 +191,66 @@ const how = (proposal: Proposal) => `Trafikledningen · ${when(proposal.made)} �
 
 /** Förslag från Drift (4.4, PLAN-03): each driftändring, to take into the next version or to
  * reject. Drift sees the answer. One let go in Drift before an answer is withdrawn. */
+/** Rimlighetskontrollen (PLAN-36): each train against the other trains. Advice, not rules: it
+ * never stops publishing. Rätta in the grid, or Låt stå; Ta tillbaka undoes it. */
+function Rimlighet({ admin, meet, deviations, busy, onLetStand, onTakeBack }: { admin: boolean; meet: string; deviations: Deviation[] | null; busy: boolean; onLetStand?: (deviation: Deviation) => void; onTakeBack?: (deviation: Deviation) => void }) {
+  const open = (deviations ?? []).filter((deviation) => !deviation.let_stand);
+  const left = (deviations ?? []).filter((deviation) => deviation.let_stand);
+  const grid = (deviation: Deviation) => `/planering/${encodeURIComponent(meet)}/data?block=calls&sok=${encodeURIComponent(deviation.train_number)}`;
+  const item = (deviation: Deviation, action: ReactNode) => (
+    <li key={deviation.id}>
+      <span className="pill observation">{deviation.title}</span>
+      <span>
+        {deviation.message}
+        <span className="liten">{` · ${days(deviation.days)}`}</span>
+      </span>
+      <span className="rad svar">
+        <a href={grid(deviation)}>Visa i rutnätet</a>
+        {admin && action}
+      </span>
+    </li>
+  );
+  return (
+    <section className="kort" aria-labelledby="rimlighet-rubrik">
+      <h2 id="rimlighet-rubrik">
+        Rimlighet <span className="liten">{deviations ? `· ${open.length} att granska` : ""}</span>
+      </h2>
+      <p className="liten">Varje tåg jämförs med de andra tågen mellan samma driftplatser och på samma driftplats. Det är råd, inte regler: det stoppar aldrig publiceringen och följer inte med versionen. Rätta i rutnätet eller låt stå.</p>
+      <ul id="deviations" className="fynd">
+        {deviations === null ? (
+          <li className="tom">Kontrollerar …</li>
+        ) : open.length ? (
+          open.map((deviation) =>
+            item(
+              deviation,
+              <button type="button" disabled={busy} onClick={() => onLetStand?.(deviation)}>
+                Låt stå
+              </button>,
+            ),
+          )
+        ) : (
+          <li className="tom">Inget ovanligt.</li>
+        )}
+      </ul>
+      {left.length > 0 && (
+        <details id="let-stand">
+          <summary>{`${left.length} lämnade som de är`}</summary>
+          <ul className="fynd">
+            {left.map((deviation) =>
+              item(
+                deviation,
+                <button type="button" disabled={busy} onClick={() => onTakeBack?.(deviation)}>
+                  Ta tillbaka
+                </button>,
+              ),
+            )}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
 function Forslag({ admin, draft, next, proposals, busy, onTake, onReject }: { admin: boolean; draft: Draft | null; next: number; proposals: Proposal[] | null; busy: boolean; onTake?: (id: string) => void; onReject?: (id: string) => void }) {
   const waiting = (proposals ?? []).filter((proposal) => proposal.status === "waiting");
   const count = (status: Proposal["status"]) => (proposals ?? []).filter((proposal) => proposal.status === status).length;

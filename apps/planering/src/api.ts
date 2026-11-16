@@ -16,6 +16,7 @@ export type Answer = Schemas["trainmeet.planning-1.answer"];
 export type Proposal = Schemas["trainmeet.planning-1.proposal"];
 export type DoubleTrackAnswer = Schemas["trainmeet.planning-1.double-track-answer"];
 export type DoubleTrackQuestion = NonNullable<Check["double_track"]>[number];
+export type Deviation = NonNullable<Check["deviations"]>[number];
 
 const MEETS = "/api/planering/1/meets";
 const meet = (id: string) => `${MEETS}/${encodeURIComponent(id)}`;
@@ -28,6 +29,8 @@ export const planning = {
   versions: (id: string) => call<Version[]>(`${meet(id)}/versions`),
   publish: (id: string) => call<Version>(`${meet(id)}/versions`, {}),
   doubleTrack: (id: string, section: string, answer: DoubleTrackAnswer) => call<Draft>(`${meet(id)}/double-track/${encodeURIComponent(section)}`, answer),
+  letStand: (id: string, deviation: Deviation) => call<Draft>(`${meet(id)}/deviations/${encodeURIComponent(deviation.id)}/let-stand`, { fingerprint: deviation.fingerprint }),
+  takeBack: (id: string, deviation: Deviation) => call<Draft>(`${meet(id)}/deviations/${encodeURIComponent(deviation.id)}/take-back`, {}),
   withdraw: (id: string, number: number) => call<Version>(`${meet(id)}/versions/${number}/withdraw`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
   answer: (id: string, given: Answer) => call<Draft>(`${meet(id)}/answers`, given),

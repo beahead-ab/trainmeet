@@ -2660,6 +2660,16 @@
       "title": "Taken",
       "type": "array"
     },
+    "let_stand": {
+      "description": "Låt stå i rimlighetskontrollen: avvikelsen och fingeravtrycket (PLAN-36).",
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+          "type": "string"
+        }
+      },
+      "title": "Let Stand",
+      "type": "object"
+    },
     "double_track_declined": {
       "description": "Nej på dubbelspårsfrågan: sträckan och fingeravtrycket av tågen på den.",
       "patternProperties": {

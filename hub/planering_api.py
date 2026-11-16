@@ -221,6 +221,39 @@ def router(store: Planning, login: LocalLogin) -> APIRouter:
         except PlanningError as error:
             _fail(error)
 
+    @routes.post("/meets/{meet}/deviations/{deviation}/let-stand")
+    def let_stand(
+        meet: str,
+        deviation: str,
+        given: planning.LetStand,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Låt stå in the reasonableness check (PLAN-36)."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.let_stand(meet, deviation, given).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
+    @routes.post("/meets/{meet}/deviations/{deviation}/take-back")
+    def take_back(
+        meet: str,
+        deviation: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Ta tillbaka a Låt stå."""
+        response.headers["Cache-Control"] = "no-store"
+        admin(session, authorization)
+        try:
+            return store.take_back(meet, deviation).model_dump(mode="json")
+        except PlanningError as error:
+            _fail(error)
+
     @routes.get("/meets/{meet}/versions")
     def versions(meet: str, response: Response) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
