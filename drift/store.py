@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -591,6 +591,100 @@ class PreviewStore:
                 db, run_id, lambda b: b.press(b.boxes[client_id], body), heard=client_id
             )
 
+    # --- Physical boxes over MQTT (BOX-10, DRIFT-22): no code and no key, as today ------------
+
+    @staticmethod
+    def _device_hash(run_id: str, device: str) -> str:
+        """Where a physical box is found in a run. Not a secret: physical boxes are accepted
+        without a key (BOX-10); the hash only keeps the table's one-key-per-box rule."""
+        return _key_hash(f"mqtt:{run_id}:{device}")
+
+    def _device_box(self, db: sqlite3.Connection, run_id: str, device: str) -> str | None:
+        row = db.execute(
+            "SELECT client_id FROM preview_box WHERE key_hash=? AND run_id=?",
+            (self._device_hash(run_id, device), run_id),
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    def device_hello(
+        self, run_id: str, device: str, name: str, display: DisplaySize | None = None
+    ) -> dict[str, Any]:
+        """A physical box said hello: it is under Väntar in the run, or already has its place.
+        Returns its frame. A box keeps its place over a reconnect; the size it announces now
+        counts."""
+        now = now_utc()
+        size = display or DisplaySize()
+        with self._transaction() as db:
+            drift = self._load(db, run_id, now)
+            client_id = self._device_box(db, run_id, device)
+            if client_id is None:
+                count = db.execute(
+                    "SELECT count(*) FROM preview_box WHERE run_id=?", (run_id,)
+                ).fetchone()[0]
+                if count >= self.max_clients:
+                    raise RunLimit()
+                client_id = "tmbox-" + token_hex(6)
+                box = Box(
+                    client_id=client_id,
+                    name=name,
+                    kind="tmbox",
+                    seen=len(drift.history),
+                    language=COUNTRY_LANGUAGE.get(drift.package.meet.country, "sv"),
+                    rows=size.rows,
+                    cols=size.cols,
+                )
+                db.execute(
+                    "INSERT INTO preview_box VALUES (?, ?, ?, ?, ?)",
+                    (
+                        client_id,
+                        run_id,
+                        self._device_hash(run_id, device),
+                        now.timestamp(),
+                        box.to_json(),
+                    ),
+                )
+
+            def resize(boxes: Boxes) -> dict[str, Any]:
+                box = boxes.boxes[client_id]
+                box.name, box.rows, box.cols = name, size.rows, size.cols
+                return boxes.frame(box)
+
+            return self._with_boxes(db, run_id, resize, heard=client_id)
+
+    def device_frames(
+        self, run_id: str, devices: Iterable[str], heard: Iterable[str] = ()
+    ) -> dict[str, dict[str, Any]]:
+        """The frames of the physical boxes asked for, in one go: a box not in the run is left
+        out, so it says hello again. The boxes heard from since last time are in contact."""
+        wanted = list(devices)
+        recent = set(heard)
+        with self._transaction() as db:
+            ids = {device: self._device_box(db, run_id, device) for device in wanted}
+            known = {device: cid for device, cid in ids.items() if cid is not None}
+
+            def frames(boxes: Boxes) -> dict[str, dict[str, Any]]:
+                for device in recent & known.keys():
+                    box = boxes.boxes[known[device]]
+                    self._heard(run_id, boxes.drift, box.client_id, box.place, boxes.now)
+                return {device: boxes.frame(boxes.boxes[cid]) for device, cid in known.items()}
+
+            return self._with_boxes(db, run_id, frames) if known else {}
+
+    def device_press(self, run_id: str, device: str, body: dict[str, Any]) -> dict[str, Any]:
+        """A key press from a physical box, answered as the Ack contract."""
+        with self._transaction() as db:
+            client_id = self._device_box(db, run_id, device)
+            if client_id is None:
+                raise UnknownBox()
+            size = db.execute(
+                "SELECT count(*) FROM preview_event WHERE run_id=?", (run_id,)
+            ).fetchone()[0]
+            if size >= self.max_actions:
+                raise RunLimit()
+            return self._with_boxes(
+                db, run_id, lambda b: b.press(b.boxes[client_id], body), heard=client_id
+            )
+
     def clients(self, run_id: str) -> list[dict[str, Any]]:
         """The boxes and station clients of the run, waiting ones first, as the Client
         contract says."""
@@ -601,7 +695,7 @@ class PreviewStore:
             {
                 "client_id": box.client_id,
                 "name": box.name,
-                "kind": "tmbox_web",
+                "kind": box.kind,
                 "status": "approved" if box.place else "waiting",
                 "places": [box.place] if box.place else [],
                 "side": box.side,

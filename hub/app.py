@@ -27,6 +27,7 @@ from hub import (
     screen_web,
     station_api,
     synk_api,
+    tmbox_mqtt,
     tmbox_web,
     update_api,
     web,
@@ -169,10 +170,16 @@ def create_app(
         thread.start()
         synk = Thread(target=follower.run, args=(stop,), name="synken", daemon=True)
         synk.start()
+        # The physical TMBoxes over MQTT, on a Pi with Mosquitto (BOX-10, DRIFT-22).
+        boxes = tmbox_mqtt.from_environment(running, links.hub_id)
+        if boxes is not None:
+            boxes.start()
         try:
             yield
         finally:
             stop.set()
+            if boxes is not None:
+                boxes.stop()
             thread.join(timeout=5)
 
     # The interactive API pages are off: they load scripts from another site. The contracts

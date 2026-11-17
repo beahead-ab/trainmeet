@@ -80,6 +80,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Störningar | `AutomationSettings.disturbance` | Påhittade förseningar som automatiken lägger in: av, normal eller störd trafik (F15). |
 | På väg hit, har lämnat | `on_the_way`, `have_left` | Tåg på sträckan, från avgången hos grannen till ankomsten här, och tvärtom. Drift räknar fram båda. |
 | Bild | `terminal.Frame` | Det en TMBox visar. Drift ritar den; boxen skickar bara knapptryck. |
+| TMBox över MQTT | `hub/tmbox_mqtt.py`, `tmbox/terminal/device/<id>/…` | En fysisk box mot Mosquitto på Pi:n (DRIFT-22), utan nyckel som i dag (BOX-10). Livstecknet besvaras direkt, och varje box har en egen kö (H73). |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
 | Nivå | – | Bara i TKL: hur mycket av ställverket en station har (0–3). |
