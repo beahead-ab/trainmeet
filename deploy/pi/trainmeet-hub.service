@@ -1,8 +1,8 @@
 # TrainMeet Hub på Pi:n (DRIFT-20): en tjänst i systemd, som hubbens egen användare.
 [Unit]
 Description=TrainMeet Hub
-After=network-online.target
-Wants=network-online.target
+After=network-online.target mosquitto.service
+Wants=network-online.target mosquitto.service
 
 [Service]
 Type=simple

@@ -54,6 +54,12 @@ jobs:
       - name: Typer
         run: uv run mypy
 
+      # The physical TMBoxes are tried against a real Mosquitto (#74, DRIFT-22).
+      - name: Mosquitto
+        run: |
+          sudo apt-get install -y -q mosquitto \
+            || (sudo apt-get update -q && sudo apt-get install -y -q mosquitto)
+
       - name: Testerna
         run: uv run pytest
 
@@ -418,12 +424,15 @@ jobs:
 
       - name: Installera och starta paketet som Pi:n gör
         run: |
+          sudo apt-get install -y -q mosquitto \
+            || (sudo apt-get update -q && sudo apt-get install -y -q mosquitto)
           python3 -m venv /tmp/pi
           /tmp/pi/bin/pip install --quiet --disable-pip-version-check --require-hashes -r package/requirements.txt
           /tmp/pi/bin/pip install --quiet --disable-pip-version-check --no-deps package/wheel/*.whl
           mkdir -p /tmp/pi-data
           set -a; . package/build.env; set +a
           TRAINMEET_PREVIEW_DB=/tmp/pi-data/p.sqlite3 HUB_WEB_DIR="$PWD/package/web" \
+            TRAINMEET_MQTT_HOST=127.0.0.1 TRAINMEET_TMBOX_ANNOUNCE=0 \
             /tmp/pi/bin/uvicorn hub.app:app --port 8099 > /tmp/pi.log 2>&1 &
           for i in $(seq 1 30); do
             curl -fsS http://localhost:8099/healthz >/dev/null 2>&1 && break
@@ -433,6 +442,13 @@ jobs:
           curl -fsS http://localhost:8099/planering | grep -q "Planering · TrainMeet Hub"
           curl -fsS http://localhost:8099/api/version | grep -q "\"commit\":\"$(cat package/BUILD)\""
           curl -sS http://localhost:8099/api/hub/wifi -o /dev/null -w '%{http_code}' | grep -q 401
+          # A TMBox over MQTT, as on the Pi: Mosquitto beside the hub (#74, DRIFT-22).
+          curl -fsS -c /tmp/pi-jar -H 'Content-Type: application/json' \
+            -d '{"name":"Pi:n","pin":"482915"}' http://localhost:8099/api/hub/setup >/dev/null
+          curl -fsS -b /tmp/pi-jar -H 'Content-Type: application/json' -d '{"version":1}' \
+            http://localhost:8099/api/drift/1/start >/dev/null
+          /tmp/pi/bin/python deploy/tmbox_prov.py --box prov-1 --seconds 1 --strict
+          curl -fsS -b /tmp/pi-jar http://localhost:8099/api/drift/1/clients | grep -q '"kind":"tmbox"'
           /tmp/pi/bin/python -c "import synk.network_host, synk.push, hub.pin"
           sh -n package/pi/install.sh
           echo "Pi-paketet installeras, startar och visar sidorna."

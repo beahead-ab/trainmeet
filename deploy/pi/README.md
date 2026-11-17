@@ -22,14 +22,25 @@ Hubben på Pi:n körs som tjänster i systemd, utan containrar (DRIFT-20). Molnh
 
 ## Vad installationen gör
 
-- Den installerar `python3`, `python3-venv`, `curl` och `avahi-daemon` om de saknas. Den installerar `python3-dbus` om Pi:n kör NetworkManager. Den byter aldrig nätverksprogram.
+- Den installerar `python3`, `python3-venv`, `curl`, `avahi-daemon`, `avahi-utils` och `mosquitto` om de saknas. Den installerar `python3-dbus` om Pi:n kör NetworkManager. Den byter aldrig nätverksprogram.
 - Den skapar användaren `trainmeet`. Träffarna, inställningarna och nycklarna hamnar i `/var/lib/trainmeet`, och dit går en uppdatering aldrig.
 - Den hämtar Pi-paketet från utgåvan `pi-senaste` och kontrollerar kontrollsumman. Sedan installeras hubben och de låsta beroendena, med sina kontrollsummor, i `/opt/trainmeet/releases/<ändring>`. `/opt/trainmeet/current` pekar på den som körs.
 - Den installerar tre tjänster:
   - `trainmeet-hub`, som är hubben på port 80 och körs som `trainmeet`;
   - `trainmeet-network`, som är Pi:ns nätverkstjänst för kortet Pi:ns nät och körs som root, utan TCP, med bara Unix-socket;
   - `trainmeet-update`, som är uppdateringen och startas från kugghjulet.
+- Mosquitto tar emot TMBoxarna på port 1883 (DRIFT-22). Boxarna ansluter utan nyckel, som förut, och hittar hubben själva med DNS-SD (`_tmbox._tcp`).
 - Ett USB-minne med FAT eller exFAT monteras i `/media/trainmeet-usb`. Dit kopieras varje drifthändelse (DRIFT-21), och där läses en fil med en ny PIN-kod (H46).
+
+## TMBoxarna
+
+En box med firmware 0.7 eller senare hittar Pi:n på träffens nät och hamnar under Väntar i Klienter, när en träff körs. Ge den en driftplats där. Utan riktiga boxar går det att prova med en låtsad box från en dator på samma nät:
+
+```sh
+uv run python deploy/tmbox_prov.py --host trainmeet.local --box prov-1 --seconds 60
+```
+
+Varje box har en egen kö i hubben, så en box som hänger tar aldrig de andra med sig (H73).
 
 ## Uppdatera
 

@@ -138,6 +138,8 @@ class Box:
 
     client_id: str
     name: str
+    # TMBox web in a browser, or a physical box over MQTT (BOX-10).
+    kind: str = "tmbox_web"
     place: str | None = None
     side: str = "both"
     language: str = "sv"

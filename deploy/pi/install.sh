@@ -52,7 +52,7 @@ done
 if [ "$UPDATE" = false ]; then
   echo "Installerar TrainMeet Hub …"
   export DEBIAN_FRONTEND=noninteractive
-  WANTED="python3 python3-venv curl avahi-daemon"
+  WANTED="python3 python3-venv curl avahi-daemon avahi-utils mosquitto"
   NETWORK=false
   # Pi:ns nätverkstjänst bara på en riktig Pi med NetworkManager igång; nätverket byts aldrig.
   if [ -r /proc/device-tree/model ] && grep -q 'Raspberry Pi' /proc/device-tree/model \
@@ -122,6 +122,13 @@ chmod 0755 "$TARGET/pi/install.sh"
 # --- Tjänsterna ---------------------------------------------------------------------------------
 
 [ -f /etc/trainmeet/hub.env ] || install -m 0644 "$TARGET/pi/hub.env" /etc/trainmeet/hub.env
+# Mosquitto för TMBoxarna (DRIFT-22): också på en Pi som installerades före boxarna.
+if ! command -v mosquitto >/dev/null 2>&1; then
+  DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=120 install -y -q mosquitto avahi-utils
+fi
+grep -q '^TRAINMEET_MQTT_HOST=' /etc/trainmeet/hub.env \
+  || printf 'TRAINMEET_MQTT_HOST=127.0.0.1\n' >> /etc/trainmeet/hub.env
+install -m 0644 "$TARGET/pi/mosquitto.conf" /etc/mosquitto/conf.d/trainmeet.conf
 install -m 0644 "$TARGET/pi/trainmeet-hub.service" /etc/systemd/system/trainmeet-hub.service
 install -m 0644 "$TARGET/pi/trainmeet-update.service" /etc/systemd/system/trainmeet-update.service
 install -m 0644 "$TARGET/pi/50-trainmeet-update.rules" /etc/polkit-1/rules.d/50-trainmeet-update.rules 2>/dev/null || true
@@ -137,6 +144,8 @@ PREVIOUS=$(readlink "$ROOT/current" 2>/dev/null || true)
 ln -sfn "$TARGET" "$ROOT/current.new"
 mv -T "$ROOT/current.new" "$ROOT/current"
 [ "$UPDATE" = true ] && status restarting "Startar om hubben" "$BUILD"
+systemctl enable --quiet mosquitto.service
+systemctl restart mosquitto.service
 systemctl enable --quiet trainmeet-hub.service
 systemctl restart trainmeet-hub.service
 if [ -f /etc/systemd/system/trainmeet-network.service ]; then
