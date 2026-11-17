@@ -42,6 +42,7 @@ from synk.home import Homes
 from synk.link import Links
 from synk.push import ApnsPush, ApnsSettings, CloudPush, FakePush
 from synk.relay import Relay
+from synk.stations import NoOwners, Owners, Stations
 from synk.store import Versions
 
 # The automation takes a step about once a second while the hub runs (F14).
@@ -97,6 +98,10 @@ def create_app(
     versions = Versions(data_dir / "planering.sqlite3")
     links = Links(data_dir / "planering.sqlite3")
     homes = Homes(data_dir / "planering.sqlite3")
+    # Stationspaketen (SYNK-06): the owners' private versions. Who owns comes from TrainMeet
+    # ID, which the hub gets in #78; until then no one does here (SYNK-30).
+    stations = Stations(data_dir / "planering.sqlite3")
+    owners: Owners = NoOwners()
     # The hub's own meet: Provbanan or a published version, each in a file of its own.
     # A USB stick for the copy of the drift events (DRIFT-21), where the Pi mounts it.
     usb = os.environ.get("TRAINMEET_USB_DIR", "").strip()
@@ -183,6 +188,7 @@ def create_app(
     app.state.running = running
     app.state.follower = follower
     app.state.relay = relay
+    app.state.owners = owners
     app.state.pusher = pusher
     app.include_router(hubben.router(login))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
@@ -196,7 +202,18 @@ def create_app(
     )
     app.include_router(
         synk_api.router(
-            plans, versions, links, follower, running, homes, login, hello, relay, pushes
+            plans,
+            versions,
+            links,
+            follower,
+            running,
+            homes,
+            login,
+            hello,
+            relay,
+            pushes,
+            stations,
+            owners,
         )
     )
     app.include_router(tmbox_web.router(runs))
