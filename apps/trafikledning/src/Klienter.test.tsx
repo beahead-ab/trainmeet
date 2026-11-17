@@ -10,6 +10,9 @@ const tkl: Client = {
   status: "approved",
   places: ["mla"],
   side: "both",
+  language: null,
+  display: null,
+  view: null,
   station_id: "mellana",
   questions: [
     {
