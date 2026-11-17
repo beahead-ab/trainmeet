@@ -16497,7 +16497,7 @@
       },
       "trainmeet.hub-1.update-status": {
         "additionalProperties": true,
-        "description": "Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste\nPi-paketet, provar det och går tillbaka om hubben inte svarar.",
+        "description": "Uppdateringen på Pi:n: Ny version finns, på knapptryck och aldrig under en träff. Pi:n\nhämtar det senaste Pi-paketet, provar det och går tillbaka om hubben inte svarar.",
         "properties": {
           "available": {
             "description": "Hubben kan uppdatera sig själv: en Pi med installationen.",
@@ -16586,6 +16586,41 @@
             "description": "En träff pågår: då uppdateras inget.",
             "title": "Meet Running",
             "type": "boolean"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Ändringen i det senaste Pi-paketet, när Pi:n kunde se den.",
+            "title": "Latest"
+          },
+          "newer": {
+            "default": false,
+            "description": "Ny version finns (SYNK-19).",
+            "title": "Newer",
+            "type": "boolean"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När Pi:n senast såg efter.",
+            "title": "Checked"
           }
         },
         "required": [

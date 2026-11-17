@@ -7877,8 +7877,8 @@ export interface components {
         };
         /**
          * UpdateStatus
-         * @description Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste
-         *     Pi-paketet, provar det och går tillbaka om hubben inte svarar.
+         * @description Uppdateringen på Pi:n: Ny version finns, på knapptryck och aldrig under en träff. Pi:n
+         *     hämtar det senaste Pi-paketet, provar det och går tillbaka om hubben inte svarar.
          */
         "trainmeet.hub-1.update-status": {
             /**
@@ -7918,6 +7918,24 @@ export interface components {
              * @default false
              */
             meet_running: boolean;
+            /**
+             * Latest
+             * @description Ändringen i det senaste Pi-paketet, när Pi:n kunde se den.
+             * @default null
+             */
+            latest: string | null;
+            /**
+             * Newer
+             * @description Ny version finns (SYNK-19).
+             * @default false
+             */
+            newer: boolean;
+            /**
+             * Checked
+             * @description När Pi:n senast såg efter.
+             * @default null
+             */
+            checked: string | null;
         } & {
             [key: string]: unknown;
         };

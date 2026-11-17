@@ -131,8 +131,9 @@ const UPDATE_STATES: Record<string, string> = {
 };
 const WORKING = new Set(["checking", "downloading", "installing", "restarting"]);
 
-/** Den här hubben → Uppdatering (SYNK-23): on a Pi, on the button and never during a meet. The
- * Pi fetches the latest package, tries it and goes back if the hub does not answer. */
+/** Den här hubben → Uppdatering (SYNK-19, SYNK-23): Ny version finns, on the button and never
+ * during a meet. The Pi fetches the latest package, tries it and goes back if the hub does not
+ * answer. */
 export function Uppdatering({ admin, initial }: { admin: boolean; initial?: UpdateStatus }) {
   const [state, setState] = useState<UpdateStatus | null>(initial ?? null);
   const [said, setSaid] = useState("");
@@ -165,9 +166,19 @@ export function Uppdatering({ admin, initial }: { admin: boolean; initial?: Upda
         <p className="liten" id="uppdatering-saknas">{state.reason}</p>
       ) : (
         <>
+          {state.newer && !working && (
+            <p className="liten" role="status" id="uppdatering-ny">
+              <strong>Ny version finns.</strong> {`Den senaste är ${state.latest}.`}
+            </p>
+          )}
           <dl className="bygge" id="uppdatering-lage">
             <dt>Körs nu</dt>
             <dd className="tm-mono">{state.build ?? "okänd"}</dd>
+            <dt>Senaste</dt>
+            <dd>
+              {state.latest ? <span className="tm-mono">{state.latest}</span> : "Pi:n har inte kunnat se efter. Har den internet?"}
+              {state.checked ? ` · sett ${when(state.checked)}` : ""}
+            </dd>
             {state.state && (
               <>
                 <dt>Senast</dt>
@@ -180,7 +191,7 @@ export function Uppdatering({ admin, initial }: { admin: boolean; initial?: Upda
               {said || (state.meet_running ? "En träff pågår. Uppdatera när klockan står still och träffen är slut." : "Aldrig under en träff.")}
             </span>
             <button id="update-start" type="button" className="primar" disabled={working || Boolean(state.meet_running)} onClick={() => void start()}>
-              {working ? "Uppdaterar …" : "Sök och installera"}
+              {working ? "Uppdaterar …" : state.newer ? "Uppdatera nu" : "Sök och installera"}
             </button>
           </div>
         </>
