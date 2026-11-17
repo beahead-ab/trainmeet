@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.station-versions.schema.json",
+  "title": "trainmeet.sync-1.station-versions",
+  "$defs": {
+    "StationVersionInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "saved": {
+          "format": "date-time",
+          "title": "Saved",
+          "type": "string"
+        },
+        "checksum": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Checksum",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "station_id",
+        "version",
+        "saved",
+        "checksum",
+        "name"
+      ],
+      "title": "StationVersionInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Ägarens privata versioner av stationen, den senaste sist.",
+  "properties": {
+    "station_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Station Id",
+      "type": "string"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/StationVersionInfo"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "station_id"
+  ],
+  "type": "object"
+}

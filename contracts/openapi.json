@@ -1700,6 +1700,118 @@
         ]
       }
     },
+    "/api/sync/1/stations/{station}/versions": {
+      "post": {
+        "operationId": "saveStation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.station-version-info"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.sync-1.station-package"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "station",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "get": {
+        "operationId": "stationVersions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.station-versions"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "station",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/sync/1/stations/{station}/versions/{number}": {
+      "get": {
+        "operationId": "stationPackage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.station-package"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "station",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets": {
       "get": {
         "operationId": "planningMeets",
@@ -30640,6 +30752,299 @@
         ],
         "title": "RevisionScope",
         "type": "string"
+      },
+      "trainmeet.sync-1.station-package": {
+        "additionalProperties": true,
+        "description": "Hela stationspaketet från TKL: utsidan, som går vidare till en träff eller en Pi, och\ninsidan, som stannar hos ägaren. Synk sparar insidan som den kom, utan att läsa den.",
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "outside": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.station-package.StationOutside"
+          },
+          "inside": {
+            "additionalProperties": true,
+            "description": "Spårplan, signaler och adresser: TKL:s egna.",
+            "title": "Inside",
+            "type": "object"
+          }
+        },
+        "required": [
+          "station_id",
+          "outside"
+        ],
+        "title": "StationPackage",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-package.BoxSide": {
+        "additionalProperties": true,
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.station-package.Side"
+          },
+          "label": {
+            "description": "Det boxen visar för sidan, till exempel Väster.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side",
+          "label"
+        ],
+        "title": "BoxSide",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-package.Exit": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.station-package.Side",
+            "description": "Vilken sida utfarten ligger på."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Till exempel Mot Norrby.",
+            "title": "Name"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når utfarten, vid gränsen.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen, med sina namn.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ],
+        "title": "Exit",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-package.Side": {
+        "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "Side",
+        "type": "string"
+      },
+      "trainmeet.sync-1.station-package.StationOutside": {
+        "additionalProperties": true,
+        "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-outside/1",
+            "default": "trainmeet.station-outside/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "description": "Stationens id, skapat i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-package.StationTrack"
+            },
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          },
+          "exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-package.Exit"
+            },
+            "minItems": 1,
+            "title": "Exits",
+            "type": "array"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-package.BoxSide"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "tracks",
+          "exits"
+        ],
+        "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-package.StationTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Det som står på skärmen, till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-version-info": {
+        "additionalProperties": true,
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "saved": {
+            "format": "date-time",
+            "title": "Saved",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "version",
+          "saved",
+          "checksum",
+          "name"
+        ],
+        "title": "StationVersionInfo",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-versions": {
+        "additionalProperties": true,
+        "description": "Ägarens privata versioner av stationen, den senaste sist.",
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-versions.StationVersionInfo"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_id"
+        ],
+        "title": "StationVersions",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-versions.StationVersionInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "saved": {
+            "format": "date-time",
+            "title": "Saved",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "version",
+          "saved",
+          "checksum",
+          "name"
+        ],
+        "title": "StationVersionInfo",
+        "type": "object"
       }
     },
     "securitySchemes": {

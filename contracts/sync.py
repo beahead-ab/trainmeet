@@ -13,12 +13,13 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Final
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from contracts import station
 from contracts.common import Contract, Id, Text
 from contracts.drift import DriftEvent, ProposalStatus
 from contracts.planning import Draft, Proposal, Version
+from contracts.station_outside import StationOutside
 
 PROTOCOL: Final = "trainmeet.sync/1"
 HEADER: Final = "TrainMeet-Sync"  # the protocol each call speaks
@@ -234,3 +235,38 @@ class Push(Contract):
 
 class PushBatch(Contract):
     pushes: list[Push] = Field(default_factory=list, max_length=500)
+
+
+# --- Stationspaketen (SYNK-06, SYNK-12, SYNK-18, H71, SYNK-30) -----------------------------------
+
+
+class StationPackage(Contract):
+    """Hela stationspaketet från TKL: utsidan, som går vidare till en träff eller en Pi, och
+    insidan, som stannar hos ägaren. Synk sparar insidan som den kom, utan att läsa den."""
+
+    station_id: Id
+    outside: StationOutside
+    inside: dict[str, object] = Field(
+        default_factory=dict, description="Spårplan, signaler och adresser: TKL:s egna."
+    )
+
+    @model_validator(mode="after")
+    def _same_station(self) -> StationPackage:
+        if self.outside.station_id != self.station_id:
+            raise ValueError("Utsidan hör till en annan station.")
+        return self
+
+
+class StationVersionInfo(Contract):
+    station_id: Id
+    version: int = Field(ge=1)
+    saved: datetime
+    checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
+    name: Text
+
+
+class StationVersions(Contract):
+    """Ägarens privata versioner av stationen, den senaste sist."""
+
+    station_id: Id
+    versions: list[StationVersionInfo] = Field(default_factory=list)

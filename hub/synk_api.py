@@ -18,8 +18,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any, NoReturn
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Header, HTTPException, Path, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from pydantic import ValidationError
 
 from contracts import drift
 from contracts.reasons import Reason
@@ -40,6 +41,8 @@ from contracts.sync import (
     RunFeed,
     SentVersion,
     SourceFile,
+    StationPackage,
+    StationVersions,
     VersionList,
 )
 from contracts.sync import Follower as FollowerInfo
@@ -54,6 +57,7 @@ from synk.follower import Follower
 from synk.home import Homes
 from synk.link import LinkError, Links
 from synk.relay import Relay
+from synk.stations import Behind, NoOwners, Owners, StationError, Stations
 from synk.store import SyncError, Versions
 
 MAX_WAIT = 25.0
@@ -94,6 +98,8 @@ def router(
     hello: Callable[[], Hello],
     relay: Relay | None = None,
     pushes: Senders | None = None,
+    stations: Stations | None = None,
+    owners: Owners | None = None,
 ) -> APIRouter:
     routes = APIRouter()
     relay = relay if relay is not None else Relay()
@@ -351,6 +357,78 @@ def router(
         if pushes is None:
             return {"service": "none", "recent": []}
         return {"service": pushes.name, "recent": pushes.fake.recent()}
+
+    # --- Stationspaketen (SYNK-06, SYNK-18, H71): the owner's private versions ----------------
+
+    def owner_of(authorization: str | None) -> str:
+        found = (owners or NoOwners()).owner(authorization)
+        if found is None:
+            raise HTTPException(
+                403,
+                "Synken av stationspaket kräver inloggning med TrainMeet ID. Den kommer i "
+                "hubben med ärende 78.",
+            )
+        return found
+
+    def kept() -> Stations:
+        if stations is None:
+            raise HTTPException(404, "Den här hubben har inga stationspaket.")
+        return stations
+
+    @routes.post("/api/sync/1/stations/{station}/versions", status_code=201)
+    async def save_station(
+        station: Annotated[str, Path(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")],
+        request: Request,
+        response: Response,
+        base: Annotated[int, Query(ge=0)],
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """A new version of the whole package, on top of base (the latest). The body is the
+        package as TKL wrote it; it is kept as it came."""
+        response.headers["Cache-Control"] = "no-store"
+        who = owner_of(authorization)
+        data = await request.body()
+        try:
+            package = StationPackage.model_validate_json(data)
+        except ValidationError as error:
+            raise HTTPException(422, "Stationspaketet gick inte att läsa.") from error
+        if package.station_id != station:
+            raise HTTPException(422, "Paketet hör till en annan station.")
+        try:
+            saved = await run_in_threadpool(kept().save, who, base, data)
+        except Behind as error:
+            raise HTTPException(
+                409, str(error), headers={"TrainMeet-Latest": str(error.latest)}
+            ) from error
+        except StationError as error:
+            raise HTTPException(error.status, str(error)) from error
+        return saved.model_dump(mode="json")
+
+    @routes.get("/api/sync/1/stations/{station}/versions")
+    def station_versions(
+        station: str, response: Response, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        who = owner_of(authorization)
+        try:
+            found = kept().versions(who, station)
+        except StationError as error:
+            raise HTTPException(error.status, str(error)) from error
+        return StationVersions(station_id=station, versions=found).model_dump(mode="json")
+
+    @routes.get("/api/sync/1/stations/{station}/versions/{number}")
+    def station_package(
+        station: str,
+        number: Annotated[int, Path(ge=1)],
+        authorization: Authorization = None,
+    ) -> Response:
+        """The whole package, as it came: only to its owner."""
+        who = owner_of(authorization)
+        try:
+            data = kept().package(who, station, number)
+        except StationError as error:
+            raise HTTPException(error.status, str(error)) from error
+        return Response(data, media_type="application/json", headers={"Cache-Control": "no-store"})
 
     # --- Träffens hem (H35, SYNK-03, SYNK-16) -------------------------------------------------
 

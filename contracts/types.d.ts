@@ -932,6 +932,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/1/stations/{station}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stationVersions"];
+        put?: never;
+        post: operations["saveStation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/1/stations/{station}/versions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stationPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets": {
         parameters: {
             query?: never;
@@ -14976,6 +15008,160 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.push-batch.RevisionScope": "call" | "case" | "place";
+        /**
+         * StationPackage
+         * @description Hela stationspaketet från TKL: utsidan, som går vidare till en träff eller en Pi, och
+         *     insidan, som stannar hos ägaren. Synk sparar insidan som den kom, utan att läsa den.
+         */
+        "trainmeet.sync-1.station-package": {
+            /** Station Id */
+            station_id: string;
+            outside: components["schemas"]["trainmeet.sync-1.station-package.StationOutside"];
+            /**
+             * Inside
+             * @description Spårplan, signaler och adresser: TKL:s egna.
+             */
+            inside?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** BoxSide */
+        "trainmeet.sync-1.station-package.BoxSide": {
+            side: components["schemas"]["trainmeet.sync-1.station-package.Side"];
+            /**
+             * Label
+             * @description Det boxen visar för sidan, till exempel Väster.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Exit */
+        "trainmeet.sync-1.station-package.Exit": {
+            /**
+             * Id
+             * @description Utfartens fasta id. Kopplas till en sträcka per träff (H26).
+             */
+            id: string;
+            /** @description Vilken sida utfarten ligger på. */
+            side: components["schemas"]["trainmeet.sync-1.station-package.Side"];
+            /**
+             * Name
+             * @description Till exempel Mot Norrby.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når utfarten, vid gränsen.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen, med sina namn.
+             */
+            signals?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.station-package.Side": "left" | "right";
+        /**
+         * StationOutside
+         * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
+         */
+        "trainmeet.sync-1.station-package.StationOutside": {
+            /**
+             * Format
+             * @default trainmeet.station-outside/1
+             * @constant
+             */
+            format: "trainmeet.station-outside/1";
+            /**
+             * Station Id
+             * @description Stationens id, skapat i TKL Studio.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.sync-1.station-package.StationTrack"][];
+            /** Exits */
+            exits: components["schemas"]["trainmeet.sync-1.station-package.Exit"][];
+            /** Sides */
+            sides?: components["schemas"]["trainmeet.sync-1.station-package.BoxSide"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationTrack */
+        "trainmeet.sync-1.station-package.StationTrack": {
+            /**
+             * Id
+             * @description Spårets korta namn i stationen, till exempel 1a. Fast id.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Det som står på skärmen, till exempel Spår 1a.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationVersionInfo */
+        "trainmeet.sync-1.station-version-info": {
+            /** Station Id */
+            station_id: string;
+            /** Version */
+            version: number;
+            /**
+             * Saved
+             * Format: date-time
+             */
+            saved: string;
+            /** Checksum */
+            checksum: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationVersions
+         * @description Ägarens privata versioner av stationen, den senaste sist.
+         */
+        "trainmeet.sync-1.station-versions": {
+            /** Station Id */
+            station_id: string;
+            /** Versions */
+            versions?: components["schemas"]["trainmeet.sync-1.station-versions.StationVersionInfo"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationVersionInfo */
+        "trainmeet.sync-1.station-versions.StationVersionInfo": {
+            /** Station Id */
+            station_id: string;
+            /** Version */
+            version: number;
+            /**
+             * Saved
+             * Format: date-time
+             */
+            saved: string;
+            /** Checksum */
+            checksum: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -16380,6 +16566,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.ai-service"];
+                };
+            };
+        };
+    };
+    stationVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.station-versions"];
+                };
+            };
+        };
+    };
+    saveStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.sync-1.station-package"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.station-version-info"];
+                };
+            };
+        };
+    };
+    stationPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station: string;
+                number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.station-package"];
                 };
             };
         };

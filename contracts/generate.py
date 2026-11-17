@@ -133,6 +133,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.sync-1.relay-answer": sync.RelayAnswer,
     "trainmeet.sync-1.push": sync.Push,
     "trainmeet.sync-1.push-batch": sync.PushBatch,
+    "trainmeet.sync-1.station-package": sync.StationPackage,
+    "trainmeet.sync-1.station-version-info": sync.StationVersionInfo,
+    "trainmeet.sync-1.station-versions": sync.StationVersions,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
@@ -508,6 +511,11 @@ def openapi() -> str:
     route(
         "post", "/api/hub/ai", "connectAi", h + "ai-service", h + "ai-service-change", bearer=True
     )
+    y = "trainmeet.sync-1."
+    st = "/api/sync/1/stations/{station}/versions"
+    route("post", st, "saveStation", y + "station-version-info", y + "station-package", bearer=True)
+    route("get", st, "stationVersions", y + "station-versions", bearer=True)
+    route("get", st + "/{number}", "stationPackage", y + "station-package", bearer=True)
     p = "trainmeet.planning-1."
     m = "/api/planering/1/meets"
     route("get", m, "planningMeets", p + "meet-summary", many=True)
