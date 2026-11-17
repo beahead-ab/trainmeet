@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, Molnet, Natet, newSeed, SettingsPage } from "./Installningar";
+import { heaps, Molnet, Natet, newSeed, SettingsPage, Uppdatering } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
@@ -159,6 +159,23 @@ describe("the addresses", () => {
   });
 });
 
+describe("Uppdatering under the gear (SYNK-23)", () => {
+  it("updates a Pi on the button, but never during a meet", () => {
+    const idle = renderToStaticMarkup(<Uppdatering admin initial={{ available: true, build: "abc123def456", state: "done", message: "Hubben kör version abc123def456", at: null, meet_running: false } as never} />);
+    expect(idle).toContain("abc123def456");
+    expect(idle).toContain("Sök och installera");
+    expect(idle).not.toContain('disabled=""');
+    const during = renderToStaticMarkup(<Uppdatering admin initial={{ available: true, build: "abc123def456", state: null, meet_running: true } as never} />);
+    expect(during).toContain("En träff pågår");
+    expect(during).toContain('disabled=""');
+  });
+  it("says that the hub in the cloud is updated by its deploy", () => {
+    const html = renderToStaticMarkup(<Uppdatering admin initial={{ available: false, reason: "Hubben i molnet uppdateras när en ändring läggs ut. Uppdateringen här gäller en Pi." } as never} />);
+    expect(html).toContain("Hubben i molnet");
+    expect(html).not.toContain("Sök och installera");
+  });
+});
+
 describe("Pi:ns nät under the gear (SYNK-26, H45)", () => {
   const status = {
     supported: true,
@@ -257,7 +274,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   });
 
   it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
-    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "natet", "molnet", "ai"]);
+    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "natet", "uppdatering", "molnet", "ai"]);
     const none = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={null} />);
     expect(none).toContain("Ingen egen AI är inkopplad");
     expect(none).toContain('id="ai-connect" type="button" class="primar" disabled=""');

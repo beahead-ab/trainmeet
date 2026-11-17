@@ -182,3 +182,22 @@ class WifiAction(Contract):
     uuids: list[str] | None = Field(default=None, max_length=32)
     interface: Text | None = None
     token: Text | None = None
+
+
+# --- Uppdateringen (SYNK-23) ---------------------------------------------------------------------
+
+
+class UpdateStatus(Contract):
+    """Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste
+    Pi-paketet, provar det och går tillbaka om hubben inte svarar."""
+
+    available: bool = Field(description="Hubben kan uppdatera sig själv: en Pi med installationen.")
+    reason: Text | None = None
+    build: Text | None = Field(default=None, description="Ändringen som körs nu.")
+    state: (
+        Literal["checking", "downloading", "installing", "restarting", "done", "current", "failed"]
+        | None
+    ) = None
+    message: Text | None = None
+    at: datetime | None = None
+    meet_running: bool = Field(default=False, description="En träff pågår: då uppdateras inget.")

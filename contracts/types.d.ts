@@ -868,6 +868,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["hubUpdate"];
+        put?: never;
+        post: operations["startHubUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/wifi/save": {
         parameters: {
             query?: never;
@@ -7824,6 +7840,52 @@ export interface components {
              * @default null
              */
             token: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * UpdateStatus
+         * @description Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste
+         *     Pi-paketet, provar det och går tillbaka om hubben inte svarar.
+         */
+        "trainmeet.hub-1.update-status": {
+            /**
+             * Available
+             * @description Hubben kan uppdatera sig själv: en Pi med installationen.
+             */
+            available: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Build
+             * @description Ändringen som körs nu.
+             * @default null
+             */
+            build: string | null;
+            /**
+             * State
+             * @default null
+             */
+            state: ("checking" | "downloading" | "installing" | "restarting" | "done" | "current" | "failed") | null;
+            /**
+             * Message
+             * @default null
+             */
+            message: string | null;
+            /**
+             * At
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Meet Running
+             * @description En träff pågår: då uppdateras inget.
+             * @default false
+             */
+            meet_running: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -16184,6 +16246,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.wifi-status"];
+                };
+            };
+        };
+    };
+    hubUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.update-status"];
+                };
+            };
+        };
+    };
+    startHubUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.update-status"];
                 };
             };
         };

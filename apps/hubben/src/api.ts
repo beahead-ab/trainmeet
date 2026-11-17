@@ -21,6 +21,7 @@ export type WifiStatus = Schemas["trainmeet.hub-1.wifi-status"];
 export type WifiProfile = Schemas["trainmeet.hub-1.wifi-status.WifiProfile"];
 export type WifiProfileChange = Schemas["trainmeet.hub-1.wifi-profile-change"];
 export type WifiAction = Schemas["trainmeet.hub-1.wifi-action"];
+export type UpdateStatus = Schemas["trainmeet.hub-1.update-status"];
 export type WifiVerb = "scan" | "delete" | "order" | "connect" | "confirm" | "rollback";
 const NETWORK = { "X-TrainMeet-Network": "1" };
 export type CloudLinkChange = Schemas["trainmeet.sync-1.cloud-link-change"];
@@ -69,6 +70,9 @@ export const hub = {
   logOut: () => call<unknown>("/api/hub/logout", {}),
   // Pi:ns nät (SYNK-26): a change carries the hub's own mark; a password never comes back.
   wifi: () => call<WifiStatus>("/api/hub/wifi"),
+  // Uppdateringen (SYNK-23): on a Pi, on the button, never during a meet.
+  update: () => call<UpdateStatus>("/api/hub/update"),
+  startUpdate: () => call<UpdateStatus>("/api/hub/update", {}, NETWORK),
   saveWifi: (change: Partial<WifiProfileChange> & Pick<WifiProfileChange, "ssid" | "security">) => call<WifiStatus>("/api/hub/wifi/save", change, NETWORK),
   wifiAction: (action: WifiVerb, given: Partial<WifiAction>) => call<WifiStatus>(`/api/hub/wifi/${action}`, given, NETWORK),
   // Egen AI under Den här hubben (H58): the key goes in and is never shown again.

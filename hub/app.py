@@ -28,6 +28,7 @@ from hub import (
     station_api,
     synk_api,
     tmbox_web,
+    update_api,
     web,
 )
 from hub.local import LocalLogin
@@ -186,6 +187,8 @@ def create_app(
     app.include_router(hubben.router(login))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
     app.include_router(network_api.router(login))
+    # Uppdateringen på knapptryck (SYNK-23): on a Pi installed with deploy/pi.
+    app.include_router(update_api.router(login, running, current))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
     app.include_router(

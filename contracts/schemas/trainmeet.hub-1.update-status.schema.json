@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.update-status.schema.json",
+  "title": "trainmeet.hub-1.update-status",
+  "additionalProperties": true,
+  "description": "Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste\nPi-paketet, provar det och går tillbaka om hubben inte svarar.",
+  "properties": {
+    "available": {
+      "description": "Hubben kan uppdatera sig själv: en Pi med installationen.",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "build": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ändringen som körs nu.",
+      "title": "Build"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "enum": [
+            "checking",
+            "downloading",
+            "installing",
+            "restarting",
+            "done",
+            "current",
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "State"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "At"
+    },
+    "meet_running": {
+      "default": false,
+      "description": "En träff pågår: då uppdateras inget.",
+      "title": "Meet Running",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "available"
+  ],
+  "type": "object"
+}

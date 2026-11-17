@@ -1,0 +1,10 @@
+// Hubbens användare får starta uppdateringen, och bara den.
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.user === "trainmeet" &&
+        action.lookup("unit") === "trainmeet-update.service" &&
+        action.lookup("verb") === "start") {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

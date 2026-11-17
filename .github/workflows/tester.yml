@@ -375,6 +375,83 @@ jobs:
           pkill -f "uvicorn catalog.app" || true
           for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app" >/dev/null || break; sleep 1; done
 
+  # Pi-paketet (steg 5, DRIFT-20): hubben för en Raspberry Pi, som tjänster i systemd utan
+  # containrar. Samma sidor och samma låsta beroenden som bilden. Paketet installeras och startas
+  # här som Pi:n gör det, och på main läggs det i den rullande utgåvan pi-senaste, som Pi:ns
+  # installation och uppdatering hämtar (deploy/pi/install.sh).
+  pi:
+    name: Pi-paketet
+    needs: [tester, bilden]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Bygg paketet
+        run: |
+          mkdir -p package/wheel package/web package/pi
+          # The web apps from the image's own first stage: built, typed and tested there.
+          docker build -f hub/Dockerfile --target web -t trainmeet-web:pi .
+          docker create --name web trainmeet-web:pi >/dev/null
+          for app in skarmar tmbox-webb trafikledning planering; do
+            docker cp "web:/src/apps/$app/dist" "package/web/$app"
+          done
+          docker rm web >/dev/null
+          uv build --wheel -o package/wheel
+          # The hub's locked dependencies, with their hashes: the Pi installs exactly these.
+          uv export --frozen --no-emit-project --no-default-groups --group push \
+            --no-header --format requirements-txt -o package/requirements.txt
+          cp deploy/pi/* package/pi/
+          git rev-parse --short=12 HEAD > package/BUILD
+          {
+            echo "TRAINMEET_COMMIT=$(git rev-parse --short=12 HEAD)"
+            echo "TRAINMEET_BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > package/build.env
+          tar -czf trainmeet-hub-pi.tar.gz package
+          sha256sum trainmeet-hub-pi.tar.gz > trainmeet-hub-pi.tar.gz.sha256
+          cp package/BUILD BUILD
+          ls -l trainmeet-hub-pi.tar.gz
+
+      - name: Installera och starta paketet som Pi:n gör
+        run: |
+          python3 -m venv /tmp/pi
+          /tmp/pi/bin/pip install --quiet --disable-pip-version-check --require-hashes -r package/requirements.txt
+          /tmp/pi/bin/pip install --quiet --disable-pip-version-check --no-deps package/wheel/*.whl
+          mkdir -p /tmp/pi-data
+          set -a; . package/build.env; set +a
+          TRAINMEET_PREVIEW_DB=/tmp/pi-data/p.sqlite3 HUB_WEB_DIR="$PWD/package/web" \
+            /tmp/pi/bin/uvicorn hub.app:app --port 8099 > /tmp/pi.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8099/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8099/ | grep -q "<title>TrainMeet Hub</title>"
+          curl -fsS http://localhost:8099/planering | grep -q "Planering · TrainMeet Hub"
+          curl -fsS http://localhost:8099/api/version | grep -q "\"commit\":\"$(cat package/BUILD)\""
+          curl -sS http://localhost:8099/api/hub/wifi -o /dev/null -w '%{http_code}' | grep -q 401
+          /tmp/pi/bin/python -c "import synk.network_host, synk.push, hub.pin"
+          sh -n package/pi/install.sh
+          echo "Pi-paketet installeras, startar och visar sidorna."
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: cat /tmp/pi.log || true
+
+      - name: Lägg ut paketet i pi-senaste
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view pi-senaste >/dev/null 2>&1 || gh release create pi-senaste \
+            --prerelease --target main --title "Pi-paketet, senaste" \
+            --notes "TrainMeet Hub för en Raspberry Pi, byggd från main. Hämta install.sh och kör sudo sh install.sh. Hubben uppdaterar sig sedan från den här utgåvan, på knapptryck under kugghjulet."
+          gh release upload pi-senaste trainmeet-hub-pi.tar.gz trainmeet-hub-pi.tar.gz.sha256 \
+            BUILD deploy/pi/install.sh --clobber
+
   testmiljon:
     name: Testmiljön
     needs: [tester, bilden, catalog, id]
