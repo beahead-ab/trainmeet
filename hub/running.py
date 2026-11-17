@@ -21,6 +21,7 @@ from contracts.drift import DriftEvent, ProposalStatus
 from contracts.meet import MeetPackage
 from drift.copy import EventCopy
 from drift.engine import Refused, now_utc
+from drift.exits import ExitMemory
 from drift.store import MissingRun, PreviewStore
 from planering.store import Planning, PlanningError
 from synk.follower import Leading
@@ -83,6 +84,8 @@ class Running:
         self._stores: dict[tuple[str, int], PreviewStore] = {}
         self._lock = Lock()
         self._looked_at: set[tuple[str, str, int]] = set()
+        # Earlier meets' answers about the stations' exits, for every meet the hub runs (H26).
+        self.exit_memory = ExitMemory(data_dir / "drift" / "utfarter.sqlite3")
         self.meet, self.version = PROVBANAN, 1
         try:
             saved = json.loads(self.state_path.read_text(encoding="utf-8"))
@@ -288,5 +291,6 @@ class Running:
                 version=version,
                 package_key=package_key,
                 copy=EventCopy(self.usb, f"{meet}-v{version}") if self.usb else None,
+                exit_memory=self.exit_memory,
             )
         return self._stores[key]

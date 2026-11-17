@@ -18,10 +18,12 @@ from contracts import station
 from contracts.common import Weekday, checksum
 from contracts.meet import MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
+from contracts.station_outside import StationOutside
 from contracts.terminal import DisplaySize
 from drift.automatik import Automatik
 from drift.copy import EventCopy
 from drift.engine import Drift, Outcome, Refused, model_time, now_utc
+from drift.exits import ExitMemory, couple
 from drift.notices import notices
 from drift.snapshot import snapshot
 from drift.terminal import Box, Boxes
@@ -97,6 +99,11 @@ CREATE TABLE IF NOT EXISTS forked_event (
     seq INTEGER NOT NULL, body TEXT NOT NULL, set_aside REAL NOT NULL,
     PRIMARY KEY (run_id, seq)
 );
+CREATE TABLE IF NOT EXISTS station_exit (
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    station_id TEXT NOT NULL, section TEXT NOT NULL, exit TEXT NOT NULL,
+    PRIMARY KEY (run_id, station_id, section)
+);
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL, message_id TEXT NOT NULL, signature TEXT NOT NULL,
@@ -124,6 +131,17 @@ class UnknownClient(Exception):
 
 class NotApproved(Exception):
     """The client is not approved for that place."""
+
+
+class ExitAnswered(Exception):
+    """Hubbens fråga om utfarten är redan besvarad: det första svaret gäller (TRAFIK-05)."""
+
+    def __init__(self, exit_id: str) -> None:
+        super().__init__(f"Frågan är redan besvarad: utfart {exit_id}.")
+
+
+class UnknownExit(Exception):
+    """No such exit at the station, or no such section at the place."""
 
 
 def _key_hash(key: str) -> str:
@@ -160,6 +178,7 @@ class PreviewStore:
         packages: Callable[[int], MeetPackage] | None = None,
         copy: EventCopy | None = None,
         max_clients: int = MAX_CLIENTS,
+        exit_memory: ExitMemory | None = None,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
@@ -175,6 +194,8 @@ class PreviewStore:
         # Boxes, station clients and screens per run: few in Provbanan's runs on the shared
         # test hub, as many as a big meet has in the hub's own.
         self.max_clients = max_clients
+        # Earlier meets' answers about the stations' exits, shared by the hub's meets (H26).
+        self.exit_memory = exit_memory
         # Which package a run belongs to. A published version brings the checksum it was
         # published with, so a run keeps its package when the contracts gain a field.
         self.package_key = package_key or checksum(package.model_dump(mode="json"))
@@ -730,11 +751,15 @@ class PreviewStore:
             raise MissingRun()
         return str(row[0])
 
-    def connect(self, request: station.ConnectRequest) -> station.ConnectReply:
+    def connect(
+        self, request: station.ConnectRequest, *, here: bool = False
+    ) -> station.ConnectReply:
         """A client says what it is; it waits under Väntar until the dispatcher approves it
-        (H31). In a Provbana run it finds the run with the run's code."""
+        (H31). Over the internet it finds the run with the run's code; on the meet's network
+        (here) it joins the meet that runs, with no code (H23, KLAR-13)."""
+        meet = self.current() if here and not request.code else None
         with self._transaction() as db:
-            run_id = self._run_by_code(db, request.code or "")
+            run_id = meet or self._run_by_code(db, request.code or "")
             count = db.execute(
                 "SELECT count(*) FROM station_client WHERE run_id=?", (run_id,)
             ).fetchone()[0]
@@ -742,6 +767,8 @@ class PreviewStore:
                 raise RunLimit()
             client_id = f"{request.kind.value}-{token_hex(6)}"
             stored = request.model_copy(update={"code": None})
+            if not stored.wants:
+                stored = stored.model_copy(update={"wants": self._place_of(stored)})
             db.execute(
                 "INSERT INTO station_client VALUES (?, ?, ?, ?, ?, '[]', NULL, NULL)",
                 (
@@ -809,23 +836,198 @@ class PreviewStore:
 
     def _station_clients(self, db: sqlite3.Connection, run_id: str) -> list[dict[str, Any]]:
         listed = []
+        drift: Drift | None = None
         for client_id, request, status, places in db.execute(
             "SELECT client_id, request, status, places FROM station_client WHERE run_id=? "
             "ORDER BY created, client_id",
             (run_id,),
-        ):
+        ).fetchall():
             asked = station.ConnectRequest.model_validate_json(request)
+            approved = list(json.loads(places))
+            questions: list[dict[str, Any]] = []
+            if status == station.ApprovalStatus.APPROVED.value and approved:
+                drift = drift or self._load(db, run_id, now_utc())
+                for place in approved:
+                    _, asking = self._coupling(db, run_id, drift, asked, place)
+                    questions += [q.model_dump(mode="json") for q in asking]
+            outside = self._outside(asked, approved[0] if approved else None)
             listed.append(
                 {
                     "client_id": client_id,
                     "name": asked.name,
                     "kind": asked.kind.value,
                     "status": status,
-                    "places": json.loads(places) or asked.wants,
+                    "places": approved or asked.wants,
                     "side": "both",
+                    "station_id": outside.station_id if outside else asked.station_id,
+                    "questions": questions,
                 }
             )
         return listed
+
+    # --- Stationens utfarter (H26, PLAN-31, TRAFIK-05) -----------------------------------
+
+    def _place_of(self, request: station.ConnectRequest) -> list[str]:
+        """The place a TKL most likely wants, so that Klienter suggests it: the one the station
+        is coupled to in advance, or the one with the station's name (H25)."""
+        stops = [p for p in self.package.places if p.kind != PlaceKind.HALT]
+        station_id = request.outside.station_id if request.outside else request.station_id
+        coupled = [p.id for p in stops if p.station and p.station.station_id == station_id]
+        if coupled:
+            return coupled[:1]
+        if request.outside is None:
+            return []
+        name = request.outside.name.casefold()
+        named = [p.id for p in stops if name in (p.name.casefold(), p.code.casefold())]
+        return named[:1]
+
+    def _outside(self, request: station.ConnectRequest, place: str | None) -> StationOutside | None:
+        """The station's outside at the place: pinned in the version when the planner coupled
+        it in advance, else the one the TKL brought when it connected (KLAR-12)."""
+        found = next((p for p in self.package.places if p.id == place), None)
+        if found is not None and found.station is not None:
+            wanted = request.outside.station_id if request.outside else request.station_id
+            if wanted in (None, found.station.station_id):
+                return found.station.outside
+        return request.outside
+
+    def _coupling(
+        self,
+        db: sqlite3.Connection,
+        run_id: str,
+        drift: Drift,
+        request: station.ConnectRequest,
+        place: str,
+    ) -> tuple[dict[str, str], list[station.ExitQuestion]]:
+        outside = self._outside(request, place)
+        if outside is None:
+            return {}, []
+        seen = snapshot(drift, place, now_utc())
+        found = next((p for p in self.package.places if p.id == place), None)
+        pinned = (
+            found.station.exit_map
+            if found is not None
+            and found.station is not None
+            and found.station.station_id == outside.station_id
+            else {}
+        )
+        answered = {
+            str(section): str(exit_id)
+            for section, exit_id in db.execute(
+                "SELECT section, exit FROM station_exit WHERE run_id=? AND station_id=?",
+                (run_id, outside.station_id),
+            )
+        }
+        remembered = self.exit_memory.remembered(outside.station_id) if self.exit_memory else {}
+        return couple(
+            outside,
+            place,
+            seen.sections,
+            {n.place: n for n in seen.all_places},
+            pinned=pinned,
+            answered=answered,
+            remembered=remembered,
+        )
+
+    def _with_exits(
+        self,
+        db: sqlite3.Connection,
+        run_id: str,
+        drift: Drift,
+        client_id: str,
+        seen: station.Snapshot,
+    ) -> station.Snapshot:
+        """The snapshot with the station's exits and Hubbens questions about them."""
+        row = db.execute(
+            "SELECT request FROM station_client WHERE client_id=?", (client_id,)
+        ).fetchone()
+        if row is None:
+            return seen
+        request = station.ConnectRequest.model_validate_json(row[0])
+        found, questions = self._coupling(db, run_id, drift, request, seen.place.place)
+        return seen.model_copy(
+            update={
+                "sections": [
+                    s.model_copy(update={"exit": found.get(s.section)}) for s in seen.sections
+                ],
+                "questions": questions,
+            }
+        )
+
+    def _answer_exit(
+        self,
+        db: sqlite3.Connection,
+        run_id: str,
+        drift: Drift,
+        request: station.ConnectRequest,
+        places: list[str],
+        answer: station.ExitAnswer,
+    ) -> str:
+        """The first answer stands (TRAFIK-05). The same answer again changes nothing; it is
+        remembered for the next meet with the same neighbour. Returns the section's place."""
+        for place in places:
+            outside = self._outside(request, place)
+            seen = snapshot(drift, place, now_utc())
+            here = next((s for s in seen.sections if s.section == answer.section), None)
+            if outside is None or here is None:
+                continue
+            if answer.exit not in {e.id for e in outside.exits}:
+                raise UnknownExit()
+            before = db.execute(
+                "SELECT exit FROM station_exit WHERE run_id=? AND station_id=? AND section=?",
+                (run_id, outside.station_id, answer.section),
+            ).fetchone()
+            if before is not None:
+                if before[0] != answer.exit:
+                    raise ExitAnswered(str(before[0]))
+                return place
+            db.execute(
+                "INSERT INTO station_exit VALUES (?, ?, ?, ?)",
+                (run_id, outside.station_id, answer.section, answer.exit),
+            )
+            if self.exit_memory is not None:
+                other = next((n for n in seen.all_places if n.place == here.other_place), None)
+                self.exit_memory.remember(
+                    outside.station_id, other.name if other else here.other_code, answer.exit
+                )
+            return place
+        raise UnknownExit()
+
+    def station_exit(self, key: str, place: str, answer: station.ExitAnswer) -> station.Snapshot:
+        """TKL answers which exit a section has (H26), with its key."""
+        with self._transaction() as db:
+            client_id, run_id, places = self._approved(db, key)
+            if place not in places:
+                raise NotApproved()
+            row = db.execute(
+                "SELECT request FROM station_client WHERE client_id=?", (client_id,)
+            ).fetchone()
+            request = station.ConnectRequest.model_validate_json(row[0])
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            self._answer_exit(db, run_id, drift, request, [place], answer)
+            return self._with_exits(db, run_id, drift, client_id, snapshot(drift, place, now))
+
+    def couple_exit(self, run_id: str, change: events.CoupleExit) -> list[dict[str, Any]]:
+        """The dispatcher answers in Klienter (TRAFIK-05)."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT request, places FROM station_client WHERE client_id=? AND run_id=?",
+                (change.client_id, run_id),
+            ).fetchone()
+            if row is None:
+                raise UnknownClient()
+            request = station.ConnectRequest.model_validate_json(row[0])
+            drift = self._load(db, run_id, now_utc())
+            self._answer_exit(
+                db,
+                run_id,
+                drift,
+                request,
+                list(json.loads(row[1])),
+                station.ExitAnswer(section=change.section, exit=change.exit),
+            )
+        return self.clients(run_id)
 
     def _approved(self, db: sqlite3.Connection, key: str) -> tuple[str, str, list[str]]:
         row = db.execute(
@@ -887,7 +1089,7 @@ class PreviewStore:
             size = len(drift.history)
             self._heard(run_id, drift, client_id, place, now)
             self._save(db, run_id, drift.history[size:])
-            return snapshot(drift, place, now)
+            return self._with_exits(db, run_id, drift, client_id, snapshot(drift, place, now))
 
     def place_revision(self, key: str, place: str) -> int:
         """For the event stream: the number that moves when the place's snapshot changes."""
@@ -926,12 +1128,11 @@ class PreviewStore:
                     if first["status"] == station.ReplyStatus.ACCEPTED
                     else station.ReplyStatus(first["status"])
                 )
+                seen = self._with_exits(
+                    db, run_id, drift, client_id, snapshot(drift, command.place, now)
+                )
                 return station.Reply.model_validate(
-                    {
-                        **first,
-                        "status": status,
-                        "snapshot": snapshot(drift, command.place, now).model_dump(mode="json"),
-                    }
+                    {**first, "status": status, "snapshot": seen.model_dump(mode="json")}
                 )
             if (
                 db.execute(
@@ -974,8 +1175,11 @@ class PreviewStore:
                 "INSERT INTO station_reply VALUES (?, ?, ?, ?, ?)",
                 (run_id, client_id, command.message_id, signature, json.dumps(answer)),
             )
+            seen = self._with_exits(
+                db, run_id, drift, client_id, snapshot(drift, command.place, now)
+            )
             return station.Reply.model_validate(
-                {**answer, "snapshot": snapshot(drift, command.place, now).model_dump(mode="json")}
+                {**answer, "snapshot": seen.model_dump(mode="json")}
             )
 
     # --- The automation (F14) -------------------------------------------------------------

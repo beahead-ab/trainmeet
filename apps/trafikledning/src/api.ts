@@ -27,6 +27,7 @@ export type SwitchPreview = Schemas["trainmeet.drift-1.switch-preview"];
 export type Assign = Schemas["trainmeet.drift-1.assign"];
 export type Approve = Schemas["trainmeet.drift-1.approve"];
 export type Revoke = Schemas["trainmeet.drift-1.revoke"];
+export type CoupleExit = Schemas["trainmeet.drift-1.couple-exit"];
 export type ShowView = Schemas["trainmeet.screen-1.show"];
 export type ChangePlace = Schemas["trainmeet.drift-1.automation-place"];
 export type Preview = Schemas["trainmeet.drift-1.preview"];
@@ -57,6 +58,7 @@ export const api = {
   assign: (change: Assign) => call<Client>(`${DRIFT}/clients/assign`, change),
   approve: (change: Approve) => call<Client>(`${DRIFT}/clients/approve`, change),
   revoke: (change: Revoke) => call<Client>(`${DRIFT}/clients/revoke`, change),
+  coupleExit: (change: CoupleExit) => call<Client>(`${DRIFT}/clients/exit`, change),
   view: (change: ShowView) => call<Client>(`${DRIFT}/clients/view`, change),
   automation: () => call<Automation>(`${DRIFT}/automation`),
   setAutomation: (settings: AutomationSettings) => call<Automation>(`${DRIFT}/automation`, settings),
@@ -90,5 +92,6 @@ export const provbanan = {
   assign: (change: Assign) => call<PreviewClients>(`${PROV}/clients/assign`, change),
   approve: (change: Approve) => call<PreviewClients>(`${PROV}/clients/approve`, change),
   revoke: (change: Revoke) => call<PreviewClients>(`${PROV}/clients/revoke`, change),
+  coupleExit: (change: CoupleExit) => call<PreviewClients>(`${PROV}/clients/exit`, change),
 };
 

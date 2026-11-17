@@ -11,7 +11,39 @@ export type ClientAction =
   | { action: "assign"; client_id: string; places: string[]; side: Client["side"]; language: string }
   | { action: "approve"; client_id: string; places: string[] }
   | { action: "revoke"; client_id: string }
-  | { action: "view"; client_id: string; view: string };
+  | { action: "view"; client_id: string; view: string }
+  | { action: "exit"; client_id: string; section: string; exit: string };
+
+type Question = NonNullable<Client["questions"]>[number];
+
+const SIDE_WORD: Record<string, string> = { left: "vänster", right: "höger" };
+
+/** Hubben frågar om en utfart (H26, TRAFIK-05): stationen i TKL eller trafikledningen här
+ * svarar, och det första svaret gäller. */
+export function ExitQuestions({ client, onAnswer }: { client: Client; onAnswer: (section: string, exit: string) => void }) {
+  const questions = client.questions ?? [];
+  if (!questions.length) return null;
+  return (
+    <div className="utfartsfragor">
+      {questions.map((question: Question) => (
+        <div key={question.section} className="utfartsfraga">
+          <p>
+            <b>Hubben frågar:</b> {`Vilken utfart går mot ${question.other_name}?`}
+            {question.side ? <span className="liten">{` Sträckan ligger åt ${SIDE_WORD[question.side] ?? question.side}.`}</span> : null}
+          </p>
+          <div className="kontroller">
+            {question.alternatives.map((choice) => (
+              <button key={choice.exit} type="button" onClick={() => onAnswer(question.section, choice.exit)}>
+                {choice.name ? `${choice.exit} · ${choice.name}` : choice.exit}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="liten">Stationen kan också svara i TKL. Det första svaret gäller hela träffen.</p>
+    </div>
+  );
+}
 
 export type KlienterProps = {
   admin: boolean;
@@ -108,6 +140,7 @@ function ClientRow({ client, now, onChange }: { client: Client; now: Now | null;
         <span className="liten">{clientDetails(client, now)}</span>
       </div>
       <div className="kontroller">{controls}</div>
+      <ExitQuestions client={client} onAnswer={(section, exit) => onChange?.({ action: "exit", client_id: id, section, exit })} />
     </li>
   );
 }

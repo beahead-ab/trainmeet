@@ -51,6 +51,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.station-1.event": station.Event,
     "trainmeet.station-1.push-token": station.PushToken,
     "trainmeet.station-1.notice": station.Notice,
+    "trainmeet.station-1.exit-answer": station.ExitAnswer,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -73,6 +74,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.approve": drift.Approve,
     "trainmeet.drift-1.revoke": drift.Revoke,
     "trainmeet.drift-1.assign": drift.Assign,
+    "trainmeet.drift-1.couple-exit": drift.CoupleExit,
     "trainmeet.drift-1.client": drift.Client,
     "trainmeet.drift-1.event": drift.DriftEvent,
     "trainmeet.drift-1.now": drift.Now,
@@ -399,6 +401,14 @@ def openapi() -> str:
         bearer=True,
         stream=True,
     )
+    route(
+        "post",
+        "/api/station/1/places/{place}/exits",
+        "stationExit",
+        s + "snapshot",
+        s + "exit-answer",
+        bearer=True,
+    )
     route("put", "/api/station/1/push", "stationPush", None, s + "push-token", bearer=True)
     route("delete", "/api/station/1/push", "stationPushOff", None, bearer=True)
     route("post", "/api/terminal/session", "terminalLogin", w + "session", w + "login")
@@ -447,6 +457,14 @@ def openapi() -> str:
             d + action,
             bearer=True,
         )
+    route(
+        "post",
+        "/api/drift/1/clients/exit",
+        "coupleExit",
+        d + "client",
+        d + "couple-exit",
+        bearer=True,
+    )
     route("get", "/api/drift/1/now", "driftNow", d + "now")
     route("get", "/api/drift/1/connect", "driftJoining", d + "joining", bearer=True)
     route("get", "/api/drift/1/log", "driftLog", d + "event", bearer=True, many=True)
@@ -484,6 +502,13 @@ def openapi() -> str:
             d + "preview-clients",
             d + action,
         )
+    route(
+        "post",
+        pv + "/clients/exit",
+        "coupleExitPreview",
+        d + "preview-clients",
+        d + "couple-exit",
+    )
     v = "trainmeet.screen-1."
     route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")
     route("get", "/api/screen/picture", "screenPicture", v + "picture", bearer=True)

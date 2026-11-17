@@ -28,7 +28,18 @@ from contracts import station
 from contracts.common import Id
 from contracts.reasons import TEXT_SV, Reason
 from contracts.sync import RELAY_WAIT, RelayAnswer, RelayCall, RelayKind
-from drift.store import KeyHash, MissingRun, NotApproved, RunLimit, UnknownClient, key_hash
+from drift.store import (
+    ExitAnswered,
+    KeyHash,
+    MissingRun,
+    NotApproved,
+    PreviewStore,
+    RunLimit,
+    UnknownClient,
+    UnknownExit,
+    key_hash,
+)
+from hub.deltagare import on_meet_network
 from hub.stores import AnyRun
 from synk.relay import Relay, RelayError
 
@@ -48,8 +59,10 @@ def _key(authorization: str | None) -> str:
     return key
 
 
-FAILURES = (UnknownClient, NotApproved, MissingRun, RunLimit, KeyError)
+FAILURES = (UnknownClient, NotApproved, MissingRun, RunLimit, KeyError, ExitAnswered, UnknownExit)
 NO_CODE = "Koden finns inte, eller provkörningen har gått ut."
+NEEDS_CODE = "Över internet behövs en kod från trafikledningen."
+NO_MEET = "Ingen träff är startad på hubben."
 NO_CLIENT = "Klienten finns inte."
 
 
@@ -58,6 +71,10 @@ def _failure(error: Exception) -> tuple[int, str]:
         return 429, "Gränsen för provkörningen har nåtts."
     if isinstance(error, NotApproved):
         return 403, TEXT_SV[Reason.NOT_APPROVED]
+    if isinstance(error, ExitAnswered):
+        return 409, str(error)
+    if isinstance(error, UnknownExit):
+        return 404, "Utfarten eller sträckan finns inte här."
     if isinstance(error, KeyError):
         return 404, "Driftplatsen finns inte, eller är en hållplats."
     return 401, "Nyckeln gäller inte, eller provkörningen har gått ut."
@@ -67,17 +84,32 @@ def _error(error: Exception) -> NoReturn:
     raise HTTPException(*_failure(error)) from error
 
 
-def router(store: AnyRun, relay: Callable[[], str | None] = lambda: None) -> APIRouter:
+def router(
+    store: AnyRun,
+    relay: Callable[[], str | None] = lambda: None,
+    meet: Callable[[], PreviewStore] | None = None,
+) -> APIRouter:
     """The station protocol on this hub. relay: the address of the cloud's relay to this hub,
-    which the client is told when it connects (ConnectReply.relay)."""
+    which the client is told when it connects (ConnectReply.relay). meet: the hub's own meet,
+    which a client on the meet's network joins without a code (H23, KLAR-13)."""
     routes = APIRouter(prefix="/api/station/1")
     failures = FAILURES
 
     @routes.post("/connect", status_code=201)
-    def connect(request: station.ConnectRequest, response: Response) -> dict[str, Any]:
+    def connect(
+        request: station.ConnectRequest, seen: Request, response: Response
+    ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         try:
-            reply = store.connect(request)
+            if request.code:
+                reply = store.connect(request)
+            elif meet is not None and on_meet_network(seen):
+                try:
+                    reply = meet().connect(request, here=True)
+                except MissingRun as error:
+                    raise HTTPException(404, NO_MEET) from error
+            else:
+                raise HTTPException(401, NEEDS_CODE)
         except MissingRun as error:
             raise HTTPException(404, NO_CODE) from error
         except RunLimit as error:
@@ -110,6 +142,20 @@ def router(store: AnyRun, relay: Callable[[], str | None] = lambda: None) -> API
         response.headers["Cache-Control"] = "no-store"
         try:
             return store.station_command(_key(authorization), command).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.post("/places/{place}/exits")
+    def exits(
+        place: PlaceId,
+        answer: station.ExitAnswer,
+        response: Response,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Which of the station's exits a section has, when Hubben asked (H26, TRAFIK-05)."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            return store.station_exit(_key(authorization), place, answer).model_dump(mode="json")
         except failures as error:
             _error(error)
 
@@ -187,6 +233,8 @@ def relayed(store: AnyRun, call: RelayCall, relay: Callable[[], str | None]) -> 
     key = KeyHash(call.key_hash) if call.key_hash else None
     try:
         if call.kind == RelayKind.CONNECT and call.connect is not None:
+            if not call.connect.code:
+                return answer(401, NEEDS_CODE)
             try:
                 reply = store.connect(call.connect)
             except MissingRun:
@@ -204,6 +252,8 @@ def relayed(store: AnyRun, call: RelayCall, relay: Callable[[], str | None]) -> 
             return answer(200, snapshot=store.place_snapshot(key, call.place))
         if call.kind == RelayKind.COMMAND and call.command is not None:
             return answer(200, reply=store.station_command(key, call.command))
+        if call.kind == RelayKind.EXIT and call.place is not None and call.exit is not None:
+            return answer(200, snapshot=store.station_exit(key, call.place, call.exit))
         if call.kind == RelayKind.PUSH:
             store.set_push(key, call.push)
             return answer(204)
@@ -270,6 +320,19 @@ def relay_router(relay: Relay) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         hashed = key_hash(_key(authorization))
         return given((await ask(hub_id, RelayKind.COMMAND, key_hash=hashed, command=command)).reply)
+
+    @routes.post("/places/{place}/exits")
+    async def exits(
+        hub_id: HubId,
+        place: PlaceId,
+        exit_answer: station.ExitAnswer,
+        response: Response,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        hashed = key_hash(_key(authorization))
+        asked = await ask(hub_id, RelayKind.EXIT, key_hash=hashed, place=place, exit=exit_answer)
+        return given(asked.snapshot)
 
     @routes.put("/push", status_code=204)
     async def push(

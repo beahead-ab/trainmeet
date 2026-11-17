@@ -23,7 +23,14 @@ from contracts.common import Id
 from contracts.reasons import TEXT_SV, Reason
 from drift.engine import Refused, now_utc
 from drift.now import now
-from drift.store import MissingRun, RunLimit, UnknownBox, UnknownClient
+from drift.store import (
+    ExitAnswered,
+    MissingRun,
+    RunLimit,
+    UnknownBox,
+    UnknownClient,
+    UnknownExit,
+)
 from hub.hubben import Authorization, SessionCookie, require_admin
 from hub.local import LocalLogin
 from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
@@ -40,6 +47,10 @@ def _error(error: Exception) -> NoReturn:
         raise HTTPException(429, "Träffen har nått sin gräns.") from error
     if isinstance(error, (UnknownBox, UnknownClient)):
         raise HTTPException(404, "Klienten finns inte i träffen.") from error
+    if isinstance(error, ExitAnswered):
+        raise HTTPException(409, str(error)) from error
+    if isinstance(error, UnknownExit):
+        raise HTTPException(404, "Utfarten eller sträckan finns inte här.") from error
     raise HTTPException(404, "Ingen träff är startad.") from error
 
 
@@ -52,7 +63,7 @@ def _latest(history: list[drift.DriftEvent], kind: drift.EventKind | None) -> dr
 
 def router(running: Running, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/drift/1")
-    failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient)
+    failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient, ExitAnswered, UnknownExit)
 
     def admin(session: str | None, authorization: str | None) -> str:
         """The meet that runs, for a logged-in administrator."""
@@ -411,6 +422,21 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         run_id = admin(session, authorization)
         try:
             return changed(running.store.approve(run_id, change), change.client_id)
+        except failures as error:
+            _error(error)
+
+    @routes.post("/clients/exit")
+    def couple_exit(
+        change: drift.CoupleExit,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Trafikledningen svarar på Hubbens fråga om en utfart (TRAFIK-05)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = admin(session, authorization)
+        try:
+            return changed(running.store.couple_exit(run_id, change), change.client_id)
         except failures as error:
             _error(error)
 

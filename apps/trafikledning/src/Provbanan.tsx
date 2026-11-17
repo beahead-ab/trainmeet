@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Problem, provbanan, type Client, type Command, type Preview, type PreviewCase, type PreviewClients, type PreviewLeg } from "./api";
 import { LANGUAGES, SIDES } from "./drift";
+import { ExitQuestions } from "./Klienter";
 import { Select } from "./ui";
 
 // Provbanan (steg 2): try Drift on four places with Monday's ten trains, acting from the place
@@ -297,7 +298,11 @@ export function ProvbananPage({ initial }: ProvbananProps) {
   );
 }
 
-type PreviewAction = { action: "assign"; client: Client; place: string; side: Client["side"]; language: string } | { action: "approve"; client: Client; place: string } | { action: "revoke"; client: Client };
+type PreviewAction =
+  | { action: "assign"; client: Client; place: string; side: Client["side"]; language: string }
+  | { action: "approve"; client: Client; place: string }
+  | { action: "revoke"; client: Client }
+  | { action: "exit"; client: Client; section: string; exit: string };
 
 async function act(change: PreviewAction, setClients: (clients: PreviewClients) => void, setNotice: (text: string) => void) {
   setNotice("");
@@ -306,6 +311,7 @@ async function act(change: PreviewAction, setClients: (clients: PreviewClients) 
     if (change.action === "assign") setClients(await provbanan.assign({ client_id: id, places: [change.place], side: change.side, language: change.language as never }));
     if (change.action === "approve") setClients(await provbanan.approve({ client_id: id, places: [change.place] }));
     if (change.action === "revoke") setClients(await provbanan.revoke({ client_id: id }));
+    if (change.action === "exit") setClients(await provbanan.coupleExit({ client_id: id, section: change.section, exit: change.exit }));
   } catch (error) {
     if (error instanceof Problem) setNotice(error.message);
   }
@@ -360,6 +366,7 @@ function PreviewClient({ client, state, onChange }: { client: Client; state: Pre
           </>
         )}
       </div>
+      <ExitQuestions client={client} onAnswer={(section, exit) => onChange({ action: "exit", client, section, exit })} />
     </li>
   );
 }

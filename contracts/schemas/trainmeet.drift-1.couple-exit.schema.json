@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.couple-exit.schema.json",
+  "title": "trainmeet.drift-1.couple-exit",
+  "additionalProperties": true,
+  "description": "Trafikledningen svarar i Klienter på Hubbens fråga om en utfart (TRAFIK-05).",
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "section": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Section",
+      "type": "string"
+    },
+    "exit": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Exit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_id",
+    "section",
+    "exit"
+  ],
+  "type": "object"
+}
