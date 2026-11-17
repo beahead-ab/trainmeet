@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.found-hub.schema.json",
+  "title": "trainmeet.tkl-1.found-hub",
+  "additionalProperties": true,
+  "description": "A hub with a started meet (H36): found on the meet's network, or one TKL in the cloud\nmay reach over the internet.",
+  "properties": {
+    "address": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "meet": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Meet"
+    },
+    "nearby": {
+      "description": "På träffnätet. Annars behövs en kod (S2).",
+      "title": "Nearby",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "address",
+    "name",
+    "nearby"
+  ],
+  "type": "object"
+}

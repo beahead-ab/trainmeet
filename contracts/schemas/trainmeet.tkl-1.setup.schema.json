@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.setup.schema.json",
+  "title": "trainmeet.tkl-1.setup",
+  "additionalProperties": true,
+  "description": "Första start, tre rutor: stationen och PIN:en. TrainMeet ID comes later (#78).",
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "station_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Station Id",
+      "type": "string"
+    },
+    "pin": {
+      "description": "4–12 siffror. Skrivs aldrig ut.",
+      "pattern": "^[0-9]{4,12}$",
+      "title": "Pin",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "station_id",
+    "pin"
+  ],
+  "type": "object"
+}

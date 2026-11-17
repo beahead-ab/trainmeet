@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.unlock.schema.json",
+  "title": "trainmeet.tkl-1.unlock",
+  "additionalProperties": true,
+  "properties": {
+    "pin": {
+      "description": "4–12 siffror. Skrivs aldrig ut.",
+      "pattern": "^[0-9]{4,12}$",
+      "title": "Pin",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pin"
+  ],
+  "type": "object"
+}

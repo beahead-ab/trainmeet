@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.connect.schema.json",
+  "title": "trainmeet.tkl-1.connect",
+  "additionalProperties": true,
+  "properties": {
+    "address": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "maxLength": 20,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    }
+  },
+  "required": [
+    "address"
+  ],
+  "type": "object"
+}

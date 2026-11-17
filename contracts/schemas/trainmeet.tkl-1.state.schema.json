@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.state.schema.json",
+  "title": "trainmeet.tkl-1.state",
+  "$defs": {
+    "TklMode": {
+      "enum": [
+        "local",
+        "cloud"
+      ],
+      "title": "TklMode",
+      "type": "string"
+    },
+    "TklStation": {
+      "additionalProperties": true,
+      "properties": {
+        "station_id": {
+          "description": "Stationens id: kort namn, skapat vid första start.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "level": {
+          "default": 0,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Level",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "station_id",
+        "name"
+      ],
+      "title": "TklStation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What the web app needs before anything else: is TKL set up, and is it unlocked.",
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/TklMode"
+    },
+    "software": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Software",
+      "type": "string"
+    },
+    "set_up": {
+      "title": "Set Up",
+      "type": "boolean"
+    },
+    "unlocked": {
+      "title": "Unlocked",
+      "type": "boolean"
+    },
+    "station": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklStation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "mode",
+    "software",
+    "set_up",
+    "unlocked"
+  ],
+  "type": "object"
+}

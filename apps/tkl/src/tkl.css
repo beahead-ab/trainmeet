@@ -1,0 +1,383 @@
+/* TrainMeet TKL on the design system: Kontrollrummets colours, Inter and JetBrains Mono. The
+   three columns stand side by side on a station screen and one under the other on a tablet or
+   phone. */
+
+main.tkl {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 20px 96px;
+}
+.liten {
+  font-size: 13px;
+  color: var(--tm-mute);
+}
+.tm-mono {
+  font-family: var(--tm-mono);
+}
+.tm-fyll {
+  flex: 1;
+}
+.tom {
+  color: var(--tm-mute);
+  font-size: 14px;
+  margin: 6px 0;
+}
+button {
+  font: inherit;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button.primar {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: var(--tm-on-blue);
+  font-weight: 600;
+}
+button.fara {
+  border-color: #c4352b;
+  color: #c4352b;
+}
+button.lank {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--tm-blue-text);
+  text-decoration: underline;
+}
+button.lank.ljus {
+  color: var(--tm-head-text);
+}
+input,
+select {
+  font: inherit;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  width: 100%;
+}
+label {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+label.kryss {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+label.kryss input {
+  width: auto;
+}
+.fel {
+  color: #c4352b;
+}
+.notis {
+  background: var(--tm-blue-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.gammal {
+  background: #fff4d6;
+  color: #5c4300;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.tm-chip,
+.chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tm-panel-2);
+  border: 1px solid var(--tm-line);
+  white-space: nowrap;
+}
+.tm-chip.gron,
+.chip.gron {
+  background: #1f7a3a;
+  border-color: #1f7a3a;
+  color: #fff;
+}
+.tm-chip.gul {
+  background: #f0b429;
+  border-color: #f0b429;
+  color: #241a00;
+}
+.knapp-chip {
+  cursor: pointer;
+}
+.klocka {
+  color: var(--tm-head-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+.rad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ställverket */
+.niva {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.niva-chip {
+  font-family: var(--tm-mono);
+  font-weight: 700;
+  background: var(--tm-head);
+  color: var(--tm-head-text);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.kolumner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .kolumner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.kolumn {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.kolumn h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.kolumn h3 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+}
+.kort {
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--tm-panel-2);
+}
+.kort p {
+  margin: 4px 0;
+}
+.kort.kommer {
+  border-left: 4px solid var(--tm-blue);
+}
+.kort.begaran {
+  background: #fff4d6;
+  color: #241a00;
+  border-color: #f0b429;
+}
+.kort.begaran .liten {
+  color: #5c4300;
+}
+.kort.klart {
+  border-left: 4px solid #1f7a3a;
+}
+.paminn {
+  font-weight: 700;
+  color: #8a5a00;
+}
+.block {
+  border-top: 1px solid var(--tm-line);
+  padding-top: 4px;
+  margin-top: 8px;
+}
+.block:first-of-type {
+  border-top: 0;
+}
+.fri {
+  padding: 6px 0;
+}
+.harnast,
+.handelser,
+.telefon ul,
+.hubbar {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.harnast li,
+.handelser li {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--tm-line);
+  font-size: 14px;
+}
+.telefon li,
+.hubbar li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.fot {
+  margin-top: 12px;
+}
+.spar-val {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.spar-val button {
+  padding: 3px 9px;
+  font-family: var(--tm-mono);
+}
+.spar-val button[aria-pressed="true"] {
+  background: var(--tm-blue);
+  color: var(--tm-on-blue);
+}
+.fragor {
+  background: #fff4d6;
+  color: #241a00;
+  border: 1px solid #f0b429;
+  border-radius: var(--tm-radius);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.fragor .liten {
+  color: #5c4300;
+}
+.fraga p {
+  margin: 4px 0;
+}
+.knappar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+/* First start, the lock, Studio and the settings */
+.forsta,
+.last {
+  max-width: 980px;
+  margin: 16px auto;
+}
+.last {
+  max-width: 360px;
+}
+.overrad {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+  margin: 0;
+}
+.rutor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.ruta {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 12px 16px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.ruta legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+.ruta h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+.valfri {
+  opacity: 0.8;
+}
+.studio table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.studio th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--tm-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px;
+}
+.studio td {
+  padding: 3px 4px;
+}
+.kort-falt {
+  max-width: 90px;
+}
+.installningar {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .installningar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sidomeny {
+  display: grid;
+  gap: 4px;
+}
+.sidomeny button {
+  text-align: left;
+}
+.sidomeny button[aria-current="page"] {
+  background: var(--tm-blue-soft);
+  border-color: var(--tm-blue);
+}
+.steg li {
+  margin: 4px 0;
+}
+.steg li.klart::marker {
+  content: "✓ ";
+  color: #1f7a3a;
+}
+.tom-sida {
+  max-width: 520px;
+  margin: 40px auto;
+  text-align: center;
+}
+
+/* A tablet: the header keeps the tabs, the clock and Lås; the chip and the station name give way
+   (the station's name stands in the page). */
+@media (max-width: 1080px) {
+  .tm-sidhuvud .tm-chip,
+  .tm-sidhuvud .tm-plats {
+    display: none;
+  }
+}

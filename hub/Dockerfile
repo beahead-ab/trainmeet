@@ -18,6 +18,7 @@ COPY apps/skarmar/package.json apps/skarmar/
 COPY apps/tmbox-webb/package.json apps/tmbox-webb/
 COPY apps/trafikledning/package.json apps/trafikledning/
 COPY apps/planering/package.json apps/planering/
+COPY apps/tkl/package.json apps/tkl/
 RUN npm ci --no-audit --no-fund
 COPY contracts/types.d.ts contracts/
 # Provbanan, which the web apps' tests draw on.

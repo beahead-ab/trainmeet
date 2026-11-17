@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.connection.schema.json",
+  "title": "trainmeet.tkl-1.connection",
+  "$defs": {
+    "ApprovalStatus": {
+      "enum": [
+        "waiting",
+        "approved",
+        "refused",
+        "revoked"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "How TKL stands with the hub. The key is never part of it.",
+  "properties": {
+    "connected": {
+      "title": "Connected",
+      "type": "boolean"
+    },
+    "address": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Address"
+    },
+    "hub_name": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hub Name"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApprovalStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "outside_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Utsidan som följde med.",
+      "title": "Outside Version"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "connected"
+  ],
+  "type": "object"
+}
