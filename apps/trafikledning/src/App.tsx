@@ -7,13 +7,14 @@ import { KlienterPage, type ClientAction } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
 import { ProvbananPage } from "./Provbanan";
+import { DeltagarePage } from "./Deltagare";
 import { StartPage } from "./StartPage";
 
 // Trafikledningen (TRAFIK-21): the start page, Provbanan, Inställningar, and Nu, Klienter and
 // Logg, under the Hub's header (@trainmeet/hubben). Automatiken is read every third second and
 // the log every fifth, as the old pages did; Nu and the clients come with the header.
 
-export type Page = "start" | "nu" | "klienter" | "logg" | "provbanan" | "installningar";
+export type Page = "start" | "deltagare" | "nu" | "klienter" | "logg" | "provbanan" | "installningar";
 
 export function pageOf(path: string): Page {
   const clean = path.replace(/\/+$/, "");
@@ -22,6 +23,7 @@ export function pageOf(path: string): Page {
   if (clean === "/drift" || clean.startsWith("/drift/")) return "nu";
   if (clean === "/provbanan") return "provbanan";
   if (clean === "/installningar") return "installningar";
+  if (clean === "/deltagare") return "deltagare";
   return "start";
 }
 
@@ -29,10 +31,11 @@ export function pageOf(path: string): Page {
 export const isDrift = (page: Page) => page === "nu" || page === "klienter" || page === "logg";
 
 /** The addresses this app draws itself; the rest (Planering, the boxes) are other pages. */
-export const isOwn = (path: string) => ["/", "/provbanan", "/installningar", "/drift"].includes(path) || path.startsWith("/drift/");
+export const isOwn = (path: string) => ["/", "/deltagare", "/provbanan", "/installningar", "/drift"].includes(path) || path.startsWith("/drift/");
 
 const ADDRESS: Record<Page, string> = {
   start: "/",
+  deltagare: "/deltagare",
   nu: "/drift",
   klienter: "/drift/klienter",
   logg: "/drift/logg",
@@ -40,7 +43,7 @@ const ADDRESS: Record<Page, string> = {
   installningar: "/installningar",
 };
 
-const MAIN: Partial<Record<Page, string>> = { start: "startsida", provbanan: "provsida", installningar: "installningssida" };
+const MAIN: Partial<Record<Page, string>> = { start: "startsida", deltagare: "deltagare", provbanan: "provsida", installningar: "installningssida" };
 
 export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
@@ -253,7 +256,11 @@ export function App() {
     <>
       <Sidhuvud {...hubState.header({ current: ADDRESS[page], navigate, bottom })} />
       <main id="innehall" className={MAIN[page] ?? "drift"}>
-        {page === "start" && (
+        {/* Deltagarna (DELT-01, S1): what everyone sees without logging in, on / and on /deltagare. */}
+        {(page === "deltagare" || (page === "start" && info?.set_up && !info.logged_in)) && (
+          <DeltagarePage now={now} elapsedMs={hubState.elapsedMs} message={hubState.message} onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))} />
+        )}
+        {page === "start" && !(info?.set_up && !info.logged_in) && (
           <StartPage
             info={info}
             version={hubState.version}

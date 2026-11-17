@@ -58,7 +58,7 @@ APPS: Final = (
         prefixes=("/drift",),
         folder="trafikledning",
         title="Trafikledningen",
-        pages=("/", "/provbanan", "/installningar"),
+        pages=("/", "/deltagare", "/provbanan", "/installningar"),
     ),
     # Planering (PLAN-23): Träffar and Versioner; Data, Bana and Graf are still drawn by the
     # hub, whose routes come first (hub/app.py).

@@ -19,6 +19,7 @@ from contracts.sync import Hello
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
+    deltagare,
     drift_api,
     hubben,
     network_api,
@@ -198,6 +199,13 @@ def create_app(
     app.state.owners = owners
     app.state.pusher = pusher
     app.include_router(hubben.router(login))
+
+    def meet_link() -> str | None:
+        """The meet over the internet: the cloud hub this hub is linked to for the meet."""
+        return next((r.address for r in links.reaches() if r.meet == running.meet), None)
+
+    # Deltagarna (DELT-01–DELT-20): träffens Wi-Fi, and what the participant page may show (S8).
+    app.include_router(deltagare.router(login, meet_link))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
     app.include_router(network_api.router(login))
     # Ny version finns, och uppdateringen på knapptryck (SYNK-19, SYNK-23): on a Pi installed

@@ -80,6 +80,9 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Störningar | `AutomationSettings.disturbance` | Påhittade förseningar som automatiken lägger in: av, normal eller störd trafik (F15). |
 | På väg hit, har lämnat | `on_the_way`, `have_left` | Tåg på sträckan, från avgången hos grannen till ankomsten här, och tvärtom. Drift räknar fram båda. |
 | Bild | `terminal.Frame` | Det en TMBox visar. Drift ritar den; boxen skickar bara knapptryck. |
+| Deltagarsidan | `/`, `/deltagare`, `Participant`, `/api/deltagare` | Det alla ser utan att logga in (DELT-01): klockan, banan, nästa händelser, Dela träffen och Anslut din TMBox. Över internet utan inloggning bara trafiken (S8). |
+| Träffens Wi-Fi | `MeetWifi`, `/api/hub/meet-wifi` | Nätet deltagarna och boxarna ansluter till på träffen (H45), inte Pi:ns eget nät. Visas på träffens nät eller för den som är inloggad. |
+| Träffens nät | `on_meet_network` | En begäran direkt från en privat, länklokal eller lokal adress, utan proxy emellan. Molnhubben nås alltid via proxy och räknas som internet. |
 | TMBox över MQTT | `hub/tmbox_mqtt.py`, `tmbox/terminal/device/<id>/…` | En fysisk box mot Mosquitto på Pi:n (DRIFT-22), utan nyckel som i dag (BOX-10). Livstecknet besvaras direkt, och varje box har en egen kö (H73). |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |

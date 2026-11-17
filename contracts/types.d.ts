@@ -884,6 +884,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/meet-wifi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["meetWifi"];
+        put: operations["setMeetWifi"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/deltagare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["participant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/wifi/save": {
         parameters: {
             query?: never;
@@ -7936,6 +7968,123 @@ export interface components {
              * @default null
              */
             checked: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetWifi
+         * @description Träffens Wi-Fi (H45, SYNK-26): det deltagarna och skärmarna visar, inte Pi:ns eget nät.
+         *     Inget namn: träffens Wi-Fi delas inte.
+         */
+        "trainmeet.hub-1.meet-wifi": {
+            /**
+             * Name
+             * @description Nätverkets namn. Tomt: delas inte.
+             * @default
+             */
+            name: string;
+            /**
+             * Open
+             * @description Öppet nät, utan lösenord.
+             * @default false
+             */
+            open: boolean;
+            /**
+             * Has Password
+             * @description Ett lösenord är inlagt.
+             * @default false
+             */
+            has_password: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetWifiChange
+         * @description Ändra träffens Wi-Fi. Utan nytt lösenord står det som var kvar, så länge namnet finns.
+         */
+        "trainmeet.hub-1.meet-wifi-change": {
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Open
+             * @default false
+             */
+            open: boolean;
+            /**
+             * Password
+             * @description 8–63 tecken. Skrivs aldrig ut i loggen och skickas aldrig tillbaka hit.
+             * @default null
+             */
+            password: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SharedWifi
+         * @description Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).
+         */
+        "trainmeet.hub-1.shared-wifi": {
+            /** Name */
+            name: string;
+            /** Open */
+            open: boolean;
+            /**
+             * Password
+             * @description Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.
+             * @default null
+             */
+            password: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Participant
+         * @description Det deltagarsidan får visa den som tittar (S1, S8). Klockan, banan och nästa händelser
+         *     läses i Driftens API, som skärmarna (H72); här står bara det som beror på var man är.
+         */
+        "trainmeet.hub-1.participant": {
+            /**
+             * Full
+             * @description På träffens nät eller inloggad: namn, foton och träffens Wi-Fi visas (S8).
+             */
+            full: boolean;
+            /**
+             * Logged In
+             * @default false
+             */
+            logged_in: boolean;
+            /**
+             * @description Träffens Wi-Fi, bara när full är sant och ett nät är inlagt.
+             * @default null
+             */
+            wifi: components["schemas"]["trainmeet.hub-1.participant.SharedWifi"] | null;
+            /**
+             * Link
+             * @description Länken till träffen över internet: molnhubben som följer Pi:n. Tom när hubben inte är kopplad till molnet; då gäller hubbens egen adress, på träffens nät.
+             * @default null
+             */
+            link: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SharedWifi
+         * @description Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).
+         */
+        "trainmeet.hub-1.participant.SharedWifi": {
+            /** Name */
+            name: string;
+            /** Open */
+            open: boolean;
+            /**
+             * Password
+             * @description Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.
+             * @default null
+             */
+            password: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -16490,6 +16639,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.update-status"];
+                };
+            };
+        };
+    };
+    meetWifi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.meet-wifi"];
+                };
+            };
+        };
+    };
+    setMeetWifi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.meet-wifi-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.meet-wifi"];
+                };
+            };
+        };
+    };
+    participant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.participant"];
                 };
             };
         };

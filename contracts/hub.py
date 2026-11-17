@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from contracts.common import Contract, Text
 
@@ -206,3 +206,57 @@ class UpdateStatus(Contract):
     )
     newer: bool = Field(default=False, description="Ny version finns (SYNK-19).")
     checked: datetime | None = Field(default=None, description="När Pi:n senast såg efter.")
+
+
+# --- Deltagarna (DELT-01–DELT-20): träffens Wi-Fi, och det deltagarsidan får visa (S8) --------
+
+
+class MeetWifi(Contract):
+    """Träffens Wi-Fi (H45, SYNK-26): det deltagarna och skärmarna visar, inte Pi:ns eget nät.
+    Inget namn: träffens Wi-Fi delas inte."""
+
+    name: str = Field(default="", max_length=32, description="Nätverkets namn. Tomt: delas inte.")
+    open: bool = Field(default=False, description="Öppet nät, utan lösenord.")
+    has_password: bool = Field(default=False, description="Ett lösenord är inlagt.")
+
+
+class MeetWifiChange(Contract):
+    """Ändra träffens Wi-Fi. Utan nytt lösenord står det som var kvar, så länge namnet finns."""
+
+    name: str = Field(default="", max_length=32)
+    open: bool = False
+    password: Annotated[str, StringConstraints(strip_whitespace=False)] | None = Field(
+        default=None,
+        description="8–63 tecken. Skrivs aldrig ut i loggen och skickas aldrig tillbaka hit.",
+    )
+
+
+class SharedWifi(Contract):
+    """Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8)."""
+
+    name: Text
+    open: bool
+    password: str | None = Field(
+        default=None,
+        description="Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.",
+    )
+
+
+class Participant(Contract):
+    """Det deltagarsidan får visa den som tittar (S1, S8). Klockan, banan och nästa händelser
+    läses i Driftens API, som skärmarna (H72); här står bara det som beror på var man är."""
+
+    full: bool = Field(
+        description="På träffens nät eller inloggad: namn, foton och träffens Wi-Fi visas (S8)."
+    )
+    logged_in: bool = False
+    wifi: SharedWifi | None = Field(
+        default=None, description="Träffens Wi-Fi, bara när full är sant och ett nät är inlagt."
+    )
+    link: Text | None = Field(
+        default=None,
+        description=(
+            "Länken till träffen över internet: molnhubben som följer Pi:n. Tom när hubben inte "
+            "är kopplad till molnet; då gäller hubbens egen adress, på träffens nät."
+        ),
+    )

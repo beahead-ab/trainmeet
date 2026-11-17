@@ -286,7 +286,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   });
 
   it("connects own AI under Den här hubben, and never shows the key (H58, H70)", () => {
-    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "natet", "uppdatering", "molnet", "ai"]);
+    expect(heaps(null)[0]?.items.map(([id]) => id)).toEqual(["hubben", "natet", "traffens-wifi", "uppdatering", "molnet", "ai"]);
     const none = renderToStaticMarkup(<SettingsPage admin now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} ai={null} />);
     expect(none).toContain("Ingen egen AI är inkopplad");
     expect(none).toContain('id="ai-connect" type="button" class="primar" disabled=""');
@@ -324,7 +324,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
 
   it("lets the administrator choose the day change by hand or automatic, and its time (F7)", () => {
     const day = { mode: "automatic", time: "04:30", fixed: true, next_game_day: 2, next_traffic_day: "tue", suggested: "04:30", due: false, waiting: false };
-    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte", "telefon"]);
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte", "telefon", "traffens-wifi"]);
     const html = settings(true, { ...now, day } as Now);
     expect(html).toContain('id="dygnsskifte"');
     expect(html).toContain('aria-pressed="true">Automatiskt</button>');

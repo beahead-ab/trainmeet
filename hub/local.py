@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS ai (
     key TEXT NOT NULL,
     checked REAL
 );
+CREATE TABLE IF NOT EXISTS meet_wifi (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    name TEXT NOT NULL,
+    open INTEGER NOT NULL,
+    password TEXT
+);
 """
 
 
@@ -83,6 +89,16 @@ class AiSetting:
     model: str
     key: str = field(repr=False)
     checked: datetime | None = None
+
+
+@dataclass(frozen=True)
+class MeetWifi:
+    """Träffens Wi-Fi as stored (H45): what participants and screens show, not the Pi's own
+    network. The password is shown on the meet's network, so it is no secret there."""
+
+    name: str
+    open: bool
+    password: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -250,6 +266,21 @@ class LocalLogin:
                     setting.checked.timestamp() if setting.checked else None,
                 ),
             )
+
+    def meet_wifi(self) -> MeetWifi | None:
+        with self._transaction() as db:
+            row = db.execute("SELECT name, open, password FROM meet_wifi").fetchone()
+        return None if row is None else MeetWifi(row[0], bool(row[1]), row[2])
+
+    def set_meet_wifi(self, wifi: MeetWifi | None) -> None:
+        """Träffens Wi-Fi, or none: then it is not shared."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM meet_wifi")
+            if wifi is not None:
+                db.execute(
+                    "INSERT INTO meet_wifi VALUES (1, ?, ?, ?)",
+                    (wifi.name, int(wifi.open), wifi.password),
+                )
 
     def clear_ai(self) -> None:
         with self._transaction() as db:
