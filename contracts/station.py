@@ -18,6 +18,7 @@ Transport (Claude, draft): HTTP with JSON under /api/station/1/ and an event str
     GET  /api/station/1/places/{place}     Snapshot
     POST /api/station/1/commands           Command         -> Reply (always with the snapshot)
     GET  /api/station/1/places/{place}/events   Event stream (text/event-stream)
+    POST /api/station/1/places/{place}/exits    ExitAnswer -> Snapshot: which exit (H26)
     PUT  /api/station/1/push               PushToken: the phone's address for push (F20)
     DELETE /api/station/1/push             no more push to this client
 
@@ -285,7 +286,11 @@ class SectionHere(Contract):
     tracks: TrackKind
     clearance_mode: ClearanceMode
     side: Side | None = None
-    exit: Id | None = Field(default=None, description="Stationens utfart för sträckan.")
+    exit: Id | None = Field(
+        default=None,
+        description="Stationens utfart för sträckan: kopplad i förväg, gissad eller besvarad "
+        "(H26).",
+    )
     occupied: bool = False
 
 
@@ -360,6 +365,33 @@ class Clearance(Contract):
     revision: int = Field(ge=0)
 
 
+class ExitChoice(Contract):
+    exit: Id
+    side: Side
+    name: Text | None = None
+
+
+class ExitQuestion(Contract):
+    """Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+    gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+    eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05)."""
+
+    station_id: Id
+    place: Id
+    section: Id
+    other_place: Id
+    other_name: Text
+    side: Side | None = Field(default=None, description="Sträckans sida vid driftplatsen.")
+    alternatives: list[ExitChoice] = Field(min_length=1)
+
+
+class ExitAnswer(Contract):
+    """Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln."""
+
+    section: Id
+    exit: Id
+
+
 class LineMessage(Contract):
     message_id: Id
     section: Id
@@ -387,6 +419,9 @@ class Snapshot(Contract):
     automatic: bool = Field(
         default=False,
         description="Automatiken sköter driftplatsen; ta tillbaka den innan något annat (F14).",
+    )
+    questions: list[ExitQuestion] = Field(
+        default_factory=list, description="Hubbens frågor om stationens utfarter (H26)."
     )
 
 

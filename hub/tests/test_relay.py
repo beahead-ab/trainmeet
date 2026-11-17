@@ -123,6 +123,18 @@ def test_a_phone_outside_the_meets_network_reaches_the_pi_through_the_cloud(
         assert [t.token for t, _ in store.push_targets(store.current())] == ["ef" * 32]
         assert cloud.delete(f"{base}/push", headers=headers).status_code == 204
         assert store.push_targets(store.current()) == []
+        # Hubbens questions about the exits are answered through the relay too (H26); a phone
+        # has no outside, so there is nothing to couple.
+        exits = cloud.post(
+            f"{base}/places/{place}/exits", json={"section": "s-x", "exit": "A"}, headers=headers
+        )
+        assert (exits.status_code, exits.json()["detail"]) == (
+            404,
+            "Utfarten eller sträckan finns inte här.",
+        )
+        # Over the internet a code is needed: the relay never joins the meet without one.
+        bare = {"kind": "tkl", "name": "TKL", "software": "TKL 0.1.0"}
+        assert cloud.post(base + "/connect", json=bare).status_code == 401
         # The same key is good on the meet's network: it is one client, on the Pi.
         assert pi.get(f"{STATION}/places/{place}", headers=headers).status_code == 200
         # The event stream: a hint that the place changed.

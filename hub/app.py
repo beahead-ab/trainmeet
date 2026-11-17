@@ -235,7 +235,7 @@ def create_app(
         )
     )
     app.include_router(tmbox_web.router(runs))
-    app.include_router(station_api.router(runs, relay_address))
+    app.include_router(station_api.router(runs, relay_address, meet=lambda: running.store))
     app.include_router(station_api.relay_router(relay))
 
     def screen_share(request: Request) -> ScreenShare:

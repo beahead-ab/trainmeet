@@ -52,6 +52,9 @@ class AnyRun:
     def station_command(self, key: str, command: station.Command) -> station.Reply:
         return self._first(UnknownClient, lambda store: store.station_command(key, command))
 
+    def station_exit(self, key: str, place: str, answer: station.ExitAnswer) -> station.Snapshot:
+        return self._first(UnknownClient, lambda store: store.station_exit(key, place, answer))
+
     def set_push(self, key: str, token: station.PushToken | None) -> None:
         self._first(UnknownClient, lambda store: store.set_push(key, token))
 

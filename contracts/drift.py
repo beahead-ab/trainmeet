@@ -46,7 +46,14 @@ from pydantic import Field, model_validator
 from contracts.common import BoxLanguage, Contract, Id, Text, TimeOfDay, Weekday
 from contracts.meet import Call, ClearanceMode, TrackKind
 from contracts.reasons import Reason
-from contracts.station import ApprovalStatus, Clearance, ClearanceStatus, Clock, MeetContext
+from contracts.station import (
+    ApprovalStatus,
+    Clearance,
+    ClearanceStatus,
+    Clock,
+    ExitQuestion,
+    MeetContext,
+)
 from contracts.terminal import DisplaySize
 
 PROTOCOL: Final = "trainmeet.drift/1"
@@ -351,6 +358,14 @@ class Revoke(Contract):
     client_id: Id
 
 
+class CoupleExit(Contract):
+    """Trafikledningen svarar i Klienter på Hubbens fråga om en utfart (TRAFIK-05)."""
+
+    client_id: Id
+    section: Id
+    exit: Id
+
+
 class Assign(Contract):
     """A TMBox gets a place and a side, as before. One box may run several places (H44).
     The language is the box's own; left out, the box keeps the one it has."""
@@ -371,6 +386,10 @@ class Client(Contract):
     language: BoxLanguage | None = Field(default=None, description="Bara för TMBoxar.")
     display: DisplaySize | None = Field(default=None, description="Bara för TMBoxar.")
     view: Text | None = Field(default=None, description="Bara för skärmar: vyn den visar.")
+    station_id: Id | None = Field(default=None, description="Bara för TKL: stationens id.")
+    questions: list[ExitQuestion] = Field(
+        default_factory=list, description="Hubbens frågor om stationens utfarter (H26)."
+    )
 
 
 class EventKind(StrEnum):

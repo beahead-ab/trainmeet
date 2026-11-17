@@ -286,6 +286,17 @@ input.tal {
 .lista li.vantar {
   border-color: var(--gul);
 }
+/* Hubben frågar om en utfart (H26): under klientens rad, över hela bredden. */
+.lista li .utfartsfragor {
+  flex-basis: 100%;
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--tm-line);
+}
+.utfartsfraga p {
+  margin: 0 0 6px;
+}
 .mellan {
   justify-content: space-between;
 }

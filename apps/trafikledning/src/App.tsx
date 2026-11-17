@@ -229,6 +229,8 @@ export function App() {
           return api.revoke({ client_id: change.client_id });
         case "view":
           return api.view({ client_id: change.client_id, view: change.view as never });
+        case "exit":
+          return api.coupleExit({ client_id: change.client_id, section: change.section, exit: change.exit });
       }
     });
     if (sent) await readClients();

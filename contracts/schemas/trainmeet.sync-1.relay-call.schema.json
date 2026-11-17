@@ -263,6 +263,28 @@
       "title": "Exit",
       "type": "object"
     },
+    "ExitAnswer": {
+      "additionalProperties": true,
+      "description": "Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "exit": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "exit"
+      ],
+      "title": "ExitAnswer",
+      "type": "object"
+    },
     "MeetContext": {
       "additionalProperties": true,
       "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
@@ -333,7 +355,8 @@
         "snapshot",
         "command",
         "revision",
-        "push"
+        "push",
+        "exit"
       ],
       "title": "RelayKind",
       "type": "string"
@@ -560,6 +583,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/PushToken"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "exit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExitAnswer"
         },
         {
           "type": "null"

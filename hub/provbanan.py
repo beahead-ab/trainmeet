@@ -19,11 +19,13 @@ from contracts.reasons import TEXT_SV
 from drift.engine import VERSION, Drift, Refused, now_utc
 from drift.store import (
     RUN_LIFETIME,
+    ExitAnswered,
     MissingRun,
     PreviewStore,
     RunLimit,
     UnknownBox,
     UnknownClient,
+    UnknownExit,
 )
 
 COOKIE = "trainmeet_provbanan"
@@ -122,7 +124,7 @@ def router(store: PreviewStore) -> APIRouter:
     def boxes(
         response: Response,
         run_id: str | None,
-        change: drift.Assign | drift.Approve | drift.Revoke | None = None,
+        change: drift.Assign | drift.Approve | drift.Revoke | drift.CoupleExit | None = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         try:
@@ -135,6 +137,8 @@ def router(store: PreviewStore) -> APIRouter:
                     listed = store.approve(run_id, change)
                 case drift.Revoke():
                     listed = store.revoke(run_id, change)
+                case drift.CoupleExit():
+                    listed = store.couple_exit(run_id, change)
                 case _:
                     listed = store.clients(run_id)
             code = store.join_code(run_id)
@@ -144,6 +148,10 @@ def router(store: PreviewStore) -> APIRouter:
             raise HTTPException(404, "Boxen finns inte i provkörningen.") from error
         except UnknownClient as error:
             raise HTTPException(404, "Klienten finns inte i provkörningen.") from error
+        except ExitAnswered as error:
+            raise HTTPException(409, str(error)) from error
+        except UnknownExit as error:
+            raise HTTPException(404, "Utfarten eller sträckan finns inte här.") from error
         return drift.PreviewClients.model_validate({"code": code, "clients": listed}).model_dump(
             mode="json"
         )
@@ -167,6 +175,12 @@ def router(store: PreviewStore) -> APIRouter:
         revocation: drift.Revoke, response: Response, run: RunCookie = None
     ) -> dict[str, Any]:
         return boxes(response, run, revocation)
+
+    @routes.post("/api/provbanan/clients/exit")
+    def couple_exit(
+        change: drift.CoupleExit, response: Response, run: RunCookie = None
+    ) -> dict[str, Any]:
+        return boxes(response, run, change)
 
     @routes.post("/api/provbanan/command")
     def command(

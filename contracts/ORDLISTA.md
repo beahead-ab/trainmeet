@@ -26,6 +26,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. |
 | Insida | – | Spårplan, signaler och adresser. Stannar alltid hos TKL. |
 | Utfart | `exit` | Där ett spår lämnar stationen, med fast id och sida. Kopplas till en sträcka per träff. |
+| Utfartsfråga | `station.ExitQuestion`, `station.ExitAnswer`, `drift.CoupleExit` | När en TKL ansluter kopplar Hubben stationens utfarter till sträckorna: på grannens namn, sidan och förra träffens svar. Är den osäker frågar den, i TKL och i Klienter, och det första svaret gäller hela träffen (H26, TRAFIK-05). Svaret minns till nästa träff med samma granne. En station som kopplats i förväg i Planering har sin tabell, `station.exit_map`. |
 | Sida | `side` | `left` eller `right`, som boxen visar en sträcka eller utfart. En box kan tilldelas en sida (`both` är förval) och ser då bara tågen på sträckorna åt det hållet. |
 | Boxspråk | `language` | TMBoxens språk: `sv`, `en`, `da`, `nb` eller `de`. Trafikledningen väljer per box; träffens land ger förvalet. Platsnamn, koder, tågnummer och spår översätts aldrig. |
 | Displaystorlek | `display` | 16×2 eller 20×4, som boxen säger när den ansluter. Allt annat räknas som 16×2. |

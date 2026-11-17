@@ -187,6 +187,7 @@ class RelayKind(StrEnum):
     COMMAND = "command"
     REVISION = "revision"  # waits until the place changes, for the event stream
     PUSH = "push"  # the phone's address for push, or none to stop
+    EXIT = "exit"  # TKL answers which exit a section has (H26)
 
 
 class RelayCall(Contract):
@@ -204,6 +205,7 @@ class RelayCall(Contract):
     known: int | None = Field(default=None, ge=0, description="Platsens revision som klienten har.")
     wait: float = Field(default=0.0, ge=0.0, le=RELAY_WAIT)
     push: station.PushToken | None = None
+    exit: station.ExitAnswer | None = None
 
 
 class RelayCalls(Contract):

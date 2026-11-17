@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.station-1.exit-answer.schema.json",
+  "title": "trainmeet.station-1.exit-answer",
+  "additionalProperties": true,
+  "description": "Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln.",
+  "properties": {
+    "section": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Section",
+      "type": "string"
+    },
+    "exit": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Exit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "section",
+    "exit"
+  ],
+  "type": "object"
+}

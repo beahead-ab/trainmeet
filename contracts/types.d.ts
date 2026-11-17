@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/station/1/places/{place}/exits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stationExit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/station/1/push": {
         parameters: {
             query?: never;
@@ -452,6 +468,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/clients/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["coupleExit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/now": {
         parameters: {
             query?: never;
@@ -686,6 +718,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["assignPreviewClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provbanan/clients/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["coupleExitPreview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2745,6 +2793,46 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.reply.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /** ExitChoice */
+        "trainmeet.station-1.reply.ExitChoice": {
+            /** Exit */
+            exit: string;
+            side: components["schemas"]["trainmeet.station-1.reply.Side"];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitQuestion
+         * @description Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+         *     gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+         *     eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).
+         */
+        "trainmeet.station-1.reply.ExitQuestion": {
+            /** Station Id */
+            station_id: string;
+            /** Place */
+            place: string;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Name */
+            other_name: string;
+            /**
+             * @description Sträckans sida vid driftplatsen.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.station-1.reply.Side"] | null;
+            /** Alternatives */
+            alternatives: components["schemas"]["trainmeet.station-1.reply.ExitChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
         /** LineMessage */
         "trainmeet.station-1.reply.LineMessage": {
             /** Message Id */
@@ -2874,7 +2962,7 @@ export interface components {
             side: components["schemas"]["trainmeet.station-1.reply.Side"] | null;
             /**
              * Exit
-             * @description Stationens utfart för sträckan.
+             * @description Stationens utfart för sträckan: kopplad i förväg, gissad eller besvarad (H26).
              * @default null
              */
             exit: string | null;
@@ -2936,6 +3024,11 @@ export interface components {
              * @default false
              */
             automatic: boolean;
+            /**
+             * Questions
+             * @description Hubbens frågor om stationens utfarter (H26).
+             */
+            questions?: components["schemas"]["trainmeet.station-1.reply.ExitQuestion"][];
         } & {
             [key: string]: unknown;
         };
@@ -3017,6 +3110,11 @@ export interface components {
              * @default false
              */
             automatic: boolean;
+            /**
+             * Questions
+             * @description Hubbens frågor om stationens utfarter (H26).
+             */
+            questions?: components["schemas"]["trainmeet.station-1.snapshot.ExitQuestion"][];
         } & {
             [key: string]: unknown;
         };
@@ -3185,6 +3283,46 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.snapshot.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /** ExitChoice */
+        "trainmeet.station-1.snapshot.ExitChoice": {
+            /** Exit */
+            exit: string;
+            side: components["schemas"]["trainmeet.station-1.snapshot.Side"];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitQuestion
+         * @description Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+         *     gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+         *     eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).
+         */
+        "trainmeet.station-1.snapshot.ExitQuestion": {
+            /** Station Id */
+            station_id: string;
+            /** Place */
+            place: string;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Name */
+            other_name: string;
+            /**
+             * @description Sträckans sida vid driftplatsen.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.station-1.snapshot.Side"] | null;
+            /** Alternatives */
+            alternatives: components["schemas"]["trainmeet.station-1.snapshot.ExitChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
         /** LineMessage */
         "trainmeet.station-1.snapshot.LineMessage": {
             /** Message Id */
@@ -3259,7 +3397,7 @@ export interface components {
             side: components["schemas"]["trainmeet.station-1.snapshot.Side"] | null;
             /**
              * Exit
-             * @description Stationens utfart för sträckan.
+             * @description Stationens utfart för sträckan: kopplad i förväg, gissad eller besvarad (H26).
              * @default null
              */
             exit: string | null;
@@ -3450,6 +3588,18 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.notice.RevisionScope": "call" | "case" | "place";
+        /**
+         * ExitAnswer
+         * @description Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln.
+         */
+        "trainmeet.station-1.exit-answer": {
+            /** Section */
+            section: string;
+            /** Exit */
+            exit: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Hello */
         "trainmeet.terminal16.hello": {
             /** Device Code */
@@ -4717,6 +4867,20 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * CoupleExit
+         * @description Trafikledningen svarar i Klienter på Hubbens fråga om en utfart (TRAFIK-05).
+         */
+        "trainmeet.drift-1.couple-exit": {
+            /** Client Id */
+            client_id: string;
+            /** Section */
+            section: string;
+            /** Exit */
+            exit: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Client */
         "trainmeet.drift-1.client": {
             /** Client Id */
@@ -4754,6 +4918,17 @@ export interface components {
              * @default null
              */
             view: string | null;
+            /**
+             * Station Id
+             * @description Bara för TKL: stationens id.
+             * @default null
+             */
+            station_id: string | null;
+            /**
+             * Questions
+             * @description Hubbens frågor om stationens utfarter (H26).
+             */
+            questions?: components["schemas"]["trainmeet.drift-1.client.ExitQuestion"][];
         } & {
             [key: string]: unknown;
         };
@@ -4782,6 +4957,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ExitChoice */
+        "trainmeet.drift-1.client.ExitChoice": {
+            /** Exit */
+            exit: string;
+            side: components["schemas"]["trainmeet.drift-1.client.Side"];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitQuestion
+         * @description Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+         *     gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+         *     eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).
+         */
+        "trainmeet.drift-1.client.ExitQuestion": {
+            /** Station Id */
+            station_id: string;
+            /** Place */
+            place: string;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Name */
+            other_name: string;
+            /**
+             * @description Sträckans sida vid driftplatsen.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.drift-1.client.Side"] | null;
+            /** Alternatives */
+            alternatives: components["schemas"]["trainmeet.drift-1.client.ExitChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.drift-1.client.Side": "left" | "right";
         /** DriftEvent */
         "trainmeet.drift-1.event": (({
             /**
@@ -6923,6 +7144,17 @@ export interface components {
              * @default null
              */
             view: string | null;
+            /**
+             * Station Id
+             * @description Bara för TKL: stationens id.
+             * @default null
+             */
+            station_id: string | null;
+            /**
+             * Questions
+             * @description Hubbens frågor om stationens utfarter (H26).
+             */
+            questions?: components["schemas"]["trainmeet.drift-1.preview-clients.ExitQuestion"][];
         } & {
             [key: string]: unknown;
         };
@@ -6946,6 +7178,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ExitChoice */
+        "trainmeet.drift-1.preview-clients.ExitChoice": {
+            /** Exit */
+            exit: string;
+            side: components["schemas"]["trainmeet.drift-1.preview-clients.Side"];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitQuestion
+         * @description Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+         *     gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+         *     eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).
+         */
+        "trainmeet.drift-1.preview-clients.ExitQuestion": {
+            /** Station Id */
+            station_id: string;
+            /** Place */
+            place: string;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Name */
+            other_name: string;
+            /**
+             * @description Sträckans sida vid driftplatsen.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.drift-1.preview-clients.Side"] | null;
+            /** Alternatives */
+            alternatives: components["schemas"]["trainmeet.drift-1.preview-clients.ExitChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.drift-1.preview-clients.Side": "left" | "right";
         /** ScreenLogin */
         "trainmeet.screen-1.login": {
             /** Name */
@@ -13936,6 +14214,8 @@ export interface components {
             wait: number;
             /** @default null */
             push: components["schemas"]["trainmeet.sync-1.relay-call.PushToken"] | null;
+            /** @default null */
+            exit: components["schemas"]["trainmeet.sync-1.relay-call.ExitAnswer"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -14069,6 +14349,18 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExitAnswer
+         * @description Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln.
+         */
+        "trainmeet.sync-1.relay-call.ExitAnswer": {
+            /** Section */
+            section: string;
+            /** Exit */
+            exit: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
          *     with stale_meet_context, so an old choice never survives a change of meet or day.
@@ -14116,7 +14408,7 @@ export interface components {
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push";
+        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit";
         /** Revision */
         "trainmeet.sync-1.relay-call.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-call.RevisionScope"];
@@ -14318,6 +14610,18 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExitAnswer
+         * @description Svaret från TKL: POST /api/station/1/places/{place}/exits med nyckeln.
+         */
+        "trainmeet.sync-1.relay-calls.ExitAnswer": {
+            /** Section */
+            section: string;
+            /** Exit */
+            exit: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
          *     with stale_meet_context, so an old choice never survives a change of meet or day.
@@ -14404,6 +14708,8 @@ export interface components {
             wait: number;
             /** @default null */
             push: components["schemas"]["trainmeet.sync-1.relay-calls.PushToken"] | null;
+            /** @default null */
+            exit: components["schemas"]["trainmeet.sync-1.relay-calls.ExitAnswer"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -14411,7 +14717,7 @@ export interface components {
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push";
+        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit";
         /** Revision */
         "trainmeet.sync-1.relay-calls.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-calls.RevisionScope"];
@@ -14714,6 +15020,46 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.relay-answer.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /** ExitChoice */
+        "trainmeet.sync-1.relay-answer.ExitChoice": {
+            /** Exit */
+            exit: string;
+            side: components["schemas"]["trainmeet.sync-1.relay-answer.Side"];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitQuestion
+         * @description Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den
+         *     gissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL
+         *     eller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).
+         */
+        "trainmeet.sync-1.relay-answer.ExitQuestion": {
+            /** Station Id */
+            station_id: string;
+            /** Place */
+            place: string;
+            /** Section */
+            section: string;
+            /** Other Place */
+            other_place: string;
+            /** Other Name */
+            other_name: string;
+            /**
+             * @description Sträckans sida vid driftplatsen.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.sync-1.relay-answer.Side"] | null;
+            /** Alternatives */
+            alternatives: components["schemas"]["trainmeet.sync-1.relay-answer.ExitChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
         /** LineMessage */
         "trainmeet.sync-1.relay-answer.LineMessage": {
             /** Message Id */
@@ -14874,7 +15220,7 @@ export interface components {
             side: components["schemas"]["trainmeet.sync-1.relay-answer.Side"] | null;
             /**
              * Exit
-             * @description Stationens utfart för sträckan.
+             * @description Stationens utfart för sträckan: kopplad i förväg, gissad eller besvarad (H26).
              * @default null
              */
             exit: string | null;
@@ -14936,6 +15282,11 @@ export interface components {
              * @default false
              */
             automatic: boolean;
+            /**
+             * Questions
+             * @description Hubbens frågor om stationens utfarter (H26).
+             */
+            questions?: components["schemas"]["trainmeet.sync-1.relay-answer.ExitQuestion"][];
         } & {
             [key: string]: unknown;
         };
@@ -15471,6 +15822,32 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    stationExit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.station-1.exit-answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.station-1.snapshot"];
                 };
             };
         };
@@ -16029,6 +16406,30 @@ export interface operations {
             };
         };
     };
+    coupleExit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.couple-exit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.client"];
+                };
+            };
+        };
+    };
     driftNow: {
         parameters: {
             query?: never;
@@ -16370,6 +16771,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["trainmeet.drift-1.assign"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.preview-clients"];
+                };
+            };
+        };
+    };
+    coupleExitPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.couple-exit"];
             };
         };
         responses: {

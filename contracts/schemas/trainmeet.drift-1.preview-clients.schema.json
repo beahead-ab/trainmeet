@@ -106,6 +106,28 @@
           "default": null,
           "description": "Bara för skärmar: vyn den visar.",
           "title": "View"
+        },
+        "station_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara för TKL: stationens id.",
+          "title": "Station Id"
+        },
+        "questions": {
+          "description": "Hubbens frågor om stationens utfarter (H26).",
+          "items": {
+            "$ref": "#/$defs/ExitQuestion"
+          },
+          "title": "Questions",
+          "type": "array"
         }
       },
       "required": [
@@ -142,6 +164,110 @@
       },
       "title": "DisplaySize",
       "type": "object"
+    },
+    "ExitChoice": {
+      "additionalProperties": true,
+      "properties": {
+        "exit": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "required": [
+        "exit",
+        "side"
+      ],
+      "title": "ExitChoice",
+      "type": "object"
+    },
+    "ExitQuestion": {
+      "additionalProperties": true,
+      "description": "Hubben är osäker på vilken av stationens utfarter en sträcka har (H26, PLAN-31). Den\ngissar på grannens namn, sidan och förra träffens svar, och frågar annars. Stationen i TKL\neller trafikledningen i Klienter svarar, och det första svaret gäller (TRAFIK-05).",
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "other_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Other Place",
+          "type": "string"
+        },
+        "other_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Other Name",
+          "type": "string"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Side"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sträckans sida vid driftplatsen."
+        },
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/ExitChoice"
+          },
+          "minItems": 1,
+          "title": "Alternatives",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "place",
+        "section",
+        "other_place",
+        "other_name",
+        "alternatives"
+      ],
+      "title": "ExitQuestion",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
     }
   },
   "additionalProperties": true,
