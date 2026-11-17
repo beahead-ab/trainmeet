@@ -158,6 +158,9 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogOut, onMessag
         <a href="/drift" onClick={linkClick(navigate, "/drift")}>
           Kör träffen →
         </a>
+        <a href="/deltagare" onClick={linkClick(navigate, "/deltagare")}>
+          Deltagarsidan →
+        </a>
       </p>
       <button id="logout-start" type="button" className="tm-knapp" onClick={onLogOut}>
         Logga ut

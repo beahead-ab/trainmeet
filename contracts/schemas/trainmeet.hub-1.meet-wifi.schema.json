@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.meet-wifi.schema.json",
+  "title": "trainmeet.hub-1.meet-wifi",
+  "additionalProperties": true,
+  "description": "Träffens Wi-Fi (H45, SYNK-26): det deltagarna och skärmarna visar, inte Pi:ns eget nät.\nInget namn: träffens Wi-Fi delas inte.",
+  "properties": {
+    "name": {
+      "default": "",
+      "description": "Nätverkets namn. Tomt: delas inte.",
+      "maxLength": 32,
+      "title": "Name",
+      "type": "string"
+    },
+    "open": {
+      "default": false,
+      "description": "Öppet nät, utan lösenord.",
+      "title": "Open",
+      "type": "boolean"
+    },
+    "has_password": {
+      "default": false,
+      "description": "Ett lösenord är inlagt.",
+      "title": "Has Password",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

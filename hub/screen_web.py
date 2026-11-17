@@ -10,9 +10,10 @@ sessionStorage and sends it as Authorization: Bearer; it is never in an address 
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException, Response
+from fastapi import APIRouter, Header, HTTPException, Request, Response
 
 from contracts import screen, station
 from drift.engine import Drift, model_time, now_utc
@@ -30,7 +31,8 @@ def package_key(drift: Drift) -> str:
     return hashlib.sha256(f"{drift.version}|{changes}".encode()).hexdigest()[:16]
 
 
-def router(runs: AnyRun) -> APIRouter:
+def router(runs: AnyRun, share: Callable[[Request], screen.ScreenShare] | None = None) -> APIRouter:
+    """`share` gives the clock its QR codes: träffens Wi-Fi and the link to the meet."""
     routes = APIRouter()
 
     @routes.post("/api/screen/session", status_code=201)
@@ -54,7 +56,9 @@ def router(runs: AnyRun) -> APIRouter:
             raise HTTPException(401, "Skärmen finns inte längre. Anslut igen.") from error
 
     @routes.get("/api/screen/picture")
-    def picture(response: Response, authorization: Authorization = None) -> dict[str, Any]:
+    def picture(
+        request: Request, response: Response, authorization: Authorization = None
+    ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         name, view, drift = shown(authorization)
         at = now_utc()
@@ -74,6 +78,7 @@ def router(runs: AnyRun) -> APIRouter:
             ),
             now=now(drift, at) if drawn else None,
             package=package_key(drift) if drawn else None,
+            share=share(request) if share is not None and view in CLOCKS else None,
         ).model_dump(mode="json")
 
     @routes.get("/api/screen/package")

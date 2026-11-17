@@ -1574,6 +1574,75 @@
         ]
       }
     },
+    "/api/hub/meet-wifi": {
+      "get": {
+        "operationId": "meetWifi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.meet-wifi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "setMeetWifi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.meet-wifi"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.meet-wifi-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/deltagare": {
+      "get": {
+        "operationId": "participant",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.participant"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/hub/wifi/save": {
       "post": {
         "operationId": "savePiWifi",
@@ -14711,6 +14780,18 @@
             "default": null,
             "description": "Vilket paket vyn ritar på: byts när versionen eller driftändringarna ändras. Paketet hämtas på /api/screen/package.",
             "title": "Package"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.ScreenShare"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "QR-koderna, för klockans två vyer (SKARM-18)."
           }
         },
         "required": [
@@ -15895,6 +15976,30 @@
         "title": "ProposalStatus",
         "type": "string"
       },
+      "trainmeet.screen-1.picture.ScreenShare": {
+        "additionalProperties": true,
+        "description": "QR-koderna i klockans hörn (SKARM-18): 1 · Wi-Fi och 2 · Träffen, som i Dela träffen.",
+        "properties": {
+          "wifi": {
+            "description": "Träffens Wi-Fi är inlagt och skärmen står på träffens nät: QR-koden ritas på /api/deltagare/wifi.svg (S8).",
+            "title": "Wifi",
+            "type": "boolean"
+          },
+          "link": {
+            "description": "Länken till träffen, för QR-koden 2 · Träffen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wifi",
+          "link"
+        ],
+        "title": "ScreenShare",
+        "type": "object"
+      },
       "trainmeet.screen-1.picture.ScreenView": {
         "enum": [
           "clock",
@@ -16627,6 +16732,183 @@
           "available"
         ],
         "title": "UpdateStatus",
+        "type": "object"
+      },
+      "trainmeet.hub-1.meet-wifi": {
+        "additionalProperties": true,
+        "description": "Träffens Wi-Fi (H45, SYNK-26): det deltagarna och skärmarna visar, inte Pi:ns eget nät.\nInget namn: träffens Wi-Fi delas inte.",
+        "properties": {
+          "name": {
+            "default": "",
+            "description": "Nätverkets namn. Tomt: delas inte.",
+            "maxLength": 32,
+            "title": "Name",
+            "type": "string"
+          },
+          "open": {
+            "default": false,
+            "description": "Öppet nät, utan lösenord.",
+            "title": "Open",
+            "type": "boolean"
+          },
+          "has_password": {
+            "default": false,
+            "description": "Ett lösenord är inlagt.",
+            "title": "Has Password",
+            "type": "boolean"
+          }
+        },
+        "title": "MeetWifi",
+        "type": "object"
+      },
+      "trainmeet.hub-1.meet-wifi-change": {
+        "additionalProperties": true,
+        "description": "Ändra träffens Wi-Fi. Utan nytt lösenord står det som var kvar, så länge namnet finns.",
+        "properties": {
+          "name": {
+            "default": "",
+            "maxLength": 32,
+            "title": "Name",
+            "type": "string"
+          },
+          "open": {
+            "default": false,
+            "title": "Open",
+            "type": "boolean"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "8–63 tecken. Skrivs aldrig ut i loggen och skickas aldrig tillbaka hit.",
+            "title": "Password"
+          }
+        },
+        "title": "MeetWifiChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.shared-wifi": {
+        "additionalProperties": true,
+        "description": "Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).",
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.",
+            "title": "Password"
+          }
+        },
+        "required": [
+          "name",
+          "open"
+        ],
+        "title": "SharedWifi",
+        "type": "object"
+      },
+      "trainmeet.hub-1.participant": {
+        "additionalProperties": true,
+        "description": "Det deltagarsidan får visa den som tittar (S1, S8). Klockan, banan och nästa händelser\nläses i Driftens API, som skärmarna (H72); här står bara det som beror på var man är.",
+        "properties": {
+          "full": {
+            "description": "På träffens nät eller inloggad: namn, foton och träffens Wi-Fi visas (S8).",
+            "title": "Full",
+            "type": "boolean"
+          },
+          "logged_in": {
+            "default": false,
+            "title": "Logged In",
+            "type": "boolean"
+          },
+          "wifi": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.hub-1.participant.SharedWifi"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffens Wi-Fi, bara när full är sant och ett nät är inlagt."
+          },
+          "link": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Länken till träffen över internet: molnhubben som följer Pi:n. Tom när hubben inte är kopplad till molnet; då gäller hubbens egen adress, på träffens nät.",
+            "title": "Link"
+          }
+        },
+        "required": [
+          "full"
+        ],
+        "title": "Participant",
+        "type": "object"
+      },
+      "trainmeet.hub-1.participant.SharedWifi": {
+        "additionalProperties": true,
+        "description": "Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).",
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.",
+            "title": "Password"
+          }
+        },
+        "required": [
+          "name",
+          "open"
+        ],
+        "title": "SharedWifi",
         "type": "object"
       },
       "trainmeet.hub-1.version": {

@@ -11,14 +11,16 @@ from pathlib import Path
 from threading import Event, Thread
 from typing import Any, Final
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 
 from contracts import hub
+from contracts.screen import ScreenShare
 from contracts.sync import Hello
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
+    deltagare,
     drift_api,
     hubben,
     network_api,
@@ -198,6 +200,13 @@ def create_app(
     app.state.owners = owners
     app.state.pusher = pusher
     app.include_router(hubben.router(login))
+
+    def meet_link() -> str | None:
+        """The meet over the internet: the cloud hub this hub is linked to for the meet."""
+        return next((r.address for r in links.reaches() if r.meet == running.meet), None)
+
+    # Deltagarna (DELT-01–DELT-20): träffens Wi-Fi, and what the participant page may show (S8).
+    app.include_router(deltagare.router(login, meet_link))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
     app.include_router(network_api.router(login))
     # Ny version finns, och uppdateringen på knapptryck (SYNK-19, SYNK-23): on a Pi installed
@@ -228,7 +237,18 @@ def create_app(
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs, relay_address))
     app.include_router(station_api.relay_router(relay))
-    app.include_router(screen_web.router(runs))
+
+    def screen_share(request: Request) -> ScreenShare:
+        """The clock's QR codes (SKARM-18): the Wi-Fi only on the meet's network (S8)."""
+        wifi = login.meet_wifi()
+        here = f"{request.headers.get('x-forwarded-proto') or request.url.scheme}://"
+        here += request.headers.get("host") or request.url.netloc
+        return ScreenShare(
+            wifi=bool(wifi and wifi.name) and deltagare.on_meet_network(request),
+            link=meet_link() or f"{here}/",
+        )
+
+    app.include_router(screen_web.router(runs, screen_share))
 
     # The pages, built in React under apps/ (H62, GRUND-36).
     app.include_router(web.router(web_root))

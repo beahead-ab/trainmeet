@@ -97,6 +97,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.wifi-profile-change": hub.WifiProfileChange,
     "trainmeet.hub-1.wifi-action": hub.WifiAction,
     "trainmeet.hub-1.update-status": hub.UpdateStatus,
+    "trainmeet.hub-1.meet-wifi": hub.MeetWifi,
+    "trainmeet.hub-1.meet-wifi-change": hub.MeetWifiChange,
+    "trainmeet.hub-1.shared-wifi": hub.SharedWifi,
+    "trainmeet.hub-1.participant": hub.Participant,
     "trainmeet.hub-1.version": hub.Version,
     "trainmeet.hub-1.ai-service": hub.AiService,
     "trainmeet.hub-1.ai-service-change": hub.AiServiceChange,
@@ -495,6 +499,16 @@ def openapi() -> str:
     route("get", "/api/hub/wifi", "piWifi", h + "wifi-status", bearer=True)
     route("get", "/api/hub/update", "hubUpdate", h + "update-status", bearer=True)
     route("post", "/api/hub/update", "startHubUpdate", h + "update-status", bearer=True)
+    route("get", "/api/hub/meet-wifi", "meetWifi", h + "meet-wifi", bearer=True)
+    route(
+        "put",
+        "/api/hub/meet-wifi",
+        "setMeetWifi",
+        h + "meet-wifi",
+        h + "meet-wifi-change",
+        bearer=True,
+    )
+    route("get", "/api/deltagare", "participant", h + "participant")
     wifi = "/api/hub/wifi/"
     route(
         "post",

@@ -1,4 +1,5 @@
-import { Banoversikt, between, minutesOf, trafficOf, type Leg, type Package as HubPackage, type Traffic } from "@trainmeet/hubben";
+import { Banoversikt, nextHappenings, numbers, trafficOf, type Leg, type Package as HubPackage } from "@trainmeet/hubben";
+export { nextHappenings, numbers, type Happening } from "@trainmeet/hubben";
 import type { Package, ScreenPicture } from "./api";
 import { clockText } from "./Klocka";
 
@@ -7,40 +8,6 @@ import { clockText } from "./Klocka";
 
 type Now = NonNullable<ScreenPicture["now"]>;
 const DAYS: Record<string, string> = { mon: "Måndag", tue: "Tisdag", wed: "Onsdag", thu: "Torsdag", fri: "Fredag", sat: "Lördag", sun: "Söndag" };
-
-export type Happening = { minute: number; number: string; text: string; note: string | null; leg: Leg };
-
-/** The next things that happen, from now on: departures, the trains that wait for an answer,
- * and arrivals of those on the line. */
-export function nextHappenings(seen: Now, names: Map<string, string>, count = 4): Happening[] {
-  const clock = minutesOf(seen.clock.time) ?? 0;
-  const name = (id: string) => names.get(id) ?? id;
-  const found: Happening[] = [];
-  for (const leg of seen.legs) {
-    if (leg.state === "on_the_way" && leg.arrival) found.push({ minute: minutesOf(leg.arrival) ?? 0, number: leg.train_number, text: `ankommer ${name(leg.to_place)}${leg.track ? ` spår ${leg.track}` : ""}`, note: null, leg });
-    else if ((leg.state === "planned" || leg.state === "requested" || leg.state === "cleared") && leg.departure) {
-      found.push({ minute: minutesOf(leg.departure) ?? 0, number: leg.train_number, text: `avgår ${name(leg.from_place)} mot ${name(leg.to_place)}`, note: leg.state === "requested" ? "väntar på svar" : leg.state === "cleared" ? "klart" : null, leg });
-    }
-  }
-  return found
-    .map((item) => ({ item, away: between(clock, item.minute) }))
-    .filter(({ item, away }) => away >= 0 || item.leg.state !== "planned")
-    .filter(({ away }) => away >= -10 && away <= 180)
-    .sort((a, b) => a.away - b.away)
-    .slice(0, count)
-    .map(({ item, away }) => ({ ...item, note: item.note ?? (away <= 0 ? "nu" : `om ${away} min`) }));
-}
-
-/** The four numbers along the top. */
-export function numbers(traffic: Traffic): [number, string][] {
-  const inside = [...traffic.tracks.values()].flatMap((tracks) => [...tracks.values()].flat()).filter((entry) => entry.state !== "coming").length + [...traffic.yards.values()].reduce((sum, count) => sum + count, 0);
-  return [
-    [traffic.online.length, "tåg på linjen"],
-    [inside, "tåg inne på driftplatserna"],
-    [traffic.requested.length, "väntar på svar"],
-    [traffic.cleared.length, "klart, inte avgått"],
-  ];
-}
 
 export function OversiktView({ picture, pkg, fetchedAt, now }: { picture: ScreenPicture; pkg: Package | null; fetchedAt: number; now: number }) {
   const seen = picture.now as Now | null | undefined;

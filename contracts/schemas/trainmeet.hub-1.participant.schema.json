@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.participant.schema.json",
+  "title": "trainmeet.hub-1.participant",
+  "$defs": {
+    "SharedWifi": {
+      "additionalProperties": true,
+      "description": "Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "open": {
+          "title": "Open",
+          "type": "boolean"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lösenordet, när ett är inlagt: det boxen och telefonen frågar efter.",
+          "title": "Password"
+        }
+      },
+      "required": [
+        "name",
+        "open"
+      ],
+      "title": "SharedWifi",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Det deltagarsidan får visa den som tittar (S1, S8). Klockan, banan och nästa händelser\nläses i Driftens API, som skärmarna (H72); här står bara det som beror på var man är.",
+  "properties": {
+    "full": {
+      "description": "På träffens nät eller inloggad: namn, foton och träffens Wi-Fi visas (S8).",
+      "title": "Full",
+      "type": "boolean"
+    },
+    "logged_in": {
+      "default": false,
+      "title": "Logged In",
+      "type": "boolean"
+    },
+    "wifi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SharedWifi"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffens Wi-Fi, bara när full är sant och ett nät är inlagt."
+    },
+    "link": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Länken till träffen över internet: molnhubben som följer Pi:n. Tom när hubben inte är kopplad till molnet; då gäller hubbens egen adress, på träffens nät.",
+      "title": "Link"
+    }
+  },
+  "required": [
+    "full"
+  ],
+  "type": "object"
+}

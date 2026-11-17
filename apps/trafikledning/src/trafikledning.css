@@ -558,3 +558,156 @@ main button:disabled {
     gap: 6px;
   }
 }
+
+/* Deltagarna (DELT-01–DELT-20): telephone first, two columns on a computer (from 1100 px), light
+   and dark after the device through the design's colours (DELT-12). */
+main.deltagare {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.deltagarsida {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.deltagarsida > * {
+  min-width: 0;
+}
+.deltagarsida .kort {
+  margin: 0;
+}
+@media (min-width: 1100px) {
+  .deltagarsida {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+    align-items: start;
+  }
+  .deltagarsida .deltagare-klocka,
+  .deltagarsida .deltagare-bana {
+    grid-column: 1;
+  }
+  .deltagarsida .deltagare-handelser,
+  .deltagarsida .deltagare-anslut {
+    grid-column: 2;
+  }
+  .deltagarsida .deltagare-handelser {
+    grid-row: 1 / span 2;
+  }
+}
+.deltagare-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.deltagare-live .prick {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1f9d55;
+}
+.stor-klocka {
+  font-size: clamp(3rem, 14vw, 5rem);
+  line-height: 1;
+  margin: 6px 0;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.knapprad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.tm-knapp.bred {
+  width: 100%;
+  justify-content: center;
+}
+.bana-svep {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+}
+.bana-svep .banoversikt {
+  display: block;
+  min-width: 900px;
+  width: 100%;
+  height: auto;
+}
+.handelser {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.handelser li {
+  display: grid;
+  grid-template-columns: 3.4em 3.6em 1fr;
+  gap: 2px 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--tm-line);
+}
+.handelser li .liten {
+  grid-column: 3;
+}
+dialog.blad {
+  margin: auto auto 0;
+  width: min(560px, 100%);
+  max-height: 88vh;
+  border: 0;
+  border-radius: 18px 18px 0 0;
+  padding: 20px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+}
+dialog.blad::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+dialog.blad header h2 {
+  margin: 0;
+}
+.qr-par {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 14px 0;
+}
+.qr-par figure {
+  margin: 0;
+  text-align: center;
+}
+.qr-par img {
+  background: #fff;
+  border-radius: 8px;
+}
+.lank-rad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lank-rad code {
+  overflow-wrap: anywhere;
+}
+.steg {
+  padding-left: 1.4em;
+}
+.steg li {
+  margin: 0 0 10px;
+}
+.steg li b,
+.steg li span {
+  display: block;
+}
+ul.chips {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+}
+.formular label.kryss {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.formular label.kryss input {
+  padding: 0;
+}

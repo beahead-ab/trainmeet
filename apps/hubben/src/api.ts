@@ -22,6 +22,9 @@ export type WifiProfile = Schemas["trainmeet.hub-1.wifi-status.WifiProfile"];
 export type WifiProfileChange = Schemas["trainmeet.hub-1.wifi-profile-change"];
 export type WifiAction = Schemas["trainmeet.hub-1.wifi-action"];
 export type UpdateStatus = Schemas["trainmeet.hub-1.update-status"];
+export type MeetWifi = Schemas["trainmeet.hub-1.meet-wifi"];
+export type MeetWifiChange = Schemas["trainmeet.hub-1.meet-wifi-change"];
+export type Participant = Schemas["trainmeet.hub-1.participant"];
 export type WifiVerb = "scan" | "delete" | "order" | "connect" | "confirm" | "rollback";
 const NETWORK = { "X-TrainMeet-Network": "1" };
 export type CloudLinkChange = Schemas["trainmeet.sync-1.cloud-link-change"];
@@ -75,6 +78,11 @@ export const hub = {
   startUpdate: () => call<UpdateStatus>("/api/hub/update", {}, NETWORK),
   saveWifi: (change: Partial<WifiProfileChange> & Pick<WifiProfileChange, "ssid" | "security">) => call<WifiStatus>("/api/hub/wifi/save", change, NETWORK),
   wifiAction: (action: WifiVerb, given: Partial<WifiAction>) => call<WifiStatus>(`/api/hub/wifi/${action}`, given, NETWORK),
+  // Träffens Wi-Fi (H45): what participants and screens show; the password never comes back.
+  meetWifi: () => call<MeetWifi>("/api/hub/meet-wifi"),
+  saveMeetWifi: (change: Partial<MeetWifiChange>) => call<MeetWifi>("/api/hub/meet-wifi", change),
+  // Deltagarna (S8): what the participant page may show the one who looks.
+  participant: () => call<Participant>("/api/deltagare"),
   // Egen AI under Den här hubben (H58): the key goes in and is never shown again.
   ai: () => call<AiService>("/api/hub/ai"),
   connectAi: (change: AiServiceChange) => call<AiService>("/api/hub/ai", change),

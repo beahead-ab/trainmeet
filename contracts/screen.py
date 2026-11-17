@@ -40,6 +40,18 @@ class ShowView(Contract):
     view: ScreenView | None = None
 
 
+class ScreenShare(Contract):
+    """QR-koderna i klockans hörn (SKARM-18): 1 · Wi-Fi och 2 · Träffen, som i Dela träffen."""
+
+    wifi: bool = Field(
+        description=(
+            "Träffens Wi-Fi är inlagt och skärmen står på träffens nät: QR-koden ritas på "
+            "/api/deltagare/wifi.svg (S8)."
+        )
+    )
+    link: Text = Field(description="Länken till träffen, för QR-koden 2 · Träffen.")
+
+
 class ScreenPicture(Contract):
     """What the screen shows now. Without a view it waits, and says its name."""
 
@@ -58,4 +70,7 @@ class ScreenPicture(Contract):
             "Vilket paket vyn ritar på: byts när versionen eller driftändringarna ändras. "
             "Paketet hämtas på /api/screen/package."
         ),
+    )
+    share: ScreenShare | None = Field(
+        default=None, description="QR-koderna, för klockans två vyer (SKARM-18)."
     )

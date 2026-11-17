@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
+import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -42,6 +42,7 @@ export function heaps(now: Now | null): Heap[] {
     items: [
       ["hubben", "Namn och version"],
       ["natet", "Pi:ns nät"],
+      ...(now ? [] : ([["traffens-wifi", "Träffens Wi-Fi"]] as [string, string][])),
       ["uppdatering", "Uppdatering"],
       ["molnet", "Molnet"],
       ["ai", "AI"],
@@ -57,6 +58,7 @@ export function heaps(now: Now | null): Heap[] {
         ["automatik", "Automatik"],
         ["dygnsskifte", "Dygnsskifte"],
         ["telefon", "Telefonnummer"],
+        ["traffens-wifi", "Träffens Wi-Fi"],
       ],
     },
     machine,
@@ -94,6 +96,7 @@ export function SettingsPage(props: SettingsProps) {
           {now && <Automatik {...props} now={now} />}
           {now && <Dygnsskifte {...props} now={now} />}
           {now && <Telefon {...props} now={now} />}
+          <TraffensWifi admin={props.admin} />
           <section id="hubben" className="kort" aria-labelledby="hubben-rubrik">
             <h2 id="hubben-rubrik">Namn och version</h2>
             <p className="liten">Gäller den här hubben och alla träffar på den.</p>
@@ -209,6 +212,76 @@ const SECURITY: [WifiProfile["security"], string][] = [
 /** Den här hubben → Pi:ns nät (SYNK-07, SYNK-26, H45): the Pi's own Wi-Fi, not the meet's.
  * Anslut nu is tried: keep it within 90 seconds, or NetworkManager goes back by itself. A
  * change is only made in the browser on the Pi or over HTTPS; a password never comes back. */
+/** Träffens Wi-Fi (H45, DELT-02): what the participants and screens show, not the Pi's own
+ * network. No name: it is not shared. The password is never sent back here. */
+export function TraffensWifi({ admin, initial }: { admin: boolean; initial?: MeetWifi }) {
+  const [state, setState] = useState<MeetWifi | null>(initial ?? null);
+  const [name, setName] = useState(initial?.name ?? "");
+  const [open, setOpen] = useState(initial?.open ?? false);
+  const [password, setPassword] = useState("");
+  const [said, setSaid] = useState("");
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => {
+    if (!admin || initial) return;
+    void hub.meetWifi().then((found) => {
+      setState(found);
+      setName(found.name);
+      setOpen(found.open);
+    }, () => undefined);
+  }, [admin, initial]);
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaid("");
+    try {
+      const saved = await hub.saveMeetWifi({ name, open, password: password || null });
+      setState(saved);
+      setPassword("");
+      setDrawn(Date.now());
+      setSaid(saved.name ? "Sparat. Deltagarna ser det på träffens nät." : "Träffens Wi-Fi delas inte.");
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    }
+  };
+  return (
+    <section id="traffens-wifi" className="kort" aria-labelledby="traffens-wifi-rubrik">
+      <h2 id="traffens-wifi-rubrik">Träffens Wi-Fi</h2>
+      <p className="liten">Det deltagarna ser på träffens nät eller inloggade, i Dela träffen och i Anslut din TMBox. Pi:ns eget nät ställs under Den här hubben.</p>
+      {!admin ? (
+        <p className="liten">Logga in för att ändra träffens Wi-Fi.</p>
+      ) : (
+        <form id="traffens-wifi-form" className="formular" onSubmit={(event) => void save(event)}>
+          {state?.name && (
+            <figure className="qr-forhand">
+              <img src={`/api/deltagare/wifi.svg?v=${drawn}`} alt={`QR-koden för ${state.name}`} width={140} height={140} />
+              <figcaption className="liten">1 · Wi-Fi</figcaption>
+            </figure>
+          )}
+          <label>
+            Nätverkets namn <input id="traffens-wifi-namn" maxLength={32} value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />
+          </label>
+          <label className="kryss">
+            <input id="traffens-wifi-oppet" type="checkbox" checked={open} onChange={(event) => setOpen(event.target.checked)} /> Öppet nät, utan lösenord
+          </label>
+          {!open && (
+            <label>
+              Lösenord, 8–63 tecken
+              <input id="traffens-wifi-losen" type="password" minLength={8} maxLength={63} autoComplete="off" placeholder={state?.has_password ? "oförändrat" : ""} value={password} onChange={(event) => setPassword(event.target.value)} />
+            </label>
+          )}
+          <div className="installningsfot">
+            <span className="liten" role="status" id="traffens-wifi-said">
+              {said || "Utan namn delas träffens Wi-Fi inte."}
+            </span>
+            <button type="submit" className="primar">
+              Spara
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export function Natet({ admin, initial }: { admin: boolean; initial?: WifiStatus }) {
   const [state, setState] = useState<WifiStatus | null>(initial ?? null);
   const [editing, setEditing] = useState<string | null>(null);

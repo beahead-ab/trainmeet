@@ -16,6 +16,7 @@ const picture = (change: Partial<ScreenPicture> = {}): ScreenPicture => ({
   clock: { time: "06:00", seconds: 6 * 3600, running: true, speed: 4, game_day: 1 },
   now: null,
   package: null,
+  share: null,
   ...change,
 });
 
@@ -31,6 +32,20 @@ describe("a meet screen (SKARM-14)", () => {
     const html = renderToStaticMarkup(<Screen picture={picture({ view: null })} fetchedAt={0} now={0} message="" code="" />);
     expect(html).toContain("Väntar på en vy");
     expect(html).toContain("TV vid entrén");
+  });
+
+  it("has the QR codes for the Wi-Fi and the meet in the corner, or one code without the Wi-Fi (SKARM-18)", () => {
+    const both = renderToStaticMarkup(<Screen picture={picture({ share: { wifi: true, link: "http://trainmeet.local/" } })} fetchedAt={0} now={0} message="" code="" />);
+    expect(both).toContain('id="qr-koder"');
+    expect(both).toContain('src="/api/deltagare/wifi.svg"');
+    expect(both).toContain("1 · Wi-Fi");
+    expect(both).toContain(`src="/api/deltagare/traffen.svg?address=${encodeURIComponent("http://trainmeet.local/")}"`);
+    expect(both).toContain("2 · Träffen");
+    const one = renderToStaticMarkup(<Screen picture={picture({ share: { wifi: false, link: "https://test.hub.trainmeet.app/" } })} fetchedAt={0} now={0} message="" code="" />);
+    expect(one).not.toContain("wifi.svg");
+    expect(one).toContain("Skanna – allt om träffen");
+    const none = renderToStaticMarkup(<Screen picture={picture()} fetchedAt={0} now={0} message="" code="" />);
+    expect(none).not.toContain('id="qr-koder"');
   });
 
   it("shows the meet clock, analog or digital, running on at its speed between the hub's answers (SKARM-23)", () => {

@@ -546,3 +546,24 @@ button {
   color: var(--mute);
   font-size: 1.9vh;
 }
+
+/* QR-koderna i klockans hörn (SKARM-18). */
+.qr-horn {
+  position: absolute;
+  right: 32px;
+  bottom: 32px;
+  display: flex;
+  gap: 20px;
+}
+.qr-horn figure {
+  margin: 0;
+  text-align: center;
+  font-size: 18px;
+}
+.qr-horn img {
+  width: 150px;
+  height: 150px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+}

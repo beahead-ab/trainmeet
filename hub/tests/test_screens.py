@@ -60,6 +60,33 @@ def test_a_screen_waits_under_vantar_until_it_gets_the_clock(hub: TestClient) ->
     assert picture(hub, headers).view == screen.ScreenView.CLOCK_DIGITAL, "the two styles (H74)"
 
 
+def test_the_clock_has_the_qr_codes_and_the_wifi_only_on_the_meets_network(
+    hub: TestClient,
+) -> None:
+    """SKARM-18: 1 · Wi-Fi and 2 · Träffen in the clock's corner. The Wi-Fi code only for a
+    screen on the meet's network (S8); the other views have no codes."""
+    client_id, headers = join(hub)
+    hub.post(API + "/clients/view", json={"client_id": client_id, "view": "clock"})
+    assert picture(hub, headers).share == screen.ScreenShare(
+        wifi=False, link="http://testserver/"
+    ), "no Wi-Fi entered yet"
+    assert hub.post("/api/hub/meet-wifi", json={"name": "Träffen", "open": True}).status_code == 200
+    on_site = TestClient(hub.app, client=("192.168.4.30", 50000))
+    near = screen.ScreenPicture.model_validate(
+        on_site.get("/api/screen/picture", headers=headers).json()
+    )
+    assert near.share is not None and near.share.wifi is True
+    over_internet = TestClient(hub.app, client=("192.168.4.30", 50000))
+    far = screen.ScreenPicture.model_validate(
+        over_internet.get(
+            "/api/screen/picture", headers={**headers, "X-Forwarded-For": "8.8.8.8"}
+        ).json()
+    )
+    assert far.share is not None and far.share.wifi is False
+    hub.post(API + "/clients/view", json={"client_id": client_id, "view": "tracks"})
+    assert picture(hub, headers).share is None
+
+
 def test_banoversikten_gets_the_meet_as_it_runs_and_the_package(hub: TestClient) -> None:
     """SKARM-09: the views that draw the line get Nu with the picture and the package once; the
     package's key changes with a driftändring."""
