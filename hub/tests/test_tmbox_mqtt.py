@@ -416,13 +416,16 @@ def free_port() -> int:
 
 @pytest.fixture
 def broker(tmp_path: Path) -> Iterator[int]:
+    """A Mosquitto of its own, as the old Server's tests started it: a port and no config file
+    (without one Mosquitto 2 listens on localhost only and lets anyone in). Ubuntu's AppArmor
+    keeps Mosquitto from reading a config file in a test's own folder."""
     binary = shutil.which("mosquitto")
     if binary is None:
         pytest.skip("mosquitto saknas här; CI installerar den")
     port = free_port()
-    config = tmp_path / "mosquitto.conf"
-    config.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n")
-    process = subprocess.Popen([binary, "-c", str(config)], stderr=subprocess.DEVNULL)
+    said = tmp_path / "mosquitto.log"
+    with said.open("wb") as log:
+        process = subprocess.Popen([binary, "-p", str(port)], stdout=log, stderr=log)
     try:
         deadline = time.monotonic() + 10
         while True:
@@ -430,7 +433,8 @@ def broker(tmp_path: Path) -> Iterator[int]:
                 socket.create_connection(("127.0.0.1", port), timeout=0.2).close()
                 break
             except OSError:
-                assert time.monotonic() < deadline, "mosquitto did not start"
+                if process.poll() is not None or time.monotonic() > deadline:
+                    pytest.fail("mosquitto startade inte: " + said.read_text(errors="replace"))
                 time.sleep(0.05)
         yield port
     finally:
