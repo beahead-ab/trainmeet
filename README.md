@@ -60,6 +60,18 @@ Catalogs bild byggs med `docker build -f catalog/Dockerfile -t trainmeet-catalog
 
 Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Catalog in med TrainMeet ID i stället för provinloggningen (#66), och med `CATALOG_ID_API` frågar Catalog ID:s API om delade vagnparker vid varje anrop (#49); se `catalog/settings.py`. Mot ett ID på egen dator, som nedan: `CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_PUBLIC_URL=http://localhost:8001` och klienthemligheten som ID startades med.
 
+### TKL på egen dator
+
+TrainMeet TKL är stationens eget program (KLAR-22). På nivå 0 är det bara klarering: spår och utfarter som en lista i Studio, och ställverket med Tåg · Klarering · Händelser mot hubbens stationsprotokoll. TKL har en egen liten server som håller stationen, PIN-koden och nyckeln från godkännandet, och en webbapp i `apps/tkl`. Servern använder bara `contracts/`.
+
+```sh
+npm ci && npm run build -w apps/tkl     # webbappen, till apps/tkl/dist
+uv run python -m tkl                    # TKL på http://localhost:8090, nås också från plattor på samma nät
+npm run dev -w apps/tkl                 # eller webbappen med omladdning, mot port 8090
+```
+
+På träffens nät hittar TKL hubben själv med DNS-SD (`_tmbox._tcp`, samma som boxarna) och ansluter utan kod. Över internet behövs hubbens adress och koden från trafikledningen. `TKL_DATA_DIR` säger var stationen sparas (förval `~/.trainmeet-tkl`), `TKL_PORT` vilken port den svarar på. I molnet körs TKL med `TKL_MODE=cloud`: en station per webbläsare, och bara de hubbar som står i `TKL_HUBBAR`. Bilden byggs med `docker build -f tkl/Dockerfile -t trainmeet-tkl .`; webbappens typer och tester körs när bilden byggs.
+
 ### TrainMeet ID på egen dator
 
 TrainMeet ID är [Keycloak](https://www.keycloak.org/) med ett eget tillägg i `id/email-code`: inloggning och nytt konto med en kod till e-posten, utan lösenord, passkey som tillval, och inloggningssidorna i TrainMeets utseende på svenska och engelska (#66). Realmen ligger i `id/realm/trainmeet.json` och läses in första gången Keycloak startar; den har inga hemligheter, bara platshållare som fylls från miljön. Lösenordet till mejlservern läses ur Keycloaks valv, en fil.
@@ -78,7 +90,7 @@ Bredvid Keycloak, på samma adress, finns ID:s eget API (#67): klubbarna och med
 
 ## Testmiljön
 
-https://test.hub.trainmeet.app, https://test.catalog.trainmeet.app och https://test.id.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
+https://test.hub.trainmeet.app, https://test.tkl.trainmeet.app, https://test.catalog.trainmeet.app och https://test.id.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
 
 [Öppna Provbanan](https://test.hub.trainmeet.app/provbanan) och starta en provkörning. Prova tåg 101 från Norrby för begärd klarering och tåg 102 från Sjövik för direktklarering. Du kan starta och stoppa klockan, svara från nästa driftplats och följa tåget till ankomst. Provkörningen är separat för varje webbläsare och sparas i ett dygn.
 
@@ -88,11 +100,13 @@ Hubben kör också en riktig träff (steg 3). Den som först öppnade testhubben
 
 TrainMeet ID ligger på samma server med en egen PostgreSQL, där ID:s API har databasen `idapi` bredvid Keycloaks. Lösenorden till databasen och administratören och Catalogs klienthemlighet skapas av `deploy/testmiljo.py` och ligger i Scaleways Secret Manager. Mejlen med koderna skickas med Scaleways Transactional Email från konto@trainmeet.se; nyckeln ligger i GitHub som `TEM_SECRET_KEY` och skrivs till ID:s valv på servern. Utan nyckeln startar ID ändå, men inga koder kommer fram, och Catalog har kvar provinloggningen. Med nyckeln loggar Catalog in med ID. Administrationen av Keycloak går inte att nå utifrån.
 
+[TKL](https://test.tkl.trainmeet.app) är TKL i molnet på nivå 0 (#76). Gör första start med stationens namn och en PIN-kod, skriv spår och utfarter i *Studio*, och anslut under *Inställningar › Anslutning* till testhubben med koden från din provkörning i Provbanan. Godkänn TKL under Provbanans klienter; sedan klarerar TKL tåg mot de andra driftplatserna. Stationen hör till webbläsaren och försvinner efter en månad utan användning.
+
 Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff, lägger till Tellurians planeringsfil (JSON, nivå 4), läser importrapporten, rättar telefon och klareringsläge under *Data* och publicerar en version under *Versioner* (steg 4a). Drift kör sedan versionen: välj den under *Byt träff*. Värnamos planeringsfil finns som testdata i `integrationer/tests/fixtures/varnamo.json.gz`.
 
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
-- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app), `TESTID_DOMAIN` (förval test.id.trainmeet.app), `TESTTAGS_DOMAIN` (förval trainmeet.app, taggarnas adress) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
+- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app), `TESTID_DOMAIN` (förval test.id.trainmeet.app), `TESTPI_DOMAIN` (förval test.pi.trainmeet.app), `TESTTKL_DOMAIN` (förval test.tkl.trainmeet.app), `TESTTAGS_DOMAIN` (förval trainmeet.app, taggarnas adress) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
 - **Kvoten:** Scaleway låter ett konto skapa servrar först när betalsättet är verifierat, och fler typer när identiteten är verifierad. Säger jobbet att kvoten är slut, listar det vilka servertyper kontot får skapa (om applikationen har behörigheten `IAMReadOnly`), annars se *Organization → Quotas* i Scaleways konsol.
 
 ### Engångsuppsättningen

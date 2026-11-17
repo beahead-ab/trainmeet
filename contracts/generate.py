@@ -28,6 +28,7 @@ from contracts import (
     station_outside,
     sync,
     terminal,
+    tkl,
 )
 from contracts import id as id_api
 
@@ -37,6 +38,8 @@ CATALOG_OPENAPI = SCHEMA_DIR.parent / "catalog.openapi.json"
 CATALOG_PREFIX = "trainmeet.catalog-"
 ID_OPENAPI = SCHEMA_DIR.parent / "id.openapi.json"
 ID_PREFIX = "trainmeet.id-"
+TKL_OPENAPI = SCHEMA_DIR.parent / "tkl.openapi.json"
+TKL_PREFIX = "trainmeet.tkl-"
 BASE_URL = "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/"
 
 # File stem -> model. The stem says the contract, its version and the message.
@@ -52,6 +55,16 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.station-1.push-token": station.PushToken,
     "trainmeet.station-1.notice": station.Notice,
     "trainmeet.station-1.exit-answer": station.ExitAnswer,
+    "trainmeet.tkl-1.state": tkl.TklState,
+    "trainmeet.tkl-1.setup": tkl.TklSetUp,
+    "trainmeet.tkl-1.unlock": tkl.TklUnlock,
+    "trainmeet.tkl-1.pin-change": tkl.TklPinChange,
+    "trainmeet.tkl-1.studio": tkl.TklStudio,
+    "trainmeet.tkl-1.found-hub": tkl.FoundHub,
+    "trainmeet.tkl-1.connect": tkl.TklConnect,
+    "trainmeet.tkl-1.connection": tkl.TklConnection,
+    "trainmeet.tkl-1.view": tkl.TklView,
+    "trainmeet.tkl-1.command": tkl.TklCommand,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -326,7 +339,7 @@ def components(stems: list[str]) -> dict[str, JsonSchemaValue]:
 def openapi() -> str:
     """The Hub's HTTP API."""
     hub_components = components(
-        [s for s in CONTRACTS if not s.startswith((CATALOG_PREFIX, ID_PREFIX))]
+        [s for s in CONTRACTS if not s.startswith((CATALOG_PREFIX, ID_PREFIX, TKL_PREFIX))]
     )
     paths: dict[str, dict[str, JsonSchemaValue]] = {}
 
@@ -1033,7 +1046,97 @@ def id_openapi() -> str:
     )
 
 
-OPENAPI_FILES = {OPENAPI: openapi, CATALOG_OPENAPI: catalog_openapi, ID_OPENAPI: id_openapi}
+def tkl_openapi() -> str:
+    """TrainMeet TKL's own API, between its server and its web app (KLAR-22). The session is a
+    cookie set when the PIN unlocks TKL. The hub's station protocol is in openapi.json."""
+    paths: dict[str, dict[str, JsonSchemaValue]] = {}
+    t = "trainmeet.tkl-1."
+    st = "trainmeet.station-1."
+
+    def route(
+        method: str,
+        path: str,
+        operation: str,
+        response: str | None,
+        request: str | None = None,
+        *,
+        many: bool = False,
+        stream: bool = False,
+    ) -> None:
+        responses: dict[str, JsonSchemaValue] = {"204": {"description": "No Content"}}
+        if response is not None:
+            body = openapi_ref(response)
+            if many:
+                body = {"type": "array", "items": body}
+            media = "application/json"
+            if stream:
+                body, media = {"type": "string", "x-event-schema": body}, "text/event-stream"
+            responses = {"200": {"description": "OK", "content": {media: {"schema": body}}}}
+        entry: JsonSchemaValue = {"operationId": operation, "responses": responses}
+        if request:
+            entry["requestBody"] = {
+                "required": True,
+                "content": {"application/json": {"schema": openapi_ref(request)}},
+            }
+        params = [
+            {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
+            for part in path.split("/")
+            if part.startswith("{")
+        ]
+        if params:
+            entry["parameters"] = params
+        paths.setdefault(path, {})[method] = entry
+
+    a = "/api/tkl/1"
+    route("get", a + "/state", "tklState", t + "state")
+    route("post", a + "/setup", "tklSetUp", t + "state", t + "setup")
+    route("post", a + "/unlock", "tklUnlock", t + "state", t + "unlock")
+    route("post", a + "/lock", "tklLock", t + "state")
+    route("post", a + "/pin", "tklPin", None, t + "pin-change")
+    route("get", a + "/studio", "tklStudio", t + "studio")
+    route("put", a + "/studio", "tklSaveList", t + "studio", "trainmeet.station-outside-1")
+    route("post", a + "/studio/version", "tklNewVersion", t + "studio")
+    route("get", a + "/hubs", "tklHubs", t + "found-hub", many=True)
+    route("get", a + "/connection", "tklConnection", t + "connection")
+    route("post", a + "/connection", "tklConnect", t + "connection", t + "connect")
+    route("delete", a + "/connection", "tklDisconnect", t + "connection")
+    route("get", a + "/places/{place}", "tklPlace", t + "view")
+    route("post", a + "/commands", "tklCommand", st + "reply", t + "command")
+    route("post", a + "/places/{place}/exits", "tklExit", t + "view", st + "exit-answer")
+    route("get", a + "/places/{place}/events", "tklEvents", st + "event", stream=True)
+    stems = [
+        s
+        for s in CONTRACTS
+        if s.startswith(TKL_PREFIX)
+        or s in {st + "reply", st + "event", st + "exit-answer", "trainmeet.station-outside-1"}
+    ]
+    return (
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "info": {"title": "TrainMeet TKL · kontrakten", "version": "1"},
+                "paths": paths,
+                "components": {
+                    "schemas": components(stems),
+                    "securitySchemes": {
+                        "session": {"type": "apiKey", "in": "cookie", "name": "tkl_session"}
+                    },
+                },
+                "security": [{"session": []}],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+OPENAPI_FILES = {
+    OPENAPI: openapi,
+    CATALOG_OPENAPI: catalog_openapi,
+    ID_OPENAPI: id_openapi,
+    TKL_OPENAPI: tkl_openapi,
+}
 
 
 def main(argv: list[str]) -> int:

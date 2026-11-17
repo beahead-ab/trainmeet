@@ -124,7 +124,7 @@ def test_a_pretend_pi_follows_the_test_hub() -> None:
     assert "- pi-data:/data" in pi and "127.0.0.1:8084:8080" in pi
     assert "{$PI_DOMAIN}" in caddyfile and "reverse_proxy pi:8080" in caddyfile
     assert 'PI_DOMAIN="${7:-test.pi.trainmeet.app}"' in up and "pi:8084" in up
-    assert '"$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    assert '"$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh' in workflow
     hub_image = (ROOT / "hub" / "Dockerfile").read_text()
     assert "mkdir /data && chown hub:hub /data" in hub_image
 
@@ -192,8 +192,35 @@ def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -
     assert "printf 'TAGS_DOMAIN=%s\\nCATALOG_TAG_BASE=%s\\n'" in up
     assert "TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}" in workflow
     assert 'TAG_BASE="https://$TAGS_DOMAIN/t/"' in workflow
-    assert '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    assert (
+        '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    )
     assert "- name: Prova taggarnas adress" in workflow
+
+
+def test_tkl_in_the_cloud_reaches_the_test_hub_only_over_the_internet() -> None:
+    """KLAR-22, #76: test.tkl.trainmeet.app is TKL in the cloud, one station per browser. It
+    reaches the test hub by its public address, through Caddy, so the hub counts it as over the
+    internet and asks for a code (H23); never by compose's network, where it would look near."""
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    tkl = compose.split("\n  tkl:\n")[1].split("\n\n")[0]
+    assert "image: trainmeet-tkl:${HUB_TAG}" in tkl
+    assert "TKL_MODE: cloud" in tkl and "TKL_HUBBAR: https://${HUB_DOMAIN}" in tkl
+    assert "http://hub" not in tkl
+    assert "- tkl-data:/data" in tkl and "127.0.0.1:8085:8090" in tkl
+    assert "TKL_DOMAIN: ${TKL_DOMAIN:-test.tkl.trainmeet.app}" in compose
+    site = caddyfile.split("{$TKL_DOMAIN} {")[1].split("\n}")[0]
+    assert "reverse_proxy tkl:8090" in site and 'X-Robots-Tag "noindex, nofollow"' in site
+    assert 'TKL_DOMAIN="${8:-test.tkl.trainmeet.app}"' in up and "tkl:8085" in up
+    assert 'docker build -f tkl/Dockerfile -t "trainmeet-tkl:$TAG"' in workflow
+    assert "- name: Prova TKL:s adress" in workflow
+    assert (
+        "name: TKL:s bild" in workflow and "needs: [tester, bilden, catalog, id, tkl]" in workflow
+    )
 
 
 def test_help_goes_to_the_support_address_from_the_settings() -> None:

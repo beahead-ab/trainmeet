@@ -1,6 +1,6 @@
-# Caddy framför testhubben, Låtsas-Pi, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt
-# från Let's Encrypt när DNS-raderna för HUB_DOMAIN, PI_DOMAIN, CATALOG_DOMAIN, ID_DOMAIN och
-# TAGS_DOMAIN pekar på servern.
+# Caddy framför testhubben, Låtsas-Pi, TKL, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt
+# från Let's Encrypt när DNS-raderna för HUB_DOMAIN, PI_DOMAIN, TKL_DOMAIN, CATALOG_DOMAIN,
+# ID_DOMAIN och TAGS_DOMAIN pekar på servern.
 # Saknas en rad väntar den adressen; de andra fungerar ändå.
 {
 	admin off
@@ -29,6 +29,13 @@
 	import skydd
 	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy pi:8080
+}
+
+# TrainMeet TKL i molnet (#76, KLAR-22). Not for the search engines.
+{$TKL_DOMAIN} {
+	import skydd
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy tkl:8090
 }
 
 # TrainMeet Catalog (C35, CAT-218). Catalog sets its own Content-Security-Policy.

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Körs på servern av jobbet "Testmiljön", efter att bilderna trainmeet-hub:$1,
-# trainmeet-catalog:$1, trainmeet-id:$1 och trainmeet-idapi:$1 har laddats in och catalog.env, id.env,
-# id-vault/ och catalog-backup.sh har lagts dit.
+# trainmeet-catalog:$1, trainmeet-id:$1, trainmeet-idapi:$1 och trainmeet-tkl:$1 har laddats in
+# och catalog.env, id.env, id-vault/ och catalog-backup.sh har lagts dit.
 # Startar de nya versionerna, provar dem och städar bort gamla versioner (de tre senaste blir
 # kvar). Catalogs databas säkerhetskopieras och provas före migreringen (CAT-39).
 set -eu
@@ -16,6 +16,8 @@ TAGS_DOMAIN="${5:-trainmeet.app}"
 TAG_BASE="${6:-https://$CATALOG_DOMAIN/t/}"
 # Låtsas-Pi (#73): the same hub as a Pi runs it, following the test hub.
 PI_DOMAIN="${7:-test.pi.trainmeet.app}"
+# TKL i molnet (#76): trainmeet-tkl:$1 too.
+TKL_DOMAIN="${8:-test.tkl.trainmeet.app}"
 cd /srv/trainmeet
 
 umask 077
@@ -27,7 +29,7 @@ mkdir -p id-vault
 TRIAL=on
 if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
 {
-  printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\nPI_DOMAIN=%s\n' "$TAG" "$DOMAIN" "$PI_DOMAIN"
+  printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\nPI_DOMAIN=%s\nTKL_DOMAIN=%s\n' "$TAG" "$DOMAIN" "$PI_DOMAIN" "$TKL_DOMAIN"
   printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"
@@ -110,7 +112,7 @@ if [ ! -s id-vault/trainmeet_smtp-password ]; then
 fi
 
 # The new versions must answer on the server itself, with the right commit.
-for service in hub:8080 pi:8084 catalog:8081 id-api:8083; do
+for service in hub:8080 pi:8084 tkl:8085 catalog:8081 id-api:8083; do
   name="${service%%:*}"
   port="${service##*:}"
   i=0
@@ -126,7 +128,7 @@ for service in hub:8080 pi:8084 catalog:8081 id-api:8083; do
   echo "$name svarar med version $TAG."
 done
 
-for image in trainmeet-hub trainmeet-catalog trainmeet-id trainmeet-idapi; do
+for image in trainmeet-hub trainmeet-catalog trainmeet-id trainmeet-idapi trainmeet-tkl; do
   docker images "$image" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +4 | cut -f2 |
     while read -r old; do
       [ "$old" = "$TAG" ] || docker image rm "$image:$old" >/dev/null 2>&1 || true

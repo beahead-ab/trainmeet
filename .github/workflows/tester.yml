@@ -1,6 +1,7 @@
 # Körs på varje PR och varje ändring på main: kodstil, typer, testerna och bilderna för
-# Hubben, Catalog och TrainMeet ID. Alla fyra kontrollerna, "Tester", "Hubbens bild",
-# "Catalogs bild" och "ID:s bild", ska vara gröna innan en PR slås ihop.
+# Hubben, Catalog, TrainMeet ID och TKL, och Pi-paketet. Alla kontrollerna, "Tester", "Hubbens
+# bild", "Catalogs bild", "ID:s bild", "TKL:s bild" och "Pi-paketet", ska vara gröna innan en PR
+# slås ihop.
 name: Tester
 
 on:
@@ -68,6 +69,7 @@ jobs:
           npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts --check
           npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts --check
           npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts --check
+          npx --yes openapi-typescript@7.10.1 contracts/tkl.openapi.json -o contracts/tkl.d.ts --check
 
   bilden:
     name: Hubbens bild
@@ -192,6 +194,48 @@ jobs:
 
   # TrainMeet Catalog: webbappens typer och tester körs när bilden byggs. Sedan provas bilden
   # med testmiljöns egen compose-fil: databasen, säkerhetskopian före migreringen, migreringen,
+  # TKL i molnet (#76, KLAR-22): webbappens typer och prov, bilden, och första start och PIN-låset
+  # i den byggda bilden. Klareringen mot hubben provas i "Tester" (tests/test_tkl_klarering.py).
+  tkl:
+    name: TKL:s bild
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg bilden
+        run: >
+          docker build -f tkl/Dockerfile -t trainmeet-tkl:prov
+          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+
+      - name: Starta bilden och prova TKL
+        run: |
+          docker run -d --name tkl -p 127.0.0.1:8090:8090 \
+            -e TKL_HUBBAR=https://hub.invalid trainmeet-tkl:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8090/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8090/api/version | grep -q '"commit":"${{ github.sha }}"'
+          curl -fsS http://127.0.0.1:8090/ | grep -q '<title>TrainMeet TKL</title>'
+          curl -fsS http://127.0.0.1:8090/studio | grep -q '<title>TrainMeet TKL</title>'
+          curl -fsS http://127.0.0.1:8090/api/tkl/1/state | grep -q '"mode":"cloud","software":"TKL'
+          # Första start ger en station i den här webbläsaren; en annan har ingen.
+          J=$(mktemp)
+          curl -fsS -c "$J" -b "$J" -H 'Content-Type: application/json' \
+            -d '{"name":"Exempelby","station_id":"exb","pin":"4711"}' \
+            http://127.0.0.1:8090/api/tkl/1/setup | grep -q '"unlocked":true'
+          curl -fsS -b "$J" http://127.0.0.1:8090/api/tkl/1/studio | grep -q '"station_id":"exb"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/api/tkl/1/studio)" = 401
+          # I molnet bara de hubbar TKL är inställd för, aldrig en adress någon skriver.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -H 'Content-Type: application/json' \
+            -d '{"address":"http://169.254.169.254"}' http://127.0.0.1:8090/api/tkl/1/connection)" = 422
+          curl -fsS -b "$J" http://127.0.0.1:8090/api/tkl/1/hubs | grep -q '"address":"https://hub.invalid"'
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: docker logs tkl || true
+
   # Catalog i läget check, provinloggningen och en säkerhetskopia med data i (CAT-39).
   catalog:
     name: Catalogs bild
@@ -470,7 +514,7 @@ jobs:
 
   testmiljon:
     name: Testmiljön
-    needs: [tester, bilden, catalog, id]
+    needs: [tester, bilden, catalog, id, tkl]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -490,6 +534,7 @@ jobs:
       CATALOG_DOMAIN: ${{ vars.TESTCATALOG_DOMAIN || 'test.catalog.trainmeet.app' }}
       ID_DOMAIN: ${{ vars.TESTID_DOMAIN || 'test.id.trainmeet.app' }}
       PI_DOMAIN: ${{ vars.TESTPI_DOMAIN || 'test.pi.trainmeet.app' }}
+      TKL_DOMAIN: ${{ vars.TESTTKL_DOMAIN || 'test.tkl.trainmeet.app' }}
       TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}
       TAG: ${{ github.sha }}
     steps:
@@ -543,6 +588,7 @@ jobs:
               --build-arg TRAINMEET_BUILT="$BUILT" .
           done
           docker build -f id/api.Dockerfile -t "trainmeet-idapi:$TAG" --build-arg TRAINMEET_COMMIT="$TAG" .
+          docker build -f tkl/Dockerfile -t "trainmeet-tkl:$TAG" --build-arg TRAINMEET_COMMIT="$TAG" .
 
       - name: Servern hos Scaleway
         id: server
@@ -594,7 +640,7 @@ jobs:
           APNS_KEY: ${{ secrets.APNS_KEY }}
           IP: ${{ steps.server.outputs.ip }}
         run: |
-          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
           cat deploy/testmiljo/catalog-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/catalog-backup.sh'
@@ -620,7 +666,7 @@ jobs:
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
             TAG_BASE="https://$TAGS_DOMAIN/t/"
           fi
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" < deploy/testmiljo/up.sh
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
@@ -748,6 +794,36 @@ jobs:
             sleep 5
           done
           echo "::error::https://$PI_DOMAIN svarar inte."
+          exit 1
+
+      - name: Prova TKL:s adress
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$TKL_DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$TKL_DOMAIN pekar inte på servern än. Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### TKL är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **CNAME**, namn **${TKL_DOMAIN%%.trainmeet.app}**, mål **$DOMAIN**, proxy **av** (grått moln)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$TKL_DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
+              {
+                echo "### TKL är ute"
+                echo ""
+                echo "- https://$TKL_DOMAIN"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$TKL_DOMAIN svarar inte."
           exit 1
 
       - name: Prova taggarnas adress

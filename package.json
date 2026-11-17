@@ -11,7 +11,8 @@
     "apps/skarmar",
     "apps/tmbox-webb",
     "apps/trafikledning",
-    "apps/planering"
+    "apps/planering",
+    "apps/tkl"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",

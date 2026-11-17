@@ -38,6 +38,20 @@ services:
     ports:
       - "127.0.0.1:8084:8080"
 
+  # TrainMeet TKL i molnet (#76, KLAR-22): one station per browser, reaching only the test hub,
+  # over the internet as any TKL outside the meet's network, so a code is always needed.
+  tkl:
+    image: trainmeet-tkl:${HUB_TAG}
+    restart: unless-stopped
+    environment:
+      TKL_MODE: cloud
+      TKL_HUBBAR: https://${HUB_DOMAIN}
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - tkl-data:/data
+    ports:
+      - "127.0.0.1:8085:8090"
+
   # TrainMeet Catalog's own PostgreSQL. No port outside: only Catalog reaches it, on
   # compose's own network. The data lives in the volume catalog-db.
   catalog-db:
@@ -185,6 +199,7 @@ services:
       CATALOG_DOMAIN: ${CATALOG_DOMAIN:?CATALOG_DOMAIN saknas}
       ID_DOMAIN: ${ID_DOMAIN:?ID_DOMAIN saknas}
       TAGS_DOMAIN: ${TAGS_DOMAIN:?TAGS_DOMAIN saknas}
+      TKL_DOMAIN: ${TKL_DOMAIN:-test.tkl.trainmeet.app}
     ports:
       - "80:80"
       - "443:443"
@@ -195,6 +210,7 @@ services:
       - caddy-config:/config
 
 volumes:
+  tkl-data:
   caddy-data:
   caddy-config:
   catalog-db:
