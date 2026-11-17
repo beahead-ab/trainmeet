@@ -33,7 +33,7 @@ Hubben på Pi:n körs som tjänster i systemd, utan containrar (DRIFT-20). Molnh
 
 ## Uppdatera
 
-Gå till Kugghjulet → Uppdatering → Sök och installera. Det går inte medan en träff pågår. Pi:n hämtar den senaste versionen och startar om hubben. Svarar hubben inte inom en minut går Pi:n tillbaka till versionen före. De tre senaste versionerna sparas.
+Kugghjulet → Uppdatering visar Ny version finns när det finns en nyare version i `pi-senaste`. Pi:n ser efter högst en gång i timmen, och bara när någon har Inställningar öppet. Tryck Uppdatera nu, eller Sök och installera. Det går inte medan en träff pågår. Pi:n hämtar den senaste versionen och startar om hubben. Svarar hubben inte inom en minut går Pi:n tillbaka till versionen före. De tre senaste versionerna sparas.
 
 ## Glömd PIN-kod
 

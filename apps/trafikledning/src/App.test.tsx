@@ -159,7 +159,7 @@ describe("the addresses", () => {
   });
 });
 
-describe("Uppdatering under the gear (SYNK-23)", () => {
+describe("Uppdatering under the gear (SYNK-19, SYNK-23)", () => {
   it("updates a Pi on the button, but never during a meet", () => {
     const idle = renderToStaticMarkup(<Uppdatering admin initial={{ available: true, build: "abc123def456", state: "done", message: "Hubben kör version abc123def456", at: null, meet_running: false } as never} />);
     expect(idle).toContain("abc123def456");
@@ -168,6 +168,18 @@ describe("Uppdatering under the gear (SYNK-23)", () => {
     const during = renderToStaticMarkup(<Uppdatering admin initial={{ available: true, build: "abc123def456", state: null, meet_running: true } as never} />);
     expect(during).toContain("En träff pågår");
     expect(during).toContain('disabled=""');
+  });
+  it("shows Ny version finns when pi-senaste holds another change", () => {
+    const base = { available: true, build: "abc123def456", state: null, meet_running: false };
+    const newer = renderToStaticMarkup(<Uppdatering admin initial={{ ...base, latest: "fedcba987654", newer: true, checked: "2026-11-17T06:00:00Z" } as never} />);
+    expect(newer).toContain("Ny version finns.");
+    expect(newer).toContain("fedcba987654");
+    expect(newer).toContain("Uppdatera nu");
+    const same = renderToStaticMarkup(<Uppdatering admin initial={{ ...base, latest: "abc123def456", newer: false, checked: "2026-11-17T06:00:00Z" } as never} />);
+    expect(same).not.toContain("Ny version finns");
+    expect(same).toContain("Sök och installera");
+    const offline = renderToStaticMarkup(<Uppdatering admin initial={{ ...base, latest: null, newer: false, checked: null } as never} />);
+    expect(offline).toContain("Har den internet?");
   });
   it("says that the hub in the cloud is updated by its deploy", () => {
     const html = renderToStaticMarkup(<Uppdatering admin initial={{ available: false, reason: "Hubben i molnet uppdateras när en ändring läggs ut. Uppdateringen här gäller en Pi." } as never} />);

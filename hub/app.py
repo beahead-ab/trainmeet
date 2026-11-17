@@ -193,8 +193,10 @@ def create_app(
     app.include_router(hubben.router(login))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
     app.include_router(network_api.router(login))
-    # Uppdateringen på knapptryck (SYNK-23): on a Pi installed with deploy/pi.
-    app.include_router(update_api.router(login, running, current))
+    # Ny version finns, och uppdateringen på knapptryck (SYNK-19, SYNK-23): on a Pi installed
+    # with deploy/pi.
+    app.state.latest = latest = update_api.Latest()
+    app.include_router(update_api.router(login, running, current, latest=latest))
     app.include_router(provbanan.router(preview))
     app.include_router(drift_api.router(running, login))
     app.include_router(

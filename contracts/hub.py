@@ -188,8 +188,8 @@ class WifiAction(Contract):
 
 
 class UpdateStatus(Contract):
-    """Uppdateringen på Pi:n, på knapptryck och aldrig under en träff. Pi:n hämtar det senaste
-    Pi-paketet, provar det och går tillbaka om hubben inte svarar."""
+    """Uppdateringen på Pi:n: Ny version finns, på knapptryck och aldrig under en träff. Pi:n
+    hämtar det senaste Pi-paketet, provar det och går tillbaka om hubben inte svarar."""
 
     available: bool = Field(description="Hubben kan uppdatera sig själv: en Pi med installationen.")
     reason: Text | None = None
@@ -201,3 +201,8 @@ class UpdateStatus(Contract):
     message: Text | None = None
     at: datetime | None = None
     meet_running: bool = Field(default=False, description="En träff pågår: då uppdateras inget.")
+    latest: Text | None = Field(
+        default=None, description="Ändringen i det senaste Pi-paketet, när Pi:n kunde se den."
+    )
+    newer: bool = Field(default=False, description="Ny version finns (SYNK-19).")
+    checked: datetime | None = Field(default=None, description="När Pi:n senast såg efter.")

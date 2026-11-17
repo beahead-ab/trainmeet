@@ -1,10 +1,12 @@
-"""Uppdateringen på Pi:n (SYNK-23) and the Pi's installation (deploy/pi, DRIFT-20, SYNK-26):
-on a button, never during a meet, and only on a Pi installed for it."""
+"""Uppdateringen på Pi:n (SYNK-19, SYNK-23) and the Pi's installation (deploy/pi, DRIFT-20,
+SYNK-26): Ny version finns, on a button, never during a meet, and only on a Pi installed for it."""
 
 from __future__ import annotations
 
 import json
 import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,7 @@ from hub.build_info import BuildInfo
 PIN = "482915"
 MARK = {"X-TrainMeet-Network": "1"}
 PI = Path(__file__).resolve().parents[2] / "deploy" / "pi"
+READ_LATEST = update_api.fetch_latest
 
 
 @pytest.fixture
@@ -24,6 +27,25 @@ def hub(tmp_path: Path) -> TestClient:
     client = TestClient(create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db"))
     assert client.post("/api/hub/setup", json={"name": "Pi:n", "pin": PIN}).status_code == 201
     return client
+
+
+class Release:
+    """pi-senaste as the Pi sees it: unreachable until a test says which change it holds."""
+
+    def __init__(self) -> None:
+        self.change: str | None = None
+        self.asked: list[str] = []
+
+    def fetch(self, url: str) -> str | None:
+        self.asked.append(url)
+        return self.change
+
+
+@pytest.fixture(autouse=True)
+def release(monkeypatch: pytest.MonkeyPatch) -> Release:
+    shown = Release()
+    monkeypatch.setattr(update_api, "fetch_latest", shown.fetch)
+    return shown
 
 
 @pytest.fixture
@@ -79,6 +101,77 @@ def test_never_during_a_meet(
     # The clock stands: now it may.
     assert hub.post("/api/drift/1/clock", json={"action": "stop"}).status_code == 200
     assert hub.post("/api/hub/update", headers=MARK).status_code == 200
+
+
+def test_the_hub_shows_ny_version_finns(
+    tmp_path: Path, release: Release, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SYNK-19: the Pi says when pi-senaste holds another change than the one it runs, reads it
+    at most once an hour, and says nothing new without internet."""
+    monkeypatch.setenv("TRAINMEET_UPDATE_STATUS", str(tmp_path / "update.json"))
+    running = BuildInfo(version="0.1.0", commit="abc123def456")
+    app = create_app(running, preview_db=tmp_path / "p.db")
+    now = [1000.0]
+    app.state.latest.clock = lambda: now[0]
+    pi = TestClient(app)
+    assert pi.post("/api/hub/setup", json={"name": "Pi:n", "pin": PIN}).status_code == 201
+
+    # No internet: nothing new is said, and it is tried again after five minutes.
+    shown = pi.get("/api/hub/update").json()
+    assert (shown["latest"], shown["newer"], shown["checked"]) == (None, False, None)
+    assert release.asked == [update_api.RELEASE + "/BUILD"]
+    release.change = "fedcba987654"
+    pi.get("/api/hub/update")
+    assert len(release.asked) == 1
+    now[0] += update_api.CHECK_AGAIN
+    shown = pi.get("/api/hub/update").json()
+    assert (shown["build"], shown["latest"], shown["newer"]) == (
+        "abc123def456",
+        "fedcba987654",
+        True,
+    )
+    assert shown["checked"] is not None
+
+    # Then once an hour; a miss keeps what was seen.
+    release.change = None
+    now[0] += update_api.CHECK_AGAIN
+    assert pi.get("/api/hub/update").json()["latest"] == "fedcba987654"
+    assert len(release.asked) == 2
+    now[0] += update_api.CHECK_EVERY
+    release.change = "abc123def456"
+    shown = pi.get("/api/hub/update").json()
+    assert (shown["latest"], shown["newer"]) == ("abc123def456", False)
+
+
+def test_the_latest_change_is_read_with_care(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only a change name is believed; anything else, or no answer, says nothing new."""
+    bodies = {"/ok/BUILD": b"fedcba987654\n", "/html/BUILD": b"<html>Not Found</html>"}
+
+    class Answer(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = bodies.get(self.path)
+            self.send_response(200 if body else 404)
+            self.end_headers()
+            self.wfile.write(body or b"")
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Answer)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        monkeypatch.setenv("TRAINMEET_RELEASE", base + "/ok/")
+        assert update_api.latest_source() == base + "/ok/BUILD"
+        assert READ_LATEST(update_api.latest_source()) == "fedcba987654"
+        assert READ_LATEST(base + "/html/BUILD") is None
+        assert READ_LATEST(base + "/missing/BUILD") is None
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert READ_LATEST(base + "/ok/BUILD") is None, "no answer at all"
+    monkeypatch.delenv("TRAINMEET_RELEASE")
+    assert update_api.latest_source() == update_api.RELEASE + "/BUILD"
 
 
 # --- The Pi's installation, read as it is shipped ----------------------------------------------
