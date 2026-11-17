@@ -90,6 +90,34 @@ export function Klocka({ picture, fetchedAt, now }: { picture: ScreenPicture; fe
       <p id="state" className={clock.running ? "lage" : "lage stopp"}>
         {clock.running ? `Klockan går i ${clock.speed}×` : "Klockan står still"}
       </p>
+      {picture.share && <QrCorner share={picture.share} />}
     </section>
+  );
+}
+
+/** QR-koderna i hörnet (SKARM-18): 1 · Wi-Fi and 2 · Träffen, as in Dela träffen. Without the
+ * Wi-Fi, one code: everything about the meet. */
+export function QrCorner({ share }: { share: NonNullable<ScreenPicture["share"]> }) {
+  const meet = `/api/deltagare/traffen.svg?address=${encodeURIComponent(share.link)}`;
+  return (
+    <aside id="qr-koder" className="qr-horn" aria-label="QR-koder">
+      {share.wifi ? (
+        <>
+          <figure>
+            <img src="/api/deltagare/wifi.svg" alt="Träffens Wi-Fi" />
+            <figcaption>1 · Wi-Fi</figcaption>
+          </figure>
+          <figure>
+            <img src={meet} alt="Träffen" />
+            <figcaption>2 · Träffen</figcaption>
+          </figure>
+        </>
+      ) : (
+        <figure>
+          <img src={meet} alt="Träffen" />
+          <figcaption>Skanna – allt om träffen</figcaption>
+        </figure>
+      )}
+    </aside>
   );
 }

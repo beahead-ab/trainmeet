@@ -14780,6 +14780,18 @@
             "default": null,
             "description": "Vilket paket vyn ritar på: byts när versionen eller driftändringarna ändras. Paketet hämtas på /api/screen/package.",
             "title": "Package"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.ScreenShare"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "QR-koderna, för klockans två vyer (SKARM-18)."
           }
         },
         "required": [
@@ -15963,6 +15975,30 @@
         ],
         "title": "ProposalStatus",
         "type": "string"
+      },
+      "trainmeet.screen-1.picture.ScreenShare": {
+        "additionalProperties": true,
+        "description": "QR-koderna i klockans hörn (SKARM-18): 1 · Wi-Fi och 2 · Träffen, som i Dela träffen.",
+        "properties": {
+          "wifi": {
+            "description": "Träffens Wi-Fi är inlagt och skärmen står på träffens nät: QR-koden ritas på /api/deltagare/wifi.svg (S8).",
+            "title": "Wifi",
+            "type": "boolean"
+          },
+          "link": {
+            "description": "Länken till träffen, för QR-koden 2 · Träffen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wifi",
+          "link"
+        ],
+        "title": "ScreenShare",
+        "type": "object"
       },
       "trainmeet.screen-1.picture.ScreenView": {
         "enum": [

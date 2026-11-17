@@ -7011,6 +7011,11 @@ export interface components {
              * @default null
              */
             package: string | null;
+            /**
+             * @description QR-koderna, för klockans två vyer (SKARM-18).
+             * @default null
+             */
+            share: components["schemas"]["trainmeet.screen-1.picture.ScreenShare"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -7598,6 +7603,24 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.screen-1.picture.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
+         * ScreenShare
+         * @description QR-koderna i klockans hörn (SKARM-18): 1 · Wi-Fi och 2 · Träffen, som i Dela träffen.
+         */
+        "trainmeet.screen-1.picture.ScreenShare": {
+            /**
+             * Wifi
+             * @description Träffens Wi-Fi är inlagt och skärmen står på träffens nät: QR-koden ritas på /api/deltagare/wifi.svg (S8).
+             */
+            wifi: boolean;
+            /**
+             * Link
+             * @description Länken till träffen, för QR-koden 2 · Träffen.
+             */
+            link: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * ScreenView
          * @enum {string}
