@@ -359,3 +359,57 @@ def test_the_key_is_never_written_out(made: Any, admin: TestClient, tmp_path: Pa
     found = b"".join(path.read_bytes() for path in tmp_path.rglob("*") if path.is_file())
     assert key.encode() not in found
     assert hashlib.sha256(key.encode()).hexdigest().encode() in found
+
+
+def test_the_phone_is_told_who_gave_the_service_and_where_nobody_works(
+    made: Any, admin: TestClient
+) -> None:
+    """For Lokföraren (#81 del b): a service handed out shows as given by Trafikledningen
+    (LOK-30), and the körplan says which places nobody works, where Framme can count (LOK-39)."""
+    anna, bo = phone(made, admin, "Anna"), phone(made, admin, "Bo")
+    mine = contract.DriverMe.model_validate(anna.post(API + "/claim", json=D1).json())
+    assert mine.claimed_by == "driver"
+    bo_id = contract.DriverMe.model_validate(bo.get(API + "/me").json()).driver.id
+    admin.post(API + "/hand-out", json={"driver": bo_id, "service": D1})
+    given = contract.DriverMe.model_validate(bo.get(API + "/me").json())
+    assert given.claimed_by == "dispatcher"
+    taken = contract.DriverMe.model_validate(anna.get(API + "/me").json())
+    assert (taken.service, taken.claimed_by) == (None, None)
+    plan = contract.Korplan.model_validate(bo.get(API + "/korplan").json())
+    assert all(row.unmanned for row in plan.rows), "Provbanan: no box or TKL works a place yet"
+
+
+def test_a_driver_leaves_the_meet(made: Any, admin: TestClient) -> None:
+    """Jag → Lämna träffen: the service is released, the driver is gone from the list, and the
+    phone's key no longer works. Only the hub can take the HttpOnly cookie away."""
+    anna, bo = phone(made, admin, "Anna"), phone(made, admin, "Bo", where=ON_THE_MEET)
+    anna.post(API + "/claim", json=D1)
+    assert anna.post(API + "/leave", headers={"Origin": "https://evil.example"}).status_code == 403
+    left = anna.post(API + "/leave")
+    assert left.status_code == 204, left.text
+    assert COOKIE in left.headers["set-cookie"] and "Max-Age=0" in left.headers["set-cookie"]
+    assert anna.get(API + "/me").status_code == 401
+    assert [row["driver"]["name"] for row in bo.get(API + "/list").json()] == ["Bo"]
+    assert bo.post(API + "/claim", json=D1).status_code == 200, "the service was released"
+    assert TestClient(made, client=CLOUD).post(API + "/leave").status_code == 401
+
+
+def test_the_hub_delivers_lokforaren_where_the_qr_code_leads(tmp_path: Path) -> None:
+    """LOK-36: Lokföraren is an app of its own that the hub serves at /lokforaren, with its pages
+    and its files. The QR address /lokforaren/#kod=… gets the app's page; the code after # never
+    leaves the phone."""
+    built = tmp_path / "web" / "lokforaren"
+    built.mkdir(parents=True)
+    (built / "index.html").write_text("<!doctype html><title>Lokföraren · TrainMeet</title>")
+    (built / "sw.js").write_text("// the app's shell, never the API")
+    hub = TestClient(
+        create_app(
+            BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db", web_root=tmp_path / "web"
+        )
+    )
+    for address in ("/lokforaren", "/lokforaren/", "/lokforaren/korplan", "/lokforaren/jag"):
+        page = hub.get(address)
+        assert page.status_code == 200 and "Lokföraren" in page.text, address
+        assert "connect-src 'self'" in page.headers["content-security-policy"]
+    assert hub.get("/lokforaren/sw.js").text == "// the app's shell, never the API"
+    assert hub.get("/lokforaren/saknas.js").status_code == 404

@@ -12,7 +12,8 @@
     "apps/tmbox-webb",
     "apps/trafikledning",
     "apps/planering",
-    "apps/tkl"
+    "apps/tkl",
+    "apps/lokforaren"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",

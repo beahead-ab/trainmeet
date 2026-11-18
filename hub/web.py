@@ -63,6 +63,9 @@ APPS: Final = (
     # Planering (PLAN-23): Träffar and Versioner; Data, Bana and Graf are still drawn by the
     # hub, whose routes come first (hub/app.py).
     WebApp(prefixes=("/planering",), folder="planering", title="Planering"),
+    # Lokföraren (LOK-14, LOK-36): the driver's app in the phone, where the meet's QR code leads
+    # (/lokforaren/#kod=…). Its service worker keeps the app's shell, never the API.
+    WebApp(prefixes=("/lokforaren",), folder="lokforaren", title="Lokföraren"),
 )
 
 

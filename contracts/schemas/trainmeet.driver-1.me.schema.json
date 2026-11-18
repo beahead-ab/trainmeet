@@ -509,6 +509,24 @@
       ],
       "default": null
     },
+    "claimed_by": {
+      "anyOf": [
+        {
+          "enum": [
+            "driver",
+            "dispatcher",
+            "loco_lead"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vem som gav föraren tjänsten: föraren själv, trafikledningen eller lokledaren (LOK-30).",
+      "title": "Claimed By"
+    },
     "start": {
       "anyOf": [
         {

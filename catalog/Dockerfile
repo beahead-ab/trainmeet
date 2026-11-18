@@ -17,6 +17,7 @@ COPY apps/tmbox-webb/package.json apps/tmbox-webb/
 COPY apps/trafikledning/package.json apps/trafikledning/
 COPY apps/planering/package.json apps/planering/
 COPY apps/tkl/package.json apps/tkl/
+COPY apps/lokforaren/package.json apps/lokforaren/
 RUN npm ci --no-audit --no-fund
 COPY contracts/catalog.d.ts contracts/
 COPY apps/design apps/design

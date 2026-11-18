@@ -516,3 +516,15 @@ def test_the_messages_go_to_tkl_and_not_to_the_tmbox_app(store: PreviewStore) ->
         (station.DriverMessageKind.ENGINE_TROUBLE, "101")
     ]
     assert store.place_snapshot(keys[station.ClientKind.TMBOX_APP], "asn").driver_messages == []
+
+
+def test_the_korplan_says_where_nobody_works(drift: Drift) -> None:
+    """LOK-39, for Lokföraren's Framme: a place nobody works is marked; one worked by its TKL is
+    not."""
+    drivers.claim(drift, D1, "anna", at(1))
+    drift.man("mla", "tkl-mla", at(2))
+    service = drivers.find(drift, D1)
+    assert service is not None
+    rows = drivers.korplan(drift, service, at(3), len(drift.history)).rows
+    assert {row.place for row in rows if not row.unmanned} == {"mla"}
+    assert any(row.unmanned and row.place == "asn" for row in rows)

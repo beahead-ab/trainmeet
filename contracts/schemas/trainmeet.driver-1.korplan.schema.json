@@ -260,6 +260,12 @@
           "title": "Last",
           "type": "boolean"
         },
+        "unmanned": {
+          "default": false,
+          "description": "Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
+          "title": "Unmanned",
+          "type": "boolean"
+        },
         "changed": {
           "default": false,
           "description": "Ändrat de senaste 10 spelminuterna.",

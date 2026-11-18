@@ -647,6 +647,7 @@ def openapi() -> str:
         {"name": "seconds", "in": "query", "schema": {"type": "number"}},
     ]
     route("get", dr + "/instructions", "driverInstructions", f + "instructions")
+    route("post", dr + "/leave", "driverLeave", None, driver_key=True)
     route("get", dr + "/overview", "driverOverview", f + "overview", bearer=True)
     route("post", dr + "/hand-out", "handOutService", f + "overview", f + "hand-out", bearer=True)
     route(

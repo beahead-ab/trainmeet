@@ -84,6 +84,15 @@ def photo_type(data: bytes) -> str | None:
     return None
 
 
+def _claimed_by(by: str) -> events.ClaimedBy:
+    """Who gave the driver the service (LOK-30): the driver, Trafikledningen or the lokledare."""
+    if by == "dispatcher":
+        return "dispatcher"
+    if by == "loco_lead":
+        return "loco_lead"
+    return "driver"
+
+
 def _refused(error: Refused) -> NoReturn:
     raise HTTPException(409, TEXT_SV[error.reason], headers={"X-Reason": error.reason.value}) from (
         error
@@ -171,6 +180,7 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
             )
             if service is not None
             else None,
+            claimed_by=_claimed_by(held.by) if held is not None and service is not None else None,
             start=drivers.start(drift, service, now) if service is not None else None,
             checkin=drivers.checked_in(drift, drift.drivers.checkins.get(record.id), now),
             clock=drivers.clock(drift, now),
@@ -296,6 +306,31 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
         found, record = me(cookie, header)
         record = found.set_driver_photo(record.run_id, record.id, None)
         return me_view(state(found, record.run_id), record)
+
+    @routes.post("/leave", status_code=204)
+    def leave(request: Request, cookie: KeyCookie = None, header: KeyHeader = None) -> Response:
+        """Lämna träffen: the service is released first, as with Släpp (on the line,
+        Trafikledningen gets the alarm), then the driver is gone from the others' lists and
+        the phone's key no longer works. The cookie is HttpOnly, so only the hub can take it
+        away."""
+        same_site(request)
+        found, record = me(cookie, header)
+        drift = state(found, record.run_id)
+        if drift.drivers.service_of(record.id) is not None:
+            act(found, record.run_id, lambda d, now: drivers.release(d, record.id, now))
+        try:
+            found.remove_driver(record.run_id, record.id)
+        except UnknownDriver as error:
+            raise HTTPException(401, NOT_IN) from error
+        left = Response(status_code=204, headers={"Cache-Control": "no-store"})
+        left.delete_cookie(
+            COOKIE,
+            path="/api/drift/1/drivers",
+            secure=_secure(request),
+            httponly=True,
+            samesite="strict",
+        )
+        return left
 
     @routes.get("/photos/{driver_id}")
     def photo_of(
