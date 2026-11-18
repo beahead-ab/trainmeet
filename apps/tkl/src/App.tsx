@@ -10,31 +10,38 @@ import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
+import { Sparplan } from "./Sparplan";
 import { Stallverket } from "./Stallverket";
 import { Studio } from "./Studio";
 
 type Page = "stallverket" | "studio" | "installningar";
 const PAGES: Record<Page, string> = { stallverket: "/", studio: "/studio", installningar: "/installningar" };
 const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : path.startsWith("/installningar") ? "installningar" : "stallverket");
+const SPARPLAN = "/studio/sparplan";
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
 export function App() {
   const [state, setState] = useState<State | null>(null);
   const [page, setPage] = useState<Page>(pageOf(location.pathname));
+  const [path, setPath] = useState(location.pathname);
   const [message, setMessage] = useState("");
   useEffect(() => {
     api
       .state()
       .then(setState)
       .catch((error: unknown) => setMessage(error instanceof Error ? error.message : "TKL svarar inte."));
-    const back = () => setPage(pageOf(location.pathname));
+    const back = () => {
+      setPage(pageOf(location.pathname));
+      setPath(location.pathname);
+    };
     addEventListener("popstate", back);
     return () => removeEventListener("popstate", back);
   }, []);
   const navigate = (href: string) => {
     history.pushState(null, "", href);
     setPage(pageOf(href));
+    setPath(href);
   };
   if (!state) return <p className="tom">{message || "Startar TKL …"}</p>;
   if (!state.set_up) {
@@ -51,7 +58,7 @@ export function App() {
       </Frame>
     );
   }
-  return <Unlocked state={state} page={page} navigate={navigate} onLocked={setState} />;
+  return <Unlocked state={state} page={page} path={path} navigate={navigate} onLocked={setState} />;
 }
 
 function Frame({ state, page, navigate, connection, clock, onLock, children }: { state: State; page: Page; navigate: (href: string) => void; connection?: Connection | null; clock?: string; onLock?: () => void; children: React.ReactNode }) {
@@ -85,7 +92,7 @@ function Frame({ state, page, navigate, connection, clock, onLock, children }: {
   );
 }
 
-function Unlocked({ state, page, navigate, onLocked }: { state: State; page: Page; navigate: (href: string) => void; onLocked: (state: State) => void }) {
+function Unlocked({ state, page, path, navigate, onLocked }: { state: State; page: Page; path: string; navigate: (href: string) => void; onLocked: (state: State) => void }) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [studio, setStudio] = useState<StudioData | null>(null);
   const [view, setView] = useState<View | null>(null);
@@ -213,15 +220,35 @@ function Unlocked({ state, page, navigate, onLocked }: { state: State; page: Pag
   const clock = snapshot ? clockAt(snapshot, heardAt, Date.now()) : undefined;
   let body;
   if (page === "studio") {
-    body = studio ? (
-      <Studio
-        key={studio.versions?.[0]?.number ?? 0}
-        studio={studio}
-        onSave={async (outside) => setStudio(await api.saveList(outside))}
-        onVersion={async () => setStudio(await api.newVersion())}
-      />
-    ) : (
-      <p className="tom">Läser listan …</p>
+    const plan = path.startsWith(SPARPLAN);
+    body = (
+      <>
+        <nav className="studio-flikar" aria-label="Studio">
+          <button type="button" aria-current={plan ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+            Utsidan
+          </button>
+          <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
+            Spårplan
+          </button>
+        </nav>
+        {plan ? (
+          <Sparplan
+            onChanged={() => {
+              void api.state().then(onLocked);
+              void api.studio().then(setStudio);
+            }}
+          />
+        ) : studio ? (
+          <Studio
+            key={studio.versions?.[0]?.number ?? 0}
+            studio={studio}
+            onSave={async (outside) => setStudio(await api.saveList(outside))}
+            onVersion={async () => setStudio(await api.newVersion())}
+          />
+        ) : (
+          <p className="tom">Läser listan …</p>
+        )}
+      </>
     );
   } else if (page === "installningar") {
     body = (
@@ -267,7 +294,7 @@ function Unlocked({ state, page, navigate, onLocked }: { state: State; page: Pag
       />
     );
   } else if (view) {
-    body = <Stallverket view={view} outside={studio?.draft ?? null} journal={journal} sounds={sounds} busy={busy} onSend={(a, p, c, cl) => void send(a, p, c, cl)} onExit={(s, e) => void answerExit(s, e)} />;
+    body = <Stallverket view={view} level={state.station?.level ?? 0} outside={studio?.draft ?? null} journal={journal} sounds={sounds} busy={busy} onSend={(a, p, c, cl) => void send(a, p, c, cl)} onExit={(s, e) => void answerExit(s, e)} />;
   } else {
     body = <p className="tom">Hämtar {place} från hubben …</p>;
   }

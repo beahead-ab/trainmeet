@@ -6,7 +6,13 @@
     POST /api/tkl/1/pin                   TklPinChange
     GET  /api/tkl/1/studio                TklStudio
     PUT  /api/tkl/1/studio                StationOutside -> TklStudio (sparad på datorn)
-    POST /api/tkl/1/studio/version        TklStudio (Ny version av utsidan)
+    POST /api/tkl/1/studio/version        TklStudio (Ny version av utsidan, med stationsmodellen)
+    GET  /api/tkl/1/studio/model          TklTrackPlan: stationens modell som Spårplan visar den
+    PUT  /api/tkl/1/studio/model          StationModel -> TklTrackPlan (importera, nivå 1–2)
+    DELETE /api/tkl/1/studio/model        TklStudio (tillbaka till nivå 0)
+    GET  /api/tkl/1/referens              [TklReference] (referensstationerna, TKL40)
+    GET  /api/tkl/1/referens/{id}         TklTrackPlan (att titta på)
+    POST /api/tkl/1/referens/{id}/use     TklTrackPlan (Använd som min station)
     GET  /api/tkl/1/hubs                  [FoundHub]
     GET  /api/tkl/1/connection            TklConnection
     POST /api/tkl/1/connection            TklConnect -> TklConnection
@@ -38,9 +44,11 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from pydantic import ValidationError
 
 from contracts import station
 from contracts.hub import Version
+from contracts.station_model import StationModel, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
@@ -57,9 +65,10 @@ from contracts.tkl import (
     TklUnlock,
     TklView,
 )
-from tkl import VERSION, id_login
+from tkl import VERSION, id_login, track_plan
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
+from tkl.standard import problems
 from tkl.store import (
     LOCAL,
     SESSION_LIFETIME,
@@ -84,6 +93,8 @@ LOGGER = logging.getLogger("tkl")
 ADDRESS = re.compile(r"^https?://[A-Za-z0-9.\-\[\]:]{1,120}$")
 NOT_CONNECTED = "TKL är inte ansluten till en träff."
 NO_CONTACT = "Ingen kontakt med hubben."
+MODEL_LIMIT = 8 * 1024 * 1024
+"""The largest model file TKL takes, in bytes."""
 
 
 def web_dir() -> Path:
@@ -271,6 +282,103 @@ def create_app(
         no_store(response)
         return store.new_version(unlocked(slot, session)).model_dump(mode="json")
 
+    # --- The station's model and the reference stations (#83) -------------------------------
+
+    def refuse_model(message: str, found: list[str]) -> NoReturn:
+        raise HTTPException(422, {"message": message, "problems": found})
+
+    def keep_model(found: str, model: StationModel) -> dict[str, Any]:
+        """Kept with the station only when it may run: no problems, notes are fine."""
+        wrong = problems(model)
+        if wrong:
+            refuse_model("Stationsmodellen kan inte köras. Rätta den och importera igen.", wrong)
+        kept = store.save_model(found, model)
+        return track_plan.view(kept).model_dump(mode="json")
+
+    @routes.get("/studio/model")
+    def station_model(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        no_store(response)
+        model = store.station_model(unlocked(slot, session))
+        if model is None:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.")
+        return track_plan.view(model).model_dump(mode="json")
+
+    @routes.put("/studio/model")
+    async def import_model(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Importera en stationsmodell (<station>.tkl.json): checked, kept with the station,
+        and the station's level follows it."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        body = await request.body()
+        if len(body) > MODEL_LIMIT:
+            raise HTTPException(413, "Filen är för stor för en stationsmodell.")
+        try:
+            model = StationModel.model_validate_json(body)
+        except ValidationError as error:
+            said = [
+                f"{'.'.join(str(part) for part in e['loc']) or 'filen'}: {e['msg']}"
+                for e in error.errors()[:5]
+            ]
+            refuse_model("Filen är inte en stationsmodell (trainmeet.station-model/1).", said)
+        return keep_model(found, model)
+
+    @routes.delete("/studio/model")
+    def forget_model(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        store.forget_model(found)
+        return store.studio(found).model_dump(mode="json")
+
+    @routes.get("/referens")
+    def references(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> list[dict[str, Any]]:
+        """Referensstationerna (TKL40): to look at, and to try as one's own."""
+        unlocked(slot, session)
+        return [r.model_dump(mode="json") for r in track_plan.references()]
+
+    @routes.get("/referens/{station_id}")
+    def reference(
+        station_id: str, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        unlocked(slot, session)
+        found = track_plan.reference_view(station_id)
+        if found is None:
+            raise HTTPException(404, "Ingen referensstation med det id:t.")
+        return found.model_dump(mode="json")
+
+    @routes.post("/referens/{station_id}/use")
+    def use_reference(
+        station_id: str,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Använd som min station: the reference model becomes the station's, so that a friend
+        can try it in TKL in the cloud without a file."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        model = track_plan.reference(station_id)
+        if model is None:
+            raise HTTPException(404, "Ingen referensstation med det id:t.")
+        return keep_model(found, model)
+
     # --- TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78) ------------------------------
 
     with_id = TklIdLogin(id_settings, client) if id_settings is not None else None
@@ -386,8 +494,9 @@ def create_app(
                 LOGGER.warning("ID:s token förnyades inte: %s", failed)
                 raise HTTPException(401, "Logga in med TrainMeet ID igen.") from failed
             store.new_tokens(found, access, refresh, until)
-        _, outside = store.latest_outside(found)
-        package = StationPackage(station_id=outside.station_id, outside=outside)
+        _, outside, model = store.latest_package(found)
+        inside: dict[str, object] = {} if model is None else {"station_model": dump(model)}
+        package = StationPackage(station_id=outside.station_id, outside=outside, inside=inside)
         base = asked.on_top if asked.on_top is not None else (account.saved or 0)
         address = f"{id_settings.cloud}/api/sync/1/stations/{outside.station_id}/versions"
         try:

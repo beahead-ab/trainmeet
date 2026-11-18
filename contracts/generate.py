@@ -44,7 +44,7 @@ ID_PREFIX = "trainmeet.id-"
 TKL_OPENAPI = SCHEMA_DIR.parent / "tkl.openapi.json"
 TKL_PREFIX = "trainmeet.tkl-"
 # TKL's station file (<station>.tkl.json), read and written by TKL alone. It is a schema of its
-# own and not part of an HTTP API yet, so it is in none of the OpenAPI files.
+# own; TKL's API takes it when Studio imports a model, so it is in tkl.openapi.json only.
 STATION_MODEL = "trainmeet.station-model-1"
 BASE_URL = "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/"
 
@@ -76,6 +76,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.id-state": tkl.TklIdState,
     "trainmeet.tkl-1.save": tkl.TklSave,
     "trainmeet.tkl-1.saved": tkl.TklSaved,
+    "trainmeet.tkl-1.track-plan": tkl.TklTrackPlan,
+    "trainmeet.tkl-1.reference": tkl.TklReference,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1877,11 +1879,24 @@ def tkl_openapi() -> str:
     route("get", a + "/id", "tklId", t + "id-state")
     route("post", a + "/id/logout", "tklIdLogOut", t + "id-state")
     route("post", a + "/id/save", "tklSaveInCloud", t + "saved", t + "save")
+    route("get", a + "/studio/model", "tklStationModel", t + "track-plan")
+    route("put", a + "/studio/model", "tklImportModel", t + "track-plan", STATION_MODEL)
+    route("delete", a + "/studio/model", "tklForgetModel", t + "studio")
+    route("get", a + "/referens", "tklReferences", t + "reference", many=True)
+    route("get", a + "/referens/{station_id}", "tklReference", t + "track-plan")
+    route("post", a + "/referens/{station_id}/use", "tklUseReference", t + "track-plan")
     stems = [
         s
         for s in CONTRACTS
         if s.startswith(TKL_PREFIX)
-        or s in {st + "reply", st + "event", st + "exit-answer", "trainmeet.station-outside-1"}
+        or s
+        in {
+            st + "reply",
+            st + "event",
+            st + "exit-answer",
+            "trainmeet.station-outside-1",
+            STATION_MODEL,
+        }
     ]
     return (
         json.dumps(

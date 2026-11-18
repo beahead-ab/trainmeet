@@ -204,8 +204,14 @@
       "type": "array"
     },
     "changed": {
-      "description": "Listan skiljer sig från den senaste versionen.",
+      "description": "Listan eller stationsmodellen skiljer sig från den senaste versionen.",
       "title": "Changed",
+      "type": "boolean"
+    },
+    "station_model": {
+      "default": false,
+      "description": "Stationen har en stationsmodell (nivå 1–2, #83).",
+      "title": "Station Model",
       "type": "boolean"
     }
   },

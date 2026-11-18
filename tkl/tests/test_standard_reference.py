@@ -19,7 +19,7 @@ from jsonschema import Draft202012Validator
 
 from contracts.generate import SCHEMA_DIR, STATION_MODEL, filename
 from contracts.station_model import StationModel, to_json
-from tkl.standard import RouteKind, chains, derive, problems
+from tkl.standard import RouteKind, chains, checks, derive
 from tkl.standard.chains import positions
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -117,11 +117,16 @@ def test_the_engine_gives_the_reference_routes(station: str) -> None:
 
 
 @pytest.mark.parametrize("station", STATIONS)
-def test_the_reference_station_passes_the_checks_but_for_its_neighbours(station: str) -> None:
-    """The pages do not say which station lies beyond most line exits (§6)."""
+def test_the_reference_station_has_no_problems_only_notes_on_its_neighbours(station: str) -> None:
+    """The pages do not say which station lies beyond most line exits (§6). That is a note,
+    not a problem: an exit is tied to a section per meet (H26). The panel can be made."""
     station_model = model(station)
     missing = [e.id for e in station_model.line_exits if not e.neighbour]
-    assert problems(station_model) == [f"Linjeutfarten {x} saknar grannstation." for x in missing]
+    found, remarks = checks(station_model)
+    assert found == []
+    assert [r for r in remarks if "grannstation" in r] == [
+        f"Linjeutfarten {x} saknar grannstation." for x in missing
+    ]
 
 
 def test_no_code_names_a_station() -> None:

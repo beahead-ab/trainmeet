@@ -11,6 +11,7 @@ export type Send = (action: Action, payload: Record<string, unknown>, call?: Cal
 
 type Props = {
   view: View;
+  level?: number;
   outside: Outside | null;
   journal: Happening[];
   sounds: Sounds;
@@ -19,7 +20,7 @@ type Props = {
   onExit: (section: string, exit: string) => void;
 };
 
-export function Stallverket({ view, outside, journal, sounds, busy, onSend, onExit }: Props) {
+export function Stallverket({ view, level = 0, outside, journal, sounds, busy, onSend, onExit }: Props) {
   const snapshot = view.snapshot;
   if (!snapshot) {
     return <p className="tom">{view.message ?? "Väntar på hubben …"}</p>;
@@ -35,6 +36,11 @@ export function Stallverket({ view, outside, journal, sounds, busy, onSend, onEx
         <span className="tm-fyll" />
         <span className="liten">{on.length ? `Ljud på för ${on.join(", ")}` : "Ljudet är av på den här skärmen"}</span>
       </div>
+      {level >= 1 ? (
+        <p className="notis" role="status">
+          Stationen har en spårplan; ställverket på nivå 1–2 kommer med nästa steg.
+        </p>
+      ) : null}
       {view.stale ? (
         <p className="gammal" role="status">
           {view.message ?? "Ingen kontakt med hubben."} Det här är det senaste TKL fick{view.heard ? ` ${new Date(view.heard).toLocaleTimeString("sv-SE")}` : ""}.

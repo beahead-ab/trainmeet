@@ -19,6 +19,7 @@ from contracts.station_model import (
     Signal,
     SignalType,
     StationModel,
+    StationTrack,
     Switch,
     SwitchType,
     TrackCircuit,
@@ -147,3 +148,91 @@ def provby(**more: Any) -> StationModel:
     settings.update(more)
     spec = settings.pop("spec", spec)
     return build(spec, **settings)
+
+
+def drawn(
+    nodes: dict[str, tuple[float, float]],
+    spec: str,
+    *,
+    switches: list[Switch] | None = None,
+    signals: list[Signal] | None = None,
+    exits: list[str] | None = None,
+    tracks: dict[str, list[str]] | None = None,
+    **more: Any,
+) -> StationModel:
+    """A model with a drawing: each node at its point in millimetres, each piece straight
+    between its nodes. The engine reads the drawing order from it."""
+    pieces = []
+    for word in spec.split():
+        piece, ends = word.split(":")
+        start, end = ends.split("-")
+        pieces.append(
+            TrackPiece(id=piece, start=start, end=end, geometry=[nodes[start], nodes[end]])
+        )
+    model = build(
+        " ".join(f"{p.id}:{p.start}-{p.end}" for p in pieces),
+        switches=switches,
+        signals=signals,
+        exits=dict.fromkeys(exits or [], "Grannby"),
+        station_tracks=[
+            StationTrack(id=track, label=f"Spår {track}", pieces=found)
+            for track, found in (tracks or {}).items()
+        ],
+        **more,
+    )
+    return model.model_copy(update={"pieces": pieces})
+
+
+def ekby(**more: Any) -> StationModel:
+    """Two station tracks between two lines, a siding below track 2, and the drawing.
+
+    W ─ Vs ─ A ════════ track 1 ════════ B ─ Os ─ O
+              \\                        /
+               C ──── track 2 ──── D
+                \\
+                 F ── Stopp
+    """
+    hsi, dvsi = SignalType.HSI, SignalType.DVSI
+    nodes = {
+        "W": (0.0, 100.0),
+        "Vs": (300.0, 100.0),
+        "A": (600.0, 100.0),
+        "B": (2400.0, 100.0),
+        "Os": (2700.0, 100.0),
+        "O": (3000.0, 100.0),
+        "C": (800.0, 160.0),
+        "C1": (1100.0, 160.0),
+        "D1": (1900.0, 160.0),
+        "D": (2200.0, 160.0),
+        "F": (1000.0, 220.0),
+        "Stopp": (1500.0, 220.0),
+        "T1": (900.0, 100.0),
+        "T2": (2100.0, 100.0),
+    }
+    spec = (
+        "a:W-Vs b:Vs-A c:A-T1 d:T1-T2 e:T2-B f:B-Os g:Os-O "
+        "h:A-C i:C-C1 j:C1-D1 k:D1-D l:D-B m:C-F n:F-Stopp"
+    )
+    settings: dict[str, Any] = {
+        "switches": [
+            switch("1", "b", "c", "h", node="A"),
+            switch("2", "h", "i", "m", node="C"),
+            switch("4", "f", "e", "l", node="B"),
+        ],
+        "signals": [
+            signal("In V", hsi, "Vs", "a"),
+            signal("Ut V", hsi, "Vs", "b"),
+            signal("11", hsi, "T1", "c"),
+            signal("12", hsi, "T2", "e"),
+            signal("21", hsi, "C1", "i"),
+            signal("22", hsi, "D1", "k"),
+            signal("D", dvsi, "F", "m"),
+            signal("In O", hsi, "Os", "g"),
+            signal("Ut O", hsi, "Os", "f"),
+        ],
+        "exits": ["W", "O"],
+        "tracks": {"1": ["d"], "2": ["j"]},
+        "boundary": {"W": ["Vs"], "O": ["Os"]},
+    }
+    settings.update(more)
+    return drawn(nodes, spec, **settings)

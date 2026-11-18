@@ -1,0 +1,1201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.track-plan.schema.json",
+  "title": "trainmeet.tkl-1.track-plan",
+  "$defs": {
+    "NodeType": {
+      "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+      "enum": [
+        "switch",
+        "crossing",
+        "signal_point",
+        "block_boundary",
+        "module_joint",
+        "joint",
+        "stop_point",
+        "buffer_stop",
+        "line_exit",
+        "turntable"
+      ],
+      "title": "NodeType",
+      "type": "string"
+    },
+    "Panel": {
+      "additionalProperties": true,
+      "description": "The station on the grid: the engine's proposal or the panel built from the station's\ntrack plan. Columns grow to the east and rows downwards, in cells; a cell is `cell` wide\nand high in pixels.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/PanelSource"
+        },
+        "width": {
+          "description": "I rutor.",
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "description": "I rutor.",
+          "title": "Height",
+          "type": "number"
+        },
+        "cell": {
+          "description": "Rutans bredd och höjd i bildpunkter.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PanelAngle"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Motorns vinkel. Spårplanens: inget."
+        },
+        "rows": {
+          "default": 0,
+          "description": "Spårraderna, i motorns förslag.",
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "shortened": {
+          "default": false,
+          "description": "Stationsspåren är kortade (STD-03).",
+          "title": "Shortened",
+          "type": "boolean"
+        },
+        "fields": {
+          "description": "Fälten, när stationen inte får plats (STD-03).",
+          "items": {
+            "$ref": "#/$defs/PanelField"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/PanelLine"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/PanelNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "switches": {
+          "items": {
+            "$ref": "#/$defs/PanelSwitch"
+          },
+          "title": "Switches",
+          "type": "array"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/PanelSignal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/PanelLabel"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "track_names": {
+          "items": {
+            "$ref": "#/$defs/PanelTrackName"
+          },
+          "title": "Track Names",
+          "type": "array"
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/PanelTable"
+          },
+          "title": "Tables",
+          "type": "array"
+        },
+        "platforms": {
+          "items": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Platforms",
+          "type": "array"
+        },
+        "building": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PanelBuilding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "real_box": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ritningens ram för den mjuka vyn: x, y, bredd, höjd i mm.",
+          "title": "Real Box"
+        }
+      },
+      "required": [
+        "source",
+        "width",
+        "height",
+        "cell",
+        "lines",
+        "nodes"
+      ],
+      "title": "Panel",
+      "type": "object"
+    },
+    "PanelAngle": {
+      "description": "The one transition angle of a panel (TKL6, STD-11).",
+      "enum": [
+        "45",
+        "1:2"
+      ],
+      "title": "PanelAngle",
+      "type": "string"
+    },
+    "PanelBuilding": {
+      "additionalProperties": true,
+      "properties": {
+        "cells": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cells",
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cells",
+        "name"
+      ],
+      "title": "PanelBuilding",
+      "type": "object"
+    },
+    "PanelField": {
+      "additionalProperties": true,
+      "description": "A part of a station too wide for the screen, on the same grid (STD-03).",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "start",
+        "end"
+      ],
+      "title": "PanelField",
+      "type": "object"
+    },
+    "PanelLabel": {
+      "additionalProperties": true,
+      "description": "A text in a fixed place: an exit at its row's end, a stop point, a buffer stop.",
+      "properties": {
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "exit",
+            "point"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "anchor": {
+          "default": "middle",
+          "enum": [
+            "start",
+            "middle",
+            "end"
+          ],
+          "title": "Anchor",
+          "type": "string"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        }
+      },
+      "required": [
+        "text",
+        "kind",
+        "cell"
+      ],
+      "title": "PanelLabel",
+      "type": "object"
+    },
+    "PanelLine": {
+      "additionalProperties": true,
+      "description": "A track piece on the panel: its way over the grid, and its real shape for the soft view.",
+      "properties": {
+        "piece": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Piece",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "cells": {
+          "description": "Från spårbitens början till slutet.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Cells",
+          "type": "array"
+        },
+        "real": {
+          "description": "Ritningens form (TKL42).",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Real",
+          "type": "array"
+        },
+        "free": {
+          "default": false,
+          "description": "Vid vändskivan: i vilken vinkel som helst.",
+          "title": "Free",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "piece",
+        "cells"
+      ],
+      "title": "PanelLine",
+      "type": "object"
+    },
+    "PanelNode": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/NodeType"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "cell"
+      ],
+      "title": "PanelNode",
+      "type": "object"
+    },
+    "PanelSignal": {
+      "additionalProperties": true,
+      "description": "A signal: its symbol in the track line, or beside it for a stop lamp (TKL45), and its id\nover the track for a signal towards the east and under for one towards the west, outside\nthe pair on a double-track line (TKL43).",
+      "properties": {
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SignalType"
+        },
+        "node": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Node",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "toward": {
+          "description": "Färdriktningen som signalen gäller, i rutor.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Toward",
+          "type": "array"
+        },
+        "symbol": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Symbol",
+          "type": "array"
+        },
+        "label": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Label",
+          "type": "array"
+        },
+        "side": {
+          "enum": [
+            "over",
+            "under"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "planned": {
+          "default": false,
+          "title": "Planned",
+          "type": "boolean"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        },
+        "real_toward": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real Toward"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "node",
+        "cell",
+        "toward",
+        "symbol",
+        "label",
+        "side"
+      ],
+      "title": "PanelSignal",
+      "type": "object"
+    },
+    "PanelSource": {
+      "enum": [
+        "engine",
+        "plan"
+      ],
+      "title": "PanelSource",
+      "type": "string"
+    },
+    "PanelSwitch": {
+      "additionalProperties": true,
+      "description": "A switch, slip or crossing, with its legs and where its number stands (§3.4).",
+      "properties": {
+        "number": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SwitchType"
+        },
+        "node": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Node",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        },
+        "trunk": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trunk"
+        },
+        "straight": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Straight"
+        },
+        "diverging": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diverging"
+        },
+        "pieces": {
+          "description": "Korsningens fyra spårbitar.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "label": {
+          "description": "Växelnumret, vid knuten.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Label",
+          "type": "array"
+        },
+        "laid": {
+          "default": true,
+          "description": "TKL lägger den.",
+          "title": "Laid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "number",
+        "type",
+        "node",
+        "cell",
+        "label"
+      ],
+      "title": "PanelSwitch",
+      "type": "object"
+    },
+    "PanelTable": {
+      "additionalProperties": true,
+      "description": "The turntable: its centre and radius on the grid and in the drawing.",
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "node": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Node",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "radius": {
+          "description": "I rutor, vågrätt.",
+          "exclusiveMinimum": 0,
+          "title": "Radius",
+          "type": "number"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        },
+        "real_radius": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real Radius"
+        }
+      },
+      "required": [
+        "id",
+        "node",
+        "cell",
+        "radius"
+      ],
+      "title": "PanelTable",
+      "type": "object"
+    },
+    "PanelTrackName": {
+      "additionalProperties": true,
+      "description": "The track number mid-track, with the train number's box right after it (§3.4).",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "train_number": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Train Number",
+          "type": "array"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        }
+      },
+      "required": [
+        "name",
+        "cell",
+        "train_number"
+      ],
+      "title": "PanelTrackName",
+      "type": "object"
+    },
+    "Position": {
+      "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+      "enum": [
+        "+",
+        "-"
+      ],
+      "title": "Position",
+      "type": "string"
+    },
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    },
+    "SignalType": {
+      "description": "The signal catalogue (§2). New types are added here for all stations (STD-19).",
+      "enum": [
+        "hsi",
+        "hdvsi",
+        "dvsi",
+        "fsi",
+        "stop_lamp"
+      ],
+      "title": "SignalType",
+      "type": "string"
+    },
+    "SwitchType": {
+      "description": "Växeltyp (RS1).",
+      "enum": [
+        "ordinary",
+        "y",
+        "single_slip",
+        "double_slip",
+        "crossing"
+      ],
+      "title": "SwitchType",
+      "type": "string"
+    },
+    "TklChecks": {
+      "additionalProperties": true,
+      "description": "The checks before the model may run (§6, STD-04).",
+      "properties": {
+        "problems": {
+          "description": "Stoppar körningen.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        },
+        "notes": {
+          "description": "Visas men stoppar inte.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "title": "TklChecks",
+      "type": "object"
+    },
+    "TklModelSummary": {
+      "additionalProperties": true,
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "level": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Level",
+          "type": "integer"
+        },
+        "pieces": {
+          "minimum": 0,
+          "title": "Pieces",
+          "type": "integer"
+        },
+        "switches": {
+          "minimum": 0,
+          "title": "Switches",
+          "type": "integer"
+        },
+        "levers": {
+          "minimum": 0,
+          "title": "Levers",
+          "type": "integer"
+        },
+        "signals": {
+          "minimum": 0,
+          "title": "Signals",
+          "type": "integer"
+        },
+        "track_circuits": {
+          "minimum": 0,
+          "title": "Track Circuits",
+          "type": "integer"
+        },
+        "station_tracks": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Station Tracks",
+          "type": "array"
+        },
+        "line_exits": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Line Exits",
+          "type": "array"
+        },
+        "turntables": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Turntables",
+          "type": "integer"
+        },
+        "plan": {
+          "description": "Stationen har en egen spårplan (STD-25).",
+          "title": "Plan",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "level",
+        "pieces",
+        "switches",
+        "levers",
+        "signals",
+        "track_circuits",
+        "plan"
+      ],
+      "title": "TklModelSummary",
+      "type": "object"
+    },
+    "TklRoute": {
+      "additionalProperties": true,
+      "description": "A route the engine derived: read-only, for showing on the panel (STD-07).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        },
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "pieces": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "positions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Position"
+          },
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Positions",
+          "type": "object"
+        },
+        "turntable": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turntable"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end",
+        "pieces"
+      ],
+      "title": "TklRoute",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Spårplan i Studio: the model's summary, the checks, the routes and the panel.",
+  "properties": {
+    "summary": {
+      "$ref": "#/$defs/TklModelSummary"
+    },
+    "checks": {
+      "$ref": "#/$defs/TklChecks"
+    },
+    "routes": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Vägarna per slag.",
+      "propertyNames": {
+        "$ref": "#/$defs/RouteKind"
+      },
+      "title": "Routes",
+      "type": "object"
+    },
+    "route_list": {
+      "items": {
+        "$ref": "#/$defs/TklRoute"
+      },
+      "title": "Route List",
+      "type": "array"
+    },
+    "panel": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Panel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Inget när panelen inte går att bygga."
+    }
+  },
+  "required": [
+    "summary",
+    "checks",
+    "routes"
+  ],
+  "type": "object"
+}
