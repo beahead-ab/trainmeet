@@ -257,6 +257,8 @@ jobs:
           cp deploy/testmiljo/compose.yaml deploy/testmiljo/catalog-backup.sh "$PROV/"
           cd "$PROV"
           umask 077
+          # As up.sh does on the server: Catalog's vault, and its pictures on disk (#51).
+          mkdir -p catalog-vault catalog-pictures
           {
             echo "HUB_TAG=prov"
             echo "HUB_DOMAIN=localhost"
@@ -315,7 +317,19 @@ jobs:
           TAGG=$(curl -fsS -b "$PROV/kakor" -X POST http://localhost:8081/api/catalog/1/tags/simulated | jq -r .uid)
           curl -fsS -b "$PROV/kakor" "http://localhost:8081/api/catalog/1/tags/$TAGG" | grep -q '"outcome":"unknown"'
           curl -fsS "http://localhost:8081/t/$TAGG" | grep -q 'id="root"'
-          docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)" | grep -qx catalog
+          # Fordonens bilder (#51): a picture is uploaded, made smaller, and fetched with its
+          # signed link, from the server's disk here.
+          FORDON=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' \
+            -d '{"status":"ready","kind":"freight_wagon","litt":"Hbis","number":"21 74 245 2 253-0"}' \
+            http://localhost:8081/api/catalog/1/vehicles | jq -r .id)
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' | base64 -d > "$PROV/bild.png"
+          BILD=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: image/png' --data-binary @"$PROV/bild.png" \
+            "http://localhost:8081/api/catalog/1/vehicles/$FORDON/pictures")
+          echo "$BILD" | jq -e '.main == true' >/dev/null
+          curl -fsS -o /dev/null "http://localhost:8081$(echo "$BILD" | jq -r .thumb_url)"
+          # Catalog runs as the deploy user, never as root, so it can read its key in catalog-vault (#51).
+          CATALOG_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)")
+          case "$CATALOG_USER" in ""|0|0:*|root|root:*) echo "Catalog kör som root." >&2; exit 1;; esac
 
       - name: Nattens säkerhetskopia, med data i
         run: |
