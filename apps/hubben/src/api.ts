@@ -7,6 +7,7 @@ import type { components } from "../../../contracts/types";
 type Schemas = components["schemas"];
 export type HubInfo = Schemas["trainmeet.hub-1.info"];
 export type OneTimeCode = Schemas["trainmeet.hub-1.one-time-code"];
+export type LoggedOut = Schemas["trainmeet.hub-1.logged-out"];
 export type LetIn = Schemas["trainmeet.hub-1.let-in"];
 export type Version = Schemas["trainmeet.hub-1.version"];
 export type AiService = Schemas["trainmeet.hub-1.ai-service"];
@@ -74,7 +75,8 @@ export const hub = {
   // På den här hubben (SYNK-07): the hub's name, and a new PIN with the current one first.
   rename: (name: string) => call<HubInfo>("/api/hub/name", { name }),
   changePin: (pin: string, newPin: string) => call<unknown>("/api/hub/pin", { pin, new_pin: newPin }),
-  logOut: () => call<unknown>("/api/hub/logout", {}),
+  /** Logga ut; after a login with ID the browser goes to ID to log out there too (KONTO-01). */
+  logOut: () => call<LoggedOut>("/api/hub/logout", {}),
   // Pi:ns nät (SYNK-26): a change carries the hub's own mark; a password never comes back.
   wifi: () => call<WifiStatus>("/api/hub/wifi"),
   // Uppdateringen (SYNK-23): on a Pi, on the button, never during a meet.
@@ -116,6 +118,9 @@ export const hub = {
   letIn: () => call<LetIn[]>(`${DRIFT}/let-in`),
   takeAway: (person: string) => call<unknown>(`${DRIFT}/let-in/${encodeURIComponent(person)}/remove`, {}),
 };
+
+/** Logga in med TrainMeet ID (#78): the hub sends the browser to ID and back to the page. */
+export const idLoginAddress = (next: string, language = "sv") => `/api/hub/id/login?${new URLSearchParams({ next, lang: language })}`;
 
 /** The QR code for Anslut: the hub draws it, with the meet's code in the box's address. */
 export const connectPicture = (at: number) => `${DRIFT}/connect.svg?${at}`;

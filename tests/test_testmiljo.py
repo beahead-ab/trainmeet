@@ -401,6 +401,19 @@ def test_the_id_api_has_a_secret_of_its_own(tmp_path: Path) -> None:
     assert testmiljo.ID_API_SECRET_NAME != testmiljo.ID_SECRET_NAME
 
 
+def test_the_hub_has_a_secret_of_its_own_in_id() -> None:
+    """#78: the test hub's client in ID gets a secret beside the others, never one of theirs."""
+    made = testmiljo.generate_id_hub_secrets()
+    assert testmiljo.IdHubSecrets.from_json(made.to_json()) == made
+    assert len(made.hub_secret) == 64
+    assert made.env_file() == f"ID_HUB_SECRET={made.hub_secret}\n"
+    names = {testmiljo.ID_SECRET_NAME, testmiljo.ID_API_SECRET_NAME, testmiljo.ID_HUB_SECRET_NAME}
+    assert len(names) == 3
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    assert "TRAINMEET_ID_SECRET: ${ID_HUB_SECRET}" in compose
+    assert "ID_HUB_SECRET: ${ID_HUB_SECRET:?ID_HUB_SECRET saknas}" in compose
+
+
 def test_the_id_check_stops_its_background_programs() -> None:
     """Programs started through uv hold uv's cache locked; setup-uv's own cleanup after the
     job then waits for the lock and fails the check (it happened on main, 15 November)."""

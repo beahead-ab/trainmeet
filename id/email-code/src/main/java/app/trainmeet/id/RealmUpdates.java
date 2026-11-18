@@ -32,7 +32,7 @@ final class RealmUpdates {
     static final String REALM = "trainmeet";
     static final String VERSION = "trainmeetVersion";
     /** The latest update. The realm file says the same. */
-    static final int LATEST = 5;
+    static final int LATEST = 6;
 
     static final String PASSKEY_ACTION = "webauthn-register-passwordless";
 
@@ -48,7 +48,8 @@ final class RealmUpdates {
             (session, realm) -> passkeys(realm),
             (session, realm) -> idWebApp(realm),
             RealmUpdates::catalogAsks,
-            RealmUpdates::idRemovesAccounts);
+            RealmUpdates::idRemovesAccounts,
+            RealmUpdates::hubLogsIn);
 
     /**
      * Every update runs in a transaction of its own, together with the new number. One that fails
@@ -182,6 +183,46 @@ final class RealmUpdates {
         if (account != null && manage != null && !account.hasRole(manage)) {
             account.grantRole(manage);
         }
+    }
+
+    static final String HUB_CLIENT = "hub";
+
+    /**
+     * 6: the Hub logs in with ID (#78), as the client "hub", with its secret and address from the
+     * environment (ID_HUB_SECRET, ID_HUB_URL), and asks ID's API about the roles at a meet with a
+     * token of its own, from client credentials (KONTO-34), like Catalog.
+     */
+    static void hubLogsIn(KeycloakSession session, RealmModel realm) {
+        if (realm.getClientByClientId(HUB_CLIENT) != null) {
+            return;
+        }
+        String secret = System.getenv("ID_HUB_SECRET");
+        String address = System.getenv("ID_HUB_URL");
+        if (secret == null || secret.isBlank() || address == null || address.isBlank()) {
+            LOG.warn("ID_HUB_SECRET eller ID_HUB_URL saknas, så Hubben får ingen klient.");
+            return;
+        }
+        ClientModel client = realm.addClient(HUB_CLIENT);
+        client.setName("TrainMeet Hub");
+        client.setEnabled(true);
+        client.setProtocol("openid-connect");
+        client.setPublicClient(false);
+        client.setClientAuthenticatorType("client-secret");
+        client.setSecret(secret);
+        client.setStandardFlowEnabled(true);
+        client.setImplicitFlowEnabled(false);
+        client.setDirectAccessGrantsEnabled(false);
+        client.setFrontchannelLogout(false);
+        client.setRedirectUris(Set.of(address + "/api/hub/id/callback"));
+        client.setWebOrigins(Set.of(address));
+        client.setAttribute("pkce.code.challenge.method", "S256");
+        client.setAttribute("post.logout.redirect.uris", address + "/*");
+        realm.getClientScopesStream()
+                .filter(scope -> SCOPES.contains(scope.getName()))
+                .forEach(scope -> client.addClientScope(scope, true));
+        client.setServiceAccountsEnabled(true);
+        session.getContext().setRealm(realm);
+        new ClientManager(new RealmManager(session)).enableServiceAccount(client);
     }
 
     private static int parse(String value) {

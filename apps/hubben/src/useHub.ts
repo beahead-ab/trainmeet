@@ -156,7 +156,15 @@ export function useHub(): Hub {
   };
 
   const logOut = async () => {
-    await act(() => hub.logOut());
+    let away: string | null | undefined = null;
+    await act(async () => {
+      away = (await hub.logOut()).logout_url;
+    });
+    // A login with TrainMeet ID logs out of ID too, which sends the browser back (KONTO-01).
+    if (away) {
+      window.location.assign(away);
+      return;
+    }
     await readInfo();
   };
 
@@ -186,6 +194,8 @@ export function useHub(): Hub {
       hubName: info?.name ?? "Hubben",
       admin,
       owner,
+      loggedIn: info?.logged_in ?? false,
+      person: info?.person ?? null,
       now,
       elapsedMs: now ? performance.now() - nowAt.current : 0,
       waiting: waitingCount(clients),

@@ -11,6 +11,7 @@ from pathlib import Path
 from threading import Event, Thread
 from typing import Any, Final
 
+import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 
@@ -23,6 +24,7 @@ from hub import (
     deltagare,
     drift_api,
     hubben,
+    id_login,
     network_api,
     planering_api,
     provbanan,
@@ -85,7 +87,11 @@ def create_app(
     preview_db: Path | None = None,
     web_root: Path | None = None,
     sync_call: Call = urllib_call,
+    id_settings: id_login.IdSettings | None = None,
+    id_http: httpx.Client | None = None,
 ) -> FastAPI:
+    """id_settings and id_http: the login with TrainMeet ID, for tests; otherwise read from the
+    environment (hub/id_login.py)."""
     info = info if info is not None else build_info.from_env()
     preview_path = provbanan.database_path(preview_db)
     data_dir = preview_path.parent
@@ -207,7 +213,12 @@ def create_app(
         except MissingRun:
             return None
 
-    app.include_router(hubben.router(login, current_run))
+    # Logga in med TrainMeet ID (#78), when the hub is set up for it (hub/id_login.py).
+    id_settings = id_settings if id_settings is not None else id_login.settings_from()
+    with_id = (
+        id_login.IdLogin(login, id_settings, http=id_http) if id_settings is not None else None
+    )
+    app.include_router(hubben.router(login, current_run, with_id))
 
     def meet_link() -> str | None:
         """The meet over the internet: the cloud hub this hub is linked to for the meet."""

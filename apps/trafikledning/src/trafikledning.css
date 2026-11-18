@@ -740,3 +740,10 @@ ul.chips {
   font-weight: 700;
   letter-spacing: 0.15em;
 }
+
+/* Logga in med TrainMeet ID (#78): under the PIN, as its own way in. */
+.idinloggning {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--tm-linje, rgba(127, 127, 127, 0.3));
+}

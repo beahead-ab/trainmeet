@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.logged-out.schema.json",
+  "title": "trainmeet.hub-1.logged-out",
+  "additionalProperties": true,
+  "description": "Logga ut. Var det en inloggning med ID går webbläsaren till ID och loggar ut där också\n(KONTO-01), och kommer sedan tillbaka.",
+  "properties": {
+    "logout_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logout Url"
+    }
+  },
+  "type": "object"
+}

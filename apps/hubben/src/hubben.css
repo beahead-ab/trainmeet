@@ -352,3 +352,10 @@ button.traffval[aria-expanded="true"] {
     align-items: flex-start;
   }
 }
+
+/* The name of the one logged in with TrainMeet ID, by Logga ut (S1). Hidden on narrow screens. */
+@media (max-width: 1080px) {
+  .tm-person {
+    display: none;
+  }
+}

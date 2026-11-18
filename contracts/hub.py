@@ -31,6 +31,13 @@ class HubInfo(Contract):
         default=None,
         description="Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där.",
     )
+    person: Text | None = Field(
+        default=None,
+        description="Inloggad med TrainMeet ID (#78): namnet för sidhuvudet (S1), aldrig adressen.",
+    )
+    id_login: bool = Field(
+        default=False, description="Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?"
+    )
 
 
 class SetUp(Contract):
@@ -78,6 +85,13 @@ class LetIn(Contract):
     role: MeetRole
     since: datetime
     until: datetime
+
+
+class LoggedOut(Contract):
+    """Logga ut. Var det en inloggning med ID går webbläsaren till ID och loggar ut där också
+    (KONTO-01), och kommer sedan tillbaka."""
+
+    logout_url: str | None = None
 
 
 class Rename(Contract):
