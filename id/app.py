@@ -63,9 +63,12 @@ from contracts.id import (
 from contracts.tokens import (
     MeterAnswer,
     MeterRead,
+    OwnAiChange,
+    OwnAiState,
     TokenBalance,
     TokenCheckout,
     TokenDraw,
+    TokenOwner,
     TokenPurchase,
     TokenReservation,
     TokenReserve,
@@ -79,6 +82,7 @@ from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
 from id.meter import BedrockClaude, Claude, Meter
 from id.meter import settings_from as meter_settings
+from id.own_ai import OwnAis, OwnReader, sealer
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
 from id.shop import Shop, ShopSettings
@@ -146,7 +150,13 @@ def create_app(
     tokens = Tokens(db)
     if claude is None and (metered := meter_settings()) is not None:
         claude = BedrockClaude(metered)
-    meter = Meter(db, tokens, claude)
+    own_ais = OwnAis(db, tokens, sealer(settings.secret), http)
+
+    def own_ai_for(owner: TokenOwner) -> OwnReader | None:
+        found = own_ais.for_owner(owner)
+        return OwnReader(found, http) if found else None
+
+    meter = Meter(db, tokens, claude, own_ai_for)
     shop = Shop(
         db,
         tokens,
@@ -431,6 +441,19 @@ def create_app(
     def token_shop(_: Person) -> TokenShop:
         """The packages, and whether buying is open (TOKEN-02): only Stripe's test mode yet."""
         return shop.shop()
+
+    @app.get(API + "/tokens/own-ai")
+    def own_ai(owner: str, person: Person) -> OwnAiState | None:
+        """Egen AI på kontot (TOKEN-03): the person's own, or the club's for its admin."""
+        return own_ais.state(person.id, owner_from(owner))
+
+    @app.put(API + "/tokens/own-ai")
+    def connect_own_ai(owner: str, body: OwnAiChange, person: Person) -> OwnAiState:
+        return own_ais.connect(person.id, owner_from(owner), body)
+
+    @app.delete(API + "/tokens/own-ai")
+    def remove_own_ai(owner: str, person: Person) -> None:
+        own_ais.remove(person.id, owner_from(owner))
 
     @app.post(API + "/tokens/purchases")
     def buy_tokens(body: TokenPurchase, person: Person) -> TokenCheckout:

@@ -33,6 +33,21 @@
           "minLength": 1,
           "title": "Where",
           "type": "string"
+        },
+        "own_ai": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Den som betalar har egen AI på kontot (TOKEN-03): sidorna läses av den modellen, och inga tokens dras (TK4).",
+          "title": "Own Ai"
         }
       },
       "required": [

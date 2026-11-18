@@ -484,6 +484,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/tokens/own-ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownAi"];
+        put: operations["connectOwnAi"];
+        post?: never;
+        delete: operations["removeOwnAi"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/tokens/purchases": {
         parameters: {
             query?: never;
@@ -1365,6 +1381,12 @@ export interface components {
              * @description Månaden gratiskvoten gäller, i svensk tid.
              */
             month: string;
+            /**
+             * Own Ai
+             * @description Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.
+             * @default null
+             */
+            own_ai: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1398,7 +1420,10 @@ export interface components {
              */
             person: string;
             owner: components["schemas"]["trainmeet.id-1.token-reserve.TokenOwner"];
-            /** Amount */
+            /**
+             * Amount
+             * @description Noll när kontot har egen AI: mätaren läser då med den och drar inget (TK4).
+             */
             amount: number;
             /**
              * Key
@@ -1523,6 +1548,12 @@ export interface components {
              * @description Månaden gratiskvoten gäller, i svensk tid.
              */
             month: string;
+            /**
+             * Own Ai
+             * @description Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.
+             * @default null
+             */
+            own_ai: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1663,6 +1694,12 @@ export interface components {
              * @description Månaden gratiskvoten gäller, i svensk tid.
              */
             month: string;
+            /**
+             * Own Ai
+             * @description Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.
+             * @default null
+             */
+            own_ai: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1809,6 +1846,71 @@ export interface components {
              * @description Stripes betalsida, dit webbläsaren går för att betala.
              */
             url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** OwnAiState */
+        "trainmeet.id-1.own-ai-state": {
+            owner: components["schemas"]["trainmeet.id-1.own-ai-state.TokenOwner"];
+            /**
+             * Format
+             * @description chat: det vanliga chatt-API:t. claude: Claudes eget API (H59).
+             * @enum {string}
+             */
+            format: "chat" | "claude";
+            /** Address */
+            address: string;
+            /** Model */
+            model: string;
+            /**
+             * Key Set
+             * @description False om nyckeln behöver läggas in igen.
+             */
+            key_set: boolean;
+            /**
+             * Checked
+             * @description När ID senast provade att modellen läser bilder (H70).
+             * @default null
+             */
+            checked: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenOwner */
+        "trainmeet.id-1.own-ai-state.TokenOwner": {
+            kind: components["schemas"]["trainmeet.id-1.own-ai-state.TokenOwnerKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenOwnerKind
+         * @description Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för
+         *     träffarnas import (TK16).
+         * @enum {string}
+         */
+        "trainmeet.id-1.own-ai-state.TokenOwnerKind": "person" | "club";
+        /** OwnAiChange */
+        "trainmeet.id-1.own-ai-change": {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "chat" | "claude";
+            /** Address */
+            address: string;
+            /** Model */
+            model: string;
+            /**
+             * Key
+             * @description Skickas när den läggs in eller byts; annars står den kvar.
+             * @default null
+             */
+            key: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -2382,6 +2484,12 @@ export interface components {
              * @description Månaden gratiskvoten gäller, i svensk tid.
              */
             month: string;
+            /**
+             * Own Ai
+             * @description Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.
+             * @default null
+             */
+            own_ai: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4577,6 +4685,175 @@ export interface operations {
             };
             /** @description ID säger nej */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    ownAi: {
+        parameters: {
+            query?: {
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.own-ai-state"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    connectOwnAi: {
+        parameters: {
+            query?: {
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.own-ai-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.own-ai-state"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    removeOwnAi: {
+        parameters: {
+            query?: {
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

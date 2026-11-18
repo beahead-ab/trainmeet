@@ -1942,6 +1942,203 @@
         }
       }
     },
+    "/api/id/1/tokens/own-ai": {
+      "get": {
+        "operationId": "ownAi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.own-ai-state"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "connectOwnAi",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.own-ai-state"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.own-ai-change"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "removeOwnAi",
+        "responses": {
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/id/1/tokens/purchases": {
       "post": {
         "operationId": "buyTokens",
@@ -3820,6 +4017,21 @@
             "pattern": "^[0-9]{4}-[0-9]{2}$",
             "title": "Month",
             "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+            "title": "Own Ai"
           }
         },
         "required": [
@@ -3876,8 +4088,9 @@
             "$ref": "#/components/schemas/trainmeet.id-1.token-reserve.TokenOwner"
           },
           "amount": {
-            "exclusiveMinimum": 0,
+            "description": "Noll när kontot har egen AI: mätaren läser då med den och drar inget (TK4).",
             "maximum": 100000,
+            "minimum": 0,
             "title": "Amount",
             "type": "integer"
           },
@@ -4063,6 +4276,21 @@
             "pattern": "^[0-9]{4}-[0-9]{2}$",
             "title": "Month",
             "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+            "title": "Own Ai"
           }
         },
         "required": [
@@ -4293,6 +4521,21 @@
             "pattern": "^[0-9]{4}-[0-9]{2}$",
             "title": "Month",
             "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+            "title": "Own Ai"
           }
         },
         "required": [
@@ -4547,6 +4790,138 @@
           "url"
         ],
         "title": "TokenCheckout",
+        "type": "object"
+      },
+      "trainmeet.id-1.own-ai-state": {
+        "additionalProperties": true,
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.own-ai-state.TokenOwner"
+          },
+          "format": {
+            "description": "chat: det vanliga chatt-API:t. claude: Claudes eget API (H59).",
+            "enum": [
+              "chat",
+              "claude"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "address": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "key_set": {
+            "description": "False om nyckeln behöver läggas in igen.",
+            "title": "Key Set",
+            "type": "boolean"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När ID senast provade att modellen läser bilder (H70).",
+            "title": "Checked"
+          }
+        },
+        "required": [
+          "owner",
+          "format",
+          "address",
+          "model",
+          "key_set"
+        ],
+        "title": "OwnAiState",
+        "type": "object"
+      },
+      "trainmeet.id-1.own-ai-state.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.own-ai-state.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.own-ai-state.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.own-ai-change": {
+        "additionalProperties": true,
+        "properties": {
+          "format": {
+            "enum": [
+              "chat",
+              "claude"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "address": {
+            "maxLength": 300,
+            "minLength": 8,
+            "title": "Address",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Skickas när den läggs in eller byts; annars står den kvar.",
+            "title": "Key"
+          }
+        },
+        "required": [
+          "format",
+          "address",
+          "model"
+        ],
+        "title": "OwnAiChange",
         "type": "object"
       },
       "trainmeet.id-1.access": {
@@ -5521,6 +5896,21 @@
             "pattern": "^[0-9]{4}-[0-9]{2}$",
             "title": "Month",
             "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+            "title": "Own Ai"
           }
         },
         "required": [

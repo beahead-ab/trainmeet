@@ -44,8 +44,9 @@
       "$ref": "#/$defs/TokenOwner"
     },
     "amount": {
-      "exclusiveMinimum": 0,
+      "description": "Noll när kontot har egen AI: mätaren läser då med den och drar inget (TK4).",
       "maximum": 100000,
+      "minimum": 0,
       "title": "Amount",
       "type": "integer"
     },

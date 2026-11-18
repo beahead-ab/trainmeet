@@ -30,6 +30,9 @@ export type TokenBalance = Schemas["trainmeet.id-1.token-balance"];
 export type TokenShop = Schemas["trainmeet.id-1.token-shop"];
 export type TokenPurchase = Schemas["trainmeet.id-1.token-purchase"];
 export type TokenCheckout = Schemas["trainmeet.id-1.token-checkout"];
+/** Egen AI på kontot (TOKEN-03): the key is sent when it is put in, and never shown again. */
+export type OwnAiChange = Schemas["trainmeet.id-1.own-ai-change"];
+export type OwnAiState = Schemas["trainmeet.id-1.own-ai-state"];
 
 /** The person's file, from ID and Catalog (KONTO-31). The browser fetches it itself. */
 export const EXPORT_HREF = "/api/id/1/account/export";
@@ -104,4 +107,7 @@ export const api = {
   tokens: () => call<TokenBalance[]>("GET", `${A}/tokens`),
   shop: () => call<TokenShop>("GET", `${A}/tokens/shop`),
   buy: (purchase: TokenPurchase) => call<TokenCheckout>("POST", `${A}/tokens/purchases`, purchase),
+  connectOwnAi: (owner: string, change: OwnAiChange) =>
+    call<OwnAiState>("PUT", `${A}/tokens/own-ai?${new URLSearchParams({ owner })}`, change),
+  removeOwnAi: (owner: string) => call<null>("DELETE", `${A}/tokens/own-ai?${new URLSearchParams({ owner })}`),
 };

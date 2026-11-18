@@ -288,9 +288,14 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
       {offer && left ? (
         <div className="kostnad" id="trainmeet-ai">
           <label className="val">
-            <input type="radio" name="ai-by" value="trainmeet" checked={by === "trainmeet"} disabled={!enough} onChange={() => setBy("trainmeet")} /> <b>TrainMeets AI</b>
+            <input type="radio" name="ai-by" value="trainmeet" checked={by === "trainmeet"} disabled={!enough} onChange={() => setBy("trainmeet")} />{" "}
+            <b>{offer.own_ai ? "Egen AI på kontot" : "TrainMeets AI"}</b>
           </label>
-          <span>{`Sidorna läses av ${offer.where}. ${thousands(offer.price)} tokens dras från ${offer.payer}, som har ${thousands(offer.available)} kvar.`}</span>
+          <span>
+            {offer.own_ai
+              ? `Sidorna läses av den egna AI:n som ${offer.payer} har kopplat in i TrainMeet ID (${offer.own_ai}). Inga tokens dras.`
+              : `Sidorna läses av ${offer.where}. ${thousands(offer.price)} tokens dras från ${offer.payer}, som har ${thousands(offer.available)} kvar.`}
+          </span>
           {enough ? null : <span className="liten">Saldot räcker inte. Köp fler tokens i TrainMeet ID, eller koppla in egen AI.</span>}
         </div>
       ) : null}

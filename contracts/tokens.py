@@ -19,6 +19,11 @@ För apparna, med en token från Keycloaks client credentials (KONTO-34):
     POST   /api/id/1/apps/tokens/reservations/{id}/return TokenReservation
     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer (TOKEN-28)
 
+Egen AI på kontot (TOKEN-03), för personen eller klubbens administratör:
+    GET    /api/id/1/tokens/own-ai?owner=                 OwnAiState, or null
+    PUT    /api/id/1/tokens/own-ai?owner=                 OwnAiChange -> OwnAiState
+    DELETE /api/id/1/tokens/own-ai?owner=                 null
+
 Köpen (TOKEN-02, TOKEN-11), för personen:
     GET    /api/id/1/tokens/shop                          TokenShop
     POST   /api/id/1/tokens/purchases                     TokenPurchase -> TokenCheckout
@@ -74,6 +79,10 @@ class TokenBalance(Contract):
     month: Annotated[str, StringConstraints(pattern=r"^[0-9]{4}-[0-9]{2}$")] = Field(
         description="Månaden gratiskvoten gäller, i svensk tid."
     )
+    own_ai: Text | None = Field(
+        default=None,
+        description="Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+    )
 
 
 class TokenReservationState(StrEnum):
@@ -94,7 +103,11 @@ class TokenReserve(Contract):
 
     person: UUID
     owner: TokenOwner
-    amount: int = Field(gt=0, le=100_000)
+    amount: int = Field(
+        ge=0,
+        le=100_000,
+        description="Noll när kontot har egen AI: mätaren läser då med den och drar inget (TK4).",
+    )
     key: ReservationKey = Field(
         description="Appens egen nyckel för arbetet. Samma nyckel igen ger samma reservation."
     )
@@ -193,3 +206,40 @@ class TokenPurchase(Contract):
 
 class TokenCheckout(Contract):
     url: str = Field(description="Stripes betalsida, dit webbläsaren går för att betala.")
+
+
+# --- Egen AI på kontot (TOKEN-03, TOKEN-10, TK4) ---------------------------------------------
+#
+#     GET    /api/id/1/tokens/own-ai?owner=                 OwnAiState, or null
+#     PUT    /api/id/1/tokens/own-ai?owner=                 OwnAiChange -> OwnAiState
+#     DELETE /api/id/1/tokens/own-ai?owner=                 null
+#
+# A person's or a club's own AI service. The meter reads with it instead of TrainMeets AI and
+# draws no tokens. The key is sent when it is put in or changed, and never shown again.
+
+OwnAiFormat = Literal["chat", "claude"]
+
+
+class OwnAiState(Contract):
+    owner: TokenOwner
+    format: OwnAiFormat = Field(
+        description="chat: det vanliga chatt-API:t. claude: Claudes eget API (H59)."
+    )
+    address: Text
+    model: Text
+    key_set: bool = Field(description="False om nyckeln behöver läggas in igen.")
+    checked: datetime | None = Field(
+        default=None, description="När ID senast provade att modellen läser bilder (H70)."
+    )
+
+
+class OwnAiChange(Contract):
+    format: OwnAiFormat
+    address: str = Field(min_length=8, max_length=300)
+    model: str = Field(min_length=1, max_length=120)
+    key: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=500,
+        description="Skickas när den läggs in eller byts; annars står den kvar.",
+    )

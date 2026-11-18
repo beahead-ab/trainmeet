@@ -196,6 +196,22 @@ class Tokens:
             row = self._return(conn, account, row)
             return self._out(conn, self._account_by_id(conn, account["id"]), row)
 
+    def may_manage(self, conn: Connection[DictRow], person: UUID, owner: TokenOwner) -> None:
+        """Who changes an account's own AI: the person their own, the club's admin the club's."""
+        if owner.kind == TokenOwnerKind.PERSON:
+            if owner.id != person:
+                raise Refused(403, ProblemCode.FORBIDDEN, "Det här är någon annans konto.")
+            return
+        admin = conn.execute(
+            "SELECT 1 FROM role_grant WHERE resource_kind = 'club' AND resource_id = %s "
+            "AND person_id = %s AND role = 'admin'",
+            (str(owner.id), person),
+        ).fetchone()
+        if admin is None:
+            raise Refused(
+                403, ProblemCode.FORBIDDEN, "Bara klubbens administratör ändrar klubbens egen AI."
+            )
+
     def account_id(self, conn: Connection[DictRow], owner: TokenOwner) -> UUID:
         """The owner's account in a transaction of the caller's, made the first time."""
         found: UUID = self._account(conn, owner)["id"]
@@ -346,9 +362,13 @@ class Tokens:
             named = conn.execute(
                 "SELECT name FROM club WHERE id = %s", (account["club_id"],)
             ).fetchone()
+        own = conn.execute(
+            "SELECT model FROM own_ai WHERE account_id = %s", (account["id"],)
+        ).fetchone()
         return TokenBalance(
             owner=owner,
             title=str(named["name"]) if named else "Saldot",
+            own_ai=str(own["model"]) if own else None,
             free_left=free_left,
             free_monthly=monthly,
             bought=account["bought"],

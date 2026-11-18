@@ -299,6 +299,11 @@ class TrainMeetAi(Contract):
         default="Claude i Amazon Bedrock i Stockholm",
         description="Var sidorna läses (TK14), som sägs innan de skickas (TK12).",
     )
+    own_ai: Text | None = Field(
+        default=None,
+        description="Den som betalar har egen AI på kontot (TOKEN-03): sidorna läses av den "
+        "modellen, och inga tokens dras (TK4).",
+    )
 
 
 class AiPages(Contract):
