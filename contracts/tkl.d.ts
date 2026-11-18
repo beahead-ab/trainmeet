@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/manover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklManover"];
+        put: operations["tklSaveManover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/stallverk": {
         parameters: {
             query?: never;
@@ -3541,6 +3557,100 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TklManover
+         * @description Manöver, the owner's free panel (STV-46, TKL86): the station's own panel, from its track
+         *     plan when it has one, else the engine's layout, with the symbols and colours of one of the
+         *     standard skins 59, 85 or 95, the owner's labels and what is shown. The states and the logic
+         *     follow the chosen standard skin. Station settings, the same on every screen: kept with the
+         *     station and versioned with its model. Every label must name something on the panel.
+         */
+        "trainmeet.tkl-1.manover": {
+            /**
+             * @description Standardskalet som symbolerna hämtas ur.
+             * @default 85
+             */
+            symbols: components["schemas"]["trainmeet.tkl-1.manover.ManoverSymbols"];
+            shown?: components["schemas"]["trainmeet.tkl-1.manover.TklManoverShown"];
+            labels?: components["schemas"]["trainmeet.tkl-1.manover.TklManoverLabels"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ManoverSymbols
+         * @description The standard skin Manöver takes its symbols and colours from, so that the same symbol
+         *     means the same thing on every station (STV-46).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.manover.ManoverSymbols": "59" | "85" | "95";
+        /**
+         * TklManoverLabels
+         * @description The owner's labels in Manöver: what is shown for a track, a signal or a switch. The ids
+         *     stay as they are, so a click still asks the interlocking with the id.
+         */
+        "trainmeet.tkl-1.manover.TklManoverLabels": {
+            /**
+             * Tracks
+             * @description Spårnamnet i panelen och ägarens etikett för det.
+             */
+            tracks?: {
+                [key: string]: string;
+            };
+            /**
+             * Signals
+             * @description Signalens id och ägarens etikett för den.
+             */
+            signals?: {
+                [key: string]: string;
+            };
+            /**
+             * Switches
+             * @description Växelnumret i panelen och ägarens etikett för det.
+             */
+            switches?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklManoverShown
+         * @description What Manöver shows, each on or off. Everything is shown until the owner turns it off.
+         */
+        "trainmeet.tkl-1.manover.TklManoverShown": {
+            /**
+             * Track Names
+             * @description Spårnamnen.
+             * @default true
+             */
+            track_names: boolean;
+            /**
+             * Switch Numbers
+             * @description Växelnumren.
+             * @default true
+             */
+            switch_numbers: boolean;
+            /**
+             * Signal Ids
+             * @description Signalernas id.
+             * @default true
+             */
+            signal_ids: boolean;
+            /**
+             * Train Numbers
+             * @description Tågnumren.
+             * @default true
+             */
+            train_numbers: boolean;
+            /**
+             * Functions
+             * @description Raden Panelens knappar.
+             * @default true
+             */
+            functions: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TklInterlocking
          * @description Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
          *     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09).
@@ -5431,6 +5541,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
+                };
+            };
+        };
+    };
+    tklManover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.manover"];
+                };
+            };
+        };
+    };
+    tklSaveManover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.manover"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.manover"];
                 };
             };
         };

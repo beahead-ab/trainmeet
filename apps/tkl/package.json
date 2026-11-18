@@ -2,7 +2,7 @@
   "name": "@trainmeet/tkl",
   "private": true,
   "version": "0.1.0",
-  "description": "TrainMeet TKL's web app (KLAR-22): first start and the PIN, Ställverket at level 0 with Tåg · Klarering · Händelser and at level 1–2 as a panel in skins 85, 95 and 59 with the panel functions, Studio's list and Spårplan, and the connection to the meet. Served by tkl/.",
+  "description": "TrainMeet TKL's web app (KLAR-22): first start and the PIN, Ställverket at level 0 with Tåg · Klarering · Händelser and at level 1–2 as a panel in the five skins 85, 95, 59, Manöver and Foto with the panel functions and the turntable, Studio's list and Spårplan, and the connection to the meet. Served by tkl/.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

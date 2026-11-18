@@ -18,7 +18,6 @@ const T = {
   viewPanel: { sv: "Spårplanen", en: "Track plan" },
   viewRow: { sv: "Tåg · Klarering · Händelser", en: "Trains · Clearance · Events" },
   skin: { sv: "Skal", en: "Skin" },
-  coming: { sv: "kommer", en: "coming" },
   proportion: { sv: "Proportion", en: "Proportion" },
   newScreen: { sv: "Ny skärm ›", en: "New screen ›" },
   otherLanguage: { sv: "In English", en: "På svenska" },
@@ -153,6 +152,35 @@ const T = {
   programmingButton: { sv: "Programmeringsspår {name}", en: "Programming track {name}" },
   turnTo: { sv: "{name} mot", en: "{name} to" },
   confirmFunction: { sv: "Bekräfta {name}", en: "Confirm {name}" },
+  // The turntable in the panel (RS4, STV-04)
+  turnTable: { sv: "Vrid {name} mot {track}", en: "Turn {name} to {track}" },
+  legendTurntable: {
+    sv: "Vändskivan: klicka på ett spår vid den för att vrida bryggan dit, streckad tills den har vridits",
+    en: "Turntable: click a track at it to turn the bridge there, dashed until it has been turned",
+  },
+  // Manöver, the owner's free panel (STV-46)
+  skinTitleManover: {
+    sv: "Manöver · ägarens fria panel, symboler ur {skin}. Ändras i Studio › Spårplan.",
+    en: "Manöver · the owner's free panel, symbols from {skin}. Changed in Studio › Track plan.",
+  },
+  legendManover: {
+    sv: "Manöver · stationens egen panel med symboler och färger ur {skin}, ägarens etiketter och urval (Studio › Spårplan)",
+    en: "Manöver · the station's own panel with the symbols and colours of {skin}, the owner's labels and choice (Studio › Track plan)",
+  },
+  // Foto, the fun skin (STV-06)
+  fotoZoom: { sv: "Förstoring", en: "Zoom" },
+  fotoNear: { sv: "Närbild", en: "Close-up" },
+  fotoWhole: { sv: "Hela stationen", en: "Whole station" },
+  fotoGreyed: { sv: "Foto kräver stationens verkliga form (från CAD)", en: "Foto needs the station's real shape (from CAD)" },
+  fotoGreyedNote: {
+    sv: "Stationsmodellen har inte spårbitarnas verkliga form. Den kommer med en ritning från CAD. Välj ett annat skal; ett skalbyte skickar inga order.",
+    en: "The station model does not have the track pieces' real shape. It comes with a drawing from CAD. Choose another skin; a change of skin sends no orders.",
+  },
+  legendFotoTrains: {
+    sv: "Persontåg kort och rundat, godståg (4000–9999) längre och kantigt; Kör rullar tåget",
+    en: "Passenger trains short and rounded, goods trains (4000–9999) longer and square; Run rolls the train",
+  },
+  skinNameFoto: { sv: "Foto · stationen ovanifrån i sin verkliga form", en: "Foto · the station from above in its real shape" },
 } satisfies Record<string, Record<Language, string>>;
 
 export type TextKey = keyof typeof T;

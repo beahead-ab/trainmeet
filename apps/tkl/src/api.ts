@@ -37,6 +37,12 @@ export type TrainPut = Schemas["trainmeet.tkl-1.train-put"];
 export type FunctionShown = Schemas["trainmeet.tkl-1.interlocking.TklFunctionShown"];
 export type FunctionAsk = Schemas["trainmeet.tkl-1.function-ask"];
 export type PanelFunctionButton = Schemas["trainmeet.tkl-1.track-plan.PanelFunctionButton"];
+export type PanelTable = Schemas["trainmeet.tkl-1.track-plan.PanelTable"];
+// Manöver, the owner's free panel (STV-46): station settings, versioned with the model.
+export type Manover = Schemas["trainmeet.tkl-1.manover"];
+export type ManoverSymbols = Schemas["trainmeet.tkl-1.manover.ManoverSymbols"];
+export type ManoverShown = Schemas["trainmeet.tkl-1.manover.TklManoverShown"];
+export type ManoverLabels = Schemas["trainmeet.tkl-1.manover.TklManoverLabels"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -142,6 +148,8 @@ export const api = {
   references: () => call<Reference[]>(`${TKL}/referens`),
   reference: (id: string) => call<TrackPlan>(`${TKL}/referens/${encodeURIComponent(id)}`),
   useReference: (id: string) => call<TrackPlan>(`${TKL}/referens/${encodeURIComponent(id)}/use`, "POST"),
+  manover: () => call<Manover>(`${TKL}/studio/manover`),
+  saveManover: (settings: Manover) => call<Manover>(`${TKL}/studio/manover`, "PUT", settings),
   answerExit: async (place: string, section: string, exit: string) =>
     viewed(await call<RawView>(`${TKL}/places/${encodeURIComponent(place)}/exits`, "POST", { section, exit })),
   // Ställverket (#84): every operation answers yes, or no with the reason, and the state.

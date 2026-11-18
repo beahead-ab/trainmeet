@@ -1,19 +1,26 @@
-// Ställverket at level 1–2 (#84): the station's panel as a working interlocking, drawn in skin 85,
-// 95 or 59 (STV-12, STV-41), over the bottom row Tåg · Klarering · Händelser (STV-07). Click the
-// start signal and the goal (STV-01, STV-03), the start again for a shunting route (STV-24), Esc
-// to cancel; in 59 the signals' toggles are flipped instead (STV-36). A set route is chosen with
-// a click, and Kör, Ankommit, Avgått, Lös ut and Nödutlös act on it. A click on a switch lays its
-// lever. The panel's buttons are the station's functions from the catalogue (STV-04, STV-53).
+// Ställverket at level 1–2 (#84): the station's panel as a working interlocking, drawn in one of
+// the five skins (STV-12, STV-41): 85, 95 or 59; Manöver, the owner's free panel with the symbols
+// of one of them, the owner's labels and what the owner shows (STV-46), set for the station in
+// Studio › Spårplan; or Foto, the station from above in its real shape, where the trains roll
+// (STV-06) and which is greyed without the real shape. Over the bottom row Tåg · Klarering ·
+// Händelser (STV-07). Click the start signal and the goal (STV-01, STV-03), the start again for a
+// shunting route (STV-24), Esc to cancel; in 59 the signals' toggles are flipped instead
+// (STV-36). A set route is chosen with a click, and Kör, Ankommit, Avgått, Lös ut and Nödutlös act
+// on it. A click on a switch lays its lever, and a click on a track at the turntable turns its
+// bridge there. The panel's buttons are the station's functions from the catalogue (STV-04,
+// STV-53).
 // Every operation asks TKL's interlocking, and its answer, yes or no with the reason, is what
 // the page shows (STV-43). Every screen waits for the next change, so a second screen follows
 // the first (STV-05); the skin, the proportion and the view are chosen per screen and kept in
 // this browser. Klarering is level 0's, as it is.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Outside, type TrackPlan, type View } from "./api";
+import { api, Problem, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
+import { Foto, FotoGreyed } from "./Foto";
+import { hasRealForm } from "./foto";
 import type { Happening } from "./handelser";
 import { trains as trainsOf } from "./niva0";
 import { Panelen } from "./Panelen";
-import { changeScreen, codeIn, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, SKINS, type Screen, type ScreenView, type Skin } from "./skal";
+import { changeScreen, codeIn, ownerChoices, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, type Screen, type ScreenView, type Skin, type SkinId, type StandardId } from "./skal";
 import { Klarering, Questions, Stallverket, type Send } from "./Stallverket";
 import {
   act,
@@ -52,7 +59,7 @@ type Props = {
   onSend: Send;
   onExit: (section: string, exit: string) => void;
   /** For tests and a second render: the model and the state, without fetching them. */
-  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language };
+  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language; manover?: Manover | null };
 };
 
 const storage = (): Storage | null => (typeof localStorage === "undefined" ? null : localStorage);
@@ -64,6 +71,7 @@ export function StallverketSida(props: Props) {
   const { level, view, outside, journal, sounds, busy, onSend, onExit, hubNote, initial } = props;
   const [plan, setPlan] = useState<TrackPlan | null | undefined>(initial ? initial.plan : undefined);
   const [state, setState] = useState<Interlocking | null | undefined>(initial ? initial.state : undefined);
+  const [manover, setManover] = useState<Manover | null>(initial?.manover ?? null);
   const [failed, setFailed] = useState("");
   const revision = useRef<number | null>(null);
   revision.current = state?.revision ?? null;
@@ -73,10 +81,11 @@ export function StallverketSida(props: Props) {
     let alive = true;
     void (async () => {
       try {
-        const [found, now] = await Promise.all([api.stationModel(), api.interlocking().catch(() => null)]);
+        const [found, now, owners] = await Promise.all([api.stationModel(), api.interlocking().catch(() => null), api.manover().catch(() => null)]);
         if (!alive) return;
         setPlan(found);
         setState(now);
+        setManover(owners);
       } catch (error) {
         if (alive) {
           setPlan(null);
@@ -118,12 +127,12 @@ export function StallverketSida(props: Props) {
       </>
     );
   }
-  return <Stallverk12 {...props} plan={plan} panel={plan.panel} state={state} onState={setState} />;
+  return <Stallverk12 {...props} plan={plan} panel={plan.panel} state={state} manover={manover} onState={setState} />;
 }
 
-type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; onState: (state: Interlocking) => void };
+type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; manover?: Manover | null; onState: (state: Interlocking) => void };
 
-export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, outside, journal, busy, onSend, onExit, initial }: PanelProps) {
+export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, outside, journal, busy, onSend, onExit, initial }: PanelProps) {
   const [screen] = useState(() => (typeof location === "undefined" ? 1 : screenNumber(location.search)));
   const [settings, setSettings] = useState<Screen>(() => initial?.screen ?? readScreen(screen, storage()));
   const [language, setLanguage] = useState<Language>(() => initial?.language ?? readLanguage(storage()));
@@ -133,7 +142,11 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
   const say: Say = (key, vars) => text(language, key, vars);
   const state: Filled = filled(raw);
   const snapshot = view?.snapshot ?? null;
-  const skin = skinOf(settings.skin);
+  // Manöver: the station's settings, the same on every screen (STV-46); the rest per screen.
+  const symbols: StandardId = (manover ?? initial?.manover)?.symbols ?? "85";
+  const owner = settings.skin === "manover" ? ownerChoices(manover ?? initial?.manover ?? null) : null;
+  const skin = skinOf(settings.skin, symbols);
+  const fotoReady = hasRealForm(panel);
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
   const drawn = drawing(panel, state, busyLines(state, snapshot), ends);
 
@@ -163,6 +176,12 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
   // (STV-05, STV-18).
   const change = (next: Partial<Screen>) => setSettings(changeScreen(screen, settings, next, storage()));
   const operate = (ask: FunctionAsk) => void run(() => functionCall(valet, ask, api));
+  // A panel function's button in the plan, and a track at the turntable: the same functions.
+  const button = (name: string) => {
+    const found = state.functions.find((f) => f.name === name);
+    if (found) operate({ function: name, action: found.on ? "off" : "on", value: null, confirm: false });
+  };
+  const turn = (fn: string, piece: string) => operate({ function: fn, action: "set", value: piece, confirm: false });
   const lamps = skin.style === "lamps";
   const chosen = state.routes.find((r) => r.id === valet.route) ?? null;
   const put = (work: () => Promise<InterlockingAnswer>) => void run(() => trainCall(valet, work));
@@ -174,7 +193,7 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
         <span className="niva-chip">{say("level", { n: state.level })}</span>
         <span>{say("levelText")}</span>
         <span className="tm-fyll" />
-        <ScreenBar screen={screen} settings={settings} say={say} onChange={change} onLanguage={() => {
+        <ScreenBar screen={screen} settings={settings} say={say} fotoReady={fotoReady} symbols={symbols} onChange={change} onLanguage={() => {
           const next: Language = language === "sv" ? "en" : "sv";
           setLanguage(next);
           saveLanguage(next, storage());
@@ -187,25 +206,46 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
       ) : null}
       {settings.view !== "row" ? (
         <section className="stv-ruta" aria-label={say("panel")}>
-          <Panelen
-            panel={panel}
-            drawn={drawn}
-            skin={skin}
-            say={say}
-            title={plan.summary.name}
-            choice={valet.choice}
-            chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
-            height={panelHeight}
-            onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
-            onToggle={(name) => void run(() => clickToggle(valet, name, state.routes, api, say))}
-            onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
-            onRoute={(route) => setValet({ ...valet, route, confirm: null })}
-            onButton={(name) => {
-              const found = state.functions.find((f) => f.name === name);
-              if (found) operate({ function: name, action: found.on ? "off" : "on", value: null, confirm: false });
-            }}
-          />
-          <Legend skin={skin} say={say} />
+          {settings.skin === "foto" ? (
+            fotoReady ? (
+              <Foto
+                panel={panel}
+                drawn={drawn}
+                state={state}
+                skin={skin}
+                say={say}
+                choice={valet.choice}
+                chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
+                height={panelHeight}
+                onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
+                onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
+                onRoute={(route) => setValet({ ...valet, route, confirm: null })}
+                onButton={button}
+                onTable={turn}
+              />
+            ) : (
+              <FotoGreyed say={say} height={panelHeight} />
+            )
+          ) : (
+            <Panelen
+              panel={panel}
+              drawn={drawn}
+              skin={skin}
+              say={say}
+              title={plan.summary.name}
+              choice={valet.choice}
+              chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
+              height={panelHeight}
+              owner={owner}
+              onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
+              onToggle={(name) => void run(() => clickToggle(valet, name, state.routes, api, say))}
+              onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
+              onRoute={(route) => setValet({ ...valet, route, confirm: null })}
+              onButton={button}
+              onTable={turn}
+            />
+          )}
+          <Legend skin={skin} say={say} chosen={settings.skin} turntable={drawn.tables.length > 0} />
           <div className="stv-valet">
             <p className="stv-hjalp" aria-live="polite">
               {guidance(valet, say, lamps)}
@@ -229,7 +269,7 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
             onEmergency={(confirmed) => void run(() => emergency(valet, confirmed, api))}
             onCancel={() => setValet({ ...valet, confirm: null })}
           />
-          <FunctionRow functions={state.functions} skin={skin} working={working} say={say} onOperate={operate} />
+          {owner && !owner.shown.functions ? null : <FunctionRow functions={state.functions} skin={skin} working={working} say={say} onOperate={operate} />}
         </section>
       ) : null}
       {settings.view !== "panel" ? (
@@ -253,13 +293,31 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
   );
 }
 
-function Legend({ skin, say }: { skin: Skin; say: Say }) {
+function Legend({ skin, say, chosen, turntable }: { skin: Skin; say: Say; chosen: SkinId; turntable: boolean }) {
   const swatch = (colour: string) => <span className="farg" style={{ background: colour }} />;
+  // Manöver names the skin its symbols come from; the turntable is explained where there is one.
+  const after = (
+    <>
+      {turntable ? ` · ${say("legendTurntable")}` : null}
+      {chosen === "manover" ? ` · ${say("legendManover", { skin: skin.id })}` : null}
+    </>
+  );
+  if (skin.legend === "legendFoto") {
+    return (
+      <p className="liten forklaring stv-forklaring">
+        {swatch(skin.tracks.train)} {say("legendTrain")}
+        {swatch(skin.tracks.shunting)} {say("legendShunting")}
+        {swatch(skin.tracks.occupied)} {say("legendOccupied")} · {say("legendFotoTrains")} · {say("skinNameFoto")}
+        {after}
+      </p>
+    );
+  }
   if (skin.legend === "legend59") {
     const p = skin.plan59;
     return (
       <p className="liten forklaring stv-forklaring">
         {swatch(p?.lit ?? "#fff")} {say("legendLamps59")} {swatch(p?.train ?? "#0f0")} {say("legendArrows59")} {swatch(p?.position ?? "#00f")} {say("legendPosition59")} · {say("legendSignals59")} · {say("legendToggles59")} · {say("skinName59")}
+        {after}
       </p>
     );
   }
@@ -271,6 +329,7 @@ function Legend({ skin, say }: { skin: Skin; say: Say }) {
       {swatch(skin.tracks.shunting)} {say("legendShunting")}
       {swatch(skin.tracks.occupied)} {say("legendOccupied")}
       {swatch(skin.tracks.local)} {say("legendLocal")} · {say("legendGap")} · {say("legendProtection")} · {signals}, {say("legendBlocked")} · {say("legendNumbers")} · {say(skin.legend === "legend95" ? "skinName95" : "skinName85")}
+      {after}
     </p>
   );
 }
@@ -374,7 +433,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
   );
 }
 
-function ScreenBar({ screen, settings, say, onChange, onLanguage }: { screen: number; settings: Screen; say: Say; onChange: (next: Partial<Screen>) => void; onLanguage: () => void }) {
+function ScreenBar({ screen, settings, say, fotoReady, symbols, onChange, onLanguage }: { screen: number; settings: Screen; say: Say; fotoReady: boolean; symbols: StandardId; onChange: (next: Partial<Screen>) => void; onLanguage: () => void }) {
   const views: [ScreenView, string][] = [
     ["all", say("viewAll")],
     ["panel", say("viewPanel")],
@@ -395,11 +454,13 @@ function ScreenBar({ screen, settings, say, onChange, onLanguage }: { screen: nu
       </label>
       <span className="spar-val" role="group" aria-label={say("skin")}>
         {SKIN_ORDER.map((id) => {
-          const ready = id in SKINS;
+          // Foto needs the station's real shape: greyed without it, with the reason in the title
+          // and, when chosen, in the panel's place (STV-18).
+          const ready = id !== "foto" || fotoReady;
+          const title = !ready ? `${SKIN_NAMES[id]} · ${say("fotoGreyed")}` : id === "manover" ? say("skinTitleManover", { skin: symbols }) : SKIN_NAMES[id];
           return (
-            <button key={id} type="button" aria-pressed={settings.skin === id} disabled={!ready} onClick={() => onChange({ skin: id })} title={ready ? SKIN_NAMES[id] : `${SKIN_NAMES[id]} · ${say("coming")}`}>
+            <button key={id} type="button" aria-pressed={settings.skin === id} className={ready ? undefined : "gratt"} onClick={() => onChange({ skin: id })} title={title}>
               {SKIN_NAMES[id]}
-              {ready ? null : <span className="kommer"> {say("coming")}</span>}
             </button>
           );
         })}

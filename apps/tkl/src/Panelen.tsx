@@ -2,12 +2,15 @@
 // (#83). What is drawn comes from stallverk.ts in logical terms; the skin (skal.ts) gives every
 // colour, width and symbol, so another skin is another Skin over the same geometry: 85 and 95
 // as a screen with the states in the track's colour, 59 as model 59's illuminated plan with
-// lamps, arrows and toggle switches (STV-36). Clicks go to the page, which asks the
-// interlocking: the panel decides nothing (STV-43).
+// lamps, arrows and toggle switches (STV-36). Manöver is the owner's free panel (STV-46): one of
+// those skins as it is, with the owner's labels and only what the owner shows. The turntable is
+// drawn in every skin, the pit as a circle and the bridge at its angle; a click on one of its
+// tracks turns it through its function. Clicks go to the page, which asks the interlocking: the
+// panel decides nothing (STV-43).
 import type { KeyboardEvent, ReactNode } from "react";
 import type { Panel } from "./api";
-import type { Shape, Skin } from "./skal";
-import { cut, fromKnot, goals, type Cell, type Choice, type Drawing, type DrawnSignal } from "./stallverk";
+import { EVERYTHING, type OwnerChoices, type Shape, type Skin } from "./skal";
+import { angleOf, cut, fromKnot, goals, slice, type Cell, type Choice, type Drawing, type DrawnSignal } from "./stallverk";
 import { round, viewBox } from "./sparplan";
 import type { Say } from "./texter";
 
@@ -30,6 +33,10 @@ type Props = {
   onRoute?: (route: number) => void;
   /** A panel function's button in the plan, such as the programming track's (STV-53). */
   onButton?: (name: string) => void;
+  /** A track at the turntable, clicked: turn the bridge to it with the turntable's function. */
+  onTable?: (fn: string, piece: string) => void;
+  /** Manöver (STV-46): the owner's labels and what is shown, over the skin as it is. */
+  owner?: OwnerChoices | null;
 };
 
 const unit = (v: Cell): Cell => {
@@ -37,7 +44,7 @@ const unit = (v: Cell): Cell => {
   return [v[0] / n, v[1] / n];
 };
 
-export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton }: Props) {
+export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton, onTable, owner = null }: Props) {
   const [dx, dy] = panel.cell;
   // The grid's view, with room at the ends for an exit's name and a train number beside it.
   const grid = viewBox(panel, "schematic", null);
@@ -51,6 +58,12 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
   const font = skin.text * u;
   const said = (text: string) => (skin.upper ? text.toUpperCase() : text);
   const lit = goals(choice);
+  // Manöver: the owner's label instead of the name, the id kept for every click (STV-46).
+  const show = owner?.shown ?? EVERYTHING;
+  const trackLabel = (name: string) => owner?.labels.tracks[name] ?? name;
+  const signalLabel = (name: string) => owner?.labels.signals[name] ?? name;
+  const switchLabel = (number: string) => owner?.labels.switches[number] ?? number;
+  const skinClass = `skal-${skin.id}${owner ? " skal-manover" : ""}`;
   const at = (name: string) => drawn.signals.find((s) => s.name === name)?.symbol ?? drawn.points.find((p) => p.name === name)?.cell;
   const start = choice ? at(choice.start) : undefined;
   const chosenAt = chosen ? at(chosen.start) : undefined;
@@ -124,9 +137,10 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
     );
   };
   return (
-    <div className={`stv-ram skal-${skin.id}`} style={{ background: skin.ground, ...(p59 ? { borderImage: `${p59.frame} 1` } : {}) }}>
+    <div className={`stv-ram ${skinClass}`} style={{ background: skin.ground, ...(p59 ? { borderImage: `${p59.frame} 1` } : {}) }}>
       <svg
-        className={`stv-panel skal-${skin.id}`}
+        className={`stv-panel ${skinClass}`}
+        data-symbols={owner ? skin.id : undefined}
         viewBox={`${round(box.x)} ${round(box.y)} ${round(box.width)} ${round(box.height)}`}
         role="group"
         aria-label={say("panel")}
@@ -205,6 +219,34 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
               ])}
           </g>
         ) : null}
+        <g className="vandskivor">
+          {drawn.tables.map((t) => {
+            // The turntable: the pit as a circle and the bridge as a line at its angle, in the
+            // track's colour, in the route's while a set route holds it (RS4).
+            const [x, y] = px(t.cell);
+            const r = t.radius * dx;
+            const [tx, ty] = unit(t.toward);
+            const end = r * 0.9;
+            const colour = t.held === "train" ? skin.tracks.train : t.held === "shunting" ? skin.tracks.shunting : skin.tracks.free;
+            const w = (t.held && !lamps ? skin.stateWidth : skin.width) * u;
+            return (
+              <g key={`t${t.id}`} data-turntable={t.id} data-bridge={t.piece ?? ""} data-angle={angleOf(t.toward)}>
+                <circle cx={round(x)} cy={round(y)} r={round(r)} fill={skin.ground} stroke={skin.tracks.free} strokeWidth={round(skin.width * u * 0.6)} />
+                <line
+                  className="brygga"
+                  x1={round(x - tx * end)}
+                  y1={round(y - ty * end)}
+                  x2={round(x + tx * end)}
+                  y2={round(y + ty * end)}
+                  stroke={colour}
+                  strokeWidth={round(w)}
+                  strokeLinecap="round"
+                  strokeDasharray={t.known ? undefined : `${round(0.18 * u)} ${round(0.14 * u)}`}
+                />
+              </g>
+            );
+          })}
+        </g>
         <g className="luckor">{drawn.signals.map(gapOf)}</g>
         <g className="signaler">
           {drawn.signals.map((s) => (
@@ -221,33 +263,37 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
           ))}
         </g>
         <g className="texter" fontSize={font} fontWeight={600} textAnchor="middle" style={{ paintOrder: "stroke" }} stroke={skin.ground} strokeWidth={0.12 * u}>
-          {drawn.switches.map((s) => (
-            <text key={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={s.laid ? 1 : 0.55} fontSize={font * 0.85}>
-              {said(s.number)}
-            </text>
-          ))}
+          {show.switch_numbers
+            ? drawn.switches.map((s) => (
+                <text key={s.number} data-switch-number={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={s.laid ? 1 : 0.55} fontSize={font * 0.85}>
+                  {said(switchLabel(s.number))}
+                </text>
+              ))
+            : null}
           {drawn.labels.map((l) => (
             <text key={`${l.kind}${l.text}`} x={l.cell[0] * dx} y={l.cell[1] * dy + font * 0.35} textAnchor={l.anchor} fill={l.end ? skin.endLabel : skin.label}>
               {said(l.text)}
             </text>
           ))}
           {drawn.names
-            .filter((n) => !n.hidden)
+            .filter((n) => show.track_names && !n.hidden)
             .map((n) => (
               <text key={n.name} data-track-name={n.name} x={n.cell[0] * dx} y={n.cell[1] * dy} textAnchor="end" fill={skin.trackName} fontWeight={700}>
-                {said(n.name)}
+                {said(trackLabel(n.name))}
               </text>
             ))}
-          {drawn.signals.map((s) => {
-            const [x, y] = labelOf(s);
-            return (
-              <text key={s.name} x={x * dx} y={y * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : 1} fontWeight={700}>
-                {said(s.name)}
-              </text>
-            );
-          })}
+          {show.signal_ids
+            ? drawn.signals.map((s) => {
+                const [x, y] = labelOf(s);
+                return (
+                  <text key={s.name} data-signal-id={s.name} x={x * dx} y={y * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : 1} fontWeight={700}>
+                    {said(signalLabel(s.name))}
+                  </text>
+                );
+              })
+            : null}
         </g>
-        <g className="tagnummer" fontSize={skin.numbers.size * u} fontWeight={skin.numbers.weight} textAnchor="middle" style={{ fontFamily: skin.numbers.font }}>
+        <g className="tagnummer" display={show.train_numbers ? undefined : "none"} fontSize={skin.numbers.size * u} fontWeight={skin.numbers.weight} textAnchor="middle" style={{ fontFamily: skin.numbers.font }}>
           {drawn.numbers.map((n) => {
             const colour = n.colour === "red" ? skin.numbers.red : skin.numbers.green;
             if (!colour) return null;
@@ -335,6 +381,21 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
                   <polyline key={l.piece} points={line(l.cells)} fill="none" stroke="transparent" strokeWidth={0.9 * u} onClick={() => l.route !== null && onRoute(l.route)} style={{ cursor: "pointer" }} />
                 ))
             : null}
+          {drawn.tables.flatMap((t) =>
+            t.function && onTable
+              ? t.tracks.map((k) => {
+                  const fn = t.function as string;
+                  const turn = () => onTable(fn, k.piece);
+                  const name = say("turnTable", { name: fn, track: k.label });
+                  return (
+                    <g key={`v${t.id}${k.piece}`} role="button" tabIndex={0} aria-label={name} data-table-track={k.piece} onClick={turn} onKeyDown={press(turn)} style={{ cursor: "pointer" }}>
+                      <title>{name}</title>
+                      <polyline points={line(slice(k.cells, 0, 1.4))} fill="none" stroke="transparent" strokeWidth={round(0.4 * u)} />
+                    </g>
+                  );
+                })
+              : [],
+          )}
           {drawn.switches.map((s) => {
             const [x, y] = px(s.cell);
             const part = s.parts[0];
@@ -346,19 +407,19 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
                 key={s.number}
                 role="button"
                 tabIndex={0}
-                aria-label={say("switchLabel", { name: s.number })}
+                aria-label={say("switchLabel", { name: switchLabel(s.number) })}
                 data-position={s.position ?? ""}
                 onClick={() => part && onSwitch?.(part)}
                 onKeyDown={press(() => part && onSwitch?.(part))}
                 style={{ cursor: "pointer" }}
               >
-                <title>{`${say("switchLabel", { name: s.number })} · ${state}`}</title>
+                <title>{`${say("switchLabel", { name: switchLabel(s.number) })} · ${state}`}</title>
                 <circle cx={x} cy={y} r={0.75 * u} fill="transparent" />
               </g>
             );
           })}
           {[
-            ...drawn.signals.map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: s.name }), toggle: lamps && s.type !== "stop_lamp" })),
+            ...drawn.signals.map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: signalLabel(s.name) }), toggle: lamps && s.type !== "stop_lamp" })),
             ...drawn.points.map((p) => ({ name: p.name, at: p.cell, label: say("point", { name: p.name }), toggle: false })),
           ].map((p) => {
             const [x, y] = px(p.at);

@@ -166,6 +166,29 @@ export type DrawnArrow = { route: number; kind: RouteKind; at: Cell; toward: Cel
 export type DrawnLamp = { section: string; at: Cell; free: boolean };
 /** Where two track circuits meet in a track: model 59 breaks the line there (SJH s. 152). */
 export type DrawnBoundary = { at: Cell; toward: Cell };
+/** A track at the turntable: a click on it turns the bridge to it, through the turntable's
+ * function (STV-04). Its line on the grid and in the real shape, from the turntable outwards. */
+export type TableTrack = { piece: string; label: string; cells: Cell[]; real: Cell[] };
+/** The turntable (RS4): the pit as a circle and the bridge as a line at its angle. The bridge
+ * points at `piece`, the track the interlocking says; until it has been turned it is not known,
+ * and the bridge is drawn towards the first track, dashed. A set route over it holds it. */
+export type DrawnTable = {
+  id: string;
+  cell: Cell;
+  /** The pit's radius, in cells across. */
+  radius: number;
+  real: Cell | null;
+  realRadius: number | null;
+  piece: string | null;
+  known: boolean;
+  /** The bridge's direction, a unit vector on the panel (in its pixels) and in the real shape. */
+  toward: Cell;
+  realToward: Cell | null;
+  held: RouteKind | null;
+  /** The turntable's function, which turns it; none, and it cannot be turned from the panel. */
+  function: string | null;
+  tracks: TableTrack[];
+};
 export type Drawing = {
   lines: DrawnLine[];
   switches: DrawnSwitch[];
@@ -179,6 +202,7 @@ export type Drawing = {
   arrows: DrawnArrow[];
   lamps: DrawnLamp[];
   boundaries: DrawnBoundary[];
+  tables: DrawnTable[];
 };
 
 /** The exits whose line has a train on it in the hub's picture (STV-54): the piece outside the
@@ -293,7 +317,70 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
     const f = shownFunctions.get(b.name);
     return { name: b.name, type: b.type, cell: b.cell, side: b.side, on: f?.on ?? false, mode: f?.mode ?? null };
   });
-  return { lines: drawnLines, switches, signals, buffers, points, numbers, names, labels, buttons, arrows: arrows(panel, state), ...lamps(drawnLines, state) };
+  return { lines: drawnLines, switches, signals, buffers, points, numbers, names, labels, buttons, arrows: arrows(panel, state), ...lamps(drawnLines, state), tables: tables(panel, state) };
+}
+
+/** A line's way out from a centre: its points from the end nearest the centre. */
+function outwards(cells: Cell[], centre: Cell, scale: Cell = [1, 1]): Cell[] {
+  const far = (c: Cell) => Math.hypot((c[0] - centre[0]) * scale[0], (c[1] - centre[1]) * scale[1]);
+  return far(cells[0] as Cell) <= far(cells[cells.length - 1] as Cell) ? cells : [...cells].reverse();
+}
+
+/** The way a track at the turntable leaves it: the direction of its first stretch from the end
+ * nearest the centre, which is the angle of the track in the model (TurntableTrack.angle). A
+ * unit vector after `scale`, the cell's size in pixels on the panel. */
+function directionOf(cells: Cell[], centre: Cell, scale: Cell = [1, 1]): Cell | null {
+  const way = outwards(cells, centre, scale);
+  const size = (v: Cell) => Math.hypot(v[0] * scale[0], v[1] * scale[1]);
+  const first = way[0] as Cell;
+  for (const point of way.slice(1)) {
+    const v: Cell = [point[0] - first[0], point[1] - first[1]];
+    const n = size(v);
+    if (n > 1e-6) return [(v[0] * scale[0]) / n, (v[1] * scale[1]) / n];
+  }
+  return null;
+}
+
+/** A direction as the model gives a turntable track's angle: degrees counter-clockwise from
+ * east, 0 to 360, to a tenth. */
+export function angleOf(v: Cell): number {
+  const a = (Math.atan2(-v[1], v[0]) * 180) / Math.PI;
+  return Math.round(((a + 360) % 360) * 10) / 10 || 0;
+}
+
+/** The turntables, with the bridge where the interlocking says (STV-04, RS4). */
+export function tables(panel: Panel, state: Filled): DrawnTable[] {
+  const byPiece = new Map(panel.lines.map((line) => [line.piece, line]));
+  const scale = panel.cell as Cell;
+  return (panel.tables ?? []).map((t) => {
+    const fn = state.functions.find((f) => f.type === "turntable" && (f.at === t.id || f.at === t.node)) ?? null;
+    const tracks: TableTrack[] = [];
+    for (const mode of fn?.modes ?? []) {
+      const line = byPiece.get(mode.value);
+      if (!line) continue;
+      tracks.push({ piece: mode.value, label: mode.label, cells: outwards(line.cells, t.cell, scale), real: t.real && (line.real ?? []).length > 1 ? outwards(line.real ?? [], t.real) : [] });
+    }
+    const piece = state.turntables?.[t.id] ?? null;
+    const pointing = tracks.find((k) => k.piece === piece) ?? tracks[0] ?? null;
+    const toward = (pointing && directionOf(pointing.cells, t.cell, scale)) ?? [1, 0];
+    const realToward = pointing && t.real && pointing.real.length ? directionOf(pointing.real, t.real) : null;
+    const pieces = new Set(tracks.map((k) => k.piece));
+    const held = state.routes.find((r) => r.turntable && pieces.has(r.turntable))?.kind ?? null;
+    return {
+      id: t.id,
+      cell: t.cell,
+      radius: t.radius,
+      real: t.real ?? null,
+      realRadius: t.real_radius ?? null,
+      piece,
+      known: piece !== null && pointing?.piece === piece,
+      toward,
+      realToward,
+      held,
+      function: fn?.name ?? null,
+      tracks,
+    };
+  });
 }
 
 /** Model 59's track circuit lamps, one to four per track circuit on its longest piece, by its

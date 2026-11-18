@@ -4,9 +4,11 @@
 // is the interlocking's, #84). A model file is imported here, and the four reference stations
 // can be looked at or used as one's own (TKL40). The panel is drawn in SVG in one neutral style
 // close to skin 85: black ground (STV-42), grey track, the signal in the track line with its id
-// beside it (TKL45).
+// beside it (TKL45). Under the own station's panel, the owner sets Manöver, the free panel with
+// the symbols of one of the standard skins, the owner's labels and what is shown (STV-46).
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, Problem, type Checks, type Panel, type PanelSignal, type Reference, type Route, type TrackPlan } from "./api";
+import { ManoverInstallningar } from "./ManoverInstallningar";
 import { LEVELS, points, readModelFile, round, routeLines, routeName, routesByKind, SIGNAL_NAMES, viewBox, type Form } from "./sparplan";
 
 const MINE = "";
@@ -218,6 +220,7 @@ export function TrackPlanView({ plan, reference, form: startForm = "schematic", 
       ) : (
         <p className="tom">Panelen går inte att göra förrän problemen är rättade.</p>
       )}
+      {panel && !reference ? <ManoverInstallningar key={`${summary.station_id}|${summary.pieces}|${summary.signals}|${summary.plan}`} panel={panel} /> : null}
       <div className="kolumner sparplan-kolumner">
         <ChecksView checks={plan.checks} />
         <RoutesView routes={plan.route_list ?? []} counts={plan.routes} chosen={route} onChoose={setRoute} />

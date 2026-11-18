@@ -7,6 +7,10 @@ was, and both go to the cloud together as the station package (SYNK-30). While t
 a model, its outside is derived from the model's station tracks and line exits (STD-08, TKL92)
 and the list cannot be written by hand; without the model, the last outside is the list again.
 
+The station's Manöver settings (STV-46) belong with its model: the symbols, the owner's labels
+and what is shown, the same on every screen. They are versioned with the model, so a version of
+the outside holds them as they were; the defaults are not stored.
+
 At level 1–2 the station also has its interlocking's state of the moment (#84): the set routes,
 the locks, the switch positions and the train numbers, so that a restart keeps them. It belongs
 to one model: while routes are set or train numbers stand on the panel, the model cannot be
@@ -41,7 +45,7 @@ from contracts import station
 from contracts.common import Side
 from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
-from contracts.tkl import OutsideVersion, TklInterlocking, TklStation, TklStudio
+from contracts.tkl import OutsideVersion, TklInterlocking, TklManover, TklStation, TklStudio
 from tkl.stallverk import Interlocking, fingerprint, plant_of
 from tkl.standard import outside_of
 
@@ -96,6 +100,14 @@ CREATE TABLE IF NOT EXISTS model_version (
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS manover (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS manover_version (
+    slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
+    PRIMARY KEY (slot, number),
+    FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS interlocking (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
     revision INTEGER NOT NULL, body TEXT NOT NULL
@@ -126,6 +138,10 @@ class TooManyAttempts(Exception):
 
 class HasModel(Exception):
     """The station has a model: its outside is derived from it, not written as a list."""
+
+
+class NoModel(Exception):
+    """The station has no model: nothing at level 1–2 can be kept for it."""
 
 
 class InterlockingBusy(Exception):
@@ -334,13 +350,15 @@ class TklStore:
         latest = StationOutside.model_validate_json(versions[0][2]) if versions else None
         model = self._model(db, slot)
         latest_model = self._model_of(db, slot, versions[0][0]) if versions else None
+        manover = self._manover(db, slot)
+        latest_manover = self._manover_of(db, slot, versions[0][0]) if versions else None
         return TklStudio(
             draft=draft,
             versions=[
                 OutsideVersion(number=number, saved=datetime.fromtimestamp(saved, UTC))
                 for number, saved, _ in versions
             ],
-            changed=latest != draft or latest_model != model,
+            changed=latest != draft or latest_model != model or latest_manover != manover,
             station_model=model is not None,
         )
 
@@ -353,6 +371,18 @@ class TklStore:
     def _model_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
         row = db.execute(
             "SELECT body FROM model_version WHERE slot=? AND number=?", (slot, number)
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _manover(db: sqlite3.Connection, slot: str) -> str | None:
+        row = db.execute("SELECT body FROM manover WHERE slot=?", (slot,)).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _manover_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
+        row = db.execute(
+            "SELECT body FROM manover_version WHERE slot=? AND number=?", (slot, number)
         ).fetchone()
         return None if row is None else str(row[0])
 
@@ -385,11 +415,44 @@ class TklStore:
         return kept
 
     def forget_model(self, slot: str) -> None:
-        """Back to level 0: the last outside, derived from the model, is the list again."""
+        """Back to level 0: the last outside, derived from the model, is the list again. The
+        Manöver settings go with the model; the versions keep theirs."""
         with self._transaction() as db:
             self._new_interlocking(db, slot, None)
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
+            db.execute("DELETE FROM manover WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
+
+    # --- Manöver (STV-46): the owner's settings, with the model ------------------------------
+
+    def manover(self, slot: str) -> TklManover:
+        """The station's Manöver settings as the owner left them; the defaults when none."""
+        with self._transaction() as db:
+            body = self._manover(db, slot)
+        return TklManover() if body is None else TklManover.model_validate_json(body)
+
+    def save_manover(self, slot: str, settings: TklManover) -> TklManover:
+        """Kept with the station's model, as it is: the caller has checked it against the
+        panel. The defaults are not stored, and the same settings are always the same text, so
+        that only a real change counts as one since the latest version."""
+        with self._transaction() as db:
+            if self._model(db, slot) is None:
+                raise NoModel()
+            if settings == TklManover():
+                db.execute("DELETE FROM manover WHERE slot=?", (slot,))
+            else:
+                body = settings.model_dump(mode="json", exclude_defaults=True)
+                db.execute(
+                    "INSERT OR REPLACE INTO manover VALUES (?, ?)",
+                    (slot, json.dumps(body, ensure_ascii=False, sort_keys=True)),
+                )
+        return settings
+
+    def manover_of_version(self, slot: str, number: int) -> TklManover | None:
+        """The Manöver settings a version of the outside holds, if the owner had any."""
+        with self._transaction() as db:
+            body = self._manover_of(db, slot, number)
+        return None if body is None else TklManover.model_validate_json(body)
 
     # --- The interlocking's state (#84) -----------------------------------------------------
 
@@ -493,6 +556,11 @@ class TklStore:
                 model = self._model(db, slot)
                 if model is not None:
                     db.execute("INSERT INTO model_version VALUES (?, ?, ?)", (slot, number, model))
+                manover = self._manover(db, slot)
+                if model is not None and manover is not None:
+                    db.execute(
+                        "INSERT INTO manover_version VALUES (?, ?, ?)", (slot, number, manover)
+                    )
             return self._studio(db, slot)
 
     def latest_outside(self, slot: str) -> tuple[int, StationOutside]:
