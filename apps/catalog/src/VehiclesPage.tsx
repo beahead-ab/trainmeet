@@ -1,7 +1,8 @@
 // Fordon: the fleet with search, filters and moving several at once (CAT-65, CAT-72, CAT-73).
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState } from "react";
-import { api, STATES, type Account, type Place, type Vehicle, type VehicleKind, type VehicleList, type VehicleState } from "./api";
+import { api, STATES, type Account, type BatchSummary, type Place, type Vehicle, type VehicleKind, type VehicleList, type VehicleState } from "./api";
+import { BatchesSection } from "./BatchPage";
 import { Dialog, ErrorLine, isOwner, mayEdit, problemText, StatePill, subtitle, title, type Ctx } from "./common";
 import { PATHS, vehiclePath } from "./routes";
 
@@ -27,6 +28,8 @@ export type VehiclesViewProps = {
   group: KindGroup;
   selected: Set<string>;
   error: string | null;
+  /** The batches with photos still to approve (CAT-147, CAT-153). */
+  batches?: BatchSummary[] | null;
   onQ?: (q: string) => void;
   onState?: (state: VehicleState | null) => void;
   onGroup?: (group: KindGroup) => void;
@@ -63,21 +66,33 @@ export function VehiclesView(props: VehiclesViewProps) {
           ) : null}
           {isOwner(ctx) ? (
             // Lägg till med foto is the owner's own (CAT-46), and the phone's main button (CAT-134).
+            // Lägg till flera reads up to 30 photos in a queue (CAT-147).
             <>
               <a className="tm-knapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
                 {t("addByHand")}
+              </a>
+              <a className="tm-knapp" href={PATHS.newBatch} onClick={linkClick(navigate, PATHS.newBatch)}>
+                {t("addSeveral")}
               </a>
               <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newPhoto} onClick={linkClick(navigate, PATHS.newPhoto)}>
                 {t("addWithPhoto")}
               </a>
             </>
           ) : mayEdit(ctx) ? (
-            <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
-              {t("addByHand")}
-            </a>
+            // Someone who edits leaves photos for the owner, without AI (CAT-153).
+            <>
+              <a className="tm-knapp" href={PATHS.newBatch} onClick={linkClick(navigate, PATHS.newBatch)}>
+                {t("leaveToOwner")}
+              </a>
+              <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
+                {t("addByHand")}
+              </a>
+            </>
           ) : null}
         </div>
       </div>
+
+      <BatchesSection ctx={ctx} batches={props.batches} />
 
       <section className="tm-kort cat-lista" aria-label={t("vehicles")}>
         <div className="cat-verktyg">
@@ -238,6 +253,13 @@ export function VehiclesPage({ ctx, account }: { ctx: Ctx; account: Account }) {
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [round, setRound] = useState(0);
+  const [batches, setBatches] = useState<BatchSummary[] | null>(null);
+  const editing = mayEdit(ctx);
+
+  useEffect(() => {
+    // The batches still to approve: someone who looks has none (CAT-153).
+    if (editing) api.batches().then(setBatches, () => setBatches(null));
+  }, [editing]);
 
   useEffect(() => {
     let current = true;
@@ -264,6 +286,7 @@ export function VehiclesPage({ ctx, account }: { ctx: Ctx; account: Account }) {
         group={group}
         selected={selected}
         error={error}
+        batches={batches}
         onQ={setQ}
         onState={setState}
         onGroup={setGroup}

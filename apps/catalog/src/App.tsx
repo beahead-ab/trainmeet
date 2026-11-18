@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 import { api, idLoginHref, workIn, type Account, type AppKey, type CatalogVersion, type FleetChoice, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
+import { BatchPage } from "./BatchPage";
 import { isOwner, type Ctx } from "./common";
 import { LendPage } from "./LendPage";
 import { PhotoFlowPage } from "./PhotoFlow";
@@ -52,6 +53,8 @@ const TITLES: Record<Page, TextKey> = {
   vehicles: "vehicles",
   newVehicle: "newTitle",
   newPhoto: "photoTitle",
+  newBatch: "batchTitle",
+  batch: "batchTitle",
   vehicle: "cardEyebrow",
   editVehicle: "edit",
   lend: "lendTitle",
@@ -285,7 +288,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     fleets: props.fleets,
     tokensUrl: props.session?.tokens_url ?? null,
   };
-  const fleetPages: Page[] = ["newVehicle", "newPhoto", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
+  const fleetPages: Page[] = ["newVehicle", "newPhoto", "newBatch", "batch", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
   if (fleetPages.includes(page) && !account) {
     return (
       <section className="tm-kort cat-tomt">
@@ -306,6 +309,11 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       return <VehicleFormPage ctx={ctx} />;
     case "newPhoto":
       return <PhotoFlowPage key={props.working ?? "egen"} ctx={ctx} />;
+    case "newBatch":
+    case "batch":
+      // A new batch gets the address of its own once its photos are sent, and opens from there
+      // (CAT-147): with ?fanns= when some of them were drafts already (CAT-149).
+      return <BatchPage key={`${props.working ?? "egen"}-${id ?? "ny"}`} ctx={ctx} id={id} />;
     case "vehicle":
       return <VehicleCardPage key={id} ctx={ctx} id={id ?? ""} />;
     case "editVehicle":

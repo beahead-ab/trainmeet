@@ -187,6 +187,38 @@ def _values(fields: VehicleFields) -> dict[str, Any]:
     }
 
 
+def ai_sources(fields: VehicleFields, suggestions: Mapping[str, Any]) -> dict[str, FieldSource]:
+    """The AI as the source of a value it suggested that nobody changed; the owner of the rest
+    (CAT-64, CAT-136). suggestions are a reading's, as stored: the field's name to the
+    suggestion, with its value. For a vehicle saved from a reading, and for a batch's card when
+    it is approved (catalog/batches.py)."""
+    shown = fields.model_dump(mode="json")
+    return {
+        name: FieldSource.AI
+        for name, suggestion in suggestions.items()
+        if name in CORE_FIELDS
+        and isinstance(suggestion, Mapping)
+        and shown.get(name) == suggestion.get("value")
+    }
+
+
+def _suggested(
+    conn: Connection[DictRow], owner: UUID, person: UUID | None, reading: UUID | None
+) -> dict[str, Any]:
+    """The suggestions of the reading the form was filled in from (0010_avlasning.sql): only the
+    person's own in this fleet, done, and not a batch's, whose card is approved instead. Any
+    other reading is ignored, since it is only the source's label."""
+    if reading is None or person is None:
+        return {}
+    row = conn.execute(
+        "SELECT result FROM reading WHERE id = %s AND owner_id = %s AND person_id = %s "
+        "AND status = 'done' AND NOT batch",
+        (reading, owner, person),
+    ).fetchone()
+    found = row["result"].get("suggestions") if row is not None and row["result"] else None
+    return found if isinstance(found, dict) else {}
+
+
 def _check(fields: VehicleFields) -> None:
     if fields.status is VehicleStatus.READY and (
         fields.kind is None or not (fields.litt or fields.number)
@@ -398,10 +430,21 @@ class Fleet:
 
     # --- Writing ----------------------------------------------------------------------
 
-    def create(self, owner: UUID, fields: VehicleFields) -> Vehicle:
+    def create(
+        self,
+        owner: UUID,
+        fields: VehicleFields,
+        *,
+        reading: UUID | None = None,
+        person: UUID | None = None,
+    ) -> Vehicle:
+        """A new vehicle. With the reading its form was filled in from (Lägg till med foto), a
+        core field saved as the AI suggested it gets the source ai (CAT-64, CAT-136); person is
+        the one saving, whose reading it must be."""
         _check(fields)
         with self.db.owner_transaction(owner) as conn:
-            vehicle = self.insert(conn, owner, fields)
+            sources = ai_sources(fields, _suggested(conn, owner, person, reading))
+            vehicle = self.insert(conn, owner, fields, sources)
             return self._read(conn, owner, vehicle)
 
     @staticmethod

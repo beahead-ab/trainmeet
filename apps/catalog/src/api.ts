@@ -43,6 +43,14 @@ export type ReadingAsk = Schemas["trainmeet.catalog-1.reading-ask"];
 export type ReadingConsent = Schemas["trainmeet.catalog-1.reading-consent"];
 export type ReadingQuestion = Schemas["trainmeet.catalog-1.reading.ReadingQuestion"];
 export type Suggestion = Schemas["trainmeet.catalog-1.reading.Suggestion"];
+export type NewVehicle = Schemas["trainmeet.catalog-1.new-vehicle"];
+export type Batch = Schemas["trainmeet.catalog-1.batch"];
+export type BatchCard = Schemas["trainmeet.catalog-1.batch-card"];
+export type BatchCardStatus = BatchCard["status"];
+export type BatchSummary = Schemas["trainmeet.catalog-1.batch-summary"];
+export type BatchAsk = Schemas["trainmeet.catalog-1.batch-ask"];
+export type BatchCardChange = Schemas["trainmeet.catalog-1.batch-card-change"];
+export type BatchApproval = Schemas["trainmeet.catalog-1.batch-approval"];
 /** The core fields the AI suggests from a photo (CAT-137, CAT-139): SuggestedField in
  * contracts/catalog.py. The generated type keys Reading.suggestions by any string, so the names
  * are written here, as KINDS and STATES are. */
@@ -81,14 +89,20 @@ export const PICTURE_MAX_BYTES = 15 * 1024 * 1024;
 export const SUGGESTED_FIELDS: SuggestedField[] = ["kind", "litt", "number", "operator", "maker", "article_number"];
 /** As in catalog/reading.py: 1–4 photos in one reading, the whole vehicle and close-ups (CAT-135). */
 export const READING_PICTURES = 4;
+/** As in contracts/catalog.py: up to 30 photos in a batch, one per vehicle (CAT-147). */
+export const BATCH_PHOTOS = 30;
+/** Where a batch's photo is (CAT-147–CAT-153), in the order a photo goes. */
+export const CARD_STATUSES: BatchCardStatus[] = ["waiting", "reading", "ready", "review", "failed", "manual", "approved"];
 
 /** Catalog said no, with a code the web app has a text for, or something else went wrong.
- * retryAfter is Catalog's Retry-After in seconds, when it said when to try again (CAT-146). */
+ * retryAfter is Catalog's Retry-After in seconds, when it said when to try again (CAT-146).
+ * cards are the batch's cards that stopped Godkänn alla (Problem.cards, CAT-150). */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: ProblemCode | null,
     readonly retryAfter: number | null = null,
+    readonly cards: string[] = [],
   ) {
     super(`Catalog svarade ${status}${code ? ` (${code})` : ""}`);
   }
@@ -104,7 +118,10 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     init.body = JSON.stringify(body);
   }
   const response = await fetch(path, init);
-  if (!response.ok) throw new ApiError(response.status, codeOf(await response.text().catch(() => "")), secondsOf(response.headers.get("Retry-After")));
+  if (!response.ok) {
+    const problem = problemOf(await response.text().catch(() => ""));
+    throw new ApiError(response.status, problem.code, secondsOf(response.headers.get("Retry-After")), problem.cards);
+  }
   return (await response.json()) as T;
 }
 
@@ -113,23 +130,34 @@ function secondsOf(value: string | null): number | null {
   return value && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
 }
 
-/** A reading's form (catalog/reading_api.py): the part data is the ReadingAsk as JSON, and the
- * parts images are the 1–4 photos, in order. */
-export function readingForm(ask: ReadingAsk, photos: Blob[]): FormData {
+/** A form with photos (catalog/reading_api.py): the part data is the ask as JSON, and the parts
+ * images are the photos, in order. */
+function photoForm(ask: ReadingAsk | BatchAsk, photos: Blob[]): FormData {
   const form = new FormData();
   form.append("data", JSON.stringify(ask));
   photos.forEach((photo, index) => form.append("images", photo, photo instanceof File && photo.name ? photo.name : `foto-${index + 1}`));
   return form;
 }
 
-/** The code in Catalog's answer when it said no, if it is one. */
-function codeOf(body: string): ProblemCode | null {
+/** A reading's form: the ReadingAsk and the 1–4 photos. */
+export const readingForm = (ask: ReadingAsk, photos: Blob[]): FormData => photoForm(ask, photos);
+
+/** A batch's form (catalog/batches_api.py): the BatchAsk and the photos sent this time. */
+export const batchForm = (ask: BatchAsk, photos: Blob[]): FormData => photoForm(ask, photos);
+
+/** The code in Catalog's answer when it said no, if it is one, and the cards it names. */
+function problemOf(body: string): { code: ProblemCode | null; cards: string[] } {
   try {
     const problem = JSON.parse(body) as Partial<Problem> | null;
-    return typeof problem?.code === "string" ? problem.code : null;
+    const cards = Array.isArray(problem?.cards) ? problem.cards.filter((card): card is string => typeof card === "string") : [];
+    return { code: typeof problem?.code === "string" ? problem.code : null, cards };
   } catch {
-    return null;
+    return { code: null, cards: [] };
   }
+}
+
+function codeOf(body: string): ProblemCode | null {
+  return problemOf(body).code;
 }
 
 /** The picture as the request's body, with its own type (CAT-123). XMLHttpRequest rather than
@@ -171,6 +199,7 @@ const P = "/api/catalog/1/places";
 const M = "/api/catalog/1/meets";
 const R = "/api/catalog/1/readings";
 const F = "/api/catalog/1/prototypes";
+const B = "/api/catalog/1/batches";
 
 /** The fleet the person works in: null for their own, otherwise the owner's id (CAT-50, #49). */
 let working: string | null = null;
@@ -205,8 +234,10 @@ export const api = {
   trialLogIn: (login: TrialLogin) => call<Session>("POST", "/api/catalog/1/trial/login", login),
   vehicles: (filters: Filters = {}) => call<VehicleList>("GET", inFleet(V + query(filters))),
   vehicle: (id: string) => call<Vehicle>("GET", inFleet(`${V}/${id}`)),
-  /** A new vehicle goes in the fleet the person works in, or in their own (CAT-50). */
-  addVehicle: (fields: VehicleFields, own = false) => call<Vehicle>("POST", own ? V : inFleet(V), fields),
+  /** A new vehicle goes in the fleet the person works in, or in their own (CAT-50). With the
+   * reading its form was filled in from, a value kept as the AI suggested it gets the source ai. */
+  addVehicle: (fields: VehicleFields, own = false, reading: string | null = null) =>
+    call<Vehicle>("POST", own ? V : inFleet(V), { ...fields, reading } satisfies NewVehicle),
   changeVehicle: (id: string, change: VehicleChange) => call<Vehicle>("PUT", inFleet(`${V}/${id}`), change),
   removeVehicle: (id: string, version: number) => call<{ id: string }>("DELETE", inFleet(`${V}/${id}?version=${version}`)),
   move: (vehicles: string[], place: string | null) => call<VehicleList>("POST", inFleet(`${V}/move`), { vehicles, place }),
@@ -271,6 +302,18 @@ export const api = {
   /** The type data as the owner wants them on the vehicle: equal values inherit (CAT-162). */
   changeTypeData: (vehicle: string, version: number, fields: TypeData) => call<Vehicle>("PUT", inFleet(`${V}/${vehicle}/prototype`), { version, fields }),
   unlinkPrototype: (vehicle: string, version: number) => call<Vehicle>("DELETE", inFleet(`${V}/${vehicle}/prototype?version=${version}`)),
+  /** The batches with photos still to approve: someone who edits sees only their own (CAT-153). */
+  batches: () => call<BatchSummary[]>("GET", inFleet(B)),
+  batch: (id: string) => call<Batch>("GET", inFleet(`${B}/${id}`)),
+  /** Photos for the batch with the client's id: a new batch, or more for the same (CAT-147, CAT-149). */
+  addBatchPhotos: (ask: BatchAsk, photos: Blob[]) => call<Batch>("POST", inFleet(B), batchForm(ask, photos)),
+  removeBatch: (id: string) => call<{ id: string }>("DELETE", inFleet(`${B}/${id}`)),
+  changeCard: (batch: string, card: string, change: BatchCardChange) => call<BatchCard>("POST", inFleet(`${B}/${batch}/cards/${card}`), change),
+  removeCard: (batch: string, card: string) => call<{ id: string }>("DELETE", inFleet(`${B}/${batch}/cards/${card}`)),
+  /** A photo that failed, or was left when the tokens ran out, in the queue again (CAT-151, CAT-152). */
+  retryCard: (batch: string, card: string) => call<BatchCard>("POST", inFleet(`${B}/${batch}/cards/${card}/retry`)),
+  /** Godkänn alla: every open card as it was seen, or none (CAT-150). */
+  approveBatch: (batch: string, approval: BatchApproval) => call<Batch>("POST", inFleet(`${B}/${batch}/approve`), approval),
 };
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);

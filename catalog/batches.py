@@ -25,7 +25,8 @@ A batch, in order:
    running make the queue wait for the batch instead; it goes on by itself.
 4. Godkänn alla (approve()) makes vehicles of every open card of the batch in one transaction
    under the owner's lock, or of none (CAT-150). Each gets the values the owner saw and kept
-   (CAT-136), through the fleet's own checks, and its photo as its main picture.
+   (CAT-136), through the fleet's own checks, and its photo as its main picture. A photo left
+   to fill in by hand, manual or failed, stops it while it has no kind, litt or number.
 
 Only the owner reads with AI, and a club's administrators in the club's fleet (CAT-46).
 Someone who edits a shared fleet leaves photos for the owner without AI (CAT-153): their cards
@@ -51,7 +52,7 @@ from psycopg.types.json import Jsonb
 
 from catalog.access import Work
 from catalog.db import Database
-from catalog.fleet import Fleet, Refused
+from catalog.fleet import Fleet, Refused, ai_sources
 from catalog.pictures import Kept, Pictures, Prepared, prepare
 from catalog.prototypes import suggest
 from catalog.reading import Readings, without_id
@@ -65,7 +66,6 @@ from contracts.catalog import (
     BatchCardStatus,
     BatchSummary,
     Confidence,
-    FieldSource,
     ProblemCode,
     Reading,
     VehicleFields,
@@ -91,12 +91,17 @@ CUT_OFF: Final = "Avläsningen avbröts. Läs av igen: inget dras två gånger."
 NOT_READ: Final = "Fotot kunde inte läsas. Läs av igen, eller fyll i fälten för hand."
 BUSY: Final = "En annan avläsning pågår. Omgången fortsätter strax."
 CAP: Final = "Taket för tokens per dygn är nått i TrainMeet ID. Omgången fortsätter om en timme."
+UNFILLED: Final = (
+    "Ett foto att fylla i för hand saknar slag, littera och nummer. Fyll i det eller ta bort det."
+)
 
 _OPEN: Final = "status <> 'approved'"
 _CARD: Final = (
     "id, batch_id, position, status, version, fields, suggestions, question, warnings, message, "
     "reading_id, attempts, width, height, bytes, display_key, thumb_key, vehicle_id"
 )
+_BY_HAND: Final = frozenset({BatchCardStatus.FAILED, BatchCardStatus.MANUAL})
+"""A photo the AI did not read: filled in by hand before it is approved (CAT-152, CAT-153)."""
 _FILLED: Final = frozenset(
     {BatchCardStatus.READY, BatchCardStatus.REVIEW, BatchCardStatus.FAILED, BatchCardStatus.MANUAL}
 )
@@ -116,16 +121,6 @@ def _changed(message: str) -> Refused:
 
 def _empty() -> dict[str, Any]:
     return VehicleFields().model_dump(mode="json")
-
-
-def _sources(values: VehicleFields, suggestions: dict[str, Any]) -> dict[str, FieldSource]:
-    """The AI for a value it suggested that nobody changed; the owner for the rest (CAT-64)."""
-    shown = values.model_dump(mode="json")
-    return {
-        name: FieldSource.AI
-        for name, suggestion in suggestions.items()
-        if shown.get(name) == suggestion.get("value")
-    }
 
 
 class Batches:
@@ -514,7 +509,7 @@ class Batches:
             for row in rows:
                 values = VehicleFields.model_validate(row["fields"])
                 vehicle = Fleet.insert(
-                    conn, work.owner, values, _sources(values, row["suggestions"])
+                    conn, work.owner, values, ai_sources(values, row["suggestions"])
                 )
                 kept = Kept(
                     row["display_key"], row["thumb_key"], row["width"], row["height"], row["bytes"]
@@ -551,8 +546,11 @@ class Batches:
             )
         stopped: list[tuple[UUID, Refused]] = []
         for row in rows:
+            values = VehicleFields.model_validate(row["fields"])
             try:
-                Fleet.check(conn, owner, VehicleFields.model_validate(row["fields"]))
+                if row["status"] in _BY_HAND and not (values.kind or values.litt or values.number):
+                    raise Refused(422, ProblemCode.NOT_READY, UNFILLED)
+                Fleet.check(conn, owner, values)
             except Refused as refused:
                 stopped.append((row["id"], refused))
         if stopped:

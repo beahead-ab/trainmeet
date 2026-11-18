@@ -207,10 +207,11 @@ export function readingTrouble(t: T, error: unknown): Trouble {
 // --- Saving ------------------------------------------------------------------------------------
 
 /** Spara: the vehicle through its own address, with the suggestions that are left accepted
- * (CAT-136). Not while a character the AI could not read is still a ? (CAT-138). */
+ * (CAT-136). Not while a character the AI could not read is still a ? (CAT-138). The reading's id
+ * goes with it, so a value kept as the AI suggested it gets the AI as its source (CAT-64). */
 export async function saveVehicle(flow: Flow): Promise<Vehicle> {
   if (stillUnreadable(flow).length) throw new ApiError(422, null);
-  return api.addVehicle(outgoing(flow.fields));
+  return api.addVehicle(outgoing(flow.fields), false, flow.reading?.id ?? null);
 }
 
 /** The photos become the vehicle's pictures once it exists, in order, so the first is the main

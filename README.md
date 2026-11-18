@@ -58,6 +58,14 @@ CATALOG_TEST_DATABASE_URL=postgresql:///postgres uv run pytest catalog
 
 Catalogs bild byggs med `docker build -f catalog/Dockerfile -t trainmeet-catalog .`. Webbappens typer och tester körs när bilden byggs.
 
+Webbläsarprovet (CAT-154) går igenom Lägg till med foto och Lägg till flera i Chrome, mot Catalog med sin riktiga kö och databas och en låtsad TrainMeet ID och AI (`catalog/prov_webblasare.py`). Inget anropar en AI-leverantör. Kontrollen *Catalogs bild* kör det med en egen PostgreSQL.
+
+```sh
+npm run build -w apps/catalog
+uv run python -m catalog.prov_webblasare --databas postgresql://postgres@127.0.0.1:5432/postgres --ny   # port 8090, en egen databas
+CHROME_PATH=/usr/bin/google-chrome node apps/catalog/e2e/omgang.mjs   # PROV_BILDER=<mapp> sparar skärmbilderna
+```
+
 Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Catalog in med TrainMeet ID i stället för provinloggningen (#66), och med `CATALOG_ID_API` frågar Catalog ID:s API om delade vagnparker vid varje anrop (#49); se `catalog/settings.py`. Mot ett ID på egen dator, som nedan: `CATALOG_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet CATALOG_PUBLIC_URL=http://localhost:8001` och klienthemligheten som ID startades med.
 
 Fordonens bilder sparas på egen dator i `.catalog/pictures` (`CATALOG_PICTURES_DIR`) och hämtas genom Catalog med signerade länkar. Med `CATALOG_PICTURES_S3_ENDPOINT`, `CATALOG_PICTURES_S3_BUCKET`, `CATALOG_PICTURES_S3_REGION` och `CATALOG_PICTURES_S3_KEY_FILE` ligger de i stället privat i Object Storage (CAT-130); se `catalog/settings.py`. I bilden behövs Object Storage eller en skrivbar `CATALOG_PICTURES_DIR`.

@@ -339,6 +339,55 @@ jobs:
           # Krypterad: pg_dumps eget huvud (PGDMP) syns inte i filen.
           if head -c 5 catalog-backup/*-natt.dump.enc | grep -q PGDMP; then exit 1; fi
 
+      # Webbläsarprovet (CAT-154): webbappen byggd, och Catalog med sin riktiga kö och en egen
+      # PostgreSQL, mot en låtsad TrainMeet ID och en låtsad AI (catalog/prov_webblasare.py). Chrome
+      # går igenom Lägg till med foto och Lägg till flera (apps/catalog/e2e/omgang.mjs). Ingen
+      # AI-leverantör anropas.
+      - name: Node för webbläsarprovet
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: uv för webbläsarprovet
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Webbläsarprovet, med låtsad ID och AI (CAT-154)
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_ADRESS: http://127.0.0.1:8090
+        run: |
+          docker run -d --rm --name webblasare-db -e POSTGRES_PASSWORD=prov \
+            -p 127.0.0.1:5433:5432 postgres:17-alpine
+          npm ci --no-audit --no-fund
+          npm run build -w apps/catalog
+          uv sync --locked
+          for i in $(seq 1 60); do
+            docker exec webblasare-db pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1 && break
+            sleep 1
+          done
+          uv run python -m catalog.prov_webblasare --ny --port 8090 \
+            --databas postgresql://postgres:prov@127.0.0.1:5433/postgres > "$PROV/webblasare.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8090/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          if ! PROV_BILDER="$PROV/webblasare" node apps/catalog/e2e/omgang.mjs; then
+            cat "$PROV/webblasare.log"
+            exit 1
+          fi
+
+      - name: Webbläsarprovets skärmbilder om något gick fel
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webblasarprovet
+          path: ${{ env.PROV }}/webblasare
+          if-no-files-found: ignore
+
       - name: Visa loggen om något gick fel
         if: failure()
         run: cd "$PROV" && docker compose logs || true

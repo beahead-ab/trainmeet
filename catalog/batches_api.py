@@ -18,7 +18,7 @@ from collections.abc import Callable
 from typing import Annotated, Final
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
@@ -27,7 +27,7 @@ from catalog.batches import Batches
 from catalog.fleet import Refused
 from catalog.fleet_api import needs
 from catalog.pictures import MB
-from catalog.reading_api import MAX_DATA, MAX_FORM, read_form
+from catalog.reading_api import MAX_DATA, MAX_FORM, bad_form, read_form
 from contracts.catalog import (
     MAX_BATCH_PHOTOS,
     Account,
@@ -55,8 +55,8 @@ def _too_large() -> Refused:
     )
 
 
-def _bad_form(why: str = "Omgångens formulär kunde inte läsas.") -> HTTPException:
-    return HTTPException(status_code=422, detail=why)
+def _bad_form(why: str = "Omgångens formulär kunde inte läsas.") -> Refused:
+    return bad_form(why)
 
 
 def _ask(found: list[tuple[str, bytes]]) -> tuple[BatchAsk, list[bytes]]:
@@ -98,7 +98,7 @@ def router(
     @routes.post("/batches")
     async def add_photos(request: Request, work: Edit) -> Batch:
         """A new batch, or more photos for the same id (CAT-147, CAT-149)."""
-        ask, photos = _ask(await read_form(request, _too_large))
+        ask, photos = _ask(await read_form(request, _too_large, _bad_form))
         # A club's fleet pays from the club's balance (TOKEN-29); ID says which it is.
         club = await run_in_threadpool(access.is_club, work.person, work.owner)
         return await run_in_threadpool(lambda: batches.add(work, ask, photos, club=club))

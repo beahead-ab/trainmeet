@@ -510,7 +510,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields"
+                "$ref": "#/components/schemas/trainmeet.catalog-1.new-vehicle"
               }
             }
           }
@@ -6106,6 +6106,168 @@
         "title": "VehicleStatus",
         "type": "string"
       },
+      "trainmeet.catalog-1.new-vehicle": {
+        "additionalProperties": true,
+        "description": "A new vehicle: the core fields, and the reading the form was filled in from, if any.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.new-vehicle.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.new-vehicle.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.new-vehicle.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          },
+          "reading": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Lägg till med foto: the reading whose suggestions filled the form. A core field saved as the reading suggested it gets the source ai, the rest the owner (CAT-64, CAT-136). Only the asker's own reading in the fleet, done, counts; any other is ignored, since it is only a label.",
+            "title": "Reading"
+          }
+        },
+        "title": "NewVehicle",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.new-vehicle.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.new-vehicle.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.new-vehicle.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
+      },
       "trainmeet.catalog-1.vehicle": {
         "additionalProperties": true,
         "description": "A vehicle as its owner sees it.",
@@ -7616,7 +7778,8 @@
           "consent_required",
           "reading_busy",
           "reading_failed",
-          "bad_type_data"
+          "bad_type_data",
+          "bad_form"
         ],
         "title": "ProblemCode",
         "type": "string"
