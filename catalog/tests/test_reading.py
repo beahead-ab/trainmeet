@@ -310,6 +310,43 @@ def test_one_photo_gives_suggestions_and_draws_twelve_tokens_once(
     ]
 
 
+def test_a_vehicle_saved_from_a_reading_marks_the_values_kept_as_the_ai_suggested_them(
+    world: World, pretend: PretendMeter
+) -> None:
+    """CAT-64, CAT-136: Spara sends the reading's id, and every core field saved as the reading
+    suggested it gets the source ai; what the owner changed or wrote is the owner's."""
+    reading = read(send(world.a))
+    kept = {**HBIS, "operator": "Green Cargo", "scale": "H0", "reading": str(reading.id)}
+    made = world.a.post(f"{API}/vehicles", json=kept)
+    assert made.status_code == 201, made.text
+    assert made.json()["field_sources"] == {
+        "kind": "ai",
+        "litt": "ai",
+        "number": "ai",
+        "operator": "owner",
+        "scale": "owner",
+    }
+    assert "reading" not in made.json()
+
+    def sources(**more: Any) -> dict[str, str]:
+        found = world.a.post(f"{API}/vehicles", json={**HBIS, **more})
+        assert found.status_code == 201, found.text
+        return dict(found.json()["field_sources"])
+
+    every_owner = {"kind": "owner", "litt": "owner", "number": "owner"}
+    # Only a reading that is done counts, and only the person's own in the fleet: any other is
+    # ignored, since it is only a label.
+    assert sources() == every_owner
+    assert sources(reading=str(uuid.uuid4())) == every_owner
+    pretend.meter_fails = 502
+    failed = str(uuid.uuid4())
+    assert send(world.a, ident=failed).status_code == 502
+    assert sources(reading=failed) == every_owner
+    world.id.roles[(B, A)] = "editor"
+    by_b = world.b.post(f"{API}/vehicles?fleet={A}", json={**HBIS, "reading": str(reading.id)})
+    assert by_b.json()["field_sources"] == every_owner
+
+
 def test_the_same_id_again_gives_the_same_reading_without_reading_or_drawing(
     world: World, pretend: PretendMeter
 ) -> None:
@@ -654,13 +691,20 @@ def test_without_id_there_is_no_reading(database_url: str, tmp_path: Path) -> No
 
 
 def test_the_form_is_read_strictly(world: World, pretend: PretendMeter) -> None:
-    assert send(world.a, photos=[photo()] * 5).status_code == 422
-    assert send(world.a, vehicle=str(uuid.uuid4())).status_code == 422  # without its version
-    assert send(world.a, consent="ja").status_code == 422
+    """A form that cannot be read is a Problem with its code, like the rest of the API."""
+
+    def bad(answered: httpx.Response) -> str:
+        assert (answered.status_code, answered.json()["code"]) == (422, "bad_form")
+        return str(answered.json()["message"])
+
+    assert bad(send(world.a, photos=[photo()] * 5)) == "Välj 1–4 foton."
+    without_version = send(world.a, vehicle=str(uuid.uuid4()))
+    assert bad(without_version) == "Fordonet och dess version skickas tillsammans."
+    assert bad(send(world.a, consent="ja")) == "Avläsningens formulär kunde inte läsas."
     nothing = world.a.post(f"{API}/readings", data={"data": json.dumps({"id": str(uuid.uuid4())})})
-    assert nothing.status_code == 422
+    bad(nothing)
     plain = world.a.post(f"{API}/readings", json={"id": str(uuid.uuid4())})
-    assert plain.status_code == 422
+    assert bad(plain) == "Avläsningens formulär kunde inte läsas."
     other = send(world.a, photos=[b"inte en bild"])
     assert (other.status_code, other.json()["code"]) == (415, "bad_picture")
     assert pretend.reserved == []

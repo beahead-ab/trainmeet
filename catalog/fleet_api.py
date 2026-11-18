@@ -20,6 +20,7 @@ from contracts.catalog import (
     Account,
     Lend,
     Move,
+    NewVehicle,
     OwnerSettings,
     Place,
     PlaceName,
@@ -103,10 +104,14 @@ def router(
         return shown_list(found, work)
 
     @routes.post("/vehicles", status_code=status.HTTP_201_CREATED)
-    def add_vehicle(body: VehicleFields, work: Edit) -> Vehicle:
+    def add_vehicle(body: NewVehicle, work: Edit) -> Vehicle:
+        """With the reading the form was filled in from, a value kept as the AI suggested it
+        gets the source ai (CAT-64, CAT-136)."""
+        fields = VehicleFields.model_validate(body.model_dump(exclude={"reading"}))
         if not work.own:  # the places are the owner's (CAT-71)
-            body = body.model_copy(update={"place": None})
-        return shown(fleet.create(work.owner, body), work)
+            fields = fields.model_copy(update={"place": None})
+        made = fleet.create(work.owner, fields, reading=body.reading, person=work.person)
+        return shown(made, work)
 
     @routes.post("/vehicles/move")
     def move(body: Move, work: Own) -> VehicleList:

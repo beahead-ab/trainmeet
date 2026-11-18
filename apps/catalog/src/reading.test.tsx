@@ -380,6 +380,8 @@ describe("when the reading does not work (CAT-19, CAT-20, CAT-144, CAT-146)", ()
     // A form Catalog could not read is an answer too.
     expect(keepsId(new ApiError(422, null))).toBe(false);
     expect(readingTrouble(t, new ApiError(422, null)).text).toBe("Det gick inte. Försök igen. Inget drogs.");
+    expect(readingTrouble(t, new ApiError(422, "bad_form")).text).toBe("Formuläret kunde inte läsas. Försök igen. Inget drogs.");
+    expect(keepsId(new ApiError(422, "bad_form"))).toBe(false);
   });
 });
 
@@ -398,7 +400,7 @@ describe("saving (CAT-134, CAT-143)", () => {
     expect(asked).toHaveLength(1);
     expect(asked[0]?.url).toBe("/api/catalog/1/vehicles");
     expect(asked[0]?.init.method).toBe("POST");
-    expect(JSON.parse(String(asked[0]?.init.body))).toMatchObject({ status: "ready", kind: "locomotive", litt: "Rc6", number: "1340" });
+    expect(JSON.parse(String(asked[0]?.init.body))).toMatchObject({ status: "ready", kind: "locomotive", litt: "Rc6", number: "1340", reading: null });
   });
 
   it("accepts the suggestions left through the vehicle's own address", async () => {
@@ -407,6 +409,8 @@ describe("saving (CAT-134, CAT-143)", () => {
     await saveVehicle(flow);
     expect(asked.map((call) => call.url)).toEqual(["/api/catalog/1/vehicles"]);
     expect(JSON.parse(String(asked[0]?.init.body))).toMatchObject({ status: "ready", kind: "freight_wagon", litt: "Sgns", number: "31 74 455 1 209-6", operator: "privat", place: null });
+    // The reading's id goes with it, so a value kept as suggested gets the AI as its source (CAT-64).
+    expect(JSON.parse(String(asked[0]?.init.body)).reading).toBe(ID);
   });
 
   it("shows the steps, with the ones behind done", () => {

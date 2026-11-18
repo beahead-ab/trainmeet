@@ -1490,4 +1490,151 @@
   gap: 8px;
   justify-items: start;
   margin: 0 0 16px;
+/* Lägg till flera (#52 del d, CAT-147–CAT-153): the photos to send, the queue with each draft,
+   the cost and Godkänn alla. */
+.cat-omgang {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.cat-omgang > p {
+  margin: 0;
+}
+.tm-knapp.cat-slapp {
+  min-height: 96px;
+  border: 1.5px dashed var(--tm-line);
+  background: transparent;
+}
+.cat-valda {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.cat-valda .cat-etikett {
+  margin: 0;
+}
+.cat-valda .cat-fotoremsa li {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.cat-kostapel {
+  display: block;
+  width: 100%;
+  height: 10px;
+  accent-color: #1a7f37;
+}
+.cat-omgangslista {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cat-omgangskort {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--tm-line);
+  scroll-margin: 96px;
+}
+.cat-omgangskort:focus {
+  outline: 3px solid var(--tm-blue);
+  outline-offset: 2px;
+}
+.cat-omgangskort.cat-stoppad {
+  border-radius: 10px;
+  background: #fdecea;
+  box-shadow: inset 4px 0 0 #b42318;
+  padding-left: 12px;
+}
+.cat-kortinfo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cat-kortinfo p {
+  margin: 4px 0 0;
+}
+.cat-kortknappar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  grid-column: 2 / -1;
+}
+.cat-pill-kort-reading {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.cat-pill-kort-ready,
+.cat-pill-kort-approved {
+  background: #e3f3e6;
+  color: #17672c;
+}
+.cat-pill-kort-review,
+.cat-pill-kort-manual {
+  background: #fbf0dc;
+  color: #8a4b00;
+}
+.cat-pill-kort-failed {
+  background: #fdecea;
+  color: #b42318;
+}
+.cat-kortbild {
+  display: block;
+  width: min(100%, 360px);
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--tm-panel-2);
+}
+.cat-omgangar {
+  margin-bottom: 16px;
+}
+.cat-omgangar h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.cat-omgangar ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cat-omgangar li {
+  display: grid;
+  gap: 2px;
+}
+.cat-omgangar a {
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .cat-omgangskort.cat-stoppad {
+    background: #3a1714;
+  }
+  .cat-pill-kort-failed {
+    background: #3a1714;
+    color: #ffb4a8;
+  }
+  .cat-pill-kort-ready,
+  .cat-pill-kort-approved {
+    background: #163322;
+    color: #7fe0a0;
+  }
+  .cat-pill-kort-review,
+  .cat-pill-kort-manual {
+    background: #33270f;
+    color: #ffc27a;
+  }
+}
+@media (max-width: 760px) {
+  .cat-omgangskort {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .cat-omgangskort > .cat-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
 }

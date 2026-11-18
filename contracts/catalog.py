@@ -224,6 +224,18 @@ class VehicleChange(VehicleFields):
     version: int = Field(ge=1)
 
 
+class NewVehicle(VehicleFields):
+    """A new vehicle: the core fields, and the reading the form was filled in from, if any."""
+
+    reading: UUID | None = Field(
+        default=None,
+        description="Lägg till med foto: the reading whose suggestions filled the form. A core "
+        "field saved as the reading suggested it gets the source ai, the rest the owner "
+        "(CAT-64, CAT-136). Only the asker's own reading in the fleet, done, counts; any other "
+        "is ignored, since it is only a label.",
+    )
+
+
 class EvnParts(Contract):
     """The EVN read from the number (CAT-57). Derived every time, never stored."""
 
@@ -377,7 +389,8 @@ class ProblemCode(StrEnum):
     CHANGED = "changed"
     """It was changed since it was read: open it again (CAT-63)."""
     NOT_READY = "not_ready"
-    """Ready needs a kind and a litt or number (CAT-62); lending needs a ready vehicle."""
+    """Ready needs a kind and a litt or number (CAT-62); lending needs a ready vehicle. For
+    Godkänn alla: a photo left to fill in by hand still has no kind, litt or number (CAT-152)."""
     DCC_ONLY_ENGINES = "dcc_only_engines"
     """The DCC address and the functions are only for locomotives and multiple units."""
     PLACE_EXISTS = "place_exists"
@@ -450,6 +463,10 @@ class ProblemCode(StrEnum):
     """The type data do not follow the field register: an unknown key, a key outside the
     prototype's field profile, or a value that is not of the field's kind, such as a number
     (CAT-156, CAT-157)."""
+    BAD_FORM = "bad_form"
+    """The form with the photos could not be read: not multipart/form-data, a part missing or
+    one too many, too few or too many photos, or the part data not as the contract says.
+    Nothing was read, drawn or kept."""
 
 
 class Problem(Contract):
@@ -971,7 +988,9 @@ class BackgroundChange(Contract):
 # Rules:
 # - The AI only suggests (CAT-136). A reading is a record of its own, apart from the vehicle: it
 #   makes no vehicle and stores no picture (CAT-143). The web app fills the form with the
-#   suggestions, and Spara saves them through the vehicle's own addresses.
+#   suggestions, and Spara saves them through the vehicle's own addresses, with the reading's
+#   id (NewVehicle.reading): a value kept as the AI suggested it gets the source ai (CAT-64).
+# - A form that cannot be read is refused with 422 bad_form, before anything is read or drawn.
 # - The photos are read in TrainMeet ID's meter: TrainMeets AI, Claude through Amazon Bedrock in
 #   the EU, or the account's own AI (CAT-26, TK4). Catalog never holds a key. Each photo is made
 #   anew without position, camera or other metadata before it is sent (CAT-124), and is never
@@ -1164,7 +1183,8 @@ class ReadingConsent(Contract):
 # - Godkänn alla is all or nothing (CAT-150): it carries every open card of the batch with the
 #   version the owner saw, and either all of them become vehicles, in one transaction, or none
 #   does. A card still waiting or being read stops it (409), and so do values that do not make a
-#   vehicle (422, Problem.cards names the cards). Each vehicle gets the values the owner saw and
+#   vehicle, or a photo left to fill in by hand that still has no kind, litt or number (422
+#   not_ready, Problem.cards names the cards). Each vehicle gets the values the owner saw and
 #   kept (CAT-136), with the source ai for a value the AI suggested and nobody changed, and the
 #   photo as its main picture, which counts in the owner's storage from then on (CAT-131).
 # - Removing a card or a batch removes its files; so does removing the account (CAT-193).

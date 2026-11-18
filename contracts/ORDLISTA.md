@@ -143,8 +143,8 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Plats | `Place` | En namngiven plats hemma, till exempel Låda 1 eller Hyllan (CAT-71). |
 | Lån | `Lending`, `Lend` | Vem som har fordonet: ägarens egen anteckning (CAT-74, CAT-75). |
 | Händelse | `VehicleEvent` | Ett byte av läge eller plats, med tid (CAT-77), och träffens namn när resan flyttade fordonet (`meet_name`, CAT-182). |
-| Källa | `field_sources`, `FieldSource` | Var ett kärnfälts värde kom ifrån: ägaren, AI:n, förebilden eller en import (CAT-64). |
-| Besked | `Problem`, `ProblemCode` | Varför Catalog sa nej, med en kod som webbappen har text för. |
+| Källa | `field_sources`, `FieldSource`, `NewVehicle.reading` | Var ett kärnfälts värde kom ifrån: ägaren, AI:n, förebilden eller en import (CAT-64). AI:n är källan till ett värde som sparas så som AI:n föreslog det: när Spara skickar avläsningens id, och när ett utkast i en omgång godkänns. |
+| Besked | `Problem`, `ProblemCode` | Varför Catalog sa nej, med en kod som webbappen har text för. Ett formulär med foton som inte går att läsa ger `bad_form`. |
 | Ägare | – | Den som äger en vagnpark: en person, och senare en klubb. Varje skrivning låser ägarens rad först (CAT-40). |
 | Tagg | `Tag`, `TagKind` | En NFC-tagg under fordonet, en QR-etikett eller en simulerad tagg, med ägare och namn (CAT-78). |
 | Identifierare | `uid` | Det som står efter /t/ i adressen: NFC-taggens serienummer i hex, QR-etikettens id eller den simulerade taggens UUID. Unikt i hela Catalog. |

@@ -16,7 +16,7 @@ import re
 from collections.abc import Callable
 from typing import Annotated, Final
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
@@ -25,7 +25,7 @@ from catalog.fleet import Refused
 from catalog.fleet_api import needs
 from catalog.pictures import MAX_BYTES, too_large
 from catalog.reading import MAX_PICTURES, Readings, without_id
-from contracts.catalog import Account, Reading, ReadingAsk, ReadingConsent
+from contracts.catalog import Account, ProblemCode, Reading, ReadingAsk, ReadingConsent
 
 API = "/api/catalog/1"
 MAX_FORM: Final = MAX_PICTURES * MAX_BYTES + 64 * 1024
@@ -35,8 +35,10 @@ _BOUNDARY: Final = re.compile(r'boundary=(?:"([^"\r\n]{1,70})"|([^\s;",]{1,70}))
 _NAME: Final = re.compile(r'(?:^|;)\s*name="([^"\r\n]*)"', re.IGNORECASE)
 
 
-def _bad_form(why: str = "Avläsningens formulär kunde inte läsas.") -> HTTPException:
-    return HTTPException(status_code=422, detail=why)
+def bad_form(why: str = "Avläsningens formulär kunde inte läsas.") -> Refused:
+    """A form that cannot be read: 422 bad_form, as a Problem like the rest of the API. Nothing
+    was read, drawn or kept."""
+    return Refused(422, ProblemCode.BAD_FORM, why)
 
 
 async def _body(request: Request, refused: Callable[[], Refused] = too_large) -> bytes:
@@ -53,30 +55,35 @@ async def _body(request: Request, refused: Callable[[], Refused] = too_large) ->
 
 
 async def read_form(
-    request: Request, refused: Callable[[], Refused] = too_large
+    request: Request,
+    refused: Callable[[], Refused] = too_large,
+    bad: Callable[[], Refused] = bad_form,
 ) -> list[tuple[str, bytes]]:
-    """The form's parts, by name, read in memory and never more than MAX_FORM (#52 del b)."""
+    """The form's parts, by name, read in memory and never more than MAX_FORM (#52 del b).
+    bad is the no to a form that cannot be read, in the words of the one asking."""
     body = await _body(request, refused)
-    return parts(request.headers.get("content-type", ""), body)
+    return parts(request.headers.get("content-type", ""), body, bad)
 
 
-def parts(content_type: str, body: bytes) -> list[tuple[str, bytes]]:
+def parts(
+    content_type: str, body: bytes, bad: Callable[[], Refused] = bad_form
+) -> list[tuple[str, bytes]]:
     """The form's parts, by name, as multipart/form-data has them (RFC 7578). Anything that
     does not follow it is refused, rather than read as well as it goes."""
     kind = content_type.split(";", 1)[0].strip().lower()
     boundary = _BOUNDARY.search(content_type)
     if kind != "multipart/form-data" or boundary is None:
-        raise _bad_form()
+        raise bad()
     delimiter = b"\r\n--" + (boundary[1] or boundary[2]).encode("latin-1")
     chunks = (b"\r\n" + body).split(delimiter)
     # The preamble, the parts, and what follows the closing delimiter, which starts with --.
     if len(chunks) < 3 or chunks[0] or not chunks[-1].startswith(b"--"):
-        raise _bad_form()
+        raise bad()
     found: list[tuple[str, bytes]] = []
     for chunk in chunks[1:-1]:
         head, separator, data = chunk.lstrip(b" \t").partition(b"\r\n\r\n")
         if not separator or not head.startswith(b"\r\n"):
-            raise _bad_form()
+            raise bad()
         names = [
             _NAME.search(value)
             for key, _, value in (
@@ -85,7 +92,7 @@ def parts(content_type: str, body: bytes) -> list[tuple[str, bytes]]:
             if key.strip().lower() == "content-disposition"
         ]
         if len(names) != 1 or names[0] is None:
-            raise _bad_form()
+            raise bad()
         found.append((names[0][1], data))
     return found
 
@@ -95,15 +102,15 @@ def _ask(found: list[tuple[str, bytes]]) -> tuple[ReadingAsk, list[bytes]]:
     data = [value for name, value in found if name == "data"]
     photos = [value for name, value in found if name == "images"]
     if len(data) != 1 or len(data) + len(photos) != len(found) or len(data[0]) > MAX_DATA:
-        raise _bad_form()
+        raise bad_form()
     if not 1 <= len(photos) <= MAX_PICTURES:
-        raise _bad_form("Välj 1–4 foton.")
+        raise bad_form("Välj 1–4 foton.")
     try:
         ask = ReadingAsk.model_validate_json(data[0], strict=True)
     except ValidationError as error:
-        raise _bad_form() from error
+        raise bad_form() from error
     if (ask.vehicle is None) != (ask.version is None):
-        raise _bad_form("Fordonet och dess version skickas tillsammans.")
+        raise bad_form("Fordonet och dess version skickas tillsammans.")
     return ask, photos
 
 

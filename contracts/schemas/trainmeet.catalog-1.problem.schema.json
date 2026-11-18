@@ -36,7 +36,8 @@
         "consent_required",
         "reading_busy",
         "reading_failed",
-        "bad_type_data"
+        "bad_type_data",
+        "bad_form"
       ],
       "title": "ProblemCode",
       "type": "string"

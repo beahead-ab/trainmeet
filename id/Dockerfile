@@ -10,10 +10,13 @@ ARG KEYCLOAK=quay.io/keycloak/keycloak:26.8.2
 FROM maven:3-eclipse-temurin-21 AS extension
 WORKDIR /src
 COPY id/email-code/pom.xml .
-RUN mvn -B -q dependency:go-offline
+# Maven Central sometimes answers 429, too many requests, to the build machines: Maven's own
+# resolver asks again for 429 and 503, and the whole download is tried again, later each time.
+ENV MAVEN_ARGS="-B -q -Daether.connector.http.retryHandler.count=5 -Daether.connector.http.retryHandler.serviceUnavailable=429,503"
+RUN for attempt in 1 2 3 4; do mvn dependency:go-offline && exit 0; sleep $((attempt * 30)); done; exit 1
 COPY id/email-code/src src
 # The extension's tests run here: a red extension never becomes an image.
-RUN mvn -B -q package
+RUN mvn package
 
 FROM ${KEYCLOAK} AS build
 COPY --from=extension /src/target/trainmeet-email-code.jar /opt/keycloak/providers/

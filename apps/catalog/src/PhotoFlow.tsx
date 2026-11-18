@@ -66,7 +66,8 @@ function Crumb({ ctx }: { ctx: Ctx }) {
   return <Crumbs ctx={ctx} items={[{ href: PATHS.vehicles, label: ctx.t("vehicles") }, { label: ctx.t("photoTitle") }]} />;
 }
 
-function BuyTokens({ ctx }: { ctx: Ctx }) {
+/** Köp tokens i TrainMeet ID, where one buys more (TOKEN-01). Also Lägg till flera's. */
+export function BuyTokens({ ctx }: { ctx: Ctx }) {
   return ctx.tokensUrl ? (
     <a className="tm-knapp" href={ctx.tokensUrl}>
       {ctx.t("buyTokens")}
@@ -244,15 +245,30 @@ export function ReadingView({ ctx, flow, previews }: { ctx: Ctx; flow: Flow; pre
 }
 
 /** What is sent and to whom, before the first reading (CAT-142). In Swedish, the very text the
- * person says yes to, whose version Catalog keeps; in English the same in English. */
-export function ConsentView({ ctx, consent, photos, onYes, onNo }: { ctx: Ctx; consent: ReadingConsent | null; photos: number; onYes?: () => void; onNo?: () => void }) {
+ * person says yes to, whose version Catalog keeps; in English the same in English. keeps says
+ * what is kept of the photos: nothing for one reading, the drafts for Lägg till flera. */
+export function ConsentView({
+  ctx,
+  consent,
+  photos,
+  keeps,
+  onYes,
+  onNo,
+}: {
+  ctx: Ctx;
+  consent: ReadingConsent | null;
+  photos: number;
+  keeps?: string;
+  onYes?: () => void;
+  onNo?: () => void;
+}) {
   const { t, language } = ctx;
   const to = consent?.own_ai ? t("consentOwnAi", { model: consent.own_ai }) : t("consentTrainMeets");
   return (
     <div className="cat-samtycke">
       <p>{language === "sv" && consent ? consent.text : t("consentSent", { to })}</p>
       <Price ctx={ctx} consent={consent} photos={photos} />
-      <p className="cat-hjalp">{t("consentKeeps")}</p>
+      <p className="cat-hjalp">{keeps ?? t("consentKeeps")}</p>
       <p className="cat-hjalp">{t("consentOnce")}</p>
       <div className="cat-dialogknappar">
         <button type="button" className="tm-knapp" onClick={onNo}>
@@ -503,7 +519,7 @@ export function PhotoOwnerOnly({ ctx }: { ctx: Ctx }) {
 }
 
 /** The photos' addresses in the browser, made anew when the photos change and let go after. */
-function usePreviews(photos: File[]): string[] {
+export function usePreviews(photos: File[]): string[] {
   const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
     const made = photos.map((photo) => URL.createObjectURL(photo));

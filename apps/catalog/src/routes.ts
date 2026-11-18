@@ -5,6 +5,8 @@ export type Page =
   | "vehicles"
   | "newVehicle"
   | "newPhoto"
+  | "newBatch"
+  | "batch"
   | "vehicle"
   | "editVehicle"
   | "lend"
@@ -29,6 +31,8 @@ export const PATHS = {
   newVehicle: "/fordon/nytt",
   /** Lägg till med foto: fota, AI:n föreslår, granska, plats och tagg (CAT-134). */
   newPhoto: "/fordon/nytt/foto",
+  /** Lägg till flera: up to 30 photos in a batch, one per vehicle (CAT-147). */
+  newBatch: "/fordon/nytt/flera",
   places: "/platser",
   meets: "/traffar",
   prototypes: "/forebilder",
@@ -49,6 +53,8 @@ export const meetPath = (id: string) => `/traffar/${id}`;
 export const prototypePath = (id: string) => `/forebilder/${id}`;
 /** Föreslå ändring of a reviewed prototype (CAT-163). */
 export const changePrototypePath = (id: string) => `/forebilder/${id}/andra`;
+/** A batch of photos and its drafts (CAT-147–CAT-153). */
+export const batchPath = (id: string) => `/fordon/omgangar/${id}`;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATTERNS: [RegExp, Page][] = [
@@ -58,6 +64,7 @@ const PATTERNS: [RegExp, Page][] = [
   [new RegExp(`^/traffar/(${UUID})$`), "meet"],
   [new RegExp(`^/forebilder/(${UUID})$`), "prototype"],
   [new RegExp(`^/forebilder/(${UUID})/andra$`), "changePrototype"],
+  [new RegExp(`^/fordon/omgangar/(${UUID})$`), "batch"],
   [/^\/t\/([^/]{1,80})$/, "tag"],
 ];
 
@@ -85,7 +92,7 @@ export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
   if (page === "meet") return "meets";
   if (["prototype", "newPrototype", "changePrototype", "reviewQueue"].includes(page)) return "prototypes";
-  return ["newVehicle", "newPhoto", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
+  return ["newVehicle", "newPhoto", "newBatch", "batch", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 
 /** Where to go after logging in: the address one came from, when it is one of Catalog's own

@@ -181,6 +181,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.fleet-choice": catalog.FleetChoice,
     "trainmeet.catalog-1.vehicle-fields": catalog.VehicleFields,
     "trainmeet.catalog-1.vehicle-change": catalog.VehicleChange,
+    "trainmeet.catalog-1.new-vehicle": catalog.NewVehicle,
     "trainmeet.catalog-1.vehicle": catalog.Vehicle,
     "trainmeet.catalog-1.vehicle-list": catalog.VehicleList,
     "trainmeet.catalog-1.move": catalog.Move,
@@ -862,7 +863,7 @@ def catalog_openapi() -> str:
         query=(("q", text), ("kind", kinds), ("scale", text), ("state", text), ("place", text)),
         problems=(401, 422),
     )
-    route("post", v, "addVehicle", "vehicle", "vehicle-fields", created=True, problems=write)
+    route("post", v, "addVehicle", "vehicle", "new-vehicle", created=True, problems=write)
     route("post", v + "/move", "moveVehicles", "vehicle-list", "move", problems=write)
     route("get", v + "/{vehicle}", "vehicle", "vehicle", problems=(401, 404))
     route("put", v + "/{vehicle}", "changeVehicle", "vehicle", "vehicle-change", problems=write)

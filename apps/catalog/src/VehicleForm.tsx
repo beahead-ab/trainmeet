@@ -91,6 +91,8 @@ export type FormViewProps = {
   unreadable?: SuggestedField[];
   /** Why Spara does not save yet. */
   blocked?: string | null;
+  /** Avbryt on the same page, instead of going to backHref: a batch's draft (BatchPage.tsx). */
+  onCancel?: () => void;
 };
 
 export function FormView(props: FormViewProps) {
@@ -303,7 +305,18 @@ export function FormView(props: FormViewProps) {
           </p>
         ) : null}
         <div className="cat-formknappar">
-          <a className="tm-knapp" href={props.backHref} onClick={linkClick(navigate, props.backHref)}>
+          <a
+            className="tm-knapp"
+            href={props.backHref}
+            onClick={
+              props.onCancel
+                ? (event) => {
+                    event.preventDefault();
+                    props.onCancel?.();
+                  }
+                : linkClick(navigate, props.backHref)
+            }
+          >
             {t("cancel")}
           </a>
           <button type="submit" className="tm-knapp primar" disabled={busy || Boolean(props.blocked)}>

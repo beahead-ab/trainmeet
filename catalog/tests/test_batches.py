@@ -398,6 +398,33 @@ def test_approve_all_is_all_or_nothing(world: World, queue: Batches, database_ur
     assert problem(approve(world.a, waiting)) == (409, "reading_busy")
 
 
+def test_a_photo_left_to_fill_in_by_hand_stops_approve_all_until_it_is_filled_in(
+    world: World, pretend: QueueMeter, queue: Batches
+) -> None:
+    """CAT-150, CAT-152: the photos left when the tokens ran out are drafts to fill in by hand;
+    while one has no kind, litt or number, nothing is approved, and the answer names it."""
+    pretend.accounts[MINE] = 12
+    made = batch(sent(world.a, many(2)))
+    assert queue.work() == 2
+    read_one, left = shown(world.a, made.id).cards
+    assert (read_one.status, left.status, left.message) == ("ready", "manual", TOKENS_OUT)
+    refused = approve(world.a, shown(world.a, made.id))
+    assert refused.status_code == 422
+    assert refused.json() == {
+        "code": "not_ready",
+        "message": "Inget godkändes. Ett utkast behöver ändras först: Ett foto att fylla i för "
+        "hand saknar slag, littera och nummer. Fyll i det eller ta bort det.",
+        "cards": [str(left.id)],
+    }
+    assert world.a.get(f"{API}/vehicles").json()["total"] == 0
+    # A litt is enough: the vehicle is a draft, to finish later.
+    card_of(change(world.a, left, litt="Gbs"))
+    done = batch(approve(world.a, shown(world.a, made.id)))
+    assert {card.status for card in done.cards} == {"approved"}
+    statuses = sorted(v["status"] for v in world.a.get(f"{API}/vehicles").json()["vehicles"])
+    assert statuses == ["draft", "ready"]
+
+
 def test_an_approved_card_is_a_vehicle_with_its_photo_and_the_ais_values_marked(
     world: World, pretend: QueueMeter, queue: Batches
 ) -> None:
@@ -599,10 +626,14 @@ def test_reading_with_ai_needs_the_consent_and_the_form_is_read_strictly(
     world.id.roles[(B, A)] = "editor"
     taken = sent(world.b, many(1, start=22), ident=manual.id, ai=False, fleet=A)
     assert problem(taken) == (409, "changed")
-    # The form: the ask and 1–30 photos, nothing else.
+    # The form: the ask and 1–30 photos, nothing else, or 422 bad_form like the reading's.
     nothing = world.a.post(f"{API}/batches", data={"data": json.dumps({"id": str(uuid.uuid4())})})
-    assert nothing.status_code == 422
-    assert world.a.post(f"{API}/batches", json={"id": str(uuid.uuid4())}).status_code == 422
+    assert nothing.json() == {"code": "bad_form", "message": "Omgångens formulär kunde inte läsas."}
+    ask = json.dumps({"id": str(uuid.uuid4())})
+    no_photo = world.a.post(f"{API}/batches", files={"data": (None, ask)})
+    assert no_photo.json() == {"code": "bad_form", "message": "Välj 1–30 foton."}
+    plain = world.a.post(f"{API}/batches", json={"id": str(uuid.uuid4())})
+    assert problem(plain) == (422, "bad_form")
     assert world.nobody.post(f"{API}/batches").status_code == 401
 
 

@@ -1281,6 +1281,106 @@ export interface components {
          */
         "trainmeet.catalog-1.vehicle-change.VehicleStatus": "draft" | "ready";
         /**
+         * NewVehicle
+         * @description A new vehicle: the core fields, and the reading the form was filled in from, if any.
+         */
+        "trainmeet.catalog-1.new-vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.new-vehicle.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.new-vehicle.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.new-vehicle.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Reading
+             * @description Lägg till med foto: the reading whose suggestions filled the form. A core field saved as the reading suggested it gets the source ai, the rest the owner (CAT-64, CAT-136). Only the asker's own reading in the fleet, done, counts; any other is ignored, since it is only a label.
+             * @default null
+             */
+            reading: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.new-vehicle.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.new-vehicle.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.new-vehicle.VehicleStatus": "draft" | "ready";
+        /**
          * Vehicle
          * @description A vehicle as its owner sees it.
          */
@@ -2164,7 +2264,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back" | "consent_required" | "reading_busy" | "reading_failed" | "bad_type_data";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back" | "consent_required" | "reading_busy" | "reading_failed" | "bad_type_data" | "bad_form";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -6530,7 +6630,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["trainmeet.catalog-1.vehicle-fields"];
+                "application/json": components["schemas"]["trainmeet.catalog-1.new-vehicle"];
             };
         };
         responses: {
