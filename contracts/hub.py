@@ -338,3 +338,35 @@ class Participant(Contract):
             "är kopplad till molnet; då gäller hubbens egen adress, på träffens nät."
         ),
     )
+
+
+class ClockSource(StrEnum):
+    """Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer."""
+
+    DRIFT = "drift"
+    FASTCLOCK = "fastclock"
+
+
+class ClockSourceSettings(Contract):
+    """Klockan for the meet that runs, as Trafikledningen sees it. The password is never
+    shown, only whether there is one."""
+
+    meet: Text
+    source: ClockSource
+    clock_name: str = Field(max_length=100)
+    url: str = Field(max_length=255, description="FastClocks adress, en publik HTTPS-adress.")
+    user: str = Field(max_length=100, description="För start och stopp härifrån; tomt: bara följa.")
+    has_password: bool
+    poll_interval: int = Field(ge=2, le=30, description="Sekunder mellan läsningarna.")
+
+
+class ClockSourceChange(Contract):
+    """Byt klocka. FastClock is read before it is saved; without a password the one kept is
+    used, unless the clock, the user or the address is another."""
+
+    source: ClockSource
+    clock_name: str = Field(default="", max_length=100)
+    url: str = Field(default="https://fastclock.azurewebsites.net", max_length=255)
+    user: str = Field(default="", max_length=100)
+    password: str | None = Field(default=None, max_length=256)
+    poll_interval: int = Field(default=2, ge=2, le=30)

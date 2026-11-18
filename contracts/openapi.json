@@ -1843,6 +1843,58 @@
         ]
       }
     },
+    "/api/hub/clock-source": {
+      "get": {
+        "operationId": "clockSource",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.clock-source"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "setClockSource",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.clock-source"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.clock-source-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/hub/meet-wifi": {
       "get": {
         "operationId": "meetWifi",
@@ -13335,6 +13387,18 @@
             ],
             "default": null,
             "description": "En annan hubb leder träffen och den här följer den live (SYNK-14)."
+          },
+          "external_clock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ExternalClockNow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClock är träffens klocka (F12, IMPORT-35)."
           }
         },
         "required": [
@@ -13998,6 +14062,99 @@
           "waiting"
         ],
         "title": "DayStatus",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.ExternalClockNow": {
+        "additionalProperties": true,
+        "description": "FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open\nto everyone who looks, so it holds no user or password.",
+        "properties": {
+          "source": {
+            "const": "fastclock",
+            "default": "fastclock",
+            "title": "Source",
+            "type": "string"
+          },
+          "name": {
+            "description": "Klockans namn i FastClock.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "available": {
+            "description": "FastClock svarar, och klockan följer den.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "can_control": {
+            "description": "Start och stopp i Nu går till FastClock; annars bara i FastClock.",
+            "title": "Can Control",
+            "type": "boolean"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.",
+            "title": "Warning"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks orsak till paus eller stopp, om den har någon.",
+            "title": "Reason"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks meddelande, som det står.",
+            "title": "Message"
+          },
+          "completed": {
+            "default": false,
+            "description": "Dagens spel är slut i FastClock.",
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.Weekday"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks veckodag. Den visas, men byter aldrig trafikdag."
+          }
+        },
+        "required": [
+          "name",
+          "available",
+          "can_control"
+        ],
+        "title": "ExternalClockNow",
         "type": "object"
       },
       "trainmeet.drift-1.now.ExtraTrain": {
@@ -16507,6 +16664,99 @@
         "title": "DayStatus",
         "type": "object"
       },
+      "trainmeet.screen-1.picture.ExternalClockNow": {
+        "additionalProperties": true,
+        "description": "FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open\nto everyone who looks, so it holds no user or password.",
+        "properties": {
+          "source": {
+            "const": "fastclock",
+            "default": "fastclock",
+            "title": "Source",
+            "type": "string"
+          },
+          "name": {
+            "description": "Klockans namn i FastClock.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "available": {
+            "description": "FastClock svarar, och klockan följer den.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "can_control": {
+            "description": "Start och stopp i Nu går till FastClock; annars bara i FastClock.",
+            "title": "Can Control",
+            "type": "boolean"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.",
+            "title": "Warning"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks orsak till paus eller stopp, om den har någon.",
+            "title": "Reason"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks meddelande, som det står.",
+            "title": "Message"
+          },
+          "completed": {
+            "default": false,
+            "description": "Dagens spel är slut i FastClock.",
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.Weekday"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClocks veckodag. Den visas, men byter aldrig trafikdag."
+          }
+        },
+        "required": [
+          "name",
+          "available",
+          "can_control"
+        ],
+        "title": "ExternalClockNow",
+        "type": "object"
+      },
       "trainmeet.screen-1.picture.ExtraTrain": {
         "additionalProperties": true,
         "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
@@ -16975,6 +17225,18 @@
             ],
             "default": null,
             "description": "En annan hubb leder träffen och den här följer den live (SYNK-14)."
+          },
+          "external_clock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.ExternalClockNow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "FastClock är träffens klocka (F12, IMPORT-35)."
           }
         },
         "required": [
@@ -17945,6 +18207,130 @@
         },
         "title": "MeetWifiChange",
         "type": "object"
+      },
+      "trainmeet.hub-1.clock-source": {
+        "additionalProperties": true,
+        "description": "Klockan for the meet that runs, as Trafikledningen sees it. The password is never\nshown, only whether there is one.",
+        "properties": {
+          "meet": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.clock-source.ClockSource"
+          },
+          "clock_name": {
+            "maxLength": 100,
+            "title": "Clock Name",
+            "type": "string"
+          },
+          "url": {
+            "description": "FastClocks adress, en publik HTTPS-adress.",
+            "maxLength": 255,
+            "title": "Url",
+            "type": "string"
+          },
+          "user": {
+            "description": "För start och stopp härifrån; tomt: bara följa.",
+            "maxLength": 100,
+            "title": "User",
+            "type": "string"
+          },
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "poll_interval": {
+            "description": "Sekunder mellan läsningarna.",
+            "maximum": 30,
+            "minimum": 2,
+            "title": "Poll Interval",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "meet",
+          "source",
+          "clock_name",
+          "url",
+          "user",
+          "has_password",
+          "poll_interval"
+        ],
+        "title": "ClockSourceSettings",
+        "type": "object"
+      },
+      "trainmeet.hub-1.clock-source.ClockSource": {
+        "description": "Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.",
+        "enum": [
+          "drift",
+          "fastclock"
+        ],
+        "title": "ClockSource",
+        "type": "string"
+      },
+      "trainmeet.hub-1.clock-source-change": {
+        "additionalProperties": true,
+        "description": "Byt klocka. FastClock is read before it is saved; without a password the one kept is\nused, unless the clock, the user or the address is another.",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.clock-source-change.ClockSource"
+          },
+          "clock_name": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Clock Name",
+            "type": "string"
+          },
+          "url": {
+            "default": "https://fastclock.azurewebsites.net",
+            "maxLength": 255,
+            "title": "Url",
+            "type": "string"
+          },
+          "user": {
+            "default": "",
+            "maxLength": 100,
+            "title": "User",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Password"
+          },
+          "poll_interval": {
+            "default": 2,
+            "maximum": 30,
+            "minimum": 2,
+            "title": "Poll Interval",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "ClockSourceChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.clock-source-change.ClockSource": {
+        "description": "Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.",
+        "enum": [
+          "drift",
+          "fastclock"
+        ],
+        "title": "ClockSource",
+        "type": "string"
       },
       "trainmeet.hub-1.shared-wifi": {
         "additionalProperties": true,

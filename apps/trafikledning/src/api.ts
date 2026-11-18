@@ -5,7 +5,7 @@ import { call, DRIFT, Problem, type Client, type DriftEvent } from "@trainmeet/h
 import type { components } from "../../../contracts/types";
 
 type Schemas = components["schemas"];
-export { call, DRIFT, hub, idLoginAddress, Problem, type AiService, type AiServiceChange, type Client, type CloudLink, type DriftEvent, type HubInfo, type Joining, type LetIn, type OneTimeCode, type MeetSummary, type Now, type Version, type Weekday, type UpdateStatus, type MeetWifi, type WifiProfile, type WifiStatus } from "@trainmeet/hubben";
+export { call, DRIFT, hub, idLoginAddress, Problem, type AiService, type AiServiceChange, type Client, type CloudLink, type DriftEvent, type HubInfo, type Joining, type LetIn, type OneTimeCode, type MeetSummary, type Now, type Version, type Weekday, type UpdateStatus, type MeetWifi, type ClockSource, type ClockSourceChange, type WifiProfile, type WifiStatus } from "@trainmeet/hubben";
 export type Leg = Schemas["trainmeet.drift-1.now.LegNow"];
 export type Clearance = Schemas["trainmeet.drift-1.now.Clearance"];
 export type Actor = Schemas["trainmeet.drift-1.event.Actor"];

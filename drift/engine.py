@@ -49,6 +49,10 @@ _AT_ARRIVAL: Final = frozenset(
 
 # The clock is the dispatcher's: Nu, or the page of a Provbanan run (TRAFIK-01).
 _DISPATCHER: Final = events.Actor(kind=events.ActorKind.DISPATCHER)
+# FastClock as the meet's clock (F12, IMPORT-35): its changes are the system's, not a person's.
+_FASTCLOCK: Final = events.Actor(kind=events.ActorKind.SYSTEM, id="fastclock")
+# How far Drift's clock may stray from FastClock's before it is set again, in model seconds.
+FOLLOW_TOLERANCE: Final = 5.0
 # What Ångra takes back (F6): a time jump, or a new game day.
 _UNDOABLE: Final = frozenset({events.EventKind.TIME_JUMP, events.EventKind.DAY_CHANGED})
 
@@ -369,6 +373,48 @@ class Drift:
         self._record(
             kind, {"seconds": seconds, "speed": speed}, now, seconds=seconds, actor=_DISPATCHER
         )
+
+    def follow_clock(
+        self, seconds: float | None, speed: float, running: bool, now: datetime
+    ) -> bool:
+        """FastClock as the meet's clock (F12, IMPORT-35): Drift's clock follows it, and screens
+        and boxes read Drift as before. seconds is the time of day FastClock shows; None while
+        there is no answer, after a restart or when contact is lost, and then the clock stands
+        at what it shows: no other clock takes over. FastClock's time is laid on the game day
+        nearest Drift's own, so the change of day comes when the clock passes midnight.
+        Returns whether anything was written."""
+        self._writable()
+        current = self.clock.at(now)
+        if seconds is None:
+            if not self.clock.running:
+                return False
+            self._record(
+                events.EventKind.CLOCK_STOPPED,
+                {"seconds": current, "speed": self.clock.speed},
+                now,
+                seconds=current,
+                actor=_FASTCLOCK,
+            )
+            return True
+        target = seconds + SECONDS_PER_DAY * round((current - seconds) / SECONDS_PER_DAY)
+        if target < 0:
+            target += SECONDS_PER_DAY
+        if (
+            running == self.clock.running
+            and speed == self.clock.speed
+            and abs(target - current) <= FOLLOW_TOLERANCE
+        ):
+            return False
+        if running and not self.clock.running:
+            kind = events.EventKind.CLOCK_STARTED
+        elif not running:
+            kind = events.EventKind.CLOCK_STOPPED
+        else:
+            kind = events.EventKind.CLOCK_SPEED
+        self._record(
+            kind, {"seconds": target, "speed": speed}, now, seconds=target, actor=_FASTCLOCK
+        )
+        return True
 
     # --- Påbörjat och klart (DRIFT-47) -----------------------------------------------------
 

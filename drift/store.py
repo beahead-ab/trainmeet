@@ -327,6 +327,18 @@ class PreviewStore:
             self._save(db, run_id, drift.history[size:])
             return drift
 
+    def follow_clock(self, run_id: str, seconds: float | None, speed: float, running: bool) -> bool:
+        """FastClock as the meet's clock (F12, IMPORT-35); see Drift.follow_clock."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            written = drift.follow_clock(seconds, speed, running, now)
+            self._save(db, run_id, drift.history[size:])
+            return written
+
     def new_day(self, run_id: str, request: events.NewDay) -> Drift:
         """Starta ny dag (F7): the next game day, from Nu."""
         with self._transaction() as db:

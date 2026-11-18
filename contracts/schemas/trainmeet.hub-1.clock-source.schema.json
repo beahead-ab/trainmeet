@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.clock-source.schema.json",
+  "title": "trainmeet.hub-1.clock-source",
+  "$defs": {
+    "ClockSource": {
+      "description": "Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.",
+      "enum": [
+        "drift",
+        "fastclock"
+      ],
+      "title": "ClockSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Klockan for the meet that runs, as Trafikledningen sees it. The password is never\nshown, only whether there is one.",
+  "properties": {
+    "meet": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Meet",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/ClockSource"
+    },
+    "clock_name": {
+      "maxLength": 100,
+      "title": "Clock Name",
+      "type": "string"
+    },
+    "url": {
+      "description": "FastClocks adress, en publik HTTPS-adress.",
+      "maxLength": 255,
+      "title": "Url",
+      "type": "string"
+    },
+    "user": {
+      "description": "För start och stopp härifrån; tomt: bara följa.",
+      "maxLength": 100,
+      "title": "User",
+      "type": "string"
+    },
+    "has_password": {
+      "title": "Has Password",
+      "type": "boolean"
+    },
+    "poll_interval": {
+      "description": "Sekunder mellan läsningarna.",
+      "maximum": 30,
+      "minimum": 2,
+      "title": "Poll Interval",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "meet",
+    "source",
+    "clock_name",
+    "url",
+    "user",
+    "has_password",
+    "poll_interval"
+  ],
+  "type": "object"
+}

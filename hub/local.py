@@ -25,6 +25,8 @@ from secrets import randbelow, token_bytes, token_urlsafe
 from threading import Lock
 from typing import Final
 
+from integrationer import fastclock
+
 SESSION_LIFETIME: Final = timedelta(hours=12)
 FAILURE_WINDOW: Final = timedelta(minutes=10)
 MAX_FAILURES: Final = 10
@@ -95,6 +97,15 @@ CREATE TABLE IF NOT EXISTS meet_wifi (
     name TEXT NOT NULL,
     open INTEGER NOT NULL,
     password TEXT
+);
+CREATE TABLE IF NOT EXISTS clock_source (
+    meet TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    clock_name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    user TEXT NOT NULL,
+    password TEXT NOT NULL,
+    poll_interval INTEGER NOT NULL
 );
 """
 
@@ -469,6 +480,41 @@ class LocalLogin:
                     setting.model,
                     setting.key,
                     setting.checked.timestamp() if setting.checked else None,
+                ),
+            )
+
+    def clock_source(self, meet: str) -> fastclock.Settings:
+        """Träffens klocka (F12): per meet, so another meet never gets a clock's name or
+        password. The password stays here and is never shown."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT source, clock_name, url, user, password, poll_interval FROM clock_source "
+                "WHERE meet=?",
+                (meet,),
+            ).fetchone()
+        if row is None:
+            return fastclock.Settings()
+        return fastclock.Settings(
+            source="fastclock" if row[0] == "fastclock" else "drift",
+            clock_name=row[1],
+            url=row[2],
+            user=row[3],
+            password=row[4],
+            poll_interval=int(row[5]),
+        )
+
+    def set_clock_source(self, meet: str, settings: fastclock.Settings) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO clock_source VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    meet,
+                    settings.source,
+                    settings.clock_name,
+                    settings.url,
+                    settings.user,
+                    settings.password,
+                    settings.poll_interval,
                 ),
             )
 

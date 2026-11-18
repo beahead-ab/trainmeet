@@ -174,6 +174,24 @@ function Dygnsskifte({ now, onNewDay }: { now: Now; onNewDay?: (request: NewDay)
   );
 }
 
+/** FastClock as the meet's clock (F12, IMPORT-35): Drift follows it, and the time and speed are
+ * set there. Without an answer the last time stands, with a warning; no other clock takes over. */
+export function FastClock({ now }: { now: Now }) {
+  const clock = now.external_clock;
+  if (!clock) return null;
+  const said = [clock.weekday ? `FastClock säger ${dayName(clock.weekday).toLowerCase()}` : null, clock.completed ? "dagens spel är slut" : clock.reason, clock.message].filter(Boolean);
+  return (
+    <div id="fastclock" className={"kort fastclock" + (clock.available ? "" : " varning")} role={clock.available ? "status" : "alert"}>
+      <p>
+        <b>{`Klockan följer FastClock · ${clock.name}`}</b>
+        {said.length ? <span className="liten">{` · ${said.join(" · ")}`}</span> : null}
+      </p>
+      {!clock.available && <p className="liten">{clock.warning}</p>}
+      <p className="liten">{clock.can_control ? "Start och stopp går till FastClock. Tiden och hastigheten ändras där." : "Tiden, hastigheten, start och stopp ändras i FastClock."}</p>
+    </div>
+  );
+}
+
 function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
   const { admin, now, onClock } = props;
   const [filter, setFilter] = useState<Leg["state"] | "all">("all");
@@ -189,23 +207,26 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
           {now.clock.running ? `klockan går i ${now.clock.speed}×` : "klockan står still"}
         </p>
       </div>
+      <FastClock now={now} />
       <Följer now={now} admin={props.leaderAdmin} onTakeOver={props.onTakeOver} />
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
       <Tillbakadragen now={now} />
       {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}
-      {admin && (
+      {admin && (!now.external_clock || now.external_clock.can_control) && (
         <div className="rad" id="clock-controls">
           <button id="clock-toggle" type="button" className="primar" onClick={() => onClock?.({ action: now.clock.running ? "stop" : "start", speed: null, time: null, game_day: null, jump: null })}>
             {now.clock.running ? "Stoppa klockan" : "Starta klockan"}
           </button>
-          <Chips label="Hastighet">
-            {SPEEDS.map((speed) => (
-              <Chip key={speed} label={`${speed}×`} pressed={now.clock.speed === speed} onClick={() => onClock?.({ action: "speed", speed, time: null, game_day: null, jump: null })} />
-            ))}
-          </Chips>
+          {!now.external_clock && (
+            <Chips label="Hastighet">
+              {SPEEDS.map((speed) => (
+                <Chip key={speed} label={`${speed}×`} pressed={now.clock.speed === speed} onClick={() => onClock?.({ action: "speed", speed, time: null, game_day: null, jump: null })} />
+              ))}
+            </Chips>
+          )}
         </div>
       )}
-      {admin && <Tidshopp now={now} onClock={onClock} />}
+      {admin && !now.external_clock && <Tidshopp now={now} onClock={onClock} />}
       {admin && <Dygnsskifte now={now} onNewDay={props.onNewDay} />}
       {admin && <Andringar now={now} pkg={props.pkg ?? null} onMake={props.onChange} onDrop={props.onDrop} onForce={props.onForce} />}
       {admin && props.automation && <Automatiken {...props} automation={props.automation} />}

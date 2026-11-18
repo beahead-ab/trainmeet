@@ -22,6 +22,7 @@ from contracts.sync import Hello
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
+    clock_source,
     deltagare,
     drift_api,
     hubben,
@@ -46,6 +47,7 @@ from hub.pin import take_pin_file
 from hub.push import Pusher, Senders
 from hub.running import Running
 from hub.stores import AnyRun
+from integrationer.fastclock import ExternalClock
 from planering.store import Planning, PlanningError
 from synk.follower import Call, Follower, urllib_call
 from synk.home import Homes
@@ -105,9 +107,10 @@ def create_app(
     sync_call: Call = urllib_call,
     id_settings: id_login.IdSettings | None = None,
     id_http: httpx.Client | None = None,
+    external_clock: ExternalClock | None = None,
 ) -> FastAPI:
     """id_settings and id_http: the login with TrainMeet ID, for tests; otherwise read from the
-    environment (hub/id_login.py)."""
+    environment (hub/id_login.py). external_clock: FastClock, for tests with a pretend one."""
     info = info if info is not None else build_info.from_env()
     preview_path = provbanan.database_path(preview_db)
     data_dir = preview_path.parent
@@ -194,6 +197,9 @@ def create_app(
         thread.start()
         synk = Thread(target=follower.run, args=(stop,), name="synken", daemon=True)
         synk.start()
+        # FastClock, when it is the meet's clock (F12): read in a thread of its own, so that a
+        # slow answer never holds up the automation.
+        Thread(target=clock.run, args=(stop,), name="klockan", daemon=True).start()
         # The physical TMBoxes over MQTT, on a Pi with Mosquitto (BOX-10, DRIFT-22).
         boxes = tmbox_mqtt.from_environment(running, links.hub_id)
         if boxes is not None:
@@ -290,7 +296,10 @@ def create_app(
     app.state.latest = latest = update_api.Latest()
     app.include_router(update_api.router(login, running, current, latest=latest))
     app.include_router(provbanan.router(preview))
-    app.include_router(drift_api.router(running, login, may))
+    # Träffens klocka (F12, IMPORT-35): FastClock, when chosen for the meet that runs.
+    app.state.clock = clock = clock_source.ClockSource(running, login, external_clock)
+    app.include_router(drift_api.router(running, login, may, clock))
+    app.include_router(clock_source.router(clock, login, may))
     app.include_router(
         planering_api.router(
             plans,
