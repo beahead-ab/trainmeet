@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -46,6 +46,21 @@ def reserve(
         "amount": amount,
         "key": key,
         "what": f"{amount // 12} sidor i importen",
+    }
+    return app_post(world, "reservations", body, app)
+
+
+def storage(
+    world: World, owner: str, amount: int, key: str, app: str = "catalog"
+) -> httpx.Response:
+    """An app's own billing of its storage over the free level (CAT-132): no person."""
+    kind, _, ident = owner.partition(":")
+    body = {
+        "person": None,
+        "owner": {"kind": kind, "id": ident},
+        "amount": amount,
+        "key": key,
+        "what": "Bildlagring i Catalog 2026-11, påbörjad GB 1 över den fria nivån",
     }
     return app_post(world, "reservations", body, app)
 
@@ -222,3 +237,64 @@ def test_a_reservation_nobody_draws_goes_back_by_itself(
     with pytest.raises(Refused) as late:
         tokens.draw("hub", held.id, TokenDraw())
     assert late.value.status == 409
+
+
+def test_catalog_bills_its_storage_from_the_owners_balance_without_a_person(world: World) -> None:
+    """CAT-132, TOKEN-16, TOKEN-29: the storage over the free level is drawn from the owner's
+    balance, the person's or the club's, with no person working: whoever uploaded the picture,
+    also at Catalog's daily round. The same key never draws twice (TOKEN-28)."""
+    kim, club, _ = club_with(world)
+    held = storage(world, f"club:{club}", 20, "catalog-lagring-klubben-2026-11-1")
+    assert held.status_code == 201, held.text
+    reservation = TokenReservation.model_validate(held.json())
+    assert (reservation.state, reservation.owner.kind) == ("held", TokenOwnerKind.CLUB)
+    drawn = app_post(world, f"reservations/{reservation.id}/draw", {}, app="catalog")
+    assert drawn.status_code == 200, drawn.text
+    assert TokenReservation.model_validate(drawn.json()).balance.available == 280
+    again = storage(world, f"club:{club}", 20, "catalog-lagring-klubben-2026-11-1")
+    assert (again.json()["id"], again.json()["state"]) == (str(reservation.id), "drawn")
+    assert again.json()["balance"]["available"] == 280
+
+    mine = storage(world, f"person:{kim.id}", 20, "catalog-lagring-kim-2026-11-1")
+    assert mine.status_code == 201 and mine.json()["balance"]["available"] == 80
+    # A short balance and an unknown owner are refused as for any work.
+    short = storage(world, f"person:{kim.id}", 100, "catalog-lagring-kim-2026-11-2")
+    assert short.status_code == 402 and short.json()["code"] == "no_tokens"
+    assert storage(world, f"club:{uuid4()}", 20, "catalog-lagring-x-2026-11-1").status_code == 404
+
+
+def test_only_an_app_that_bills_its_storage_reserves_without_a_person(world: World) -> None:
+    kim, club, _ = club_with(world)
+    for owner in (f"person:{kim.id}", f"club:{club}"):
+        refused = storage(world, owner, 20, "hubben-lagring", app="hub")
+        assert refused.status_code == 403, refused.text
+        assert refused.json()["code"] == "forbidden"
+    # The rest of the hub's work still needs its person.
+    assert reserve(world, kim.id, f"club:{club}", 12, "hubben-1").status_code == 201
+
+
+def test_the_days_cap_counts_the_storage_too(
+    world: World, at: tuple[Tokens, list[datetime]]
+) -> None:
+    """TK15: the cap per day holds for what an app bills for its storage as for its AI."""
+    tokens, now = at
+    now[0] = datetime(2026, 11, 18, 9, 0, tzinfo=UTC)
+    kim = log_in(world, "Kim Ek", "kim@example.com")
+    person = UUID(kim.client.get(f"{API}/session").json()["account"]["id"])
+    mine = TokenOwner(kind=TokenOwnerKind.PERSON, id=person)
+    capped = Tokens(tokens.db, clock=lambda: now[0], caps=lambda: (30, 300))
+
+    def bill(key: str) -> TokenReservation:
+        what = "Bildlagring i Catalog 2026-11"
+        asked = TokenReserve(person=None, owner=mine, amount=20, key=key, what=what)
+        return capped.reserve("catalog", asked)
+
+    assert bill("catalog-lagring-1").balance.available == 80
+    with pytest.raises(Refused) as cap:
+        bill("catalog-lagring-2")
+    assert (cap.value.status, cap.value.code) == (429, "too_many")
+    with pytest.raises(Refused) as hub:
+        capped.reserve(
+            "hub", TokenReserve(person=None, owner=mine, amount=1, key="h", what="sidor")
+        )
+    assert hub.value.status == 403

@@ -204,6 +204,11 @@ class Meter:
 
     def read(self, app: str, asked: MeterRead) -> MeterAnswer:
         held = self.tokens.reservation(app, asked.reservation)
+        if not self.tokens.has_person(app, asked.reservation):
+            # The app's own billing of its storage (CAT-132) pays for storage, never for AI.
+            raise Refused(
+                422, ProblemCode.INVALID, "Reservationen gäller lagring och läses inte med AI."
+            )
         own = self.own_ai(held.owner) if held.state == TokenReservationState.HELD else None
         if own is not None:
             return self._own(app, asked, own)

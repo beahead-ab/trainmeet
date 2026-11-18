@@ -23,7 +23,7 @@ from id.app import create_app
 from id.meter import BedrockClaude, ClaudeRead, MeterFailed, MeterSettings, settings_from
 from id.settings import Settings
 from id.tests.test_api import INTERNAL, ISSUER, PUBLIC, SECRET, World, log_in
-from id.tests.test_tokens import reserve
+from id.tests.test_tokens import app_post, reserve, storage
 
 PICTURE = base64.b64encode(b"\x89PNG en sida").decode()
 
@@ -215,3 +215,22 @@ def test_bedrock_says_what_went_wrong_without_the_key(
         claude.read("Skriv av.", [("image/png", PICTURE)], 4096)
     assert said in str(failed.value)
     assert "hemlig" not in str(failed.value)
+
+
+def test_the_meter_never_reads_with_a_reservation_for_storage(metered: Metered) -> None:
+    """CAT-132: a reservation without a person pays for an app's storage, never for AI."""
+    kim = person(metered.world)
+    held = storage(metered.world, f"person:{kim}", 20, "catalog-lagring-kim-2026-11-1").json()
+    headers = {"Authorization": f"Bearer {metered.world.keycloak.app_token('catalog')}"}
+    body = {
+        "reservation": held["id"],
+        "prompt": "Skriv av stationslistan.",
+        "images": [{"media_type": "image/png", "data": PICTURE}],
+    }
+    refused = metered.app.post("/api/id/1/apps/meter", json=body, headers=headers)
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["code"] == "invalid"
+    assert metered.claude.calls == []
+    # Still held for the storage, which Catalog draws itself.
+    drawn = app_post(metered.world, f"reservations/{held['id']}/draw", {}, app="catalog")
+    assert drawn.json()["balance"]["available"] == 80
