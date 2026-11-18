@@ -1,6 +1,7 @@
-/* TrainMeet's design system: Inter and JetBrains Mono, Kontrollrummets colours in light and
-   dark. The header is dark in both; the menus are light in every app. Numbers in JetBrains
-   Mono (CAT-198). Colours are chosen for WCAG 2.2 AA contrast (ST13). */
+/* TrainMeet's design system: Inter and TrainMeet Mono, Kontrollrummets colours in light and
+   dark. The header is dark in both; the menus are light in every app. Numbers in TrainMeet
+   Mono (CAT-198): JetBrains Mono with a plain zero, since a dotted zero is read as an eight
+   from a distance (S7, Casper 18 November). Colours are chosen for WCAG 2.2 AA contrast (ST13). */
 @import "./fonts.css";
 
 :root {
@@ -23,7 +24,7 @@
   --tm-head-tab: #6f97ff;
   --tm-dots: #c0c5cf;
   --tm-radius: 14px;
-  --tm-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --tm-mono: "TrainMeet Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {

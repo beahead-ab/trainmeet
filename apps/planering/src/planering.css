@@ -310,7 +310,7 @@ main.planering button.ikon { min-width: 36px; padding: 6px 10px; font-size: 16px
 .visa-fler { margin: 4px 20px 12px; }
 input.cell, select.cell { min-height: 30px; padding: 3px 8px; }
 input.cell { width: 8em; }
-.kalla { display: inline-block; font-family: "JetBrains Mono", ui-monospace, monospace;
+.kalla { display: inline-block; font-family: "TrainMeet Mono", ui-monospace, monospace;
   font-size: 11px; font-weight: 600; color: #3d3d3a; border: 1px solid var(--tm-line);
   border-radius: 5px; padding: 1px 6px; margin-right: 4px; background: var(--tm-panel); }
 .kalla.andrad { color: var(--tm-blue); border-color: #c9d6f2; }
@@ -400,7 +400,7 @@ input.cell { width: 8em; }
 .lank.utan .traff { cursor: default; }
 .lank:not(.utan):hover .enkel, .lank:not(.utan):hover .yttre { stroke: #374151; }
 .lank.vald:hover .enkel, .lank.vald:hover .yttre { stroke: var(--tm-blue); }
-.strackanamn { font: 600 11px "JetBrains Mono", monospace; fill: var(--tm-mute); text-anchor: middle; }
+.strackanamn { font: 600 11px "TrainMeet Mono", monospace; fill: var(--tm-mute); text-anchor: middle; }
 .strackanamn.vald { fill: var(--tm-blue); }
 .plats { cursor: pointer; }
 .plats .ruta { fill: var(--tm-panel); stroke: var(--tm-text); stroke-width: 2; }
@@ -409,7 +409,7 @@ input.cell { width: 8em; }
 .plats .ring { fill: var(--tm-panel); stroke: #3d3d3a; stroke-width: 2.5; }
 .plats.vald .ruta, .plats.vald .ring { stroke: var(--tm-blue); stroke-width: 3; }
 .plats text { text-anchor: middle; }
-.plats .kod { font: 600 14px "JetBrains Mono", monospace; fill: var(--tm-text); }
+.plats .kod { font: 600 14px "TrainMeet Mono", monospace; fill: var(--tm-text); }
 .plats .namn { font: 600 13px Inter, sans-serif; fill: var(--tm-text); }
 .plats .namn.under { font-weight: 500; fill: #3d3d3a; }
 .plats .not { font: 12px Inter, sans-serif; fill: var(--tm-mute); }
