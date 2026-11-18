@@ -51,6 +51,23 @@
       "description": "The same in Swedish, for logs and other readers.",
       "title": "Message",
       "type": "string"
+    },
+    "cards": {
+      "anyOf": [
+        {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only for Godkänn alla: the cards whose values do not make a vehicle, so that nothing was approved (CAT-150). Left out otherwise.",
+      "title": "Cards"
     }
   },
   "required": [

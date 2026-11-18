@@ -51,7 +51,7 @@ import secrets
 import time
 import uuid
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -666,6 +666,18 @@ def _file(owner: UUID, data: bytes, kind: str = "image/jpeg") -> _File:
     return _File(new_key(owner, kind), data, kind)
 
 
+@dataclass(frozen=True)
+class Kept:
+    """A draft's picture in a batch (#52 del b), stored before it is a vehicle's: its files'
+    keys, the display picture's size in pixels, and what the two take."""
+
+    display_key: str
+    thumb_key: str
+    width: int
+    height: int
+    bytes: int
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -898,12 +910,7 @@ class Pictures:
         A save that finds more storage to pay (_Unpaid) pays it outside the transaction and is
         tried again; when it cannot be paid, the files go."""
         keys = [file.key for file in files]
-        with self.db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO picture_trash (key, due_at) "
-                "SELECT k, now() + %s FROM unnest(%s::text[]) k",
-                (_UPLOAD_GRACE, keys),
-            )
+        self._mark(keys)
         try:
             for file in files:
                 self.store.put(file.key, file.data, file.kind)
@@ -926,6 +933,115 @@ class Pictures:
             self._discard(keys)
             raise
         return row
+
+    def _mark(self, keys: list[str]) -> None:
+        """New files' keys, marked in picture_trash before the files are stored, due an hour
+        later: the transaction that saves them takes the marks away."""
+        with self.db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO picture_trash (key, due_at) "
+                "SELECT k, now() + %s FROM unnest(%s::text[]) k",
+                (_UPLOAD_GRACE, keys),
+            )
+
+    def keep_drafts[T](
+        self,
+        owner: UUID,
+        prepared: Sequence[Prepared],
+        save: Callable[[Connection[DictRow], list[Kept]], tuple[T, set[str]]],
+    ) -> T:
+        """A batch's photos (#52 del b): store each one's display picture and thumbnail, then
+        save what holds them under the owner's lock (CAT-40). save gives its result and the keys
+        it holds now; the others, of a photo that another request saved first, are deleted
+        again. As for an upload, the keys are marked before the files are stored, so whatever
+        fails leaves no file behind. The drafts' files count in the storage only when they are
+        a vehicle's (adopt())."""
+        files: list[_File] = []
+        kept: list[Kept] = []
+        for picture in prepared:
+            display = _file(owner, picture.display, picture.kind)
+            thumb = _file(owner, picture.thumb, picture.kind)
+            files += [display, thumb]
+            size = len(picture.display) + len(picture.thumb)
+            kept.append(Kept(display.key, thumb.key, picture.width, picture.height, size))
+        keys = [file.key for file in files]
+        self._mark(keys)
+        try:
+            for file in files:
+                self.store.put(file.key, file.data, file.kind)
+            with self.db.owner_transaction(owner) as conn:
+                result, held = save(conn, kept)
+                conn.execute("DELETE FROM picture_trash WHERE key = ANY(%s)", (sorted(held),))
+        except StoreFailed as error:
+            self._discard(keys)
+            raise _store_down() from error
+        except BaseException:
+            self._discard(keys)
+            raise
+        self._discard([key for key in keys if key not in held])
+        return result
+
+    def links(self, display_key: str, thumb_key: str) -> PictureLinks:
+        """A draft's picture's signed addresses (CAT-130)."""
+        now = time.time()
+        return PictureLinks(
+            thumb_url=self.store.url(thumb_key, now), display_url=self.store.url(display_key, now)
+        )
+
+    def fetch(self, key: str) -> bytes:
+        """A file Catalog stored, such as a draft's picture to be read by the AI."""
+        try:
+            return self.store.get(key)
+        except StoreFailed as error:
+            raise _store_down() from error
+
+    def save_within[T](
+        self, owner: UUID, grow: int, club: bool, save: Callable[[Connection[DictRow]], T]
+    ) -> T:
+        """Run save under the owner's lock (CAT-40) when the owner's storage has room for grow
+        more bytes (CAT-131), as Godkänn alla needs for its pictures. What that needs over the
+        free level this month is paid first, outside any transaction, and what another change
+        took meanwhile is paid before save is tried again (CAT-132)."""
+        with self.db.transaction() as conn:
+            room = self._space(conn, owner, grow, club)
+        self._pay_first(owner, club, room)
+        attempt = 1
+        while True:
+            try:
+                with self.db.owner_transaction(owner) as conn:
+                    room = self._space(conn, owner, grow, club)
+                    if not self._enough(room, club):
+                        raise _Unpaid(room)
+                    return save(conn)
+            except _Unpaid as unpaid:
+                if attempt == _SAVE_ATTEMPTS:
+                    raise _storage_changed() from None
+                attempt += 1
+                self._settle(owner, club, unpaid.room)
+
+    @staticmethod
+    def adopt(
+        conn: Connection[DictRow], owner: UUID, vehicle: UUID, kept: Kept, uploaded_by: UUID
+    ) -> None:
+        """A draft's picture becomes the new vehicle's first and main picture (CAT-125), in the
+        caller's transaction under the owner's lock. From now on it counts in the owner's
+        storage (CAT-131), and goes with the vehicle."""
+        conn.execute(
+            "INSERT INTO picture (id, vehicle_id, owner_id, position, is_main, width, height, "
+            "display_key, thumb_key, bytes, uploaded_by) "
+            "VALUES (%s, %s, %s, 0, true, %s, %s, %s, %s, %s, %s)",
+            (
+                uuid.uuid4(),
+                vehicle,
+                owner,
+                kept.width,
+                kept.height,
+                kept.display_key,
+                kept.thumb_key,
+                kept.bytes,
+                uploaded_by,
+            ),
+        )
 
     def add(
         self,

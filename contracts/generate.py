@@ -220,6 +220,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.reading": catalog.Reading,
     "trainmeet.catalog-1.reading-ask": catalog.ReadingAsk,
     "trainmeet.catalog-1.reading-consent": catalog.ReadingConsent,
+    "trainmeet.catalog-1.batch": catalog.Batch,
+    "trainmeet.catalog-1.batch-card": catalog.BatchCard,
+    "trainmeet.catalog-1.batch-summary": catalog.BatchSummary,
+    "trainmeet.catalog-1.batch-ask": catalog.BatchAsk,
+    "trainmeet.catalog-1.batch-card-change": catalog.BatchCardChange,
+    "trainmeet.catalog-1.batch-approval": catalog.BatchApproval,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -1002,6 +1008,62 @@ def catalog_openapi() -> str:
             }
         },
     }
+    # Several photos in a batch (#52 del b, CAT-146–CAT-153): a form like the reading's, and
+    # the queue, the drafts and Godkänn alla.
+    b = "/api/catalog/1/batches"
+    batch_write = (401, 404, 409, 422)
+    route("get", b, "batches", "batch-summary", many=True, problems=(401, 404))
+    route(
+        "post",
+        b,
+        "addBatchPhotos",
+        "batch",
+        # 403: AI asked by someone who edits. 409: the id is another's. 413: over 60 MB in one
+        # request. 422: consent_required, too_many_pictures, or a photo that cannot be read.
+        problems=(401, 404, 409, 413, 415, 422),
+    )
+    paths[b]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The ask as JSON in the part data, and 1–30 photos in the parts images, "
+        "each at most 15 MB and 40 megapixel (CAT-123), at most 60 MB in one request: send the "
+        "rest with the same id.",
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "data": openapi_ref(c + "batch-ask"),
+                        "images": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "binary"},
+                            "minItems": 1,
+                            "maxItems": catalog.MAX_BATCH_PHOTOS,
+                        },
+                    },
+                    "required": ["data", "images"],
+                },
+                "encoding": {
+                    "data": {"contentType": "application/json"},
+                    "images": {"contentType": "image/jpeg, image/png, image/webp"},
+                },
+            }
+        },
+    }
+    route("get", b + "/{batch}", "batch", "batch", problems=(401, 404))
+    route("delete", b + "/{batch}", "removeBatch", "removed", problems=batch_write)
+    card = b + "/{batch}/cards/{card}"
+    route("post", card, "changeBatchCard", "batch-card", "batch-card-change", problems=batch_write)
+    route("delete", card, "removeBatchCard", "removed", problems=batch_write)
+    route("post", card + "/retry", "retryBatchCard", "batch-card", problems=batch_write)
+    route(
+        "post",
+        b + "/{batch}/approve",
+        "approveBatch",
+        "batch",
+        "batch-approval",
+        # 402 and 429: the storage over the free level could not be paid (CAT-132).
+        problems=(*batch_write, 402, 429),
+    )
     paths[t + "/{uid}/qr.svg"] = {
         "get": {
             "operationId": "tagQrCode",
@@ -1036,6 +1098,7 @@ def catalog_openapi() -> str:
                 "/api/catalog/1/storage",
                 "/api/catalog/1/meets",
                 "/api/catalog/1/readings",
+                "/api/catalog/1/batches",
             )
         ):
             continue

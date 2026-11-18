@@ -30,6 +30,11 @@ A reading, in order:
 Whatever fails gives the reservation back and leaves the reading failed, with a Swedish message
 of Catalog's own: never the AI's or ID's words. The photos and the AI's answers are never
 written to the log.
+
+A batch's photos (catalog/batches.py, #52 del b) are read the same way, one reading per photo,
+through read_for_batch(): the same steps, with their own limit of 30 an hour (CAT-146), and the
+card tied to its reading in the transactions that start and finish it. recover() gives back
+the reservations of every reading that never finished, as after a restart (CAT-151).
 """
 
 from __future__ import annotations
@@ -38,13 +43,15 @@ import base64
 import hashlib
 import json
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Final, Protocol
 from uuid import UUID
 
 import httpx
+from psycopg import Connection
+from psycopg.rows import DictRow
 from pydantic import BaseModel
 
 from catalog import evn
@@ -83,7 +90,9 @@ LOGGER = logging.getLogger("catalog.reading")
 MAX_PICTURES: Final = 4
 """Photos in one reading: the whole vehicle and close-ups (CAT-135)."""
 PER_HOUR: Final = 10
-"""Readings a person may start in an hour (CAT-146). A batch has its own, 30 (#52 del b)."""
+"""Readings a person may start in an hour (CAT-146)."""
+PER_BATCH_HOUR: Final = 30
+"""A batch's readings a person may start in an hour, apart from the others (CAT-146)."""
 EXPIRES: Final = timedelta(minutes=10)
 """When a reading that never finished is given up: well after the meter's own time limit, also
 when the call to it is made twice for a new token."""
@@ -421,8 +430,9 @@ def _basis(owner: UUID, ask: ReadingAsk, pictures: Sequence[bytes]) -> str:
     return digest.hexdigest()
 
 
-def _what(pictures: int) -> str:
-    return f"Avläsning av {pictures} {'bild' if pictures == 1 else 'bilder'} i Catalog"
+def _what(pictures: int, batch: bool = False) -> str:
+    shown = f"{pictures} {'bild' if pictures == 1 else 'bilder'}"
+    return f"Avläsning av {shown} {'i en omgång ' if batch else ''}i Catalog"
 
 
 def _busy(message: str) -> Refused:
@@ -433,6 +443,17 @@ def _changed(message: str) -> Refused:
     return Refused(409, ProblemCode.CHANGED, message)
 
 
+Claim = Callable[[Connection[DictRow]], bool]
+"""For a batch: ties the card to the reading in the transaction that writes the reading down,
+under the person's lock. False when the card is no longer waiting: nothing is read."""
+Done = Callable[[Connection[DictRow], Reading], None]
+"""For a batch: gives the card the reading's suggestions, in the transaction that ends it."""
+
+
+class _Unclaimed(Exception):
+    """The card was no longer waiting: the reading is not written down."""
+
+
 class Readings:
     def __init__(
         self,
@@ -440,13 +461,16 @@ class Readings:
         meter: Meter | None,
         *,
         per_hour: int = PER_HOUR,
+        per_batch_hour: int = PER_BATCH_HOUR,
         expires: timedelta = EXPIRES,
     ) -> None:
         """meter is TrainMeet ID's; without ID's API there is none, and no reading. per_hour is
-        how many readings a person may start in an hour (CAT-146)."""
+        how many readings a person may start in an hour, and per_batch_hour how many of a
+        batch's (CAT-146)."""
         self.db = db
         self.meter = meter
         self.per_hour = per_hour
+        self.per_batch_hour = per_batch_hour
         self.expires = expires
 
     @property
@@ -454,6 +478,15 @@ class Readings:
         return self.meter is not None
 
     # --- The consent (CAT-142) -----------------------------------------------------------------
+
+    @staticmethod
+    def agree(conn: Connection[DictRow], person: UUID) -> None:
+        """Keep the person's yes as a privacy event, once per version of the text (CAT-142)."""
+        conn.execute(
+            "INSERT INTO privacy_event (person_id, kind, version) VALUES (%s, %s, %s) "
+            "ON CONFLICT DO NOTHING",
+            (person, CONSENT_KIND, CONSENT_VERSION),
+        )
 
     def given(self, person: UUID) -> bool:
         with self.db.transaction() as conn:
@@ -519,24 +552,86 @@ class Readings:
             return stored
         return self._run(person, _payer(owner, club), ask, pictures)
 
-    def _give_up_old(self, person: UUID) -> None:
+    def read_for_batch(
+        self,
+        person: UUID,
+        owner: UUID,
+        reading: UUID,
+        picture: bytes,
+        *,
+        club: bool,
+        claim: Claim,
+        done: Done,
+    ) -> Reading | None:
+        """One photo of a batch, read as a reading of its own (#52 del b, CAT-147): the same
+        reservation, hold, draw and give-back as read(). The picture was made anew without
+        metadata when the batch got it (CAT-124). The consent was given for the batch. claim
+        ties the card to the reading when it is written down, and done gives the card the
+        suggestions when the reading is done, each in the same transaction; None when the card
+        was no longer waiting. Refused as read() is; 429 after 30 of a batch's readings in an
+        hour (CAT-146), with Retry-After."""
+        if self.meter is None:
+            raise without_id()
+        ask = ReadingAsk(id=reading)
+        self._give_up_old(person)
+        try:
+            self._start(
+                person, owner, ask, _basis(owner, ask, [picture]), 1, batch=True, claim=claim
+            )
+        except _Unclaimed:
+            return None
+        return self._run(person, _payer(owner, club), ask, [picture], batch=True, done=done)
+
+    def recover(self) -> int:
+        """Every reading that never finished, as when the process stopped halfway: failed, and
+        its reservation given back (CAT-151). How many."""
+        return self._give_up_old(None)
+
+    @staticmethod
+    def discard(conn: Connection[DictRow], readings: list[UUID]) -> None:
+        """In the caller's transaction: the readings' answers are not used when they come, as
+        when a batch's card is removed while it is read. Their reservations go back then, and
+        nothing is drawn (CAT-145)."""
+        if readings:
+            conn.execute(
+                "UPDATE reading SET status = 'discarded' WHERE id = ANY(%s) AND status = 'pending'",
+                (readings,),
+            )
+
+    def _give_up_old(self, person: UUID | None) -> int:
         """Readings that never finished, as when the process stopped halfway: failed, and their
-        reservations given back. ID gives them back by itself after half an hour too."""
-        with self.db.owner_transaction(person) as conn:
-            old = conn.execute(
-                "UPDATE reading SET status = 'failed' WHERE person_id = %s AND status = 'pending' "
-                "AND expires_at < now() RETURNING reservation",
-                (person,),
-            ).fetchall()
+        reservations given back. ID gives them back by itself after half an hour too. The
+        person's, under the person's lock, or everyone's."""
+        sql = (
+            "UPDATE reading SET status = 'failed' WHERE status = 'pending' AND expires_at < now() "
+        )
+        if person is None:
+            with self.db.transaction() as conn:
+                old = conn.execute(sql + "RETURNING reservation").fetchall()
+        else:
+            with self.db.owner_transaction(person) as conn:
+                old = conn.execute(
+                    sql + "AND person_id = %s RETURNING reservation", (person,)
+                ).fetchall()
         for row in old:
             if row["reservation"] is not None:
                 self._give_back(row["reservation"])
+        return len(old)
 
     def _start(
-        self, person: UUID, owner: UUID, ask: ReadingAsk, basis: str, pictures: int
+        self,
+        person: UUID,
+        owner: UUID,
+        ask: ReadingAsk,
+        basis: str,
+        pictures: int,
+        *,
+        batch: bool = False,
+        claim: Claim | None = None,
     ) -> Reading | None:
         """Under the person's lock: the stored reading for the same id and photos, or a new
         pending one, or no (CAT-144, CAT-145, CAT-146)."""
+        limit = self.per_batch_hour if batch else self.per_hour
         with self.db.owner_transaction(person) as conn:
             same = conn.execute(
                 "SELECT person_id, basis, status, result FROM reading WHERE id = %s", (ask.id,)
@@ -568,29 +663,29 @@ class Readings:
             hour = conn.execute(
                 "SELECT count(*) AS started, ceil(extract(epoch FROM "
                 "min(created_at) + interval '1 hour' - now())) AS wait "
-                "FROM reading WHERE person_id = %s AND created_at > now() - interval '1 hour'",
-                (person,),
+                "FROM reading WHERE person_id = %s AND batch = %s "
+                "AND created_at > now() - interval '1 hour'",
+                (person, batch),
             ).fetchone()
             assert hour is not None
-            if hour["started"] >= self.per_hour:
+            if hour["started"] >= limit:
                 wait = max(int(hour["wait"] or 60), 1)
+                which = " för en omgång" if batch else ""
+                again = "Omgången fortsätter" if batch else "Försök igen"
                 raise Refused(
                     429,
                     ProblemCode.TOO_MANY,
-                    f"Högst {self.per_hour} avläsningar i timmen. Försök igen om "
+                    f"Högst {limit} avläsningar i timmen{which}. {again} om "
                     f"{(wait + 59) // 60} minuter.",
                     retry_after=wait,
                 )
             if ask.consent:
-                conn.execute(
-                    "INSERT INTO privacy_event (person_id, kind, version) VALUES (%s, %s, %s) "
-                    "ON CONFLICT DO NOTHING",
-                    (person, CONSENT_KIND, CONSENT_VERSION),
-                )
+                self.agree(conn, person)
             conn.execute(
                 "INSERT INTO reading (id, owner_id, person_id, kind, basis, pictures, vehicle_id, "
-                "vehicle_version, month, expires_at) VALUES (%s, %s, %s, 'image', %s, %s, %s, "
-                "%s, to_char(now() AT TIME ZONE 'Europe/Stockholm', 'YYYY-MM'), now() + %s)",
+                "vehicle_version, month, expires_at, batch) VALUES (%s, %s, %s, 'image', %s, %s, "
+                "%s, %s, to_char(now() AT TIME ZONE 'Europe/Stockholm', 'YYYY-MM'), now() + %s, "
+                "%s)",
                 (
                     ask.id,
                     owner,
@@ -600,12 +695,22 @@ class Readings:
                     ask.vehicle,
                     ask.version,
                     self.expires,
+                    batch,
                 ),
             )
+            if claim is not None and not claim(conn):
+                raise _Unclaimed()
         return None
 
     def _run(
-        self, person: UUID, payer: TokenOwner, ask: ReadingAsk, pictures: Sequence[bytes]
+        self,
+        person: UUID,
+        payer: TokenOwner,
+        ask: ReadingAsk,
+        pictures: Sequence[bytes],
+        *,
+        batch: bool = False,
+        done: Done | None = None,
     ) -> Reading:
         """Reserve, read with hold, and then use the answer only if it still fits."""
         meter = self.meter
@@ -622,7 +727,7 @@ class Readings:
                     owner=payer,
                     amount=needed,
                     key=f"catalog-avlasning-{ask.id}",
-                    what=_what(len(pictures)),
+                    what=_what(len(pictures), batch),
                 )
             )
             if reservation.state is not TokenReservationState.HELD:
@@ -646,10 +751,15 @@ class Readings:
             if reservation is not None and reservation.state is TokenReservationState.HELD:
                 self._give_back(reservation.id)
             raise
-        return self._finish(person, ask.id, reservation, answer)
+        return self._finish(person, ask.id, reservation, answer, done)
 
     def _finish(
-        self, person: UUID, reading: UUID, reservation: TokenReservation, answer: MeterAnswer
+        self,
+        person: UUID,
+        reading: UUID,
+        reservation: TokenReservation,
+        answer: MeterAnswer,
+        done: Done | None = None,
     ) -> Reading:
         meter = self.meter
         assert meter is not None
@@ -664,7 +774,7 @@ class Readings:
             _need(0 <= answer.cost <= reservation.amount)
             number = understood.suggestions.get("number")
             question = question_for(number.value) if number is not None else None
-            done = Reading(
+            result = Reading(
                 id=reading,
                 status=ReadingStatus.DONE,
                 suggestions=understood.suggestions,
@@ -688,11 +798,14 @@ class Readings:
                 raise
             # ID says it is drawn: the draw got through, only its answer was lost.
         with self.db.transaction() as conn:
+            # A batch's card first, then the reading: the order a removal of the card locks them.
+            if done is not None:
+                done(conn, result)
             conn.execute(
                 "UPDATE reading SET status = 'done', result = %s WHERE id = %s",
-                (done.model_dump_json(), reading),
+                (result.model_dump_json(), reading),
             )
-        return done
+        return result
 
     def _still_current(self, person: UUID, reading: UUID) -> bool:
         """Under the person's lock: is the reading still pending, on the vehicle as it was? If

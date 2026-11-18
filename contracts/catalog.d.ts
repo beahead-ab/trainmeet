@@ -662,6 +662,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["batches"];
+        put?: never;
+        post: operations["addBatchPhotos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/batches/{batch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["batch"];
+        put?: never;
+        post?: never;
+        delete: operations["removeBatch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/batches/{batch}/cards/{card}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeBatchCard"];
+        delete: operations["removeBatchCard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/batches/{batch}/cards/{card}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retryBatchCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/batches/{batch}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/tags/{uid}/qr.svg": {
         parameters: {
             query?: never;
@@ -1812,6 +1892,12 @@ export interface components {
              * @description The same in Swedish, for logs and other readers.
              */
             message: string;
+            /**
+             * Cards
+             * @description Only for Godkänn alla: the cards whose values do not make a vehicle, so that nothing was approved (CAT-150). Left out otherwise.
+             * @default null
+             */
+            cards: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4074,6 +4160,735 @@ export interface components {
              * @default null
              */
             payer: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Batch
+         * @description A batch of photos and its cards (CAT-147).
+         */
+        "trainmeet.catalog-1.batch": {
+            /**
+             * Id
+             * Format: uuid
+             * @description Made by the client (CAT-149).
+             */
+            id: string;
+            /**
+             * Ai
+             * @description The photos are read with AI; else they are filled in by hand.
+             */
+            ai: boolean;
+            /**
+             * Mine
+             * @description The person asking made the batch.
+             */
+            mine: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Cards
+             * @description In order. Someone who edits the fleet sees only the cards not approved.
+             */
+            cards: components["schemas"]["trainmeet.catalog-1.batch.BatchCard"][];
+            /**
+             * Waiting Until
+             * @description The queue waits for the hour's limit or the day's cap, and goes on by itself then (CAT-146).
+             * @default null
+             */
+            waiting_until: string | null;
+            /**
+             * Message
+             * @description Why the queue waits, in Swedish.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Already
+             * @description Only in the answer to POST: the cards that photos sent this time already were, in this batch or another, since the same file is never two drafts (CAT-149).
+             */
+            already?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCard
+         * @description One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).
+         */
+        "trainmeet.catalog-1.batch.BatchCard": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Batch
+             * Format: uuid
+             */
+            batch: string;
+            /**
+             * Position
+             * @description The order the photos came in, and are read in.
+             */
+            position: number;
+            status: components["schemas"]["trainmeet.catalog-1.batch.BatchCardStatus"];
+            /**
+             * Version
+             * @description Raised by every change of the values, also by the AI's. A change and Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).
+             */
+            version: number;
+            /** @description What the vehicle becomes when it is approved: the AI's suggestions, and then what the owner writes. */
+            values: components["schemas"]["trainmeet.catalog-1.batch.VehicleFields"];
+            /**
+             * Suggestions
+             * @description What the AI suggested, as for one reading.
+             */
+            suggestions?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.batch.Suggestion"];
+            };
+            /** @default null */
+            question: components["schemas"]["trainmeet.catalog-1.batch.ReadingQuestion"] | null;
+            /**
+             * Warnings
+             * @description What the owner should check.
+             */
+            warnings?: string[];
+            /**
+             * Message
+             * @description Why the card is as it is, in Swedish: such as why the reading failed, or that the tokens ran out (CAT-152).
+             * @default
+             */
+            message: string;
+            /**
+             * @description The photo, without metadata, at most 1800 pixels: signed addresses that expire (CAT-130). Null once approved: the vehicle has it then.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.batch.PictureLinks"] | null;
+            /**
+             * Vehicle
+             * @description The vehicle, once approved.
+             * @default null
+             */
+            vehicle: string | null;
+            /**
+             * Attempts
+             * @description How many times the AI has been asked to read it.
+             */
+            attempts: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardStatus
+         * @description Where a photo of a batch is (CAT-147–CAT-153).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * Confidence
+         * @description The AI's own judgement, not a probability.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.Confidence": "high" | "medium" | "low";
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.batch.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.batch.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadingQuestion
+         * @description An uncertain digit, asked of the owner (CAT-140).
+         */
+        "trainmeet.catalog-1.batch.ReadingQuestion": {
+            /**
+             * Field
+             * @constant
+             */
+            field: "number";
+            /**
+             * Options
+             * @description The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.
+             */
+            options: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Suggestion
+         * @description A value the AI suggests for a core field. Never saved before the owner has seen it.
+         */
+        "trainmeet.catalog-1.batch.Suggestion": {
+            /**
+             * Value
+             * @description As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).
+             */
+            value: string;
+            confidence: components["schemas"]["trainmeet.catalog-1.batch.Confidence"];
+            basis: components["schemas"]["trainmeet.catalog-1.batch.SuggestionBasis"];
+            /**
+             * Evidence
+             * @description Where in the photo it stands, in the AI's words.
+             * @default
+             */
+            evidence: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SuggestionBasis
+         * @description What a suggestion rests on.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.SuggestionBasis": "visible_text" | "visual_inference" | "unknown";
+        /**
+         * VehicleFields
+         * @description The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+         *     their own; the prototype comes later.
+         */
+        "trainmeet.catalog-1.batch.VehicleFields": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.batch.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.batch.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.batch.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.VehicleStatus": "draft" | "ready";
+        /**
+         * BatchCard
+         * @description One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).
+         */
+        "trainmeet.catalog-1.batch-card": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Batch
+             * Format: uuid
+             */
+            batch: string;
+            /**
+             * Position
+             * @description The order the photos came in, and are read in.
+             */
+            position: number;
+            status: components["schemas"]["trainmeet.catalog-1.batch-card.BatchCardStatus"];
+            /**
+             * Version
+             * @description Raised by every change of the values, also by the AI's. A change and Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).
+             */
+            version: number;
+            /** @description What the vehicle becomes when it is approved: the AI's suggestions, and then what the owner writes. */
+            values: components["schemas"]["trainmeet.catalog-1.batch-card.VehicleFields"];
+            /**
+             * Suggestions
+             * @description What the AI suggested, as for one reading.
+             */
+            suggestions?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.batch-card.Suggestion"];
+            };
+            /** @default null */
+            question: components["schemas"]["trainmeet.catalog-1.batch-card.ReadingQuestion"] | null;
+            /**
+             * Warnings
+             * @description What the owner should check.
+             */
+            warnings?: string[];
+            /**
+             * Message
+             * @description Why the card is as it is, in Swedish: such as why the reading failed, or that the tokens ran out (CAT-152).
+             * @default
+             */
+            message: string;
+            /**
+             * @description The photo, without metadata, at most 1800 pixels: signed addresses that expire (CAT-130). Null once approved: the vehicle has it then.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.batch-card.PictureLinks"] | null;
+            /**
+             * Vehicle
+             * @description The vehicle, once approved.
+             * @default null
+             */
+            vehicle: string | null;
+            /**
+             * Attempts
+             * @description How many times the AI has been asked to read it.
+             */
+            attempts: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardStatus
+         * @description Where a photo of a batch is (CAT-147–CAT-153).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * Confidence
+         * @description The AI's own judgement, not a probability.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.Confidence": "high" | "medium" | "low";
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.batch-card.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.batch-card.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadingQuestion
+         * @description An uncertain digit, asked of the owner (CAT-140).
+         */
+        "trainmeet.catalog-1.batch-card.ReadingQuestion": {
+            /**
+             * Field
+             * @constant
+             */
+            field: "number";
+            /**
+             * Options
+             * @description The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.
+             */
+            options: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Suggestion
+         * @description A value the AI suggests for a core field. Never saved before the owner has seen it.
+         */
+        "trainmeet.catalog-1.batch-card.Suggestion": {
+            /**
+             * Value
+             * @description As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).
+             */
+            value: string;
+            confidence: components["schemas"]["trainmeet.catalog-1.batch-card.Confidence"];
+            basis: components["schemas"]["trainmeet.catalog-1.batch-card.SuggestionBasis"];
+            /**
+             * Evidence
+             * @description Where in the photo it stands, in the AI's words.
+             * @default
+             */
+            evidence: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SuggestionBasis
+         * @description What a suggestion rests on.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.SuggestionBasis": "visible_text" | "visual_inference" | "unknown";
+        /**
+         * VehicleFields
+         * @description The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+         *     their own; the prototype comes later.
+         */
+        "trainmeet.catalog-1.batch-card.VehicleFields": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.batch-card.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.batch-card.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.batch-card.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.VehicleStatus": "draft" | "ready";
+        /**
+         * BatchSummary
+         * @description A batch in the list: one with photos still to approve.
+         */
+        "trainmeet.catalog-1.batch-summary": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ai */
+            ai: boolean;
+            /** Mine */
+            mine: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Cards
+             * @description Its cards, approved ones included.
+             */
+            cards: number;
+            /**
+             * Open
+             * @description Its cards not yet approved.
+             */
+            open: number;
+            /**
+             * Counts
+             * @description Its cards per status.
+             */
+            counts: {
+                [key: string]: number;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardStatus
+         * @description Where a photo of a batch is (CAT-147–CAT-153).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-summary.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * BatchAsk
+         * @description The part data of the batch's form, as JSON. The photos are the parts images.
+         */
+        "trainmeet.catalog-1.batch-ask": {
+            /**
+             * Id
+             * Format: uuid
+             * @description Made by the client. Sent again, the photos are added to it.
+             */
+            id: string;
+            /**
+             * Ai
+             * @description Read the photos with AI. Only the owner, or a club's administrator; someone who edits the fleet sends false (CAT-153).
+             * @default true
+             */
+            ai: boolean;
+            /**
+             * Consent
+             * @description The person has seen what is sent and to whom, and says yes (CAT-142).
+             * @default false
+             */
+            consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardChange
+         * @description The values of a card, as the owner writes them, and the version they were seen at.
+         */
+        "trainmeet.catalog-1.batch-card-change": {
+            values: components["schemas"]["trainmeet.catalog-1.batch-card-change.VehicleFields"];
+            /** Version */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.batch-card-change.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleFields
+         * @description The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+         *     their own; the prototype comes later.
+         */
+        "trainmeet.catalog-1.batch-card-change.VehicleFields": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.batch-card-change.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.batch-card-change.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.batch-card-change.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card-change.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card-change.VehicleStatus": "draft" | "ready";
+        /**
+         * BatchApproval
+         * @description Godkänn alla: every open card of the batch, as seen (CAT-150).
+         */
+        "trainmeet.catalog-1.batch-approval": {
+            /** Cards */
+            cards: components["schemas"]["trainmeet.catalog-1.batch-approval.BatchCardSeen"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardSeen
+         * @description A card as the owner saw it before Godkänn alla.
+         */
+        "trainmeet.catalog-1.batch-approval.BatchCardSeen": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
         } & {
             [key: string]: unknown;
         };
@@ -7219,6 +8034,653 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    batches: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch-summary"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    addBatchPhotos: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The ask as JSON in the part data, and 1–30 photos in the parts images, each at most 15 MB and 40 megapixel (CAT-123), at most 60 MB in one request: send the rest with the same id. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data: components["schemas"]["trainmeet.catalog-1.batch-ask"];
+                    images: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    batch: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removeBatch: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    changeBatchCard: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+                card: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.batch-card-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch-card"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removeBatchCard: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+                card: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    retryBatchCard: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+                card: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch-card"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    approveBatch: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.batch-approval"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.batch"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
