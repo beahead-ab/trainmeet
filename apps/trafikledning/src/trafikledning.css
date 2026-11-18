@@ -747,3 +747,9 @@ ul.chips {
   padding-top: 1rem;
   border-top: 1px solid var(--tm-linje, rgba(127, 127, 127, 0.3));
 }
+
+/* Tellurian Dispatch i skugga (IMPORT-34): what differs from Drift is marked. */
+tr.skiljer td {
+  background: color-mix(in srgb, var(--gul) 18%, transparent);
+  font-weight: 600;
+}

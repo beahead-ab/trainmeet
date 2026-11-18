@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.tellurian.schema.json",
+  "title": "trainmeet.hub-1.tellurian",
+  "$defs": {
+    "TellurianMode": {
+      "description": "Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte\nän (T222).",
+      "enum": [
+        "off",
+        "shadow"
+      ],
+      "title": "TellurianMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Tellurian Dispatch for the meet that runs (IMPORT-06, IMPORT-34). Av är förval.",
+  "properties": {
+    "meet": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Meet",
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "#/$defs/TellurianMode"
+    },
+    "address": {
+      "description": "Tellurians adress på träffens nät, bara schema, värd och port.",
+      "maxLength": 255,
+      "title": "Address",
+      "type": "string"
+    },
+    "test_instance": {
+      "description": "En testinstans: en publik adress eller den här datorn får användas.",
+      "title": "Test Instance",
+      "type": "boolean"
+    },
+    "simulator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Simulatorns adress, i testmiljön; tomt annars.",
+      "title": "Simulator"
+    }
+  },
+  "required": [
+    "meet",
+    "mode",
+    "address",
+    "test_instance"
+  ],
+  "type": "object"
+}

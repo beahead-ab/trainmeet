@@ -370,3 +370,35 @@ class ClockSourceChange(Contract):
     user: str = Field(default="", max_length=100)
     password: str | None = Field(default=None, max_length=256)
     poll_interval: int = Field(default=2, ge=2, le=30)
+
+
+class TellurianMode(StrEnum):
+    """Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte
+    än (T222)."""
+
+    OFF = "off"
+    SHADOW = "shadow"
+
+
+class TellurianSettings(Contract):
+    """Tellurian Dispatch for the meet that runs (IMPORT-06, IMPORT-34). Av är förval."""
+
+    meet: Text
+    mode: TellurianMode
+    address: str = Field(
+        max_length=255, description="Tellurians adress på träffens nät, bara schema, värd och port."
+    )
+    test_instance: bool = Field(
+        description="En testinstans: en publik adress eller den här datorn får användas."
+    )
+    simulator: str | None = Field(
+        default=None, description="Simulatorns adress, i testmiljön; tomt annars."
+    )
+
+
+class TellurianChange(Contract):
+    """Slå på skuggan: Tellurian is read once before it is saved."""
+
+    mode: TellurianMode
+    address: str = Field(default="", max_length=255)
+    test_instance: bool = False

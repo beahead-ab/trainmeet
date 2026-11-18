@@ -98,6 +98,12 @@ CREATE TABLE IF NOT EXISTS meet_wifi (
     open INTEGER NOT NULL,
     password TEXT
 );
+CREATE TABLE IF NOT EXISTS tellurian (
+    meet TEXT PRIMARY KEY,
+    mode TEXT NOT NULL,
+    address TEXT NOT NULL,
+    test_instance INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS clock_source (
     meet TEXT PRIMARY KEY,
     source TEXT NOT NULL,
@@ -481,6 +487,24 @@ class LocalLogin:
                     setting.key,
                     setting.checked.timestamp() if setting.checked else None,
                 ),
+            )
+
+    def tellurian(self, meet: str) -> tuple[str, str, bool]:
+        """Tellurian Dispatch for a meet (IMPORT-06): mode, address and test instance. Off by
+        default, and never sent to the cloud."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT mode, address, test_instance FROM tellurian WHERE meet=?", (meet,)
+            ).fetchone()
+        if row is None:
+            return "off", "", False
+        return ("shadow" if row[0] == "shadow" else "off"), str(row[1]), bool(row[2])
+
+    def set_tellurian(self, meet: str, mode: str, address: str, test_instance: bool) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO tellurian VALUES (?, ?, ?, ?)",
+                (meet, mode, address, int(test_instance)),
             )
 
     def clock_source(self, meet: str) -> fastclock.Settings:

@@ -1145,6 +1145,218 @@
       "title": "SwitchWaiting",
       "type": "object"
     },
+    "TellurianContact": {
+      "enum": [
+        "waiting",
+        "ok",
+        "lost"
+      ],
+      "title": "TellurianContact",
+      "type": "string"
+    },
+    "TellurianSection": {
+      "additionalProperties": true,
+      "description": "One train on one section, as Tellurian Dispatch shows it, beside what Drift says about\nthe same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian.",
+      "properties": {
+        "from_code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tellurians signatur för från.",
+          "title": "From Code"
+        },
+        "to_code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tellurians signatur för till.",
+          "title": "To Code"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Drifts sträcka med samma stationspar; tomt utan en.",
+          "title": "Section"
+        },
+        "train": {
+          "description": "Tåget som Tellurian skriver det, till exempel SJ IC 456.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tågnumret, om det går att läsa.",
+          "title": "Train Number"
+        },
+        "state": {
+          "$ref": "#/$defs/TellurianState"
+        },
+        "drift": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClearanceStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Drifts klarering för samma tåg och sträcka; tomt utan en."
+        },
+        "differs": {
+          "description": "Tellurian och Drift säger olika.",
+          "title": "Differs",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad som skiljer, i klartext.",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "train",
+        "state",
+        "differs"
+      ],
+      "title": "TellurianSection",
+      "type": "object"
+    },
+    "TellurianShadow": {
+      "additionalProperties": true,
+      "description": "Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar\noch visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig.",
+      "properties": {
+        "contact": {
+          "$ref": "#/$defs/TellurianContact"
+        },
+        "simulated": {
+          "default": false,
+          "description": "Simulatorn, inte Tellurian självt.",
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "heard": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "När Tellurian senast svarade.",
+          "title": "Heard"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Felet i klartext, aldrig Tellurians eget svar.",
+          "title": "Problem"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/TellurianSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "differences": {
+          "default": 0,
+          "description": "Antal skillnader mot Drift.",
+          "minimum": 0,
+          "title": "Differences",
+          "type": "integer"
+        },
+        "unmatched": {
+          "description": "Drifts driftplatser som Tellurian inte har.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Unmatched",
+          "type": "array"
+        }
+      },
+      "required": [
+        "contact"
+      ],
+      "title": "TellurianShadow",
+      "type": "object"
+    },
+    "TellurianState": {
+      "description": "A section's state in Tellurian Dispatch, as Tellurian names it.",
+      "enum": [
+        "None",
+        "Requested",
+        "Accepted",
+        "Rejected",
+        "Revoked",
+        "Departed",
+        "Arrived",
+        "Canceled",
+        "Unknown"
+      ],
+      "title": "TellurianState",
+      "type": "string"
+    },
     "TrackKind": {
       "enum": [
         "single",
@@ -1361,6 +1573,18 @@
       ],
       "default": null,
       "description": "FastClock är träffens klocka (F12, IMPORT-35)."
+    },
+    "tellurian": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TellurianShadow"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tellurian Dispatch läses i skugga (IMPORT-34)."
     }
   },
   "required": [

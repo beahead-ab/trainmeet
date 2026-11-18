@@ -37,6 +37,7 @@ from hub import (
     screen_web,
     station_api,
     synk_api,
+    tellurian_shadow,
     tmbox_mqtt,
     tmbox_web,
     update_api,
@@ -48,6 +49,7 @@ from hub.push import Pusher, Senders
 from hub.running import Running
 from hub.stores import AnyRun
 from integrationer.fastclock import ExternalClock
+from integrationer.tellurian import TellurianClient
 from planering.store import Planning, PlanningError
 from synk.follower import Call, Follower, urllib_call
 from synk.home import Homes
@@ -108,6 +110,7 @@ def create_app(
     id_settings: id_login.IdSettings | None = None,
     id_http: httpx.Client | None = None,
     external_clock: ExternalClock | None = None,
+    tellurian_client: Callable[[str, bool], TellurianClient] | None = None,
 ) -> FastAPI:
     """id_settings and id_http: the login with TrainMeet ID, for tests; otherwise read from the
     environment (hub/id_login.py). external_clock: FastClock, for tests with a pretend one."""
@@ -200,6 +203,11 @@ def create_app(
         # FastClock, when it is the meet's clock (F12): read in a thread of its own, so that a
         # slow answer never holds up the automation.
         Thread(target=clock.run, args=(stop,), name="klockan", daemon=True).start()
+        # In the test environment Tellurian's simulator runs here, fed from Drift (IMPORT-36).
+        feed = (
+            tellurian_shadow.SimulatorFeed(shadowing) if tellurian_shadow.simulator_from() else None
+        )
+        Thread(target=shadowing.run, args=(stop, feed), name="tellurian", daemon=True).start()
         # The physical TMBoxes over MQTT, on a Pi with Mosquitto (BOX-10, DRIFT-22).
         boxes = tmbox_mqtt.from_environment(running, links.hub_id)
         if boxes is not None:
@@ -298,8 +306,11 @@ def create_app(
     app.include_router(provbanan.router(preview))
     # Träffens klocka (F12, IMPORT-35): FastClock, when chosen for the meet that runs.
     app.state.clock = clock = clock_source.ClockSource(running, login, external_clock)
-    app.include_router(drift_api.router(running, login, may, clock))
+    # Tellurian Dispatch i skugga (IMPORT-34): read beside Drift, never sent to.
+    app.state.tellurian = shadowing = tellurian_shadow.Shadow(running, login, tellurian_client)
+    app.include_router(drift_api.router(running, login, may, clock, shadowing))
     app.include_router(clock_source.router(clock, login, may))
+    app.include_router(tellurian_shadow.router(shadowing, login, may))
     app.include_router(
         planering_api.router(
             plans,

@@ -38,6 +38,7 @@ from hub.id_roles import PLANS, RUNS
 from hub.local import DISPATCHER, PERSON, LocalLogin
 from hub.rights import NO_ROLE, NOT_LOGGED_IN, Rights
 from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
+from hub.tellurian_shadow import Shadow
 from synk.store import SyncError
 
 STREAM_SECONDS = 300
@@ -71,6 +72,7 @@ def router(
     login: LocalLogin,
     rights: Rights | None = None,
     clock_source: ClockSource | None = None,
+    tellurian: Shadow | None = None,
 ) -> APIRouter:
     """rights: who may run the meet: the hub's PIN, someone let in with a one-time code (H56),
     or Administratör and Trafikledare at the meet in TrainMeet ID (ID3, #78). clock_source:
@@ -418,6 +420,9 @@ def router(
             )
         if clock_source is not None:
             seen = seen.model_copy(update={"external_clock": clock_source.now()})
+        if tellurian is not None:
+            # Tellurian Dispatch i skugga (IMPORT-34): beside Drift, never in it.
+            seen = seen.model_copy(update={"tellurian": tellurian.now(seen)})
         if seen.changes and running.meet != PROVBANAN:
             answers = running.answers(running.meet)
             seen = seen.model_copy(
