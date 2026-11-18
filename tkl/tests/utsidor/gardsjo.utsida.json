@@ -1,0 +1,120 @@
+{
+ "format": "trainmeet.station-outside/1",
+ "station_id": "gardsjo",
+ "name": "Gårdsjö",
+ "tracks": [
+  {
+   "id": "1",
+   "label": "Spår 1"
+  },
+  {
+   "id": "2",
+   "label": "Spår 2"
+  },
+  {
+   "id": "3",
+   "label": "Spår 3"
+  },
+  {
+   "id": "4",
+   "label": "Spår 4"
+  },
+  {
+   "id": "31",
+   "label": "Spår 31"
+  },
+  {
+   "id": "32",
+   "label": "Spår 32"
+  }
+ ],
+ "exits": [
+  {
+   "id": "Vast-1",
+   "side": "left",
+   "name": "Väst 1",
+   "tracks": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "signals": [
+    "51",
+    "42"
+   ]
+  },
+  {
+   "id": "Vast-2",
+   "side": "left",
+   "name": "Väst 2",
+   "tracks": [
+    "2",
+    "3",
+    "4"
+   ],
+   "signals": [
+    "21",
+    "72"
+   ]
+  },
+  {
+   "id": "Gren",
+   "side": "left",
+   "name": "Gren",
+   "tracks": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "signals": [
+    "23",
+    "44"
+   ]
+  },
+  {
+   "id": "Enkelspar",
+   "side": "right",
+   "name": "Enkelspår",
+   "tracks": [
+    "3",
+    "4"
+   ],
+   "signals": [
+    "24",
+    "43"
+   ]
+  },
+  {
+   "id": "Ost-1",
+   "side": "right",
+   "name": "Öst 1",
+   "tracks": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "signals": [
+    "22",
+    "71"
+   ]
+  },
+  {
+   "id": "Ost-2",
+   "side": "right",
+   "name": "Öst 2",
+   "tracks": [
+    "2",
+    "3",
+    "4"
+   ],
+   "signals": [
+    "52",
+    "41"
+   ]
+  }
+ ],
+ "sides": []
+}

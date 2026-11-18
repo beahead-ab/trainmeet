@@ -190,7 +190,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "Studio at level 0: the list as it is on the computer, and the versions made of it.",
+  "description": "Studio's outside: the list as it is on the computer, and the versions made of it.\n\nWhile the station has a model, the draft is derived from it (STD-08, TKL92) and is not\nwritten as a list; without the model, the last outside is the list again.",
   "properties": {
     "draft": {
       "$ref": "#/$defs/StationOutside"
@@ -210,7 +210,7 @@
     },
     "station_model": {
       "default": false,
-      "description": "Stationen har en stationsmodell (nivå 1–2, #83).",
+      "description": "Stationen har en stationsmodell (nivå 1–2, #83). Utsidan räknas då fram ur den, och listan går inte att skriva (TKL92).",
       "title": "Station Model",
       "type": "boolean"
     }

@@ -228,21 +228,39 @@ class TrackCircuit(Contract):
 
 
 class StationTrack(Contract):
-    """Stationsspår: what the station's outside is made of (TKL92)."""
+    """Stationsspår: what the station's outside is made of (TKL92).
+
+    Its id in the outside is its short name, or `outside_id` when the model gives one, so that
+    the owner can rename the track and keep the id the meets know (tkl/standard/outside.py).
+    """
 
     id: Id = Field(description="Det korta namnet, till exempel 1a.")
     label: Text = Field(description="Till exempel Spår 1a.")
     pieces: list[Name] = Field(default_factory=list)
+    outside_id: Id | None = Field(
+        default=None,
+        description="Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. "
+        "Behåller id:t när spåret byter namn.",
+    )
 
 
 class LineExit(Contract):
-    """Linjeutfart: where a track leaves the station for the line."""
+    """Linjeutfart: where a track leaves the station for the line.
+
+    Its id is the owner's free text, such as "Väst 1"; the outside's exit gets an id derived
+    from it, or `outside_id` when the model gives one (tkl/standard/outside.py).
+    """
 
     id: Name = Field(description="Bokstav eller id, till exempel A1.")
     node: Name
     neighbour: Text | None = Field(default=None, description="Grannstationen.")
     tracks: list[Name] = Field(default_factory=list, description="Stationsspåren som når hit.")
     signals: list[Name] = Field(default_factory=list, description="Signalerna vid gränsen.")
+    outside_id: Id | None = Field(
+        default=None,
+        description="Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: "
+        "Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.",
+    )
     origin: Origin | None = None
 
 

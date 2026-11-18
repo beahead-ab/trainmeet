@@ -23,7 +23,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Signatur | `place.code` | Driftplatsens förkortning, till exempel Nby. |
 | Leknummer | `place.phone`, `PlacePhone` | Driftplatsens telefonnummer i trafikspelet. Inga personuppgifter. Trafikledningen kan ändra det under träffen (drifthändelsen `place.phone`). |
 | Station | `station` | Det som skapas i TKL Studio och kopplas till en driftplats, i förväg eller när den ansluter. |
-| Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. |
+| Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. På nivå 0 skrivs den som en lista; har stationen en stationsmodell räknas den fram ur modellens stationsspår och linjeutfarter (TKL92, `tkl.standard.outside_of`). |
 | Insida | `trainmeet.station-model/1` | Stationsmodellen: spåren, växlarna, signalerna och adresserna. Stannar alltid hos TKL. |
 | Utfart | `exit` | Där ett spår lämnar stationen, med fast id och sida. Kopplas till en sträcka per träff. |
 | Utfartsfråga | `station.ExitQuestion`, `station.ExitAnswer`, `drift.CoupleExit` | När en TKL ansluter kopplar Hubben stationens utfarter till sträckorna: på grannens namn, sidan och förra träffens svar. Är den osäker frågar den, i TKL och i Klienter, och det första svaret gäller hela träffen (H26, TRAFIK-05). Svaret minns till nästa träff med samma granne. En station som kopplats i förväg i Planering har sin tabell, `station.exit_map`. |
@@ -147,6 +147,7 @@ Standardställverket (#83): varje station är data, och samma motor räknar fram
 | Spårledning | `TrackCircuit` | Namn, spårbitarna och givaren, eller utan. Vägen löses ut sektionsvis per spårledning. |
 | Stationsspår | `StationTrack` | Spåret där tåg står vid stationen, med det korta namnet som id, etiketten och spårbitarna. Det är det utsidan visar (TKL92). |
 | Linjeutfart | `LineExit` | Där ett spår lämnar stationen mot linjen: id, grannstationen, stationsspåren och signalerna vid gränsen. |
+| Utsidans id | `StationTrack.outside_id`, `LineExit.outside_id` | Stationsspårets eller linjeutfartens fasta id i utsidan. Saknas det räknas det fram ur namnet: till ASCII, med bindestreck för mellanslag och annat som ett id inte kan ha, och -2, -3 när två blir lika (Väst 1 blir Vast-1). Ett eget id behåller id:t när ägaren byter namn. |
 | Vändskiva | `Turntable` | Noden, spåren och deras vinklar (RS4). Bryggan förbinder två spår som står mitt emot varandra. |
 | Panelfunktion | `PanelFunction`, `PanelFunctionType` | En knapp på panelen ur den fasta katalogen: signalstopp, lokal frigivning (TKL44), körström, spår ur drift, nödutlösning, vändskiva och programmeringsspår (STV-53). Nya funktioner läggs i katalogen för alla (STD-19). |
 | Ursprung | `Origin`, `Source` | Varifrån en uppgift i modellen kommer: ritad, uppmätt ur foto, signalplan, AnyRail, JMRI eller antagen, och om ägaren har bekräftat den. Det antagna syns gult i Studio. |

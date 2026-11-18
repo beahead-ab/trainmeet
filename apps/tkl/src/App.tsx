@@ -240,7 +240,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           />
         ) : studio ? (
           <Studio
-            key={studio.versions?.[0]?.number ?? 0}
+            key={`${studio.versions?.[0]?.number ?? 0}-${studio.station_model ? "modell" : "lista"}`}
             studio={studio}
             onSave={async (outside) => setStudio(await api.saveList(outside))}
             onVersion={async () => setStudio(await api.newVersion())}

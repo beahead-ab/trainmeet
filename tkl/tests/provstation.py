@@ -144,6 +144,10 @@ def provby(**more: Any) -> StationModel:
             TrackCircuit(name="Vx2", pieces=["g", "h", "i"]),
             TrackCircuit(name="Infart O", pieces=["j"]),
         ],
+        "station_tracks": [
+            StationTrack(id="1", label="Spår 1", pieces=["e"]),
+            StationTrack(id="2", label="Spår 2", pieces=["f1", "f2"]),
+        ],
     }
     settings.update(more)
     spec = settings.pop("spec", spec)

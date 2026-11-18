@@ -8,6 +8,8 @@
 - At level 3: addresses are unique per bus, and every switch has feedback or "without".
 - The panel can be made: the station's own track plan holds (STD-26, STD-28), or, without one,
   the engine lays the station out so that it fits, or proposes fields (STD-03).
+- The station's outside can be derived: the model has station tracks and line exits, each gets
+  an id in the outside, and each exit's side can be read from the panel (STD-08, TKL92).
 
 Some findings are notes, not problems: they are shown, but the model may still run. A line exit
 without a neighbouring station is one, since an exit is tied to a section per meet (H26, Utfart
@@ -30,7 +32,8 @@ from contracts.station_model import (
     SwitchControl,
     SwitchType,
 )
-from tkl.standard import plan
+from contracts.tkl import Panel
+from tkl.standard import outside, plan
 from tkl.standard.graph import SLIP_TYPES, Graph, Step, parts
 from tkl.standard.layout import FITS, LayoutError, lay_out
 from tkl.standard.levers import Levers, own_parts
@@ -66,13 +69,25 @@ def checks(model: StationModel) -> tuple[list[str], list[str]]:
         *_train_routes(model),
         *_line_exits(model),
         *(_level_3(model) if model.level == 3 else []),
+        *outside.problems(model),
     ]
     remarks = _neighbours(model)
     if not found:
-        trouble, more = _panel(model)
+        trouble, more, panel = _panel(model)
         found += trouble
         remarks += more
+        if panel is not None:
+            found += _outside(model, panel)
     return found, remarks
+
+
+def _outside(model: StationModel, panel: Panel) -> list[str]:
+    """The station's outside can be derived from the model (STD-08)."""
+    try:
+        outside.outside_of(model, model.station_id, model.name, panel=panel)
+    except outside.OutsideError as error:
+        return error.problems
+    return []
 
 
 def _neighbours(model: StationModel) -> list[str]:
@@ -81,14 +96,18 @@ def _neighbours(model: StationModel) -> list[str]:
     ]
 
 
-def _panel(model: StationModel) -> tuple[list[str], list[str]]:
-    """The panel can be made: from the station's own track plan, or by the engine (§6)."""
+def _panel(model: StationModel) -> tuple[list[str], list[str], Panel | None]:
+    """The panel can be made: from the station's own track plan, or by the engine (§6). The
+    panel itself too, when it can."""
     if model.panel is not None:
-        return plan.problems(model), []
+        try:
+            return [], [], plan.build(model)
+        except plan.PlanError as error:
+            return error.problems, [], None
     try:
         found = lay_out(model)
     except LayoutError as error:
-        return [f"Motorn kan inte lägga ut panelen. {error}"], []
+        return [f"Motorn kan inte lägga ut panelen. {error}"], [], None
     remarks: list[str] = []
     if found.fields:
         remarks.append(
@@ -100,7 +119,7 @@ def _panel(model: StationModel) -> tuple[list[str], list[str]]:
             f"Panelen är {found.height:g} rutor hög och får inte plats på skärmen på höjden "
             f"(högst {FITS[1]})."
         )
-    return [], remarks
+    return [], remarks, found
 
 
 def _repeated(names: Iterable[str]) -> list[str]:

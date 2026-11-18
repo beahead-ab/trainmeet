@@ -514,6 +514,9 @@ export interface components {
         /**
          * LineExit
          * @description Linjeutfart: where a track leaves the station for the line.
+         *
+         *     Its id is the owner's free text, such as "Väst 1"; the outside's exit gets an id derived
+         *     from it, or `outside_id` when the model gives one (tkl/standard/outside.py).
          */
         "trainmeet.station-model-1.LineExit": {
             /**
@@ -539,6 +542,12 @@ export interface components {
              * @description Signalerna vid gränsen.
              */
             signals?: string[];
+            /**
+             * Outside Id
+             * @description Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.
+             * @default null
+             */
+            outside_id: string | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
@@ -956,6 +965,9 @@ export interface components {
         /**
          * StationTrack
          * @description Stationsspår: what the station's outside is made of (TKL92).
+         *
+         *     Its id in the outside is its short name, or `outside_id` when the model gives one, so that
+         *     the owner can rename the track and keep the id the meets know (tkl/standard/outside.py).
          */
         "trainmeet.station-model-1.StationTrack": {
             /**
@@ -970,6 +982,12 @@ export interface components {
             label: string;
             /** Pieces */
             pieces?: string[];
+            /**
+             * Outside Id
+             * @description Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. Behåller id:t när spåret byter namn.
+             * @default null
+             */
+            outside_id: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1872,7 +1890,10 @@ export interface components {
         };
         /**
          * TklStudio
-         * @description Studio at level 0: the list as it is on the computer, and the versions made of it.
+         * @description Studio's outside: the list as it is on the computer, and the versions made of it.
+         *
+         *     While the station has a model, the draft is derived from it (STD-08, TKL92) and is not
+         *     written as a list; without the model, the last outside is the list again.
          */
         "trainmeet.tkl-1.studio": {
             draft: components["schemas"]["trainmeet.tkl-1.studio.StationOutside"];
@@ -1888,7 +1909,7 @@ export interface components {
             changed: boolean;
             /**
              * Station Model
-             * @description Stationen har en stationsmodell (nivå 1–2, #83).
+             * @description Stationen har en stationsmodell (nivå 1–2, #83). Utsidan räknas då fram ur den, och listan går inte att skriva (TKL92).
              * @default false
              */
             station_model: boolean;
