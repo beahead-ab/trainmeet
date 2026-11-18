@@ -437,6 +437,7 @@ def korplan(drift: Drift, service: Service, now: datetime, revision: int) -> con
                     note=call.note,
                     first_of_train=index == 0,
                     last=call.id == last,
+                    unmanned=drift.automatic(call.place),
                     changed=changed,
                     real=_reality(drift, call, at, ahead)
                     if settings.reality and call.id in drift.calls

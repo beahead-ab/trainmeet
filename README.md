@@ -15,7 +15,7 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 | `tkl/` | TrainMeet TKL, ställverket och Studio | Stationens dator eller i molnet |
 | `cad/` | TrainMeet CAD, modulbiblioteket | I molnet |
 | `catalog/` | TrainMeet Catalog: fordonen, taggarna och resan till träffen. En egen tjänst med egen PostgreSQL; använder bara `contracts/` | I molnet |
-| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`), Catalogs (`apps/catalog`), ID:s (`apps/id`) och Hubbens (H62): trafikledningen (`apps/trafikledning`), Planering (`apps/planering`), träffens skärmar (`apps/skarmar`) och TMBox web (`apps/tmbox-webb`), med Hubbens sidhuvud i `apps/hubben` | – |
+| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`), Catalogs (`apps/catalog`), ID:s (`apps/id`) och Hubbens (H62): trafikledningen (`apps/trafikledning`), Planering (`apps/planering`), träffens skärmar (`apps/skarmar`), TMBox web (`apps/tmbox-webb`) och Lokföraren i telefonen (`apps/lokforaren`), med Hubbens sidhuvud i `apps/hubben` | – |
 
 Mapparna kommer till i den ordning delarna byggs. Först kommer Grunden (kontrakten, de automatiska testerna och testmiljön), sedan Drift.
 
@@ -50,6 +50,7 @@ npm run build -w apps/skarmar                  # Hubbens skärmar, som hubben se
 npm run build -w apps/tmbox-webb               # TMBox web, som hubben serverar på /box och /provbanan/box
 npm run build -w apps/trafikledning            # startsidan, Provbanan, Inställningar och Drift (/, /drift)
 npm run build -w apps/planering                # Planering, på /planering
+npm run build -w apps/lokforaren               # Lokföraren, där QR-koden leder: /lokforaren
 CATALOG_DATABASE_URL=postgresql:///catalog CATALOG_MIGRATE=auto CATALOG_TRIAL_LOGIN=on \
   uv run uvicorn catalog.app:app --port 8001  # Catalog på http://127.0.0.1:8001
 npm run dev -w apps/catalog                   # eller webbappen med omladdning, mot port 8001

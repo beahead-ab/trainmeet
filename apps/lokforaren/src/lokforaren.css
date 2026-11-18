@@ -1,0 +1,1435 @@
+/* Lokföraren (LOK-36, LOK-38): the design system's header and colours, for a phone in the hand.
+   Yellow is the clock and the NU-line; blue is Drift's reality, the train mark and the driver's
+   own check-in; green is free and klart; amber is late, changed and a warning. Dark is the
+   default (korplan-*.jpg), light is for daylight (korplan-ljust.jpg), or as the phone.
+   Colours chosen for WCAG 2.2 AA contrast (ST13). */
+
+:root,
+:root[data-tema="ljust"] {
+  --lok-yellow: #f5c518;
+  --lok-yellow-line: #c79a00;
+  --lok-on-yellow: #1a1500;
+  --lok-green: #1d7f3e;
+  --lok-green-soft: #e3f4e8;
+  --lok-green-button: #34c463;
+  --lok-amber: #8a5300;
+  --lok-amber-soft: #fbefd9;
+  --lok-red: #b4231a;
+  --lok-real-soft: #e5ecfb;
+  --lok-shade: rgb(0 0 0 / 0.35);
+}
+
+:root[data-tema="ljust"] {
+  color-scheme: light;
+  --tm-bg: #f4f3ef;
+  --tm-panel: #ffffff;
+  --tm-panel-2: #f4f3ef;
+  --tm-line: #e2e1dc;
+  --tm-text: #111317;
+  --tm-mute: #5b606b;
+  --tm-blue: #2453c7;
+  --tm-blue-text: #1d47b0;
+  --tm-blue-soft: #e8eefc;
+  --tm-on-blue: #ffffff;
+  --tm-focus: #2453c7;
+}
+
+:root[data-tema="morkt"] {
+  color-scheme: dark;
+  --tm-bg: #0e1114;
+  --tm-panel: #161a1e;
+  --tm-panel-2: #1b1f26;
+  --tm-line: #2a3038;
+  --tm-text: #e9ebef;
+  --tm-mute: #9aa1ad;
+  --tm-blue: #5aa9ff;
+  --tm-blue-text: #8cc3ff;
+  --tm-blue-soft: #18263a;
+  --tm-on-blue: #08121e;
+  --tm-focus: #8cc3ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="ljust"]) {
+    --lok-yellow-line: #f5c518;
+    --lok-green: #4ad476;
+    --lok-green-soft: #12301d;
+    --lok-amber: #f0a73a;
+    --lok-amber-soft: #2d2412;
+    --lok-red: #ff7a70;
+    --lok-real-soft: #18263a;
+    --lok-shade: rgb(0 0 0 / 0.6);
+  }
+}
+:root[data-tema="morkt"] {
+  --lok-yellow-line: #f5c518;
+  --lok-green: #4ad476;
+  --lok-green-soft: #12301d;
+  --lok-amber: #f0a73a;
+  --lok-amber-soft: #2d2412;
+  --lok-red: #ff7a70;
+  --lok-real-soft: #18263a;
+  --lok-shade: rgb(0 0 0 / 0.6);
+}
+
+body {
+  overscroll-behavior-y: contain;
+}
+.lok {
+  min-height: 100vh;
+  overflow-x: clip;
+}
+.lok .tm-sidhuvud {
+  gap: 10px;
+}
+.lok .tm-marke {
+  min-width: 0;
+  gap: 10px;
+}
+.lok.med-flikar {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+.lok-dold {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The header: the sign, LOKFÖRAREN in dots and the meet clock to the right. */
+.lok .tm-sidhuvud {
+  min-height: 72px;
+}
+.lok-klocka {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+.lok-klocka > .tm-mono {
+  font-size: clamp(20px, 6vw, 30px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tm-head-text);
+  letter-spacing: -0.01em;
+}
+.lok-klocka > .tm-mono.fryst {
+  color: var(--tm-head-mute);
+}
+.lok-klocka .lok-klocklage {
+  font-size: 11px;
+}
+.lok-klocklage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: var(--tm-mono);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #12301d;
+  color: #4ad476;
+}
+.lok-klocklage.stopped {
+  background: #2d2412;
+  color: #f0a73a;
+}
+.lok-klocklage.lost,
+.lok-klocklage.none {
+  background: #2a2f37;
+  color: #c0c5cf;
+}
+.lok-kontakt {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+  font-weight: 600;
+}
+
+/* The bottom menu: four tabs (LOK-38). */
+.lok .tm-bottenmeny {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* A page. */
+.lok-sida {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px 24px;
+}
+.lok-sidhuvud {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -16px 16px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--tm-line);
+}
+.lok-rubrik h1 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+}
+.lok-rubrik p {
+  margin: 4px 0 0;
+  color: var(--tm-mute);
+}
+.lok-tillbaka {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  border: 0;
+  background: none;
+  color: var(--tm-text);
+  cursor: pointer;
+}
+.lok-tillbaka svg {
+  width: 26px;
+  height: 26px;
+}
+.lok-papper {
+  padding: 2px 8px;
+  border: 1px solid var(--tm-mute);
+  border-radius: 6px;
+  font-family: var(--tm-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+}
+.lok-overrubrik,
+.lok-avsnitt {
+  margin: 20px 0 8px;
+  color: var(--tm-mute);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lok-overrubrik {
+  margin: 0 0 6px;
+}
+.lok-not {
+  margin: 10px 0;
+  color: var(--tm-mute);
+  font-size: 15px;
+}
+.lok-upplysning {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+}
+.lok-problem,
+.lok-varning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+  font-weight: 600;
+}
+.lok-problem svg,
+.lok-varning svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.lok-varning {
+  font-weight: 500;
+}
+.lok-kort {
+  margin: 0 0 12px;
+  padding: 18px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: 18px;
+}
+.lok-kort > p:first-child {
+  margin-top: 0;
+}
+.lok-kort h1 {
+  margin-top: 0;
+}
+
+/* Buttons and choices: big enough for a thumb (44 px and more). */
+.lok-knapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--tm-line);
+  background: transparent;
+  color: var(--tm-text);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.lok-knapp:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.lok-knapp.stor {
+  width: 100%;
+  min-height: 56px;
+  font-size: 19px;
+}
+.lok-knapp.primar {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: var(--tm-on-blue);
+}
+.lok-knapp.mjuk,
+.lok-knapp.incheckning {
+  background: var(--tm-blue-soft);
+  border-color: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.lok-knapp.gron {
+  background: var(--lok-green-button);
+  border-color: var(--lok-green-button);
+  color: #06210f;
+}
+.lok-knapp.fara {
+  color: var(--lok-red);
+}
+.lok-knapp.ikon {
+  flex: none;
+  width: 56px;
+  padding: 0;
+}
+.lok-knapp svg {
+  width: 22px;
+  height: 22px;
+}
+.lok-knappar {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+}
+.lok-knappar > * {
+  flex: 1;
+}
+.lok-knappar.staplade {
+  flex-direction: column;
+}
+.lok-lank {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--tm-blue-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lok-chip {
+  min-height: 48px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-line);
+  background: transparent;
+  color: var(--tm-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lok-chip[aria-pressed="true"],
+.lok-chip[aria-checked="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.lok-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+.lok-val legend {
+  margin-bottom: 8px;
+  color: var(--tm-mute);
+  font-weight: 600;
+}
+section.lok-val {
+  padding: 14px;
+}
+.lok-nivaer .lok-chip {
+  flex: 1;
+  border-radius: 14px;
+}
+.lok-falt {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+.lok-falt > span {
+  color: var(--tm-mute);
+  font-weight: 600;
+}
+.lok-falt input,
+.lok-falt select,
+.lok-installning select {
+  min-height: 52px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  font-size: 20px;
+}
+.lok-falt input:focus {
+  border-color: var(--tm-blue);
+}
+.lok-falt small {
+  color: var(--tm-mute);
+}
+
+/* Kom in (main.jpg). */
+.lok-kom {
+  padding-top: 24px;
+}
+.lok-traffkort {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+}
+.lok-traffkort > div:first-child {
+  display: grid;
+}
+.lok-traffkort b {
+  font-size: 20px;
+}
+.lok-traffkort span {
+  color: var(--tm-mute);
+}
+.lok-traffklocka {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+.lok-traffklocka > .tm-mono {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+.lok-formular h1 {
+  margin: 28px 0 16px;
+  font-size: 34px;
+}
+.lok-formular .lok-knapp.stor {
+  margin-top: 10px;
+}
+
+/* Tåg (valj-tjanst.jpg, sok-nummer.jpg, valj-tag.jpg, ta-over.jpg). */
+.lok-sok {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+.lok-sokfalt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+}
+.lok-sokfalt:focus-within {
+  border-color: var(--tm-blue);
+}
+.lok-sokfalt svg {
+  width: 22px;
+  height: 22px;
+  color: var(--tm-mute);
+}
+.lok-sokfalt input {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  border: 0;
+  background: none;
+  color: var(--tm-text);
+  font: inherit;
+  font-size: 20px;
+  outline: none;
+}
+.lok-lista-ram {
+  overflow: hidden;
+  border: 1px solid var(--tm-line);
+  border-radius: 18px;
+  background: var(--tm-panel);
+}
+.lok-start {
+  margin: 0;
+  padding: 8px 18px;
+  background: var(--tm-panel-2);
+  font-size: 16px;
+  font-weight: 700;
+}
+.lok-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+section > .lok-lista {
+  overflow: hidden;
+  border: 1px solid var(--tm-line);
+  border-radius: 18px;
+  background: var(--tm-panel);
+}
+.lok-lista li + li {
+  border-top: 1px solid var(--tm-line);
+}
+.lok-tjanst {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 18px;
+  border: 0;
+  background: none;
+  color: var(--tm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lok-tjanst.upptagen .lok-vag b,
+.lok-tjanst.upptagen .lok-nummer {
+  color: var(--tm-mute);
+}
+.lok-nummer {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 52px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: var(--tm-panel-2);
+  font-size: 22px;
+  font-weight: 800;
+}
+.lok-vag {
+  display: grid;
+  min-width: 0;
+}
+.lok-vag b {
+  font-size: 18px;
+}
+.lok-vag span {
+  color: var(--tm-mute);
+}
+.lok-vag span.over {
+  color: var(--lok-amber);
+}
+.lok-hoger {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+.lok-status {
+  font-size: 15px;
+  color: var(--tm-mute);
+}
+.lok-status.ledig {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--lok-green-soft);
+  color: var(--lok-green);
+  font-weight: 700;
+}
+.lok-status.din {
+  color: var(--tm-blue-text);
+  font-weight: 700;
+}
+.lok-niva {
+  font-weight: 700;
+  font-size: 15px;
+}
+.niva-easy.lok-niva,
+.lok-svarighet.niva-easy {
+  color: var(--lok-green);
+}
+.niva-medium.lok-niva,
+.lok-svarighet.niva-medium {
+  color: var(--lok-amber);
+}
+.niva-experienced.lok-niva,
+.lok-svarighet.niva-experienced {
+  color: var(--lok-red);
+}
+.lok-utdelad,
+.lok-min-tjanst,
+.lok-utan-forare {
+  margin: 0 0 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1.5px solid var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.lok-utdelad .lok-overrubrik,
+.lok-min-tjanst .lok-overrubrik {
+  color: var(--tm-blue-text);
+}
+.lok-utan-forare {
+  border-color: var(--lok-amber);
+  background: var(--lok-amber-soft);
+}
+.lok-utan-forare .lok-overrubrik {
+  color: var(--lok-amber);
+}
+.lok-utdelad-rad {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 22px;
+}
+.lok-utdelad p,
+.lok-min-tjanst p,
+.lok-utan-forare p {
+  margin: 6px 0 12px;
+}
+.lok-utdelad .lok-knappar {
+  margin-bottom: 0;
+}
+.lok-utan-forare .lok-knapp,
+.lok-min-tjanst .lok-knapp {
+  width: 100%;
+}
+
+/* The paper's front (sok-nummer.jpg, taget.jpg). */
+.lok-framsida {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 22px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  text-align: center;
+}
+.lok-framsida p {
+  margin: 4px 0;
+  font-size: 19px;
+}
+.lok-framsida-ord {
+  color: var(--tm-mute);
+  font-weight: 600;
+}
+.lok-framsida-nummer {
+  color: var(--tm-blue);
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1;
+}
+.lok-pa-papper {
+  color: var(--lok-amber);
+  font-weight: 700;
+}
+.lok-framsida .lok-framsida-bolag {
+  color: var(--tm-mute);
+  font-size: 17px;
+}
+.lok-svarighet {
+  font-weight: 700;
+}
+.lok-lankar {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--tm-line);
+  border-radius: 18px;
+  background: var(--tm-panel);
+}
+.lok-lankar li + li {
+  border-top: 1px solid var(--tm-line);
+}
+.lok-lankar button,
+.lok-lankar a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 18px;
+  border: 0;
+  background: none;
+  color: var(--tm-text);
+  font: inherit;
+  font-size: 18px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.lok-lankar span:not(.lok-rod) {
+  flex: 1;
+}
+.lok-lankar svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--tm-mute);
+}
+.lok-lankar .lok-rod svg {
+  color: var(--lok-red);
+}
+
+/* Körplan: the time axis (korplan-plan.jpg). */
+.lok-andrat-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: -16px -16px 12px;
+  padding: 12px 16px;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.lok-andrat-banner svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.lok-tidsaxel ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lok-moment {
+  display: grid;
+  grid-template-columns: 70px 36px 1fr;
+  min-height: 64px;
+}
+.lok-tid {
+  display: grid;
+  align-content: start;
+  justify-items: end;
+  padding: 6px 8px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+.lok-verklig {
+  color: var(--lok-amber);
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lok-axel {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding-top: 8px;
+}
+.lok-axel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--tm-line);
+}
+.lok-prick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--tm-mute);
+  background: var(--tm-bg);
+}
+.lok-prick.liten {
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border-width: 2px;
+}
+.lok-prick.incheckad {
+  width: 34px;
+  height: 34px;
+  margin-top: -6px;
+  border-color: var(--tm-blue);
+  background: #0f6b52;
+  color: #ffffff;
+}
+.lok-prick.incheckad svg {
+  width: 18px;
+  height: 18px;
+}
+.lok-innehall {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 4px 0 14px 8px;
+}
+.lok-plats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lok-plats b {
+  font-size: 22px;
+}
+.lok-vad {
+  color: var(--tm-mute);
+  font-size: 17px;
+}
+.lok-anmarkning {
+  font-size: 16px;
+}
+.lok-moment.passerad .lok-plats b,
+.lok-moment.passerad .lok-tid {
+  color: var(--tm-mute);
+}
+.lok-moment.passerad .lok-prick {
+  border-color: var(--tm-line);
+}
+.lok-passage {
+  min-height: 44px;
+}
+.lok-passage .lok-innehall {
+  color: var(--tm-mute);
+}
+.lok-passage .lok-tid {
+  font-size: 17px;
+}
+.lok-bricka {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+  font-size: 14px;
+  font-weight: 700;
+}
+.lok-du {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--lok-real-soft);
+  color: var(--tm-blue-text);
+  font-size: 15px;
+  font-weight: 700;
+  justify-self: start;
+}
+.lok-andrat {
+  justify-self: start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lok-sen {
+  color: var(--lok-amber);
+  font-weight: 700;
+}
+.lok-tagbricka {
+  min-height: 44px;
+}
+.lok-tagbricka .lok-innehall {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--tm-mute);
+}
+.lok-tagnummer {
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 800;
+}
+/* The NU-line: yellow, on Drift's clock only (LOK-12). */
+.lok-nu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  margin: 0 -16px;
+}
+.lok-nu-tid {
+  position: relative;
+  z-index: 1;
+  margin-left: 6px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: var(--lok-yellow);
+  color: var(--lok-on-yellow);
+  font-size: 17px;
+  font-weight: 800;
+}
+.lok-nu-linje {
+  flex: 1;
+  height: 3px;
+  margin-left: -4px;
+  background: var(--lok-yellow-line);
+  box-shadow: 0 0 10px rgb(245 197 24 / 0.35);
+}
+/* Drift's reality: blue, with the train mark (LOK-20, LOK-38). */
+.lok-verklighet .lok-innehall b {
+  color: var(--tm-blue-text);
+}
+.lok-verklighet .lok-innehall span {
+  color: var(--tm-mute);
+}
+.lok-tagmarke {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--tm-blue);
+  color: var(--tm-on-blue);
+}
+.lok-tagmarke svg {
+  width: 22px;
+  height: 22px;
+}
+.lok-slapp-rad {
+  text-align: center;
+}
+
+/* NÄSTA at the bottom. */
+.lok-nasta {
+  position: sticky;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 5;
+  margin: 8px 0 0;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+  box-shadow: 0 -8px 30px var(--lok-shade);
+}
+.lok-nasta-rad {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--tm-mute);
+  font-weight: 600;
+}
+.lok-nasta-rad.stor {
+  color: var(--tm-text);
+  font-size: 24px;
+}
+.lok-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.lok-chip-liten {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-line);
+  font-weight: 600;
+}
+.lok-chip-liten.gra {
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+}
+.lok-chip-liten.sen,
+.lok-chip-liten.andrat {
+  border-color: transparent;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+}
+.lok-klarering {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0;
+  color: var(--tm-text);
+}
+.lok-klarering svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.lok-klarering.approved {
+  color: var(--lok-green);
+}
+.lok-klarering.waiting,
+.lok-klarering.rejected {
+  color: var(--lok-amber);
+}
+.lok-incheckad {
+  margin: 6px 0;
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.lok-incheckad.tonar {
+  opacity: 0.55;
+}
+.lok-nasta-knappar {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.lok-nasta-knappar > .lok-knapp:first-child {
+  flex: 1;
+}
+.lok-nasta-knappar .lok-tagmarke {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0f6b52;
+  color: #ffffff;
+}
+
+/* Before the start (fore-start.jpg). */
+.lok-fore-rubrik {
+  margin: 0;
+  font-size: 20px;
+  color: var(--tm-mute);
+}
+.lok-nedrakning {
+  margin: 0;
+  font-size: 84px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.lok-fore-ord {
+  margin: 0;
+  font-size: 20px;
+}
+.lok-handelser {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lok-handelser li {
+  display: grid;
+  grid-template-columns: 64px 30px 1fr;
+  gap: 8px;
+  padding-bottom: 16px;
+}
+.lok-handelser li > .tm-mono {
+  font-weight: 700;
+  font-size: 18px;
+}
+.lok-handelser li > span:last-child {
+  display: grid;
+}
+.lok-handelser li > span:last-child span {
+  color: var(--tm-mute);
+}
+.lok-ring {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 3px solid var(--tm-mute);
+}
+.lok-handelser li.nu .tm-mono {
+  color: var(--lok-yellow-line);
+}
+.lok-handelser li.nu .lok-ring {
+  border-color: var(--lok-yellow);
+}
+.lok-handelser li.verklig .lok-ring {
+  border-color: var(--tm-blue);
+}
+.lok-fore > .lok-knapp {
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* The sheets from the bottom (meddela.jpg, slapp.jpg). */
+.lok-ark-bakom {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--lok-shade);
+}
+.lok-ark {
+  width: min(640px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 10px 20px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 26px 26px 0 0;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+}
+.lok-ark-grepp {
+  display: block;
+  width: 48px;
+  height: 5px;
+  margin: 0 auto 14px;
+  border-radius: 3px;
+  background: var(--tm-line);
+}
+.lok-ark h2 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+.lok-ark-under {
+  margin: 0 0 14px;
+  color: var(--tm-mute);
+}
+.lok-avbryt {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  color: var(--tm-mute);
+  font: inherit;
+  font-weight: 700;
+  font-size: 18px;
+  cursor: pointer;
+}
+.lok-meddelanden {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.lok-meddelande {
+  display: grid;
+  gap: 4px;
+  min-height: 96px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel-2);
+  color: var(--tm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lok-meddelande b {
+  font-size: 19px;
+}
+.lok-meddelande span {
+  color: var(--tm-mute);
+}
+.lok-meddelande[aria-checked="true"] {
+  border: 2px solid var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.lok-lage {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel-2);
+}
+.lok-lage > span:last-child {
+  display: grid;
+}
+.lok-lage > span:last-child span {
+  color: var(--tm-mute);
+}
+.lok-alternativ {
+  display: grid;
+  gap: 10px;
+}
+.lok-alternativ-val {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel-2);
+  color: var(--tm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lok-alternativ-val > span:last-child {
+  display: grid;
+}
+.lok-alternativ-val b {
+  font-size: 19px;
+}
+.lok-alternativ-val > span:last-child span {
+  color: var(--tm-mute);
+}
+.lok-alternativ-val[aria-checked="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.lok-radio {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--tm-mute);
+}
+[aria-checked="true"] > .lok-radio {
+  border: 7px solid var(--tm-blue);
+}
+.lok-ark .lok-knapp.stor {
+  margin-top: 16px;
+}
+
+/* Förare (forare.jpg). */
+.lok-langs ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lok-langs li {
+  display: grid;
+  grid-template-columns: 30px auto 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+}
+.lok-langs b {
+  font-size: 19px;
+}
+.lok-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.lok-forare-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel-2);
+}
+.lok-forare-pill b {
+  font-size: 17px;
+}
+.lok-forare-pill span:last-child {
+  color: var(--tm-mute);
+}
+.lok-forare-pill.tonar {
+  opacity: 0.55;
+}
+.lok-forare-pill .lok-tagmarke {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0f6b52;
+  color: #ffffff;
+}
+.lok-forare {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lok-forare-rad {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+}
+.lok-forare-rad + .lok-forare-rad {
+  border-top: 1px solid var(--tm-line);
+}
+.lok-forare-rad > span:last-child {
+  display: grid;
+}
+.lok-forare-rad b {
+  font-size: 19px;
+}
+.lok-forare-rad b .lok-du {
+  margin-left: 8px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+.lok-forare-rad > span:last-child span {
+  color: var(--tm-mute);
+}
+.lok-ikon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #5b4bb7;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.lok-ikon.stor {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+}
+.lok-ikon.niva-easy {
+  background: #1e6fbf;
+}
+.lok-ikon.niva-medium {
+  background: #b45a1d;
+}
+.lok-ikon.niva-experienced {
+  background: #6b3fb0;
+}
+
+/* Jag (jag.jpg) and the instructions (instruktioner.jpg). */
+.lok-jag-rad {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.lok-jag-rad > span:nth-child(2) {
+  flex: 1;
+  display: grid;
+}
+.lok-jag-rad b {
+  font-size: 21px;
+  line-height: 1.2;
+}
+.lok-jag-rad > span:nth-child(2) span {
+  color: var(--tm-mute);
+}
+.lok-jag .lok-knapp.mjuk {
+  width: 100%;
+  margin: 8px 0;
+}
+.lok-namnrad {
+  display: grid;
+  gap: 8px;
+}
+.lok-vaxel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 18px;
+}
+.lok-vaxel input {
+  width: 52px;
+  height: 30px;
+  accent-color: var(--lok-green-button);
+}
+.lok-installningar {
+  padding: 4px 18px;
+}
+.lok-installning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  font-size: 18px;
+}
+.lok-installning + .lok-installning {
+  border-top: 1px solid var(--tm-line);
+}
+.lok-installning select {
+  min-height: 44px;
+  font-size: 17px;
+}
+.lok-lamna {
+  margin-top: 18px;
+}
+.lok-lamna .lok-knapp {
+  width: 100%;
+}
+.lok-instruktioner {
+  padding: 0;
+}
+.lok-instruktioner > div {
+  padding: 18px;
+}
+.lok-instruktioner > div + div {
+  border-top: 1px solid var(--tm-line);
+}
+.lok-instruktioner h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+.lok-instruktioner p {
+  margin: 0;
+  white-space: pre-line;
+  color: var(--tm-mute);
+  font-size: 18px;
+}
+
+/* A word to the driver: the reminders when notifications are not allowed (LOK-41). */
+.lok-notis {
+  position: sticky;
+  top: 72px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--lok-yellow);
+  color: var(--lok-on-yellow);
+  font-weight: 700;
+}
+.lok-notis svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.lok-notis span {
+  flex: 1;
+}
+.lok-notis .lok-lank {
+  color: var(--lok-on-yellow);
+  text-decoration: underline;
+}
+
+@media (min-width: 761px) {
+  .lok.med-flikar {
+    padding-bottom: 0;
+  }
+  .lok-nasta {
+    bottom: 12px;
+  }
+}

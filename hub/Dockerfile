@@ -19,6 +19,7 @@ COPY apps/tmbox-webb/package.json apps/tmbox-webb/
 COPY apps/trafikledning/package.json apps/trafikledning/
 COPY apps/planering/package.json apps/planering/
 COPY apps/tkl/package.json apps/tkl/
+COPY apps/lokforaren/package.json apps/lokforaren/
 RUN npm ci --no-audit --no-fund
 COPY contracts/types.d.ts contracts/
 # Provbanan, which the web apps' tests draw on.
@@ -29,12 +30,14 @@ COPY apps/skarmar apps/skarmar
 COPY apps/tmbox-webb apps/tmbox-webb
 COPY apps/trafikledning apps/trafikledning
 COPY apps/planering apps/planering
+COPY apps/lokforaren apps/lokforaren
 # Types and tests first: a red web app never becomes an image.
 RUN npm run check -w apps/design -w apps/hubben -w apps/skarmar -w apps/tmbox-webb \
-       -w apps/trafikledning -w apps/planering \
+       -w apps/trafikledning -w apps/planering -w apps/lokforaren \
     && npm run test -w apps/design -w apps/hubben -w apps/skarmar -w apps/tmbox-webb \
-       -w apps/trafikledning -w apps/planering \
-    && npm run build -w apps/skarmar -w apps/tmbox-webb -w apps/trafikledning -w apps/planering
+       -w apps/trafikledning -w apps/planering -w apps/lokforaren \
+    && npm run build -w apps/skarmar -w apps/tmbox-webb -w apps/trafikledning -w apps/planering \
+       -w apps/lokforaren
 
 FROM python:3.12-slim AS build
 RUN pip install --no-cache-dir "uv>=0.11,<0.12"
@@ -62,6 +65,7 @@ COPY --from=web /src/apps/skarmar/dist /app/web/skarmar
 COPY --from=web /src/apps/tmbox-webb/dist /app/web/tmbox-webb
 COPY --from=web /src/apps/trafikledning/dist /app/web/trafikledning
 COPY --from=web /src/apps/planering/dist /app/web/planering
+COPY --from=web /src/apps/lokforaren/dist /app/web/lokforaren
 WORKDIR /app
 
 ARG TRAINMEET_COMMIT=""

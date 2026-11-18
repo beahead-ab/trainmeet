@@ -129,6 +129,42 @@ jobs:
           python3 deploy/belastning.py --hub http://localhost:8080 --pin 482915 --start \
             --boxes 40 --clients 30 --seconds 20 --strict
 
+      # Lokföraren (#81, LOK-14, LOK-36): appen i bilden på /lokforaren, och webbläsarprovet mot
+      # hubbens träff med Provbanan, som belastningsprovet satte upp och startade: två telefoner
+      # i Chrome tar tjänster, den andra får beskedet att tjänsten är tagen, och trafikledningen
+      # ser Försenad under Förare i Drift (apps/lokforaren/e2e/tva-forare.mjs).
+      - name: Node för Lokförarens webbläsarprov
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Lokföraren i bilden och webbläsarprovet (#81)
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_ADRESS: http://localhost:8080
+          PROV_PIN: "482915"
+          PROV_BILDER: ${{ runner.temp }}/lokforaren
+        run: |
+          curl -fsS http://localhost:8080/lokforaren/ | grep -q '/lokforaren/assets/'
+          curl -fsS http://localhost:8080/lokforaren/korplan | grep -q 'id="root"'
+          curl -fsSI http://localhost:8080/lokforaren/jag | grep -qi "content-security-policy: default-src 'self'"
+          curl -fsS http://localhost:8080/lokforaren/manifest.webmanifest | grep -q '"scope": "/lokforaren/"'
+          curl -fsS http://localhost:8080/lokforaren/sw.js | grep -q 'never stored here'
+          SCRIPT=$(curl -fsS http://localhost:8080/lokforaren/ | grep -o '/lokforaren/assets/[^"]*\.js' | head -1)
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Börja köra"
+          npm ci --no-audit --no-fund
+          node apps/lokforaren/e2e/tva-forare.mjs
+
+      - name: Lokförarens skärmbilder om något gick fel
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lokforaren
+          path: ${{ runner.temp }}/lokforaren
+          if-no-files-found: ignore
+
       - name: Två hubbar ur bilden, Pi:n följer molnet (Synk, ärende 73)
         run: |
           # Molnet och en Pi på ett eget nät: Pi:n ringer ut till http://moln:8080, som på testmiljöns
@@ -542,7 +578,7 @@ jobs:
           # The web apps from the image's own first stage: built, typed and tested there.
           docker build -f hub/Dockerfile --target web -t trainmeet-web:pi .
           docker create --name web trainmeet-web:pi >/dev/null
-          for app in skarmar tmbox-webb trafikledning planering; do
+          for app in skarmar tmbox-webb trafikledning planering lokforaren; do
             docker cp "web:/src/apps/$app/dist" "package/web/$app"
           done
           docker rm web >/dev/null
@@ -579,6 +615,7 @@ jobs:
           done
           curl -fsS http://localhost:8099/ | grep -q "<title>TrainMeet Hub</title>"
           curl -fsS http://localhost:8099/planering | grep -q "Planering · TrainMeet Hub"
+          curl -fsS http://localhost:8099/lokforaren/ | grep -q '/lokforaren/assets/'
           curl -fsS http://localhost:8099/api/version | grep -q "\"commit\":\"$(cat package/BUILD)\""
           curl -sS http://localhost:8099/api/hub/wifi -o /dev/null -w '%{http_code}' | grep -q 401
           # A TMBox over MQTT, as on the Pi: Mosquitto beside the hub (#74, DRIFT-22).

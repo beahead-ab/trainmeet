@@ -1731,6 +1731,13 @@ class PreviewStore:
             )
             return self._driver(db, run_id, driver_id)
 
+    def remove_driver(self, run_id: str, driver_id: str) -> None:
+        """The driver leaves the meet: the name, the photo and the key's hash go. What the
+        driver did stays in Drift's events, by the driver's id only."""
+        with self._transaction() as db:
+            self._driver(db, run_id, driver_id)
+            db.execute("DELETE FROM driver WHERE driver_id=? AND run_id=?", (driver_id, run_id))
+
     def driver_photo(self, run_id: str, driver_id: str) -> tuple[bytes, str] | None:
         with self._transaction() as db:
             row = db.execute(

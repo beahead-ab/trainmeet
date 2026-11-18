@@ -1672,6 +1672,24 @@
         }
       }
     },
+    "/api/drift/1/drivers/leave": {
+      "post": {
+        "operationId": "driverLeave",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "driverKey": []
+          },
+          {
+            "driverCookie": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/drivers/overview": {
       "get": {
         "operationId": "driverOverview",
@@ -17964,6 +17982,24 @@
             ],
             "default": null
           },
+          "claimed_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "driver",
+                  "dispatcher",
+                  "loco_lead"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vem som gav föraren tjänsten: föraren själv, trafikledningen eller lokledaren (LOK-30).",
+            "title": "Claimed By"
+          },
           "start": {
             "anyOf": [
               {
@@ -19105,6 +19141,12 @@
             "default": false,
             "description": "Tjänstens sista tågbesök.",
             "title": "Last",
+            "type": "boolean"
+          },
+          "unmanned": {
+            "default": false,
+            "description": "Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
+            "title": "Unmanned",
             "type": "boolean"
           },
           "changed": {

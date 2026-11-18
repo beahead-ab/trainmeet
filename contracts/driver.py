@@ -30,6 +30,7 @@ sets, or in the header X-Driver-Key; never in the address or the body after the 
     GET  /api/drift/1/drivers/wait?after=   DriverWait                    long-poll, Drift's events
     GET  /api/drift/1/drivers/instructions  Instructions                  LOK-34
     GET  /api/drift/1/drivers/instructions.pdf
+    POST /api/drift/1/drivers/leave         -> 204                        lämna träffen
 
 The dispatcher's side, Förare in Drift (TRAFIK-33), for Trafikledningen and the lokledare:
 
@@ -363,6 +364,10 @@ class KorplanRow(Contract):
     note: Text | None = None
     first_of_train: bool = Field(default=False, description="Här börjar ett nytt tåg.")
     last: bool = Field(default=False, description="Tjänstens sista tågbesök.")
+    unmanned: bool = Field(
+        default=False,
+        description="Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
+    )
     changed: bool = Field(default=False, description="Ändrat de senaste 10 spelminuterna.")
     real: RowReality | None = None
     clearance: RowClearance | None = None
@@ -391,6 +396,11 @@ class DriverMe(Contract):
 
     driver: Driver
     service: ServiceOffer | None = None
+    claimed_by: ClaimedBy | None = Field(
+        default=None,
+        description="Vem som gav föraren tjänsten: föraren själv, trafikledningen eller "
+        "lokledaren (LOK-30).",
+    )
     start: Start | None = None
     checkin: CheckedIn | None = None
     clock: Clock

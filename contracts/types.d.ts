@@ -868,6 +868,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/drivers/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverLeave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/drivers/overview": {
         parameters: {
             query?: never;
@@ -8649,6 +8665,12 @@ export interface components {
             driver: components["schemas"]["trainmeet.driver-1.me.Driver"];
             /** @default null */
             service: components["schemas"]["trainmeet.driver-1.me.ServiceOffer"] | null;
+            /**
+             * Claimed By
+             * @description Vem som gav föraren tjänsten: föraren själv, trafikledningen eller lokledaren (LOK-30).
+             * @default null
+             */
+            claimed_by: ("driver" | "dispatcher" | "loco_lead") | null;
             /** @default null */
             start: components["schemas"]["trainmeet.driver-1.me.Start"] | null;
             /** @default null */
@@ -9268,6 +9290,12 @@ export interface components {
              * @default false
              */
             last: boolean;
+            /**
+             * Unmanned
+             * @description Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).
+             * @default false
+             */
+            unmanned: boolean;
             /**
              * Changed
              * @description Ändrat de senaste 10 spelminuterna.
@@ -21080,6 +21108,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.driver-1.instructions"];
                 };
+            };
+        };
+    };
+    driverLeave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
