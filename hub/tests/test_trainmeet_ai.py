@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from contracts import planning
@@ -26,6 +27,8 @@ from contracts.tokens import (
     TokenReservation,
     TokenReservationState,
 )
+from hub.id_tokens import ShownBalance
+from hub.tests.test_id_login import ISSUER
 from hub.tests.test_id_roles import (
     API,
     AUTUMN,
@@ -220,3 +223,42 @@ def test_the_clubs_own_ai_reads_for_nothing(tmp_path: Any) -> None:
     assert offer is not None and (offer.price, offer.own_ai) == (0, "en-modell")
     pretend.available[f"club:{CLUB}"] = 0
     assert send(person, meet, "trainmeet").status_code == 201, "no tokens needed"
+
+
+def test_the_header_shows_the_persons_balance_from_id(tmp_path: Any) -> None:
+    """TOKEN-01: Se saldot i kontomenyn, with the way to Tokens in ID. The hub's PIN is no
+    person in ID, and has no balance."""
+    pretend = PretendIdMeter()
+    owner, person = hub_with(pretend, tmp_path)
+    info = person.get("/api/hub").json()
+    assert (info["tokens"], info["tokens_url"]) == (100, f"{ISSUER.split('/realms/')[0]}/tokens")
+    assert (owner.get("/api/hub").json()["tokens"], owner.get("/api/hub").json()["tokens_url"]) == (
+        None,
+        None,
+    )
+
+
+def test_the_balance_is_asked_of_id_at_most_once_a_minute() -> None:
+    """The header asks the hub often; ID is asked once a minute per person, and a balance that
+    is not answered is left out."""
+    asked: list[str] = []
+    now = [0.0]
+
+    class Tokens:
+        down = False
+
+        def balance(self, person: str, owner: TokenOwner) -> TokenBalance:
+            asked.append(person)
+            if self.down:
+                raise HTTPException(503, "ID svarar inte.")
+            return PretendIdMeter().balance(owner)
+
+    tokens = Tokens()
+    shown = ShownBalance(tokens, clock=lambda: now[0])  # type: ignore[arg-type]
+    me = str(uuid.UUID(int=7))
+    assert (shown(me), shown(me)) == (100, 100)
+    assert asked == [me]
+    now[0] = 61.0
+    tokens.down = True
+    assert shown(me) is None and len(asked) == 2
+    assert shown("inte-ett-id") is None

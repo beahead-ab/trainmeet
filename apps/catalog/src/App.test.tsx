@@ -8,7 +8,7 @@ const account = { id: "8a3e1f0c-1111-5222-8333-944455556666", name: "Provkonto A
 const version = { product: "TrainMeet Catalog" as const, version: "0.1.0", commit: "abcdef1234", pr: 101, title: "Grunden", built: null };
 
 function render(overrides: Partial<ShellProps> = {}): string {
-  const session: Session = { account: null, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
+  const session: Session = { account: null, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null };
   return renderToStaticMarkup(
     <Shell page="vehicles" language="sv" host="test.catalog.trainmeet.app" session={session} version={version} offline={false} fleet={false} {...overrides} />,
   );
@@ -32,7 +32,7 @@ describe("an empty Catalog", () => {
 
   it("asks a visitor to log in, and shows the empty fleet to the one logged in", () => {
     expect(render()).toContain("Logga in för att se din vagnpark.");
-    const html = render({ session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null } });
+    const html = render({ session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null } });
     expect(html).toContain("Vagnparken · Provkonto A");
     expect(html).toContain("Vagnparken är tom.");
     expect(html).toContain('aria-label="PA, Kontomenyn, Provkonto A"');
@@ -48,7 +48,7 @@ describe("an empty Catalog", () => {
   });
 
   it("logs in with TrainMeet ID and comes back to the page one came from", () => {
-    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
+    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null };
     const html = render({ page: "login", session: id, search: "?next=%2Ft%2F04A1B2C3D4E5F6" });
     expect(html).toContain("Logga in med TrainMeet ID");
     expect(html).toContain('href="/api/catalog/1/id/login?next=%2Ft%2F04A1B2C3D4E5F6&amp;lang=sv"');
@@ -60,14 +60,14 @@ describe("an empty Catalog", () => {
   });
 
   it("says so when the login with ID did not go through", () => {
-    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null };
+    const id: Session = { account: null, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null };
     const html = render({ page: "login", session: id, search: "?inloggning=fel" });
     expect(html).toContain('role="alert"');
     expect(html).toContain("Det gick inte att logga in");
   });
 
   it("speaks English too, and offers Swedish back", () => {
-    const html = render({ language: "en", session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, logout_url: null } });
+    const html = render({ language: "en", session: { account, login: "trial", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null } });
     expect(html).toContain("Your fleet is empty.");
     expect(html).toContain(">Vehicles<");
     expect(html).toContain('lang="sv"');
@@ -110,9 +110,19 @@ describe("the app switcher", () => {
   });
 });
 
+describe("the balance in the account menu (TOKEN-01)", () => {
+  it("shows the tokens left in ID, with the way to Tokens there", () => {
+    const withTokens: Session = { account, login: "id", simulated_tags: false, share_url: null, help_url: null, apps: null, tokens: 1176, tokens_url: "https://id.example/tokens", logout_url: null };
+    const html = render({ session: withTokens });
+    expect(html).toMatch(/<a id="tokens" href="https:\/\/id.example\/tokens">Tokens: 1.176 kvar<\/a>/);
+    expect(render({ language: "en", session: withTokens })).toContain("Tokens: 1,176 left");
+    expect(render({ session: { ...withTokens, tokens: null, tokens_url: null } })).not.toContain('id="tokens"');
+  });
+});
+
 describe("a club's fleet (CAT-51, C39)", () => {
   const club = "0f0e0d0c-3333-4444-8555-966677778888";
-  const session: Session = { account, login: "id", simulated_tags: false, share_url: "https://id.example/vagnparker/a", help_url: null, apps: null, logout_url: null };
+  const session: Session = { account, login: "id", simulated_tags: false, share_url: "https://id.example/vagnparker/a", help_url: null, apps: null, tokens: null, tokens_url: null, logout_url: null };
   const fleets = [
     { owner: account.id, title: "Vagnparken · Provkonto A", right: "owner" as const, share_url: "https://id.example/vagnparker/a" },
     { owner: club, title: "Vagnparken · Västby MJK", right: "owner" as const, share_url: `https://id.example/vagnparker/${club}` },

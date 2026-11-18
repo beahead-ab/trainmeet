@@ -47,6 +47,9 @@ export type HeaderProps = {
   loggedIn?: boolean;
   /** The name of the one logged in with TrainMeet ID, shown by Logga ut (S1). */
   person?: string | null;
+  /** Saldot (TOKEN-01): the tokens left on the person's account in ID, with Tokens there. */
+  tokens?: number | null;
+  tokensUrl?: string | null;
   now: Now | null;
   /** Milliseconds since Nu came from the hub, for the clock between its answers. */
   elapsedMs: number;
@@ -63,7 +66,7 @@ export type HeaderProps = {
 };
 
 export function Sidhuvud(props: HeaderProps) {
-  const { current, viewed, bottom, hubName, admin, owner = admin, loggedIn = admin, person, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
+  const { current, viewed, bottom, hubName, admin, owner = admin, loggedIn = admin, person, tokens, tokensUrl, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
   const toggle = (which: Menu) => onMenu(menu === which ? null : which);
   const tab = (href: string) => ({ "aria-current": href === current ? ("page" as const) : undefined, onClick: linkClick(navigate, href) });
   return (
@@ -126,6 +129,11 @@ export function Sidhuvud(props: HeaderProps) {
               </a>
             </>
           )}
+          {loggedIn && tokens != null && tokensUrl ? (
+            <a id="tokens" className="hknapp" href={tokensUrl} title="Saldot i TrainMeet ID. Där köper du fler.">
+              {tokens.toLocaleString("sv-SE")} tokens
+            </a>
+          ) : null}
           {loggedIn ? (
             <button id="logout" type="button" className="hknapp" title={person ? `Inloggad som ${person}` : undefined} onClick={props.onLogOut}>
               {person ? <span className="tm-person">{person} · </span> : null}Logga ut

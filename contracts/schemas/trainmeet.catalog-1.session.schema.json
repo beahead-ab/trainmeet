@@ -123,6 +123,32 @@
       "description": "The app switcher's apps, as ID says (ID11); null when ID does not answer.",
       "title": "Apps"
     },
+    "tokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Saldot i kontomenyn (TOKEN-01): the tokens left on the person's own account in TrainMeet ID; null without ID, or when ID does not answer.",
+      "title": "Tokens"
+    },
+    "tokens_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tokens in TrainMeet ID, where one sees the balance and buys.",
+      "title": "Tokens Url"
+    },
     "logout_url": {
       "anyOf": [
         {

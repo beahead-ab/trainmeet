@@ -48,6 +48,14 @@ class HubInfo(Contract):
         description="På träffens Pi: vems biljett från ID webbläsaren har, för Logga in igen "
         "utan internet (KONTO-11, KONTO-37).",
     )
+    tokens: int | None = Field(
+        default=None,
+        description="Saldot (TOKEN-01): tokens kvar på personens eget konto i TrainMeet ID, för "
+        "den som är inloggad med ID i molnhubben; null annars, eller när ID inte svarar.",
+    )
+    tokens_url: str | None = Field(
+        default=None, description="Tokens i TrainMeet ID, där saldot syns och fler köps."
+    )
 
 
 class SetUp(Contract):

@@ -121,6 +121,8 @@ def test_without_the_trial_login_there_is_no_way_in(database_url: str, web_dir: 
             "share_url": None,
             "help_url": None,
             "apps": None,
+            "tokens": None,
+            "tokens_url": None,
             "logout_url": None,
         }
         assert client.get(API + "/trial/accounts").status_code == 404

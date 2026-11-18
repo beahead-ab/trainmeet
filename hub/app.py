@@ -262,6 +262,8 @@ def create_app(
         app.include_router(pi_login.cloud_router(login, links, with_id, pi_tickets))
     if with_id is None:
         app.include_router(pi_login.pi_router(login, links, lambda: running.meet, sync_call))
+    # Saldot och mätaren i ID (#79): where the hub has ID's API, that is in the cloud.
+    tokens = id_tokens.IdTokens(roles_from_id) if roles_from_id is not None else None
     app.include_router(
         hubben.router(
             login,
@@ -271,6 +273,7 @@ def create_app(
             pi_offers=lambda: with_id is None and bool(links.reaches()),
             pi_finish=pi_finish,
             ticket_name=pi_login.ticket_name(login, links),
+            tokens_of=id_tokens.ShownBalance(tokens) if tokens is not None else None,
         )
     )
 
@@ -298,7 +301,7 @@ def create_app(
             login,
             published=follower.nudge,
             rights=may,
-            tokens=id_tokens.IdTokens(roles_from_id) if roles_from_id is not None else None,
+            tokens=tokens,
         )
     )
     app.include_router(

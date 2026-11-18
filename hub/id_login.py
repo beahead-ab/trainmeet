@@ -68,6 +68,11 @@ class IdSettings:
     def redirect_uri(self) -> str:
         return self.public_url + "/api/hub/id/callback"
 
+    @property
+    def id_public(self) -> str:
+        """ID's web app: the issuer's address without the realm."""
+        return self.issuer.split("/realms/", 1)[0]
+
 
 def settings_from(env: Mapping[str, str] | None = None) -> IdSettings | None:
     """The login with ID, if the hub is set up for it. Half a setting is said in the log and

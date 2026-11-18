@@ -12,6 +12,9 @@ from __future__ import annotations
 import base64
 import logging
 import secrets
+import threading
+import time
+from collections.abc import Callable
 from uuid import UUID
 
 import httpx
@@ -21,6 +24,7 @@ from contracts.tokens import (
     MeterAnswer,
     TokenBalance,
     TokenOwner,
+    TokenOwnerKind,
     TokenReservation,
 )
 from hub.id_roles import IdRoles, unavailable
@@ -98,6 +102,41 @@ class IdTokens:
             self.roles.call("POST", f"tokens/reservations/{reservation}/return")
         except HTTPException:
             LOGGER.warning("Reservationen gick inte att lämna tillbaka; den går ut av sig själv.")
+
+
+class ShownBalance:
+    """Saldot i sidhuvudet (TOKEN-01): the tokens left on the person's own account, asked of ID
+    at most once a minute per person, since the header asks the hub often. None when ID does
+    not answer; the header then leaves it out."""
+
+    def __init__(
+        self,
+        tokens: IdTokens,
+        seconds: float = 60.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.tokens = tokens
+        self.seconds = seconds
+        self.clock = clock
+        self._seen: dict[str, tuple[float, int | None]] = {}
+        self._lock = threading.Lock()
+
+    def __call__(self, person: str) -> int | None:
+        now = self.clock()
+        with self._lock:
+            seen = self._seen.get(person)
+        if seen is not None and now - seen[0] < self.seconds:
+            return seen[1]
+        try:
+            owner = TokenOwner(kind=TokenOwnerKind.PERSON, id=UUID(person))
+            available: int | None = self.tokens.balance(person, owner).available
+        except (HTTPException, ValueError):
+            available = None
+        with self._lock:
+            if len(self._seen) > 1000:
+                self._seen.clear()
+            self._seen[person] = (now, available)
+        return available
 
 
 def _json(answer: httpx.Response) -> object:

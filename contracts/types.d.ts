@@ -8258,6 +8258,18 @@ export interface components {
              * @default null
              */
             ticket_name: string | null;
+            /**
+             * Tokens
+             * @description Saldot (TOKEN-01): tokens kvar på personens eget konto i TrainMeet ID, för den som är inloggad med ID i molnhubben; null annars, eller när ID inte svarar.
+             * @default null
+             */
+            tokens: number | null;
+            /**
+             * Tokens Url
+             * @description Tokens i TrainMeet ID, där saldot syns och fler köps.
+             * @default null
+             */
+            tokens_url: string | null;
         } & {
             [key: string]: unknown;
         };

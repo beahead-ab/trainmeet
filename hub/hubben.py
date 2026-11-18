@@ -81,6 +81,8 @@ def info_of(
     id_login_on: bool = False,
     may_run: Callable[[str | None, str | None], bool] | None = None,
     ticket_name: str | None = None,
+    tokens_of: Callable[[str], int | None] | None = None,
+    tokens_url: str | None = None,
 ) -> hub.HubInfo:
     """Who the session is here: the administrator with the PIN, someone let in with a code in
     the meet that runs (H56), someone logged in with TrainMeet ID (#78), or no one. may_run
@@ -95,6 +97,8 @@ def info_of(
             runs = may_run(token, run)
         except HTTPException:
             runs = False  # ID does not answer: no buttons, and the page says nothing worse
+    # Saldot (TOKEN-01): for someone logged in with ID in the cloud hub.
+    tokens = tokens_of(person.id) if person is not None and tokens_of is not None else None
     return hub.HubInfo(
         name=state.name,
         set_up=state.set_up,
@@ -105,6 +109,8 @@ def info_of(
         person=person.name if person is not None else None,
         id_login=id_login_on,
         ticket_name=ticket_name if role is None else None,
+        tokens=tokens,
+        tokens_url=tokens_url if tokens is not None else None,
     )
 
 
@@ -117,12 +123,14 @@ def router(
     pi_offers: Callable[[], bool] = lambda: False,
     pi_finish: Callable[[str, Person], str] | None = None,
     ticket_name: Callable[[str | None], str | None] = lambda ticket: None,
+    tokens_of: Callable[[str], int | None] | None = None,
 ) -> APIRouter:
     """current_run: the meet that runs, or None; a let-in role holds only there (H56).
     with_id: the login with TrainMeet ID, if the hub is set up for it (#78). may_run: whether
     a session may run the meet that runs, with the roles from ID. On a meet's Pi, pi_offers
     says that it logs in through its cloud hub and ticket_name whose ticket the browser has; in
-    the cloud, pi_finish gives a Pi its ticket (hub/pi_login.py)."""
+    the cloud, pi_finish gives a Pi its ticket (hub/pi_login.py). tokens_of: the balance in
+    ID for the header (TOKEN-01), where the hub has ID's API."""
     routes = APIRouter(prefix="/api/hub")
 
     def info_now(token: str | None, ticket: str | None = None) -> hub.HubInfo:
@@ -133,6 +141,8 @@ def router(
             id_login_on=bool(with_id) or pi_offers(),
             may_run=may_run,
             ticket_name=ticket_name(ticket),
+            tokens_of=tokens_of,
+            tokens_url=f"{with_id.settings.id_public}/tokens" if with_id is not None else None,
         )
 
     @routes.get("")

@@ -201,6 +201,8 @@ export function useHub(): Hub {
       owner: starts,
       loggedIn: info?.logged_in ?? false,
       person: info?.person ?? null,
+      tokens: info?.tokens ?? null,
+      tokensUrl: info?.tokens_url ?? null,
       now,
       elapsedMs: now ? performance.now() - nowAt.current : 0,
       waiting: waitingCount(clients),
