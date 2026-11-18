@@ -92,6 +92,12 @@
       "default": null,
       "description": "Varför inte, och vad föraren gör.",
       "title": "Message"
+    },
+    "log_in": {
+      "default": false,
+      "description": "Förarens egna tokens betalar och föraren är inte inloggad: inloggning med TrainMeet ID gör att pappret går att läsa (LOK-33).",
+      "title": "Log In",
+      "type": "boolean"
     }
   },
   "required": [

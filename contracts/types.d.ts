@@ -9976,6 +9976,12 @@ export interface components {
              * @default false
              */
             changed: boolean;
+            /**
+             * Unreadable
+             * @description Efter pappret: tiden stod på pappret men gick inte att läsa (LOK-29). Den visas som okänd, aldrig gissad.
+             * @default false
+             */
+            unreadable: boolean;
             /** @default null */
             real: components["schemas"]["trainmeet.driver-1.korplan.RowReality"] | null;
             /** @default null */
@@ -11499,6 +11505,12 @@ export interface components {
              * @default null
              */
             message: string | null;
+            /**
+             * Log In
+             * @description Förarens egna tokens betalar och föraren är inte inloggad: inloggning med TrainMeet ID gör att pappret går att läsa (LOK-33).
+             * @default false
+             */
+            log_in: boolean;
         } & {
             [key: string]: unknown;
         };

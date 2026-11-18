@@ -5,6 +5,7 @@ import { ForareTab } from "./Forare";
 import { Instruktioner, JagTab } from "./Jag";
 import { IngenTraff, Kom } from "./Kom";
 import { KorplanTab, Sheets } from "./Korplan";
+import { PapperSida } from "./Papper";
 import { BASE, Lok, routeOf, type LokState, type Route } from "./store";
 import { TagTab, TjanstKort } from "./Tag";
 import { TEXT } from "./text";
@@ -18,7 +19,7 @@ const TABS: Route[] = ["korplan", "tag", "forare", "jag"];
 
 export function tabsOf(state: LokState): NavItem[] {
   const text = TEXT[state.language];
-  const current: Route = state.route === "tjanst" ? "tag" : state.route === "instruktioner" ? "jag" : state.route;
+  const current: Route = state.route === "tjanst" || state.route === "papper" ? "tag" : state.route === "instruktioner" ? "jag" : state.route;
   return TABS.map((route) => ({ href: BASE + route, label: text.tabs[route as keyof typeof text.tabs], current: current === route, icon: Icon[route as keyof typeof Icon] }));
 }
 
@@ -57,6 +58,7 @@ export function Screen({ lok, state, now }: { lok: Lok; state: LokState; now: nu
       {inApp && state.route === "korplan" && <KorplanTab lok={lok} state={state} now={now} />}
       {inApp && state.route === "tag" && <TagTab lok={lok} state={state} now={now} />}
       {inApp && state.route === "tjanst" && <TjanstKort lok={lok} state={state} now={now} />}
+      {inApp && state.route === "papper" && <PapperSida lok={lok} state={state} now={now} />}
       {inApp && state.route === "forare" && <ForareTab lok={lok} state={state} />}
       {inApp && state.route === "jag" && <JagTab lok={lok} state={state} />}
       {inApp && state.route === "instruktioner" && <Instruktioner lok={lok} state={state} instructions={state.instructions} />}
@@ -99,7 +101,9 @@ export function App({ lok }: { lok: Lok }) {
     if (state.route === "tag") void lok.loadServices();
     if (state.route === "forare") void lok.loadPresence();
     if (state.route === "instruktioner" && !state.instructions) void lok.loadInstructions();
-  }, [lok, state.phase, state.route, state.instructions, state.selected, state.me?.service]);
+    // The price before the photos (LOK-33): whether the paper can be read, and what it costs.
+    if (state.route === "papper" && !state.me?.service && !state.price) void lok.loadPrice();
+  }, [lok, state.phase, state.route, state.instructions, state.selected, state.me?.service, state.price]);
 
   useEffect(() => {
     const root = document.documentElement;

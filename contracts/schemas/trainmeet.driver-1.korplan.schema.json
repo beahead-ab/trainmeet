@@ -272,6 +272,12 @@
           "title": "Changed",
           "type": "boolean"
         },
+        "unreadable": {
+          "default": false,
+          "description": "Efter pappret: tiden stod på pappret men gick inte att läsa (LOK-29). Den visas som okänd, aldrig gissad.",
+          "title": "Unreadable",
+          "type": "boolean"
+        },
         "real": {
           "anyOf": [
             {

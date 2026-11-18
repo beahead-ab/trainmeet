@@ -1,4 +1,4 @@
-import { rowsOf, type Presence } from "./api";
+import { rowsOf, UNKNOWN_PLACE, type Presence } from "./api";
 import { timeSeconds } from "./clock";
 import type { Lok, LokState } from "./store";
 import { TEXT, type Text } from "./text";
@@ -11,20 +11,24 @@ import { Avatar, Icon, PageHead, Problem, TrainMark } from "./ui";
 /** The name the others may see, or the word Förare. */
 export const nameOf = (presence: Presence, text: Text) => presence.driver.name ?? text.driver;
 
-function Pill({ presence, text }: { presence: Presence; text: Text }) {
+function Pill({ presence, text, paper }: { presence: Presence; text: Text; paper: boolean }) {
   return (
     <span className={`lok-forare-pill${presence.me ? " jag" : ""}${presence.checkin?.fading ? " tonar" : ""}`}>
       {presence.me ? <TrainMark /> : <Avatar driver={presence.driver} />}
       <b>{presence.me ? text.youShort : nameOf(presence, text)}</b>
       {presence.service_number && <span>{text.serviceShort(presence.service_number)}</span>}
+      {paper && <span className="lok-papper liten">{text.afterPaper}</span>}
     </span>
   );
 }
 
-function DriverRow({ presence, text }: { presence: Presence; text: Text }) {
+/** paper: the driver's own service is run after the paper (LOK-13). The list says it only of
+ * the driver's own: it has no mark for the others'. */
+function DriverRow({ presence, text, paper }: { presence: Presence; text: Text; paper: boolean }) {
   const said = [
     presence.driver.state ? text.states[presence.driver.state] : text.levels[presence.driver.level],
     presence.service_number ? text.serviceOf(presence.service_number) : null,
+    paper ? text.afterPaper.toLowerCase() : null,
     presence.train_number ? text.trains(presence.train_number) : null,
     presence.checkin ? text.checkedIn(presence.checkin.place_name, presence.checkin.model_time) : null,
   ]
@@ -48,7 +52,9 @@ export function ForareTab({ lok, state }: { lok: Lok; state: LokState }) {
   const text = TEXT[state.language];
   const presence = state.presence ?? [];
   const korplan = state.korplan;
-  const route = korplan ? [...new Map(rowsOf(korplan).filter((row) => row.stops).map((row) => [row.place, row.place_name])).entries()] : [];
+  const route = korplan ? [...new Map(rowsOf(korplan).filter((row) => row.stops && row.place !== UNKNOWN_PLACE).map((row) => [row.place, row.place_name])).entries()] : [];
+  // A service run after the paper is marked so wherever it shows (LOK-13): here the driver's own.
+  const paper = (p: Presence) => p.me && Boolean(state.me?.service?.paper);
   const onRoute = new Set(route.map(([place]) => place));
   const along = presence.filter((p) => p.checkin && onRoute.has(p.checkin.place));
   const driving = presence.filter((p) => p.service_number && !along.includes(p));
@@ -72,7 +78,7 @@ export function ForareTab({ lok, state }: { lok: Lok; state: LokState }) {
                   {along
                     .filter((p) => p.checkin?.place === place)
                     .map((p) => (
-                      <Pill key={p.driver.id} presence={p} text={text} />
+                      <Pill key={p.driver.id} presence={p} text={text} paper={paper(p)} />
                     ))}
                 </span>
               </li>
@@ -85,7 +91,7 @@ export function ForareTab({ lok, state }: { lok: Lok; state: LokState }) {
           <h2 className="lok-avsnitt">{text.onTrack}</h2>
           <ul className="lok-forare">
             {driving.map((p) => (
-              <DriverRow key={p.driver.id} presence={p} text={text} />
+              <DriverRow key={p.driver.id} presence={p} text={text} paper={paper(p)} />
             ))}
           </ul>
         </section>
@@ -95,7 +101,7 @@ export function ForareTab({ lok, state }: { lok: Lok; state: LokState }) {
           <h2 className="lok-avsnitt">{text.notOnTrack}</h2>
           <ul className="lok-forare">
             {resting.map((p) => (
-              <DriverRow key={p.driver.id} presence={p} text={text} />
+              <DriverRow key={p.driver.id} presence={p} text={text} paper={paper(p)} />
             ))}
           </ul>
         </section>

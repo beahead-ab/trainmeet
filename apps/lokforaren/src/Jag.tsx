@@ -93,7 +93,7 @@ export function JagTab({ lok, state }: { lok: Lok; state: LokState }) {
           <h2 className="lok-avsnitt">{trains ? text.train : text.service}</h2>
           <section className="lok-kort">
             <p>
-              {[trains ? text.trainNumber(service.number) : text.serviceNumber(service.number), !trains && trainsOf(service).length ? text.trains(trainsOf(service).join(", ")) : null, paper && paper !== service.number ? text.onPaper(paper) : null].filter(Boolean).join(" · ")}
+              {[trains ? text.trainNumber(service.number) : text.serviceNumber(service.number), !trains && trainsOf(service).length ? text.trains(trainsOf(service).join(", ")) : null, paper && paper !== service.number ? text.onPaper(paper) : null, service.paper ? text.afterPaper.toLowerCase() : null].filter(Boolean).join(" · ")}
             </p>
             <div className="lok-knappar">
               <button type="button" className="lok-knapp" onClick={() => lok.navigate("tag")}>

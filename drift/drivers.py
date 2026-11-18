@@ -586,6 +586,7 @@ def _paper_korplan(
                 first_of_train=index == 0,
                 last=index == last,
                 changed=ours is not None and _recent(drift.drivers.changed.get(call_id), drift, at),
+                unreadable=row.unreadable,
                 real=_reality(drift, ours, at, True) if ours and settings.reality else None,
                 clearance=_clearance(drift, ours) if ours and settings.clearances else None,
             )

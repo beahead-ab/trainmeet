@@ -1,7 +1,7 @@
 // What the tests draw on: Provbanan's duty 1 as the hub sends it (train 101 Norrby–Sjövik and
 // back as 104, Medel), and a fetch that answers like the hub. Made for the tests: no one's data.
 import { vi } from "vitest";
-import type { DriverMe, Korplan, KorplanRow, Presence, ServiceList, ServiceOffer } from "./api";
+import type { DriverMe, Korplan, KorplanRow, PaperPrice, PaperService, PaperStatus, Presence, ServiceList, ServiceOffer } from "./api";
 import { memoryStorage, Memory } from "./memory";
 import type { Notifier } from "./remind";
 import { Lok, type LokState } from "./store";
@@ -107,6 +107,98 @@ export function presence(name: string | null, extra: Partial<Presence> = {}): Pr
     me: false,
     ...extra,
   } as Presence;
+}
+
+// --- Efter pappret: Tjänst 24 on the paper, not in Provbanan's plan (hub/tests/test_driver_paper.py)
+
+export const PAPER_ID = "papper-0a1b2c3d4e";
+
+/** The paper's timetable as the AI read it: Åsen's departure could not be read, and Bruket is no
+ * place in the meet. */
+export function paperService(extra: Partial<PaperService> = {}): PaperService {
+  return {
+    paper: PAPER_ID,
+    service: { kind: "paper", id: PAPER_ID },
+    status: "waiting",
+    driver: "forare-a",
+    driver_name: "Kim Ek",
+    number: "24",
+    train_number: "G 4521",
+    operator: "Green Cargo",
+    start: { time: "06:31", place: "nby", place_name: "Norrby", unreadable: false },
+    end: { time: "07:20", place: "sjv", place_name: "Sjövik", unreadable: false },
+    rows: [
+      { place: "nby", place_name: "Norrby", arrival: null, departure: "06:41", track: "3", stops: true, note: "Koppla loket.", unreadable: false },
+      { place: "asn", place_name: "Åsen", arrival: "06:49", departure: null, track: null, stops: true, note: null, unreadable: true },
+      { place: null, place_name: "Bruket", arrival: "06:55", departure: "06:56", track: null, stops: true, note: null, unreadable: false },
+      { place: "mla", place_name: "Mellanå", arrival: "06:59", departure: "07:01", track: null, stops: true, note: null, unreadable: false },
+      { place: "sjv", place_name: "Sjövik", arrival: "07:10", departure: null, track: "2", stops: true, note: null, unreadable: false },
+    ],
+    pages: 2,
+    photos: [`/api/drift/1/drivers/paper/${PAPER_ID}/pages/1`, `/api/drift/1/drivers/paper/${PAPER_ID}/pages/2`],
+    paid_by: "meet",
+    cost: 24,
+    said: "Ingen tjänst startar 06:31 vid Norrby. Närmast: 3 kl. 06:35, 1 kl. 06:00.",
+    candidates: [offer("3", { level: "experienced", start: { time: "06:35", place: "nby", place_name: "Norrby" } }), offer("1", { taken: true, driver: "forare-b", driver_name: "Bo" })],
+    reason: null,
+    train: null,
+    model_time: "06:20",
+    wall_time: "2026-11-18T09:00:00Z",
+    ...extra,
+  } as PaperService;
+}
+
+/** The körplan after the paper as the hub makes it: a row for each row of the paper, in its
+ * order, Bruket as okand with its name as read, and no reality until it is approved. */
+export function paperKorplan(status: PaperStatus = "waiting", extra: Partial<Korplan> = {}): Korplan {
+  const paper = paperService();
+  const last = (paper.rows ?? []).length - 1;
+  return korplan({
+    service: paper.service,
+    number: "24",
+    paper: status,
+    rows: (paper.rows ?? []).map((read, index) =>
+      row(`${PAPER_ID}-${index}`, read.arrival, read.departure, {
+        train: PAPER_ID,
+        train_number: "G 4521",
+        place: read.place ?? "okand",
+        place_code: read.place ?? read.place_name,
+        place_name: read.place_name,
+        track: read.track,
+        note: read.note,
+        unmanned: false,
+        unreadable: read.unreadable,
+        first_of_train: index === 0,
+        last: index === last,
+      }),
+    ),
+    ...extra,
+  });
+}
+
+/** The driver running after the paper: the service as the list shows it, and the paper. */
+export function paperMe(status: PaperStatus = "waiting", extra: Partial<PaperService> = {}): DriverMe {
+  const paper = paperService({ status, ...extra });
+  return me({
+    service: offer("24", {
+      service: paper.service,
+      start: { time: "06:31", place: "nby", place_name: "Norrby" },
+      end: { time: "07:20", place: "sjv", place_name: "Sjövik" },
+      operator: "Green Cargo",
+      level: null,
+      trains: ["G 4521"],
+      taken: true,
+      driver: "forare-a",
+      driver_name: "Kim Ek",
+      paper: status,
+    }),
+    start: { time: "06:31", seconds: 6 * 3600 + 31 * 60, in_game_seconds: 0, in_real_seconds: null, reminders: [20, 10] },
+    paper,
+  });
+}
+
+export function price(extra: Partial<PaperPrice> = {}): PaperPrice {
+  return { pages: 2, price: 24, per_page: 12, paid_by: "meet", payer: "Provbanans klubb", available: 480, ready: true, message: null, ...extra } as PaperPrice;
 }
 
 type Answer = { status?: number; body?: unknown; reason?: string };

@@ -41,10 +41,11 @@ OWN_AI = "Hubbens egen AI"
 class NoPayer(Exception):
     """The reading cannot be paid for: why, in Swedish, and the HTTP status to say it with."""
 
-    def __init__(self, status: int, message: str) -> None:
+    def __init__(self, status: int, message: str, *, log_in: bool = False) -> None:
         super().__init__(message)
         self.status = status
         self.message = message
+        self.log_in = log_in
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,7 @@ class PaperReadings:
             owner = self.owner(person, id_meet)
         else:
             if driver_person is None:
-                raise NoPayer(403, LOG_IN)
+                raise NoPayer(403, LOG_IN, log_in=True)
             person, paid_by = driver_person, PaperPayer.DRIVER
             owner = TokenOwner(kind=TokenOwnerKind.PERSON, id=UUID(person))
         balance = self.tokens.balance(person, owner)
@@ -161,6 +162,7 @@ class PaperReadings:
                 per_page=TOKENS_PER_PAGE,
                 ready=False,
                 message=error.message,
+                log_in=error.log_in,
             )
         cost = found.price(pages)
         short = found.available is not None and found.available < cost

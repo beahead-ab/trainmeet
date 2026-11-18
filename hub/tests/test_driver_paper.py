@@ -190,7 +190,7 @@ def test_the_price_is_told_first_and_the_driver_pays_with_their_own(cloud: Cloud
     )
     bo = cloud.phone("Bo")
     price = contract.PaperPrice.model_validate(bo.get(API + "/paper/price?pages=2").json())
-    assert (price.ready, price.message, price.price) == (False, LOG_IN, 24)
+    assert (price.ready, price.message, price.price, price.log_in) == (False, LOG_IN, 24, True)
     refused = bo.post(API + "/paper", files=form(page(), page("4522")))
     assert (refused.status_code, refused.json()["detail"]) == (403, LOG_IN)
     assert pretend.reserved == [] and pretend.reads == []
@@ -364,7 +364,7 @@ def test_the_hubs_own_ai_reads_and_no_station_sees_it_until_approved(
     mark and Godkänn or Avslå; the stations see the train only once it is approved, marked."""
     anna = phone(made, admin, "Anna")
     price = contract.PaperPrice.model_validate(anna.get(API + "/paper/price?pages=1").json())
-    assert (price.ready, price.message) == (False, NO_AI)
+    assert (price.ready, price.message, price.log_in) == (False, NO_AI, False)
     assert anna.post(API + "/paper", files=form(page())).json()["detail"] == NO_AI
     norrby, asen = tkl(admin, "nby"), tkl(admin, "asn")
     fake = FakeAi(answers={hashlib.sha256(drawn("4521")).hexdigest(): answer()})

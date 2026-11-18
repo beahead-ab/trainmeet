@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { MESSAGE_KINDS, rowsOf, trainsOf, type Korplan, type KorplanRow, type MessageKind, type TrainPosition } from "./api";
+import { MESSAGE_KINDS, rowsOf, trainsOf, UNKNOWN_PLACE, type Korplan, type KorplanRow, type MessageKind, type TrainPosition } from "./api";
 import { clockText, timeSeconds } from "./clock";
 import { axisNow, countdown, frammeAllowed, frammeRow, momentsOf, nextStop, nuPosition, onLineByPlan, wholeMinutes, type Moment, type NextStop } from "./korplan";
+import { PaperBanner, RejectedCard, runningPaper } from "./Papper";
 import type { Lok, LokState, Then } from "./store";
 import { GivenCard } from "./Tag";
 import { speedText, TEXT, type Text } from "./text";
@@ -11,11 +12,36 @@ import { Icon, PageHead, Problem, Sheet, TrainMark } from "./ui";
 // countdown on the meet clock with the real time beside it (fore-start.jpg); then the plan as a
 // time axis with the NU-line in yellow on Drift's clock, Drift's reality in blue when the game
 // shows it, the clearance's word, Ändrat, and the next stop with check-in at the bottom
-// (korplan-*.jpg). The app never gives departure (LOK-11).
+// (korplan-*.jpg). The app never gives departure (LOK-11). After the paper (LOK-13, LOK-29,
+// papper.jpg) the körplan is the timetable as read from the photos, marked so, with where it
+// stands with Trafikledningen; a time that could not be read is shown as unknown, never guessed.
 
 const OPENS_BEFORE = 10 * 60;
 
 const hhmm = (seconds: number) => clockText(seconds, false);
+
+/** The rows of a körplan after the paper whose times could not be read (KorplanRow.unreadable,
+ * LOK-29): shown as unknown, never guessed. */
+export function unreadableRows(korplan: Korplan | null): (index: number) => boolean {
+  if (!korplan?.paper) return () => false;
+  const rows = rowsOf(korplan);
+  return (index) => Boolean(rows[index]?.unreadable);
+}
+
+/** The körplan's moments, with the unknown times of a paper kept in their place. */
+export function momentsFor(state: LokState): Moment[] {
+  const korplan = state.korplan;
+  return korplan ? momentsOf(rowsOf(korplan), unreadableRows(korplan)) : [];
+}
+
+/** – oläslig: a time on the paper that could not be read (LOK-29). */
+function Unknown({ text }: { text: Text }) {
+  return (
+    <>
+      –<small className="lok-olaslig">{text.unreadable}</small>
+    </>
+  );
+}
 
 /** What the head says under the service's number: the trains and the way, or with Drift's
  * reality the train, where it goes and how late. */
@@ -133,18 +159,19 @@ function MomentRow({ lok, state, korplan, moment, firstOfRow, passed, now, delay
   const row = moment.row;
   const real = row.real;
   const changed = lok.marks.shows(row, now);
-  const planned = moment.kind === "arrival" ? row.arrival ?? row.departure : row.departure ?? row.arrival;
+  const planned = moment.unknown ? null : moment.kind === "arrival" ? row.arrival ?? row.departure : row.departure ?? row.arrival;
   let reality: string | null = null;
   if (real && moment.kind === "arrival" && real.arrived) reality = text.arrived(real.arrived);
   else if (real && moment.kind === "departure" && real.departed) reality = text.departed(real.departed);
   else if (real && moment.kind === "departure" && real.here && passed) reality = text.standsStill;
   else if (korplan.settings.reality && !passed && delay > 0 && planned) reality = text.about(hhmm((timeSeconds(planned) ?? 0) + delay * 60));
+  const time = moment.unknown ? <Unknown text={text} /> : planned;
   const checkin = checkedHere ? korplan.checkin : null;
   if (moment.kind === "pass") {
     return (
-      <li className={`lok-moment lok-passage${passed ? " passerad" : ""}`}>
+      <li className={`lok-moment lok-passage${passed ? " passerad" : ""}${moment.unknown ? " okand" : ""}`}>
         <span className="lok-tid tm-mono">
-          {planned}
+          {time}
           {reality && <small className="lok-verklig">{reality}</small>}
         </span>
         <span className="lok-axel">
@@ -153,6 +180,7 @@ function MomentRow({ lok, state, korplan, moment, firstOfRow, passed, now, delay
         <span className="lok-innehall">
           <span>
             <b>{row.place_name}</b> · {text.passes}
+            {row.place === UNKNOWN_PLACE && ` · ${text.notInMeet}`}
           </span>
           {changed && <Changed text={text} />}
         </span>
@@ -161,9 +189,9 @@ function MomentRow({ lok, state, korplan, moment, firstOfRow, passed, now, delay
   }
   const what = moment.kind === "arrival" ? text.arrival : text.departure;
   return (
-    <li className={`lok-moment${passed ? " passerad" : ""}${row.real?.here ? " har" : ""}`}>
+    <li className={`lok-moment${passed ? " passerad" : ""}${row.real?.here ? " har" : ""}${moment.unknown ? " okand" : ""}`}>
       <span className="lok-tid tm-mono">
-        {planned}
+        {time}
         {reality && <small className="lok-verklig">{reality}</small>}
       </span>
       <span className="lok-axel">
@@ -173,6 +201,7 @@ function MomentRow({ lok, state, korplan, moment, firstOfRow, passed, now, delay
         {firstOfRow && (
           <span className="lok-plats">
             <b>{row.place_name}</b>
+            {row.place === UNKNOWN_PLACE && <span className="lok-bricka">{text.notInMeet}</span>}
             {korplan.settings.arrival && row.unmanned && moment.kind === "arrival" && <span className="lok-bricka">{text.unmanned}</span>}
             {checkin && <span className="lok-du">{text.you(checkin.model_time)}</span>}
           </span>
@@ -180,6 +209,7 @@ function MomentRow({ lok, state, korplan, moment, firstOfRow, passed, now, delay
         <span className="lok-vad">
           {what}
           {row.track ? ` · ${text.track(row.track)}` : ""}
+          {moment.unknown ? ` · ${text.unreadableTime}` : ""}
         </span>
         {changed && <Changed text={text} />}
         {firstOfRow && row.note && <span className="lok-anmarkning">{row.note}</span>}
@@ -229,17 +259,21 @@ export function NextPanel({ lok, state, korplan, moments, now }: { lok: Lok; sta
   const placeName = (id: string) => rowsOf(korplan).find((row) => row.place === id)?.place_name ?? id;
   const towards = next?.moment.kind === "departure" ? moments.slice(moments.indexOf(next.moment) + 1).find((m) => m.kind !== "pass")?.row.place_name : null;
   const minutes = next ? wholeMinutes(next.moment.t + delay * 60 - now) : 0;
+  const unknown = Boolean(next?.moment.unknown);
+  const paper = runningPaper(state);
+  // A place on the paper the meet does not have cannot be checked in at: choose one instead.
+  const checkInHere = place && place.place !== UNKNOWN_PLACE ? place : null;
   return (
     <section className="lok-nasta" aria-label={text.next}>
       {next ? (
         <>
           <div className="lok-nasta-rad">
             <span className="lok-overrubrik">{next.moment.kind === "departure" ? text.departure : text.next}</span>
-            <span className={delay > 0 ? "lok-sen" : undefined}>{delay > 0 ? text.late(delay) : text.inMinutes(minutes)}</span>
+            <span className={delay > 0 ? "lok-sen" : undefined}>{unknown ? text.unreadableTime : delay > 0 ? text.late(delay) : text.inMinutes(minutes)}</span>
           </div>
           <div className="lok-nasta-rad stor">
             <b>{next.moment.kind === "arrival" ? text.arrivalAt(next.moment.row.place_name) : next.moment.row.place_name}</b>
-            <b className="tm-mono">{hhmm(next.moment.t + delay * 60)}</b>
+            <b className="tm-mono">{unknown ? "–" : hhmm(next.moment.t + delay * 60)}</b>
           </div>
           <div className="lok-chips">
             {next.moment.row.track && <span className={`lok-chip-liten${lok.marks.shows(next.moment.row, now) ? " andrat" : ""}`}>{text.track(next.moment.row.track)}</span>}
@@ -287,19 +321,29 @@ export function NextPanel({ lok, state, korplan, moments, now }: { lok: Lok; sta
           <button type="button" className="lok-knapp gron" disabled={state.busy} onClick={() => void lok.framme(lastRow.call)}>
             {Icon.check} {text.finish}
           </button>
+        ) : checkInHere ? (
+          <button type="button" className="lok-knapp incheckning" disabled={state.busy} onClick={() => void lok.checkIn(checkInHere.place, checkInHere.track ?? null)}>
+            <TrainMark /> {text.checkIn(checkInHere.place_name)}
+          </button>
         ) : (
           place && (
-            <button type="button" className="lok-knapp incheckning" disabled={state.busy} onClick={() => void lok.checkIn(place.place, place.track ?? null)}>
-              <TrainMark /> {text.checkIn(place.place_name)}
+            <button type="button" className="lok-knapp incheckning" disabled={state.busy} onClick={() => lok.open("checkin")}>
+              <TrainMark /> {text.checkInTitle}
             </button>
           )
         )}
         <button type="button" className="lok-knapp ikon" aria-label={text.sayToDispatch} onClick={() => lok.open("messages")}>
           {Icon.message}
         </button>
-        <button type="button" className="lok-knapp ikon" aria-label={text.wholeService} onClick={() => lok.select(state.me?.service ?? null)}>
-          {Icon.paper}
-        </button>
+        {paper ? (
+          <button type="button" className="lok-knapp ikon" aria-label={text.paperPhotos} onClick={() => lok.navigate("papper")}>
+            {Icon.camera}
+          </button>
+        ) : (
+          <button type="button" className="lok-knapp ikon" aria-label={text.wholeService} onClick={() => lok.select(state.me?.service ?? null)}>
+            {Icon.paper}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -314,7 +358,7 @@ export function ForeStart({ lok, state, now, moments }: { lok: Lok; state: LokSt
   const speed = lok.clock.speed();
   const running = lok.clock.mode() === "running";
   const left = countdown(start, now, speed, running);
-  const first = moments.find((moment) => moment.kind === "departure") ?? moments[0];
+  const first = moments.find((moment) => moment.kind === "departure" && !moment.unknown) ?? moments.find((moment) => !moment.unknown);
   const toward = first ? moments.slice(moments.indexOf(first) + 1).find((m) => m.kind !== "pass") : undefined;
   const state_ = me.driver.state;
   const events: { time: number; title: string; note: string; kind?: string }[] = [];
@@ -382,6 +426,7 @@ export function KorplanTab({ lok, state, now }: { lok: Lok; state: LokState; now
       <main className="lok-sida" id="innehall">
         <PageHead title={text.tabs.korplan} sub={text.noService} />
         <GivenCard lok={lok} state={state} now={now} />
+        <RejectedCard lok={lok} state={state} />
         <section className="lok-kort">
           <p>{text.noServiceNote}</p>
           <button type="button" className="lok-knapp primar" onClick={() => lok.navigate("tag")}>
@@ -391,16 +436,18 @@ export function KorplanTab({ lok, state, now }: { lok: Lok; state: LokState; now
       </main>
     );
   }
-  const moments = korplan ? momentsOf(rowsOf(korplan)) : [];
+  const moments = momentsFor(state);
   const at = now === null ? null : axisNow(moments, now);
   const trains = me.service.service.kind === "train";
   const paper = lok.paperOf(me.service);
+  const afterPaper = Boolean(me.service.paper || korplan?.paper);
   const before = me.start && now !== null ? countdown(me.start, now, lok.clock.speed(), true).game : 0;
   const foreStart = before > OPENS_BEFORE && !state.showKorplan;
   const anyChanged = korplan && at !== null && rowsOf(korplan).some((row) => lok.marks.shows(row, at));
   return (
     <main className="lok-sida lok-korplan" id="innehall">
-      <PageHead title={trains ? text.trainNumber(me.service.number) : text.serviceNumber(me.service.number)} chip={paper && paper !== me.service.number ? text.paperChip(paper) : null} sub={headLine(korplan, text)} />
+      <PageHead title={trains ? text.trainNumber(me.service.number) : text.serviceNumber(me.service.number)} chip={afterPaper ? text.afterPaper : paper && paper !== me.service.number ? text.paperChip(paper) : null} sub={headLine(korplan, text)} />
+      <PaperBanner state={state} />
       <GivenCard lok={lok} state={state} now={now} />
       {anyChanged && (
         <p className="lok-andrat-banner" role="status">
@@ -460,7 +507,7 @@ export function ReleaseSheet({ lok, state, now }: { lok: Lok; state: LokState; n
   const korplan = state.korplan;
   const service = state.me?.service;
   const position = korplan?.settings.reality ? korplan.position : null;
-  const moments = korplan ? momentsOf(rowsOf(korplan)) : [];
+  const moments = momentsFor(state);
   const byPlan = now !== null && moments.length > 0 && onLineByPlan(moments, axisNow(moments, now));
   const name = (place: string | null | undefined) => rowsOf(korplan).find((row) => row.place === place)?.place_name ?? place ?? "";
   let warning: ReactNode = null;
@@ -521,7 +568,7 @@ export function ReleaseSheet({ lok, state, now }: { lok: Lok; state: LokState; n
 /** Checka in (LOK-22): a place and a track if the driver likes, or Paus. It controls nothing. */
 export function CheckInSheet({ lok, state }: { lok: Lok; state: LokState }) {
   const text = TEXT[state.language];
-  const fromPlan = state.korplan ? [...new Map(rowsOf(state.korplan).filter((row) => row.stops).map((row) => [row.place, { place: row.place, name: row.place_name }])).values()] : [];
+  const fromPlan = state.korplan ? [...new Map(rowsOf(state.korplan).filter((row) => row.stops && row.place !== UNKNOWN_PLACE).map((row) => [row.place, { place: row.place, name: row.place_name }])).values()] : [];
   const places = fromPlan.length ? fromPlan : state.places.map((p) => ({ place: p.place, name: p.name }));
   const [place, setPlace] = useState(places[0]?.place ?? "");
   const [track, setTrack] = useState("");

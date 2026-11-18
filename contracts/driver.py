@@ -410,6 +410,11 @@ class KorplanRow(Contract):
         description="Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
     )
     changed: bool = Field(default=False, description="Ändrat de senaste 10 spelminuterna.")
+    unreadable: bool = Field(
+        default=False,
+        description="Efter pappret: tiden stod på pappret men gick inte att läsa (LOK-29). "
+        "Den visas som okänd, aldrig gissad.",
+    )
     real: RowReality | None = None
     clearance: RowClearance | None = None
 
@@ -491,6 +496,11 @@ class PaperPrice(Contract):
     available: int | None = Field(default=None, description="Saldot som är kvar.")
     ready: bool = Field(description="Går att läsa nu.")
     message: Text | None = Field(default=None, description="Varför inte, och vad föraren gör.")
+    log_in: bool = Field(
+        default=False,
+        description="Förarens egna tokens betalar och föraren är inte inloggad: inloggning med "
+        "TrainMeet ID gör att pappret går att läsa (LOK-33).",
+    )
 
 
 class PaperApprove(Contract):
