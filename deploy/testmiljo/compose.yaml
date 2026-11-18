@@ -197,6 +197,9 @@ services:
       # The person's file and the removal of an account reach Catalog here (KONTO-31, CAT-193).
       ID_API_CATALOG: http://catalog:8080
       ID_SMTP_PASSWORD_FILE: /vault/trainmeet_smtp-password
+      # Mätaren (#79, TOKEN-28): TrainMeets AI through Claude in Amazon Bedrock in Stockholm.
+      # Without the key in id-vault the meter is off and says so.
+      ID_METER_KEY_FILE: /vault/trainmeet_bedrock-key
       FORWARDED_ALLOW_IPS: "*"
     volumes:
       - ./id-vault:/vault:ro

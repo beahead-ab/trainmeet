@@ -179,6 +179,12 @@ class Tokens:
             assert settled is not None
             return self._out(conn, self._account_by_id(conn, account["id"]), settled)
 
+    def reservation(self, app: str, reservation: UUID) -> TokenReservation:
+        """The app's own reservation as it is now, after the ones that ran out went back."""
+        with self.db.transaction() as conn:
+            row, account = self._held(conn, app, reservation)
+            return self._out(conn, account, row)
+
     def give_back(self, app: str, reservation: UUID) -> TokenReservation:
         """The work did not happen, or failed: everything goes back (TOKEN-24)."""
         with self.db.transaction() as conn:

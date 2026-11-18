@@ -60,6 +60,8 @@ from contracts.id import (
     Version,
 )
 from contracts.tokens import (
+    MeterAnswer,
+    MeterRead,
     TokenBalance,
     TokenDraw,
     TokenReservation,
@@ -71,6 +73,8 @@ from id.accounts import Accounts
 from id.db import Database
 from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
+from id.meter import BedrockClaude, Claude, Meter
+from id.meter import settings_from as meter_settings
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
 from id.tickets import Tickets
@@ -121,8 +125,10 @@ def create_app(
     *,
     http: httpx.Client | None = None,
     mailer: AllMail | None = None,
+    claude: Claude | None = None,
 ) -> FastAPI:
-    """The app. The tests give a pretend Keycloak (http) and a pretend mail server."""
+    """The app. The tests give a pretend Keycloak (http), a pretend mail server and a pretend
+    Claude for the meter."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     http = http if http is not None else httpx.Client(timeout=10.0)
@@ -131,6 +137,9 @@ def create_app(
     roles = Roles(db, mail, settings.public_url)
     tickets = Tickets(db, roles, settings.public_url)
     tokens = Tokens(db)
+    if claude is None and (metered := meter_settings()) is not None:
+        claude = BedrockClaude(metered)
+    meter = Meter(db, tokens, claude)
     help_desk = HelpDesk(mail, settings.support)
     accounts = Accounts(settings, http, roles)
 
@@ -419,6 +428,11 @@ def create_app(
     @app.post(API + "/apps/tokens/reservations/{reservation}/return")
     def return_tokens(reservation: UUID, app_name: App) -> TokenReservation:
         return tokens.give_back(app_name, reservation)
+
+    @app.post(API + "/apps/meter")
+    def read_with_meter(body: MeterRead, app_name: App) -> MeterAnswer:
+        """TrainMeets AI through the meter (TOKEN-28): the transcription and what it cost."""
+        return meter.read(app_name, body)
 
     @app.api_route(
         "/api/{rest:path}",

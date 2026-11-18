@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/apps/meter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appReadWithMeter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1484,6 +1500,184 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.token-reservation.TokenReservationState": "held" | "drawn" | "returned";
+        /** MeterImage */
+        "trainmeet.id-1.meter-image": {
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+            /**
+             * Data
+             * @description Bilden i base64, högst cirka 10 MB.
+             */
+            data: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeterRead
+         * @description Läs bilderna med TrainMeets AI. Reservationen ska räcka till 12 tokens per bild.
+         */
+        "trainmeet.id-1.meter-read": {
+            /**
+             * Reservation
+             * Format: uuid
+             */
+            reservation: string;
+            /**
+             * Prompt
+             * @description Vad AI:n ska göra.
+             */
+            prompt: string;
+            /** Images */
+            images: components["schemas"]["trainmeet.id-1.meter-read.MeterImage"][];
+            /**
+             * Max Tokens
+             * @default 8192
+             */
+            max_tokens: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** MeterImage */
+        "trainmeet.id-1.meter-read.MeterImage": {
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+            /**
+             * Data
+             * @description Bilden i base64, högst cirka 10 MB.
+             */
+            data: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** MeterAnswer */
+        "trainmeet.id-1.meter-answer": {
+            /**
+             * Text
+             * @description Avskriften, som AI:n skrev den.
+             */
+            text: string;
+            /**
+             * Cost
+             * @description Det som drogs: 12 tokens per bild (TOKEN-14).
+             */
+            cost: number;
+            /** Model */
+            model: string;
+            reservation: components["schemas"]["trainmeet.id-1.meter-answer.TokenReservation"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenBalance
+         * @description Saldot som det ser ut nu (TOKEN-01, TOKEN-12).
+         */
+        "trainmeet.id-1.meter-answer.TokenBalance": {
+            owner: components["schemas"]["trainmeet.id-1.meter-answer.TokenOwner"];
+            /**
+             * Title
+             * @description Vems saldo, som det visas: personens namn eller klubbens.
+             */
+            title: string;
+            /**
+             * Free Left
+             * @description Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.
+             */
+            free_left: number;
+            /**
+             * Free Monthly
+             * @description Månadens gratiskvot: 100 per person, 300 per klubb.
+             */
+            free_monthly: number;
+            /**
+             * Bought
+             * @description Köpta tokens som är kvar. De förfaller inte.
+             */
+            bought: number;
+            /**
+             * Reserved
+             * @description Hålls av reservationer som inte är dragna eller tillbakalämnade än.
+             */
+            reserved: number;
+            /**
+             * Available
+             * @description Det som går att använda nu: gratis och köpt.
+             */
+            available: number;
+            /**
+             * Month
+             * @description Månaden gratiskvoten gäller, i svensk tid.
+             */
+            month: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenOwner */
+        "trainmeet.id-1.meter-answer.TokenOwner": {
+            kind: components["schemas"]["trainmeet.id-1.meter-answer.TokenOwnerKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenOwnerKind
+         * @description Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för
+         *     träffarnas import (TK16).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meter-answer.TokenOwnerKind": "person" | "club";
+        /** TokenReservation */
+        "trainmeet.id-1.meter-answer.TokenReservation": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            owner: components["schemas"]["trainmeet.id-1.meter-answer.TokenOwner"];
+            /**
+             * Amount
+             * @description Det reserverade.
+             */
+            amount: number;
+            /**
+             * Drawn
+             * @description Det dragna, när reservationen är dragen.
+             * @default 0
+             */
+            drawn: number;
+            state: components["schemas"]["trainmeet.id-1.meter-answer.TokenReservationState"];
+            /** What */
+            what: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Expires
+             * Format: date-time
+             * @description När en reservation som ingen drar går tillbaka.
+             */
+            expires: string;
+            /** @description Saldot efter det här. */
+            balance: components["schemas"]["trainmeet.id-1.meter-answer.TokenBalance"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenReservationState
+         * @enum {string}
+         */
+        "trainmeet.id-1.meter-answer.TokenReservationState": "held" | "drawn" | "returned";
         /**
          * Access
          * @description What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.
@@ -4468,6 +4662,84 @@ export interface operations {
             };
             /** @description ID säger nej */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appReadWithMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.meter-read"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meter-answer"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

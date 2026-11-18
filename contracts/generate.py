@@ -225,6 +225,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.token-reserve": tokens.TokenReserve,
     "trainmeet.id-1.token-draw": tokens.TokenDraw,
     "trainmeet.id-1.token-reservation": tokens.TokenReservation,
+    "trainmeet.id-1.meter-image": tokens.MeterImage,
+    "trainmeet.id-1.meter-read": tokens.MeterRead,
+    "trainmeet.id-1.meter-answer": tokens.MeterAnswer,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -1126,6 +1129,16 @@ def id_openapi() -> str:
         "appReturnTokens",
         "token-reservation",
         problems=(401, 404, 409),
+        app=True,
+    )
+    # Mätaren (TOKEN-28): TrainMeets AI with the reservation.
+    route(
+        "post",
+        a + "/apps/meter",
+        "appReadWithMeter",
+        "meter-answer",
+        "meter-read",
+        problems=(401, 404, 409, 422, 502, 503),
         app=True,
     )
     return (

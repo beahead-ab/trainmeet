@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meter-read.schema.json",
+  "title": "trainmeet.id-1.meter-read",
+  "$defs": {
+    "MeterImage": {
+      "additionalProperties": true,
+      "properties": {
+        "media_type": {
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/gif"
+          ],
+          "title": "Media Type",
+          "type": "string"
+        },
+        "data": {
+          "description": "Bilden i base64, högst cirka 10 MB.",
+          "maxLength": 14000000,
+          "minLength": 1,
+          "title": "Data",
+          "type": "string"
+        }
+      },
+      "required": [
+        "media_type",
+        "data"
+      ],
+      "title": "MeterImage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Läs bilderna med TrainMeets AI. Reservationen ska räcka till 12 tokens per bild.",
+  "properties": {
+    "reservation": {
+      "format": "uuid",
+      "title": "Reservation",
+      "type": "string"
+    },
+    "prompt": {
+      "description": "Vad AI:n ska göra.",
+      "maxLength": 20000,
+      "minLength": 1,
+      "title": "Prompt",
+      "type": "string"
+    },
+    "images": {
+      "items": {
+        "$ref": "#/$defs/MeterImage"
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "title": "Images",
+      "type": "array"
+    },
+    "max_tokens": {
+      "default": 8192,
+      "maximum": 16000,
+      "minimum": 16,
+      "title": "Max Tokens",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reservation",
+    "prompt",
+    "images"
+  ],
+  "type": "object"
+}
