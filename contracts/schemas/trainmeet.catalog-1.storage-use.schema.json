@@ -24,13 +24,19 @@
       "description": "How many pictures the owner has.",
       "title": "Pictures",
       "type": "integer"
+    },
+    "backgrounds": {
+      "description": "The background removal is on at this Catalog, so the other backgrounds than the original can be chosen (CAT-127, CAT-128).",
+      "title": "Backgrounds",
+      "type": "boolean"
     }
   },
   "required": [
     "used",
     "limit",
     "club",
-    "pictures"
+    "pictures",
+    "backgrounds"
   ],
   "type": "object"
 }

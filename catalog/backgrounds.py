@@ -362,7 +362,9 @@ def render(
     if vehicle.size != size:
         vehicle = vehicle.resize(size, Image.Resampling.LANCZOS)  # Pillow keeps the edges clean
     if background is PictureBackground.TRANSPARENT:
-        return vehicle
+        # What is not the vehicle is nothing: not the photo's background hidden under alpha 0.
+        seen = vehicle.getchannel("A").point(lambda p: 255 if p else 0)
+        return Image.composite(vehicle, Image.new("RGBA", size), seen)
     if background is PictureBackground.RAILS:
         canvas = rails(size, (box[3] - window[1]) * scale, (box[3] - box[1]) * scale)
     else:

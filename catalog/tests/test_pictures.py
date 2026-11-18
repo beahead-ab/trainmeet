@@ -32,6 +32,7 @@ from fastapi.testclient import TestClient
 from PIL import ExifTags, Image, ImageCms
 
 from catalog.app import CONTENT_SECURITY_POLICY, content_security_policy, create_app
+from catalog.backgrounds import NoSegmenter, Segmenter
 from catalog.fleet import Fleet, Refused
 from catalog.pictures import (
     LINK_LIFETIME,
@@ -91,7 +92,10 @@ def _in(path: str, fleet: str | None) -> str:
 
 @contextmanager
 def world_with(
-    database_url: str, tmp_path: Path, limits: PictureLimits | None = None
+    database_url: str,
+    tmp_path: Path,
+    limits: PictureLimits | None = None,
+    segmenter: Segmenter | None = None,
 ) -> Iterator[World]:
     pretend = PretendIdWithClubs()
     settings = Settings(
@@ -115,6 +119,7 @@ def world_with(
         settings,
         id_http=httpx.Client(transport=httpx.MockTransport(pretend.handle)),
         picture_limits=limits,
+        segmenter=segmenter if segmenter is not None else NoSegmenter(),
     )
     with TestClient(app) as a, TestClient(app) as b:
         for client, who in ((a, A), (b, B)):
@@ -646,6 +651,38 @@ def test_object_storage_signs_its_requests_and_presigns_the_addresses(
     plain = AWSRequest(method="GET", url=f"https://s3.nl-ams.scw.cloud/tm-bilder/{key}")
     S3SigV4QueryAuth(Credentials("SCWAKEY", "hemlig"), "s3", "nl-ams", expires=3600).add_auth(plain)
     assert url == plain.url
+
+
+def test_object_storage_reads_back_a_file_and_tells_its_size() -> None:
+    """A new background is made from the kept photo (CAT-128): fetched with a signed GET, and
+    the original's size read with a signed HEAD, without fetching it."""
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if "saknas" in request.url.path:
+            return httpx.Response(404)
+        if request.method == "HEAD":
+            return httpx.Response(200, headers={"Content-Length": "1234"})
+        return httpx.Response(200, content=b"fotot")
+
+    http = httpx.Client(transport=httpx.MockTransport(answer))
+    store = S3Store("https://s3.nl-ams.scw.cloud", "tm-bilder", "nl-ams", "SCWAKEY", "hemlig", http)
+    key = new_key(UUID(A), "image/png")
+    assert key.endswith(".png")
+    assert store.get(key) == b"fotot"
+    assert store.size(key) == 1234
+    assert [(r.method, r.url.path) for r in seen] == [
+        ("GET", f"/tm-bilder/{key}"),
+        ("HEAD", f"/tm-bilder/{key}"),
+    ]
+    for request in seen:
+        assert request.headers["authorization"].startswith("AWS4-HMAC-SHA256 Credential=SCWAKEY/")
+    missing = f"{A}/saknas"
+    with pytest.raises(StoreFailed):
+        store.get(missing)
+    with pytest.raises(StoreFailed):
+        store.size(missing)
 
 
 def test_object_storage_that_says_no_or_does_not_answer_fails(world: World) -> None:

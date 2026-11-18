@@ -470,6 +470,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}/background": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pictureBackground"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}": {
         parameters: {
             query?: never;
@@ -1669,7 +1685,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "backgrounds_off" | "no_vehicle";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -2506,9 +2522,17 @@ export interface components {
              * @default null
              */
             original_url: string | null;
+            /** @description The background the display picture and the thumbnail have (CAT-128). */
+            background: components["schemas"]["trainmeet.catalog-1.picture.PictureBackground"];
         } & {
             [key: string]: unknown;
         };
+        /**
+         * PictureBackground
+         * @description The picture's background (CAT-128). All but the original need the background removal.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.picture.PictureBackground": "original" | "white" | "grey" | "transparent" | "rails";
         /**
          * PictureLinks
          * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
@@ -2553,9 +2577,29 @@ export interface components {
              * @description How many pictures the owner has.
              */
             pictures: number;
+            /**
+             * Backgrounds
+             * @description The background removal is on at this Catalog, so the other backgrounds than the original can be chosen (CAT-127, CAT-128).
+             */
+            backgrounds: boolean;
         } & {
             [key: string]: unknown;
         };
+        /**
+         * BackgroundChange
+         * @description A new background for a picture, made from what was kept at the upload (CAT-128).
+         */
+        "trainmeet.catalog-1.background-change": {
+            background: components["schemas"]["trainmeet.catalog-1.background-change.PictureBackground"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureBackground
+         * @description The picture's background (CAT-128). All but the original need the background removal.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.background-change.PictureBackground": "original" | "white" | "grey" | "transparent" | "rails";
     };
     responses: never;
     parameters: never;
@@ -4553,6 +4597,7 @@ export interface operations {
         parameters: {
             query?: {
                 keep_original?: boolean;
+                background?: "original" | "white" | "grey" | "transparent" | "rails";
                 /** @description The owner's id, to work in a fleet shared with the person. */
                 fleet?: string;
             };
@@ -4667,6 +4712,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.catalog-1.picture"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    pictureBackground: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+                picture: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.background-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.picture"];
                 };
             };
             /** @description Catalog säger nej */
@@ -4876,6 +5005,7 @@ export interface operations {
                 };
                 content: {
                     "image/jpeg": string;
+                    "image/webp": string;
                 };
             };
             /** @description The address is not signed by Catalog, or has expired */
