@@ -2,7 +2,9 @@
 
 Upwards at level 1–2: the departure (train.departed), the arrival (train.arrived) or a track
 change for a train already here (train.track.change), and the exit signal's aspect
-(signal.exit). section.occupancy is level 3 only, and never sent from here.
+(signal.exit). At level 3 with LocoNet also the occupancy of the line outside an exit
+(section.occupancy, STV-10): the hub's section the exit is coupled to, occupied or free. The
+interlocking only reports it at level 3; nothing at level 1–2 sends it.
 
 The interlocking knows the train number and, for a train it took from Hubben's list of trains on
 their way here, the call. The call is found in the place's snapshot, as level 0's buttons find
@@ -110,12 +112,22 @@ def _exit_signal(snapshot: station.Snapshot, report: TklReport) -> Planned | str
     return station.Action.SIGNAL_EXIT, payload, None
 
 
+def _occupancy(snapshot: station.Snapshot, report: TklReport) -> Planned | str:
+    section = next((s for s in snapshot.sections if s.exit == report.exit), None)
+    if section is None or report.occupied is None:
+        return f"Ingen sträcka går från utfarten {report.exit} i den här träffen."
+    payload: dict[str, object] = {"section": section.section, "occupied": report.occupied}
+    return station.Action.SECTION_OCCUPANCY, payload, None
+
+
 def plan(snapshot: station.Snapshot, report: TklReport) -> Planned | str:
     """The station command a report becomes, or why it is not sent."""
     if report.kind == TklReportKind.DEPARTED:
         return _departure(snapshot, report)
     if report.kind == TklReportKind.ARRIVED:
         return _arrival(snapshot, report)
+    if report.kind == TklReportKind.SECTION_OCCUPANCY:
+        return _occupancy(snapshot, report)
     return _exit_signal(snapshot, report)
 
 
@@ -123,6 +135,7 @@ WHAT = {
     TklReportKind.DEPARTED: "Avgången",
     TklReportKind.ARRIVED: "Ankomsten",
     TklReportKind.EXIT_SIGNAL: "Utfartssignalen",
+    TklReportKind.SECTION_OCCUPANCY: "Beläggningen",
 }
 
 

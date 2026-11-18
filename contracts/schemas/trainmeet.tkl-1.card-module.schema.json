@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.card-module.schema.json",
+  "title": "trainmeet.tkl-1.card-module",
+  "additionalProperties": true,
+  "properties": {
+    "card": {
+      "minimum": 0,
+      "title": "Card",
+      "type": "integer"
+    },
+    "module": {
+      "anyOf": [
+        {
+          "maxLength": 40,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Module"
+    }
+  },
+  "required": [
+    "card"
+  ],
+  "type": "object"
+}

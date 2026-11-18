@@ -9,6 +9,7 @@ import { api, full, Problem, TKL, type Action, type CallHere, type Clearance, ty
 import { FirstStart, Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
+import { KopplaIn } from "./KopplaIn";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
 import { Sparplan } from "./Sparplan";
@@ -20,6 +21,7 @@ type Page = "stallverket" | "studio" | "installningar";
 const PAGES: Record<Page, string> = { stallverket: "/", studio: "/studio", installningar: "/installningar" };
 const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : path.startsWith("/installningar") ? "installningar" : "stallverket");
 const SPARPLAN = "/studio/sparplan";
+const KOPPLA_IN = "/studio/koppla-in";
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
@@ -223,17 +225,23 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   let body;
   if (page === "studio") {
     const plan = path.startsWith(SPARPLAN);
+    const koppla = path.startsWith(KOPPLA_IN);
     body = (
       <>
         <nav className="studio-flikar" aria-label="Studio">
-          <button type="button" aria-current={plan ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+          <button type="button" aria-current={plan || koppla ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
             Utsidan
           </button>
           <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
             Spårplan
           </button>
+          <button type="button" aria-current={koppla ? "page" : undefined} onClick={() => navigate(KOPPLA_IN)}>
+            Koppla in
+          </button>
         </nav>
-        {plan ? (
+        {koppla ? (
+          <KopplaIn />
+        ) : plan ? (
           <Sparplan
             onChanged={() => {
               void api.state().then(onLocked);

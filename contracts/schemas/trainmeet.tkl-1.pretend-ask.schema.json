@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.pretend-ask.schema.json",
+  "title": "trainmeet.tkl-1.pretend-ask",
+  "additionalProperties": true,
+  "description": "Låtsas-LocoNet: a wagon put on a track circuit, or lifted off it.",
+  "properties": {
+    "track_circuit": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Track Circuit",
+      "type": "string"
+    },
+    "occupied": {
+      "default": true,
+      "title": "Occupied",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "track_circuit"
+  ],
+  "type": "object"
+}

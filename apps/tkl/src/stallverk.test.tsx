@@ -68,11 +68,11 @@ const quiet: Interlocking = {
   model: "abc",
   revision: 1,
   problem: null,
-  switches: { "1": { position: "+", control: "tkl", routes: [], protection: false, local: false, function: null } },
+  switches: { "1": { position: "+", control: "tkl", routes: [], protection: false, local: false, function: null, state: null, reported: null } },
   levers: { "1": "+" },
   routes: [],
   trains: [],
-  signals: { In: { aspect: "stop", end: false, blocked: false }, Ut: { aspect: "stop", end: false, blocked: false } },
+  signals: { In: { aspect: "stop", end: false, blocked: false, state: null, reported: null }, Ut: { aspect: "stop", end: false, blocked: false, state: null, reported: null } },
   pieces: {},
   numbers: [],
   exits: [{ exit: "V", outside: "v", pieces: ["a"], aspect: "stop" }],
@@ -80,6 +80,7 @@ const quiet: Interlocking = {
   sections: { "Linje V": ["a"], Vx1: ["a2"], "Spår 1": ["b"], "Spår 2": ["c"] },
   events: [],
   last_id: 0,
+  field: null,
 };
 
 const route = (id: number, kind: "train" | "shunting", extra: Partial<NonNullable<Interlocking["routes"]>[number]> = {}): NonNullable<Interlocking["routes"]>[number] => ({
@@ -104,6 +105,9 @@ const route = (id: number, kind: "train" | "shunting", extra: Partial<NonNullabl
   leaves: "O",
   enters: null,
   set_at: "2026-11-18T12:00:00Z",
+  waiting: [],
+  waiting_since: null,
+  came_from: null,
   ...extra,
 });
 
@@ -111,10 +115,10 @@ const route = (id: number, kind: "train" | "shunting", extra: Partial<NonNullabl
 const running: Interlocking = {
   ...quiet,
   revision: 2,
-  switches: { "1": { position: "+", control: "tkl", routes: [7], protection: false, local: false, function: null } },
+  switches: { "1": { position: "+", control: "tkl", routes: [7], protection: false, local: false, function: null, state: null, reported: null } },
   routes: [route(7, "train", { train: 3 })],
   trains: [{ id: 3, number: "41", call: null, section: null, exit: "V" }],
-  signals: { In: { aspect: "proceed", end: false, blocked: false }, Ut: { aspect: "stop", end: true, blocked: false } },
+  signals: { In: { aspect: "proceed", end: false, blocked: false, state: null, reported: null }, Ut: { aspect: "stop", end: true, blocked: false, state: null, reported: null } },
   pieces: { a: { state: "occupied", route: null }, a2: { state: "train", route: 7 }, b: { state: "train", route: 7 } },
   numbers: [
     { number: "41", train: 3, colour: "red", section: null, exit: "V", pieces: ["a"], track: null, route: null, estimated: true },
@@ -231,7 +235,7 @@ describe("Ställverket at level 1–2: the click flow", () => {
   });
 
   it("lays the whole lever with a click on a switch (STV-01, STV-52)", async () => {
-    const { calls, asked } = pretend({ layLever: () => Promise.resolve(answer({ ...quiet, switches: { "1": { position: "-", control: "tkl", routes: [], protection: false, local: false, function: null } } }, "Spaken 1 lagd i −.")) });
+    const { calls, asked } = pretend({ layLever: () => Promise.resolve(answer({ ...quiet, switches: { "1": { position: "-", control: "tkl", routes: [], protection: false, local: false, function: null, state: null, reported: null } } }, "Spaken 1 lagd i −.")) });
     const done = await clickSwitch(NOTHING, "1", calls, NOON);
     expect(asked).toEqual(['layLever("1")']);
     expect(done.valet.said?.text).toBe("Spaken 1 lagd i −.");
@@ -326,7 +330,7 @@ describe("Ställverket at level 1–2: the drawing in skin 85", () => {
   });
 
   it("marks a switch locked as protection with short yellow at the knot (STV-20, a Förslag)", () => {
-    const state = filled({ ...quiet, switches: { "1": { position: "-", control: "tkl", routes: [7], protection: true, local: false, function: null } } });
+    const state = filled({ ...quiet, switches: { "1": { position: "-", control: "tkl", routes: [7], protection: true, local: false, function: null, state: null, reported: null } } });
     const drawn = drawing(panel, state, new Set(), ends);
     expect(drawn.lines.find((l) => l.piece === "b")?.cut).toEqual({ start: true, end: false });
     const html = renderToStaticMarkup(<Panelen panel={panel} drawn={drawn} skin={skinOf("85")} say={say} />);
@@ -578,8 +582,8 @@ describe("Ställverket at level 1–2: the panel functions (STV-04, STV-53, TKL4
   it("draws the locally released area blue, the freed switch's blue mark and the blocked entry signal (TKL44, FR41)", () => {
     const state = filled({
       ...quiet,
-      switches: { "1": { position: "-", control: "tkl", routes: [], protection: false, local: true, function: "Lokal frigivning" } },
-      signals: { In: { aspect: "stop", end: false, blocked: true }, Ut: { aspect: "stop", end: false, blocked: false } },
+      switches: { "1": { position: "-", control: "tkl", routes: [], protection: false, local: true, function: "Lokal frigivning", state: null, reported: null } },
+      signals: { In: { aspect: "stop", end: false, blocked: true, state: null, reported: null }, Ut: { aspect: "stop", end: false, blocked: false, state: null, reported: null } },
       pieces: { c: { state: "local", route: null } },
       functions: stationFunctions,
     });

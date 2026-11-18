@@ -564,6 +564,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/koppla-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklKopplaIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/ports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklPorts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLoconetConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLoconetDisconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDiscover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["tklCardModule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/object": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["tklObjectChange"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/learn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLearn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLearnAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLevel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/lyssna": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklListen"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/koppla-in/latsas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPretend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -657,7 +849,8 @@ export interface components {
         };
         /**
          * StationModel
-         * @description Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses.
+         * @description Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and
+         *     confirmed in Studio's Koppla in.
          */
         "trainmeet.station-model-1": {
             /**
@@ -713,6 +906,10 @@ export interface components {
         /**
          * Address
          * @description A decoder or detector address on a bus (level 3).
+         *
+         *     Its own origin says where the address comes from and whether it is confirmed on the layout:
+         *     in Koppla in a confirmed address is green, an address that is only given is yellow
+         *     (STUDIO-17). The object's origin is about the object itself, as drawn or imported.
          */
         "trainmeet.station-model-1.Address": {
             /**
@@ -723,9 +920,26 @@ export interface components {
             bus: string;
             /** Number */
             number: number;
+            /**
+             * Reversed
+             * @description Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens kör är kortets thrown, och givaren är belagd när den släpper.
+             * @default false
+             */
+            reversed: boolean;
+            /**
+             * @description Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in.
+             * @default null
+             */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
+        /**
+         * FeedbackType
+         * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.FeedbackType": "card" | "sensors" | "none" | "manual";
         /**
          * Lever
          * @description Spak: for + and -, the position each switch gets.
@@ -1164,10 +1378,11 @@ export interface components {
              */
             planned: boolean;
             /**
-             * @description Nivå 3.
+             * Address
+             * @description Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).
              * @default null
              */
-            address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            address: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
@@ -1188,11 +1403,8 @@ export interface components {
             number: string;
             /** @default null */
             address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
-            /**
-             * Feedback
-             * @default null
-             */
-            feedback: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+            /** @default null */
+            feedback: components["schemas"]["trainmeet.station-model-1.SwitchFeedback"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1201,7 +1413,7 @@ export interface components {
          * @description Where an item in the model comes from (§2 "source", TKL41).
          * @enum {string}
          */
-        "trainmeet.station-model-1.Source": "drawn" | "photo" | "signal_plan" | "anyrail" | "jmri" | "assumed";
+        "trainmeet.station-model-1.Source": "drawn" | "photo" | "signal_plan" | "anyrail" | "jmri" | "assumed" | "layout";
         /**
          * StationTrack
          * @description Stationsspår: what the station's outside is made of (TKL92).
@@ -1287,14 +1499,16 @@ export interface components {
              * @default null
              */
             design: string | null;
-            /** @default null */
+            /**
+             * @description Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
             address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
             /**
-             * Feedback
              * @description Återrapport (nivå 3).
              * @default null
              */
-            feedback: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+            feedback: components["schemas"]["trainmeet.station-model-1.SwitchFeedback"] | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
@@ -1306,6 +1520,26 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-model-1.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * SwitchFeedback
+         * @description How a switch tells where it lies, at level 3. With two sensors, each sensor is active
+         *     when the switch lies in its position, and both passive while it moves.
+         */
+        "trainmeet.station-model-1.SwitchFeedback": {
+            type: components["schemas"]["trainmeet.station-model-1.FeedbackType"];
+            /**
+             * @description Givaren för rakt (+).
+             * @default null
+             */
+            straight: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            /**
+             * @description Givaren för avvikande (-).
+             * @default null
+             */
+            diverging: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * SwitchPath
          * @description A way through a slip or a crossing: two of its pieces, and the positions it needs.
@@ -3743,9 +3977,20 @@ export interface components {
              * @default 0
              */
             last_id: number;
+            /**
+             * @description Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna.
+             * @default null
+             */
+            field: components["schemas"]["trainmeet.tkl-1.interlocking.TklField"] | null;
         } & {
             [key: string]: unknown;
         };
+        /**
+         * AddressState
+         * @description An object's four states in Koppla in (STUDIO-17, TKL26).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.AddressState": "grey" | "yellow" | "green" | "without";
         /**
          * ExitSignalAspect
          * @enum {string}
@@ -3800,6 +4045,62 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklField
+         * @description Ställverket på nivå 3 med LocoNet: what the layout has reported, and what TKL has
+         *     ordered. Unknown is None: nothing counts as free or in place until it is reported.
+         */
+        "trainmeet.tkl-1.interlocking.TklField": {
+            mode: components["schemas"]["trainmeet.tkl-1.interlocking.TklFieldMode"];
+            /**
+             * Since
+             * Format: date-time
+             * @description När LocoNet anslöts.
+             */
+            since: string;
+            /**
+             * Switches
+             * @description Växeldelarnas återrapporterade lägen.
+             */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"] | null;
+            };
+            /**
+             * Sections
+             * @description Spårledningarnas beläggning: true är belagd.
+             */
+            sections?: {
+                [key: string]: boolean | null;
+            };
+            /**
+             * Signals
+             * @description Signalernas rapporterade besked.
+             */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"] | null;
+            };
+            /**
+             * Ordered Switches
+             * @description Lägena TKL senast beordrade.
+             */
+            ordered_switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"] | null;
+            };
+            /**
+             * Ordered Signals
+             * @description Beskeden TKL senast beordrade.
+             */
+            ordered_signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFieldMode
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.TklFieldMode": "loconet" | "pretend";
         /**
          * TklFunctionMode
          * @description One of a function's positions: a traction current's mode, or a turntable's track.
@@ -4082,6 +4383,23 @@ export interface components {
              * Format: date-time
              */
             set_at: string;
+            /**
+             * Waiting
+             * @description Nivå 3: växlarna vägen väntar på återrapport från. Signalen visar stopp tills alla ligger rätt.
+             */
+            waiting?: string[];
+            /**
+             * Waiting Since
+             * @description Nivå 3: när ordern till växlarna gick ut.
+             * @default null
+             */
+            waiting_since: string | null;
+            /**
+             * Came From
+             * @description Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut efter passage (STV-16).
+             * @default null
+             */
+            came_from: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4089,6 +4407,16 @@ export interface components {
         "trainmeet.tkl-1.interlocking.TklSignalShown": {
             /** @default stop */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
+            /**
+             * @description Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).
+             * @default null
+             */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking.AddressState"] | null;
+            /**
+             * @description Nivå 3: beskedet som kortet har rapporterat.
+             * @default null
+             */
+            reported: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"] | null;
             /**
              * End
              * @description Slutpunkt för en lagd väg: röd i 85 och 95.
@@ -4136,6 +4464,16 @@ export interface components {
              * @default null
              */
             function: string | null;
+            /**
+             * @description Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).
+             * @default null
+             */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking.AddressState"] | null;
+            /**
+             * @description Nivå 3 med LocoNet: läget växeln har rapporterat. Inget medan den går.
+             * @default null
+             */
+            reported: components["schemas"]["trainmeet.tkl-1.interlocking.Position"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4201,6 +4539,12 @@ export interface components {
          */
         "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
         /**
+         * AddressState
+         * @description An object's four states in Koppla in (STUDIO-17, TKL26).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.AddressState": "grey" | "yellow" | "green" | "without";
+        /**
          * ExitSignalAspect
          * @enum {string}
          */
@@ -4254,6 +4598,62 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklField
+         * @description Ställverket på nivå 3 med LocoNet: what the layout has reported, and what TKL has
+         *     ordered. Unknown is None: nothing counts as free or in place until it is reported.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklField": {
+            mode: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklFieldMode"];
+            /**
+             * Since
+             * Format: date-time
+             * @description När LocoNet anslöts.
+             */
+            since: string;
+            /**
+             * Switches
+             * @description Växeldelarnas återrapporterade lägen.
+             */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"] | null;
+            };
+            /**
+             * Sections
+             * @description Spårledningarnas beläggning: true är belagd.
+             */
+            sections?: {
+                [key: string]: boolean | null;
+            };
+            /**
+             * Signals
+             * @description Signalernas rapporterade besked.
+             */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"] | null;
+            };
+            /**
+             * Ordered Switches
+             * @description Lägena TKL senast beordrade.
+             */
+            ordered_switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"] | null;
+            };
+            /**
+             * Ordered Signals
+             * @description Beskeden TKL senast beordrade.
+             */
+            ordered_signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFieldMode
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklFieldMode": "loconet" | "pretend";
         /**
          * TklFunctionMode
          * @description One of a function's positions: a traction current's mode, or a turntable's track.
@@ -4448,6 +4848,11 @@ export interface components {
              * @default 0
              */
             last_id: number;
+            /**
+             * @description Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna.
+             * @default null
+             */
+            field: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklField"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4549,6 +4954,12 @@ export interface components {
             /** @default null */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.ExitSignalAspect"] | null;
             /**
+             * Occupied
+             * @description Nivå 3: linjens spårledning vid utfarten är belagd.
+             * @default null
+             */
+            occupied: boolean | null;
+            /**
              * @description Kommandot som skickades.
              * @default null
              */
@@ -4575,7 +4986,7 @@ export interface components {
          * TklReportKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking-answer.TklReportKind": "departed" | "arrived" | "exit_signal";
+        "trainmeet.tkl-1.interlocking-answer.TklReportKind": "departed" | "arrived" | "exit_signal" | "section_occupancy";
         /**
          * TklSectionPart
          * @description A section of a set route, in the order the route runs through it: a track circuit, or
@@ -4690,6 +5101,23 @@ export interface components {
              * Format: date-time
              */
             set_at: string;
+            /**
+             * Waiting
+             * @description Nivå 3: växlarna vägen väntar på återrapport från. Signalen visar stopp tills alla ligger rätt.
+             */
+            waiting?: string[];
+            /**
+             * Waiting Since
+             * @description Nivå 3: när ordern till växlarna gick ut.
+             * @default null
+             */
+            waiting_since: string | null;
+            /**
+             * Came From
+             * @description Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut efter passage (STV-16).
+             * @default null
+             */
+            came_from: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4697,6 +5125,16 @@ export interface components {
         "trainmeet.tkl-1.interlocking-answer.TklSignalShown": {
             /** @default stop */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
+            /**
+             * @description Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).
+             * @default null
+             */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.AddressState"] | null;
+            /**
+             * @description Nivå 3: beskedet som kortet har rapporterat.
+             * @default null
+             */
+            reported: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"] | null;
             /**
              * End
              * @description Slutpunkt för en lagd väg: röd i 85 och 95.
@@ -4744,6 +5182,16 @@ export interface components {
              * @default null
              */
             function: string | null;
+            /**
+             * @description Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).
+             * @default null
+             */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.AddressState"] | null;
+            /**
+             * @description Nivå 3 med LocoNet: läget växeln har rapporterat. Inget medan den går.
+             * @default null
+             */
+            reported: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4992,6 +5440,530 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.function-ask.TklFunctionAction": "on" | "off" | "set" | "lay" | "release";
+        /**
+         * TklKopplaIn
+         * @description Studio's Koppla in: the connection, the cards, the objects in their four states, and the
+         *     learning question as it comes.
+         */
+        "trainmeet.tkl-1.koppla-in": {
+            loconet: components["schemas"]["trainmeet.tkl-1.koppla-in.TklLoconet"];
+            /** Level */
+            level: number;
+            level_3: components["schemas"]["trainmeet.tkl-1.koppla-in.TklLevel3"];
+            /** Cards */
+            cards?: components["schemas"]["trainmeet.tkl-1.koppla-in.TklCard"][];
+            /**
+             * Discovered
+             * @default null
+             */
+            discovered: string | null;
+            /** Objects */
+            objects?: components["schemas"]["trainmeet.tkl-1.koppla-in.TklKopplaObject"][];
+            /** @default null */
+            question: components["schemas"]["trainmeet.tkl-1.koppla-in.TklQuestion"] | null;
+            /** @default null */
+            learning: components["schemas"]["trainmeet.tkl-1.koppla-in.TklLearning"] | null;
+            /**
+             * Message
+             * @description Vad som just hände.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddressState
+         * @description An object's four states in Koppla in (STUDIO-17, TKL26).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.koppla-in.AddressState": "grey" | "yellow" | "green" | "without";
+        /**
+         * FeedbackType
+         * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.koppla-in.FeedbackType": "card" | "sensors" | "none" | "manual";
+        /**
+         * LoconetType
+         * @description How TKL reaches LocoNet (STUDIO-22).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.koppla-in.LoconetType": "locobuffer" | "btlocobridge" | "pretend";
+        /**
+         * ObjectKind
+         * @description What Koppla in connects: a switch part, a signal or a track circuit.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.koppla-in.ObjectKind": "switch" | "signal" | "track_circuit";
+        /**
+         * SwitchControl
+         * @description Who lays the switch. Only TKL's switches have a lever, and no route crosses another.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.koppla-in.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * TklCard
+         * @description An MGP card from Discover, with its module and channels (STUDIO-18, STV-11).
+         */
+        "trainmeet.tkl-1.koppla-in.TklCard": {
+            /**
+             * Address
+             * @description Kortets adress för SV2.
+             */
+            address: number;
+            /**
+             * Name
+             * @description Till exempel MGP Signal10 SE.
+             */
+            name: string;
+            /** Manufacturer */
+            manufacturer: number;
+            /** Developer */
+            developer: number;
+            /** Product */
+            product: number;
+            /** Serial */
+            serial: number;
+            /**
+             * Base
+             * @description Basadressen i SV21: kanal 1.
+             * @default null
+             */
+            base: number | null;
+            /**
+             * Module
+             * @description Modulen kortet sitter i.
+             * @default null
+             */
+            module: string | null;
+            /** Channels */
+            channels?: components["schemas"]["trainmeet.tkl-1.koppla-in.TklCardChannel"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklCardChannel */
+        "trainmeet.tkl-1.koppla-in.TklCardChannel": {
+            /**
+             * Channel
+             * @description Kortets utgång, från 1.
+             */
+            channel: number;
+            /** Address */
+            address: number;
+            /**
+             * Objects
+             * @description Objekten på utgången.
+             */
+            objects?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklChoice */
+        "trainmeet.tkl-1.koppla-in.TklChoice": {
+            /**
+             * Value
+             * @enum {string}
+             */
+            value: "yes" | "no" | "reversed";
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklKopplaObject
+         * @description A switch part, a signal or a track circuit, with its address and its state.
+         */
+        "trainmeet.tkl-1.koppla-in.TklKopplaObject": {
+            kind: components["schemas"]["trainmeet.tkl-1.koppla-in.ObjectKind"];
+            /** Name */
+            name: string;
+            state: components["schemas"]["trainmeet.tkl-1.koppla-in.AddressState"];
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Default
+             * @description Adressen är växelns nummer, som förval (STUDIO-19).
+             * @default false
+             */
+            default: boolean;
+            /**
+             * Reversed
+             * @description Omvänd polaritet (STUDIO-24).
+             * @default false
+             */
+            reversed: boolean;
+            /**
+             * @description Växelns återrapport.
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.tkl-1.koppla-in.FeedbackType"] | null;
+            /**
+             * Straight
+             * @description Givaren för rakt, med två givare.
+             * @default null
+             */
+            straight: number | null;
+            /**
+             * Diverging
+             * @description Givaren för avvikande.
+             * @default null
+             */
+            diverging: number | null;
+            /** @default null */
+            control: components["schemas"]["trainmeet.tkl-1.koppla-in.SwitchControl"] | null;
+            /**
+             * Card
+             * @description Kortet adressen sitter på.
+             * @default null
+             */
+            card: number | null;
+            /**
+             * Module
+             * @default null
+             */
+            module: string | null;
+            /**
+             * Channel
+             * @default null
+             */
+            channel: number | null;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklLearning
+         * @description The object being learnt, and what the owner does now.
+         */
+        "trainmeet.tkl-1.koppla-in.TklLearning": {
+            kind: components["schemas"]["trainmeet.tkl-1.koppla-in.ObjectKind"];
+            /** Name */
+            name: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklLevel3
+         * @description Nivå 3: on when the model has addresses and the owner turns it on.
+         */
+        "trainmeet.tkl-1.koppla-in.TklLevel3": {
+            /** On */
+            on: boolean;
+            /** Possible */
+            possible: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /** Problems */
+            problems?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklLoconet
+         * @description The connection to LocoNet. TKL in the cloud never has it (TKLMOLN-08).
+         */
+        "trainmeet.tkl-1.koppla-in.TklLoconet": {
+            /**
+             * Available
+             * @description LocoNet går att ansluta här: bara en lokal TKL.
+             */
+            available: boolean;
+            /**
+             * Reason
+             * @description Varför det inte går.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+            /** @default null */
+            type: components["schemas"]["trainmeet.tkl-1.koppla-in.LoconetType"] | null;
+            /**
+             * Port
+             * @default null
+             */
+            port: string | null;
+            /**
+             * Channel
+             * @description BTLocoBridgens RFCOMM-kanal.
+             * @default null
+             */
+            channel: number | null;
+            /**
+             * Label
+             * @description Till exempel LocoNet ansluten via …
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Error
+             * @description Varför förbindelsen bröts senast.
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Since
+             * @default null
+             */
+            since: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklQuestion
+         * @description A learning question as it comes (STUDIO-04): Givaren 73 slog till. Är det Spår 3?
+         */
+        "trainmeet.tkl-1.koppla-in.TklQuestion": {
+            /** Id */
+            id: number;
+            kind: components["schemas"]["trainmeet.tkl-1.koppla-in.ObjectKind"];
+            /**
+             * Object
+             * @description Objektet TKL föreslår.
+             * @default null
+             */
+            object: string | null;
+            /** Address */
+            address: number;
+            /** Text */
+            text: string;
+            /**
+             * Seen
+             * @description Vad banan rapporterade efter ordern.
+             * @default null
+             */
+            seen: string | null;
+            /** Answers */
+            answers: components["schemas"]["trainmeet.tkl-1.koppla-in.TklChoice"][];
+            /**
+             * Choices
+             * @description Andra objekt av samma slag att välja i stället.
+             */
+            choices?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPort
+         * @description A port in the list (STUDIO-11).
+         */
+        "trainmeet.tkl-1.port": {
+            type: components["schemas"]["trainmeet.tkl-1.port.LoconetType"];
+            /**
+             * Port
+             * @description Serieporten under /dev, eller låtsas för låtsas-LocoNet.
+             */
+            port: string;
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LoconetType
+         * @description How TKL reaches LocoNet (STUDIO-22).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.port.LoconetType": "locobuffer" | "btlocobridge" | "pretend";
+        /**
+         * TklLoconetConnect
+         * @description Anslut till LocoNet: the type, the port, and the channel for a BTLocoBridge by address.
+         */
+        "trainmeet.tkl-1.loconet-connect": {
+            type: components["schemas"]["trainmeet.tkl-1.loconet-connect.LoconetType"];
+            /**
+             * Port
+             * @default null
+             */
+            port: string | null;
+            /**
+             * Channel
+             * @default 1
+             */
+            channel: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LoconetType
+         * @description How TKL reaches LocoNet (STUDIO-22).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.loconet-connect.LoconetType": "locobuffer" | "btlocobridge" | "pretend";
+        /** TklCardModule */
+        "trainmeet.tkl-1.card-module": {
+            /** Card */
+            card: number;
+            /**
+             * Module
+             * @default null
+             */
+            module: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklObjectChange
+         * @description An object's address as the owner gives it: an address (yellow until it is confirmed on
+         *     the layout), none (grey), or Utan adress; and the polarity and the switch's feedback.
+         */
+        "trainmeet.tkl-1.object-change": {
+            kind: components["schemas"]["trainmeet.tkl-1.object-change.ObjectKind"];
+            /** Name */
+            name: string;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Without
+             * @default false
+             */
+            without: boolean;
+            /**
+             * Reversed
+             * @default null
+             */
+            reversed: boolean | null;
+            /** @default null */
+            feedback: components["schemas"]["trainmeet.tkl-1.object-change.FeedbackType"] | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: number | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FeedbackType
+         * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.object-change.FeedbackType": "card" | "sensors" | "none" | "manual";
+        /**
+         * ObjectKind
+         * @description What Koppla in connects: a switch part, a signal or a track circuit.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.object-change.ObjectKind": "switch" | "signal" | "track_circuit";
+        /**
+         * TklLearnAsk
+         * @description Lär in: Lägg om a switch, Skicka kör to a signal, or wait for a wagon on a track
+         *     circuit.
+         */
+        "trainmeet.tkl-1.learn-ask": {
+            kind: components["schemas"]["trainmeet.tkl-1.learn-ask.ObjectKind"];
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ObjectKind
+         * @description What Koppla in connects: a switch part, a signal or a track circuit.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.learn-ask.ObjectKind": "switch" | "signal" | "track_circuit";
+        /** TklLearnAnswer */
+        "trainmeet.tkl-1.learn-answer": {
+            /** Question */
+            question: number;
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "yes" | "no" | "reversed";
+            /**
+             * Object
+             * @description Ett annat objekt än det föreslagna.
+             * @default null
+             */
+            object: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklLevelAsk */
+        "trainmeet.tkl-1.level-ask": {
+            /** Level */
+            level: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklListen
+         * @description Lyssna, behind Felsök: the last messages, newest first.
+         */
+        "trainmeet.tkl-1.listen": {
+            /** Connected */
+            connected: boolean;
+            /** Messages */
+            messages?: components["schemas"]["trainmeet.tkl-1.listen.TklHeard"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklHeard
+         * @description One LocoNet message in Lyssna, decoded in Swedish.
+         */
+        "trainmeet.tkl-1.listen.TklHeard": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "in" | "out";
+            /** Hex */
+            hex: string;
+            /** Text */
+            text: string;
+            /** Objects */
+            objects?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPretendAsk
+         * @description Låtsas-LocoNet: a wagon put on a track circuit, or lifted off it.
+         */
+        "trainmeet.tkl-1.pretend-ask": {
+            /** Track Circuit */
+            track_circuit: string;
+            /**
+             * Occupied
+             * @default true
+             */
+            occupied: boolean;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -5914,6 +6886,274 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklKopplaIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklPorts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.port"][];
+                };
+            };
+        };
+    };
+    tklLoconetConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.loconet-connect"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklLoconetDisconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklDiscover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklCardModule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.card-module"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklObjectChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.object-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklLearn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.learn-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklLearnAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.learn-answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklLevel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.level-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklListen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.listen"];
+                };
+            };
+        };
+    };
+    tklPretend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.pretend-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
                 };
             };
         };

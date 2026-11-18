@@ -101,7 +101,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | TMBox över MQTT | `hub/tmbox_mqtt.py`, `tmbox/terminal/device/<id>/…` | En fysisk box mot Mosquitto på Pi:n (DRIFT-22), utan nyckel som i dag (BOX-10). Livstecknet besvaras direkt, och varje box har en egen kö (H73). |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
-| Nivå | `TklStation.level`, `StationModel.level` | Bara i TKL: hur mycket av ställverket en station har (0–3). Stationsmodellen finns från nivå 1; nivå 3 lägger till adresserna. Stationens nivå följer modellen när den importeras, högst 2 tills adresserna kopplas in. |
+| Nivå | `TklStation.level`, `StationModel.level` | Bara i TKL: hur mycket av ställverket en station har (0–3). Stationsmodellen finns från nivå 1; nivå 3 lägger till adresserna. Stationens nivå följer modellen när den importeras. Nivå 3 slås på i Koppla in när modellen har adresser och klarar kontrollerna för nivå 3 (#85). |
 | Underlagsnivå | `source.level` | Bara i importen: hur bra underlaget är (1–4). |
 | Underlag | `source` | En fil som lagts till träffen, till exempel Tellurians planeringsfil. Sparas som den kom. |
 | Utkast | `trainmeet.planning/1`, `Draft` | Det Planering arbetar med tills det publiceras som en version. |
@@ -194,6 +194,19 @@ Ställverkslogiken (#84): en tillståndsmaskin över stationsmodellen, i `tkl/st
 | Manöver | `TklManover`, `ManoverSymbols`, `/api/tkl/1/studio/manover` | Ägarens fria panel (STV-46, TKL86): stationens egen panel, ur spårplanen när den finns, annars motorns, med symboler och färger ur ett av standardskalen 59, 85 eller 95. Ägaren byter etiketter för spår, signaler och växlar utan att id:na ändras, och slår av eller på spårnamn, växelnummer, signalernas id, tågnummer och raden Panelens knappar. Stationens inställning, samma på alla skärmar; sparas med stationsmodellen, versioneras med den och följer med i stationspaketet. En etikett för något panelen saknar nekas. |
 | Foto | `apps/tkl/src/foto.ts`, `Foto.tsx` | Det roliga skalet: stationen ovanifrån i sin verkliga form (`TrackPiece.geometry`), med räls, syllar, ballast och landskap ritade som vektorer, och tågen som rullar när Kör flyttar dem (STV-06). Spårvidden läses ur spåravståndet i ritningen. Utan verklig form är Foto gråat med skälet (STV-18). |
 | Vändskivans brygga | `TklInterlocking.turntables`, `PanelTable` | Ritas i alla skal: gropen som en cirkel och bryggan som en linje i vinkeln mot spåret den står mot. Ett klick på ett spår vid vändskivan vrider bryggan dit genom vändskivans panelfunktion. |
+
+## TKL: nivå 3 med LocoNet
+
+Studio › Koppla in och ställverket på nivå 3 (#85), i `tkl/loconet/`. LocoNet finns bara i en lokal TKL, aldrig i TKL i molnet (TKLMOLN-08).
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| LocoNet | `TklLoconet`, `LoconetType`, `/api/tkl/1/studio/koppla-in/connect` | Bussen som banans kort sitter på, nivå 3 (STV-11). TKL ansluter genom en LocoBuffer USB på en serieport, 57600 baud med RTS/CTS, eller en BTLocoBridge över Bluetooth, med adressen eller den parade serieporten (STUDIO-22). LocoNet ej ansluten är låtsas-LocoNet, `LoconetType.pretend`: TKL:s egen simulator på meddelandenivå, som Prova använder (STUDIO-21, STUDIO-24). |
+| Givare | `Address` på `TrackCircuit.detection`, `SwitchFeedback.straight`, `SwitchFeedback.diverging` | En ingång på ett kort som slår till (aktiv) eller släpper (passiv), OPC_INPUT_REP. En spårledning har en givare, eller utan. En omvänd givare (`Address.reversed`) är belagd när den släpper. |
+| Återrapport | `SwitchFeedback`, `FeedbackType`, `TklSwitchShown.reported` | Hur växeln säger var den ligger (STUDIO-24): från kortet (växelrapporten på växelns egen adress), två givare, ingen (TKL räknar ordern som läget) eller manuell (växeln läggs för hand och är Utan adress). På nivå 3 visar signalen stopp tills vägens växlar har återrapporterat, högst sex sekunder. |
+| MGP-kort | `TklCard`, `TklCardChannel`, `/api/tkl/1/studio/koppla-in/discover` | Banans dekoder- och ingångskort. Discover över SV2 hittar dem med tillverkare, produkt och serienummer, och basadressen läses ur SV21. Varje kort visas med modulen ägaren säger att det sitter i och sina kanaler: kanal 1 är basadressen, kanal 2 nästa (STUDIO-18). |
+| Koppla in | `TklKopplaIn`, `/api/tkl/1/studio/koppla-in` | Studios andra steg (STUDIO-04): anslut till banan och lär genom att röra. Ställ en vagn och svara på frågan ("Givaren 73 slog till. Är det Spår 3?"), Lägg om en växel eller Skicka kör till en signal, och svara om den gjorde rätt. Varje objekt är grått (ingen adress), gult (adressen angiven, växelns nummer som förval), grönt (bekräftat på banan, `Address.origin.confirmed`) eller Utan adress (STUDIO-17). Med LocoNet ansluten körs bara grönt och Utan adress (STV-17). |
+| Lyssna | `TklListen`, `TklHeard`, `/api/tkl/1/studio/koppla-in/lyssna` | Bakom Felsök: de senaste LocoNet-meddelandena åt båda hållen, med byten som JMRI skriver dem, vad de säger på svenska och vad de betyder för stationens objekt. |
 
 ## TrainMeet Catalog
 

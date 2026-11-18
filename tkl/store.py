@@ -11,6 +11,9 @@ The station's Manöver settings (STV-46) belong with its model: the symbols, the
 and what is shown, the same on every screen. They are versioned with the model, so a version of
 the outside holds them as they were; the defaults are not stored.
 
+At level 3 a local TKL keeps how it last reached LocoNet and the MGP cards Discover found, with
+the module the owner said each sits in (#85). The addresses themselves belong to the model.
+
 At level 1–2 the station also has its interlocking's state of the moment (#84): the set routes,
 the locks, the switch positions and the train numbers, so that a restart keeps them. It belongs
 to one model: while routes are set or train numbers stand on the panel, the model cannot be
@@ -111,6 +114,9 @@ CREATE TABLE IF NOT EXISTS manover_version (
 CREATE TABLE IF NOT EXISTS interlocking (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
     revision INTEGER NOT NULL, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS loconet (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS seen (
     slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
@@ -395,8 +401,8 @@ class TklStore:
 
     def save_model(self, slot: str, model: StationModel) -> StationModel:
         """The station's model, with the station's own id and name, and the outside derived
-        from it as the draft (STD-08). The station's level follows the model: 1 or 2; level 3
-        needs the addresses on the bus, which come later. The model must give an outside
+        from it as the draft (STD-08). The station's level follows the model: 1, 2, or 3 once
+        the owner has turned it on in Koppla in (#85). The model must give an outside
         (tkl.standard.checks), else OutsideError."""
         with self._transaction() as db:
             row = db.execute(
@@ -410,7 +416,7 @@ class TklStore:
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
             db.execute(
                 "UPDATE station SET level=?, draft=? WHERE slot=?",
-                (min(kept.level, 2), draft.model_dump_json(), slot),
+                (kept.level, draft.model_dump_json(), slot),
             )
         return kept
 
@@ -521,6 +527,24 @@ class TklStore:
                     (slot, kept.revision, kept.model_dump_json()),
                 )
         return answer
+
+    # --- LocoNet (#85): how TKL reached it, and the cards ------------------------------------
+
+    def loconet(self, slot: str) -> dict[str, object]:
+        """The LocoNet settings as last kept: empty when none."""
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM loconet WHERE slot=?", (slot,)).fetchone()
+        if row is None:
+            return {}
+        found = json.loads(row[0])
+        return found if isinstance(found, dict) else {}
+
+    def save_loconet(self, slot: str, settings: dict[str, object]) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO loconet VALUES (?, ?)",
+                (slot, json.dumps(settings, ensure_ascii=False, sort_keys=True)),
+            )
 
     def save_draft(self, slot: str, outside: StationOutside) -> TklStudio:
         """The list as it stands, saved on the computer. Its id and name are the station's.

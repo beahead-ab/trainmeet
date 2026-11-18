@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.loconet-connect.schema.json",
+  "title": "trainmeet.tkl-1.loconet-connect",
+  "$defs": {
+    "LoconetType": {
+      "description": "How TKL reaches LocoNet (STUDIO-22).",
+      "enum": [
+        "locobuffer",
+        "btlocobridge",
+        "pretend"
+      ],
+      "title": "LoconetType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Anslut till LocoNet: the type, the port, and the channel for a BTLocoBridge by address.",
+  "properties": {
+    "type": {
+      "$ref": "#/$defs/LoconetType"
+    },
+    "port": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Port"
+    },
+    "channel": {
+      "default": 1,
+      "maximum": 30,
+      "minimum": 1,
+      "title": "Channel",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "type": "object"
+}

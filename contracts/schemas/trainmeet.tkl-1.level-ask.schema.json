@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.level-ask.schema.json",
+  "title": "trainmeet.tkl-1.level-ask",
+  "additionalProperties": true,
+  "properties": {
+    "level": {
+      "maximum": 3,
+      "minimum": 2,
+      "title": "Level",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "level"
+  ],
+  "type": "object"
+}

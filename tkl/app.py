@@ -45,6 +45,27 @@ no with the reason, and the state:
 What the interlocking reports goes up to the hub as station commands when TKL is connected and
 approved for one place (tkl/hub_reports.py, STV-10).
 
+Studio's Koppla in at level 3 (#85), LocoNet only in a local TKL (tkl/loconet/service.py); TKL in
+the cloud shows the objects and their addresses but never opens a port (TKLMOLN-08):
+
+    GET  /api/tkl/1/studio/koppla-in              TklKopplaIn: the connection, the cards, the
+                                                  objects in their four states, the question
+    GET  /api/tkl/1/studio/koppla-in/ports        [TklPort]: the port list (STUDIO-11)
+    POST /api/tkl/1/studio/koppla-in/connect      TklLoconetConnect: LocoBuffer USB,
+                                                  BTLocoBridge or the pretend LocoNet
+    POST /api/tkl/1/studio/koppla-in/disconnect
+    POST /api/tkl/1/studio/koppla-in/discover     the MGP cards, with module and channel
+    PUT  /api/tkl/1/studio/koppla-in/card         TklCardModule: the module a card sits in
+    PUT  /api/tkl/1/studio/koppla-in/object       TklObjectChange: address, polarity, feedback
+                                                  or Utan adress
+    POST /api/tkl/1/studio/koppla-in/learn        TklLearnAsk: Lägg om, Skicka kör, a wagon
+    POST /api/tkl/1/studio/koppla-in/answer       TklLearnAnswer: the owner's answer
+    POST /api/tkl/1/studio/koppla-in/level        TklLevelAsk: level 3 on or off
+    GET  /api/tkl/1/studio/koppla-in/lyssna       TklListen: Lyssna, behind Felsök
+    POST /api/tkl/1/studio/koppla-in/latsas       TklPretendAsk: a wagon on the pretend LocoNet
+
+At level 3 with LocoNet the interlocking's orders go out on the bus after every operation.
+
 While the station has a model, Studio's list is its outside derived from the model (STD-08,
 TKL92): it is shown but not written, and a new version is made as before (TKL25).
 
@@ -62,6 +83,7 @@ import re
 import secrets
 import time
 from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from secrets import token_urlsafe
@@ -81,6 +103,7 @@ from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
     TklAnswer,
+    TklCardModule,
     TklCommand,
     TklConnect,
     TklConnection,
@@ -88,10 +111,17 @@ from contracts.tkl import (
     TklFunctionAsk,
     TklIdState,
     TklInterlocking,
+    TklLearnAnswer,
+    TklLearnAsk,
+    TklLevelAsk,
     TklLeverAsk,
+    TklListen,
+    TklLoconetConnect,
     TklManover,
     TklMode,
+    TklObjectChange,
     TklPinChange,
+    TklPretendAsk,
     TklReport,
     TklReportKind,
     TklReset,
@@ -110,7 +140,9 @@ from contracts.tkl import (
 from tkl import VERSION, hub_reports, id_login, manover, track_plan
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
+from tkl.loconet import service as loconet
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
+from tkl.stallverk.interlocking import Order
 from tkl.standard import RouteKind, problems
 from tkl.store import (
     LOCAL,
@@ -167,14 +199,26 @@ def create_app(
     stream: Callable[[], httpx.AsyncClient] = lambda: httpx.AsyncClient(timeout=None),
     discover: Callable[[], list[str]] = browse,
     id_settings: TklIdSettings | None = None,
+    loconet_settings: loconet.Settings | None = None,
 ) -> FastAPI:
     """mode: one station on the station's computer, or one per browser in the cloud.
     over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones.
-    id_settings: the login with TrainMeet ID and the cloud hub for the station packages (#78)."""
+    id_settings: the login with TrainMeet ID and the cloud hub for the station packages (#78).
+    loconet_settings: how a local TKL reaches LocoNet (#85); the cloud never does."""
     store = TklStore(data_dir / "tkl.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
     cloud = mode == TklMode.CLOUD
-    app = FastAPI(title="TrainMeet TKL", version=VERSION, docs_url=None, redoc_url=None)
+    services: list[loconet.Service] = []
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        for running in services:
+            running.close()
+
+    app = FastAPI(
+        title="TrainMeet TKL", version=VERSION, docs_url=None, redoc_url=None, lifespan=lifespan
+    )
     app.state.store = store
     routes = APIRouter(prefix="/api/tkl/1")
     client = http()
@@ -924,20 +968,21 @@ def create_app(
 
         def change(
             model: StationModel | None, revision: int, body: str | None
-        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking]]:
+        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking, list[Order]]]:
             if model is None:
                 raise HTTPException(404, NO_MODEL)
             made = load(plant_of(model), revision, body)
             outcome = act(made)
+            orders = made.take_orders()
             state = made.view()
-            return (state if made.revision != revision else None), (outcome, state)
+            return (state if made.revision != revision else None), (outcome, state, orders)
 
-        outcome, state = store.change_interlocking(found, change)
+        outcome, state, orders = store.change_interlocking(found, change)
+        if orders and services:
+            services[0].send(orders)
         if outcome.accepted and outcome.reports:
-            reports = report(found, list(outcome.reports))
-            noted = [hub_reports.said(r) for r in reports if r.kind != TklReportKind.EXIT_SIGNAL]
-            if noted:
-                state = note(found, noted) or state
+            reports = up(found, list(outcome.reports))
+            state = interlocking_of(found).view() if reports else state
         else:
             reports = list(outcome.reports)
         if outcome.accepted and "Nödutlösning" in outcome.message:
@@ -961,6 +1006,16 @@ def create_app(
             return state, state
 
         return store.change_interlocking(found, change)
+
+    def up(found: str, given: list[TklReport]) -> list[TklReport]:
+        """The reports up to the hub, and how they went in the interlocking's events. The
+        exit signal's aspect and the line's occupancy are too many to note each one."""
+        reports = report(found, given)
+        quiet = (TklReportKind.EXIT_SIGNAL, TklReportKind.SECTION_OCCUPANCY)
+        noted = [hub_reports.said(r) for r in reports if r.kind not in quiet]
+        if noted:
+            note(found, noted)
+        return reports
 
     def one_place(found: str) -> tuple[Connection, str] | str:
         made = store.connection(found)
@@ -1222,6 +1277,207 @@ def create_app(
             found,
             lambda made: made.function(ask.function, ask.action, ask.value, confirm=ask.confirm),
         )
+
+    # --- Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL -----------------
+
+    def deliver(reports: list[TklReport]) -> None:
+        """What the interlocking reports when the layout moves: up to the hub, as for the
+        panel's operations."""
+        up(LOCAL, reports)
+
+    service = None if cloud else loconet.Service(store, LOCAL, loconet_settings, on_reports=deliver)
+    if service is not None:
+        services.append(service)
+    app.state.loconet = service
+
+    def koppla(found: str) -> Any:
+        if service is None:
+            model = store.station_model(found)
+            return loconet.shown(model, loconet.unavailable(), [], {}).model_dump(mode="json")
+        return service.view().model_dump(mode="json")
+
+    def local() -> loconet.Service:
+        if service is None:
+            raise HTTPException(409, loconet.CLOUD)
+        return service
+
+    def said_no(error: loconet.Refused) -> HTTPException:
+        if error.problems:
+            return HTTPException(error.status, {"message": str(error), "problems": error.problems})
+        return HTTPException(error.status, str(error))
+
+    def doing(request: Request, response: Response, slot: str | None, session: str | None) -> str:
+        same_site(request)
+        no_store(response)
+        return unlocked(slot, session)
+
+    @routes.get("/studio/koppla-in")
+    def koppla_in(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Koppla in: the connection, the cards, the objects in their four states (STUDIO-17)
+        and the learning question as it comes (STUDIO-04)."""
+        no_store(response)
+        return koppla(unlocked(slot, session))
+
+    @routes.get("/studio/koppla-in/ports")
+    def koppla_in_ports(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """The port list (STUDIO-11): LocoBuffer USB and BTLocoBridge, and the pretend LocoNet.
+        Nothing in the cloud."""
+        no_store(response)
+        unlocked(slot, session)
+        if service is None:
+            return []
+        return [p.model_dump(mode="json") for p in service.ports()]
+
+    @routes.post("/studio/koppla-in/connect")
+    def koppla_in_connect(
+        ask: TklLoconetConnect,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        try:
+            local().connect(ask.type, ask.port, ask.channel)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.post("/studio/koppla-in/disconnect")
+    def koppla_in_disconnect(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        local().disconnect()
+        return koppla(found)
+
+    @routes.post("/studio/koppla-in/discover")
+    def koppla_in_discover(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Discover: the MGP cards answer, and their base addresses are read (STUDIO-18)."""
+        found = doing(request, response, slot, session)
+        try:
+            local().discover()
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.put("/studio/koppla-in/card")
+    def koppla_in_card(
+        ask: TklCardModule,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        try:
+            local().set_module(ask.card, ask.module)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.put("/studio/koppla-in/object")
+    def koppla_in_object(
+        ask: TklObjectChange,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """An object's address as the owner gives it, its polarity and feedback, or Utan
+        adress. Saved in the station model; it may not stop the model from running."""
+        found = doing(request, response, slot, session)
+        try:
+            if service is not None:
+                service.change(ask)
+            else:
+                model = store.station_model(found)
+                if model is None:
+                    raise HTTPException(404, loconet.NO_MODEL)
+                keep_model(found, loconet.object_changed(model, ask))
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.post("/studio/koppla-in/learn")
+    def koppla_in_learn(
+        ask: TklLearnAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Lär in (STUDIO-04): Lägg om a switch, Skicka kör to a signal, or wait for a wagon."""
+        found = doing(request, response, slot, session)
+        try:
+            local().learn(ask.kind, ask.name)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.post("/studio/koppla-in/answer")
+    def koppla_in_answer(
+        ask: TklLearnAnswer,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        try:
+            local().answer(ask)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.post("/studio/koppla-in/level")
+    def koppla_in_level(
+        ask: TklLevelAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Level 3 on, when the model has addresses and passes the checks, or off."""
+        found = doing(request, response, slot, session)
+        try:
+            local().set_level(ask.level)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
+
+    @routes.get("/studio/koppla-in/lyssna")
+    def koppla_in_listen(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Lyssna, behind Felsök: the last LocoNet messages in Swedish (STUDIO-24)."""
+        no_store(response)
+        unlocked(slot, session)
+        if service is None:
+            return TklListen(connected=False).model_dump(mode="json")
+        return service.listen().model_dump(mode="json")
+
+    @routes.post("/studio/koppla-in/latsas")
+    def koppla_in_pretend(
+        ask: TklPretendAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The pretend LocoNet: a wagon put on a track circuit, or lifted off it."""
+        found = doing(request, response, slot, session)
+        try:
+            local().pretend_wagon(ask.track_circuit, ask.occupied)
+        except loconet.Refused as error:
+            raise said_no(error) from error
+        return koppla(found)
 
     app.include_router(routes)
 

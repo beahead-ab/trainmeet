@@ -1,0 +1,115 @@
+/* Studio › Koppla in (#85): the four states (STUDIO-17) in Kontrollrummets colours, the learning
+   question that comes, the cards' channels and Lyssna. */
+.koppla-in .tabell {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.koppla-in .tabell th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--tm-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px;
+}
+.koppla-in .tabell td {
+  padding: 4px;
+  border-top: 1px solid var(--tm-line);
+  vertical-align: top;
+}
+.koppla-in h3 {
+  margin: 12px 0 4px;
+  font-size: 15px;
+}
+.koppla-in .lagen {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.koppla-in .lage {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--tm-line);
+}
+.koppla-in .lage.gra {
+  background: #8a8f98;
+  border-color: #8a8f98;
+  color: #fff;
+}
+.koppla-in .lage.gul {
+  background: #f0b429;
+  border-color: #f0b429;
+  color: #241a00;
+}
+.koppla-in .lage.gron {
+  background: #1f7a3a;
+  border-color: #1f7a3a;
+  color: #fff;
+}
+.koppla-in .lage.utan {
+  background: var(--tm-panel-2);
+  border-style: dashed;
+}
+.koppla-in .fraga {
+  border: 2px solid var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.koppla-in .fraga h2 {
+  font-size: 20px;
+}
+.koppla-in .annan {
+  margin-top: 8px;
+}
+.koppla-in .annan select {
+  width: auto;
+}
+.koppla-in .anslut {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .koppla-in .anslut {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.koppla-in .typer {
+  border: 1px solid var(--tm-line);
+  border-radius: 8px;
+}
+.koppla-in .kanaler {
+  font-size: 13px;
+}
+.koppla-in .kanal {
+  display: inline-block;
+  margin: 0 10px 2px 0;
+}
+.koppla-in .atgarder {
+  white-space: nowrap;
+  text-align: right;
+}
+.koppla-in .atgarder button {
+  margin-left: 6px;
+}
+.koppla-in .redigering label {
+  margin: 0;
+}
+.koppla-in .redigering input,
+.koppla-in .redigering select {
+  width: auto;
+}
+.koppla-in .felsok summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.koppla-in .lyssna td {
+  font-size: 13px;
+}
+.koppla-in .lar button {
+  margin-left: 8px;
+}

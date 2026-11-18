@@ -57,6 +57,7 @@ class Source(StrEnum):
     ANYRAIL = "anyrail"  # ur AnyRail, genom CAD
     JMRI = "jmri"  # ur JMRI-filen
     ASSUMED = "assumed"  # antagen; syns gul i Studio tills den är bekräftad
+    LAYOUT = "layout"  # inlärd på banan i Koppla in: givaren slog till, växeln lades om
 
 
 class Origin(Contract):
@@ -74,15 +75,47 @@ class Origin(Contract):
 
 
 class Address(Contract):
-    """A decoder or detector address on a bus (level 3)."""
+    """A decoder or detector address on a bus (level 3).
+
+    Its own origin says where the address comes from and whether it is confirmed on the layout:
+    in Koppla in a confirmed address is green, an address that is only given is yellow
+    (STUDIO-17). The object's origin is about the object itself, as drawn or imported.
+    """
 
     bus: Name = Field(default="LocoNet", description="Bussen adressen gäller på.")
     number: int = Field(ge=0, le=65535)
+    reversed: bool = Field(
+        default=False,
+        description="Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens "
+        "kör är kortets thrown, och givaren är belagd när den släpper.",
+    )
+    origin: Origin | None = Field(
+        default=None,
+        description="Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in.",
+    )
 
 
 WITHOUT: Final = "without"
 Detection = Address | Literal["without"]
 """An address, or "without": the owner has said that there is none (TKL26)."""
+
+
+class FeedbackType(StrEnum):
+    """Växelns återrapport (STUDIO-24, ur cda-tkl)."""
+
+    CARD = "card"  # från kortet: växelrapporten på växelns egen adress, som MGP-korten sänder
+    SENSORS = "sensors"  # två givare i växelmotorn: en för rakt och en för avvikande
+    NONE = "none"  # ingen: TKL räknar ordern som läget
+    MANUAL = "manual"  # manuell: växeln läggs för hand och har ingen adress (Utan adress)
+
+
+class SwitchFeedback(Contract):
+    """How a switch tells where it lies, at level 3. With two sensors, each sensor is active
+    when the switch lies in its position, and both passive while it moves."""
+
+    type: FeedbackType
+    straight: Address | None = Field(default=None, description="Givaren för rakt (+).")
+    diverging: Address | None = Field(default=None, description="Givaren för avvikande (-).")
 
 
 # --- The graph --------------------------------------------------------------------------
@@ -155,7 +188,7 @@ class SlipPart(Contract):
 
     number: Name
     address: Address | None = None
-    feedback: Detection | None = None
+    feedback: SwitchFeedback | None = None
 
 
 class Switch(Contract):
@@ -177,8 +210,11 @@ class Switch(Contract):
     control: SwitchControl = SwitchControl.TKL
     note: Text | None = Field(default=None, description="Varför TKL inte lägger den.")
     design: Text | None = Field(default=None, description="Hand och radie som källan säger.")
-    address: Address | None = None
-    feedback: Detection | None = Field(default=None, description="Återrapport (nivå 3).")
+    address: Address | None = Field(
+        default=None,
+        description="Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19).",
+    )
+    feedback: SwitchFeedback | None = Field(default=None, description="Återrapport (nivå 3).")
     origin: Origin | None = None
 
 
@@ -214,7 +250,10 @@ class Signal(Contract):
         description="Spårbiten tåget kommer på mot signalen. Signalen gäller i den riktningen."
     )
     planned: bool = Field(default=False, description="Planerad, finns inte än.")
-    address: Address | None = Field(default=None, description="Nivå 3.")
+    address: Detection | None = Field(
+        default=None,
+        description="Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).",
+    )
     origin: Origin | None = None
 
 
@@ -421,7 +460,8 @@ class PanelPlan(Contract):
 
 
 class StationModel(Contract):
-    """Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses."""
+    """Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and
+    confirmed in Studio's Koppla in."""
 
     format: Literal["trainmeet.station-model/1"] = FORMAT
     station_id: Id

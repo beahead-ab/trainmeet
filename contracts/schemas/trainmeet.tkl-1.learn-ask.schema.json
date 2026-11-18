@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.learn-ask.schema.json",
+  "title": "trainmeet.tkl-1.learn-ask",
+  "$defs": {
+    "ObjectKind": {
+      "description": "What Koppla in connects: a switch part, a signal or a track circuit.",
+      "enum": [
+        "switch",
+        "signal",
+        "track_circuit"
+      ],
+      "title": "ObjectKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lär in: Lägg om a switch, Skicka kör to a signal, or wait for a wagon on a track\ncircuit.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "name"
+  ],
+  "type": "object"
+}

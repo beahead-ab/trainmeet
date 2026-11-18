@@ -1,0 +1,703 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.koppla-in.schema.json",
+  "title": "trainmeet.tkl-1.koppla-in",
+  "$defs": {
+    "AddressState": {
+      "description": "An object's four states in Koppla in (STUDIO-17, TKL26).",
+      "enum": [
+        "grey",
+        "yellow",
+        "green",
+        "without"
+      ],
+      "title": "AddressState",
+      "type": "string"
+    },
+    "FeedbackType": {
+      "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
+      "enum": [
+        "card",
+        "sensors",
+        "none",
+        "manual"
+      ],
+      "title": "FeedbackType",
+      "type": "string"
+    },
+    "LoconetType": {
+      "description": "How TKL reaches LocoNet (STUDIO-22).",
+      "enum": [
+        "locobuffer",
+        "btlocobridge",
+        "pretend"
+      ],
+      "title": "LoconetType",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "description": "What Koppla in connects: a switch part, a signal or a track circuit.",
+      "enum": [
+        "switch",
+        "signal",
+        "track_circuit"
+      ],
+      "title": "ObjectKind",
+      "type": "string"
+    },
+    "SwitchControl": {
+      "description": "Who lays the switch. Only TKL's switches have a lever, and no route crosses another.",
+      "enum": [
+        "tkl",
+        "manual",
+        "planned",
+        "not_laid"
+      ],
+      "title": "SwitchControl",
+      "type": "string"
+    },
+    "TklCard": {
+      "additionalProperties": true,
+      "description": "An MGP card from Discover, with its module and channels (STUDIO-18, STV-11).",
+      "properties": {
+        "address": {
+          "description": "Kortets adress för SV2.",
+          "minimum": 0,
+          "title": "Address",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Till exempel MGP Signal10 SE.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "manufacturer": {
+          "title": "Manufacturer",
+          "type": "integer"
+        },
+        "developer": {
+          "title": "Developer",
+          "type": "integer"
+        },
+        "product": {
+          "title": "Product",
+          "type": "integer"
+        },
+        "serial": {
+          "title": "Serial",
+          "type": "integer"
+        },
+        "base": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Basadressen i SV21: kanal 1.",
+          "title": "Base"
+        },
+        "module": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Modulen kortet sitter i.",
+          "title": "Module"
+        },
+        "channels": {
+          "items": {
+            "$ref": "#/$defs/TklCardChannel"
+          },
+          "title": "Channels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "address",
+        "name",
+        "manufacturer",
+        "developer",
+        "product",
+        "serial"
+      ],
+      "title": "TklCard",
+      "type": "object"
+    },
+    "TklCardChannel": {
+      "additionalProperties": true,
+      "properties": {
+        "channel": {
+          "description": "Kortets utgång, från 1.",
+          "minimum": 1,
+          "title": "Channel",
+          "type": "integer"
+        },
+        "address": {
+          "minimum": 1,
+          "title": "Address",
+          "type": "integer"
+        },
+        "objects": {
+          "description": "Objekten på utgången.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Objects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "channel",
+        "address"
+      ],
+      "title": "TklCardChannel",
+      "type": "object"
+    },
+    "TklChoice": {
+      "additionalProperties": true,
+      "properties": {
+        "value": {
+          "enum": [
+            "yes",
+            "no",
+            "reversed"
+          ],
+          "title": "Value",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "TklChoice",
+      "type": "object"
+    },
+    "TklKopplaObject": {
+      "additionalProperties": true,
+      "description": "A switch part, a signal or a track circuit, with its address and its state.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AddressState"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Adressen är växelns nummer, som förval (STUDIO-19).",
+          "title": "Default"
+        },
+        "reversed": {
+          "default": false,
+          "description": "Omvänd polaritet (STUDIO-24).",
+          "title": "Reversed",
+          "type": "boolean"
+        },
+        "feedback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedbackType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växelns återrapport."
+        },
+        "straight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Givaren för rakt, med två givare.",
+          "title": "Straight"
+        },
+        "diverging": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Givaren för avvikande.",
+          "title": "Diverging"
+        },
+        "control": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SwitchControl"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "card": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Kortet adressen sitter på.",
+          "title": "Card"
+        },
+        "module": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Module"
+        },
+        "channel": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "state"
+      ],
+      "title": "TklKopplaObject",
+      "type": "object"
+    },
+    "TklLearning": {
+      "additionalProperties": true,
+      "description": "The object being learnt, and what the owner does now.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "text"
+      ],
+      "title": "TklLearning",
+      "type": "object"
+    },
+    "TklLevel3": {
+      "additionalProperties": true,
+      "description": "Nivå 3: on when the model has addresses and the owner turns it on.",
+      "properties": {
+        "on": {
+          "title": "On",
+          "type": "boolean"
+        },
+        "possible": {
+          "title": "Possible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "problems": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "on",
+        "possible"
+      ],
+      "title": "TklLevel3",
+      "type": "object"
+    },
+    "TklLoconet": {
+      "additionalProperties": true,
+      "description": "The connection to LocoNet. TKL in the cloud never has it (TKLMOLN-08).",
+      "properties": {
+        "available": {
+          "description": "LocoNet går att ansluta här: bara en lokal TKL.",
+          "title": "Available",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Varför det inte går.",
+          "title": "Reason"
+        },
+        "connected": {
+          "default": false,
+          "title": "Connected",
+          "type": "boolean"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoconetType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "port": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port"
+        },
+        "channel": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "BTLocoBridgens RFCOMM-kanal.",
+          "title": "Channel"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel LocoNet ansluten via …",
+          "title": "Label"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Varför förbindelsen bröts senast.",
+          "title": "Error"
+        },
+        "since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Since"
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "title": "TklLoconet",
+      "type": "object"
+    },
+    "TklQuestion": {
+      "additionalProperties": true,
+      "description": "A learning question as it comes (STUDIO-04): Givaren 73 slog till. Är det Spår 3?",
+      "properties": {
+        "id": {
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Objektet TKL föreslår.",
+          "title": "Object"
+        },
+        "address": {
+          "title": "Address",
+          "type": "integer"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "seen": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad banan rapporterade efter ordern.",
+          "title": "Seen"
+        },
+        "answers": {
+          "items": {
+            "$ref": "#/$defs/TklChoice"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "choices": {
+          "description": "Andra objekt av samma slag att välja i stället.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "address",
+        "text",
+        "answers"
+      ],
+      "title": "TklQuestion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Studio's Koppla in: the connection, the cards, the objects in their four states, and the\nlearning question as it comes.",
+  "properties": {
+    "loconet": {
+      "$ref": "#/$defs/TklLoconet"
+    },
+    "level": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Level",
+      "type": "integer"
+    },
+    "level_3": {
+      "$ref": "#/$defs/TklLevel3"
+    },
+    "cards": {
+      "items": {
+        "$ref": "#/$defs/TklCard"
+      },
+      "title": "Cards",
+      "type": "array"
+    },
+    "discovered": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Discovered"
+    },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/TklKopplaObject"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
+    "question": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklQuestion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "learning": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklLearning"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vad som just hände.",
+      "title": "Message"
+    }
+  },
+  "required": [
+    "loconet",
+    "level",
+    "level_3"
+  ],
+  "type": "object"
+}
