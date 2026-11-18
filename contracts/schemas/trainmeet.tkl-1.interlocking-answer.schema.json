@@ -274,6 +274,20 @@
           "title": "Exits",
           "type": "array"
         },
+        "tracks": {
+          "additionalProperties": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Sektionerna på stationsspåren, med spårets namn: där ett tåg kan sättas ut.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Tracks",
+          "type": "object"
+        },
         "events": {
           "description": "Senaste först.",
           "items": {

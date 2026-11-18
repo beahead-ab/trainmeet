@@ -1366,6 +1366,54 @@
       "title": "LineAcknowledged",
       "type": "object"
     },
+    "ExitSignalAspect": {
+      "enum": [
+        "stop",
+        "proceed",
+        "unknown"
+      ],
+      "title": "ExitSignalAspect",
+      "type": "string"
+    },
+    "ExitSignalSet": {
+      "additionalProperties": true,
+      "description": "Utfartssignalens besked från TKL (signal.exit, DRIFT-10, STV-10), from a station at any\nlevel: the event names the place, and Drift keeps the latest per place and exit, for\nLokföraren's körplan and the neighbour (LOK-08). Only section.occupancy waits for level 3.",
+      "properties": {
+        "exit": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "aspect": {
+          "$ref": "#/$defs/ExitSignalAspect"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        }
+      },
+      "required": [
+        "exit",
+        "section",
+        "aspect"
+      ],
+      "title": "ExitSignalSet",
+      "type": "object"
+    },
     "PlaceManned": {
       "additionalProperties": true,
       "description": "The first box or TKL that works a place mans it (F14).",
@@ -2749,6 +2797,21 @@
     {
       "properties": {
         "kind": {
+          "const": "signal.exit",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ExitSignalSet"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "place.manned",
           "type": "string"
         },
@@ -2992,6 +3055,7 @@
               "clearance.invalidated",
               "line.available",
               "line.acknowledged",
+              "signal.exit",
               "place.manned",
               "place.left",
               "place.taken_back",

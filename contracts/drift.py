@@ -60,6 +60,7 @@ from contracts.station import (
     Clock,
     DriverMessageKind,
     ExitQuestion,
+    ExitSignalAspect,
     MeetContext,
 )
 from contracts.terminal import DisplaySize
@@ -679,6 +680,17 @@ class LineAcknowledged(Contract):
     message_id: Id
 
 
+class ExitSignalSet(Contract):
+    """Utfartssignalens besked från TKL (signal.exit, DRIFT-10, STV-10), from a station at any
+    level: the event names the place, and Drift keeps the latest per place and exit, for
+    Lokföraren's körplan and the neighbour (LOK-08). Only section.occupancy waits for level 3."""
+
+    exit: Id
+    section: Id
+    aspect: ExitSignalAspect
+    call: Id | None = None
+
+
 # --- Lokföraren (LOK-01–LOK-41): what Drift owns of the drivers -------------------------------
 
 
@@ -999,6 +1011,7 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.CLEARANCE_INVALIDATED: ClearanceRef,
     EventKind.LINE_AVAILABLE: LineAvailableSent,
     EventKind.LINE_ACKNOWLEDGED: LineAcknowledged,
+    EventKind.EXIT_SIGNAL: ExitSignalSet,
     EventKind.PLACE_MANNED: PlaceManned,
     EventKind.PLACE_LEFT: PlaceLeft,
     EventKind.PLACE_TAKEN_BACK: PlaceTakenBack,
@@ -1026,6 +1039,7 @@ _ON_A_PLACE: Final = frozenset(
         EventKind.PLACE_TAKEN_BACK,
         EventKind.PLACE_PHONE,
         EventKind.DRIVER_CHECKED_IN,
+        EventKind.EXIT_SIGNAL,
     }
 )
 

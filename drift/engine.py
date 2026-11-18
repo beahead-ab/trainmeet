@@ -242,6 +242,9 @@ class Drift:
         self.day_settings = events.DaySettings()
         # The places' game numbers changed during the meet (H30); the rest are the package's.
         self.phones: dict[str, str | None] = {}
+        # The exit signals' latest aspects from TKL (signal.exit, DRIFT-10), by place and exit:
+        # a station fact like the phone numbers, read back from the events after a restart.
+        self.exit_signals: dict[tuple[str, str], events.ExitSignalSet] = {}
         self.changes: dict[str, ChangeState] = {}
         self.applied: list[str] = []
         # Places a driftändring made unmanned: the automation runs them (F2).
@@ -847,6 +850,10 @@ class Drift:
                     sent.message_id, sent.section, event.place, sent.to_place, event.call
                 )
                 self._touch_places(event.place, sent.to_place)
+            case events.EventKind.EXIT_SIGNAL:
+                assert event.place is not None
+                shown = events.ExitSignalSet.model_validate(event.data)
+                self.exit_signals[(event.place, shown.exit)] = shown
             case events.EventKind.LINE_ACKNOWLEDGED:
                 line = self.lines[events.LineAcknowledged.model_validate(event.data).message_id]
                 line.acknowledged = True
@@ -1829,6 +1836,36 @@ class Drift:
         )
         return message_id
 
+    def _exit_signal(self, command: station.Command, now: datetime) -> None:
+        """Utfartssignalens besked (signal.exit, DRIFT-10): accepted from a station at any
+        level, since only section.occupancy is detection (STV-10). The section must start at
+        the place; the same aspect again changes nothing."""
+        shown = station.ExitSignal.model_validate(command.payload)
+        section = next((s for s in self.package.sections if s.id == shown.section), None)
+        if section is None:
+            raise Refused(Reason.UNKNOWN_SECTION)
+        if command.place not in {section.place_a, section.place_b}:
+            raise Refused(Reason.WRONG_PLACE)
+        if shown.call is not None and shown.call not in self.calls:
+            raise Refused(Reason.UNKNOWN_CALL)
+        data = events.ExitSignalSet(
+            exit=shown.exit, section=shown.section, aspect=shown.aspect, call=shown.call
+        )
+        if self.exit_signals.get((command.place, shown.exit)) == data:
+            return
+        self._record(
+            events.EventKind.EXIT_SIGNAL,
+            data.model_dump(mode="json"),
+            now,
+            command=command,
+            call=shown.call,
+        )
+
+    def exit_signal(self, place: str, exit_id: str) -> events.ExitSignalSet | None:
+        """The latest aspect TKL gave for the exit at the place, for Lokföraren's körplan and
+        the neighbour (LOK-08); None before the first."""
+        return self.exit_signals.get((place, exit_id))
+
     def _line_acknowledge(self, command: station.Command, now: datetime) -> str:
         message_id = station.LineAcknowledge.model_validate(command.payload).message_id
         line = self.lines.get(message_id)
@@ -1938,7 +1975,10 @@ class Drift:
                 if command.place in self.left:
                     self.take_back(command.place, command.client_id, "operator", now)
                 return Outcome(revision=self._place_revision(command.place))
-            case station.Action.SECTION_OCCUPANCY | station.Action.SIGNAL_EXIT:
+            case station.Action.SIGNAL_EXIT:
+                self._exit_signal(command, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.SECTION_OCCUPANCY:
                 raise Refused(Reason.NOT_LEVEL_3)  # Detection comes with TKL level 3.
             case _:
                 raise Refused(Reason.UNKNOWN_ACTION)

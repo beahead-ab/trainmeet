@@ -997,6 +997,7 @@ class Interlocking:
                 )
                 for place in plant.exits.values()
             ],
+            tracks=dict(plant.track_of),
             events=list(self.events),
             last_id=self.last_id,
         )

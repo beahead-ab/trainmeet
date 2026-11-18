@@ -1,8 +1,9 @@
 """STV-10 with the real hub: TKL at level 2 is B at Åsen in Provbanan, as in the level-0 test
 (tests/test_tkl_klarering.py). Train 102 comes from Mellanå: TKL puts it on the line at its
 exit by its call, sets the entry route, runs it in with Kör and presses Ankommit, and Hubben
-has the train in on track 2. Cleared towards Norrby, TKL sets the route out and runs it out on
-the line, and Norrby sees it on its way. Only the station protocol is between them.
+has the train in on track 2. Cleared towards Norrby, TKL sets the route out, Drift takes the exit
+signal's proceed at level 2 (DRIFT-10), and TKL runs the train out on the line, and Norrby sees
+it on its way. Only the station protocol is between them.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from contracts import station
 from contracts.station_model import to_json
-from contracts.tkl import TklAnswer, TklMode
+from contracts.tkl import TklAnswer, TklMode, TklReportKind
 from hub.app import create_app as create_hub
 from hub.build_info import BuildInfo
 from hub.tests.test_tmbox_web import started
@@ -149,7 +150,13 @@ def test_a_train_in_and_out_through_the_interlocking(hub: TestClient, tmp_path: 
     assert asked.status == station.ReplyStatus.ACCEPTED, asked.message
     answered = norrby.send(station.Action.CLEARANCE_RESPONSE, clearance_id="c2", approved=True)
     assert answered.status == station.ReplyStatus.ACCEPTED, answered.message
-    out = operate(tkl, "/route", start="21", end="Ut").route
+    laid = operate(tkl, "/route", start="21", end="Ut")
+    out = laid.route
+    # The exit signal goes up as signal.exit, and Drift takes it at level 2 (DRIFT-10).
+    signalled = [r for r in laid.reports if r.kind == TklReportKind.EXIT_SIGNAL]
+    assert [(r.aspect, r.sent, r.accepted) for r in signalled] == [
+        (station.ExitSignalAspect.PROCEED, True, True)
+    ], laid.reports
     operate(tkl, "/step", route=out)
     left = operate(tkl, "/step", route=out)
     departed = [r for r in left.reports if r.action == station.Action.TRAIN_DEPARTED]

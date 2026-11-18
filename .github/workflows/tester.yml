@@ -268,9 +268,57 @@ jobs:
             -d '{"address":"http://169.254.169.254"}' http://127.0.0.1:8090/api/tkl/1/connection)" = 422
           curl -fsS -b "$J" http://127.0.0.1:8090/api/tkl/1/hubs | grep -q '"address":"https://hub.invalid"'
 
+      # Ställverket på nivå 1–2 (#84): en hubb med Provbanan ur källkoden och TKL ur bilden på
+      # stationens dator, och webbläsarprovet i Chrome. TKL tar referensstationen Gårdsjö, ger
+      # klart, lägger en tågväg och en växlingsväg, stegar tåg 102 in på spår 2 och anmäler
+      # ankomsten, som Hubben ska ha fått (apps/tkl/e2e/stallverk.mjs).
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Node för TKL:s webbläsarprov
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Ställverket på nivå 1–2 i webbläsaren (#84)
+        timeout-minutes: 8
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_HUBB: http://127.0.0.1:8080
+          PROV_HUBB_I_TKL: http://host.docker.internal:8080
+          PROV_TKL: http://127.0.0.1:8091
+          PROV_BILDER: ${{ runner.temp }}/tkl
+        run: |
+          uv sync --locked
+          mkdir -p "$RUNNER_TEMP/hubb"
+          TRAINMEET_PREVIEW_DB="$RUNNER_TEMP/hubb/prov.db" nohup uv run uvicorn hub.app:app \
+            --host 0.0.0.0 --port 8080 > "$RUNNER_TEMP/hubb.log" 2>&1 &
+          docker run -d --name tkl-lokal -p 127.0.0.1:8091:8090 -e TKL_MODE=local \
+            --add-host=host.docker.internal:host-gateway trainmeet-tkl:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 \
+              && curl -fsS http://127.0.0.1:8091/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          npm ci --no-audit --no-fund
+          node apps/tkl/e2e/stallverk.mjs
+
+      - name: TKL:s skärmbilder om något gick fel
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tkl-stallverk
+          path: ${{ runner.temp }}/tkl
+          if-no-files-found: ignore
+
       - name: Visa loggen om något gick fel
         if: failure()
-        run: docker logs tkl || true
+        run: |
+          docker logs tkl || true
+          docker logs tkl-lokal || true
+          cat "$RUNNER_TEMP/hubb.log" || true
 
   # Catalog i läget check, provinloggningen och en säkerhetskopia med data i (CAT-39).
   catalog:

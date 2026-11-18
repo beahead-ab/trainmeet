@@ -6137,6 +6137,10 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.LineAcknowledged"];
         } | {
             /** @constant */
+            kind: "signal.exit";
+            data: components["schemas"]["trainmeet.drift-1.event.ExitSignalSet"];
+        } | {
+            /** @constant */
             kind: "place.manned";
             data: components["schemas"]["trainmeet.drift-1.event.PlaceManned"];
         } | {
@@ -6918,6 +6922,31 @@ export interface components {
         "trainmeet.drift-1.event.LineAcknowledged": {
             /** Message Id */
             message_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitSignalAspect
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.ExitSignalAspect": "stop" | "proceed" | "unknown";
+        /**
+         * ExitSignalSet
+         * @description Utfartssignalens besked från TKL (signal.exit, DRIFT-10, STV-10), from a station at any
+         *     level: the event names the place, and Drift keeps the latest per place and exit, for
+         *     Lokföraren's körplan and the neighbour (LOK-08). Only section.occupancy waits for level 3.
+         */
+        "trainmeet.drift-1.event.ExitSignalSet": {
+            /** Exit */
+            exit: string;
+            /** Section */
+            section: string;
+            aspect: components["schemas"]["trainmeet.drift-1.event.ExitSignalAspect"];
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
         } & {
             [key: string]: unknown;
         };

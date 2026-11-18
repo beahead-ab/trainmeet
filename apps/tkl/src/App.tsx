@@ -1,5 +1,6 @@
 // TrainMeet TKL's web app. Ställverket, Studio and Inställningar under one header; first start
-// and the PIN lock before anything else (TKL18). The place's snapshot is fetched when the hub
+// and the PIN lock before anything else (TKL18). Ställverket is level 0's list without a station
+// model, and the panel at level 1–2 with one (#84). The place's snapshot is fetched when the hub
 // hints that it changed, and every ten seconds besides; the last good one stays, marked old,
 // when the hub cannot be reached.
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
@@ -11,6 +12,7 @@ import { Installningar, type Part } from "./Installningar";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
 import { Sparplan } from "./Sparplan";
+import { StallverketSida } from "./Stallverk12";
 import { Stallverket } from "./Stallverket";
 import { Studio } from "./Studio";
 
@@ -284,6 +286,31 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
         onPin={async (old, pin) => api.changePin(old, pin)}
       />
     );
+  } else if ((state.station?.level ?? 0) >= 1) {
+    // Level 1–2 (#84): the panel works on the station's own computer with or without the meet;
+    // Tåg and Klarering need the hub, and say so when it is not there.
+    const hubNote = !connection?.connected
+      ? "TKL är inte ansluten till en träff. Anslut i Inställningar › Anslutning."
+      : connection.status !== "approved"
+        ? connection.status === "waiting"
+          ? "Väntar på att trafikledningen godkänner TKL i Klienter."
+          : (connection.message ?? "TKL är inte godkänd. Anslut igen.")
+        : view
+          ? null
+          : `Hämtar ${place} från hubben …`;
+    body = (
+      <StallverketSida
+        level={state.station?.level ?? 0}
+        view={connection?.status === "approved" ? view : null}
+        hubNote={hubNote}
+        outside={studio?.draft ?? null}
+        journal={journal}
+        sounds={sounds}
+        busy={busy}
+        onSend={(a, p, c, cl) => void send(a, p, c, cl)}
+        onExit={(s, e) => void answerExit(s, e)}
+      />
+    );
   } else if (!connection?.connected) {
     body = <NotConnected onGo={() => navigate(PAGES.installningar)} text="TKL är inte ansluten till en träff." />;
   } else if (connection.status !== "approved") {
@@ -294,7 +321,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
       />
     );
   } else if (view) {
-    body = <Stallverket view={view} level={state.station?.level ?? 0} outside={studio?.draft ?? null} journal={journal} sounds={sounds} busy={busy} onSend={(a, p, c, cl) => void send(a, p, c, cl)} onExit={(s, e) => void answerExit(s, e)} />;
+    body = <Stallverket view={view} outside={studio?.draft ?? null} journal={journal} sounds={sounds} busy={busy} onSend={(a, p, c, cl) => void send(a, p, c, cl)} onExit={(s, e) => void answerExit(s, e)} />;
   } else {
     body = <p className="tom">Hämtar {place} från hubben …</p>;
   }

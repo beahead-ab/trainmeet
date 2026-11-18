@@ -3550,6 +3550,13 @@ export interface components {
             /** Exits */
             exits?: components["schemas"]["trainmeet.tkl-1.interlocking.TklExitShown"][];
             /**
+             * Tracks
+             * @description Sektionerna på stationsspåren, med spårets namn: där ett tåg kan sättas ut.
+             */
+            tracks?: {
+                [key: string]: string;
+            };
+            /**
              * Events
              * @description Senaste först.
              */
@@ -4021,6 +4028,13 @@ export interface components {
             numbers?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklNumber"][];
             /** Exits */
             exits?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklExitShown"][];
+            /**
+             * Tracks
+             * @description Sektionerna på stationsspåren, med spårets namn: där ett tåg kan sättas ut.
+             */
+            tracks?: {
+                [key: string]: string;
+            };
             /**
              * Events
              * @description Senaste först.

@@ -1,6 +1,8 @@
 // Ställverket på nivå 0 (TKLAPP 02): the strip that says what level 0 is, and the bottom row
 // Tåg · Klarering · Händelser. Every button sends a station command through TKL's server; the
-// hub's snapshot that comes back is what the screen shows (old TKL: never act locally).
+// hub's snapshot that comes back is what the screen shows (old TKL: never act locally). A
+// station with a model has the panel at level 1–2 instead (Stallverk12.tsx), with the same
+// Klarering and the hub's questions from here (STV-07).
 import { useState } from "react";
 import type { Action, CallHere, Clearance, Outside, Question, Snapshot, View } from "./api";
 import type { Happening } from "./handelser";
@@ -11,7 +13,6 @@ export type Send = (action: Action, payload: Record<string, unknown>, call?: Cal
 
 type Props = {
   view: View;
-  level?: number;
   outside: Outside | null;
   journal: Happening[];
   sounds: Sounds;
@@ -20,7 +21,7 @@ type Props = {
   onExit: (section: string, exit: string) => void;
 };
 
-export function Stallverket({ view, level = 0, outside, journal, sounds, busy, onSend, onExit }: Props) {
+export function Stallverket({ view, outside, journal, sounds, busy, onSend, onExit }: Props) {
   const snapshot = view.snapshot;
   if (!snapshot) {
     return <p className="tom">{view.message ?? "Väntar på hubben …"}</p>;
@@ -36,11 +37,6 @@ export function Stallverket({ view, level = 0, outside, journal, sounds, busy, o
         <span className="tm-fyll" />
         <span className="liten">{on.length ? `Ljud på för ${on.join(", ")}` : "Ljudet är av på den här skärmen"}</span>
       </div>
-      {level >= 1 ? (
-        <p className="notis" role="status">
-          Stationen har en spårplan; ställverket på nivå 1–2 kommer med nästa steg.
-        </p>
-      ) : null}
       {view.stale ? (
         <p className="gammal" role="status">
           {view.message ?? "Ingen kontakt med hubben."} Det här är det senaste TKL fick{view.heard ? ` ${new Date(view.heard).toLocaleTimeString("sv-SE")}` : ""}.
@@ -61,7 +57,7 @@ export function Stallverket({ view, level = 0, outside, journal, sounds, busy, o
   );
 }
 
-function Questions({ questions, onExit }: { questions: Question[]; onExit: (section: string, exit: string) => void }) {
+export function Questions({ questions, onExit }: { questions: Question[]; onExit: (section: string, exit: string) => void }) {
   if (!questions.length) return null;
   return (
     <section className="fragor" aria-label="Hubben frågar">
@@ -234,7 +230,7 @@ function LineFreeButton({ call, snapshot, busy, onSend }: { call: CallHere; snap
   );
 }
 
-function Klarering({ snapshot, outside, busy, onSend }: { snapshot: Snapshot; outside: Outside | null; busy: boolean; onSend: Send }) {
+export function Klarering({ snapshot, outside, busy, onSend }: { snapshot: Snapshot; outside: Outside | null; busy: boolean; onSend: Send }) {
   const [showAll, setShowAll] = useState(false);
   const here = snapshot.place.name;
   return (
