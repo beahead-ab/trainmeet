@@ -492,9 +492,23 @@ jobs:
         with:
           enable-cache: true
 
+      # Maven Central svarar ibland inte byggmaskinerna. Tilläggets beroenden sparas därför i
+      # GitHubs cache mellan körningarna, och hämtas bara på nytt när pom.xml ändras.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Bygg ID:s bild med Mavens beroenden ur cachen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: id/Dockerfile
+          tags: trainmeet-id:prov
+          load: true
+          build-args: TRAINMEET_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=id
+          cache-to: type=gha,mode=max,scope=id
+
       - name: Bygg bilderna
         run: |
-          docker build -f id/Dockerfile -t trainmeet-id:prov --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
           docker build -f id/api.Dockerfile -t trainmeet-idapi:prov --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
 
       - name: Starta ID med databas och en låtsad mejlserver
@@ -757,10 +771,30 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
+      - uses: docker/setup-buildx-action@v3
+        if: steps.nyckel.outputs.finns == 'true'
+
+      # ID:s bild med Mavens beroenden ur GitHubs cache, som i jobbet ID:s bild.
+      - name: Bygg ID:s bild med Mavens beroenden ur cachen
+        if: steps.nyckel.outputs.finns == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: id/Dockerfile
+          tags: trainmeet-id:${{ env.TAG }}
+          load: true
+          build-args: |
+            TRAINMEET_COMMIT=${{ env.TAG }}
+            TRAINMEET_PR=${{ env.PR }}
+            TRAINMEET_TITLE=${{ env.TITLE }}
+            TRAINMEET_BUILT=${{ env.BUILT }}
+          cache-from: type=gha,scope=id
+          cache-to: type=gha,mode=max,scope=id
+
       - name: Bygg bilderna
         if: steps.nyckel.outputs.finns == 'true'
         run: |
-          for part in hub catalog id; do
+          for part in hub catalog; do
             docker build -f "$part/Dockerfile" -t "trainmeet-$part:$TAG" \
               --build-arg TRAINMEET_COMMIT="$TAG" \
               --build-arg TRAINMEET_PR="$PR" \
