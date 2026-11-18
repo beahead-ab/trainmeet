@@ -20,6 +20,7 @@ from pydantic.json_schema import JsonSchemaValue
 from contracts import (
     catalog,
     drift,
+    driver,
     hub,
     meet,
     planning,
@@ -104,6 +105,26 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.automation": drift.AutomationStatus,
     "trainmeet.drift-1.preview": drift.Preview,
     "trainmeet.drift-1.preview-clients": drift.PreviewClients,
+    "trainmeet.drift-1.driver-settings": drift.DriverSettings,
+    "trainmeet.drift-1.service": drift.ServiceRef,
+    "trainmeet.driver-1.join": driver.DriverJoin,
+    "trainmeet.driver-1.session": driver.DriverSession,
+    "trainmeet.driver-1.me": driver.DriverMe,
+    "trainmeet.driver-1.profile": driver.DriverProfile,
+    "trainmeet.driver-1.services": driver.ServiceList,
+    "trainmeet.driver-1.korplan": driver.Korplan,
+    "trainmeet.driver-1.check-in": driver.CheckIn,
+    "trainmeet.driver-1.framme": driver.Framme,
+    "trainmeet.driver-1.message-send": driver.DriverMessageSend,
+    "trainmeet.driver-1.message": driver.DriverMessage,
+    "trainmeet.driver-1.clock": driver.DriverClock,
+    "trainmeet.driver-1.train-position": driver.TrainPosition,
+    "trainmeet.driver-1.presence": driver.DriverPresence,
+    "trainmeet.driver-1.wait": driver.DriverWait,
+    "trainmeet.driver-1.instructions": driver.Instructions,
+    "trainmeet.driver-1.overview": driver.DriverOverview,
+    "trainmeet.driver-1.hand-out": driver.HandOut,
+    "trainmeet.driver-1.take-back": driver.TakeBack,
     "trainmeet.screen-1.login": screen.ScreenLogin,
     "trainmeet.screen-1.session": screen.ScreenSession,
     "trainmeet.screen-1.show": screen.ShowView,
@@ -426,8 +447,10 @@ def openapi() -> str:
         bearer: bool = False,
         many: bool = False,
         stream: bool = False,
+        driver_key: bool = False,
     ) -> None:
-        """response None: the answer is 204, with no body."""
+        """response None: the answer is 204, with no body. driver_key: Lokföraren's device key,
+        in its cookie or in X-Driver-Key (trainmeet.driver/1)."""
         entry: JsonSchemaValue = {
             "operationId": operation,
             "responses": {"204": {"description": "No Content"}},
@@ -449,6 +472,8 @@ def openapi() -> str:
             }
         if bearer:
             entry["security"] = [{"clientKey": []}]
+        if driver_key:
+            entry["security"] = [{"driverKey": []}, {"driverCookie": []}]
         params = [
             {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
             for part in path.split("/")
@@ -581,6 +606,62 @@ def openapi() -> str:
         bearer=True,
     )
     route("get", "/api/drift/1/events", "driftEvents", d + "event", bearer=True, stream=True)
+    # Förarnas API (trainmeet.driver/1): Lokföraren, and Förare in Drift (TRAFIK-33).
+    f = "trainmeet.driver-1."
+    dr = "/api/drift/1/drivers"
+    route("post", dr + "/join", "driverJoin", f + "session", f + "join")
+    route("get", dr + "/me", "driverMe", f + "me", driver_key=True)
+    route("post", dr + "/me", "driverProfile", f + "me", f + "profile", driver_key=True)
+    route("post", dr + "/me/photo", "driverPhoto", f + "me", driver_key=True)
+    paths[dr + "/me/photo"]["post"]["requestBody"] = {
+        "required": True,
+        "content": {
+            kind: {"schema": {"type": "string", "format": "binary"}}
+            for kind in ("image/png", "image/jpeg", "image/webp")
+        },
+    }
+    route("post", dr + "/me/photo/remove", "driverPhotoRemove", f + "me", driver_key=True)
+    route("get", dr + "/services", "driverServices", f + "services", driver_key=True)
+    paths[dr + "/services"]["get"]["parameters"] = [
+        {"name": "q", "in": "query", "schema": {"type": "string"}}
+    ]
+    route("post", dr + "/claim", "driverClaim", f + "me", d + "service", driver_key=True)
+    route("post", dr + "/release", "driverRelease", f + "me", driver_key=True)
+    route("get", dr + "/korplan", "driverKorplan", f + "korplan", driver_key=True)
+    route("post", dr + "/checkin", "driverCheckIn", f + "me", f + "check-in", driver_key=True)
+    route("post", dr + "/framme", "driverFramme", f + "me", f + "framme", driver_key=True)
+    route(
+        "post",
+        dr + "/messages",
+        "driverMessage",
+        f + "message",
+        f + "message-send",
+        driver_key=True,
+    )
+    route("get", dr + "/clock", "driverClock", f + "clock")
+    route("get", dr + "/trains", "driverTrains", f + "train-position", many=True)
+    route("get", dr + "/list", "driverList", f + "presence", many=True)
+    route("get", dr + "/wait", "driverWait", f + "wait")
+    paths[dr + "/wait"]["get"]["parameters"] = [
+        {"name": "after", "in": "query", "required": True, "schema": {"type": "integer"}},
+        {"name": "seconds", "in": "query", "schema": {"type": "number"}},
+    ]
+    route("get", dr + "/instructions", "driverInstructions", f + "instructions")
+    route("get", dr + "/overview", "driverOverview", f + "overview", bearer=True)
+    route("post", dr + "/hand-out", "handOutService", f + "overview", f + "hand-out", bearer=True)
+    route(
+        "post", dr + "/take-back", "takeBackService", f + "overview", f + "take-back", bearer=True
+    )
+    route(
+        "post",
+        dr + "/settings",
+        "driverSettings",
+        f + "overview",
+        d + "driver-settings",
+        bearer=True,
+    )
+    route("post", dr + "/alarms/clear", "clearAlarm", f + "overview", d + "service", bearer=True)
+    route("get", dr + "/connect", "driverJoining", d + "joining", bearer=True)
     # Provbanan: one run per browser, in a cookie of its own (H51).
     pv = "/api/provbanan"
     route("get", pv, "preview", d + "preview")
@@ -734,6 +815,12 @@ def openapi() -> str:
     # Lägg till underlag: the file's own bytes, its name in the address.
     route("post", m + "/{meet}/sources", "addSource", p + "import-preview", bearer=True)
     route("post", m + "/{meet}/sources/{source}/apply", "applySource", p + "draft", bearer=True)
+    # Förarna (PLAN-40): the general instructions as PDF, kept beside the package.
+    route("post", m + "/{meet}/instructions.pdf", "instructionsPdf", p + "draft", bearer=True)
+    paths[m + "/{meet}/instructions.pdf"]["post"]["requestBody"] = {
+        "required": True,
+        "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
+    }
     upload = paths[m + "/{meet}/sources"]["post"]
     upload["requestBody"] = {
         "required": True,
@@ -750,7 +837,15 @@ def openapi() -> str:
                 "paths": paths,
                 "components": {
                     "schemas": hub_components,
-                    "securitySchemes": {"clientKey": {"type": "http", "scheme": "bearer"}},
+                    "securitySchemes": {
+                        "clientKey": {"type": "http", "scheme": "bearer"},
+                        "driverKey": {"type": "apiKey", "in": "header", "name": "X-Driver-Key"},
+                        "driverCookie": {
+                            "type": "apiKey",
+                            "in": "cookie",
+                            "name": "trainmeet_forare",
+                        },
+                    },
                 },
             },
             ensure_ascii=False,

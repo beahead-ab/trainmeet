@@ -7,10 +7,12 @@ import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice }
 // the meet clock, Anslut and Väntar; logged in, one also gets the buttons (S1). Planering and
 // Drift are tabs side by side, as in the spec's picture of the header.
 
+// Förare and Förarna came with Lokföraren: nine pages in all (TRAFIK-14, H77).
 export const DRIFT_TABS: [string, string][] = [
   ["Nu", "/drift"],
   ["Klienter", "/drift/klienter"],
   ["Logg", "/drift/logg"],
+  ["Förare", "/drift/forare"],
 ];
 
 /** Planering's tabs for the meet in view (null: the list of meets is in view), or else the
@@ -24,6 +26,7 @@ export function planningTabs(now: Now | null, viewed?: string | null): [string, 
     ["Bana", `${meet}/bana`],
     ["Graf", `${meet}/graf`],
     ["Versioner", `${meet}/versioner`],
+    ["Förarna", `${meet}/forarna`],
   ];
 }
 

@@ -38,6 +38,8 @@ CODE_LIFETIME: Final = timedelta(minutes=15)
 LET_IN_LIFETIME: Final = timedelta(days=7)
 ADMIN: Final = "admin"
 DISPATCHER: Final = "dispatcher"
+LOCO_LEAD: Final = "loco_lead"
+"""Lokledare (LOK-30, LF17): hands out the drivers' services and runs no traffic."""
 PERSON: Final = "person"
 """Logged in with TrainMeet ID (#78): the roles at a meet come from ID, not from the hub."""
 ID_LOGIN_LIFETIME: Final = timedelta(minutes=10)

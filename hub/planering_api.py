@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
-from contracts.meet import MapPoint, Meet
+from contracts.meet import Attachment, AttachmentKind, MapPoint, Meet
 from contracts.station_outside import StationOutside
 from contracts.tokens import TOKENS_PER_PAGE, TokenOwner, TokenOwnerKind
 from hub.hubben import Authorization, SessionCookie, service_of, session_of
@@ -47,6 +47,8 @@ from synk.link import Links
 from synk.store import SyncError, Versions
 
 MAX_UPLOAD: Final = planning_json.MAX_BYTES
+# De allmänna instruktionerna som PDF (PLAN-40): a few pages, not a whole booklet of duties.
+MAX_INSTRUCTIONS_PDF: Final = 10 * 1024 * 1024
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -749,6 +751,79 @@ def router(
             headers={
                 "Cache-Control": "no-store",
                 "Content-Disposition": f"attachment; filename*=UTF-8''{_encode(quoted)}",
+            },
+        )
+
+    # --- Förarna (PLAN-40, LOK-34): the general instructions as PDF -------------------------
+    # The text goes through /changes like every other change; the PDF's bytes come here, are
+    # kept beside the package by their checksum, and the package gets the attachment.
+
+    @routes.post("/meets/{meet}/instructions.pdf")
+    async def instructions_pdf(
+        meet: str,
+        request: Request,
+        response: Response,
+        name: str = Query(default="instruktioner.pdf", min_length=1, max_length=300),
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """De allmänna instruktionerna som PDF: in the draft, and with the next version to Drift
+        and Lokföraren. A new PDF replaces the one before."""
+        response.headers["Cache-Control"] = "no-store"
+        await run_in_threadpool(planner, meet, session, authorization)
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_INSTRUCTIONS_PDF:
+                raise HTTPException(
+                    413, f"PDF:en är större än {MAX_INSTRUCTIONS_PDF // (1024 * 1024)} MB."
+                )
+            chunks.append(chunk)
+        data = b"".join(chunks)
+        if not data.startswith(b"%PDF-"):
+            raise HTTPException(415, "Instruktionerna läggs in som en PDF.")
+
+        def keep() -> dict[str, Any]:
+            digest = store.keep_file(data, "application/pdf")
+            pdf = Attachment(
+                id="instruktioner",
+                kind=AttachmentKind.INSTRUCTIONS,
+                filename=filename(name),
+                media_type="application/pdf",
+                size=len(data),
+                sha256=digest,
+            )
+            change = planning.InstructionsChange(instructions="pdf", pdf=pdf)
+            try:
+                return store.change(meet, change).model_dump(mode="json")
+            except PlanningError as error:
+                _fail(error)
+
+        return await run_in_threadpool(keep)
+
+    @routes.get("/meets/{meet}/attachments/{attachment}")
+    def attachment_file(meet: str, attachment: str) -> Response:
+        """A file the draft's package carries, such as the instructions as PDF. Everyone may
+        look at the plan (S1, PLAN-37)."""
+        try:
+            package = store.draft(meet).package
+        except PlanningError as error:
+            _fail(error)
+        found = next(
+            (a for a in (package.attachments if package else []) if a.id == attachment), None
+        )
+        kept = store.file(found.sha256) if found is not None else None
+        if found is None or kept is None:
+            raise HTTPException(404, "Filen finns inte i utkastet.")
+        quoted = found.filename.replace('"', "")
+        return Response(
+            kept[1],
+            media_type=kept[0],
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f"inline; filename*=UTF-8''{_encode(quoted)}",
+                "X-Content-Type-Options": "nosniff",
             },
         )
 

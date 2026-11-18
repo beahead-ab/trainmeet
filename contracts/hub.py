@@ -76,12 +76,16 @@ class CodeLogIn(Contract):
 
 
 class OneTimeCodeRequest(Contract):
-    """Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift."""
+    """Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift, som
+    Trafikledare, eller under Förare som Lokledare (LOK-30, LF17)."""
 
     name: str | None = Field(
         default=None,
         max_length=40,
         description="Vem koden är till, om trafikledaren vill skriva det. Syns i listan.",
+    )
+    role: Literal["dispatcher", "loco_lead"] = Field(
+        default="dispatcher", description="Rollen koden ger: Trafikledare eller Lokledare."
     )
 
 

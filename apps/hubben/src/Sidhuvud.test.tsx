@@ -58,13 +58,16 @@ describe("the header (S2, TRAFIK-12)", () => {
   });
 
   it("marks the page in the tabs, and has Planering and Drift side by side", () => {
-    for (const path of ["/drift", "/drift/klienter", "/drift/logg"]) {
+    for (const path of ["/drift", "/drift/klienter", "/drift/logg", "/drift/forare"]) {
       expect(header({ current: path })).toContain(`<a href="${path}" aria-current="page">`);
     }
     expect(header({ current: "/installningar" })).toMatch(/id="gear"[^>]*aria-current="page"/);
     expect(header()).toContain('<span class="grupp">Planering</span><a href="/planering">Träffar</a>');
     const meet = header({ now: { ...now, meet_id: "grimslov", name: "Grimslöv 2027", version: 6 } });
     expect(meet).toContain('<a href="/planering/grimslov/versioner">Versioner</a>');
+    // Förare in Drift and Förarna in Planering came with Lokföraren (TRAFIK-14, H77).
+    expect(meet).toContain('<a href="/planering/grimslov/forarna">Förarna</a>');
+    expect(meet).toContain('<a href="/drift/forare">Förare</a>');
     expect(meet).toContain("Grimslöv 2027 · version 6");
     // In Planering the tabs are for the meet in view, and its page is marked.
     const viewed = header({ viewed: "mellby", current: "/planering/mellby/versioner" });

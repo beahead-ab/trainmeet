@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.presence.schema.json",
+  "title": "trainmeet.driver-1.presence",
+  "$defs": {
+    "CheckedIn": {
+      "additionalProperties": true,
+      "description": "Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan\nden tonar ut (A8).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "model_time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Model Time",
+          "type": "string"
+        },
+        "age_seconds": {
+          "description": "Spelsekunder sedan incheckningen.",
+          "minimum": 0,
+          "title": "Age Seconds",
+          "type": "number"
+        },
+        "fading": {
+          "default": false,
+          "description": "Tonar ut.",
+          "title": "Fading",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "place",
+        "place_name",
+        "model_time",
+        "age_seconds"
+      ],
+      "title": "CheckedIn",
+      "type": "object"
+    },
+    "Driver": {
+      "additionalProperties": true,
+      "description": "En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tomt över internet utan inloggning.",
+          "title": "Name"
+        },
+        "initials": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Initials"
+        },
+        "level": {
+          "$ref": "#/$defs/DriverLevel"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "photo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Adressen till fotot, om det finns.",
+          "title": "Photo"
+        },
+        "linked": {
+          "default": false,
+          "description": "Kopplad till en person i TrainMeet ID.",
+          "title": "Linked",
+          "type": "boolean"
+        },
+        "joined": {
+          "format": "date-time",
+          "title": "Joined",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "level",
+        "joined"
+      ],
+      "title": "Driver",
+      "type": "object"
+    },
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
+    "DriverState": {
+      "description": "What the others see of a driver without a service on the line (LOK-27).",
+      "enum": [
+        "pause",
+        "waiting_start"
+      ],
+      "title": "DriverState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "En förare som de andra ser den, på kartorna och i Förare (LOK-27).",
+  "properties": {
+    "driver": {
+      "$ref": "#/$defs/Driver"
+    },
+    "service_number": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Service Number"
+    },
+    "train_number": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Train Number"
+    },
+    "checkin": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CheckedIn"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "me": {
+      "default": false,
+      "title": "Me",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "driver"
+  ],
+  "type": "object"
+}

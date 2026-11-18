@@ -15,6 +15,7 @@ The hub's meet is linked to ID's meet (Meet.id_meet, ID10). The roles count as:
 - Läsare: looks at the meet's plan in Planering and changes nothing (PLAN-19, H16), as everyone
   may (S1, PLAN-37). The role counts for nothing more in the hub.
 - Trafikledare: runs the meet in Drift (ID3).
+- Lokledare: hands out the drivers' services in Förare and runs no traffic (LOK-30, LF17).
 """
 
 from __future__ import annotations
@@ -37,11 +38,14 @@ ADMIN = "admin"
 ORGANIZER = "organizer"
 PUBLISHER = "publisher"
 DISPATCHER = "dispatcher"
+LOCO_LEAD = "loco_lead"
 
 PLANS = frozenset({ADMIN, ORGANIZER})
 """Who plans a meet (PLAN-19)."""
 RUNS = frozenset({ADMIN, DISPATCHER})
 """Who runs a meet in Drift (ID3)."""
+LEADS_DRIVERS = frozenset({ADMIN, DISPATCHER, LOCO_LEAD})
+"""Who hands out the drivers' services: Trafikledningen and the lokledare (LOK-30, LF17)."""
 
 
 def publishes(roles: set[str]) -> bool:

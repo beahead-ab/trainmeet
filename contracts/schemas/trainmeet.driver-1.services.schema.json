@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.services.schema.json",
+  "title": "trainmeet.driver-1.services",
+  "$defs": {
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
+    "ServiceEnd": {
+      "additionalProperties": true,
+      "description": "Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place",
+        "place_name"
+      ],
+      "title": "ServiceEnd",
+      "type": "object"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceOffer": {
+      "additionalProperties": true,
+      "description": "En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,\nslut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.",
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "number": {
+          "description": "Papprets nummer, eller tågets nummer.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "end": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trains": {
+          "description": "Tågnumren, i ordning.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "taken": {
+          "default": false,
+          "title": "Taken",
+          "type": "boolean"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Föraren som har tjänsten.",
+          "title": "Driver"
+        },
+        "driver_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara där namn får visas.",
+          "title": "Driver Name"
+        },
+        "released_on_line": {
+          "default": false,
+          "description": "Släppt på linjen: står först i listan (LOK-40).",
+          "title": "Released On Line",
+          "type": "boolean"
+        },
+        "matches_level": {
+          "default": false,
+          "description": "Passar förarens nivå (LOK-32).",
+          "title": "Matches Level",
+          "type": "boolean"
+        },
+        "exact": {
+          "default": false,
+          "description": "Numret är exakt det som söktes.",
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "done": {
+          "default": false,
+          "description": "Klar: Framme vid sista tågbesöket.",
+          "title": "Done",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "service",
+        "number",
+        "start",
+        "end"
+      ],
+      "title": "ServiceOffer",
+      "type": "object"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Tjänsterna att välja bland: köruppdragen när träffen har sådana, annars tågen (LOK-17,\nLOK-31). Släppta på linjen först, sedan de som passar förarens nivå, i startordning.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/ServiceKind"
+    },
+    "services": {
+      "items": {
+        "$ref": "#/$defs/ServiceOffer"
+      },
+      "title": "Services",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "type": "object"
+}

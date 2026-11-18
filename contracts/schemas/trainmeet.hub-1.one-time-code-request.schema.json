@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.one-time-code-request.schema.json",
   "title": "trainmeet.hub-1.one-time-code-request",
   "additionalProperties": true,
-  "description": "Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift.",
+  "description": "Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift, som\nTrafikledare, eller under Förare som Lokledare (LOK-30, LF17).",
   "properties": {
     "name": {
       "anyOf": [
@@ -18,6 +18,16 @@
       "default": null,
       "description": "Vem koden är till, om trafikledaren vill skriva det. Syns i listan.",
       "title": "Name"
+    },
+    "role": {
+      "default": "dispatcher",
+      "description": "Rollen koden ger: Trafikledare eller Lokledare.",
+      "enum": [
+        "dispatcher",
+        "loco_lead"
+      ],
+      "title": "Role",
+      "type": "string"
     }
   },
   "type": "object"

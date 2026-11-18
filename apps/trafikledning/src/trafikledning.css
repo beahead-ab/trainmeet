@@ -753,3 +753,25 @@ tr.skiljer td {
   background: color-mix(in srgb, var(--gul) 18%, transparent);
   font-weight: 600;
 }
+
+/* Förare in Drift (TRAFIK-33): the game's choices one per line, and the drivers' codes large. */
+#forar-val legend {
+  font-weight: 700;
+}
+#forar-val label.val {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.4rem 0;
+}
+#forar-qr img {
+  background: #ffffff;
+  border-radius: 6px;
+}
+#forar-qr .koden,
+#slapp-in-lokledare .koden {
+  margin: 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}

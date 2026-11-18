@@ -3,6 +3,63 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.changes.schema.json",
   "title": "trainmeet.planning-1.changes",
   "$defs": {
+    "Attachment": {
+      "additionalProperties": true,
+      "description": "A file the package carries, beside the package, with its own checksum.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttachmentKind"
+        },
+        "filename": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "media_type": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "size": {
+          "minimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "filename",
+        "media_type",
+        "size",
+        "sha256"
+      ],
+      "title": "Attachment",
+      "type": "object"
+    },
+    "AttachmentKind": {
+      "enum": [
+        "clock_face",
+        "sketch",
+        "overview",
+        "instructions",
+        "other"
+      ],
+      "title": "AttachmentKind",
+      "type": "string"
+    },
     "CallChange": {
       "additionalProperties": true,
       "description": "One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.\nEmpty clears it.",
@@ -69,6 +126,66 @@
       ],
       "title": "ConfirmChange",
       "type": "object"
+    },
+    "InstructionsChange": {
+      "additionalProperties": true,
+      "description": "De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en\ntext per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,\noch följer med nästa version till Drift och Lokföraren. Tomt tar bort.",
+      "properties": {
+        "instructions": {
+          "enum": [
+            "text",
+            "pdf"
+          ],
+          "title": "Instructions",
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/$defs/Language",
+          "default": "sv",
+          "description": "Textens språk."
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "pdf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Attachment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PDF:en, sparad bredvid paketet med sin kontrollsumma."
+        }
+      },
+      "required": [
+        "instructions"
+      ],
+      "title": "InstructionsChange",
+      "type": "object"
+    },
+    "Language": {
+      "enum": [
+        "sv",
+        "en",
+        "da",
+        "nb",
+        "de"
+      ],
+      "title": "Language",
+      "type": "string"
     },
     "PlaceChange": {
       "additionalProperties": true,
@@ -300,6 +417,9 @@
           },
           {
             "$ref": "#/$defs/StationChange"
+          },
+          {
+            "$ref": "#/$defs/InstructionsChange"
           }
         ]
       },

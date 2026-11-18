@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from contracts.common import Weekday
-from contracts.meet import Meet, PlaceKind
+from contracts.meet import DriverLevel, Meet, PlaceKind
 from contracts.planning import Certainty, ImportResult, Source, SourceKind
 from integrationer.planning_json import read
 
@@ -57,6 +57,12 @@ def test_the_plan_is_read_in_full(result: ImportResult) -> None:
     assert sum(report.places.values()) == 31
     assert (report.duties, report.turns, report.train_types) == (141, 46, 12)
     assert result.questions == []
+    # Lätt, Medel and Erfaren, as on the papers' fronts (LOK-19, LOK-32).
+    assert Counter(duty.level for duty in result.package.duties) == {
+        DriverLevel.EASY: 76,
+        DriverLevel.MEDIUM: 42,
+        DriverLevel.EXPERIENCED: 23,
+    }
 
 
 def test_the_places_kinds(result: ImportResult) -> None:

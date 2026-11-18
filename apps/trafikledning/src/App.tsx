@@ -8,18 +8,20 @@ import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
 import { ProvbananPage } from "./Provbanan";
 import { DeltagarePage } from "./Deltagare";
+import { ForarePage } from "./Forare";
 import { StartPage } from "./StartPage";
 
-// Trafikledningen (TRAFIK-21): the start page, Provbanan, Inställningar, and Nu, Klienter and
-// Logg, under the Hub's header (@trainmeet/hubben). Automatiken is read every third second and
+// Trafikledningen (TRAFIK-21): the start page, Provbanan, Inställningar, and Nu, Klienter,
+// Logg and Förare (TRAFIK-14, TRAFIK-33), under the Hub's header (@trainmeet/hubben). Automatiken is read every third second and
 // the log every fifth, as the old pages did; Nu and the clients come with the header.
 
-export type Page = "start" | "deltagare" | "nu" | "klienter" | "logg" | "provbanan" | "installningar";
+export type Page = "start" | "deltagare" | "nu" | "klienter" | "logg" | "forare" | "provbanan" | "installningar";
 
 export function pageOf(path: string): Page {
   const clean = path.replace(/\/+$/, "");
   if (clean === "/drift/klienter") return "klienter";
   if (clean === "/drift/logg") return "logg";
+  if (clean === "/drift/forare") return "forare";
   if (clean === "/drift" || clean.startsWith("/drift/")) return "nu";
   if (clean === "/provbanan") return "provbanan";
   if (clean === "/installningar") return "installningar";
@@ -27,8 +29,8 @@ export function pageOf(path: string): Page {
   return "start";
 }
 
-/** Nu, Klienter and Logg: Drift's own pages, in Kontrollrummet. */
-export const isDrift = (page: Page) => page === "nu" || page === "klienter" || page === "logg";
+/** Nu, Klienter, Logg and Förare: Drift's own pages, in Kontrollrummet. */
+export const isDrift = (page: Page) => page === "nu" || page === "klienter" || page === "logg" || page === "forare";
 
 /** The addresses this app draws itself; the rest (Planering, the boxes) are other pages. */
 export const isOwn = (path: string) => ["/", "/deltagare", "/provbanan", "/installningar", "/drift"].includes(path) || path.startsWith("/drift/");
@@ -39,6 +41,7 @@ const ADDRESS: Record<Page, string> = {
   nu: "/drift",
   klienter: "/drift/klienter",
   logg: "/drift/logg",
+  forare: "/drift/forare",
   provbanan: "/provbanan",
   installningar: "/installningar",
 };
@@ -317,6 +320,7 @@ export function App() {
         )}
         {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} onMessage={say} />}
         {page === "logg" && <LoggPage admin={admin} now={now} pkg={pkg} clients={clients} navigate={navigate} onMessage={say} />}
+        {page === "forare" && <ForarePage loggedIn={info?.logged_in ?? false} now={now} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
           <SettingsPage admin={admin} owner={owner} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} onRename={onRename} onPin={onPin} />

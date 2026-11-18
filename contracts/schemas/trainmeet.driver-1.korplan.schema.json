@@ -1,0 +1,633 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.korplan.schema.json",
+  "title": "trainmeet.driver-1.korplan",
+  "$defs": {
+    "CheckedIn": {
+      "additionalProperties": true,
+      "description": "Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan\nden tonar ut (A8).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "model_time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Model Time",
+          "type": "string"
+        },
+        "age_seconds": {
+          "description": "Spelsekunder sedan incheckningen.",
+          "minimum": 0,
+          "title": "Age Seconds",
+          "type": "number"
+        },
+        "fading": {
+          "default": false,
+          "description": "Tonar ut.",
+          "title": "Fading",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "place",
+        "place_name",
+        "model_time",
+        "age_seconds"
+      ],
+      "title": "CheckedIn",
+      "type": "object"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "DriverSettings": {
+      "additionalProperties": true,
+      "description": "Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som\nförval, och bara trafikledningen ändrar det.",
+      "properties": {
+        "reality": {
+          "default": false,
+          "description": "Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.",
+          "title": "Reality",
+          "type": "boolean"
+        },
+        "clearances": {
+          "default": false,
+          "description": "Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.",
+          "title": "Clearances",
+          "type": "boolean"
+        },
+        "arrival": {
+          "default": false,
+          "description": "Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
+          "title": "Arrival",
+          "type": "boolean"
+        }
+      },
+      "title": "DriverSettings",
+      "type": "object"
+    },
+    "KorplanRow": {
+      "additionalProperties": true,
+      "description": "Ett tågbesök i körplanen.",
+      "properties": {
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Code",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "stops": {
+          "default": true,
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "first_of_train": {
+          "default": false,
+          "description": "Här börjar ett nytt tåg.",
+          "title": "First Of Train",
+          "type": "boolean"
+        },
+        "last": {
+          "default": false,
+          "description": "Tjänstens sista tågbesök.",
+          "title": "Last",
+          "type": "boolean"
+        },
+        "changed": {
+          "default": false,
+          "description": "Ändrat de senaste 10 spelminuterna.",
+          "title": "Changed",
+          "type": "boolean"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RowReality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "clearance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RowClearance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "call",
+        "train",
+        "train_number",
+        "place",
+        "place_code",
+        "place_name"
+      ],
+      "title": "KorplanRow",
+      "type": "object"
+    },
+    "LateOncoming": {
+      "additionalProperties": true,
+      "description": "Ett mötande tåg som är sent (LOK-20).",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "delay": {
+          "minimum": 1,
+          "title": "Delay",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "train",
+        "train_number",
+        "delay"
+      ],
+      "title": "LateOncoming",
+      "type": "object"
+    },
+    "RowClearance": {
+      "additionalProperties": true,
+      "description": "Tågklareringens besked för avgången härifrån, när trafikspelet valt det (LOK-21): klart är\nen upplysning, avgång ger tågklareraren eller signalen (LOK-11).",
+      "properties": {
+        "status": {
+          "description": "Stationen väntar på klart, sträckan är klar, eller nej.",
+          "enum": [
+            "waiting",
+            "approved",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "to_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "To Place",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret tåget tas in på.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "status",
+        "to_place"
+      ],
+      "title": "RowClearance",
+      "type": "object"
+    },
+    "RowReality": {
+      "additionalProperties": true,
+      "description": "Verkligheten från Drift på en rad, när trafikspelet valt det (LOK-20).",
+      "properties": {
+        "passed": {
+          "default": false,
+          "description": "Tåget har lämnat eller passerat.",
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "here": {
+          "default": false,
+          "description": "Tåget står här nu.",
+          "title": "Here",
+          "type": "boolean"
+        },
+        "arrived": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrived"
+        },
+        "departed": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departed"
+        },
+        "delay": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delay"
+        },
+        "late_oncoming": {
+          "items": {
+            "$ref": "#/$defs/LateOncoming"
+          },
+          "title": "Late Oncoming",
+          "type": "array"
+        }
+      },
+      "title": "RowReality",
+      "type": "object"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    },
+    "TrainPosition": {
+      "additionalProperties": true,
+      "description": "Var tåget är enligt stationerna: på en driftplats, eller på väg mellan två (LOK-20).\nFörseningen i hela minuter.",
+      "properties": {
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "state": {
+          "description": "Inte iväg än, står på en driftplats, på väg, eller framme vid slutet.",
+          "enum": [
+            "planned",
+            "at",
+            "on_the_way",
+            "done"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen tåget står på.",
+          "title": "Place"
+        },
+        "from_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Place"
+        },
+        "to_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Place"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "delay": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minuter sent; tomt när det inte vet.",
+          "title": "Delay"
+        }
+      },
+      "required": [
+        "train",
+        "train_number",
+        "state"
+      ],
+      "title": "TrainPosition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Körplanen ur köruppdragets delar, eller ur tågets tidtabell. NU-linjen följer bara\nträffklockan (LOK-20); verkligheten och klareringens besked bara när trafikspelet valt det.",
+  "properties": {
+    "service": {
+      "$ref": "#/$defs/ServiceRef"
+    },
+    "number": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Number",
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/KorplanRow"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "clock": {
+      "$ref": "#/$defs/Clock"
+    },
+    "settings": {
+      "$ref": "#/$defs/DriverSettings"
+    },
+    "position": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrainPosition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tågets läge enligt Drift, när verkligheten visas."
+    },
+    "checkin": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CheckedIn"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Förarens egen incheckning, bredvid tågets läge (LOK-22)."
+    },
+    "revision": {
+      "description": "Senaste drifthändelsen.",
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "service",
+    "number",
+    "clock",
+    "settings",
+    "revision"
+  ],
+  "type": "object"
+}

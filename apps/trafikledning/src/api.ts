@@ -1,7 +1,7 @@
 // Trafikledningen's own part of Driftens API (contracts/drift.py) and Provbanan's, with the
 // types generated from the contracts. Nothing here is typed by hand. Den här hubben, Nu, the
 // clients and the meets the header needs come from @trainmeet/hubben.
-import { call, DRIFT, Problem, type Client, type DriftEvent } from "@trainmeet/hubben";
+import { call, DRIFT, Problem, type Client, type DriftEvent, type Joining } from "@trainmeet/hubben";
 import type { components } from "../../../contracts/types";
 
 type Schemas = components["schemas"];
@@ -35,6 +35,15 @@ export type PreviewLeg = Schemas["trainmeet.drift-1.preview.PreviewLeg"];
 export type PreviewCase = Schemas["trainmeet.drift-1.preview.PreviewCase"];
 export type PreviewClients = Schemas["trainmeet.drift-1.preview-clients"];
 export type Command = Schemas["trainmeet.station-1.command"];
+// Förare in Drift (TRAFIK-33): the drivers' side for Trafikledningen and the lokledare.
+export type DriverOverview = Schemas["trainmeet.driver-1.overview"];
+export type DriverRow = Schemas["trainmeet.driver-1.overview.DriverRow"];
+export type ServiceOffer = Schemas["trainmeet.driver-1.overview.ServiceOffer"];
+export type DriverMessage = Schemas["trainmeet.driver-1.overview.DriverMessage"];
+export type DriverAlarm = Schemas["trainmeet.driver-1.overview.DriverAlarm"];
+export type DriverSettings = Schemas["trainmeet.drift-1.driver-settings"];
+export type ServiceRef = Schemas["trainmeet.drift-1.service"];
+export type NowDriverMessage = Schemas["trainmeet.drift-1.now.NowDriverMessage"];
 
 export const api = {
   clock: (control: ClockControl) => call<DriftEvent>(`${DRIFT}/clock`, control),
@@ -70,7 +79,17 @@ export const api = {
     return call<DriftEvent[]>(`${DRIFT}/log?${query}`);
   },
   refusals: () => call<Refusal[]>(`${DRIFT}/refusals`),
+  // Förare (TRAFIK-33, LOK-30): the drivers, hand out and take back, and the game's settings.
+  drivers: () => call<DriverOverview>(`${DRIFT}/drivers/overview`),
+  handOut: (driver: string, service: ServiceRef) => call<DriverOverview>(`${DRIFT}/drivers/hand-out`, { driver, service }),
+  takeBack: (driver: string) => call<DriverOverview>(`${DRIFT}/drivers/take-back`, { driver }),
+  driverSettings: (settings: DriverSettings) => call<DriverOverview>(`${DRIFT}/drivers/settings`, settings),
+  clearAlarm: (service: ServiceRef) => call<DriverOverview>(`${DRIFT}/drivers/alarms/clear`, service),
+  driverJoining: () => call<Joining>(`${DRIFT}/drivers/connect`),
+  /** Släpp in en lokledare (LOK-30): a one-time code with that role. */
+  locoLeadCode: (name: string) => call<OneTimeCodeAnswer>(`${DRIFT}/codes`, { name: name.trim() || null, role: "loco_lead" }),
 };
+export type OneTimeCodeAnswer = Schemas["trainmeet.hub-1.one-time-code"];
 
 const PROV = "/api/provbanan";
 

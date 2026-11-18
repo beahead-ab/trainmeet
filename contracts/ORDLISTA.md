@@ -63,7 +63,15 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Påbörjat och klart | `transition.begun`, `transition.done` | Ett versionsbyte, ett tidshopp, Ångra och ett dygnsskifte skrivs mellan två drifthändelser. Startar Drift med ett påbörjat utan klart är den spärrad tills trafikledningen låser upp (DRIFT-47). |
 | Modelltid | `TimeOfDay` | Tiden på träffklockan, som TT:MM. |
 | Provkörning | `trainmeet.drift-1.preview` | En egen körning av Provbanan för en webbläsare. Sparas ett dygn, och boxar och TKL ansluter till den med dess kod. |
-| Köruppdrag | `duty` | En förares tjänst. |
+| Köruppdrag | `duty`, `Duty.level` | En förares tjänst i träffpaketet, med numret på papprets framsida (`name`) och svårigheten: Lätt, Medel eller Erfaren (`DriverLevel`, LOK-19). Delarna pekar på tågbesöken. |
+| Förare | `trainmeet.driver/1`, `Driver`, `DriverJoin` | Den som kör ett tåg på träffen (LOK-16). Kommer in med träffens QR-kod, sitt namn och sin nivå, utan konto; TrainMeet ID är frivilligt och kopplar föraren till personen. Får en nyckel som telefonen behåller och hubben bara sparar som kontrollsumma. Finns kvar så länge träffen pågår (LOK-41). Namn och foto syns bara på träffens nät eller för den som är inloggad (LOK-37). |
+| Tjänst | `ServiceRef`, `ServiceOffer`, `service.claimed`, `service.released` | Det en förare kör: ett köruppdrag när träffen har sådana, annars ett tåg med körplan ur tidtabellen (LOK-17, LOK-31). En förare i taget; den som tar den först får den, och en förare har en tjänst i taget (LOK-40). Släpps var som helst; släppt på linjen får trafikledningen ett larm (LOK-35). |
+| Körplan | `Korplan`, `KorplanRow` | Tjänstens tågbesök i ordning, ur köruppdragets delar eller tågets tidtabell. Om trafikspelet valt det också verkligheten från Drift och tågklareringens besked (LOK-20, LOK-21). En ändring under spelet är märkt Ändrat i 10 spelminuter (LOK-41). |
+| NU-linjen | `Korplan.clock`, `DriverClock` | Linjen i körplanen där träffklockan står nu. Följer bara Drifts klocka, aldrig telefonens (LOK-12). |
+| Framme | `Framme`, `driver.arrived` | Föraren säger att tåget är framme vid ett tågbesök i tjänsten. Förvalt räknas det inte; när trafikledningen slår på det räknas det som ankomst bara på driftplatser som ingen arbetar på (LOK-39). Vid tjänstens sista tågbesök är tjänsten klar. |
+| Förarnas val | `DriverSettings`, `driver.settings` | Trafikspelets val för förarna: Förarna ser verkligheten, Förarna ser tågklareringens besked och om Framme räknas som ankomst. Alla av som förval; bara trafikledningen ändrar dem. |
+| Lokledare | `MeetRole.loco_lead`, `loco_lead` | En roll per träff, i TrainMeet ID eller insläppt med engångskod från Förare. Ser förarna och tjänsterna och delar ut och tar tillbaka tjänster, men styr ingen trafik (LOK-30). |
+| De allmänna instruktionerna | `About.instructions`, `AttachmentKind.instructions`, `InstructionsChange` | Det köruppdragen hänvisar till, som text och PDF i träffpaketet: texten i `about`, PDF:en som bilaga med kontrollsumma. Läggs in under Förarna i Planering och följer med nästa version till Lokföraren (LOK-34, PLAN-40). |
 | Omlopp | `turn` | Tågen som samma fordon kör, i ordning. |
 | Växlingsuppdrag | `shunting` | Växling på en driftplats. |
 | Fynd | `finding` | Trafikkontrollens konflikter och iakttagelser. Stoppar inte publicering. |

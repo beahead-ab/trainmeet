@@ -677,7 +677,7 @@
   "duties": [
     {
       "id": "d1",
-      "name": "Tjänst 1",
+      "name": "1",
       "legs": [
         {
           "train": "t101",
@@ -689,7 +689,71 @@
           "from_call": "t104-sjv",
           "to_call": "t104-nby"
         }
-      ]
+      ],
+      "level": "medium"
+    },
+    {
+      "id": "d2",
+      "name": "2",
+      "legs": [
+        {
+          "train": "t102",
+          "from_call": "t102-sjv",
+          "to_call": "t102-nby"
+        },
+        {
+          "train": "t103",
+          "from_call": "t103-nby",
+          "to_call": "t103-sjv"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "d3",
+      "name": "3",
+      "legs": [
+        {
+          "train": "t4501",
+          "from_call": "t4501-nby",
+          "to_call": "t4501-sjv"
+        },
+        {
+          "train": "t4502",
+          "from_call": "t4502-sjv",
+          "to_call": "t4502-nby"
+        }
+      ],
+      "level": "experienced"
+    },
+    {
+      "id": "d4",
+      "name": "4",
+      "legs": [
+        {
+          "train": "t105",
+          "from_call": "t105-nby",
+          "to_call": "t105-sjv"
+        }
+      ],
+      "level": "easy"
+    },
+    {
+      "id": "d5",
+      "name": "5",
+      "legs": [
+        {
+          "train": "t106",
+          "from_call": "t106-sjv",
+          "to_call": "t106-nby"
+        },
+        {
+          "train": "t107",
+          "from_call": "t107-nby",
+          "to_call": "t107-sjv"
+        }
+      ],
+      "level": "medium"
     }
   ],
   "turns": [

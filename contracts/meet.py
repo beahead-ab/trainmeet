@@ -61,7 +61,16 @@ class AttachmentKind(StrEnum):
     CLOCK_FACE = "clock_face"  # urtavla, a .tmclock clock pack (F13)
     SKETCH = "sketch"  # träffskiss
     OVERVIEW = "overview"  # banöversiktens bild
+    INSTRUCTIONS = "instructions"  # de allmänna instruktionerna som PDF (LOK-34, PLAN-40)
     OTHER = "other"
+
+
+class DriverLevel(StrEnum):
+    """Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32)."""
+
+    EASY = "easy"  # Lätt
+    MEDIUM = "medium"  # Medel
+    EXPERIENCED = "experienced"  # Erfaren
 
 
 # --- The meet ------------------------------------------------------------------------------
@@ -237,11 +246,15 @@ class DutyLeg(Contract):
 
 
 class Duty(Contract):
-    """Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7."""
+    """Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is
+    the number on the paper's front (LOK-19)."""
 
     id: Id
     name: Text
     legs: list[DutyLeg] = Field(default_factory=list)
+    level: DriverLevel | None = Field(
+        default=None, description="Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32)."
+    )
 
 
 class Turn(Contract):

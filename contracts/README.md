@@ -11,7 +11,8 @@ Den enda vägen mellan TrainMeets delar. Ingen del använder en annan dels inre 
 | Driftens API, `trainmeet.drift/1` | `drift.py` | För trafikledningen och skärmarna: starta, klockan, lista, godkänna och tilldela klienter samt händelseloggen. |
 | Skälen | `reasons.py` | Varför Drift sa nej, med texten för varje skäl. |
 | Catalogs API, `trainmeet.catalog/1` | `catalog.py` | TrainMeet Catalogs version, inloggning och provinloggning (#48). Fordonet, minikortet, taggen, uppslaget och förebilden kommer med sina steg. Egen [OpenAPI](catalog.openapi.json) och egna [TypeScript-typer](catalog.d.ts), eftersom Catalog är en egen tjänst. |
-| Synken och förarnas API | `SKISSER.md` | Skisser. Skrivs färdigt i steg 5 och 7. |
+| Förarnas API, `trainmeet.driver/1` | `driver.py` | För Lokföraren och trafikledningens sida Förare: kom in med QR-koden, tjänsterna, ta och släpp, körplanen, incheckning, Framme, meddelanden, klockan och tågens läge. Adresserna under `/api/drift/1/drivers`. Det föraren gör är drifthändelser i `drift.py`. |
+| Synken | `SKISSER.md` | Skiss. Skrivs färdigt i steg 5. |
 
 Varje modul börjar med sina adresser och sina regler. Generatorn skapar JSON-schemana i `schemas/` och [OpenAPI](openapi.json) för HTTP och SSE. Apparna kan importera de genererade [TypeScript-typerna](types.d.ts).
 

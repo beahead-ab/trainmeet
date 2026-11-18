@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.instructions.schema.json",
+  "title": "trainmeet.driver-1.instructions",
+  "additionalProperties": true,
+  "description": "De allmänna instruktionerna som köruppdragen hänvisar till (LOK-34): text och PDF ur\nträffpaketet. Lokföraren visar det som finns.",
+  "properties": {
+    "text": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Texten per språk.",
+      "title": "Text",
+      "type": "object"
+    },
+    "pdf": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Adressen till PDF:en, om den finns.",
+      "title": "Pdf"
+    },
+    "filename": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filename"
+    }
+  },
+  "type": "object"
+}

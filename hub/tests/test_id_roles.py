@@ -266,6 +266,27 @@ def test_the_dispatcher_in_id_runs_the_meet_that_runs(
     assert owner.get("/api/drift/1/clients").status_code == 200
 
 
+def test_the_lokledare_in_id_hands_out_services_and_runs_no_traffic(
+    made: Any, owner: TestClient, person: TestClient, pretend: PretendIdApi
+) -> None:
+    """LOK-30, LF17: Lokledare at the meet in ID sees the drivers in Förare and hands out their
+    services, but runs no traffic and does not choose what the drivers see."""
+    assert owner.post("/api/drift/1/start", json={"version": 1}).status_code == 201
+    store = made.state.running.store
+    store.package = store.package.model_copy(
+        update={"meet": store.package.meet.model_copy(update={"id_meet": AUTUMN})}
+    )
+    drivers = "/api/drift/1/drivers"
+    assert person.get(drivers + "/overview").status_code == 403
+    pretend.roles = {str(AUTUMN): ["loco_lead"]}
+    seen = person.get(drivers + "/overview")
+    assert seen.status_code == 200, seen.text
+    assert (seen.json()["may_hand_out"], seen.json()["may_set"]) == (True, False)
+    assert person.post(drivers + "/settings", json={"reality": True}).status_code == 403
+    assert person.post("/api/drift/1/clock", json={"action": "start"}).status_code == 403
+    assert person.get("/api/drift/1/clients").status_code == 403
+
+
 def test_only_the_pin_starts_provbanan(person: TestClient, pretend: PretendIdApi) -> None:
     pretend.club_admin = True
     assert person.post("/api/drift/1/start", json={"version": 1}).status_code == 403

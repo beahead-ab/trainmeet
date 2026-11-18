@@ -612,6 +612,358 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/drivers/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverJoin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverMe"];
+        put?: never;
+        post: operations["driverProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/me/photo/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPhotoRemove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverServices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverClaim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/korplan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverKorplan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/checkin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverCheckIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/framme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverFramme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverClock"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/trains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverTrains"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/wait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverWait"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverInstructions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/hand-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["handOutService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/take-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["takeBackService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/alarms/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["clearAlarm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverJoining"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/provbanan": {
         parameters: {
             query?: never;
@@ -1508,6 +1860,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/instructions.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["instructionsPdf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1601,7 +1969,7 @@ export interface components {
          * AttachmentKind
          * @enum {string}
          */
-        "trainmeet.meet-1.AttachmentKind": "clock_face" | "sketch" | "overview" | "other";
+        "trainmeet.meet-1.AttachmentKind": "clock_face" | "sketch" | "overview" | "instructions" | "other";
         /** BoxSide */
         "trainmeet.meet-1.BoxSide": {
             side: components["schemas"]["trainmeet.meet-1.Side"];
@@ -1773,8 +2141,15 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.meet-1.DriverLevel": "easy" | "medium" | "experienced";
+        /**
          * Duty
-         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.
+         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is
+         *     the number on the paper's front (LOK-19).
          */
         "trainmeet.meet-1.Duty": {
             /** Id */
@@ -1783,6 +2158,11 @@ export interface components {
             name: string;
             /** Legs */
             legs?: components["schemas"]["trainmeet.meet-1.DutyLeg"][];
+            /**
+             * @description Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32).
+             * @default null
+             */
+            level: components["schemas"]["trainmeet.meet-1.DriverLevel"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -2991,6 +3371,39 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.reply.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /**
+         * DriverMessageHere
+         * @description Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+         *     DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.
+         */
+        "trainmeet.station-1.reply.DriverMessageHere": {
+            kind: components["schemas"]["trainmeet.station-1.reply.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Seq
+             * @description Drifthändelsen meddelandet är.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.station-1.reply.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
         /** ExitChoice */
         "trainmeet.station-1.reply.ExitChoice": {
             /** Exit */
@@ -3124,7 +3537,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3229,6 +3642,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.station-1.reply.ExitQuestion"][];
             /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
             track_display?: components["schemas"]["trainmeet.station-1.reply.TrackDisplay"];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).
+             */
+            driver_messages?: components["schemas"]["trainmeet.station-1.reply.DriverMessageHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -3354,6 +3772,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.station-1.snapshot.ExitQuestion"][];
             /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
             track_display?: components["schemas"]["trainmeet.station-1.snapshot.TrackDisplay"];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).
+             */
+            driver_messages?: components["schemas"]["trainmeet.station-1.snapshot.DriverMessageHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -3522,6 +3945,39 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.snapshot.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /**
+         * DriverMessageHere
+         * @description Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+         *     DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.
+         */
+        "trainmeet.station-1.snapshot.DriverMessageHere": {
+            kind: components["schemas"]["trainmeet.station-1.snapshot.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Seq
+             * @description Drifthändelsen meddelandet är.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.station-1.snapshot.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
         /** ExitChoice */
         "trainmeet.station-1.snapshot.ExitChoice": {
             /** Exit */
@@ -5515,6 +5971,34 @@ export interface components {
             kind: "automation.set";
             data: components["schemas"]["trainmeet.drift-1.event.AutomationSettings"];
         } | {
+            /** @constant */
+            kind: "service.claimed";
+            data: components["schemas"]["trainmeet.drift-1.event.ServiceClaimed"];
+        } | {
+            /** @constant */
+            kind: "service.released";
+            data: components["schemas"]["trainmeet.drift-1.event.ServiceReleased"];
+        } | {
+            /** @constant */
+            kind: "service.alarm_cleared";
+            data: components["schemas"]["trainmeet.drift-1.event.AlarmCleared"];
+        } | {
+            /** @constant */
+            kind: "driver.checked_in";
+            data: components["schemas"]["trainmeet.drift-1.event.DriverCheckedIn"];
+        } | {
+            /** @constant */
+            kind: "driver.message";
+            data: components["schemas"]["trainmeet.drift-1.event.DriverMessageSent"];
+        } | {
+            /** @constant */
+            kind: "driver.arrived";
+            data: components["schemas"]["trainmeet.drift-1.event.DriverArrived"];
+        } | {
+            /** @constant */
+            kind: "driver.settings";
+            data: components["schemas"]["trainmeet.drift-1.event.DriverSettings"];
+        } | {
             kind?: unknown;
         });
         /** Actor */
@@ -5532,12 +6016,12 @@ export interface components {
          * ActorKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.ActorKind": "client" | "dispatcher" | "automation" | "system";
+        "trainmeet.drift-1.event.ActorKind": "client" | "dispatcher" | "automation" | "system" | "driver" | "loco_lead";
         /**
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -6302,6 +6786,177 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.drift-1.event.ServiceRef": {
+            kind: components["schemas"]["trainmeet.drift-1.event.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceClaimed
+         * @description En förare har tjänsten: tog den själv, eller fick den av trafikledningen eller
+         *     lokledaren (LOK-18, LOK-30). En tjänst har en förare i taget (LOK-40).
+         */
+        "trainmeet.drift-1.event.ServiceClaimed": {
+            /** Driver */
+            driver: string;
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"];
+            /**
+             * By
+             * @default driver
+             * @enum {string}
+             */
+            by: "driver" | "dispatcher" | "loco_lead";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceReleased
+         * @description Tjänsten är släppt och ledig för nästa (LOK-25). Släppt på linjen står tåget utan
+         *     förare, och trafikledningen får ett larm direkt (LOK-35).
+         */
+        "trainmeet.drift-1.event.ServiceReleased": {
+            /** Driver */
+            driver: string;
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"];
+            /**
+             * By
+             * @default driver
+             * @enum {string}
+             */
+            by: "driver" | "dispatcher" | "loco_lead";
+            /**
+             * On Line
+             * @description Tåget var ute på linjen.
+             * @default false
+             */
+            on_line: boolean;
+            /**
+             * Section
+             * @description Sträckan tåget var på.
+             * @default null
+             */
+            section: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Done
+             * @description Framme vid tjänstens slut.
+             * @default false
+             */
+            done: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AlarmCleared
+         * @description Trafikledningen har tagit hand om tåget utan förare.
+         */
+        "trainmeet.drift-1.event.AlarmCleared": {
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverCheckedIn
+         * @description Förarens egen incheckning på en driftplats (LOK-22). Den styr ingenting; den visas bredvid
+         *     tågets läge enligt Drift. Platsen och tåget står i händelsen.
+         */
+        "trainmeet.drift-1.event.DriverCheckedIn": {
+            /** Driver */
+            driver: string;
+            /** @default null */
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"] | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
+         * DriverMessageSent
+         * @description Ett färdigt meddelande till trafikledningen (LOK-23, DRIFT-38). Tåget står i händelsen.
+         */
+        "trainmeet.drift-1.event.DriverMessageSent": {
+            /** Driver */
+            driver: string;
+            kind: components["schemas"]["trainmeet.drift-1.event.DriverMessageKind"];
+            /** @default null */
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverArrived
+         * @description Framme (LOK-11, LOK-39): föraren säger att tåget är framme vid tågbesöket i händelsen.
+         *     Det räknas som ankomst bara när trafikspelet valt det och driftplatsen är obemannad.
+         */
+        "trainmeet.drift-1.event.DriverArrived": {
+            /** Driver */
+            driver: string;
+            service: components["schemas"]["trainmeet.drift-1.event.ServiceRef"];
+            /**
+             * Counted
+             * @description Räknades som tågets ankomst.
+             * @default false
+             */
+            counted: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverSettings
+         * @description Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+         *     förval, och bara trafikledningen ändrar det.
+         */
+        "trainmeet.drift-1.event.DriverSettings": {
+            /**
+             * Reality
+             * @description Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.
+             * @default false
+             */
+            reality: boolean;
+            /**
+             * Clearances
+             * @description Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.
+             * @default false
+             */
+            clearances: boolean;
+            /**
+             * Arrival
+             * @description Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).
+             * @default false
+             */
+            arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Now
          * @description The meet as it runs: open to everyone, so it holds no names of people, no codes and no
          *     phone numbers (B13).
@@ -6374,6 +7029,16 @@ export interface components {
              * @default null
              */
             tellurian: components["schemas"]["trainmeet.drift-1.now.TellurianShadow"] | null;
+            /**
+             * Driver Alarms
+             * @description Tåg som står utan förare på linjen (LOK-35).
+             */
+            driver_alarms?: components["schemas"]["trainmeet.drift-1.now.DriverAlarm"][];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).
+             */
+            driver_messages?: components["schemas"]["trainmeet.drift-1.now.NowDriverMessage"][];
         } & {
             [key: string]: unknown;
         };
@@ -6701,6 +7366,62 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverAlarm
+         * @description Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit
+         *     över. Utan förarens namn (B13).
+         */
+        "trainmeet.drift-1.now.DriverAlarm": {
+            service: components["schemas"]["trainmeet.drift-1.now.ServiceRef"];
+            /**
+             * Number
+             * @description Tjänstens nummer, eller tågets.
+             */
+            number: string;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Since
+             * @description Modelltiden när tjänsten släpptes.
+             */
+            since: string;
+            /**
+             * Seq
+             * @description Drifthändelsen då tjänsten släpptes.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
          * ExternalClockNow
          * @description FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open
          *     to everyone who looks, so it holds no user or password.
@@ -6937,6 +7658,34 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * NowDriverMessage
+         * @description Ett meddelande från en förare, som Nu visar det: utan namn (B13).
+         */
+        "trainmeet.drift-1.now.NowDriverMessage": {
+            kind: components["schemas"]["trainmeet.drift-1.now.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Service Number
+             * @default null
+             */
+            service_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /** Seq */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** NowPlace */
         "trainmeet.drift-1.now.NowPlace": {
             /** Place */
@@ -6954,6 +7703,22 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.now.ProposalStatus": "waiting" | "taken" | "rejected" | "withdrawn";
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.drift-1.now.ServiceRef": {
+            kind: components["schemas"]["trainmeet.drift-1.now.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** SwitchWaiting */
         "trainmeet.drift-1.now.SwitchWaiting": {
             /** Version */
@@ -7597,7 +8362,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -7738,6 +8503,1744 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.preview-clients.Side": "left" | "right";
+        /**
+         * DriverSettings
+         * @description Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+         *     förval, och bara trafikledningen ändrar det.
+         */
+        "trainmeet.drift-1.driver-settings": {
+            /**
+             * Reality
+             * @description Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.
+             * @default false
+             */
+            reality: boolean;
+            /**
+             * Clearances
+             * @description Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.
+             * @default false
+             */
+            clearances: boolean;
+            /**
+             * Arrival
+             * @description Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).
+             * @default false
+             */
+            arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.drift-1.service": {
+            kind: components["schemas"]["trainmeet.drift-1.service.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.drift-1.service.ServiceKind": "duty" | "train";
+        /**
+         * DriverJoin
+         * @description Kom in (LOK-01, LOK-16): QR-koden på träffen, namnet och nivån. Koden behövs inte på
+         *     träffens nät, där föraren kommer till träffen som kör.
+         */
+        "trainmeet.driver-1.join": {
+            /**
+             * Code
+             * @description Förarnas kod ur QR-koden.
+             * @default null
+             */
+            code: string | null;
+            /**
+             * Name
+             * @description Namnet föraren skriver.
+             */
+            name: string;
+            /** @default easy */
+            level: components["schemas"]["trainmeet.driver-1.join.DriverLevel"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.join.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverSession
+         * @description Svaret på Kom in: föraren och nyckeln, som visas en gång och sparas på telefonen.
+         */
+        "trainmeet.driver-1.session": {
+            driver: components["schemas"]["trainmeet.driver-1.session.Driver"];
+            /**
+             * Key
+             * @description Telefonens nyckel. Hubben sparar bara ett kontrollvärde.
+             */
+            key: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Driver
+         * @description En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).
+         */
+        "trainmeet.driver-1.session.Driver": {
+            /** Id */
+            id: string;
+            /**
+             * Name
+             * @description Tomt över internet utan inloggning.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Initials
+             * @default null
+             */
+            initials: string | null;
+            level: components["schemas"]["trainmeet.driver-1.session.DriverLevel"];
+            /** @default null */
+            state: components["schemas"]["trainmeet.driver-1.session.DriverState"] | null;
+            /**
+             * Photo
+             * @description Adressen till fotot, om det finns.
+             * @default null
+             */
+            photo: string | null;
+            /**
+             * Linked
+             * @description Kopplad till en person i TrainMeet ID.
+             * @default false
+             */
+            linked: boolean;
+            /**
+             * Joined
+             * Format: date-time
+             */
+            joined: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.session.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverState
+         * @description What the others see of a driver without a service on the line (LOK-27).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.session.DriverState": "pause" | "waiting_start";
+        /**
+         * DriverMe
+         * @description Föraren själv: tjänsten, klockan, incheckningen och vad trafikspelet visar.
+         */
+        "trainmeet.driver-1.me": {
+            driver: components["schemas"]["trainmeet.driver-1.me.Driver"];
+            /** @default null */
+            service: components["schemas"]["trainmeet.driver-1.me.ServiceOffer"] | null;
+            /** @default null */
+            start: components["schemas"]["trainmeet.driver-1.me.Start"] | null;
+            /** @default null */
+            checkin: components["schemas"]["trainmeet.driver-1.me.CheckedIn"] | null;
+            clock: components["schemas"]["trainmeet.driver-1.me.Clock"];
+            settings: components["schemas"]["trainmeet.driver-1.me.DriverSettings"];
+            /**
+             * Revision
+             * @description Senaste drifthändelsen, för väntan på nästa.
+             */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckedIn
+         * @description Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan
+         *     den tonar ut (A8).
+         */
+        "trainmeet.driver-1.me.CheckedIn": {
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Age Seconds
+             * @description Spelsekunder sedan incheckningen.
+             */
+            age_seconds: number;
+            /**
+             * Fading
+             * @description Tonar ut.
+             * @default false
+             */
+            fading: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clock */
+        "trainmeet.driver-1.me.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Driver
+         * @description En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).
+         */
+        "trainmeet.driver-1.me.Driver": {
+            /** Id */
+            id: string;
+            /**
+             * Name
+             * @description Tomt över internet utan inloggning.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Initials
+             * @default null
+             */
+            initials: string | null;
+            level: components["schemas"]["trainmeet.driver-1.me.DriverLevel"];
+            /** @default null */
+            state: components["schemas"]["trainmeet.driver-1.me.DriverState"] | null;
+            /**
+             * Photo
+             * @description Adressen till fotot, om det finns.
+             * @default null
+             */
+            photo: string | null;
+            /**
+             * Linked
+             * @description Kopplad till en person i TrainMeet ID.
+             * @default false
+             */
+            linked: boolean;
+            /**
+             * Joined
+             * Format: date-time
+             */
+            joined: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.me.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverSettings
+         * @description Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+         *     förval, och bara trafikledningen ändrar det.
+         */
+        "trainmeet.driver-1.me.DriverSettings": {
+            /**
+             * Reality
+             * @description Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.
+             * @default false
+             */
+            reality: boolean;
+            /**
+             * Clearances
+             * @description Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.
+             * @default false
+             */
+            clearances: boolean;
+            /**
+             * Arrival
+             * @description Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).
+             * @default false
+             */
+            arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverState
+         * @description What the others see of a driver without a service on the line (LOK-27).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.me.DriverState": "pause" | "waiting_start";
+        /**
+         * ServiceEnd
+         * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
+         */
+        "trainmeet.driver-1.me.ServiceEnd": {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.me.ServiceKind": "duty" | "train";
+        /**
+         * ServiceOffer
+         * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
+         *     slut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.
+         */
+        "trainmeet.driver-1.me.ServiceOffer": {
+            service: components["schemas"]["trainmeet.driver-1.me.ServiceRef"];
+            /**
+             * Number
+             * @description Papprets nummer, eller tågets nummer.
+             */
+            number: string;
+            start: components["schemas"]["trainmeet.driver-1.me.ServiceEnd"];
+            end: components["schemas"]["trainmeet.driver-1.me.ServiceEnd"];
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /** @default null */
+            level: components["schemas"]["trainmeet.driver-1.me.DriverLevel"] | null;
+            /**
+             * Trains
+             * @description Tågnumren, i ordning.
+             */
+            trains?: string[];
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
+            /**
+             * Driver
+             * @description Föraren som har tjänsten.
+             * @default null
+             */
+            driver: string | null;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Released On Line
+             * @description Släppt på linjen: står först i listan (LOK-40).
+             * @default false
+             */
+            released_on_line: boolean;
+            /**
+             * Matches Level
+             * @description Passar förarens nivå (LOK-32).
+             * @default false
+             */
+            matches_level: boolean;
+            /**
+             * Exact
+             * @description Numret är exakt det som söktes.
+             * @default false
+             */
+            exact: boolean;
+            /**
+             * Done
+             * @description Klar: Framme vid sista tågbesöket.
+             * @default false
+             */
+            done: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.me.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.me.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Start
+         * @description När tjänsten startar, för nedräkningen och påminnelserna 20 och 10 minuter före (LOK-41).
+         *     Verklig tid bredvid nedräkningen.
+         */
+        "trainmeet.driver-1.me.Start": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Starten i sekunder in på speldygnet.
+             */
+            seconds: number;
+            /**
+             * In Game Seconds
+             * @description Spelsekunder kvar; negativt när den passerats.
+             */
+            in_game_seconds: number;
+            /**
+             * In Real Seconds
+             * @description Verkliga sekunder kvar med klockans fart; tomt när den står.
+             * @default null
+             */
+            in_real_seconds: number | null;
+            /** Reminders */
+            reminders?: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverProfile
+         * @description Det föraren själv ändrar: namnet, nivån och Paus eller Inväntar start. Fält som inte
+         *     skickas ändras inte; state null tar bort läget.
+         */
+        "trainmeet.driver-1.profile": {
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /** @default null */
+            level: components["schemas"]["trainmeet.driver-1.profile.DriverLevel"] | null;
+            /** @default null */
+            state: components["schemas"]["trainmeet.driver-1.profile.DriverState"] | null;
+            /**
+             * Clear State
+             * @description Ta bort Paus eller Inväntar start.
+             * @default false
+             */
+            clear_state: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.profile.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverState
+         * @description What the others see of a driver without a service on the line (LOK-27).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.profile.DriverState": "pause" | "waiting_start";
+        /**
+         * ServiceList
+         * @description Tjänsterna att välja bland: köruppdragen när träffen har sådana, annars tågen (LOK-17,
+         *     LOK-31). Släppta på linjen först, sedan de som passar förarens nivå, i startordning.
+         */
+        "trainmeet.driver-1.services": {
+            kind: components["schemas"]["trainmeet.driver-1.services.ServiceKind"];
+            /** Services */
+            services?: components["schemas"]["trainmeet.driver-1.services.ServiceOffer"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.services.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * ServiceEnd
+         * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
+         */
+        "trainmeet.driver-1.services.ServiceEnd": {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.services.ServiceKind": "duty" | "train";
+        /**
+         * ServiceOffer
+         * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
+         *     slut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.
+         */
+        "trainmeet.driver-1.services.ServiceOffer": {
+            service: components["schemas"]["trainmeet.driver-1.services.ServiceRef"];
+            /**
+             * Number
+             * @description Papprets nummer, eller tågets nummer.
+             */
+            number: string;
+            start: components["schemas"]["trainmeet.driver-1.services.ServiceEnd"];
+            end: components["schemas"]["trainmeet.driver-1.services.ServiceEnd"];
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /** @default null */
+            level: components["schemas"]["trainmeet.driver-1.services.DriverLevel"] | null;
+            /**
+             * Trains
+             * @description Tågnumren, i ordning.
+             */
+            trains?: string[];
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
+            /**
+             * Driver
+             * @description Föraren som har tjänsten.
+             * @default null
+             */
+            driver: string | null;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Released On Line
+             * @description Släppt på linjen: står först i listan (LOK-40).
+             * @default false
+             */
+            released_on_line: boolean;
+            /**
+             * Matches Level
+             * @description Passar förarens nivå (LOK-32).
+             * @default false
+             */
+            matches_level: boolean;
+            /**
+             * Exact
+             * @description Numret är exakt det som söktes.
+             * @default false
+             */
+            exact: boolean;
+            /**
+             * Done
+             * @description Klar: Framme vid sista tågbesöket.
+             * @default false
+             */
+            done: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.services.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.services.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Korplan
+         * @description Körplanen ur köruppdragets delar, eller ur tågets tidtabell. NU-linjen följer bara
+         *     träffklockan (LOK-20); verkligheten och klareringens besked bara när trafikspelet valt det.
+         */
+        "trainmeet.driver-1.korplan": {
+            service: components["schemas"]["trainmeet.driver-1.korplan.ServiceRef"];
+            /** Number */
+            number: string;
+            /** Rows */
+            rows?: components["schemas"]["trainmeet.driver-1.korplan.KorplanRow"][];
+            clock: components["schemas"]["trainmeet.driver-1.korplan.Clock"];
+            settings: components["schemas"]["trainmeet.driver-1.korplan.DriverSettings"];
+            /**
+             * @description Tågets läge enligt Drift, när verkligheten visas.
+             * @default null
+             */
+            position: components["schemas"]["trainmeet.driver-1.korplan.TrainPosition"] | null;
+            /**
+             * @description Förarens egen incheckning, bredvid tågets läge (LOK-22).
+             * @default null
+             */
+            checkin: components["schemas"]["trainmeet.driver-1.korplan.CheckedIn"] | null;
+            /**
+             * Revision
+             * @description Senaste drifthändelsen.
+             */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckedIn
+         * @description Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan
+         *     den tonar ut (A8).
+         */
+        "trainmeet.driver-1.korplan.CheckedIn": {
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Age Seconds
+             * @description Spelsekunder sedan incheckningen.
+             */
+            age_seconds: number;
+            /**
+             * Fading
+             * @description Tonar ut.
+             * @default false
+             */
+            fading: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clock */
+        "trainmeet.driver-1.korplan.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverSettings
+         * @description Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+         *     förval, och bara trafikledningen ändrar det.
+         */
+        "trainmeet.driver-1.korplan.DriverSettings": {
+            /**
+             * Reality
+             * @description Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.
+             * @default false
+             */
+            reality: boolean;
+            /**
+             * Clearances
+             * @description Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.
+             * @default false
+             */
+            clearances: boolean;
+            /**
+             * Arrival
+             * @description Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).
+             * @default false
+             */
+            arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * KorplanRow
+         * @description Ett tågbesök i körplanen.
+         */
+        "trainmeet.driver-1.korplan.KorplanRow": {
+            /** Call */
+            call: string;
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /** Place */
+            place: string;
+            /** Place Code */
+            place_code: string;
+            /** Place Name */
+            place_name: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * First Of Train
+             * @description Här börjar ett nytt tåg.
+             * @default false
+             */
+            first_of_train: boolean;
+            /**
+             * Last
+             * @description Tjänstens sista tågbesök.
+             * @default false
+             */
+            last: boolean;
+            /**
+             * Changed
+             * @description Ändrat de senaste 10 spelminuterna.
+             * @default false
+             */
+            changed: boolean;
+            /** @default null */
+            real: components["schemas"]["trainmeet.driver-1.korplan.RowReality"] | null;
+            /** @default null */
+            clearance: components["schemas"]["trainmeet.driver-1.korplan.RowClearance"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LateOncoming
+         * @description Ett mötande tåg som är sent (LOK-20).
+         */
+        "trainmeet.driver-1.korplan.LateOncoming": {
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /** Delay */
+            delay: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RowClearance
+         * @description Tågklareringens besked för avgången härifrån, när trafikspelet valt det (LOK-21): klart är
+         *     en upplysning, avgång ger tågklareraren eller signalen (LOK-11).
+         */
+        "trainmeet.driver-1.korplan.RowClearance": {
+            /**
+             * Status
+             * @description Stationen väntar på klart, sträckan är klar, eller nej.
+             * @enum {string}
+             */
+            status: "waiting" | "approved" | "rejected";
+            /** To Place */
+            to_place: string;
+            /**
+             * Track
+             * @description Spåret tåget tas in på.
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RowReality
+         * @description Verkligheten från Drift på en rad, när trafikspelet valt det (LOK-20).
+         */
+        "trainmeet.driver-1.korplan.RowReality": {
+            /**
+             * Passed
+             * @description Tåget har lämnat eller passerat.
+             * @default false
+             */
+            passed: boolean;
+            /**
+             * Here
+             * @description Tåget står här nu.
+             * @default false
+             */
+            here: boolean;
+            /**
+             * Arrived
+             * @default null
+             */
+            arrived: string | null;
+            /**
+             * Departed
+             * @default null
+             */
+            departed: string | null;
+            /**
+             * Delay
+             * @default null
+             */
+            delay: number | null;
+            /** Late Oncoming */
+            late_oncoming?: components["schemas"]["trainmeet.driver-1.korplan.LateOncoming"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.korplan.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.korplan.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.korplan.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainPosition
+         * @description Var tåget är enligt stationerna: på en driftplats, eller på väg mellan två (LOK-20).
+         *     Förseningen i hela minuter.
+         */
+        "trainmeet.driver-1.korplan.TrainPosition": {
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * State
+             * @description Inte iväg än, står på en driftplats, på väg, eller framme vid slutet.
+             * @enum {string}
+             */
+            state: "planned" | "at" | "on_the_way" | "done";
+            /**
+             * Place
+             * @description Driftplatsen tåget står på.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Delay
+             * @description Minuter sent; tomt när det inte vet.
+             * @default null
+             */
+            delay: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckIn
+         * @description Förarens egen incheckning på en driftplats (LOK-22).
+         */
+        "trainmeet.driver-1.check-in": {
+            /** Place */
+            place: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Framme
+         * @description Framme vid ett tågbesök i tjänsten (LOK-04). Vid tjänstens sista tågbesök är tjänsten
+         *     klar. Det räknas som ankomst bara när trafikspelet valt det och platsen är obemannad.
+         */
+        "trainmeet.driver-1.framme": {
+            /** Call */
+            call: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** DriverMessageSend */
+        "trainmeet.driver-1.message-send": {
+            kind: components["schemas"]["trainmeet.driver-1.message-send.DriverMessageKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.message-send.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
+         * DriverMessage
+         * @description Ett meddelande till trafikledningen: förare, tjänst, tåg och tid (LOK-23).
+         */
+        "trainmeet.driver-1.message": {
+            /** Seq */
+            seq: number;
+            kind: components["schemas"]["trainmeet.driver-1.message.DriverMessageKind"];
+            /** Driver */
+            driver: string;
+            /**
+             * Driver Name
+             * @default null
+             */
+            driver_name: string | null;
+            /** @default null */
+            service: components["schemas"]["trainmeet.driver-1.message.ServiceRef"] | null;
+            /**
+             * Service Number
+             * @default null
+             */
+            service_number: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.message.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.message.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.message.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.message.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverClock
+         * @description Träffklockan ur Drift (LOK-12). Telefonen räknar fram från seconds med speed och sin egen
+         *     tid sedan svaret, aldrig från sitt eget klockslag.
+         */
+        "trainmeet.driver-1.clock": {
+            clock: components["schemas"]["trainmeet.driver-1.clock.Clock"];
+            traffic_day: components["schemas"]["trainmeet.driver-1.clock.Weekday"];
+            /**
+             * Read
+             * Format: date-time
+             * @description När hubben läste klockan.
+             */
+            read: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Clock */
+        "trainmeet.driver-1.clock.Clock": {
+            /** Time */
+            time: string;
+            /**
+             * Seconds
+             * @description Sekunder sedan speldygnets midnatt; kan gå över 24 h.
+             */
+            seconds: number;
+            /**
+             * Running
+             * @description Falskt betyder stoppad klocka, inte tappad kontakt.
+             */
+            running: boolean;
+            /** Speed */
+            speed: number;
+            /** Game Day */
+            game_day: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Weekday
+         * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.clock.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * TrainPosition
+         * @description Var tåget är enligt stationerna: på en driftplats, eller på väg mellan två (LOK-20).
+         *     Förseningen i hela minuter.
+         */
+        "trainmeet.driver-1.train-position": {
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * State
+             * @description Inte iväg än, står på en driftplats, på väg, eller framme vid slutet.
+             * @enum {string}
+             */
+            state: "planned" | "at" | "on_the_way" | "done";
+            /**
+             * Place
+             * @description Driftplatsen tåget står på.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Delay
+             * @description Minuter sent; tomt när det inte vet.
+             * @default null
+             */
+            delay: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverPresence
+         * @description En förare som de andra ser den, på kartorna och i Förare (LOK-27).
+         */
+        "trainmeet.driver-1.presence": {
+            driver: components["schemas"]["trainmeet.driver-1.presence.Driver"];
+            /**
+             * Service Number
+             * @default null
+             */
+            service_number: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** @default null */
+            checkin: components["schemas"]["trainmeet.driver-1.presence.CheckedIn"] | null;
+            /**
+             * Me
+             * @default false
+             */
+            me: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckedIn
+         * @description Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan
+         *     den tonar ut (A8).
+         */
+        "trainmeet.driver-1.presence.CheckedIn": {
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Age Seconds
+             * @description Spelsekunder sedan incheckningen.
+             */
+            age_seconds: number;
+            /**
+             * Fading
+             * @description Tonar ut.
+             * @default false
+             */
+            fading: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Driver
+         * @description En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).
+         */
+        "trainmeet.driver-1.presence.Driver": {
+            /** Id */
+            id: string;
+            /**
+             * Name
+             * @description Tomt över internet utan inloggning.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Initials
+             * @default null
+             */
+            initials: string | null;
+            level: components["schemas"]["trainmeet.driver-1.presence.DriverLevel"];
+            /** @default null */
+            state: components["schemas"]["trainmeet.driver-1.presence.DriverState"] | null;
+            /**
+             * Photo
+             * @description Adressen till fotot, om det finns.
+             * @default null
+             */
+            photo: string | null;
+            /**
+             * Linked
+             * @description Kopplad till en person i TrainMeet ID.
+             * @default false
+             */
+            linked: boolean;
+            /**
+             * Joined
+             * Format: date-time
+             */
+            joined: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.presence.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverState
+         * @description What the others see of a driver without a service on the line (LOK-27).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.presence.DriverState": "pause" | "waiting_start";
+        /**
+         * DriverWait
+         * @description Svaret på väntan: det har hänt något efter after, eller tiden gick ut.
+         */
+        "trainmeet.driver-1.wait": {
+            /** Revision */
+            revision: number;
+            /** Changed */
+            changed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Instructions
+         * @description De allmänna instruktionerna som köruppdragen hänvisar till (LOK-34): text och PDF ur
+         *     träffpaketet. Lokföraren visar det som finns.
+         */
+        "trainmeet.driver-1.instructions": {
+            /**
+             * Text
+             * @description Texten per språk.
+             */
+            text?: {
+                [key: string]: string;
+            };
+            /**
+             * Pdf
+             * @description Adressen till PDF:en, om den finns.
+             * @default null
+             */
+            pdf: string | null;
+            /**
+             * Filename
+             * @default null
+             */
+            filename: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverOverview
+         * @description Förare i Drift: förarna, tjänsterna och vem som kör dem, meddelandena, larmen och
+         *     trafikspelets val. Lokledaren ser och delar ut, men ändrar inte valen (LOK-30).
+         */
+        "trainmeet.driver-1.overview": {
+            /** Drivers */
+            drivers?: components["schemas"]["trainmeet.driver-1.overview.DriverRow"][];
+            services: components["schemas"]["trainmeet.driver-1.overview.ServiceList"];
+            /**
+             * Messages
+             * @description Nyast först.
+             */
+            messages?: components["schemas"]["trainmeet.driver-1.overview.DriverMessage"][];
+            /** Alarms */
+            alarms?: components["schemas"]["trainmeet.driver-1.overview.DriverAlarm"][];
+            settings: components["schemas"]["trainmeet.driver-1.overview.DriverSettings"];
+            /**
+             * May Hand Out
+             * @default false
+             */
+            may_hand_out: boolean;
+            /**
+             * May Set
+             * @description Får ändra trafikspelets val.
+             * @default false
+             */
+            may_set: boolean;
+            /**
+             * Names Shown
+             * @description Namnen visas här (LOK-37).
+             * @default true
+             */
+            names_shown: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckedIn
+         * @description Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan
+         *     den tonar ut (A8).
+         */
+        "trainmeet.driver-1.overview.CheckedIn": {
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Age Seconds
+             * @description Spelsekunder sedan incheckningen.
+             */
+            age_seconds: number;
+            /**
+             * Fading
+             * @description Tonar ut.
+             * @default false
+             */
+            fading: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Driver
+         * @description En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).
+         */
+        "trainmeet.driver-1.overview.Driver": {
+            /** Id */
+            id: string;
+            /**
+             * Name
+             * @description Tomt över internet utan inloggning.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Initials
+             * @default null
+             */
+            initials: string | null;
+            level: components["schemas"]["trainmeet.driver-1.overview.DriverLevel"];
+            /** @default null */
+            state: components["schemas"]["trainmeet.driver-1.overview.DriverState"] | null;
+            /**
+             * Photo
+             * @description Adressen till fotot, om det finns.
+             * @default null
+             */
+            photo: string | null;
+            /**
+             * Linked
+             * @description Kopplad till en person i TrainMeet ID.
+             * @default false
+             */
+            linked: boolean;
+            /**
+             * Joined
+             * Format: date-time
+             */
+            joined: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverAlarm
+         * @description Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit
+         *     över. Utan förarens namn (B13).
+         */
+        "trainmeet.driver-1.overview.DriverAlarm": {
+            service: components["schemas"]["trainmeet.driver-1.overview.ServiceRef"];
+            /**
+             * Number
+             * @description Tjänstens nummer, eller tågets.
+             */
+            number: string;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Since
+             * @description Modelltiden när tjänsten släpptes.
+             */
+            since: string;
+            /**
+             * Seq
+             * @description Drifthändelsen då tjänsten släpptes.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * DriverMessage
+         * @description Ett meddelande till trafikledningen: förare, tjänst, tåg och tid (LOK-23).
+         */
+        "trainmeet.driver-1.overview.DriverMessage": {
+            /** Seq */
+            seq: number;
+            kind: components["schemas"]["trainmeet.driver-1.overview.DriverMessageKind"];
+            /** Driver */
+            driver: string;
+            /**
+             * Driver Name
+             * @default null
+             */
+            driver_name: string | null;
+            /** @default null */
+            service: components["schemas"]["trainmeet.driver-1.overview.ServiceRef"] | null;
+            /**
+             * Service Number
+             * @default null
+             */
+            service_number: string | null;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
+         * DriverRow
+         * @description En förare i trafikledningens lista: tjänsten, incheckningen, läget och senaste
+         *     meddelandet.
+         */
+        "trainmeet.driver-1.overview.DriverRow": {
+            driver: components["schemas"]["trainmeet.driver-1.overview.Driver"];
+            /** @default null */
+            service: components["schemas"]["trainmeet.driver-1.overview.ServiceOffer"] | null;
+            /** @default null */
+            checkin: components["schemas"]["trainmeet.driver-1.overview.CheckedIn"] | null;
+            /** @default null */
+            position: components["schemas"]["trainmeet.driver-1.overview.TrainPosition"] | null;
+            /** @default null */
+            message: components["schemas"]["trainmeet.driver-1.overview.DriverMessage"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverSettings
+         * @description Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+         *     förval, och bara trafikledningen ändrar det.
+         */
+        "trainmeet.driver-1.overview.DriverSettings": {
+            /**
+             * Reality
+             * @description Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.
+             * @default false
+             */
+            reality: boolean;
+            /**
+             * Clearances
+             * @description Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.
+             * @default false
+             */
+            clearances: boolean;
+            /**
+             * Arrival
+             * @description Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).
+             * @default false
+             */
+            arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverState
+         * @description What the others see of a driver without a service on the line (LOK-27).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.DriverState": "pause" | "waiting_start";
+        /**
+         * ServiceEnd
+         * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
+         */
+        "trainmeet.driver-1.overview.ServiceEnd": {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.ServiceKind": "duty" | "train";
+        /**
+         * ServiceList
+         * @description Tjänsterna att välja bland: köruppdragen när träffen har sådana, annars tågen (LOK-17,
+         *     LOK-31). Släppta på linjen först, sedan de som passar förarens nivå, i startordning.
+         */
+        "trainmeet.driver-1.overview.ServiceList": {
+            kind: components["schemas"]["trainmeet.driver-1.overview.ServiceKind"];
+            /** Services */
+            services?: components["schemas"]["trainmeet.driver-1.overview.ServiceOffer"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceOffer
+         * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
+         *     slut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.
+         */
+        "trainmeet.driver-1.overview.ServiceOffer": {
+            service: components["schemas"]["trainmeet.driver-1.overview.ServiceRef"];
+            /**
+             * Number
+             * @description Papprets nummer, eller tågets nummer.
+             */
+            number: string;
+            start: components["schemas"]["trainmeet.driver-1.overview.ServiceEnd"];
+            end: components["schemas"]["trainmeet.driver-1.overview.ServiceEnd"];
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /** @default null */
+            level: components["schemas"]["trainmeet.driver-1.overview.DriverLevel"] | null;
+            /**
+             * Trains
+             * @description Tågnumren, i ordning.
+             */
+            trains?: string[];
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
+            /**
+             * Driver
+             * @description Föraren som har tjänsten.
+             * @default null
+             */
+            driver: string | null;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Released On Line
+             * @description Släppt på linjen: står först i listan (LOK-40).
+             * @default false
+             */
+            released_on_line: boolean;
+            /**
+             * Matches Level
+             * @description Passar förarens nivå (LOK-32).
+             * @default false
+             */
+            matches_level: boolean;
+            /**
+             * Exact
+             * @description Numret är exakt det som söktes.
+             * @default false
+             */
+            exact: boolean;
+            /**
+             * Done
+             * @description Klar: Framme vid sista tågbesöket.
+             * @default false
+             */
+            done: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.overview.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.overview.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainPosition
+         * @description Var tåget är enligt stationerna: på en driftplats, eller på väg mellan två (LOK-20).
+         *     Förseningen i hela minuter.
+         */
+        "trainmeet.driver-1.overview.TrainPosition": {
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+            /**
+             * State
+             * @description Inte iväg än, står på en driftplats, på väg, eller framme vid slutet.
+             * @enum {string}
+             */
+            state: "planned" | "at" | "on_the_way" | "done";
+            /**
+             * Place
+             * @description Driftplatsen tåget står på.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Delay
+             * @description Minuter sent; tomt när det inte vet.
+             * @default null
+             */
+            delay: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * HandOut
+         * @description Trafikledningen eller lokledaren delar ut en tjänst (LOK-30). Har någon annan den, flyttas
+         *     den; har föraren en annan, lämnas den tillbaka först.
+         */
+        "trainmeet.driver-1.hand-out": {
+            /** Driver */
+            driver: string;
+            service: components["schemas"]["trainmeet.driver-1.hand-out.ServiceRef"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.hand-out.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.hand-out.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.hand-out.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TakeBack
+         * @description Trafikledningen eller lokledaren tar tillbaka förarens tjänst.
+         */
+        "trainmeet.driver-1.take-back": {
+            /** Driver */
+            driver: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** ScreenLogin */
         "trainmeet.screen-1.login": {
             /** Name */
@@ -8135,6 +10638,62 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverAlarm
+         * @description Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit
+         *     över. Utan förarens namn (B13).
+         */
+        "trainmeet.screen-1.picture.DriverAlarm": {
+            service: components["schemas"]["trainmeet.screen-1.picture.ServiceRef"];
+            /**
+             * Number
+             * @description Tjänstens nummer, eller tågets.
+             */
+            number: string;
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * From Place
+             * @default null
+             */
+            from_place: string | null;
+            /**
+             * To Place
+             * @default null
+             */
+            to_place: string | null;
+            /**
+             * Since
+             * @description Modelltiden när tjänsten släpptes.
+             */
+            since: string;
+            /**
+             * Seq
+             * @description Drifthändelsen då tjänsten släpptes.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
+        /**
          * ExternalClockNow
          * @description FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open
          *     to everyone who looks, so it holds no user or password.
@@ -8444,6 +11003,44 @@ export interface components {
              * @default null
              */
             tellurian: components["schemas"]["trainmeet.screen-1.picture.TellurianShadow"] | null;
+            /**
+             * Driver Alarms
+             * @description Tåg som står utan förare på linjen (LOK-35).
+             */
+            driver_alarms?: components["schemas"]["trainmeet.screen-1.picture.DriverAlarm"][];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).
+             */
+            driver_messages?: components["schemas"]["trainmeet.screen-1.picture.NowDriverMessage"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NowDriverMessage
+         * @description Ett meddelande från en förare, som Nu visar det: utan namn (B13).
+         */
+        "trainmeet.screen-1.picture.NowDriverMessage": {
+            kind: components["schemas"]["trainmeet.screen-1.picture.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Service Number
+             * @default null
+             */
+            service_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /** Seq */
+            seq: number;
         } & {
             [key: string]: unknown;
         };
@@ -8487,6 +11084,22 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.screen-1.picture.ScreenView": "clock" | "clock_digital" | "tracks" | "graph" | "overview";
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.ServiceKind": "duty" | "train";
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.screen-1.picture.ServiceRef": {
+            kind: components["schemas"]["trainmeet.screen-1.picture.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** SwitchWaiting */
         "trainmeet.screen-1.picture.SwitchWaiting": {
             /** Version */
@@ -9402,7 +12015,8 @@ export interface components {
         };
         /**
          * OneTimeCodeRequest
-         * @description Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift.
+         * @description Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift, som
+         *     Trafikledare, eller under Förare som Lokledare (LOK-30, LF17).
          */
         "trainmeet.hub-1.one-time-code-request": {
             /**
@@ -9411,6 +12025,13 @@ export interface components {
              * @default null
              */
             name: string | null;
+            /**
+             * Role
+             * @description Rollen koden ger: Trafikledare eller Lokledare.
+             * @default dispatcher
+             * @enum {string}
+             */
+            role: "dispatcher" | "loco_lead";
         } & {
             [key: string]: unknown;
         };
@@ -9557,7 +12178,7 @@ export interface components {
          * AttachmentKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import.AttachmentKind": "clock_face" | "sketch" | "overview" | "other";
+        "trainmeet.planning-1.import.AttachmentKind": "clock_face" | "sketch" | "overview" | "instructions" | "other";
         /** BoxSide */
         "trainmeet.planning-1.import.BoxSide": {
             side: components["schemas"]["trainmeet.planning-1.import.Side"];
@@ -9735,8 +12356,15 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.import.DriverLevel": "easy" | "medium" | "experienced";
+        /**
          * Duty
-         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.
+         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is
+         *     the number on the paper's front (LOK-19).
          */
         "trainmeet.planning-1.import.Duty": {
             /** Id */
@@ -9745,6 +12373,11 @@ export interface components {
             name: string;
             /** Legs */
             legs?: components["schemas"]["trainmeet.planning-1.import.DutyLeg"][];
+            /**
+             * @description Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32).
+             * @default null
+             */
+            level: components["schemas"]["trainmeet.planning-1.import.DriverLevel"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -10485,7 +13118,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.draft.StationChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.draft.StationChange"] | components["schemas"]["trainmeet.planning-1.draft.InstructionsChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -10573,7 +13206,7 @@ export interface components {
          * AttachmentKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.AttachmentKind": "clock_face" | "sketch" | "overview" | "other";
+        "trainmeet.planning-1.draft.AttachmentKind": "clock_face" | "sketch" | "overview" | "instructions" | "other";
         /** BoxSide */
         "trainmeet.planning-1.draft.BoxSide": {
             side: components["schemas"]["trainmeet.planning-1.draft.Side"];
@@ -10951,8 +13584,15 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.planning-1.draft.DriverLevel": "easy" | "medium" | "experienced";
+        /**
          * Duty
-         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.
+         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is
+         *     the number on the paper's front (LOK-19).
          */
         "trainmeet.planning-1.draft.Duty": {
             /** Id */
@@ -10961,6 +13601,11 @@ export interface components {
             name: string;
             /** Legs */
             legs?: components["schemas"]["trainmeet.planning-1.draft.DutyLeg"][];
+            /**
+             * @description Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32).
+             * @default null
+             */
+            level: components["schemas"]["trainmeet.planning-1.draft.DriverLevel"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -11184,6 +13829,36 @@ export interface components {
              * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
              */
             verdicts?: components["schemas"]["trainmeet.planning-1.draft.ListVerdict"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * InstructionsChange
+         * @description De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en
+         *     text per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,
+         *     och följer med nästa version till Drift och Lokföraren. Tomt tar bort.
+         */
+        "trainmeet.planning-1.draft.InstructionsChange": {
+            /**
+             * Instructions
+             * @enum {string}
+             */
+            instructions: "text" | "pdf";
+            /**
+             * @description Textens språk.
+             * @default sv
+             */
+            language: components["schemas"]["trainmeet.planning-1.draft.Language"];
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+            /**
+             * @description PDF:en, sparad bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            pdf: components["schemas"]["trainmeet.planning-1.draft.Attachment"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -12153,10 +14828,34 @@ export interface components {
              */
             revision: number;
             /** Changes */
-            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.changes.StationChange"])[];
+            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.changes.StationChange"] | components["schemas"]["trainmeet.planning-1.changes.InstructionsChange"])[];
         } & {
             [key: string]: unknown;
         };
+        /**
+         * Attachment
+         * @description A file the package carries, beside the package, with its own checksum.
+         */
+        "trainmeet.planning-1.changes.Attachment": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.planning-1.changes.AttachmentKind"];
+            /** Filename */
+            filename: string;
+            /** Media Type */
+            media_type: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AttachmentKind
+         * @enum {string}
+         */
+        "trainmeet.planning-1.changes.AttachmentKind": "clock_face" | "sketch" | "overview" | "instructions" | "other";
         /**
          * CallChange
          * @description One field of a tågbesök in the draft (PLAN-01): its arrival, its departure or its track.
@@ -12199,6 +14898,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * InstructionsChange
+         * @description De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en
+         *     text per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,
+         *     och följer med nästa version till Drift och Lokföraren. Tomt tar bort.
+         */
+        "trainmeet.planning-1.changes.InstructionsChange": {
+            /**
+             * Instructions
+             * @enum {string}
+             */
+            instructions: "text" | "pdf";
+            /**
+             * @description Textens språk.
+             * @default sv
+             */
+            language: components["schemas"]["trainmeet.planning-1.changes.Language"];
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+            /**
+             * @description PDF:en, sparad bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            pdf: components["schemas"]["trainmeet.planning-1.changes.Attachment"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Language
+         * @enum {string}
+         */
+        "trainmeet.planning-1.changes.Language": "sv" | "en" | "da" | "nb" | "de";
         /**
          * PlaceChange
          * @description A change to one place in the draft. Only the fields sent are changed.
@@ -13478,7 +16212,7 @@ export interface components {
          * ActorKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-events.ActorKind": "client" | "dispatcher" | "automation" | "system";
+        "trainmeet.sync-1.run-events.ActorKind": "client" | "dispatcher" | "automation" | "system" | "driver" | "loco_lead";
         /** DriftEvent */
         "trainmeet.sync-1.run-events.DriftEvent": {
             /**
@@ -13544,7 +16278,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
         /**
          * RunAck
          * @description Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4).
@@ -13595,7 +16329,7 @@ export interface components {
          * ActorKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-feed.ActorKind": "client" | "dispatcher" | "automation" | "system";
+        "trainmeet.sync-1.run-feed.ActorKind": "client" | "dispatcher" | "automation" | "system" | "driver" | "loco_lead";
         /** DriftEvent */
         "trainmeet.sync-1.run-feed.DriftEvent": {
             /**
@@ -13661,7 +16395,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-feed.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped";
+        "trainmeet.sync-1.run-feed.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
         /**
          * Home
          * @description Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den
@@ -13775,7 +16509,7 @@ export interface components {
          * AttachmentKind
          * @enum {string}
          */
-        "trainmeet.sync-1.home-bundle.AttachmentKind": "clock_face" | "sketch" | "overview" | "other";
+        "trainmeet.sync-1.home-bundle.AttachmentKind": "clock_face" | "sketch" | "overview" | "instructions" | "other";
         /** BoxSide */
         "trainmeet.sync-1.home-bundle.BoxSide": {
             side: components["schemas"]["trainmeet.sync-1.home-bundle.Side"];
@@ -14188,7 +16922,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.StationChange"])[];
+            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.StationChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.InstructionsChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -14217,8 +16951,15 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.home-bundle.DriverLevel": "easy" | "medium" | "experienced";
+        /**
          * Duty
-         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.
+         * @description Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is
+         *     the number on the paper's front (LOK-19).
          */
         "trainmeet.sync-1.home-bundle.Duty": {
             /** Id */
@@ -14227,6 +16968,11 @@ export interface components {
             name: string;
             /** Legs */
             legs?: components["schemas"]["trainmeet.sync-1.home-bundle.DutyLeg"][];
+            /**
+             * @description Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32).
+             * @default null
+             */
+            level: components["schemas"]["trainmeet.sync-1.home-bundle.DriverLevel"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -14450,6 +17196,36 @@ export interface components {
              * @description Stationslistorna prövade mot planeringsfilen, en dom per lista (IMPORT-27).
              */
             verdicts?: components["schemas"]["trainmeet.sync-1.home-bundle.ListVerdict"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * InstructionsChange
+         * @description De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en
+         *     text per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,
+         *     och följer med nästa version till Drift och Lokföraren. Tomt tar bort.
+         */
+        "trainmeet.sync-1.home-bundle.InstructionsChange": {
+            /**
+             * Instructions
+             * @enum {string}
+             */
+            instructions: "text" | "pdf";
+            /**
+             * @description Textens språk.
+             * @default sv
+             */
+            language: components["schemas"]["trainmeet.sync-1.home-bundle.Language"];
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+            /**
+             * @description PDF:en, sparad bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            pdf: components["schemas"]["trainmeet.sync-1.home-bundle.Attachment"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -16202,6 +18978,39 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.relay-answer.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /**
+         * DriverMessageHere
+         * @description Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+         *     DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.
+         */
+        "trainmeet.sync-1.relay-answer.DriverMessageHere": {
+            kind: components["schemas"]["trainmeet.sync-1.relay-answer.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Seq
+             * @description Drifthändelsen meddelandet är.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-answer.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
         /** ExitChoice */
         "trainmeet.sync-1.relay-answer.ExitChoice": {
             /** Exit */
@@ -16335,7 +19144,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
+        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
         /** Reply */
         "trainmeet.sync-1.relay-answer.Reply": {
             /**
@@ -16471,6 +19280,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.sync-1.relay-answer.ExitQuestion"][];
             /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
             track_display?: components["schemas"]["trainmeet.sync-1.relay-answer.TrackDisplay"];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).
+             */
+            driver_messages?: components["schemas"]["trainmeet.sync-1.relay-answer.DriverMessageHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -17890,6 +20704,517 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    driverJoin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.join"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.session"];
+                };
+            };
+        };
+    };
+    driverMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.profile"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/png": string;
+                "image/jpeg": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverPhotoRemove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverServices: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.services"];
+                };
+            };
+        };
+    };
+    driverClaim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.service"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverKorplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.korplan"];
+                };
+            };
+        };
+    };
+    driverCheckIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.check-in"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverFramme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.framme"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.me"];
+                };
+            };
+        };
+    };
+    driverMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.message-send"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.message"];
+                };
+            };
+        };
+    };
+    driverClock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.clock"];
+                };
+            };
+        };
+    };
+    driverTrains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.train-position"][];
+                };
+            };
+        };
+    };
+    driverList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.presence"][];
+                };
+            };
+        };
+    };
+    driverWait: {
+        parameters: {
+            query: {
+                after: number;
+                seconds?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.wait"];
+                };
+            };
+        };
+    };
+    driverInstructions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.instructions"];
+                };
+            };
+        };
+    };
+    driverOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    handOutService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.hand-out"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    takeBackService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.take-back"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    driverSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.driver-settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    clearAlarm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.drift-1.service"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    driverJoining: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.joining"];
                 };
             };
         };
@@ -19337,6 +22662,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    instructionsPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/pdf": string;
+            };
+        };
         responses: {
             /** @description OK */
             200: {

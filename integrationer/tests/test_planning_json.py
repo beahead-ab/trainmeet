@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from contracts.common import Language, Weekday
-from contracts.meet import Meet, PlaceKind, TrackKind, Train
+from contracts.meet import DriverLevel, Meet, PlaceKind, TrackKind, Train
 from contracts.planning import Certainty, ImportResult, Source, SourceKind
 from integrationer.planning_json import PlanError, clock, read, weekdays
 
@@ -294,7 +294,12 @@ def plan() -> dict[str, Any]:
         },
         "DriverDuties": {
             "$values": [
-                {"Id": 4, "Identity": "39", "Parts": {"$values": [{"FromId": 501, "ToId": 502}]}}
+                {
+                    "Id": 4,
+                    "Identity": "39",
+                    "Difficulty": 2,
+                    "Parts": {"$values": [{"FromId": 501, "ToId": 502}]},
+                }
             ]
         },
     }
@@ -500,6 +505,8 @@ def test_duties_and_turns_point_at_the_trains(result: ImportResult) -> None:
         "t11",
         "c501",
     )
+    # The paper's front says how hard the duty is: Difficulty 2 is Medel (LOK-19, LOK-32).
+    assert duty.level == DriverLevel.MEDIUM
     [turn] = result.package.turns
     assert (turn.id, turn.name, turn.trains) == ("o3", "533", ["t11"])
 

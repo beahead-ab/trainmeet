@@ -6,6 +6,7 @@ import json
 import sqlite3
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import closing, contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
@@ -16,12 +17,13 @@ from typing import Any, Final, TypeVar
 from contracts import drift as events
 from contracts import station
 from contracts.common import Weekday, checksum
-from contracts.meet import MeetPackage, PlaceKind
+from contracts.meet import DriverLevel, MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.station_outside import StationOutside
 from contracts.terminal import DisplaySize
 from drift.automatik import Automatik
 from drift.copy import EventCopy
+from drift.drivers import messages_here
 from drift.engine import Drift, Outcome, Refused, model_time, now_utc
 from drift.exits import ExitMemory, couple
 from drift.notices import notices
@@ -35,6 +37,10 @@ MAX_RUNS: Final = 256
 MAX_ACTIONS: Final = 2000
 MAX_CLIENTS: Final = 16  # boxes, station clients and screens of each kind in a Provbanan run
 MAX_REFUSALS: Final = 500
+# Drivers in a run: more than a big meet has drivers, phones changed included (LOK-40).
+MAX_DRIVERS: Final = 500
+# A driver's photo is a small picture the phone has already cut and scaled (LOK-27).
+PHOTO_MAX_BYTES: Final = 96 * 1024
 
 T = TypeVar("T")
 
@@ -110,6 +116,23 @@ CREATE TABLE IF NOT EXISTS track_display (
     place TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT,
     PRIMARY KEY (run_id, place)
 );
+CREATE TABLE IF NOT EXISTS driver (
+    driver_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL UNIQUE,
+    created REAL NOT NULL,
+    name TEXT NOT NULL,
+    level TEXT NOT NULL,
+    state TEXT,
+    person TEXT,
+    photo BLOB,
+    photo_type TEXT,
+    photo_version INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS driver_join (
+    run_id TEXT PRIMARY KEY REFERENCES preview_run(id) ON DELETE CASCADE,
+    code TEXT NOT NULL UNIQUE
+);
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL, message_id TEXT NOT NULL, signature TEXT NOT NULL,
@@ -148,6 +171,27 @@ class ExitAnswered(Exception):
 
 class UnknownExit(Exception):
     """No such exit at the station, or no such section at the place."""
+
+
+class UnknownDriver(Exception):
+    """No driver in a live run with that key or id."""
+
+
+@dataclass(frozen=True)
+class DriverRecord:
+    """A driver as the store keeps them, beside the events: the name, the level and whether a
+    photo is there. The key is kept only as its hash, and the person from TrainMeet ID only
+    as ID's id (LOK-16)."""
+
+    id: str
+    run_id: str
+    name: str
+    level: DriverLevel
+    state: str | None
+    person: str | None
+    photo_type: str | None
+    photo_version: int
+    joined: datetime
 
 
 def _key_hash(key: str) -> str:
@@ -303,7 +347,14 @@ class PreviewStore:
                 (run_id, (now + self.lifetime).timestamp(), self.package_key, self.boot),
             )
             if replace:
-                for table in ("preview_box", "station_client", "screen", "preview_join"):
+                for table in (
+                    "preview_box",
+                    "station_client",
+                    "screen",
+                    "preview_join",
+                    "driver",
+                    "driver_join",
+                ):
                     db.execute(f"DELETE FROM {table} WHERE run_id!=?", (run_id,))
             drift = Drift(self.package, [], now=now, version=self.version)
             drift.start(now, traffic_day, game_day)
@@ -967,12 +1018,19 @@ class PreviewStore:
             return seen
         request = station.ConnectRequest.model_validate_json(row[0])
         found, questions = self._coupling(db, run_id, drift, request, seen.place.place)
+        # The drivers' messages go to the clearers with TKL, not to the TMBox (DRIFT-38).
+        told = (
+            messages_here(drift, seen.place.place, now_utc())
+            if request.kind == station.ClientKind.TKL
+            else []
+        )
         return seen.model_copy(
             update={
                 "sections": [
                     s.model_copy(update={"exit": found.get(s.section)}) for s in seen.sections
                 ],
                 "questions": questions,
+                "driver_messages": told,
             }
         )
 
@@ -1520,6 +1578,180 @@ class PreviewStore:
             )
             for at, model, client, place, what, reason, message in rows
         ]
+
+    # --- Lokföraren (LOK-01, LOK-16, LOK-40, LOK-41): the drivers of a run ---------------------
+
+    def driver_code(self, run_id: str) -> str:
+        """The drivers' code for the meet's QR code, made the first time it is asked for."""
+        with self._transaction() as db:
+            self._load(db, run_id, now_utc())
+            row = db.execute("SELECT code FROM driver_join WHERE run_id=?", (run_id,)).fetchone()
+            if row is not None:
+                return str(row[0])
+            while True:
+                code = f"{randbelow(10**6):06d}"
+                taken = db.execute("SELECT 1 FROM driver_join WHERE code=?", (code,)).fetchone()
+                if taken is None:
+                    db.execute("INSERT INTO driver_join VALUES (?, ?)", (run_id, code))
+                    return code
+
+    def driver_run(self, code: str) -> str:
+        """The live run whose drivers' code it is."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT j.run_id FROM driver_join j JOIN preview_run r ON r.id=j.run_id "
+                "WHERE j.code=? AND r.expires>? AND r.package=?",
+                (code, now_utc().timestamp(), self.package_key),
+            ).fetchone()
+        if row is None:
+            raise MissingRun()
+        return str(row[0])
+
+    def join_driver(
+        self, run_id: str, name: str, level: DriverLevel, person: str | None = None
+    ) -> tuple[DriverRecord, str]:
+        """A new driver in the run, and the phone's key, shown once. The driver stays as long
+        as the run does (LOK-41); a new meet needs a new join (B14)."""
+        with self._transaction() as db:
+            self._load(db, run_id, now_utc())
+            count = db.execute("SELECT count(*) FROM driver WHERE run_id=?", (run_id,)).fetchone()
+            if count[0] >= MAX_DRIVERS:
+                raise RunLimit()
+            driver_id = f"forare-{token_hex(6)}"
+            key = token_urlsafe(32)
+            db.execute(
+                "INSERT INTO driver (driver_id, run_id, key_hash, created, name, level, person) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    driver_id,
+                    run_id,
+                    _key_hash(key),
+                    now_utc().timestamp(),
+                    " ".join(name.split()),
+                    level.value,
+                    person,
+                ),
+            )
+            return self._driver(db, run_id, driver_id), key
+
+    _DRIVER_COLUMNS: Final = (
+        "driver_id, run_id, name, level, state, person, photo_type, photo_version, created"
+    )
+
+    @staticmethod
+    def _driver_of(row: tuple[Any, ...]) -> DriverRecord:
+        return DriverRecord(
+            id=str(row[0]),
+            run_id=str(row[1]),
+            name=str(row[2]),
+            level=DriverLevel(row[3]),
+            state=row[4],
+            person=row[5],
+            photo_type=row[6],
+            photo_version=int(row[7]),
+            joined=datetime.fromtimestamp(row[8], UTC),
+        )
+
+    def _driver(self, db: sqlite3.Connection, run_id: str, driver_id: str) -> DriverRecord:
+        row = db.execute(
+            f"SELECT {self._DRIVER_COLUMNS} FROM driver WHERE driver_id=? AND run_id=?",
+            (driver_id, run_id),
+        ).fetchone()
+        if row is None:
+            raise UnknownDriver()
+        return self._driver_of(row)
+
+    def driver_by_key(self, key: str) -> DriverRecord:
+        """The driver whose phone has the key, in a live run of this store."""
+        if not key or len(key) > 120:
+            raise UnknownDriver()
+        with self._transaction() as db:
+            row = db.execute(
+                f"SELECT {', '.join('d.' + c.strip() for c in self._DRIVER_COLUMNS.split(','))} "
+                "FROM driver d JOIN preview_run r ON r.id=d.run_id "
+                "WHERE d.key_hash=? AND r.expires>? AND r.package=?",
+                (_key_hash(key), now_utc().timestamp(), self.package_key),
+            ).fetchone()
+        if row is None:
+            raise UnknownDriver()
+        return self._driver_of(row)
+
+    def driver(self, run_id: str, driver_id: str) -> DriverRecord:
+        with self._transaction() as db:
+            return self._driver(db, run_id, driver_id)
+
+    def drivers(self, run_id: str) -> list[DriverRecord]:
+        """The run's drivers, in the order they came."""
+        with self._transaction() as db:
+            rows = db.execute(
+                f"SELECT {self._DRIVER_COLUMNS} FROM driver WHERE run_id=? "
+                "ORDER BY created, driver_id",
+                (run_id,),
+            ).fetchall()
+        return [self._driver_of(row) for row in rows]
+
+    def change_driver(
+        self,
+        run_id: str,
+        driver_id: str,
+        *,
+        name: str | None = None,
+        level: DriverLevel | None = None,
+        state: str | None = None,
+        clear_state: bool = False,
+        person: str | None = None,
+    ) -> DriverRecord:
+        """The driver's own name, level and Paus or Inväntar start (LOK-27), and the person in
+        TrainMeet ID once the driver has logged in there (LOK-16)."""
+        with self._transaction() as db:
+            found = self._driver(db, run_id, driver_id)
+            db.execute(
+                "UPDATE driver SET name=?, level=?, state=?, person=? WHERE driver_id=?",
+                (
+                    " ".join(name.split()) if name else found.name,
+                    (level or found.level).value,
+                    None if clear_state else (state or found.state),
+                    person or found.person,
+                    driver_id,
+                ),
+            )
+            return self._driver(db, run_id, driver_id)
+
+    def set_driver_photo(
+        self, run_id: str, driver_id: str, photo: tuple[bytes, str] | None
+    ) -> DriverRecord:
+        """The driver's photo icon, already checked to be a small picture; None takes it away."""
+        with self._transaction() as db:
+            self._driver(db, run_id, driver_id)
+            data, kind = photo if photo is not None else (None, None)
+            db.execute(
+                "UPDATE driver SET photo=?, photo_type=?, photo_version=photo_version+1 "
+                "WHERE driver_id=?",
+                (data, kind, driver_id),
+            )
+            return self._driver(db, run_id, driver_id)
+
+    def driver_photo(self, run_id: str, driver_id: str) -> tuple[bytes, str] | None:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT photo, photo_type FROM driver "
+                "WHERE driver_id=? AND run_id=? AND photo IS NOT NULL",
+                (driver_id, run_id),
+            ).fetchone()
+        return None if row is None else (bytes(row[0]), str(row[1]))
+
+    def drive(self, run_id: str, action: Callable[[Drift, datetime], T]) -> tuple[Drift, T]:
+        """Something a driver, Trafikledningen or the lokledare does about the drivers: the
+        action gets Drift and the time, and its events are written before the answer."""
+        with self._transaction() as db:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            size = len(drift.history)
+            if size >= self.max_actions:
+                raise RunLimit()
+            result = action(drift, now)
+            self._save(db, run_id, drift.history[size:])
+            return drift, result
 
     # --- The meet's screens (S3, S4) ------------------------------------------------------
 

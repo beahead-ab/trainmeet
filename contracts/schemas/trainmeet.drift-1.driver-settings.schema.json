@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.driver-settings.schema.json",
+  "title": "trainmeet.drift-1.driver-settings",
+  "additionalProperties": true,
+  "description": "Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som\nförval, och bara trafikledningen ändrar det.",
+  "properties": {
+    "reality": {
+      "default": false,
+      "description": "Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.",
+      "title": "Reality",
+      "type": "boolean"
+    },
+    "clearances": {
+      "default": false,
+      "description": "Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.",
+      "title": "Clearances",
+      "type": "boolean"
+    },
+    "arrival": {
+      "default": false,
+      "description": "Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
+      "title": "Arrival",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

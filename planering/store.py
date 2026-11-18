@@ -6,6 +6,7 @@ draft (freeze); Synk keeps the versions, frozen, with their checksums (SYNK-08, 
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sqlite3
 import unicodedata
@@ -16,9 +17,19 @@ from pathlib import Path
 from threading import Lock
 from typing import Final
 
-from contracts.common import Id
+from contracts.common import Id, Language
 from contracts.drift import DriftChange, ProposalStatus
-from contracts.meet import CoupledStation, Meet, MeetPackage, Place, Section, TrackKind, Train
+from contracts.meet import (
+    About,
+    AttachmentKind,
+    CoupledStation,
+    Meet,
+    MeetPackage,
+    Place,
+    Section,
+    TrackKind,
+    Train,
+)
 from contracts.planning import (
     PLANNER,
     Alternative,
@@ -34,6 +45,7 @@ from contracts.planning import (
     ImportPreview,
     ImportReport,
     ImportResult,
+    InstructionsChange,
     LetStand,
     MeetSummary,
     NewMeet,
@@ -59,6 +71,7 @@ from planering.check import review
 from planering.sanity import deviations
 
 RESERVED: Final = {"provbanan"}
+PDF: Final = "application/pdf"
 MAX_MEETS: Final = 200
 
 _TIME: Final = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -83,6 +96,9 @@ CREATE TABLE IF NOT EXISTS proposal (
     meet_id TEXT NOT NULL REFERENCES meet(id) ON DELETE CASCADE,
     id TEXT NOT NULL, made REAL NOT NULL, body TEXT NOT NULL,
     PRIMARY KEY (meet_id, id)
+);
+CREATE TABLE IF NOT EXISTS attachment_file (
+    sha256 TEXT PRIMARY KEY, media_type TEXT NOT NULL, body BLOB NOT NULL, kept REAL NOT NULL
 );
 """
 
@@ -598,6 +614,27 @@ class Planning:
         )
         return answered
 
+    # --- Files beside the package (Attachment) ------------------------------------------------
+
+    def keep_file(self, body: bytes, media_type: str) -> str:
+        """A file the package carries beside it, such as the general instructions as PDF
+        (PLAN-40), kept by its checksum. The same file twice is kept once."""
+        digest = hashlib.sha256(body).hexdigest()
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO attachment_file VALUES (?, ?, ?, ?)",
+                (digest, media_type, body, datetime.now(UTC).timestamp()),
+            )
+        return digest
+
+    def file(self, digest: str) -> tuple[str, bytes] | None:
+        """The file with the checksum, as kept: its media type and its bytes."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT media_type, body FROM attachment_file WHERE sha256=?", (digest,)
+            ).fetchone()
+        return None if row is None else (str(row[0]), bytes(row[1]))
+
     # --- Inside ------------------------------------------------------------------------------
 
     @staticmethod
@@ -646,7 +683,14 @@ def _target(change: Change) -> tuple[str, Id]:
         return "confirm", change.confirm
     if isinstance(change, StationChange):
         return "station", change.place
+    if isinstance(change, InstructionsChange):
+        return "instructions", _instructions_target(change)
     return "section", change.section
+
+
+def _instructions_target(change: InstructionsChange) -> str:
+    """The text in one language, or the PDF: the last change to each counts."""
+    return "pdf" if change.instructions == "pdf" else f"text:{change.language.value}"
 
 
 def _things(package: MeetPackage) -> dict[str, set[Id]]:
@@ -663,6 +707,7 @@ def _things(package: MeetPackage) -> dict[str, set[Id]]:
     }
     kinds.update({f"call.{field}": calls for field in ("arrival", "departure", "track")})
     kinds.update({f"train.{field}": trains for field in ("number", "note", "days")})
+    kinds["instructions"] = {"pdf", *(f"text:{language.value}" for language in Language)}
     return kinds
 
 
@@ -678,6 +723,9 @@ def _check_value(package: MeetPackage, change: Change) -> None:
                 raise PlanningError(f"Spåret {change.value} finns inte på {place.name}.")
     if isinstance(change, TrainChange) and change.field == "number" and not change.value:
         raise PlanningError("Ett tåg måste ha ett nummer.")
+    pdf = change.pdf if isinstance(change, InstructionsChange) else None
+    if pdf is not None and (pdf.kind != AttachmentKind.INSTRUCTIONS or pdf.media_type != PDF):
+        raise PlanningError("Instruktionerna läggs in som en PDF.")
 
 
 def _train_of(package: MeetPackage, change: Change) -> Id | None:
@@ -753,7 +801,19 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     trains: dict[Id, Train] = {t.id: t for t in package.trains}
     owner = {c.id: t.id for t in package.trains for c in t.calls}
     coupled: dict[Id, Id | None] = {}
+    about = dict(package.about)
+    attachments = list(package.attachments)
     for change in draft.changes:
+        if isinstance(change, InstructionsChange):
+            # De allmänna instruktionerna (PLAN-40): the text in about, the PDF as attachment.
+            if change.instructions == "pdf":
+                attachments = [a for a in attachments if a.kind != AttachmentKind.INSTRUCTIONS]
+                attachments += [change.pdf] if change.pdf is not None else []
+            else:
+                text = (change.text or "").strip() or None
+                kept_about = about.get(change.language) or About()
+                about[change.language] = kept_about.model_copy(update={"instructions": text})
+            continue
         if isinstance(change, ConfirmChange):
             found = facts.get(change.confirm)
             if found is not None and found.certainty in (Certainty.UNSURE, Certainty.LIKELY):
@@ -852,6 +912,8 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                     "places": list(places.values()),
                     "sections": list(sections.values()),
                     "trains": list(trains.values()),
+                    "about": about,
+                    "attachments": attachments,
                 }
             ),
             "facts": list(facts.values()),

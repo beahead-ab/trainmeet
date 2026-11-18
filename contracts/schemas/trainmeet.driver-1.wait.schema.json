@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.wait.schema.json",
+  "title": "trainmeet.driver-1.wait",
+  "additionalProperties": true,
+  "description": "Svaret på väntan: det har hänt något efter after, eller tiden gick ut.",
+  "properties": {
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "changed": {
+      "title": "Changed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "revision",
+    "changed"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.train-position.schema.json",
+  "title": "trainmeet.driver-1.train-position",
+  "additionalProperties": true,
+  "description": "Var tåget är enligt stationerna: på en driftplats, eller på väg mellan två (LOK-20).\nFörseningen i hela minuter.",
+  "properties": {
+    "train": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Train",
+      "type": "string"
+    },
+    "train_number": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Train Number",
+      "type": "string"
+    },
+    "state": {
+      "description": "Inte iväg än, står på en driftplats, på väg, eller framme vid slutet.",
+      "enum": [
+        "planned",
+        "at",
+        "on_the_way",
+        "done"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Driftplatsen tåget står på.",
+      "title": "Place"
+    },
+    "from_place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "From Place"
+    },
+    "to_place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "To Place"
+    },
+    "section": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Section"
+    },
+    "delay": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Minuter sent; tomt när det inte vet.",
+      "title": "Delay"
+    }
+  },
+  "required": [
+    "train",
+    "train_number",
+    "state"
+  ],
+  "type": "object"
+}

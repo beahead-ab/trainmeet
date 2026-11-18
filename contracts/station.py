@@ -425,6 +425,26 @@ class LineMessage(Contract):
     acknowledged: bool = False
 
 
+class DriverMessageKind(StrEnum):
+    """Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38)."""
+
+    DELAYED = "delayed"  # Försenad
+    STOPPED_ON_LINE = "stopped_on_line"  # Står på linjen
+    NEEDS_HELP = "needs_help"  # Behöver hjälp
+    ENGINE_TROUBLE = "engine_trouble"  # Loket krånglar
+
+
+class DriverMessageHere(Contract):
+    """Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+    DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn."""
+
+    kind: DriverMessageKind
+    train: Id | None = None
+    train_number: Text | None = None
+    model_time: TimeOfDay
+    seq: int = Field(ge=1, description="Drifthändelsen meddelandet är.")
+
+
 class Snapshot(Contract):
     """Everything a client needs for one place, replaced whole every time."""
 
@@ -451,6 +471,11 @@ class Snapshot(Contract):
     track_display: TrackDisplay = Field(
         default_factory=lambda: TrackDisplay(revision=0),
         description="Spår-vyn: platsens spår i stationens ordning (BOXIOS-16).",
+    )
+    driver_messages: list[DriverMessageHere] = Field(
+        default_factory=list,
+        description="Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. "
+        "Bara till TKL (KLAR-27, DRIFT-38).",
     )
 
 
