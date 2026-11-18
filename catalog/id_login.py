@@ -7,7 +7,9 @@
 
 The person's id in Catalog is ID's subject, and the account is made the first time (CAT-42).
 ID must say that the e-mail address is verified (KONTO-10). Catalog keeps the name, never the
-address; ID's token is kept with the session only to log out of ID too, and goes with it.
+address; ID's token is kept with the session only to log out of ID too, and goes with it. The
+verified address is held in memory for the login alone, to find a fleet from the old
+TrainCatalog that waits for the person (catalog/waiting.py, CAT-204), and then forgotten.
 
 A login that fails sends the browser back to the login page with ?inloggning=fel. Why goes to
 the log, never a token, a code or an address.
@@ -21,7 +23,7 @@ import logging
 import secrets
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
 from uuid import UUID
@@ -98,6 +100,14 @@ def account_from(claims: dict[str, Any]) -> Account:
     return Account(id=subject, name=name, initials=initials(name))
 
 
+def verified_email(claims: dict[str, Any]) -> str | None:
+    """The e-mail address in ID's checked claims, only when ID says it is verified."""
+    email = claims.get("email")
+    if claims.get("email_verified") is not True or not isinstance(email, str):
+        return None
+    return email.strip() or None
+
+
 @dataclass(frozen=True)
 class Started:
     key: str
@@ -111,6 +121,8 @@ class Finished:
     account: Account
     id_token: str
     next_path: str
+    email: str | None = field(default=None, repr=False)
+    """The verified e-mail address, for the waiting fleet only: never stored or logged."""
 
 
 class IdLogin:
@@ -176,7 +188,12 @@ class IdLogin:
             account = account_from(claims)
         except LoginFailed as failed:
             raise LoginFailed(str(failed), next_path) from failed
-        return Finished(account=account, id_token=id_token, next_path=next_path)
+        return Finished(
+            account=account,
+            id_token=id_token,
+            next_path=next_path,
+            email=verified_email(claims),
+        )
 
     def _take(self, key: str | None) -> dict[str, Any] | None:
         """The login this browser started, used once."""

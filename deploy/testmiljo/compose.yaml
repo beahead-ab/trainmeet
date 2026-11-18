@@ -92,6 +92,11 @@ services:
     depends_on:
       catalog-db:
         condition: service_healthy
+    # The move's pepper (#57, CAT-204): CATALOG_FLYTT_PEPPER, written by the deploy from GitHub's
+    # secret. Without it no waiting fleet from the old TrainCatalog can be claimed.
+    env_file:
+      - path: ./catalog-flytt.env
+        required: false
     environment:
       CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@catalog-db:5432/catalog
       # The database is migrated by up.sh after the backup; Catalog only checks it (CAT-39).

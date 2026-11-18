@@ -1,5 +1,6 @@
 // Fordonskortet: the core fields, the EVN, where it is, the history, and removing it
-// (CAT-53, CAT-57–CAT-60, CAT-68, CAT-72, CAT-76, CAT-77).
+// (CAT-53, CAT-57–CAT-60, CAT-68, CAT-72, CAT-76, CAT-77), and the old fields from TrainCatalog
+// (CAT-205).
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, qrAddress, tellurianHref, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
@@ -40,6 +41,26 @@ function stateEventText(t: T, event: VehicleEvent): string {
   if (event.state === "lent") return t("eventLent", { name: event.lent_to ?? "" });
   if (event.state === "home") return event.place_name ? t("eventHomeAt", { place: event.place_name }) : t("eventHome");
   return t(`state_${event.state}`);
+}
+
+/** The old fields' values from TrainCatalog, read-only, with the old labels (CAT-205). Only a
+ * vehicle that came in the move has them. */
+export function LegacySection({ t, vehicle }: { t: T; vehicle: Vehicle }) {
+  const entries = Object.entries(vehicle.legacy ?? {});
+  if (entries.length === 0) return null;
+  return (
+    <section className="tm-kort" aria-labelledby="gamla-rubrik">
+      <h2 id="gamla-rubrik">{t("legacyTitle")}</h2>
+      <p className="cat-under">{t("legacyHelp")}</p>
+      <table className="cat-falttabell">
+        <tbody>
+          {entries.map(([label, value]) => (
+            <Row key={label} label={label} value={value} />
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 }
 
 /** The tags on the card: kind, name, address and when linked, with Ersätt and Koppla bort (CAT-97). */
@@ -258,6 +279,7 @@ export function CardView(props: CardViewProps) {
               </tbody>
             </table>
           </section>
+          <LegacySection t={t} vehicle={vehicle} />
           {props.prototype}
         </div>
 

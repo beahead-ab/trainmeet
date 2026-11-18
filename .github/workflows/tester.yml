@@ -735,6 +735,7 @@ jobs:
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
           STRIPE_TEST_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
           ID_OWNERS: ${{ secrets.ID_OWNERS }}
+          CATALOG_FLYTT_PEPPER: ${{ secrets.CATALOG_FLYTT_PEPPER }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
           APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
           APNS_TOPIC: ${{ secrets.APNS_TOPIC }}
@@ -781,6 +782,13 @@ jobs:
               printf 'TRAINMEET_APNS_KEY=%s\n' "$(printf '%s\n' "$APNS_KEY" | awk 'BEGIN { ORS = "\\n" } { print }')"
             fi
           } | $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/hub-push.env'
+          # The move's pepper (#57) goes from GitHub straight to Catalog's own file on the server
+          # and is never printed. Without it the old TrainCatalog's fleets wait unclaimed.
+          {
+            if [ -n "$CATALOG_FLYTT_PEPPER" ]; then
+              printf 'CATALOG_FLYTT_PEPPER=%s\n' "$CATALOG_FLYTT_PEPPER"
+            fi
+          } | $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/catalog-flytt.env'
           # The tags' final address once trainmeet.app points here, else Catalog's own (C38).
           TAG_BASE="https://$CATALOG_DOMAIN/t/"
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then

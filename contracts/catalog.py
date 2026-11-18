@@ -321,6 +321,13 @@ class Vehicle(VehicleFields):
         description="The prototype the vehicle is linked to, with its type data: a block of its "
         "own, apart from the core fields (CAT-160–CAT-162). Null when not linked.",
     )
+    legacy: dict[str, str] = Field(
+        default_factory=dict,
+        description="Från gamla TrainCatalog: de gamla fältens värden som inte är kärnfält, "
+        'under det gamla fältets svenska etikett, till exempel {"L ö b": "14,5 m"} '
+        "(CAT-205). Bara att läsa: sätts av flytten och ändras aldrig av ägaren. Aldrig i "
+        "minikortet eller uppslaget. Tomt för fordon som inte kom från TrainCatalog.",
+    )
     created_at: datetime
     updated_at: datetime
 

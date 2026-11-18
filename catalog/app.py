@@ -48,12 +48,14 @@ from catalog import (
     id_login,
     login,
     migrate,
+    old_paths,
     pictures_api,
     prototypes,
     prototypes_api,
     reading_api,
     tags_api,
     trips_api,
+    waiting,
 )
 from catalog.access import Access
 from catalog.account_export import Exports
@@ -224,6 +226,8 @@ def create_app(
             "Bilderna sparas %s.",
             "i Object Storage" if isinstance(pictures.store, S3Store) else "på disken",
         )
+        if settings.flytt_pepper is not None and with_id is not None:
+            LOGGER.info("Vagnparker från TrainCatalog tas över när ägaren loggar in med ID.")
         # Files left from before: removed pictures', and uploads that stopped halfway.
         try:
             pictures.sweep()
@@ -408,8 +412,27 @@ def create_app(
         else:
             response = RedirectResponse(done.next_path, status_code=303)
             set_cookie(response, request, sessions.start(done.account, done.id_token))
+            take_waiting_fleet(done)
         response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
         return response
+
+    def take_waiting_fleet(done: id_login.Finished) -> None:
+        """A fleet from the old TrainCatalog that waits for this verified e-mail address
+        becomes the person's (#57, CAT-204). The address is never logged; a claim that fails
+        is tried again at the next login."""
+        if settings.flytt_pepper is None or done.email is None:
+            return
+        try:
+            claimed = waiting.claim(
+                db, done.account.id, waiting.email_hash(settings.flytt_pepper, done.email)
+            )
+        except Exception as error:
+            LOGGER.warning("Den väntande vagnparken kunde inte tas över: %s", type(error).__name__)
+            return
+        if claimed is not None:
+            LOGGER.info(
+                "En väntande vagnpark från TrainCatalog togs över: %d fordon.", claimed.vehicles
+            )
 
     def require_trial() -> None:
         if not settings.trial_login:
@@ -521,8 +544,13 @@ def create_app(
     @app.api_route(
         "/{path:path}", methods=["GET", "HEAD"], response_model=None, include_in_schema=False
     )
-    def web_app(path: str) -> Response:
-        """The web app's files, and index.html for every page address."""
+    def web_app(path: str, request: Request) -> Response:
+        """The web app's files, and index.html for every page address. An old TrainCatalog
+        address goes on to its new one for good (CAT-206, catalog/old_paths.py)."""
+        moved = old_paths.new_address("/" + path)
+        if moved is not None:
+            query = request.url.query
+            return RedirectResponse(moved + (f"?{query}" if query else ""), status_code=301)
         found = _web_file(settings.web_dir, path)
         if found is not None:
             cache = (
