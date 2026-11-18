@@ -68,13 +68,13 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
   };
 
   // Skriv av (IMPORT-05): only now does anything go to the AI, as lists or as the track picture.
-  const transcribe = async (kind: "lists" | "picture" | "graph") => {
+  const transcribe = async (kind: "lists" | "picture" | "graph", by: AiBy) => {
     if (read?.state !== "ai" || !read.file) return;
     const { name, pages, file } = read;
     setRead({ name, state: "writing", pages });
     setProblem("");
     try {
-      const answer = await planning.read(meet, file, kind);
+      const answer = await planning.read(meet, file, kind, by);
       setRead("pages" in answer ? { name, state: "ai", pages: answer.pages, file } : { name, state: "read", preview: answer.preview, transcribed: true });
     } catch (error) {
       setRead({ name, state: "ai", pages, file });
@@ -191,7 +191,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               )}
             </div>
           )}
-          {(read?.state === "ai" || read?.state === "writing") && <Skriv pages={read.pages} writing={read.state === "writing"} onWrite={(kind) => void transcribe(kind)} />}
+          {(read?.state === "ai" || read?.state === "writing") && <Skriv pages={read.pages} writing={read.state === "writing"} onWrite={(kind, by) => void transcribe(kind, by)} />}
         </div>
         <footer>
           <button id="apply" type="button" className="primar" disabled={!preview || busy} onClick={() => void apply()}>
@@ -234,16 +234,24 @@ function Domar({ preview, text }: { preview: ImportPreview; text: string }) {
 
 /** Sidor att skriva av (IMPORT-05): what the scanned file needs, before anything goes to the AI. */
 type Avskrift = "lists" | "picture" | "graph";
+/** Who writes it down: the hub's own AI, or TrainMeets AI through the meter in ID (#79). */
+export type AiBy = "own" | "trainmeet";
 
 /** 12 400 as Swedish writes it, with a space that does not break. */
 const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
 
-export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: Avskrift) => void }) {
+export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: boolean; onWrite: (kind: Avskrift, by: AiBy) => void }) {
   const left = pages.pages - pages.saved;
   const [chosen, setChosen] = useState<Avskrift>("lists");
+  // Egen AI is the first choice; TrainMeets AI is chosen by the planner, after being told
+  // where the pages go and who pays (TK12, TK16).
+  const offer = pages.trainmeet_ai ?? null;
+  const enough = offer !== null && offer.available >= offer.price;
+  const [by, setBy] = useState<AiBy | null>(pages.model ? "own" : null);
+  const ready = !left || (by === "own" && Boolean(pages.model)) || (by === "trainmeet" && enough);
   const write = (kind: Avskrift) => {
     setChosen(kind);
-    onWrite(kind);
+    onWrite(kind, by ?? "own");
   };
   const label = (kind: Avskrift, text: string) => (writing && chosen === kind ? "Skriver av …" : text);
   return (
@@ -258,7 +266,13 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
         <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), en bild av banan, som blir bakgrunden i Bana, eller grafen, där linjernas stationer skrivs av.</p>
       </div>
       <div className="kostnad">
-        <b>Egen AI</b>
+        {offer && left ? (
+          <label className="val">
+            <input type="radio" name="ai-by" value="own" checked={by === "own"} disabled={!pages.model} onChange={() => setBy("own")} /> <b>Egen AI</b>
+          </label>
+        ) : (
+          <b>Egen AI</b>
+        )}
         {pages.model ? (
           <span>{left ? `${plural(left, "sida", "sidor")} betalas av din AI-tjänst (${pages.model}).` : "Allt är redan avskrivet. Inget skickas till AI:n."}</span>
         ) : (
@@ -271,14 +285,23 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
           </span>
         )}
       </div>
+      {offer && left ? (
+        <div className="kostnad" id="trainmeet-ai">
+          <label className="val">
+            <input type="radio" name="ai-by" value="trainmeet" checked={by === "trainmeet"} disabled={!enough} onChange={() => setBy("trainmeet")} /> <b>TrainMeets AI</b>
+          </label>
+          <span>{`Sidorna läses av ${offer.where}. ${thousands(offer.price)} tokens dras från ${offer.payer}, som har ${thousands(offer.available)} kvar.`}</span>
+          {enough ? null : <span className="liten">Saldot räcker inte. Köp fler tokens i TrainMeet ID, eller koppla in egen AI.</span>}
+        </div>
+      ) : null}
       <div className="knapprad">
-        <button type="button" id="transcribe" className="primar" disabled={writing} onClick={() => write("lists")}>
+        <button type="button" id="transcribe" className="primar" disabled={writing || !ready} onClick={() => write("lists")}>
           {label("lists", left ? `Skriv av ${plural(left, "sida", "sidor")} som stationslista` : "Läs avskriften")}
         </button>
-        <button type="button" id="transcribe-picture" className="sekundar" disabled={writing} onClick={() => write("picture")}>
+        <button type="button" id="transcribe-picture" className="sekundar" disabled={writing || !ready} onClick={() => write("picture")}>
           {label("picture", "Skriv av som banbild")}
         </button>
-        <button type="button" id="transcribe-graph" className="sekundar" disabled={writing} onClick={() => write("graph")}>
+        <button type="button" id="transcribe-graph" className="sekundar" disabled={writing || !ready} onClick={() => write("graph")}>
           {label("graph", "Skriv av som graf")}
         </button>
       </div>

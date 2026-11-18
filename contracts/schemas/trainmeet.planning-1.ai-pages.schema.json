@@ -2,6 +2,48 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.ai-pages.schema.json",
   "title": "trainmeet.planning-1.ai-pages",
+  "$defs": {
+    "TrainMeetAi": {
+      "additionalProperties": true,
+      "description": "TrainMeets AI genom mätaren (#79, TOKEN-28, TK12): offered in the cloud hub to someone\nlogged in with TrainMeet ID. Egen AI is the first choice; before TrainMeets AI is used the\nplanner is told where the pages go and who pays (TK16).",
+      "properties": {
+        "payer": {
+          "description": "Vems saldo som betalar: klubbens, eller personens.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Payer",
+          "type": "string"
+        },
+        "available": {
+          "description": "Det saldot har kvar nu.",
+          "minimum": 0,
+          "title": "Available",
+          "type": "integer"
+        },
+        "price": {
+          "description": "12 tokens per sida som inte är avskriven (TOKEN-14).",
+          "minimum": 0,
+          "title": "Price",
+          "type": "integer"
+        },
+        "where": {
+          "default": "Claude i Amazon Bedrock i Stockholm",
+          "description": "Var sidorna läses (TK14), som sägs innan de skickas (TK12).",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Where",
+          "type": "string"
+        }
+      },
+      "required": [
+        "payer",
+        "available",
+        "price"
+      ],
+      "title": "TrainMeetAi",
+      "type": "object"
+    }
+  },
   "additionalProperties": true,
   "description": "Sidor att skriva av (IMPORT-05): what a scanned file needs before AI starts. Nothing is\nsent to the AI until the planner says Skriv av.",
   "properties": {
@@ -43,6 +85,18 @@
       "minimum": 0,
       "title": "Tokens",
       "type": "integer"
+    },
+    "trainmeet_ai": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrainMeetAi"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "TrainMeets AI som tillval, där den finns för den som frågar (#79)."
     }
   },
   "required": [
