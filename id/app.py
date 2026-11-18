@@ -364,6 +364,11 @@ def create_app(
     def switcher(person: UUID, _: App) -> Switcher:
         return roles.switcher(person)
 
+    @app.get(API + "/apps/meets")
+    def app_meets(person: UUID, _: App) -> list[Meet]:
+        """The meets the Hub may link its own meet to, with the person's roles (ID10, #78)."""
+        return roles.meets_for(person)
+
     @app.get(API + "/apps/fleets")
     def fleets(person: UUID, _: App) -> list[FleetAccess]:
         return roles.fleets_for(person)

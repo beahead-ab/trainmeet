@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.new-meet.schema.json",
   "title": "trainmeet.planning-1.new-meet",
   "additionalProperties": true,
-  "description": "Ny träff: a name, the dates and the country.",
+  "description": "Ny träff: a name, the dates and the country. Someone logged in with TrainMeet ID makes it\nfrom a meet in ID, where they are the club's admin or the organizer (ID10, #78).",
   "properties": {
     "name": {
       "maxLength": 500,
@@ -47,6 +47,20 @@
       ],
       "title": "Country",
       "type": "string"
+    },
+    "id_meet": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffen i TrainMeet ID som träffen hör till (ID10).",
+      "title": "Id Meet"
     }
   },
   "required": [

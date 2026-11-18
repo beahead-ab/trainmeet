@@ -1,6 +1,6 @@
 import { Sidhuvud, useHub } from "@trainmeet/hubben";
 import { useCallback, useEffect, useState } from "react";
-import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
+import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuestion, type IdMeetChoice, type MeetSummary, type NewMeet, type Proposal, type Version } from "./api";
 import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
 import { GrafPage } from "./Graf";
@@ -34,11 +34,15 @@ export function App() {
   const asked = Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)) as { block?: string; sok?: string };
   const meet = route.page === "traffar" ? null : route.meet;
   const hubState = useHub();
-  // Planering is the PIN holder's (H18): someone let in with a one-time code runs the traffic
-  // only (H56).
-  const { owner: admin, act, say, fail } = hubState;
+  // Planering: the PIN holder plans every meet (H18); someone logged in with TrainMeet ID the
+  // meets where ID makes them Administratör or Arrangör (PLAN-19, #78). Someone let in with a
+  // one-time code runs the traffic only (H56).
+  const { owner, act, say, fail } = hubState;
+  const person = Boolean(hubState.info?.person);
   const [ok, setOk] = useState(false);
   const [meets, setMeets] = useState<MeetSummary[] | null>(null);
+  const [idMeets, setIdMeets] = useState<IdMeetChoice[] | null>(null);
+  const admin = owner || (meet !== null && (meets?.find((summary) => summary.meet.id === meet)?.may_plan ?? false));
   const [draft, setDraft] = useState<Draft | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
   const [versions, setVersions] = useState<Version[] | null>(null);
@@ -74,11 +78,19 @@ export function App() {
     [fail],
   );
 
+  // The list says which meets the one logged in may plan, so it is read on every page.
+  const loggedIn = hubState.info?.logged_in;
   useEffect(() => {
-    if (meet === null) {
-      void planning.meets().then(setMeets, (error: unknown) => fail(error));
-      return;
-    }
+    void planning.meets().then(setMeets, (error: unknown) => fail(error));
+  }, [meet, loggedIn]);
+
+  useEffect(() => {
+    if (!person || meet !== null) return setIdMeets(null);
+    void planning.idMeets().then(setIdMeets, (error: unknown) => fail(error));
+  }, [person, meet]);
+
+  useEffect(() => {
+    if (meet === null) return;
     setDraft(null);
     setCheck(null);
     setVersions(null);
@@ -192,7 +204,7 @@ export function App() {
     <>
       <Sidhuvud {...hubState.header({ current: route.page === "traffar" ? "/planering" : `/planering/${encodeURIComponent(route.meet)}/${route.page}`, viewed: meet, navigate })} />
       <main id="innehall" className="planering">
-        {route.page === "traffar" && <TraffarPage admin={admin} meets={meets} navigate={navigate} onCreate={(fresh) => void onCreate(fresh)} />}
+        {route.page === "traffar" && <TraffarPage admin={owner} person={person} idMeets={idMeets} meets={meets} navigate={navigate} onCreate={(fresh) => void onCreate(fresh)} />}
         {route.page === "data" && (
           <DataPage
             admin={admin}

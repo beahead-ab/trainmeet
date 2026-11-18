@@ -50,6 +50,12 @@
       "default": null,
       "description": "Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där."
     },
+    "may_run": {
+      "default": false,
+      "description": "Får köra träffen som kör i Drift: hubbens PIN, insläppt som trafikledare (H56), eller Administratör eller Trafikledare på träffen i TrainMeet ID (#78).",
+      "title": "May Run",
+      "type": "boolean"
+    },
     "person": {
       "anyOf": [
         {

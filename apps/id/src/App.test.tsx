@@ -119,7 +119,7 @@ describe("TrainMeet ID's web app", () => {
 });
 
 describe("the meets in ID (ID10)", () => {
-  const autumn: Meet = { id: "cccccccc-6666-4777-8888-999900001111", club: club.id, club_name: "Västby MJK", name: "Höstträffen", starts_on: "2026-11-13", ends_on: "2026-11-15", roles: ["organizer"] };
+  const autumn: Meet = { id: "cccccccc-6666-4777-8888-999900001111", club: club.id, club_name: "Västby MJK", name: "Höstträffen", starts_on: "2026-11-13", ends_on: "2026-11-15", roles: ["organizer"], club_admin: true };
   const jon = { id: "dddddddd-7777-4888-8999-000011112222", name: "Jon Eriksson", initials: "JE" };
   const grant = (id: string, person: typeof jon, role: string) => ({ id, person, role: role as "organizer", resource: { kind: "meet" as const, id: autumn.id }, at });
   const page = (change: Partial<MeetPage> = {}): MeetPage => ({

@@ -149,7 +149,7 @@ def test_the_hub_logs_in_with_id_with_pkce_and_keeps_only_the_name(
     assert seen.person == "Provare Ett"
     # Logged in with ID is not the hub's own administrator (H18).
     assert hub.post("/api/hub/name", json={"name": "Min"}).status_code == 401
-    assert hub.post("/api/drift/1/start", json={"version": 1}).status_code == 401
+    assert hub.post("/api/drift/1/start", json={"version": 1}).status_code == 403
     # Nothing about the address is kept.
     assert b"prov@example.com" not in (tmp_path / "hubben.sqlite3").read_bytes()
 

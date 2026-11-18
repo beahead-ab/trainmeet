@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 from typing import Final, Literal
+from uuid import UUID
 
 from pydantic import Field, model_validator
 
@@ -83,6 +84,11 @@ class Meet(Contract):
     last_date: date | None = None
     traffic_week: TrafficWeek = Field(default_factory=TrafficWeek)
     clearance_mode: ClearanceMode = ClearanceMode.REQUESTED
+    id_meet: UUID | None = Field(
+        default=None,
+        description="Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på "
+        "träffen, Arrangör och Trafikledare, kommer därifrån.",
+    )
     settings: dict[str, object] = Field(
         default_factory=dict,
         description="Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",

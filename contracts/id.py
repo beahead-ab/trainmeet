@@ -269,6 +269,11 @@ class Meet(NewMeet):
     club: UUID
     club_name: ClubNameText
     roles: list[MeetRole] = Field(description="The person's own roles at the meet.")
+    club_admin: bool = Field(
+        default=False,
+        description="The person is the club's admin, with the admin's say at its meets "
+        "(KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+    )
 
 
 class MeetPage(Contract):

@@ -32,9 +32,12 @@ from drift.store import (
     UnknownClient,
     UnknownExit,
 )
-from hub.hubben import Authorization, SessionCookie, require_admin, require_dispatcher
-from hub.local import DISPATCHER, LocalLogin
+from hub.hubben import Authorization, SessionCookie, session_of
+from hub.id_roles import PLANS, RUNS
+from hub.local import DISPATCHER, PERSON, LocalLogin
+from hub.rights import NO_ROLE, NOT_LOGGED_IN, Rights
 from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
+from synk.store import SyncError
 
 STREAM_SECONDS = 300
 STREAM_INTERVAL = 0.5
@@ -62,19 +65,40 @@ def _latest(history: list[drift.DriftEvent], kind: drift.EventKind | None) -> dr
     return next(event for event in reversed(history) if event.kind == kind)
 
 
-def router(running: Running, login: LocalLogin) -> APIRouter:
+def router(running: Running, login: LocalLogin, rights: Rights | None = None) -> APIRouter:
+    """rights: who may run the meet: the hub's PIN, someone let in with a one-time code (H56),
+    or Administratör and Trafikledare at the meet in TrainMeet ID (ID3, #78)."""
     routes = APIRouter(prefix="/api/drift/1")
     failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient, ExitAnswered, UnknownExit)
+    may = rights if rights is not None else Rights(login)
 
     def dispatching(session: str | None, authorization: str | None) -> str:
-        """The meet that runs, for the administrator or someone the dispatcher let in (H56)."""
+        """The meet that runs, for whoever may run it."""
+        token = session_of(session, authorization)
         try:
             run_id = running.store.current()
         except MissingRun as error:
-            require_admin(login, session, authorization)
+            if login.role(token) is None:
+                raise HTTPException(401, NOT_LOGGED_IN) from error
             _error(error)
-        require_dispatcher(login, session, authorization, run_id)
+        may.require_runner(token, run_id, running.store.package.meet.id_meet)
         return run_id
+
+    def may_start(token: str | None, meet: str, version: int) -> None:
+        """Byt träff: the PIN, or at the meet in TrainMeet ID Administratör, Arrangör or
+        Trafikledare (ID3, PLAN-19). Provbanan only with the PIN."""
+        if login.valid(token):
+            return
+        if login.role(token) != PERSON:
+            raise HTTPException(401, NOT_LOGGED_IN)
+        id_meet = None
+        if meet != PROVBANAN:
+            try:
+                id_meet = running.versions.package(meet, version).meet.id_meet
+            except SyncError as error:
+                raise HTTPException(409, "Den versionen av träffen finns inte i hubben.") from error
+        if not may.id_roles(token, id_meet) & (PLANS | RUNS):
+            raise HTTPException(403, NO_ROLE)
 
     @routes.post("/start", status_code=201)
     def start(
@@ -85,7 +109,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Start a meet and version, or a new run in its place: the old one is kept, archived."""
         response.headers["Cache-Control"] = "no-store"
-        require_admin(login, session, authorization)
+        may_start(session_of(session, authorization), request.meet, request.version)
         try:
             store, run_id = running.start(
                 request.meet, request.version, request.traffic_day, request.game_day
@@ -112,7 +136,10 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         """Ta över i molnet (TRAFIK-08, H8, H9): the run another hub led is led from here, with
         a higher epoch, and the clock stopped. Only by hand, with the meet's name written."""
         response.headers["Cache-Control"] = "no-store"
-        require_admin(login, session, authorization)
+        token = session_of(session, authorization)
+        if not login.valid(token) and login.role(token) != PERSON:
+            # Not with a one-time code: that holds in the meet's own hub only (H56).
+            raise HTTPException(401, NOT_LOGGED_IN)
         run_id = dispatching(session, authorization)
         name = running.store.package.meet.name
         if request.confirm.strip().casefold() != name.casefold():

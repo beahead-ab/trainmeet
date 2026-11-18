@@ -271,6 +271,7 @@ class Planning:
                 country=new.country,
                 first_date=new.first_date,
                 last_date=new.last_date,
+                id_meet=new.id_meet,
             )
             draft = Draft(meet=meet)
             db.execute(

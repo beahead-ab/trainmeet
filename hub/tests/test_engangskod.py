@@ -54,7 +54,9 @@ def let_in(made: Any, code: str) -> TestClient:
 
 
 def test_the_dispatcher_lets_someone_in_with_a_code(made: Any, admin: TestClient) -> None:
-    assert info(admin) == contract.HubInfo(name="Pi:n", set_up=True, logged_in=True, admin=True)
+    assert info(admin) == contract.HubInfo(
+        name="Pi:n", set_up=True, logged_in=True, admin=True, may_run=True
+    )
     given = give(admin, "  Sjövik,   Anna ")
     assert len(given.code) == 6 and given.code.isdigit()
     assert given.role == MeetRole.DISPATCHER
@@ -68,6 +70,7 @@ def test_the_dispatcher_lets_someone_in_with_a_code(made: Any, admin: TestClient
     assert "HttpOnly" in cookie and "SameSite=strict" in cookie and "Max-Age=604800" in cookie
     seen = info(stranger)
     assert (seen.logged_in, seen.admin, seen.meet_role) == (True, False, MeetRole.DISPATCHER)
+    assert seen.may_run is True
     assert stranger.get("/api/deltagare").json()["logged_in"] is True
 
     # Trafikledare: runs the traffic, and may let the next one in.

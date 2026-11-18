@@ -7,6 +7,7 @@ type Schemas = components["schemas"];
 export type { MeetSummary };
 export type Draft = Schemas["trainmeet.planning-1.draft"];
 export type NewMeet = Schemas["trainmeet.planning-1.new-meet"];
+export type IdMeetChoice = Schemas["trainmeet.planning-1.id-meet-choice"];
 export type Check = Schemas["trainmeet.planning-1.check"];
 export type Finding = Schemas["trainmeet.planning-1.check.Finding"];
 export type Version = Schemas["trainmeet.planning-1.version"];
@@ -29,6 +30,8 @@ const meet = (id: string) => `${MEETS}/${encodeURIComponent(id)}`;
 export const planning = {
   meets: () => call<MeetSummary[]>(MEETS),
   create: (fresh: NewMeet) => call<Draft>(MEETS, fresh),
+  /** Ny träff for someone logged in with TrainMeet ID: the meets in ID they plan (ID10). */
+  idMeets: () => call<IdMeetChoice[]>("/api/planering/1/id-meets"),
   draft: (id: string) => call<Draft>(meet(id)),
   check: (id: string) => call<Check>(`${meet(id)}/check`),
   picture: (id: string) => call<TrackPicture>(`${meet(id)}/picture`),

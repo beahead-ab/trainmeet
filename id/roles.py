@@ -365,6 +365,11 @@ class Roles:
             (str(row["id"]), person),
         ).fetchall()
         order = list(MeetRole)
+        admin = conn.execute(
+            "SELECT 1 FROM role_grant WHERE resource_kind = 'club' AND resource_id = %s "
+            "AND person_id = %s AND role = 'admin'",
+            (str(row["club_id"]), person),
+        ).fetchone()
         return Meet(
             id=row["id"],
             club=row["club_id"],
@@ -373,6 +378,7 @@ class Roles:
             starts_on=row["starts_on"],
             ends_on=row["ends_on"],
             roles=sorted((MeetRole(r["role"]) for r in roles), key=order.index),
+            club_admin=admin is not None,
         )
 
     def _meets(
@@ -416,6 +422,12 @@ class Roles:
     def meets(self, asker: Asker) -> list[Meet]:
         with self.db.transaction() as conn:
             return self._meets(conn, asker.id)
+
+    def meets_for(self, person: UUID) -> list[Meet]:
+        """What an app asks (KONTO-34, #78): the meets of the person's clubs, with the person's
+        roles at each and whether they are the club's admin."""
+        with self.db.transaction() as conn:
+            return self._meets(conn, person)
 
     def create_meet(self, asker: Asker, club: UUID, new: NewMeet) -> Meet:
         meet = uuid.uuid4()

@@ -48,7 +48,12 @@ export function useHub(): Hub {
   const [message, say] = useState("");
   const [, setTick] = useState(0);
   const owner = info?.admin ?? false;
-  const admin = owner || info?.meet_role === "dispatcher";
+  // Runs the meet that runs: the PIN, let in as Trafikledare (H56), or Administratör or
+  // Trafikledare at the meet in TrainMeet ID (#78).
+  const admin = owner || (info?.may_run ?? false) || info?.meet_role === "dispatcher";
+  // Byt träff: the PIN, and someone logged in with ID, whom the hub lets start the meets where
+  // ID gives them a role.
+  const starts = owner || Boolean(info?.person);
   const choices = meetChoices(meets);
   const asked = askedChoice(window.location.search, choices);
 
@@ -112,8 +117,8 @@ export function useHub(): Hub {
 
   // Kör i Drift in Planering comes with the meet asked for: Byt träff opens with it.
   useEffect(() => {
-    if (owner && window.location.hash === "#ny-traff") setMenu("byt");
-  }, [owner]);
+    if (starts && window.location.hash === "#ny-traff") setMenu("byt");
+  }, [starts]);
 
   useEffect(() => {
     document.title = `TrainMeet Hub · ${info?.name ?? "Hubben"}`;
@@ -193,7 +198,7 @@ export function useHub(): Hub {
       bottom,
       hubName: info?.name ?? "Hubben",
       admin,
-      owner,
+      owner: starts,
       loggedIn: info?.logged_in ?? false,
       person: info?.person ?? null,
       now,
@@ -201,7 +206,7 @@ export function useHub(): Hub {
       waiting: waitingCount(clients),
       choices,
       asked,
-      menu: admin && (menu !== "byt" || owner) ? menu : null,
+      menu: (menu === "byt" && starts) || (menu !== "byt" && admin) ? menu : null,
       joining,
       joinedAt,
       navigate: (href: string) => {

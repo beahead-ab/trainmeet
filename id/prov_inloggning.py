@@ -485,6 +485,45 @@ def run_hub(base: str, mails: Path, hub: str) -> None:
     print("Ut ur Hubben och ID: ok")
 
 
+def run_hub_roles(base: str, mails: Path, hub: str, id_app: str) -> None:
+    """The hub's meet made from a meet in ID (ID10, PLAN-19, #78): the club's admin makes a meet
+    in ID's web app, logs in to the hub with the same ID session, and makes the hub's meet from
+    it. The hub asks ID's API with a token of its own, as the client hub."""
+    kim = Browser(base, id_app, "/api/id/1/session")
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    log_in_to_app(kim, mails, address, "Provare Arrangör", "/api/id/1/login?next=%2Fklubbar")
+    club = kim.app.post("/api/id/1/clubs", json={"name": "Hubbklubben"}).json()["id"]
+    autumn = {"name": "Hubbträffen", "starts_on": "2026-11-20", "ends_on": "2026-11-22"}
+    made = kim.app.post(f"/api/id/1/clubs/{club}/meets", json=autumn)
+    check(made.status_code == 201, f"Träffen i ID svarade {made.status_code}.")
+    id_meet = made.json()["id"]
+
+    # In i Hubben med samma inloggning i ID: ingen ny kod.
+    in_hub = Browser(base, hub, "/api/hub")
+    in_hub.id = kim.id
+    seen = mail_count(mails)
+    in_hub.open("/api/hub/id/login?next=%2Fplanering")
+    check(in_hub.session()["person"] == "Provare Arrangör", "Inte inloggad i Hubben.")
+    check(mail_count(mails) == seen, "En ny kod skickades fast man redan var inloggad i ID.")
+    choices = in_hub.app.get("/api/planering/1/id-meets")
+    check(choices.status_code == 200, f"Hubben fick inget svar från ID: {choices.status_code}.")
+    check(
+        [(c["name"], c["hub_meet"]) for c in choices.json()] == [("Hubbträffen", None)],
+        f"Hubben ser inte träffen i ID: {choices.json()}",
+    )
+    created = in_hub.app.post(
+        "/api/planering/1/meets", json={"name": "Hubbträffen", "id_meet": id_meet}
+    )
+    check(created.status_code == 201, f"Träffen i hubben svarade {created.status_code}.")
+    check(created.json()["meet"]["id_meet"] == id_meet, "Hubbens träff är inte kopplad till ID.")
+    listed = in_hub.app.get("/api/planering/1/meets").json()
+    check(
+        [(m["meet"]["name"], m["may_plan"]) for m in listed] == [("Hubbträffen", True)],
+        f"Hubben säger inte att arrangören planerar träffen: {listed}",
+    )
+    print("Hubbens träff ur träffen i ID, och arrangören planerar den: ok")
+
+
 def log_in_to_app(browser: Browser, mails: Path, address: str, name: str, start: str) -> None:
     """A new account through the app's login, with the code, and back into the app."""
     page = browser.open(start)
@@ -749,6 +788,8 @@ def main(argv: list[str]) -> int:
             run_removal(argv[1], Path(argv[2]), argv[4], id_app)
         if hub:
             run_hub(argv[1], Path(argv[2]), hub)
+        if hub and id_app:
+            run_hub_roles(argv[1], Path(argv[2]), hub, id_app)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

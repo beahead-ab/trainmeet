@@ -21,8 +21,10 @@ from fastapi.concurrency import run_in_threadpool
 from contracts import planning
 from contracts.meet import MapPoint
 from contracts.station_outside import StationOutside
-from hub.hubben import Authorization, SessionCookie, require_admin, service_of
-from hub.local import LocalLogin
+from hub.hubben import Authorization, SessionCookie, service_of, session_of
+from hub.id_roles import PLANS, roles_of
+from hub.local import PERSON, LocalLogin
+from hub.rights import NOT_LOGGED_IN, Rights
 from integrationer import (
     ai,
     derive,
@@ -60,7 +62,12 @@ def router(
     me: Callable[[], tuple[str, str]],
     login: LocalLogin,
     published: Callable[[str], None] = lambda meet: None,
+    rights: Rights | None = None,
 ) -> APIRouter:
+    """rights: who may plan which meet: the hub's PIN, or Administratör and Arrangör at the
+    meet in TrainMeet ID (PLAN-19, #78)."""
+    may = rights if rights is not None else Rights(login)
+
     def at_home(request: Request) -> None:
         """Träffens hem (H35, SYNK-16): a meet is changed only where its home is. Elsewhere it
         is looked at, and its versions come from the home."""
@@ -76,21 +83,45 @@ def router(
 
     routes = APIRouter(prefix="/api/planering/1", dependencies=[Depends(at_home)])
 
-    def admin(session: str | None, authorization: str | None) -> None:
-        require_admin(login, session, authorization)
+    def planner(meet: str, session: str | None, authorization: str | None) -> None:
+        """The PIN, or Administratör or Arrangör at the meet in TrainMeet ID (PLAN-19)."""
+        try:
+            id_meet = store.draft(meet).meet.id_meet
+        except PlanningError:
+            id_meet = None
+        may.require_planner(session_of(session, authorization), id_meet)
+
+    def planned_by(token: str | None) -> set[str] | None:
+        """The ID meets the one logged in with ID plans, or None for the hub's PIN."""
+        if login.valid(token):
+            return None
+        person = login.person(token) if login.role(token) == PERSON else None
+        if person is None or may.roles is None:
+            return set()
+        try:
+            found = may.roles.meets(person.id)
+        except HTTPException:
+            return set()
+        return {str(m.id) for m in found if roles_of(m) & PLANS}
 
     @routes.get("/meets")
-    def meets(response: Response) -> list[dict[str, Any]]:
+    def meets(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> list[dict[str, Any]]:
         """The meets with their versions, which Synk keeps (SYNK-08), and the meets this hub
-        follows in the cloud (SYNK-02): those are planned there, and run here."""
+        follows in the cloud (SYNK-02): those are planned there, and run here. may_plan says
+        which the one asking may plan (PLAN-19)."""
         response.headers["Cache-Control"] = "no-store"
         published = kept.meets()
         away = homes.elsewhere(me()[0])
+        plans = planned_by(session_of(session, authorization))
         planned = [
             summary.model_copy(
                 update={
                     "versions": published.get(summary.meet.id, []),
                     "home": away.get(summary.meet.id),
+                    "may_plan": plans is None
+                    or (summary.meet.id_meet is not None and str(summary.meet.id_meet) in plans),
                 }
             )
             for summary in store.meets()
@@ -113,11 +144,46 @@ def router(
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        token = session_of(session, authorization)
+        if not login.valid(token):
+            # Someone logged in with TrainMeet ID makes the meet from a meet in ID they plan
+            # (ID10, PLAN-19); the hub's meet is linked to it, once.
+            if login.role(token) != PERSON:
+                raise HTTPException(401, NOT_LOGGED_IN)
+            if new.id_meet is None:
+                raise HTTPException(422, "Välj träffen i TrainMeet ID som träffen hör till.")
+            may.require_planner(token, new.id_meet)
+            if any(s.meet.id_meet == new.id_meet for s in store.meets()):
+                raise HTTPException(409, "Den träffen i TrainMeet ID finns redan i hubben.")
         try:
             return store.create(new).model_dump(mode="json")
         except PlanningError as error:
             _fail(error)
+
+    @routes.get("/id-meets")
+    def id_meets(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> list[dict[str, Any]]:
+        """Ny träff for someone logged in with TrainMeet ID: the meets in ID they plan, as the
+        club's admin or the organizer (ID10, PLAN-19), and the hub's meet made from each."""
+        response.headers["Cache-Control"] = "no-store"
+        token = session_of(session, authorization)
+        person = login.person(token) if login.role(token) == PERSON else None
+        if person is None or may.roles is None:
+            return []
+        made = {str(s.meet.id_meet): s.meet.id for s in store.meets() if s.meet.id_meet}
+        return [
+            planning.IdMeetChoice(
+                id=m.id,
+                name=m.name,
+                club_name=m.club_name,
+                starts_on=m.starts_on,
+                ends_on=m.ends_on,
+                hub_meet=made.get(str(m.id)),
+            ).model_dump(mode="json")
+            for m in may.roles.meets(person.id)
+            if roles_of(m) & PLANS
+        ]
 
     @routes.get("/meets/{meet}")
     def draft(meet: str, response: Response) -> dict[str, Any]:
@@ -143,7 +209,7 @@ def router(
         transcribe, the hub's own AI writes them down: as station lists, or as the track
         picture."""
         response.headers["Cache-Control"] = "no-store"
-        await run_in_threadpool(admin, session, authorization)
+        await run_in_threadpool(planner, meet, session, authorization)
         chunks: list[bytes] = []
         size = 0
         async for chunk in request.stream():
@@ -575,7 +641,7 @@ def router(
     ) -> dict[str, Any]:
         """Lägg in i utkastet: the source that waits comes into the draft."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.apply(meet, source).model_dump(mode="json")
         except PlanningError as error:
@@ -587,7 +653,7 @@ def router(
     ) -> Response:
         """The source as it came. Only for the administrator: a file may hold more than the
         meet needs."""
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             found, body = store.source_file(meet, source)
         except PlanningError as error:
@@ -615,7 +681,7 @@ def router(
         try:
             draft = store.draft(meet)
             if what == "underlag":
-                admin(session, authorization)
+                planner(meet, session, authorization)
                 files = [(found.filename, body) for found, body in store.sources(meet)]
                 if not files:
                     raise PlanningError("Träffen har inget underlag än.")
@@ -670,7 +736,7 @@ def router(
         (PLAN-38). Someone else's save in between gives 412, and the client reads the draft
         anew."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.change(meet, *given.changes, revision=given.revision).model_dump(
                 mode="json"
@@ -687,7 +753,7 @@ def router(
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.answer(meet, given).model_dump(mode="json")
         except PlanningError as error:
@@ -768,7 +834,7 @@ def router(
     ) -> dict[str, Any]:
         """Dubbelspårsfrågan (PLAN-35): Ja or Nej for a single-track section."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.double_track(meet, section, given).model_dump(mode="json")
         except PlanningError as error:
@@ -785,7 +851,7 @@ def router(
     ) -> dict[str, Any]:
         """Låt stå in the reasonableness check (PLAN-36)."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.let_stand(meet, deviation, given).model_dump(mode="json")
         except PlanningError as error:
@@ -801,7 +867,7 @@ def router(
     ) -> dict[str, Any]:
         """Ta tillbaka a Låt stå."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.take_back(meet, deviation).model_dump(mode="json")
         except PlanningError as error:
@@ -826,7 +892,7 @@ def router(
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             package = store.freeze(meet)
             version = kept.publish(meet, package.model_dump_json().encode())
@@ -855,7 +921,7 @@ def router(
     ) -> dict[str, Any]:
         """Ta med: the driftändring into the draft for the next version."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.take(meet, proposal).model_dump(mode="json")
         except PlanningError as error:
@@ -871,7 +937,7 @@ def router(
     ) -> dict[str, Any]:
         """Avslå: the next version is made without it."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             return store.reject(meet, proposal).model_dump(mode="json")
         except PlanningError as error:
@@ -887,7 +953,7 @@ def router(
     ) -> dict[str, Any]:
         """Dra tillbaka en version (PLAN-18)."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
+        planner(meet, session, authorization)
         try:
             withdrawn = kept.withdraw(meet, number)
         except SyncError as error:
