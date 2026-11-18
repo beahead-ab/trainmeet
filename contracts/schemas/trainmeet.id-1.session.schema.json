@@ -89,6 +89,12 @@
       },
       "title": "Apps",
       "type": "array"
+    },
+    "owner": {
+      "default": false,
+      "description": "TrainMeets ägare: ser ägarsidan för tokens (TOKEN-05).",
+      "title": "Owner",
+      "type": "boolean"
     }
   },
   "type": "object"

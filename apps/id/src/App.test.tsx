@@ -7,7 +7,7 @@ import { routeFor } from "./routes";
 
 const kim = { id: "8a3e1f0c-1111-4222-8333-944455556666", name: "Kim Ek", initials: "KE", email: "kim@example.com" };
 const sara = { id: "1b2c3d4e-2222-4333-8444-955566667777", name: "Sara Holm", initials: "SH" };
-const loggedIn: Session = { account: kim, logout_url: null };
+const loggedIn: Session = { account: kim, logout_url: null, owner: false };
 const club = { id: "0f0e0d0c-3333-4444-8555-966677778888", name: "Västby MJK", role: "admin" as const };
 const at = "2026-11-09T10:00:00Z";
 
@@ -30,14 +30,14 @@ const invitation: Invitation = {
 
 describe("TrainMeet ID's web app", () => {
   it("asks the person to log in with the code, and comes back to the same page", () => {
-    const html = render({ session: { account: null, logout_url: null }, route: { page: "club", id: club.id }, path: `/klubbar/${club.id}` });
+    const html = render({ session: { account: null, logout_url: null, owner: false }, route: { page: "club", id: club.id }, path: `/klubbar/${club.id}` });
     expect(html).toContain("Logga in");
     expect(html).toContain(`href="/api/id/1/login?next=%2Fklubbar%2F${club.id}&amp;lang=sv"`);
     expect(html).not.toContain("Klubbar</a>"); // no tabs before logging in
   });
 
   it("says so when the login did not go through", () => {
-    const html = render({ session: { account: null, logout_url: null }, search: "?inloggning=fel" });
+    const html = render({ session: { account: null, logout_url: null, owner: false }, search: "?inloggning=fel" });
     expect(html).toContain('role="alert"');
   });
 
@@ -107,6 +107,30 @@ describe("TrainMeet ID's web app", () => {
     expect(admin).toContain("Claudes eget API");
   });
 
+  it("shows the owner the budget, the cost and the revenue, and the settings to change (TOKEN-05)", () => {
+    const page = {
+      settings: { ai_factor: 2, storage_factor: 10, monthly_budget_sek: 1000, daily_cap_person: 240, daily_cap_club: 1200, usd_sek: 9.7, price_in_usd: 2, price_out_usd: 10 },
+      page_tokens: 12,
+      cost_per_page_sek: 0.43,
+      factor_page_tokens: 11,
+      budget_used: 85,
+      months: [
+        { month: "2026-11", revenue_sek: 0, test_revenue_sek: 129, cost_sek: 1.29, pages: 3 },
+        { month: "2026-10", revenue_sek: 0, test_revenue_sek: 0, cost_sek: 0, pages: 0 },
+      ],
+    };
+    const html = render({ route: { page: "owner" }, data: { owner: page }, actions: { changeOwner: async () => null } });
+    expect(html).toContain("Ägarsidan");
+    expect(html).toContain("85 % använt");
+    expect(html).toContain("AI kostade 1,29 kr för 3 sidor · köp 0 kr · i testläge 129 kr");
+    expect(html).toContain("En sida har kostat 0,43 kr de senaste 30 dagarna. Med faktorn ×2 blir det 11 tokens per sida; nu kostar den 12.");
+    expect(html).toContain("Tak per dygn för en klubb, tokens");
+    expect(routeFor("/agare")).toEqual({ page: "owner" });
+    const tokens = render({ route: { page: "tokens" }, session: { ...loggedIn, owner: true }, data: { tokens: [] } });
+    expect(tokens).toContain('href="/agare"');
+    expect(render({ route: { page: "tokens" }, data: { tokens: [] } })).not.toContain('href="/agare"');
+  });
+
   it("shows the club's members, and only the admin may invite and remove", () => {
     const page: ClubPage = {
       club,
@@ -126,7 +150,7 @@ describe("TrainMeet ID's web app", () => {
 
     const member = render({
       route: { page: "club", id: club.id },
-      session: { account: { ...kim, id: sara.id, name: "Sara Holm" }, logout_url: null },
+      session: { account: { ...kim, id: sara.id, name: "Sara Holm" }, logout_url: null, owner: false },
       data: { club: { ...page, club: { ...club, role: "member" }, invitations: [] } },
     });
     expect(member).not.toContain("Skicka inbjudan");
@@ -227,7 +251,7 @@ describe("the meets in ID (ID10)", () => {
   it("shows a member the roles, and nothing to hand out", () => {
     const html = render({
       route: { page: "meet", id: autumn.id },
-      session: { account: { ...kim, id: sara.id, name: "Sara Holm" }, logout_url: null },
+      session: { account: { ...kim, id: sara.id, name: "Sara Holm" }, logout_url: null, owner: false },
       data: { meet: page({ meet: { ...autumn, roles: [] }, may_give: [], may_change: false, members: [] }) },
     });
     expect(html).toContain("Roller på Höstträffen");
@@ -295,7 +319,7 @@ describe("removing the account (KONTO-31, ID7, ID13)", () => {
     const html = render({ route: { page: "club", id: club.id }, data: { club: page } });
     expect(html).toContain('aria-label="Gör Sara Holm till administratör"');
     expect(html).not.toContain("Gör Kim Ek");
-    const gone = render({ session: { account: null, logout_url: null, apps: [] }, search: "?borttaget=1" });
+    const gone = render({ session: { account: null, logout_url: null, apps: [], owner: false }, search: "?borttaget=1" });
     expect(gone).toContain("Ditt konto är borttaget");
   });
 });

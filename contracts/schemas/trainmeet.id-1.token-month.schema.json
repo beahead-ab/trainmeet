@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.token-month.schema.json",
+  "title": "trainmeet.id-1.token-month",
+  "additionalProperties": true,
+  "properties": {
+    "month": {
+      "pattern": "^[0-9]{4}-[0-9]{2}$",
+      "title": "Month",
+      "type": "string"
+    },
+    "revenue_sek": {
+      "description": "Betalda köp, med moms. Testläget räknas inte.",
+      "title": "Revenue Sek",
+      "type": "number"
+    },
+    "test_revenue_sek": {
+      "description": "Köp i Stripes testläge, utan riktiga pengar.",
+      "title": "Test Revenue Sek",
+      "type": "number"
+    },
+    "cost_sek": {
+      "description": "Vad TrainMeets AI kostade, uppmätt.",
+      "title": "Cost Sek",
+      "type": "number"
+    },
+    "pages": {
+      "description": "Sidor och bilder som TrainMeets AI läste.",
+      "title": "Pages",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "month",
+    "revenue_sek",
+    "test_revenue_sek",
+    "cost_sek",
+    "pages"
+  ],
+  "type": "object"
+}

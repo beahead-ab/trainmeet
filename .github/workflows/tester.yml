@@ -670,6 +670,7 @@ jobs:
           BEDROCK_SECRET_KEY: ${{ secrets.BEDROCK_SECRET_KEY }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
           STRIPE_TEST_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+          ID_OWNERS: ${{ secrets.ID_OWNERS }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
           APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
           APNS_TOPIC: ${{ secrets.APNS_TOPIC }}
@@ -696,6 +697,10 @@ jobs:
           # Utan dem är köpen stängda.
           if [ -n "$STRIPE_TEST_SECRET_KEY" ] && [ -n "$STRIPE_TEST_WEBHOOK_SECRET" ]; then
             printf '%s\n%s\n' "$STRIPE_TEST_SECRET_KEY" "$STRIPE_TEST_WEBHOOK_SECRET" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_stripe-key'
+          fi
+          # Ägarnas adresser för ägarsidan (#79, TOKEN-05), en per rad, går samma väg.
+          if [ -n "$ID_OWNERS" ]; then
+            printf '%s\n' "$ID_OWNERS" | tr ', ' '\n\n' | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_owners'
           fi
           # Apples push-nyckel (F20) går från GitHub direkt till testhubbens miljö på servern och
           # skrivs aldrig ut. Utan den går notiserna till låtsad push.

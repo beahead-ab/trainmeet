@@ -21,7 +21,9 @@ import {
   type Session,
   type TokenBalance,
   type OwnAiChange,
+  type OwnerPage,
   type TokenPurchase,
+  type TokenSettings,
   type TokenShop,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
@@ -62,6 +64,7 @@ const TITLES: Record<Page, TextKey> = {
   meets: "meets",
   meet: "meet",
   tokens: "tokens",
+  owner: "ownerTitle",
   invitations: "invitations",
   fleet: "fleetTitle",
   help: "help",
@@ -84,6 +87,8 @@ export type Data = {
   tokens?: TokenBalance[];
   /** Whether buying is open, and the packages (TOKEN-02). */
   shop?: TokenShop;
+  /** Ägarsidan, for TrainMeet's owners (TOKEN-05). */
+  owner?: OwnerPage;
 };
 
 export type Actions = {
@@ -107,6 +112,7 @@ export type Actions = {
   /** Egen AI på kontot (TOKEN-03): checked with a picture before it is saved. */
   connectOwnAi?: (owner: string, change: OwnAiChange) => Promise<string | null>;
   removeOwnAi?: (owner: string) => Promise<string | null>;
+  changeOwner?: (settings: TokenSettings) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -308,8 +314,11 @@ function Content(props: ShellProps & { t: T }) {
           bought={new URLSearchParams(props.search ?? "").get("kop")}
           connect={actions.connectOwnAi}
           remove={actions.removeOwnAi}
+          owner={props.session?.owner ?? false}
         />
       );
+    case "owner":
+      return data.owner ? <OwnerView t={t} page={data.owner} language={language} change={actions.changeOwner} /> : null;
     case "remove":
       return <RemoveView t={t} plan={data.removal} navigate={navigate} remove={actions.removeAccount} />;
     case "help":
@@ -806,6 +815,7 @@ function TokensCard({
   bought = null,
   connect,
   remove,
+  owner = false,
 }: {
   t: T;
   heading?: 1 | 2;
@@ -817,6 +827,7 @@ function TokensCard({
   bought?: string | null;
   connect?: Actions["connectOwnAi"];
   remove?: Actions["removeOwnAi"];
+  owner?: boolean;
 }) {
   const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB");
   const [busy, problem, run] = useAction();
@@ -860,6 +871,11 @@ function TokensCard({
       )}
       {bought === "klart" ? <p role="status">{t("tokensBought_done")}</p> : null}
       {open ? <p className="id-detalj">{t("tokensTestMode")}</p> : <p className="id-detalj">{t("tokensBuyLater")}</p>}
+      {owner ? (
+        <p>
+          <a href={PATHS.owner}>{t("ownerLink")}</a>
+        </p>
+      ) : null}
       <Problem text={problem} />
     </section>
   );
@@ -916,6 +932,71 @@ function OwnAiForm({ t, balance, connect, remove }: { t: T; balance: TokenBalanc
         </form>
       </details>
       <Problem text={problem} />
+    </div>
+  );
+}
+
+/** Ägarsidan (TOKEN-05, TOKEN-18, TK6, TK15): the factors, the budget and the caps, and what
+ * TrainMeets AI cost and the purchases brought in, this month and last. */
+function OwnerView({ t, page, language, change }: { t: T; page: OwnerPage; language: Language; change?: Actions["changeOwner"] }) {
+  const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB", { maximumFractionDigits: 2 });
+  const [given, setGiven] = useState<TokenSettings>(page.settings);
+  const [busy, problem, run] = useAction();
+  const field = (key: keyof TokenSettings, label: TextKey, step = "1") => (
+    <label>
+      {t(label)}
+      <input type="number" step={step} min="0" value={Number(given[key])} onChange={(event) => setGiven({ ...given, [key]: Number(event.target.value) })} />
+    </label>
+  );
+  return (
+    <div className="id-raster">
+      <div className="id-kolumn">
+        <h1>{t("ownerTitle")}</h1>
+        <section className="tm-kort">
+          <h2>{t("ownerBudget")}</h2>
+          <p className="id-saldo">{t("ownerUsed", { n: number.format(page.budget_used) })}</p>
+          <ul className="id-lista">
+            {page.months.map((month) => (
+              <li key={month.month}>
+                <strong>{month.month}</strong>
+                <span className="id-detalj">
+                  {t("ownerMonth", { cost: number.format(month.cost_sek), pages: number.format(month.pages), revenue: number.format(month.revenue_sek), test: number.format(month.test_revenue_sek) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="id-detalj">
+            {page.cost_per_page_sek === null || page.cost_per_page_sek === undefined
+              ? t("ownerNoCost", { tokens: number.format(page.page_tokens) })
+              : t("ownerCost", { cost: number.format(page.cost_per_page_sek), factor: number.format(page.settings.ai_factor), implied: number.format(page.factor_page_tokens ?? 0), tokens: number.format(page.page_tokens) })}
+          </p>
+        </section>
+      </div>
+      <div className="id-kolumn">
+        <section className="tm-kort">
+          <h2>{t("ownerSettings")}</h2>
+          <form
+            className="id-formular"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (change) void run(() => change(given));
+            }}
+          >
+            {field("ai_factor", "ownerAiFactor", "0.1")}
+            {field("storage_factor", "ownerStorageFactor", "0.1")}
+            {field("monthly_budget_sek", "ownerMonthlyBudget")}
+            {field("daily_cap_person", "ownerCapPerson")}
+            {field("daily_cap_club", "ownerCapClub")}
+            {field("usd_sek", "ownerUsdSek", "0.01")}
+            {field("price_in_usd", "ownerPriceIn", "0.01")}
+            {field("price_out_usd", "ownerPriceOut", "0.01")}
+            <button type="submit" className="tm-knapp primar" disabled={busy || !change}>
+              {t("save")}
+            </button>
+          </form>
+          <Problem text={problem} />
+        </section>
+      </div>
     </div>
   );
 }
@@ -1148,6 +1229,9 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
           setData({ clubs, invitations, tokens });
           break;
         }
+        case "owner":
+          setData({ owner: await api.owner() });
+          break;
         case "tokens": {
           const [tokens, shop, clubs] = await Promise.all([api.tokens(), api.shop(), api.clubs()]);
           setData({ tokens, shop, clubs });
@@ -1181,7 +1265,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) setRoute({ page: "missing" });
-      else if (error instanceof ApiError && error.status === 401) setSession({ account: null, logout_url: null });
+      else if (error instanceof ApiError && error.status === 401) setSession({ account: null, logout_url: null, owner: false });
       else setOffline(true);
     }
   }, [route, session]);
@@ -1233,6 +1317,7 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     changeRole: (club, person, role) => act(() => api.changeRole(club, person, role))(),
     connectOwnAi: (owner, change) => act(() => api.connectOwnAi(owner, change))(),
     removeOwnAi: (owner) => act(() => api.removeOwnAi(owner))(),
+    changeOwner: (settings) => act(() => api.changeOwner(settings))(),
     buy: async (purchase) => {
       try {
         const checkout = await api.buy(purchase);

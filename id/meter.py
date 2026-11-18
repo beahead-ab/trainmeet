@@ -57,6 +57,15 @@ KEPT: Final = timedelta(days=1)
 """How long an answer is kept, for an app that asks again with the same reservation."""
 
 
+@dataclass(frozen=True)
+class ClaudeRead:
+    """Claude's text, and the tokens AWS counted for it: what the reading cost."""
+
+    text: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
 class MeterFailed(Exception):
     """Claude did not give a transcription. The message is for the person; never the key."""
 
@@ -84,9 +93,15 @@ class Claude(Protocol):
     @property
     def model(self) -> str: ...
 
-    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> str:
+    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> ClaudeRead:
         """The model's text for the pictures (media type, base64). Raises MeterFailed."""
         ...
+
+
+class Budget(Protocol):
+    def allow(self) -> None: ...
+
+    def record(self, pages: int, input_tokens: int, output_tokens: int) -> None: ...
 
 
 @dataclass
@@ -106,7 +121,7 @@ class BedrockClaude:
     def address(self) -> str:
         return f"https://bedrock-mantle.{self.settings.region}.api.aws/anthropic/v1/messages"
 
-    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> str:
+    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> ClaudeRead:
         try:
             key_id, secret = self.settings.key_file.read_text(encoding="utf-8").split()[:2]
         except (OSError, ValueError) as error:
@@ -150,13 +165,15 @@ class BedrockClaude:
             text = "".join(
                 block.get("text", "") for block in message["content"] if block.get("type") == "text"
             )
+            usage = message.get("usage") or {}
+            used = (int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0)))
         except (ValueError, KeyError, TypeError, AttributeError) as error:
             raise MeterFailed("TrainMeets AI svarade, men inte som väntat.") from error
         if stop == "refusal":
             raise MeterFailed("TrainMeets AI ville inte läsa bilden.")
         if stop == "max_tokens":
             raise MeterFailed("Avskriften blev för lång för en fråga.")
-        return text
+        return ClaudeRead(text, *used)
 
 
 class OwnAiLookup(Protocol):
@@ -177,11 +194,13 @@ class Meter:
         tokens: Tokens,
         claude: Claude | None,
         own_ai: OwnAiLookup = lambda owner: None,
+        budget: Budget | None = None,
     ) -> None:
         self.db = db
         self.tokens = tokens
         self.claude = claude
         self.own_ai = own_ai
+        self.budget = budget
 
     def read(self, app: str, asked: MeterRead) -> MeterAnswer:
         held = self.tokens.reservation(app, asked.reservation)
@@ -209,13 +228,22 @@ class Meter:
                 f"Reservationen räcker inte: {cost} tokens behövs för {len(asked.images)} bilder.",
             )
         assert self.claude is not None
+        if self.budget is not None:
+            try:
+                self.budget.allow()
+            except Refused:
+                self.tokens.give_back(app, asked.reservation)
+                raise
         try:
-            text = self.claude.read(
+            read = self.claude.read(
                 asked.prompt, [(i.media_type, i.data) for i in asked.images], asked.max_tokens
             )
         except MeterFailed as error:
             self.tokens.give_back(app, asked.reservation)
             raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
+        if self.budget is not None:
+            self.budget.record(len(asked.images), read.input_tokens, read.output_tokens)
+        text = read.text
         drawn = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
         text, model = self._keep(asked.reservation, text, self.claude.model)
         return MeterAnswer(text=text, cost=cost, model=model, reservation=drawn)

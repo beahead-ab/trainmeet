@@ -161,6 +161,9 @@ class Session(Contract):
     apps: list[AppKey] = Field(
         default_factory=list, description="The app switcher's apps for the person (ID11)."
     )
+    owner: bool = Field(
+        default=False, description="TrainMeets ägare: ser ägarsidan för tokens (TOKEN-05)."
+    )
 
 
 class HelpKind(StrEnum):

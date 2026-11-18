@@ -484,6 +484,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownerPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/owner/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["changeOwnerSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/tokens/own-ai": {
         parameters: {
             query?: never;
@@ -651,6 +683,12 @@ export interface components {
              * @description The app switcher's apps for the person (ID11).
              */
             apps?: components["schemas"]["trainmeet.id-1.session.AppKey"][];
+            /**
+             * Owner
+             * @description TrainMeets ägare: ser ägarsidan för tokens (TOKEN-05).
+             * @default false
+             */
+            owner: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1911,6 +1949,183 @@ export interface components {
              * @default null
              */
             key: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenSettings */
+        "trainmeet.id-1.token-settings": {
+            /**
+             * Ai Factor
+             * @description Påslaget för AI (TK6), startvärde ×2.
+             */
+            ai_factor: number;
+            /**
+             * Storage Factor
+             * @description Påslaget för lagring, ×10.
+             */
+            storage_factor: number;
+            /**
+             * Monthly Budget Sek
+             * @description Månadens budget för TrainMeets AI, i kronor.
+             */
+            monthly_budget_sek: number;
+            /**
+             * Daily Cap Person
+             * @description Tak per dygn för ett konto.
+             */
+            daily_cap_person: number;
+            /**
+             * Daily Cap Club
+             * @description Tak per dygn för en klubb.
+             */
+            daily_cap_club: number;
+            /**
+             * Usd Sek
+             * @description Kronor per dollar, för kostnaden.
+             */
+            usd_sek: number;
+            /**
+             * Price In Usd
+             * @description Dollar per miljon tokens in.
+             */
+            price_in_usd: number;
+            /**
+             * Price Out Usd
+             * @description Dollar per miljon tokens ut.
+             */
+            price_out_usd: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenMonth */
+        "trainmeet.id-1.token-month": {
+            /** Month */
+            month: string;
+            /**
+             * Revenue Sek
+             * @description Betalda köp, med moms. Testläget räknas inte.
+             */
+            revenue_sek: number;
+            /**
+             * Test Revenue Sek
+             * @description Köp i Stripes testläge, utan riktiga pengar.
+             */
+            test_revenue_sek: number;
+            /**
+             * Cost Sek
+             * @description Vad TrainMeets AI kostade, uppmätt.
+             */
+            cost_sek: number;
+            /**
+             * Pages
+             * @description Sidor och bilder som TrainMeets AI läste.
+             */
+            pages: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** OwnerPage */
+        "trainmeet.id-1.owner-page": {
+            settings: components["schemas"]["trainmeet.id-1.owner-page.TokenSettings"];
+            /**
+             * Page Tokens
+             * @description Tokens per AI-sida nu (TK10, startvärde 12).
+             */
+            page_tokens: number;
+            /**
+             * Cost Per Page Sek
+             * @description Uppmätt kostnad per sida de senaste 30 dagarna.
+             * @default null
+             */
+            cost_per_page_sek: number | null;
+            /**
+             * Factor Page Tokens
+             * @description Vad faktorn gör av den uppmätta kostnaden, i tokens per sida (TK6).
+             * @default null
+             */
+            factor_page_tokens: number | null;
+            /**
+             * Budget Used
+             * @description Hur mycket av månadens budget som är använd, %.
+             */
+            budget_used: number;
+            /**
+             * Months
+             * @description Den här månaden och förra.
+             */
+            months: components["schemas"]["trainmeet.id-1.owner-page.TokenMonth"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenMonth */
+        "trainmeet.id-1.owner-page.TokenMonth": {
+            /** Month */
+            month: string;
+            /**
+             * Revenue Sek
+             * @description Betalda köp, med moms. Testläget räknas inte.
+             */
+            revenue_sek: number;
+            /**
+             * Test Revenue Sek
+             * @description Köp i Stripes testläge, utan riktiga pengar.
+             */
+            test_revenue_sek: number;
+            /**
+             * Cost Sek
+             * @description Vad TrainMeets AI kostade, uppmätt.
+             */
+            cost_sek: number;
+            /**
+             * Pages
+             * @description Sidor och bilder som TrainMeets AI läste.
+             */
+            pages: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenSettings */
+        "trainmeet.id-1.owner-page.TokenSettings": {
+            /**
+             * Ai Factor
+             * @description Påslaget för AI (TK6), startvärde ×2.
+             */
+            ai_factor: number;
+            /**
+             * Storage Factor
+             * @description Påslaget för lagring, ×10.
+             */
+            storage_factor: number;
+            /**
+             * Monthly Budget Sek
+             * @description Månadens budget för TrainMeets AI, i kronor.
+             */
+            monthly_budget_sek: number;
+            /**
+             * Daily Cap Person
+             * @description Tak per dygn för ett konto.
+             */
+            daily_cap_person: number;
+            /**
+             * Daily Cap Club
+             * @description Tak per dygn för en klubb.
+             */
+            daily_cap_club: number;
+            /**
+             * Usd Sek
+             * @description Kronor per dollar, för kostnaden.
+             */
+            usd_sek: number;
+            /**
+             * Price In Usd
+             * @description Dollar per miljon tokens in.
+             */
+            price_in_usd: number;
+            /**
+             * Price Out Usd
+             * @description Dollar per miljon tokens ut.
+             */
+            price_out_usd: number;
         } & {
             [key: string]: unknown;
         };
@@ -4685,6 +4900,95 @@ export interface operations {
             };
             /** @description ID säger nej */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    ownerPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.owner-page"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    changeOwnerSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.token-settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.owner-page"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

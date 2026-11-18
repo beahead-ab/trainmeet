@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.owner-page.schema.json",
+  "title": "trainmeet.id-1.owner-page",
+  "$defs": {
+    "TokenMonth": {
+      "additionalProperties": true,
+      "properties": {
+        "month": {
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "title": "Month",
+          "type": "string"
+        },
+        "revenue_sek": {
+          "description": "Betalda köp, med moms. Testläget räknas inte.",
+          "title": "Revenue Sek",
+          "type": "number"
+        },
+        "test_revenue_sek": {
+          "description": "Köp i Stripes testläge, utan riktiga pengar.",
+          "title": "Test Revenue Sek",
+          "type": "number"
+        },
+        "cost_sek": {
+          "description": "Vad TrainMeets AI kostade, uppmätt.",
+          "title": "Cost Sek",
+          "type": "number"
+        },
+        "pages": {
+          "description": "Sidor och bilder som TrainMeets AI läste.",
+          "title": "Pages",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "month",
+        "revenue_sek",
+        "test_revenue_sek",
+        "cost_sek",
+        "pages"
+      ],
+      "title": "TokenMonth",
+      "type": "object"
+    },
+    "TokenSettings": {
+      "additionalProperties": true,
+      "properties": {
+        "ai_factor": {
+          "description": "Påslaget för AI (TK6), startvärde ×2.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Ai Factor",
+          "type": "number"
+        },
+        "storage_factor": {
+          "description": "Påslaget för lagring, ×10.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Storage Factor",
+          "type": "number"
+        },
+        "monthly_budget_sek": {
+          "description": "Månadens budget för TrainMeets AI, i kronor.",
+          "maximum": 10000000,
+          "minimum": 0,
+          "title": "Monthly Budget Sek",
+          "type": "integer"
+        },
+        "daily_cap_person": {
+          "description": "Tak per dygn för ett konto.",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Daily Cap Person",
+          "type": "integer"
+        },
+        "daily_cap_club": {
+          "description": "Tak per dygn för en klubb.",
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Daily Cap Club",
+          "type": "integer"
+        },
+        "usd_sek": {
+          "description": "Kronor per dollar, för kostnaden.",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Usd Sek",
+          "type": "number"
+        },
+        "price_in_usd": {
+          "description": "Dollar per miljon tokens in.",
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Price In Usd",
+          "type": "number"
+        },
+        "price_out_usd": {
+          "description": "Dollar per miljon tokens ut.",
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Price Out Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ai_factor",
+        "storage_factor",
+        "monthly_budget_sek",
+        "daily_cap_person",
+        "daily_cap_club",
+        "usd_sek",
+        "price_in_usd",
+        "price_out_usd"
+      ],
+      "title": "TokenSettings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "settings": {
+      "$ref": "#/$defs/TokenSettings"
+    },
+    "page_tokens": {
+      "description": "Tokens per AI-sida nu (TK10, startvärde 12).",
+      "title": "Page Tokens",
+      "type": "integer"
+    },
+    "cost_per_page_sek": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Uppmätt kostnad per sida de senaste 30 dagarna.",
+      "title": "Cost Per Page Sek"
+    },
+    "factor_page_tokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vad faktorn gör av den uppmätta kostnaden, i tokens per sida (TK6).",
+      "title": "Factor Page Tokens"
+    },
+    "budget_used": {
+      "description": "Hur mycket av månadens budget som är använd, %.",
+      "minimum": 0,
+      "title": "Budget Used",
+      "type": "integer"
+    },
+    "months": {
+      "description": "Den här månaden och förra.",
+      "items": {
+        "$ref": "#/$defs/TokenMonth"
+      },
+      "title": "Months",
+      "type": "array"
+    }
+  },
+  "required": [
+    "settings",
+    "page_tokens",
+    "budget_used",
+    "months"
+  ],
+  "type": "object"
+}

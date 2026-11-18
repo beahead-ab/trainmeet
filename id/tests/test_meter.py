@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 from contracts.tokens import MeterAnswer
 from id.app import create_app
-from id.meter import BedrockClaude, MeterFailed, MeterSettings, settings_from
+from id.meter import BedrockClaude, ClaudeRead, MeterFailed, MeterSettings, settings_from
 from id.settings import Settings
 from id.tests.test_api import INTERNAL, ISSUER, PUBLIC, SECRET, World, log_in
 from id.tests.test_tokens import reserve
@@ -38,11 +38,11 @@ class PretendClaude:
     def model(self) -> str:
         return "anthropic.claude-sonnet-5-5"
 
-    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> str:
+    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> ClaudeRead:
         self.calls.append((prompt, len(images)))
         if self.failing:
             raise MeterFailed("TrainMeets AI svarar inte just nu.")
-        return self.text
+        return ClaudeRead(self.text, 7000 * len(images), 3000 * len(images))
 
 
 @dataclass
@@ -163,11 +163,13 @@ def test_bedrock_is_asked_in_the_eu_signed_and_with_the_picture(tmp_path: Path) 
             json={
                 "content": [{"type": "text", "text": "Rad 1"}, {"type": "text", "text": "\nRad 2"}],
                 "stop_reason": "end_turn",
+                "usage": {"input_tokens": 6900, "output_tokens": 2100},
             },
         )
 
     claude = bedrock(tmp_path, handle)
-    assert claude.read("Skriv av.", [("image/png", PICTURE)], 4096) == "Rad 1\nRad 2"
+    read = claude.read("Skriv av.", [("image/png", PICTURE)], 4096)
+    assert (read.text, read.input_tokens, read.output_tokens) == ("Rad 1\nRad 2", 6900, 2100)
     request = seen[0]
     assert str(request.url) == "https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages"
     assert request.headers["anthropic-version"] == "2026-10-21"
