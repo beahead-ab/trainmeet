@@ -38,6 +38,7 @@ from starlette.types import ASGIApp
 
 from catalog import fleet_api, id_login, login, migrate, pictures_api, tags_api
 from catalog.access import Access
+from catalog.backgrounds import Segmenter, U2NetP
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
@@ -127,9 +128,12 @@ def create_app(
     *,
     id_http: httpx.Client | None = None,
     picture_limits: PictureLimits | None = None,
+    segmenter: Segmenter | None = None,
 ) -> FastAPI:
     """The app. id_http is how Catalog reaches TrainMeet ID; the tests give a pretend ID.
-    picture_limits are the free level for the pictures; the tests give tiny ones."""
+    picture_limits are the free level for the pictures; the tests give tiny ones. segmenter
+    finds the vehicle for the background removal: the U2NetP model in settings, loaded the
+    first time it is needed; the tests give a pretend one."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     sessions = login.Sessions(db)
@@ -140,7 +144,12 @@ def create_app(
     id_api = settings.id if settings.id is not None and settings.id.api else None
     access = Access(IdRoles(id_api, http) if id_api is not None else None)
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
-    pictures = Pictures(db, store_for(settings), picture_limits)
+    pictures = Pictures(
+        db,
+        store_for(settings),
+        picture_limits,
+        segmenter if segmenter is not None else U2NetP(settings.background_model),
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:

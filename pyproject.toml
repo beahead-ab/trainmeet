@@ -122,6 +122,12 @@ follow_untyped_imports = true
 module = ["botocore", "botocore.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# onnxruntime, which runs the background removal's model (catalog/backgrounds.py), has no type
+# hints.
+module = ["onnxruntime", "onnxruntime.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -q"
 testpaths = [

@@ -36,6 +36,11 @@ CATALOG_PICTURES_S3_REGION
 CATALOG_PICTURES_S3_KEY_FILE
                        A file with the access key on the first line and its secret on the
                        second. Required with the endpoint. Never written to the log.
+CATALOG_BACKGROUND_MODEL
+                       The U2NetP model for the background removal (CAT-127), checked against
+                       its SHA-256 when it is first needed. Default /app/models/u2netp.onnx,
+                       where catalog/Dockerfile puts it. Without it only the original background
+                       can be chosen, and the uploads work as before.
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                        Which change is running, set when the image is built.
 """
@@ -57,6 +62,7 @@ from contracts.catalog import CatalogVersion
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_WEB_DIR = REPO / "apps" / "catalog" / "dist"
 DEFAULT_PICTURES_DIR = REPO / ".catalog" / "pictures"
+DEFAULT_BACKGROUND_MODEL = Path("/app/models/u2netp.onnx")
 _COMMIT = re.compile(r"[0-9a-f]{7,40}")
 _REGION = re.compile(r"[a-z]{2}(-[a-z0-9]+)+")
 _BUCKET = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
@@ -124,6 +130,7 @@ class Settings:
     build: CatalogVersion = field(default_factory=lambda: CatalogVersion(version="0.0.0"))
     pictures_dir: Path = DEFAULT_PICTURES_DIR
     pictures_s3: S3Settings | None = None
+    background_model: Path = DEFAULT_BACKGROUND_MODEL
 
     def __repr__(self) -> str:  # the database address may hold a password
         return (
@@ -241,6 +248,7 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         raise SettingsError('CATALOG_MIGRATE ska vara "check" eller "auto".')
     web_dir = source.get("CATALOG_WEB_DIR", "").strip()
     pictures_dir = source.get("CATALOG_PICTURES_DIR", "").strip()
+    background_model = source.get("CATALOG_BACKGROUND_MODEL", "").strip()
     tag_base = source.get("CATALOG_TAG_BASE", "").strip() or "https://trainmeet.app/t/"
     if not tag_base.startswith("https://") or not tag_base.rstrip("/").endswith("/t"):
         raise SettingsError("CATALOG_TAG_BASE ska vara en https-adress som slutar på /t/.")
@@ -255,4 +263,5 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         build=build_from_env(source),
         pictures_dir=Path(pictures_dir) if pictures_dir else DEFAULT_PICTURES_DIR,
         pictures_s3=s3_from_env(source),
+        background_model=Path(background_model) if background_model else DEFAULT_BACKGROUND_MODEL,
     )

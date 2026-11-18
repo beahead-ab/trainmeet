@@ -274,7 +274,13 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
     limits = PictureLimits(person=size * 2 + size // 2, club=size * 4 + size // 2)
     with world_with(database_url, tmp_path, limits) as world:
         mine = world.a.get(f"{API}/storage").json()
-        assert mine == {"used": 0, "limit": limits.person, "club": False, "pictures": 0}
+        assert mine == {
+            "used": 0,
+            "limit": limits.person,
+            "club": False,
+            "pictures": 0,
+            "backgrounds": False,
+        }
         car = world.vehicle()
         for _ in range(2):
             added(upload(world, car, photo()))
@@ -295,7 +301,13 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
         assert problem(refused) == (422, "storage_full")
         assert refused.json()["message"].startswith("Klubbens fria lagring på ")
         club = world.b.get(_in(f"{API}/storage", CLUB)).json()
-        assert club == {"used": size * 4, "limit": limits.club, "club": True, "pictures": 4}
+        assert club == {
+            "used": size * 4,
+            "limit": limits.club,
+            "club": True,
+            "pictures": 4,
+            "backgrounds": False,
+        }
         assert world.b.get(f"{API}/storage").json()["used"] == 0  # not B's own
 
     # The real free level: 100 MB for a person, 2 GB for a club.
@@ -470,6 +482,12 @@ def test_two_uploads_at_the_edge_never_both_get_in(world: World, database_url: s
             inner.put(key, content, content_type)
             meet.wait()
 
+        def get(self, key: str) -> bytes:
+            return inner.get(key)
+
+        def size(self, key: str) -> int:
+            return inner.size(key)
+
         def delete(self, key: str) -> None:
             inner.delete(key)
 
@@ -518,6 +536,12 @@ def test_an_upload_the_store_fails_leaves_nothing_behind(world: World, database_
             if self.puts == 2:
                 raise StoreFailed("nere")
             inner.put(key, content, content_type)
+
+        def get(self, key: str) -> bytes:
+            return inner.get(key)
+
+        def size(self, key: str) -> int:
+            return inner.size(key)
 
         def delete(self, key: str) -> None:
             inner.delete(key)
