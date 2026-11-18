@@ -1,7 +1,7 @@
 """Provar inloggningen i TrainMeet ID från början till slut, som en webbläsare och Catalog gör.
 
     python -m id.prov_inloggning <ID> <mejlfil> <klienthemlighet> <Catalog> [--catalog]
-        [--id-app=<ID:s webbapp>] [--hub=<Hubben>]
+        [--id-app=<ID:s webbapp>] [--hub=<Hubben>] [--tkl=<TKL>]
 
 Skapa konto med namn och e-post, koden ur mejlet, sedan Catalogs utbyte av koden mot en token
 med verifierad e-post (KONTO-10, KONTO-27). Sedan en ny inloggning med samma e-post utan namn, och
@@ -24,6 +24,9 @@ fil och kontot tas bort i Catalog, Keycloak och ID (KONTO-31, CAT-193).
 Med --hub körs Hubben på den adressen med klienten hub (#78), och provet loggar in där som en
 webbläsare: genom ID med en kod till e-posten och tillbaka in i Hubben, som visar namnet men inte
 adressen och inte gör personen till hubbens administratör, och sedan ut ur både Hubben och ID.
+
+Med --tkl körs TKL på den adressen med den publika klienten tkl (TKL18), och sparar stationen i
+Hubben (SYNK-30) efter inloggningen med en kod till e-posten.
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -524,6 +527,39 @@ def run_hub_roles(base: str, mails: Path, hub: str, id_app: str) -> None:
     print("Hubbens träff ur träffen i ID, och arrangören planerar den: ok")
 
 
+def run_tkl(base: str, mails: Path, tkl: str) -> None:
+    """TKL med TrainMeet ID (TKL18, SYNK-30, #78): TKL logs in as the public client tkl with PKCE,
+    and saves the station package in the hub, which takes the owner from TKL's token from ID."""
+    browser = Browser(base, tkl, session="/api/tkl/1/state")
+    station = {"name": "Provstation", "station_id": "prov", "pin": "4711"}
+    check(browser.app.post("/api/tkl/1/setup", json=station).status_code == 201, "Ingen TKL.")
+    check(browser.app.post("/api/tkl/1/studio/version").status_code == 200, "Ingen utsida.")
+    page = browser.open("/api/tkl/1/id/login")
+    check(page.status_code == 200 and "Skicka en kod" in page.text, "ID:s sida kom inte.")
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    create = browser.id.post(page.text, {"create": "1"}).text
+    seen = mail_count(mails)
+    sent = browser.id.post(
+        create, {"creating": "1", "name": "Provare Fem", "email": address, "send": "1"}
+    )
+    code, _ = code_from(mails, address, seen)
+    offer = browser.id.post(sent.text, {"code": code})
+    back = browser.id.post(offer.text, {"passkey": "no"})
+    check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
+    check(back.headers["location"].startswith(tkl.rstrip("/")), "Inte tillbaka till TKL.")
+    landed = browser.app.get(back.headers["location"].removeprefix(tkl.rstrip("/")))
+    check(landed.headers.get("location") == "/", "TKL loggade inte in med ID.")
+    state = browser.app.get("/api/tkl/1/id").json()
+    check(state.get("person") == "Provare Fem", f"TKL vet inte vem som loggat in: {state}")
+    check(address not in json.dumps(state), "TKL visar adressen.")
+    saved = browser.app.post("/api/tkl/1/id/save", json={})
+    check(saved.status_code == 200, f"Spara i molnet svarade {saved.status_code}: {saved.text}")
+    check(saved.json().get("version") == 1, f"Stationen sparades inte i hubben: {saved.json()}")
+    again = browser.app.post("/api/tkl/1/id/save", json={})
+    check(again.json().get("version") == 2, "En andra version sparades inte ovanpå den första.")
+    print("TKL med ID: inloggad som publik klient, stationen sparad i hubben: ok")
+
+
 def log_in_to_app(browser: Browser, mails: Path, address: str, name: str, start: str) -> None:
     """A new account through the app's login, with the code, and back into the app."""
     page = browser.open(start)
@@ -770,8 +806,11 @@ def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
     id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
     hub = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--hub=")), None)
+    tkl = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--tkl=")), None)
     argv = [
-        arg for arg in argv if arg != "--catalog" and not arg.startswith(("--id-app=", "--hub="))
+        arg
+        for arg in argv
+        if arg != "--catalog" and not arg.startswith(("--id-app=", "--hub=", "--tkl="))
     ]
     if len(argv) != 5:
         print(__doc__)
@@ -790,6 +829,8 @@ def main(argv: list[str]) -> int:
             run_hub(argv[1], Path(argv[2]), hub)
         if hub and id_app:
             run_hub_roles(argv[1], Path(argv[2]), hub, id_app)
+        if tkl:
+            run_tkl(argv[1], Path(argv[2]), tkl)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

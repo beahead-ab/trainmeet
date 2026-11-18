@@ -401,6 +401,22 @@ def test_the_id_api_has_a_secret_of_its_own(tmp_path: Path) -> None:
     assert testmiljo.ID_API_SECRET_NAME != testmiljo.ID_SECRET_NAME
 
 
+def test_keycloak_is_given_every_address_the_realm_file_names() -> None:
+    """Keycloak reads the realm file the first time and leaves an unset ${NAME} as it is, which
+    makes the client's address invalid and Keycloak does not start (#78, ID_TKL_URL). The test
+    environment and the check "ID:s bild" give every one."""
+    realm = (ROOT / "id" / "realm" / "trainmeet.json").read_text()
+    named = set(re.findall(r"\$\{(ID_[A-Z_]+)\}", realm))
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    keycloak = compose.split("\n  id:\n")[1].split("\n  id-api:\n")[0]
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    check = workflow.split("\n  id:\n")[1].split("trainmeet-id:prov\n")[0]
+    assert named, "the realm names no addresses?"
+    for name in sorted(named):
+        assert f"{name}:" in keycloak, f"{name} is not given to Keycloak in the test environment"
+        assert f"-e {name}=" in check, f"{name} is not given to Keycloak in the check"
+
+
 def test_the_hub_has_a_secret_of_its_own_in_id() -> None:
     """#78: the test hub's client in ID gets a secret beside the others, never one of theirs."""
     made = testmiljo.generate_id_hub_secrets()
