@@ -13,6 +13,10 @@
     GET  /api/tkl/1/referens              [TklReference] (referensstationerna, TKL40)
     GET  /api/tkl/1/referens/{id}         TklTrackPlan (att titta på)
     POST /api/tkl/1/referens/{id}/use     TklTrackPlan (Använd som min station)
+    GET  /api/tkl/1/studio/rita           TklRita: utkastet, eller stationens modell att rita om
+    PUT  /api/tkl/1/studio/rita           TklDrawing -> TklRita (sparas som utkast, med problemen)
+    POST /api/tkl/1/studio/rita/use       TklRita (Använd ritningen: 422 med problem, 409 med vägar)
+    DELETE /api/tkl/1/studio/rita         TklRita (släng utkastet)
     GET  /api/tkl/1/studio/manover        TklManover: Manövers inställningar (STV-46)
     PUT  /api/tkl/1/studio/manover        TklManover -> TklManover (sparas med modellen)
     GET  /api/tkl/1/hubs                  [FoundHub]
@@ -69,6 +73,12 @@ At level 3 with LocoNet the interlocking's orders go out on the bus after every 
 While the station has a model, Studio's list is its outside derived from the model (STD-08,
 TKL92): it is shown but not written, and a new version is made as before (TKL25).
 
+Rita (#85): the owner draws the station on the grid, or redraws the panel of the one it has
+(STUDIO-02, STUDIO-30). The drawing is kept as a draft, problems and all; the same drawing as
+the station's model is no draft. Använd ritningen makes it the station's model as an import
+does: refused with the problems while it has any, and while the interlocking has set routes or
+train numbers.
+
 Everything but the state, first start and unlocking needs the PIN: a session in an HttpOnly
 cookie (TKL18). TKL in the cloud also keeps which station is the browser's in a cookie, and
 reaches only the hubs it is set up for, never an address someone types (TKL5).
@@ -107,6 +117,8 @@ from contracts.tkl import (
     TklCommand,
     TklConnect,
     TklConnection,
+    TklDrawing,
+    TklDrawingState,
     TklEmergencyRelease,
     TklFunctionAsk,
     TklIdState,
@@ -143,7 +155,7 @@ from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
 from tkl.stallverk.interlocking import Order
-from tkl.standard import RouteKind, problems
+from tkl.standard import LayoutError, RouteKind, problems
 from tkl.store import (
     LOCAL,
     SESSION_LIFETIME,
@@ -160,6 +172,7 @@ from tkl.store import (
     WrongPin,
     token_hash,
 )
+from tkl.studio import rita
 
 SESSION = "tkl_session"
 SLOT = "tkl_station"
@@ -492,6 +505,117 @@ def create_app(
         if model is None:
             raise HTTPException(404, "Ingen referensstation med det id:t.")
         return keep_model(found, model)
+
+    # --- Rita (#85): the station drawn on the grid, kept as a draft until it is used ------------
+
+    def drawn(found: str) -> tuple[TklDrawing, TklDrawingState]:
+        """The owner's draft; else the station's model as a drawing; else a new one."""
+        draft = store.drawing(found)
+        if draft is not None:
+            return draft, TklDrawingState.DRAFT
+        model = store.station_model(found)
+        if model is None:
+            own = store.station_of(found)
+            assert own is not None
+            return rita.empty(own.station_id, own.name), TklDrawingState.NEW
+        try:
+            return rita.drawing_of(model), TklDrawingState.IN_USE
+        except LayoutError as error:
+            raise HTTPException(
+                409, f"Motorn kan inte lägga ut stationen, så den går inte att rita om. {error}"
+            ) from error
+
+    @routes.get("/studio/rita")
+    def drawing(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        no_store(response)
+        made, state = drawn(unlocked(slot, session))
+        return rita.view(made, state).model_dump(mode="json")
+
+    def keep_drawing(found: str, given: TklDrawing) -> dict[str, Any]:
+        """Kept as a draft, with the station's own id and name. A drawing that is the
+        station's model as it is is no draft."""
+        own = store.station_of(found)
+        assert own is not None
+        model = given.model.model_copy(update={"station_id": own.station_id, "name": own.name})
+        drawing = given.model_copy(update={"model": model})
+        made = rita.model_of(drawing)
+        if made == store.station_model(found):
+            store.forget_drawing(found)
+            return rita.view(drawing, TklDrawingState.IN_USE, made).model_dump(mode="json")
+        store.save_drawing(found, drawing)
+        return rita.view(drawing, TklDrawingState.DRAFT, made).model_dump(mode="json")
+
+    @routes.put("/studio/rita")
+    async def save_drawing(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Spara ritningen på datorn: always, problems and all; the checks say what is wrong."""
+        same_site(request)
+        no_store(response)
+        found = await run_in_threadpool(unlocked, slot, session)
+        body = await request.body()
+        if len(body) > MODEL_LIMIT:
+            raise HTTPException(413, "Ritningen är för stor.")
+        try:
+            given = TklDrawing.model_validate_json(body)
+        except ValidationError as error:
+            said = [
+                f"{'.'.join(str(part) for part in e['loc']) or 'ritningen'}: {e['msg']}"
+                for e in error.errors()[:5]
+            ]
+            refuse_model("Ritningen gick inte att läsa.", said)
+        return await run_in_threadpool(keep_drawing, found, given)
+
+    @routes.post("/studio/rita/use")
+    def use_drawing(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Använd ritningen: the draft becomes the station's model, which derives the outside
+        and gives the interlocking its model. Only without problems (STD-04), and never under
+        set routes or train numbers."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        draft = store.drawing(found)
+        stored = store.station_model(found)
+        if draft is None:
+            if stored is None:
+                raise HTTPException(404, "Det finns ingen ritning att använda. Rita först.")
+            return rita.view(*drawn(found), stored).model_dump(mode="json")
+        made = rita.model_of(draft)
+        if stored is not None:
+            made = rita.ordered_like(made, stored)
+        wrong = problems(made)
+        if wrong:
+            refuse_model("Ritningen kan inte användas än. Rätta problemen först.", wrong)
+        try:
+            kept = store.save_model(found, made)
+        except InterlockingBusy as error:
+            raise HTTPException(409, BUSY) from error
+        return rita.view(*drawn(found), kept).model_dump(mode="json")
+
+    @routes.delete("/studio/rita")
+    def forget_drawing(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Släng utkastet: back to the station's model, or to nothing drawn."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        store.forget_drawing(found)
+        made, state = drawn(found)
+        return rita.view(made, state).model_dump(mode="json")
 
     # --- Manöver, the owner's free panel (STV-46) ---------------------------------------------
 

@@ -14,6 +14,11 @@ the outside holds them as they were; the defaults are not stored.
 At level 3 a local TKL keeps how it last reached LocoNet and the MGP cards Discover found, with
 the module the owner said each sits in (#85). The addresses themselves belong to the model.
 
+Rita (#85) keeps the owner's drawing as a draft until it is taken into use: the station model
+with its panel plan, problems and all. Taking it into use saves it as the station's model like
+an import; a new model, imported or taken from a reference station, or none, leaves no draft
+behind.
+
 At level 1–2 the station also has its interlocking's state of the moment (#84): the set routes,
 the locks, the switch positions and the train numbers, so that a restart keeps them. It belongs
 to one model: while routes are set or train numbers stand on the panel, the model cannot be
@@ -48,7 +53,14 @@ from contracts import station
 from contracts.common import Side
 from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
-from contracts.tkl import OutsideVersion, TklInterlocking, TklManover, TklStation, TklStudio
+from contracts.tkl import (
+    OutsideVersion,
+    TklDrawing,
+    TklInterlocking,
+    TklManover,
+    TklStation,
+    TklStudio,
+)
 from tkl.stallverk import Interlocking, fingerprint, plant_of
 from tkl.standard import outside_of
 
@@ -110,6 +122,9 @@ CREATE TABLE IF NOT EXISTS manover_version (
     slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS rita (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS interlocking (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
@@ -414,6 +429,7 @@ class TklStore:
             draft = outside_of(kept, row[0], row[1])
             self._new_interlocking(db, slot, kept)
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
+            db.execute("DELETE FROM rita WHERE slot=?", (slot,))
             db.execute(
                 "UPDATE station SET level=?, draft=? WHERE slot=?",
                 (kept.level, draft.model_dump_json(), slot),
@@ -426,8 +442,35 @@ class TklStore:
         with self._transaction() as db:
             self._new_interlocking(db, slot, None)
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
+            db.execute("DELETE FROM rita WHERE slot=?", (slot,))
             db.execute("DELETE FROM manover WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
+
+    # --- Rita (#85): the drawing, kept as a draft until it is taken into use ----------------
+
+    def drawing(self, slot: str) -> TklDrawing | None:
+        """The owner's draft, if there is one. A draft TKL can no longer read is dropped."""
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM rita WHERE slot=?", (slot,)).fetchone()
+        if row is None:
+            return None
+        try:
+            return TklDrawing.model_validate_json(row[0])
+        except ValueError:
+            self.forget_drawing(slot)
+            return None
+
+    def save_drawing(self, slot: str, drawing: TklDrawing) -> None:
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                raise NotSetUp()
+            db.execute(
+                "INSERT OR REPLACE INTO rita VALUES (?, ?)", (slot, drawing.model_dump_json())
+            )
+
+    def forget_drawing(self, slot: str) -> None:
+        with self._transaction() as db:
+            db.execute("DELETE FROM rita WHERE slot=?", (slot,))
 
     # --- Manöver (STV-46): the owner's settings, with the model ------------------------------
 

@@ -562,6 +562,80 @@
         ]
       }
     },
+    "/api/tkl/1/studio/rita": {
+      "get": {
+        "operationId": "tklRita",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.rita"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "tklSaveDrawing",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.rita"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "tklForgetDrawing",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.rita"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tkl/1/studio/rita/use": {
+      "post": {
+        "operationId": "tklUseDrawing",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.rita"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tkl/1/studio/manover": {
       "get": {
         "operationId": "tklManover",
@@ -7721,6 +7795,3756 @@
           "plan"
         ],
         "title": "TklReference",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing": {
+        "additionalProperties": true,
+        "description": "Rita: the station as the owner draws it, the station model with its panel plan.\n\nThe panel plan is the drawing (STD-25, TKL81): every switch, crossing and track end in a\ncell, every track a way over the grid from node to node, horizontally, vertically or at\n45°, with the joints between its pieces. The six objects stand on it: the tracks' pieces,\nthe switches, the signals, the track-circuit boundaries, the buffer stops and the line exits\n(STUDIO-02). What is not drawn is computed when the drawing becomes the model: the nodes'\ntypes, the track circuits between the boundaries, the signals that lead out at each exit,\nand where the panel shows the signals, the exits and the track names (tkl/studio/rita.py).\nThe routes are never drawn (STD-07).\n\nA station without a plan of its own opens on the engine's layout, the first proposal\n(STD-09). While the owner has only named things on it, the proposal is not kept as a plan,\nand the engine lays the panel out again.",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.StationModel"
+          },
+          "proposal": {
+            "default": false,
+            "description": "Rutnätet är motorns förslag och sparas inte som spårplan förrän ägaren ritar om det.",
+            "title": "Proposal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "TklDrawing",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Address": {
+        "additionalProperties": true,
+        "description": "A decoder or detector address on a bus (level 3).\n\nIts own origin says where the address comes from and whether it is confirmed on the layout:\nin Koppla in a confirmed address is green, an address that is only given is yellow\n(STUDIO-17). The object's origin is about the object itself, as drawn or imported.",
+        "properties": {
+          "bus": {
+            "default": "LocoNet",
+            "description": "Bussen adressen gäller på.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Bus",
+            "type": "string"
+          },
+          "number": {
+            "maximum": 65535,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens kör är kortets thrown, och givaren är belagd när den släpper.",
+            "title": "Reversed",
+            "type": "boolean"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in."
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "Address",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.FeedbackType": {
+        "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
+        "enum": [
+          "card",
+          "sensors",
+          "none",
+          "manual"
+        ],
+        "title": "FeedbackType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.Lever": {
+        "additionalProperties": true,
+        "description": "Spak: for + and -, the position each switch gets.\n\nThe lever's own switches are in both positions. A switch that only one position names is\ndragged along by the lever in that position (drar med, TKL104) and has a lever of its own.\nAn own switch that gets - in the lever's + lies reversed (omvänd).",
+        "properties": {
+          "id": {
+            "description": "Till exempel \"101/102\" eller \"22\".",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "plus": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Position"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Plus",
+            "type": "object"
+          },
+          "minus": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Position"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Minus",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "plus",
+          "minus"
+        ],
+        "title": "Lever",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.LineExit": {
+        "additionalProperties": true,
+        "description": "Linjeutfart: where a track leaves the station for the line.\n\nIts id is the owner's free text, such as \"Väst 1\"; the outside's exit gets an id derived\nfrom it, or `outside_id` when the model gives one (tkl/standard/outside.py).",
+        "properties": {
+          "id": {
+            "description": "Bokstav eller id, till exempel A1.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "neighbour": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Grannstationen.",
+            "title": "Neighbour"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når hit.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.",
+            "title": "Outside Id"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node"
+        ],
+        "title": "LineExit",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Node": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.NodeType"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "Node",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.NodeType": {
+        "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+        "enum": [
+          "switch",
+          "crossing",
+          "signal_point",
+          "block_boundary",
+          "module_joint",
+          "joint",
+          "stop_point",
+          "buffer_stop",
+          "line_exit",
+          "turntable"
+        ],
+        "title": "NodeType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.Origin": {
+        "additionalProperties": true,
+        "description": "The source of one item, and whether the owner has confirmed it (RS5, RS7).",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Source"
+          },
+          "confirmed": {
+            "default": false,
+            "description": "Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.",
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.",
+            "title": "Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Origin",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelBuilding": {
+        "additionalProperties": true,
+        "properties": {
+          "cells": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Cells",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cells",
+          "name"
+        ],
+        "title": "PanelBuilding",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelDeviation": {
+        "additionalProperties": true,
+        "description": "Where the plan departs from the drawing, said out loud (TKL82, STD-28).\n\nThe names here are the drawing's, so a piece that is not shown need not be in the model.",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "not_shown": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelHidden"
+          },
+          "rewired": {
+            "description": "Omkopplade spårbitar.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Rewired",
+            "type": "array"
+          },
+          "new_pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "New Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelDeviationSwitch"
+            },
+            "description": "Nya växlar och växlar med ett annat nummer.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Switches",
+            "type": "object"
+          },
+          "knots": {
+            "description": "Noder mitt på ett annat spår.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Knots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "PanelDeviation",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelDeviationSwitch": {
+        "additionalProperties": true,
+        "properties": {
+          "drawing_number": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Växelns nummer i ritningen. Saknas: växeln är ny.",
+            "title": "Drawing Number"
+          }
+        },
+        "title": "PanelDeviationSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelFunction": {
+        "additionalProperties": true,
+        "description": "A button on the panel, from the catalogue, with its parameters.",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelFunctionType"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "track_circuits": {
+            "description": "Området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "switches": {
+            "description": "Lokala växlar, som läggs med knappar på modulerna.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "locked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Position"
+            },
+            "description": "Skyddsväxlarnas spakar och läget de låses i.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Locked",
+            "type": "object"
+          },
+          "signals": {
+            "description": "Signaler som visar växling.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Spåret funktionen gäller.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Platsen för knappen, till exempel en nod.",
+            "title": "At"
+          },
+          "modes": {
+            "description": "Körströmmens lägen, 2R och 3R.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Modes",
+            "type": "array"
+          },
+          "codes": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Knappens kod per skal, till exempel L01 i 95.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Codes",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "PanelFunction",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelFunctionType": {
+        "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+        "enum": [
+          "signal_stop",
+          "local_release",
+          "traction_current",
+          "out_of_service",
+          "emergency_release",
+          "turntable",
+          "programming_track"
+        ],
+        "title": "PanelFunctionType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.PanelGrid": {
+        "additionalProperties": true,
+        "properties": {
+          "dx": {
+            "description": "Rutans bredd.",
+            "exclusiveMinimum": 0,
+            "title": "Dx",
+            "type": "number"
+          },
+          "dy": {
+            "description": "Rutans höjd.",
+            "exclusiveMinimum": 0,
+            "title": "Dy",
+            "type": "number"
+          }
+        },
+        "required": [
+          "dx",
+          "dy"
+        ],
+        "title": "PanelGrid",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelHidden": {
+        "additionalProperties": true,
+        "properties": {
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "crossings": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Crossings",
+            "type": "array"
+          }
+        },
+        "title": "PanelHidden",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelPiece": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Spårbiten går åt andra hållet längs vägen.",
+            "title": "Reversed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "PanelPiece",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelPlacement": {
+        "additionalProperties": true,
+        "properties": {
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "at": {
+            "description": "Läget längs spårbiten, 0 i början och 1 i slutet.",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "At",
+            "type": "number"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Mot spårbitens riktning.",
+            "title": "Reversed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "piece",
+          "at"
+        ],
+        "title": "PanelPlacement",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelPlan": {
+        "additionalProperties": true,
+        "description": "Spårplan: the schematic panel, as the owner has redrawn it on the grid.\n\nDel b builds and checks the panel from it; the model only holds it.",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vad planen är ritad efter.",
+            "title": "Basis"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelGrid"
+          },
+          "turntable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelTurntable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "nodes": {
+            "additionalProperties": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Nodes",
+            "type": "object"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelPlacement"
+            },
+            "description": "Var signalerna och de andra namngivna punkterna står: stoppunkter, utfarter och stoppbockar.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Signals",
+            "type": "object"
+          },
+          "track_names": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelTrackName"
+            },
+            "title": "Track Names",
+            "type": "array"
+          },
+          "name_offset": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnamnet över spåret.",
+            "title": "Name Offset"
+          },
+          "platforms": {
+            "items": {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Platforms",
+            "type": "array"
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelBuilding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "function_sides": {
+            "additionalProperties": {
+              "enum": [
+                "over",
+                "under"
+              ],
+              "type": "string"
+            },
+            "description": "Panelfunktionens knapp över eller under spåret.",
+            "propertyNames": {
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "title": "Function Sides",
+            "type": "object"
+          },
+          "deviation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelDeviation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "grid",
+          "nodes",
+          "tracks"
+        ],
+        "title": "PanelPlan",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelTrack": {
+        "additionalProperties": true,
+        "description": "A track on the grid: from a node to another, over the cells where it turns.",
+        "properties": {
+          "start": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "via": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Via",
+            "type": "array"
+          },
+          "joints": {
+            "description": "Skarvarna mellan spårbitarna, i rutor längs vägen.",
+            "items": {
+              "type": "number"
+            },
+            "title": "Joints",
+            "type": "array"
+          },
+          "link": {
+            "default": false,
+            "description": "Länken mellan två växlar i en korsväxel.",
+            "title": "Link",
+            "type": "boolean"
+          },
+          "free": {
+            "default": false,
+            "description": "Får gå i vilken vinkel som helst.",
+            "title": "Free",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "pieces"
+        ],
+        "title": "PanelTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelTrackName": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "at": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "piece",
+          "at"
+        ],
+        "title": "PanelTrackName",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.PanelTurntable": {
+        "additionalProperties": true,
+        "properties": {
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "radius": {
+            "exclusiveMinimum": 0,
+            "title": "Radius",
+            "type": "number"
+          }
+        },
+        "required": [
+          "node",
+          "radius"
+        ],
+        "title": "PanelTurntable",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Position": {
+        "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+        "enum": [
+          "+",
+          "-"
+        ],
+        "title": "Position",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.Signal": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SignalType"
+          },
+          "lamps": {
+            "anyOf": [
+              {
+                "maximum": 9,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hsi 2, Hsi 3 …",
+            "title": "Lamps"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "approach": {
+            "description": "Spårbiten tåget kommer på mot signalen. Signalen gäller i den riktningen.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Approach",
+            "type": "string"
+          },
+          "planned": {
+            "default": false,
+            "description": "Planerad, finns inte än.",
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "const": "without",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).",
+            "title": "Address"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "node",
+          "approach"
+        ],
+        "title": "Signal",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.SignalType": {
+        "description": "The signal catalogue (§2). New types are added here for all stations (STD-19).",
+        "enum": [
+          "hsi",
+          "hdvsi",
+          "dvsi",
+          "fsi",
+          "stop_lamp"
+        ],
+        "title": "SignalType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.SlipPart": {
+        "additionalProperties": true,
+        "description": "One switch number in a slip, with its own position and lever, such as 22a in 22a/23.",
+        "properties": {
+          "number": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "SlipPart",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Source": {
+        "description": "Where an item in the model comes from (§2 \"source\", TKL41).",
+        "enum": [
+          "drawn",
+          "photo",
+          "signal_plan",
+          "anyrail",
+          "jmri",
+          "assumed",
+          "layout"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.StationModel": {
+        "additionalProperties": true,
+        "description": "Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and\nconfirmed in Studio's Koppla in.",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-model/1",
+            "default": "trainmeet.station-model/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Level",
+            "type": "integer"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Källan för allt utan egen."
+          },
+          "basis": {
+            "description": "Underlaget modellen bygger på.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Basis",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Node"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.TrackPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Switch"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "levers": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Signal"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "track_circuits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.TrackCircuit"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "station_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.StationTrack"
+            },
+            "title": "Station Tracks",
+            "type": "array"
+          },
+          "line_exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.LineExit"
+            },
+            "title": "Line Exits",
+            "type": "array"
+          },
+          "turntables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Turntable"
+            },
+            "title": "Turntables",
+            "type": "array"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelFunction"
+            },
+            "title": "Functions",
+            "type": "array"
+          },
+          "panel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PanelPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "level",
+          "nodes",
+          "pieces"
+        ],
+        "title": "StationModel",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.StationTrack": {
+        "additionalProperties": true,
+        "description": "Stationsspår: what the station's outside is made of (TKL92).\n\nIts id in the outside is its short name, or `outside_id` when the model gives one, so that\nthe owner can rename the track and keep the id the meets know (tkl/standard/outside.py).",
+        "properties": {
+          "id": {
+            "description": "Det korta namnet, till exempel 1a.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. Behåller id:t när spåret byter namn.",
+            "title": "Outside Id"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Switch": {
+        "additionalProperties": true,
+        "description": "Växel, korsningsväxel eller korsning: the node where pieces divide or cross.\n\nAn ordinary switch or a Y-switch has a trunk, a straight leg (+) and a diverging leg (-); its\nnumber is the part that a lever lays. A slip has four pieces, its parts and the paths through\nit; a crossing without a switch has only the paths.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchType"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "trunk": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stam.",
+            "title": "Trunk"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rakt ben, läget +.",
+            "title": "Straight"
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Avvikande ben, läget -.",
+            "title": "Diverging"
+          },
+          "parts": {
+            "description": "Korsningsväxelns delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SlipPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchPath"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hand och radie som källan säger.",
+            "title": "Design"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3)."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "type",
+          "node"
+        ],
+        "title": "Switch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.SwitchControl": {
+        "description": "Who lays the switch. Only TKL's switches have a lever, and no route crosses another.",
+        "enum": [
+          "tkl",
+          "manual",
+          "planned",
+          "not_laid"
+        ],
+        "title": "SwitchControl",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.SwitchFeedback": {
+        "additionalProperties": true,
+        "description": "How a switch tells where it lies, at level 3. With two sensors, each sensor is active\nwhen the switch lies in its position, and both passive while it moves.",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.FeedbackType"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givaren för rakt (+)."
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givaren för avvikande (-)."
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "SwitchFeedback",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.SwitchPath": {
+        "additionalProperties": true,
+        "description": "A way through a slip or a crossing: two of its pieces, and the positions it needs.",
+        "properties": {
+          "between": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Between",
+            "type": "array"
+          },
+          "positions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Position"
+            },
+            "description": "Delarnas lägen. Tomt för en korsning utan växel.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Positions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "between"
+        ],
+        "title": "SwitchPath",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.SwitchType": {
+        "description": "Växeltyp (RS1).",
+        "enum": [
+          "ordinary",
+          "y",
+          "single_slip",
+          "double_slip",
+          "crossing"
+        ],
+        "title": "SwitchType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.drawing.TrackCircuit": {
+        "additionalProperties": true,
+        "description": "Spårledning.",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "detection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "const": "without",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givare, eller utan.",
+            "title": "Detection"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "pieces"
+        ],
+        "title": "TrackCircuit",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.TrackPiece": {
+        "additionalProperties": true,
+        "description": "Spårbit: a piece of track from one node to another.",
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "start": {
+            "description": "Från-nod.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "description": "Till-nod.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnummer, till exempel 1, 31 eller 1a.",
+            "title": "Track"
+          },
+          "geometry": {
+            "description": "Verklig form ur ritningen, från start till slut, för den mjuka vyn (TKL42).",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Geometry",
+            "type": "array"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end"
+        ],
+        "title": "TrackPiece",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Turntable": {
+        "additionalProperties": true,
+        "description": "Vändskivan (RS4): its node and its tracks, with their angles.",
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "diameter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "I millimeter.",
+            "title": "Diameter"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.TurntableTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "tracks"
+        ],
+        "title": "Turntable",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.TurntableTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "angle": {
+            "description": "Strålens vinkel i grader, moturs från öster.",
+            "title": "Angle",
+            "type": "number"
+          }
+        },
+        "required": [
+          "piece",
+          "angle"
+        ],
+        "title": "TurntableTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita": {
+        "additionalProperties": true,
+        "description": "Rita i Studio: the drawing, the model it becomes, the checks and the routes.\n\nSaving keeps a draft, problems and all. Använd ritningen makes it the station's model only\nwithout problems, as an import (STD-04); the outside is then derived from it (TKL92) and\nthe interlocking gets it, never under set routes or train numbers.",
+        "properties": {
+          "drawing": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklDrawing"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklDrawingState"
+          },
+          "model": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.StationModel",
+            "description": "Stationsmodellen som ritningen blir."
+          },
+          "loose": {
+            "description": "Noderna där ett spår slutar utan att nå något: röda punkter (RS7).",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Loose",
+            "type": "array"
+          },
+          "findings": {
+            "description": "Kontrollernas problem först, sedan det att veta.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "routes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Vägarna per slag.",
+            "propertyNames": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.RouteKind"
+            },
+            "title": "Routes",
+            "type": "object"
+          },
+          "route_list": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklRoute"
+            },
+            "title": "Route List",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drawing",
+          "state",
+          "model",
+          "routes"
+        ],
+        "title": "TklRita",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Address": {
+        "additionalProperties": true,
+        "description": "A decoder or detector address on a bus (level 3).\n\nIts own origin says where the address comes from and whether it is confirmed on the layout:\nin Koppla in a confirmed address is green, an address that is only given is yellow\n(STUDIO-17). The object's origin is about the object itself, as drawn or imported.",
+        "properties": {
+          "bus": {
+            "default": "LocoNet",
+            "description": "Bussen adressen gäller på.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Bus",
+            "type": "string"
+          },
+          "number": {
+            "maximum": 65535,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens kör är kortets thrown, och givaren är belagd när den släpper.",
+            "title": "Reversed",
+            "type": "boolean"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in."
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "Address",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.FeedbackType": {
+        "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
+        "enum": [
+          "card",
+          "sensors",
+          "none",
+          "manual"
+        ],
+        "title": "FeedbackType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.Lever": {
+        "additionalProperties": true,
+        "description": "Spak: for + and -, the position each switch gets.\n\nThe lever's own switches are in both positions. A switch that only one position names is\ndragged along by the lever in that position (drar med, TKL104) and has a lever of its own.\nAn own switch that gets - in the lever's + lies reversed (omvänd).",
+        "properties": {
+          "id": {
+            "description": "Till exempel \"101/102\" eller \"22\".",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "plus": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Position"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Plus",
+            "type": "object"
+          },
+          "minus": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Position"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Minus",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "plus",
+          "minus"
+        ],
+        "title": "Lever",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.LineExit": {
+        "additionalProperties": true,
+        "description": "Linjeutfart: where a track leaves the station for the line.\n\nIts id is the owner's free text, such as \"Väst 1\"; the outside's exit gets an id derived\nfrom it, or `outside_id` when the model gives one (tkl/standard/outside.py).",
+        "properties": {
+          "id": {
+            "description": "Bokstav eller id, till exempel A1.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "neighbour": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Grannstationen.",
+            "title": "Neighbour"
+          },
+          "tracks": {
+            "description": "Stationsspåren som når hit.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna vid gränsen.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.",
+            "title": "Outside Id"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node"
+        ],
+        "title": "LineExit",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Node": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.NodeType"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "Node",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.NodeType": {
+        "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+        "enum": [
+          "switch",
+          "crossing",
+          "signal_point",
+          "block_boundary",
+          "module_joint",
+          "joint",
+          "stop_point",
+          "buffer_stop",
+          "line_exit",
+          "turntable"
+        ],
+        "title": "NodeType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.Origin": {
+        "additionalProperties": true,
+        "description": "The source of one item, and whether the owner has confirmed it (RS5, RS7).",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Source"
+          },
+          "confirmed": {
+            "default": false,
+            "description": "Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.",
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.",
+            "title": "Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Origin",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelBuilding": {
+        "additionalProperties": true,
+        "properties": {
+          "cells": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Cells",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cells",
+          "name"
+        ],
+        "title": "PanelBuilding",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelDeviation": {
+        "additionalProperties": true,
+        "description": "Where the plan departs from the drawing, said out loud (TKL82, STD-28).\n\nThe names here are the drawing's, so a piece that is not shown need not be in the model.",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "not_shown": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelHidden"
+          },
+          "rewired": {
+            "description": "Omkopplade spårbitar.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Rewired",
+            "type": "array"
+          },
+          "new_pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "New Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelDeviationSwitch"
+            },
+            "description": "Nya växlar och växlar med ett annat nummer.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Switches",
+            "type": "object"
+          },
+          "knots": {
+            "description": "Noder mitt på ett annat spår.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Knots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "PanelDeviation",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelDeviationSwitch": {
+        "additionalProperties": true,
+        "properties": {
+          "drawing_number": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Växelns nummer i ritningen. Saknas: växeln är ny.",
+            "title": "Drawing Number"
+          }
+        },
+        "title": "PanelDeviationSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelFunction": {
+        "additionalProperties": true,
+        "description": "A button on the panel, from the catalogue, with its parameters.",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelFunctionType"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "track_circuits": {
+            "description": "Området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "switches": {
+            "description": "Lokala växlar, som läggs med knappar på modulerna.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "locked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Position"
+            },
+            "description": "Skyddsväxlarnas spakar och läget de låses i.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Locked",
+            "type": "object"
+          },
+          "signals": {
+            "description": "Signaler som visar växling.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Spåret funktionen gäller.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Platsen för knappen, till exempel en nod.",
+            "title": "At"
+          },
+          "modes": {
+            "description": "Körströmmens lägen, 2R och 3R.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Modes",
+            "type": "array"
+          },
+          "codes": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Knappens kod per skal, till exempel L01 i 95.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Codes",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "PanelFunction",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelFunctionType": {
+        "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+        "enum": [
+          "signal_stop",
+          "local_release",
+          "traction_current",
+          "out_of_service",
+          "emergency_release",
+          "turntable",
+          "programming_track"
+        ],
+        "title": "PanelFunctionType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.PanelGrid": {
+        "additionalProperties": true,
+        "properties": {
+          "dx": {
+            "description": "Rutans bredd.",
+            "exclusiveMinimum": 0,
+            "title": "Dx",
+            "type": "number"
+          },
+          "dy": {
+            "description": "Rutans höjd.",
+            "exclusiveMinimum": 0,
+            "title": "Dy",
+            "type": "number"
+          }
+        },
+        "required": [
+          "dx",
+          "dy"
+        ],
+        "title": "PanelGrid",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelHidden": {
+        "additionalProperties": true,
+        "properties": {
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "crossings": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Crossings",
+            "type": "array"
+          }
+        },
+        "title": "PanelHidden",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelPiece": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Spårbiten går åt andra hållet längs vägen.",
+            "title": "Reversed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "PanelPiece",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelPlacement": {
+        "additionalProperties": true,
+        "properties": {
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "at": {
+            "description": "Läget längs spårbiten, 0 i början och 1 i slutet.",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "At",
+            "type": "number"
+          },
+          "reversed": {
+            "default": false,
+            "description": "Mot spårbitens riktning.",
+            "title": "Reversed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "piece",
+          "at"
+        ],
+        "title": "PanelPlacement",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelPlan": {
+        "additionalProperties": true,
+        "description": "Spårplan: the schematic panel, as the owner has redrawn it on the grid.\n\nDel b builds and checks the panel from it; the model only holds it.",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vad planen är ritad efter.",
+            "title": "Basis"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelGrid"
+          },
+          "turntable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelTurntable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "nodes": {
+            "additionalProperties": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Nodes",
+            "type": "object"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "signals": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelPlacement"
+            },
+            "description": "Var signalerna och de andra namngivna punkterna står: stoppunkter, utfarter och stoppbockar.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Signals",
+            "type": "object"
+          },
+          "track_names": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelTrackName"
+            },
+            "title": "Track Names",
+            "type": "array"
+          },
+          "name_offset": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnamnet över spåret.",
+            "title": "Name Offset"
+          },
+          "platforms": {
+            "items": {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Platforms",
+            "type": "array"
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelBuilding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "function_sides": {
+            "additionalProperties": {
+              "enum": [
+                "over",
+                "under"
+              ],
+              "type": "string"
+            },
+            "description": "Panelfunktionens knapp över eller under spåret.",
+            "propertyNames": {
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "title": "Function Sides",
+            "type": "object"
+          },
+          "deviation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelDeviation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "grid",
+          "nodes",
+          "tracks"
+        ],
+        "title": "PanelPlan",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelTrack": {
+        "additionalProperties": true,
+        "description": "A track on the grid: from a node to another, over the cells where it turns.",
+        "properties": {
+          "start": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "via": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Via",
+            "type": "array"
+          },
+          "joints": {
+            "description": "Skarvarna mellan spårbitarna, i rutor längs vägen.",
+            "items": {
+              "type": "number"
+            },
+            "title": "Joints",
+            "type": "array"
+          },
+          "link": {
+            "default": false,
+            "description": "Länken mellan två växlar i en korsväxel.",
+            "title": "Link",
+            "type": "boolean"
+          },
+          "free": {
+            "default": false,
+            "description": "Får gå i vilken vinkel som helst.",
+            "title": "Free",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "pieces"
+        ],
+        "title": "PanelTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelTrackName": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "at": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "piece",
+          "at"
+        ],
+        "title": "PanelTrackName",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.PanelTurntable": {
+        "additionalProperties": true,
+        "properties": {
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "radius": {
+            "exclusiveMinimum": 0,
+            "title": "Radius",
+            "type": "number"
+          }
+        },
+        "required": [
+          "node",
+          "radius"
+        ],
+        "title": "PanelTurntable",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Position": {
+        "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+        "enum": [
+          "+",
+          "-"
+        ],
+        "title": "Position",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.RouteKind": {
+        "enum": [
+          "train",
+          "shunting"
+        ],
+        "title": "RouteKind",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.Signal": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SignalType"
+          },
+          "lamps": {
+            "anyOf": [
+              {
+                "maximum": 9,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hsi 2, Hsi 3 …",
+            "title": "Lamps"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "approach": {
+            "description": "Spårbiten tåget kommer på mot signalen. Signalen gäller i den riktningen.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Approach",
+            "type": "string"
+          },
+          "planned": {
+            "default": false,
+            "description": "Planerad, finns inte än.",
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "const": "without",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).",
+            "title": "Address"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "node",
+          "approach"
+        ],
+        "title": "Signal",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.SignalType": {
+        "description": "The signal catalogue (§2). New types are added here for all stations (STD-19).",
+        "enum": [
+          "hsi",
+          "hdvsi",
+          "dvsi",
+          "fsi",
+          "stop_lamp"
+        ],
+        "title": "SignalType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.SlipPart": {
+        "additionalProperties": true,
+        "description": "One switch number in a slip, with its own position and lever, such as 22a in 22a/23.",
+        "properties": {
+          "number": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "SlipPart",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Source": {
+        "description": "Where an item in the model comes from (§2 \"source\", TKL41).",
+        "enum": [
+          "drawn",
+          "photo",
+          "signal_plan",
+          "anyrail",
+          "jmri",
+          "assumed",
+          "layout"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.StationModel": {
+        "additionalProperties": true,
+        "description": "Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and\nconfirmed in Studio's Koppla in.",
+        "properties": {
+          "format": {
+            "const": "trainmeet.station-model/1",
+            "default": "trainmeet.station-model/1",
+            "title": "Format",
+            "type": "string"
+          },
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Level",
+            "type": "integer"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Källan för allt utan egen."
+          },
+          "basis": {
+            "description": "Underlaget modellen bygger på.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Basis",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Node"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TrackPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Switch"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "levers": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Signal"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "track_circuits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TrackCircuit"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "station_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.StationTrack"
+            },
+            "title": "Station Tracks",
+            "type": "array"
+          },
+          "line_exits": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.LineExit"
+            },
+            "title": "Line Exits",
+            "type": "array"
+          },
+          "turntables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Turntable"
+            },
+            "title": "Turntables",
+            "type": "array"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelFunction"
+            },
+            "title": "Functions",
+            "type": "array"
+          },
+          "panel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PanelPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "station_id",
+          "name",
+          "level",
+          "nodes",
+          "pieces"
+        ],
+        "title": "StationModel",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.StationTrack": {
+        "additionalProperties": true,
+        "description": "Stationsspår: what the station's outside is made of (TKL92).\n\nIts id in the outside is its short name, or `outside_id` when the model gives one, so that\nthe owner can rename the track and keep the id the meets know (tkl/standard/outside.py).",
+        "properties": {
+          "id": {
+            "description": "Det korta namnet, till exempel 1a.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Till exempel Spår 1a.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. Behåller id:t när spåret byter namn.",
+            "title": "Outside Id"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Switch": {
+        "additionalProperties": true,
+        "description": "Växel, korsningsväxel eller korsning: the node where pieces divide or cross.\n\nAn ordinary switch or a Y-switch has a trunk, a straight leg (+) and a diverging leg (-); its\nnumber is the part that a lever lays. A slip has four pieces, its parts and the paths through\nit; a crossing without a switch has only the paths.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchType"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "trunk": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stam.",
+            "title": "Trunk"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rakt ben, läget +.",
+            "title": "Straight"
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Avvikande ben, läget -.",
+            "title": "Diverging"
+          },
+          "parts": {
+            "description": "Korsningsväxelns delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SlipPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchPath"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hand och radie som källan säger.",
+            "title": "Design"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3)."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "type",
+          "node"
+        ],
+        "title": "Switch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.SwitchControl": {
+        "description": "Who lays the switch. Only TKL's switches have a lever, and no route crosses another.",
+        "enum": [
+          "tkl",
+          "manual",
+          "planned",
+          "not_laid"
+        ],
+        "title": "SwitchControl",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.SwitchFeedback": {
+        "additionalProperties": true,
+        "description": "How a switch tells where it lies, at level 3. With two sensors, each sensor is active\nwhen the switch lies in its position, and both passive while it moves.",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.FeedbackType"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givaren för rakt (+)."
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givaren för avvikande (-)."
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "SwitchFeedback",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.SwitchPath": {
+        "additionalProperties": true,
+        "description": "A way through a slip or a crossing: two of its pieces, and the positions it needs.",
+        "properties": {
+          "between": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Between",
+            "type": "array"
+          },
+          "positions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Position"
+            },
+            "description": "Delarnas lägen. Tomt för en korsning utan växel.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Positions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "between"
+        ],
+        "title": "SwitchPath",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.SwitchType": {
+        "description": "Växeltyp (RS1).",
+        "enum": [
+          "ordinary",
+          "y",
+          "single_slip",
+          "double_slip",
+          "crossing"
+        ],
+        "title": "SwitchType",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.TklDrawing": {
+        "additionalProperties": true,
+        "description": "Rita: the station as the owner draws it, the station model with its panel plan.\n\nThe panel plan is the drawing (STD-25, TKL81): every switch, crossing and track end in a\ncell, every track a way over the grid from node to node, horizontally, vertically or at\n45°, with the joints between its pieces. The six objects stand on it: the tracks' pieces,\nthe switches, the signals, the track-circuit boundaries, the buffer stops and the line exits\n(STUDIO-02). What is not drawn is computed when the drawing becomes the model: the nodes'\ntypes, the track circuits between the boundaries, the signals that lead out at each exit,\nand where the panel shows the signals, the exits and the track names (tkl/studio/rita.py).\nThe routes are never drawn (STD-07).\n\nA station without a plan of its own opens on the engine's layout, the first proposal\n(STD-09). While the owner has only named things on it, the proposal is not kept as a plan,\nand the engine lays the panel out again.",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.StationModel"
+          },
+          "proposal": {
+            "default": false,
+            "description": "Rutnätet är motorns förslag och sparas inte som spårplan förrän ägaren ritar om det.",
+            "title": "Proposal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "TklDrawing",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TklDrawingState": {
+        "enum": [
+          "new",
+          "draft",
+          "in_use"
+        ],
+        "title": "TklDrawingState",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.TklFinding": {
+        "additionalProperties": true,
+        "description": "A problem, which stops the drawing from being used, or a note, which does not, with the\nobject it is about when it names one (RS7).",
+        "properties": {
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "boolean"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "text",
+          "problem"
+        ],
+        "title": "TklFinding",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TklObjectKind": {
+        "description": "What a finding is about, to select it in the drawing (RS7).",
+        "enum": [
+          "node",
+          "piece",
+          "switch",
+          "signal",
+          "circuit",
+          "lever",
+          "exit"
+        ],
+        "title": "TklObjectKind",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.rita.TklObjectRef": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TklObjectKind"
+          },
+          "id": {
+            "description": "Nodens eller spårbitens id, växelns nummer eller namnet.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TklObjectRef",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TklRoute": {
+        "additionalProperties": true,
+        "description": "A route the engine derived: read-only, for showing on the panel (STD-07).",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.RouteKind"
+          },
+          "start": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "positions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Position"
+            },
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Positions",
+            "type": "object"
+          },
+          "turntable": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Turntable"
+          }
+        },
+        "required": [
+          "kind",
+          "start",
+          "end",
+          "pieces"
+        ],
+        "title": "TklRoute",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TrackCircuit": {
+        "additionalProperties": true,
+        "description": "Spårledning.",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "detection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "const": "without",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Givare, eller utan.",
+            "title": "Detection"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "pieces"
+        ],
+        "title": "TrackCircuit",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TrackPiece": {
+        "additionalProperties": true,
+        "description": "Spårbit: a piece of track from one node to another.",
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "start": {
+            "description": "Från-nod.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "description": "Till-nod.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnummer, till exempel 1, 31 eller 1a.",
+            "title": "Track"
+          },
+          "geometry": {
+            "description": "Verklig form ur ritningen, från start till slut, för den mjuka vyn (TKL42).",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Geometry",
+            "type": "array"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end"
+        ],
+        "title": "TrackPiece",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Turntable": {
+        "additionalProperties": true,
+        "description": "Vändskivan (RS4): its node and its tracks, with their angles.",
+        "properties": {
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "diameter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "I millimeter.",
+            "title": "Diameter"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.TurntableTrack"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "tracks"
+        ],
+        "title": "Turntable",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.TurntableTrack": {
+        "additionalProperties": true,
+        "properties": {
+          "piece": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Piece",
+            "type": "string"
+          },
+          "angle": {
+            "description": "Strålens vinkel i grader, moturs från öster.",
+            "title": "Angle",
+            "type": "number"
+          }
+        },
+        "required": [
+          "piece",
+          "angle"
+        ],
+        "title": "TurntableTrack",
         "type": "object"
       },
       "trainmeet.tkl-1.manover": {

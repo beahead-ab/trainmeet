@@ -305,6 +305,22 @@ jobs:
           npm ci --no-audit --no-fund
           node apps/tkl/e2e/stallverk.mjs
 
+      # Rita (#85): en station ritas från ingenting i Chrome mot TKL ur bilden, tas i bruk och får
+      # tågvägen A1 → 1Ö i Ställverket (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
+      - name: Rita i webbläsaren (#85)
+        timeout-minutes: 3
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_TKL: http://127.0.0.1:8092
+          PROV_BILDER: ${{ runner.temp }}/tkl/rita
+        run: |
+          docker run -d --name tkl-rita -p 127.0.0.1:8092:8090 -e TKL_MODE=local trainmeet-tkl:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8092/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          node apps/tkl/e2e/rita.mjs
+
       - name: TKL:s skärmbilder om något gick fel
         if: failure()
         uses: actions/upload-artifact@v4
@@ -318,6 +334,7 @@ jobs:
         run: |
           docker logs tkl || true
           docker logs tkl-lokal || true
+          docker logs tkl-rita || true
           cat "$RUNNER_TEMP/hubb.log" || true
 
   # Catalog i läget check, provinloggningen och en säkerhetskopia med data i (CAT-39).
