@@ -37,6 +37,13 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(running).toContain('class="hknapp har"');
   });
 
+  it("gives someone let in with a one-time code the meet that runs, but not Byt träff (H56)", () => {
+    const dispatcher = header({ admin: true, owner: false });
+    for (const part of ['id="connect"', 'id="waiting"', 'id="logout"']) expect(dispatcher).toContain(part);
+    expect(dispatcher).not.toContain("Byt träff");
+    expect(dispatcher).toContain('id="meet-name"');
+  });
+
   it("marks the page in the tabs, and has Planering and Drift side by side", () => {
     for (const path of ["/drift", "/drift/klienter", "/drift/logg"]) {
       expect(header({ current: path })).toContain(`<a href="${path}" aria-current="page">`);

@@ -12,6 +12,8 @@ import { Chip, Chips } from "./ui";
 
 export type NuProps = {
   admin: boolean;
+  /** The one with the hub's PIN (H18): Ta över i molnet too. Left out, the same as admin. */
+  owner?: boolean;
   now: Now | null;
   clients: Client[];
   choices: MeetChoice[];
@@ -37,7 +39,7 @@ export function NuPage(props: NuProps) {
   const { now } = props;
   // While another hub leads the meet this one only shows it (SYNK-14): no controls to refuse,
   // only Ta över when the leader has gone silent.
-  return now ? <Meet {...props} admin={props.admin && !now.leader} leaderAdmin={props.admin} now={now} /> : <NoMeet {...props} />;
+  return now ? <Meet {...props} admin={props.admin && !now.leader} leaderAdmin={props.owner ?? props.admin} now={now} /> : <NoMeet {...props} />;
 }
 
 /** An unanswered request is reminded of every third minute (H39, DRIFT-33). */

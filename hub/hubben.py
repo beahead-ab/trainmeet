@@ -5,13 +5,18 @@ clients as Authorization: Bearer.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Request, Response
 
 from contracts import hub
+from contracts.id import MeetRole
 from hub.local import (
+    ADMIN,
+    DISPATCHER,
+    LET_IN_LIFETIME,
     SESSION_LIFETIME,
     AiSetting,
     AlreadySetUp,
@@ -36,12 +41,14 @@ def session_of(cookie: str | None, authorization: str | None) -> str | None:
     return cookie
 
 
-def _set_cookie(request: Request, response: Response, token: str) -> None:
+def _set_cookie(
+    request: Request, response: Response, token: str, lifetime: timedelta = SESSION_LIFETIME
+) -> None:
     secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
     response.set_cookie(
         COOKIE,
         token,
-        max_age=int(SESSION_LIFETIME.total_seconds()),
+        max_age=int(lifetime.total_seconds()),
         httponly=True,
         secure=secure,
         samesite="strict",
@@ -49,7 +56,22 @@ def _set_cookie(request: Request, response: Response, token: str) -> None:
     )
 
 
-def router(login: LocalLogin) -> APIRouter:
+def info_of(login: LocalLogin, token: str | None, run: str | None) -> hub.HubInfo:
+    """Who the session is here: the administrator with the PIN, someone let in with a code in
+    the meet that runs (H56), or no one."""
+    state = login.state()
+    role = login.role(token, run)
+    return hub.HubInfo(
+        name=state.name,
+        set_up=state.set_up,
+        logged_in=role is not None,
+        admin=role == ADMIN,
+        meet_role=MeetRole(role) if role is not None and role != ADMIN else None,
+    )
+
+
+def router(login: LocalLogin, current_run: Callable[[], str | None] = lambda: None) -> APIRouter:
+    """current_run: the meet that runs, or None; a let-in role holds only there (H56)."""
     routes = APIRouter(prefix="/api/hub")
 
     @routes.get("")
@@ -57,9 +79,7 @@ def router(login: LocalLogin) -> APIRouter:
         response: Response, session: SessionCookie = None, authorization: Authorization = None
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        state = login.state()
-        logged_in = login.valid(session_of(session, authorization))
-        return hub.HubInfo(name=state.name, set_up=state.set_up, logged_in=logged_in).model_dump(
+        return info_of(login, session_of(session, authorization), current_run()).model_dump(
             mode="json"
         )
 
@@ -89,6 +109,28 @@ def router(login: LocalLogin) -> APIRouter:
         _set_cookie(request, response, token)
         return hub.Session(session_key=token).model_dump(mode="json")
 
+    @routes.post("/login/code")
+    def log_in_with_code(
+        credentials: hub.CodeLogIn, request: Request, response: Response
+    ) -> dict[str, Any]:
+        """Engångskoden (H56, F18): the role the dispatcher gave, in the meet that runs."""
+        response.headers["Cache-Control"] = "no-store"
+        run = current_run()
+        if run is None:
+            raise HTTPException(409, "Ingen träff är startad. En engångskod gäller bara i träffen.")
+        try:
+            token = login.log_in_with_code(credentials.code, run)
+        except NotSetUp as error:
+            raise HTTPException(409, "Hubben har ingen PIN-kod än. Välj en först.") from error
+        except TooManyAttempts as error:
+            raise HTTPException(429, "För många fel försök. Vänta tio minuter.") from error
+        except WrongPin as error:
+            raise HTTPException(
+                401, "Koden stämmer inte, eller har gått ut. Be trafikledningen om en ny."
+            ) from error
+        _set_cookie(request, response, token, LET_IN_LIFETIME)
+        return hub.Session(session_key=token).model_dump(mode="json")
+
     @routes.post("/name")
     def rename(
         change: hub.Rename,
@@ -104,9 +146,9 @@ def router(login: LocalLogin) -> APIRouter:
         except InvalidSetup as error:
             raise HTTPException(422, str(error)) from error
         state = login.state()
-        return hub.HubInfo(name=state.name, set_up=state.set_up, logged_in=True).model_dump(
-            mode="json"
-        )
+        return hub.HubInfo(
+            name=state.name, set_up=state.set_up, logged_in=True, admin=True
+        ).model_dump(mode="json")
 
     @routes.post("/pin", status_code=204)
     def change_pin(
@@ -194,6 +236,18 @@ def _ai_view(setting: AiSetting) -> dict[str, Any]:
 
 
 def require_admin(login: LocalLogin, cookie: str | None, authorization: str | None) -> None:
-    """Every route that changes the meet calls this first (S1: without logging in one looks)."""
+    """Every route that changes the hub or the meet's plan calls this first (S1: without
+    logging in one looks). Only the one with the hub's PIN (H18)."""
     if not login.valid(session_of(cookie, authorization)):
         raise HTTPException(401, "Logga in med hubbens PIN-kod.")
+
+
+def require_dispatcher(
+    login: LocalLogin, cookie: str | None, authorization: str | None, run: str
+) -> None:
+    """Drift in the meet that runs: the administrator, or someone the dispatcher let in with a
+    one-time code (H56). The code gives at most the dispatcher's own role."""
+    if login.role(session_of(cookie, authorization), run) not in (ADMIN, DISPATCHER):
+        raise HTTPException(
+            401, "Logga in med hubbens PIN-kod, eller med en engångskod från trafikledningen."
+        )

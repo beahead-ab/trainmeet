@@ -126,10 +126,28 @@ describe("the start page (S1, H52)", () => {
     expect(page(info({ set_up: false }))).toContain('id="setup-form"');
     expect(page(info({}))).toContain('id="login-form"');
     expect(page(info({}))).toContain('href="/drift">Se träffen');
-    const logged = page(info({ logged_in: true }));
+    const logged = page(info({ logged_in: true, admin: true }));
     expect(logged).toContain('href="/drift">Kör träffen');
+    expect(logged).toContain('href="/planering">Planera en träff');
     expect(logged).toContain(">Logga ut<");
     expect(logged).toContain('href="/provbanan">Öppna Provbanan');
+  });
+
+  it("logs in with a one-time code from the dispatchers, and says what it gives (H56)", () => {
+    const login = renderToStaticMarkup(<StartPage info={info({})} version={null} message="" navigate={go} onLogIn={() => undefined} onLogInWithCode={() => undefined} />);
+    expect(login).toContain("eller med en engångskod från trafikledningen");
+    expect(login).toContain('id="kodval" type="button" class="tm-knapp">Jag har en engångskod<');
+    const dispatcher = page(info({ logged_in: true, admin: false, meet_role: "dispatcher" }));
+    expect(dispatcher).toContain("Du är insläppt som trafikledare med en engångskod.");
+    expect(dispatcher).toContain('href="/drift">Kör träffen');
+    expect(dispatcher).not.toContain("Planera en träff");
+  });
+
+  it("keeps the hub's own settings to the one with the PIN (H18, H56)", () => {
+    const html = renderToStaticMarkup(<SettingsPage admin owner={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />);
+    expect(html).toContain("Logga in med hubbens PIN-kod för att se AI-tjänsten.");
+    expect(html).not.toContain('id="ai-connect"');
+    expect(html).not.toContain("Byt PIN");
   });
 
   it("shows the version and the change that runs, or that it is a local build", () => {
@@ -277,7 +295,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(linked).toContain("Molnhubben svarar inte.");
     expect(linked).toContain("Koppla bort");
     expect(linked).toContain('id="cloud-connect" type="button" class="primar" disabled=""');
-    expect(renderToStaticMarkup(<Molnet admin={false} initial={[]} />)).toContain("Logga in för att koppla Pi:n till molnet.");
+    expect(renderToStaticMarkup(<Molnet admin={false} initial={[]} />)).toContain("Logga in med hubbens PIN-kod för att koppla Pi:n till molnet.");
     expect(linked).toContain("Ta hem träffen hit");
     expect(linked).toContain("Träffens hem är Testhubben: där planeras och publiceras den.");
     const home = renderToStaticMarkup(<Molnet admin initial={[{ ...cloud, home_here: true }]} />);
@@ -299,7 +317,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(set).toContain('id="ai-key" type="password"');
     expect(set).toContain('id="ai-off"');
     expect(set).toContain('id="ai-connect" type="button" class="primar">Spara och prova');
-    expect(renderToStaticMarkup(<SettingsPage admin={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />)).toContain("Logga in för att se AI-tjänsten.");
+    expect(renderToStaticMarkup(<SettingsPage admin={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />)).toContain("Logga in med hubbens PIN-kod för att se AI-tjänsten.");
   });
 
   it("lets the administrator change Automatiken and save it whole, and asks others to log in", () => {

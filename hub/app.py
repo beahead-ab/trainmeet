@@ -199,14 +199,22 @@ def create_app(
     app.state.relay = relay
     app.state.owners = owners
     app.state.pusher = pusher
-    app.include_router(hubben.router(login))
+
+    def current_run() -> str | None:
+        """The meet that runs: a role let in with a one-time code holds only there (H56)."""
+        try:
+            return running.store.current()
+        except MissingRun:
+            return None
+
+    app.include_router(hubben.router(login, current_run))
 
     def meet_link() -> str | None:
         """The meet over the internet: the cloud hub this hub is linked to for the meet."""
         return next((r.address for r in links.reaches() if r.meet == running.meet), None)
 
     # Deltagarna (DELT-01–DELT-20): träffens Wi-Fi, and what the participant page may show (S8).
-    app.include_router(deltagare.router(login, meet_link))
+    app.include_router(deltagare.router(login, meet_link, current_run))
     # Pi:ns nät (SYNK-26): through the helper on the Pi; elsewhere it says it is not there.
     app.include_router(network_api.router(login))
     # Ny version finns, och uppdateringen på knapptryck (SYNK-19, SYNK-23): on a Pi installed

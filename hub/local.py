@@ -20,7 +20,7 @@ from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from secrets import token_bytes, token_urlsafe
+from secrets import randbelow, token_bytes, token_urlsafe
 from threading import Lock
 from typing import Final
 
@@ -28,6 +28,13 @@ SESSION_LIFETIME: Final = timedelta(hours=12)
 FAILURE_WINDOW: Final = timedelta(minutes=10)
 MAX_FAILURES: Final = 10
 PIN_PATTERN: Final = re.compile(r"[0-9]{6,12}")
+CODE_PATTERN: Final = re.compile(r"[0-9]{6}")
+CODE_LIFETIME: Final = timedelta(minutes=15)
+# A let-in role holds until the meet ends (H56); this is only an outer bound, for a meet that
+# never ends.
+LET_IN_LIFETIME: Final = timedelta(days=7)
+ADMIN: Final = "admin"
+DISPATCHER: Final = "dispatcher"
 NAME_LIMIT: Final = 40
 
 _SCHEMA = """
@@ -40,6 +47,13 @@ CREATE TABLE IF NOT EXISTS hub (
 );
 CREATE TABLE IF NOT EXISTS session (
     token_hash TEXT PRIMARY KEY,
+    expires REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS one_time_code (
+    code_hash TEXT PRIMARY KEY,
+    run TEXT NOT NULL,
+    role TEXT NOT NULL,
+    name TEXT,
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS login_failure (at REAL NOT NULL);
@@ -102,6 +116,17 @@ class MeetWifi:
 
 
 @dataclass(frozen=True)
+class LetIn:
+    """Someone let in with a one-time code: never the code, only who and until when."""
+
+    person: str
+    name: str | None
+    role: str
+    since: datetime
+    until: datetime
+
+
+@dataclass(frozen=True)
 class HubState:
     set_up: bool
     name: str
@@ -133,6 +158,17 @@ class LocalLogin:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with closing(sqlite3.connect(self.path)) as db:
                     db.executescript(_SCHEMA)
+                    # A hub from before the one-time code (#78) has sessions without a role:
+                    # they are the local administrator's.
+                    columns = {row[1] for row in db.execute("PRAGMA table_info(session)")}
+                    if "role" not in columns:
+                        db.execute(
+                            "ALTER TABLE session ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'"
+                        )
+                        db.execute("ALTER TABLE session ADD COLUMN run TEXT")
+                        db.execute("ALTER TABLE session ADD COLUMN since REAL")
+                        db.execute("ALTER TABLE session ADD COLUMN name TEXT")
+                    db.commit()
                 self._ready = True
             with closing(sqlite3.connect(self.path)) as db, db:
                 db.execute("BEGIN IMMEDIATE")
@@ -226,25 +262,126 @@ class LocalLogin:
         kept = _token_hash(keep) if keep else ""
         db.execute("DELETE FROM session WHERE token_hash!=?", (kept,))
 
-    def _new_session(self, db: sqlite3.Connection) -> str:
+    def _new_session(
+        self,
+        db: sqlite3.Connection,
+        role: str = ADMIN,
+        run: str | None = None,
+        lifetime: timedelta = SESSION_LIFETIME,
+        name: str | None = None,
+    ) -> str:
         now = _now()
         db.execute("DELETE FROM session WHERE expires<=?", (now.timestamp(),))
         token = token_urlsafe(32)
         db.execute(
-            "INSERT INTO session VALUES (?, ?)",
-            (_token_hash(token), (now + SESSION_LIFETIME).timestamp()),
+            "INSERT INTO session (token_hash, expires, role, run, since, name) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (_token_hash(token), (now + lifetime).timestamp(), role, run, now.timestamp(), name),
         )
         return token
 
-    def valid(self, token: str | None) -> bool:
+    # --- Engångskoden (H56, KONTO-19, F18) ------------------------------------------------
+
+    def issue_code(
+        self, run: str, role: str = DISPATCHER, name: str | None = None
+    ) -> tuple[str, datetime]:
+        """Six digits, once, for 15 minutes, for the meet that runs. Only its hash is kept."""
+        name = " ".join(name.split())[:NAME_LIMIT] if name else None
+        now = _now()
+        expires = now + CODE_LIFETIME
+        with self._transaction() as db:
+            db.execute("DELETE FROM one_time_code WHERE expires<=?", (now.timestamp(),))
+            while True:
+                code = f"{randbelow(10**6):06d}"
+                taken = db.execute(
+                    "SELECT 1 FROM one_time_code WHERE code_hash=?", (_token_hash(code),)
+                ).fetchone()
+                if taken is None:
+                    break
+            db.execute(
+                "INSERT INTO one_time_code (code_hash, run, role, name, expires) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (_token_hash(code), run, role, name or None, expires.timestamp()),
+            )
+        return code, expires
+
+    def log_in_with_code(self, code: str, run: str) -> str:
+        """The code gives its role in the meet that runs, until the meet ends or the dispatcher
+        takes it away (H56). A wrong code counts like a wrong PIN, so guessing stays slow."""
+        now = _now()
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM hub WHERE id=1").fetchone() is None:
+                raise NotSetUp()
+            db.execute(
+                "DELETE FROM login_failure WHERE at<?", ((now - FAILURE_WINDOW).timestamp(),)
+            )
+            if db.execute("SELECT count(*) FROM login_failure").fetchone()[0] >= MAX_FAILURES:
+                raise TooManyAttempts()
+            row = None
+            if CODE_PATTERN.fullmatch(code):
+                row = db.execute(
+                    "SELECT role, name FROM one_time_code "
+                    "WHERE code_hash=? AND run=? AND expires>?",
+                    (_token_hash(code), run, now.timestamp()),
+                ).fetchone()
+            if row is None:
+                db.execute("INSERT INTO login_failure VALUES (?)", (now.timestamp(),))
+                token = None
+            else:
+                db.execute("DELETE FROM one_time_code WHERE code_hash=?", (_token_hash(code),))
+                token = self._new_session(db, str(row[0]), run, LET_IN_LIFETIME, row[1])
+        if token is None:
+            raise WrongPin()
+        return token
+
+    def role(self, token: str | None, run: str | None = None) -> str | None:
+        """The session's role: the administrator's anywhere, a let-in role only in its meet."""
         if not token or len(token) > 120:
-            return False
+            return None
         with self._transaction() as db:
             row = db.execute(
-                "SELECT 1 FROM session WHERE token_hash=? AND expires>?",
+                "SELECT role, run FROM session WHERE token_hash=? AND expires>?",
                 (_token_hash(token), _now().timestamp()),
             ).fetchone()
-        return row is not None
+        if row is None:
+            return None
+        role, bound = str(row[0]), row[1]
+        if bound is not None and bound != run:
+            return None
+        return role
+
+    def let_in(self, run: str) -> list[LetIn]:
+        """Who was let in to the meet with a code, and still is."""
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT token_hash, name, role, since, expires FROM session "
+                "WHERE run=? AND expires>? ORDER BY since",
+                (run, _now().timestamp()),
+            ).fetchall()
+        return [
+            LetIn(
+                person=str(row[0])[:12],
+                name=row[1],
+                role=str(row[2]),
+                since=datetime.fromtimestamp(row[3] or row[4], UTC),
+                until=datetime.fromtimestamp(row[4], UTC),
+            )
+            for row in rows
+        ]
+
+    def take_away(self, run: str, person: str) -> bool:
+        """The dispatcher takes a let-in role away at once (H56)."""
+        if not re.fullmatch(r"[0-9a-f]{12}", person):
+            return False
+        with self._transaction() as db:
+            gone = db.execute(
+                "DELETE FROM session WHERE run=? AND substr(token_hash, 1, 12)=?", (run, person)
+            ).rowcount
+        return bool(gone)
+
+    def valid(self, token: str | None) -> bool:
+        """The local administrator: the one with the PIN (H18), who may do everything."""
+        return self.role(token) == ADMIN
 
     def ai(self) -> AiSetting | None:
         with self._transaction() as db:

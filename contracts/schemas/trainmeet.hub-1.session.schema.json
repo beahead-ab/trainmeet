@@ -5,7 +5,7 @@
   "additionalProperties": true,
   "properties": {
     "session_key": {
-      "description": "Visas en gång. Gäller 12 timmar, eller tills utloggning.",
+      "description": "Visas en gång. Gäller 12 timmar med PIN, med en engångskod tills träffen slutar eller rollen tas bort (H56), eller tills utloggning.",
       "maxLength": 500,
       "minLength": 1,
       "title": "Session Key",

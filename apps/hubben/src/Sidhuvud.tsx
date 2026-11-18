@@ -38,7 +38,11 @@ export type HeaderProps = {
   /** The tabs at the bottom on the phone, if the page has them. */
   bottom?: { label: string; items: NavItem[] };
   hubName: string;
+  /** May run the traffic: Anslut, Väntar and Logga ut. */
   admin: boolean;
+  /** The one with the hub's PIN (H18): Byt träff too. Someone let in with a one-time code runs
+   * the meet that runs, and no other (H56). */
+  owner?: boolean;
   now: Now | null;
   /** Milliseconds since Nu came from the hub, for the clock between its answers. */
   elapsedMs: number;
@@ -55,7 +59,7 @@ export type HeaderProps = {
 };
 
 export function Sidhuvud(props: HeaderProps) {
-  const { current, viewed, bottom, hubName, admin, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
+  const { current, viewed, bottom, hubName, admin, owner = admin, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
   const toggle = (which: Menu) => onMenu(menu === which ? null : which);
   const tab = (href: string) => ({ "aria-current": href === current ? ("page" as const) : undefined, onClick: linkClick(navigate, href) });
   return (
@@ -69,7 +73,7 @@ export function Sidhuvud(props: HeaderProps) {
           <ProductName name="HUB" label="TrainMeet Hub" />
         </a>
         <span className="tm-streck" aria-hidden="true" />
-        {admin ? (
+        {owner ? (
           <div className="tm-meny-ankare">
             <button id="change-meet" type="button" className="traffval" aria-expanded={menu === "byt"} aria-controls="byt-traff" onClick={() => toggle("byt")}>
               <span className="osynlig">Byt träff: </span>

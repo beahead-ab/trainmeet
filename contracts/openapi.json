@@ -1596,6 +1596,115 @@
         }
       }
     },
+    "/api/hub/login/code": {
+      "post": {
+        "operationId": "hubCodeLogIn",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.code-login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drift/1/codes": {
+      "post": {
+        "operationId": "giveOneTimeCode",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.one-time-code"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.one-time-code-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/let-in": {
+      "get": {
+        "operationId": "letIn",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.hub-1.let-in"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/drift/1/let-in/{person}/remove": {
+      "post": {
+        "operationId": "takeAwayLetIn",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "person",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/hub/name": {
       "post": {
         "operationId": "renameHub",
@@ -16938,6 +17047,24 @@
           "logged_in": {
             "title": "Logged In",
             "type": "boolean"
+          },
+          "admin": {
+            "default": false,
+            "description": "Inloggad med hubbens PIN (H18): får göra allt, också hubbens inställningar.",
+            "title": "Admin",
+            "type": "boolean"
+          },
+          "meet_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.hub-1.info.MeetRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där."
           }
         },
         "required": [
@@ -16947,6 +17074,17 @@
         ],
         "title": "HubInfo",
         "type": "object"
+      },
+      "trainmeet.hub-1.info.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
+        "type": "string"
       },
       "trainmeet.hub-1.setup": {
         "additionalProperties": true,
@@ -16992,7 +17130,7 @@
         "additionalProperties": true,
         "properties": {
           "session_key": {
-            "description": "Visas en gång. Gäller 12 timmar, eller tills utloggning.",
+            "description": "Visas en gång. Gäller 12 timmar med PIN, med en engångskod tills träffen slutar eller rollen tas bort (H56), eller tills utloggning.",
             "maxLength": 500,
             "minLength": 1,
             "title": "Session Key",
@@ -17942,6 +18080,143 @@
           "claude"
         ],
         "title": "AiFormat",
+        "type": "string"
+      },
+      "trainmeet.hub-1.code-login": {
+        "additionalProperties": true,
+        "description": "Logga in med en engångskod från trafikledningen (H56, F18).",
+        "properties": {
+          "code": {
+            "description": "Sex siffror. Skrivs aldrig ut i loggen.",
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "CodeLogIn",
+        "type": "object"
+      },
+      "trainmeet.hub-1.one-time-code-request": {
+        "additionalProperties": true,
+        "description": "Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vem koden är till, om trafikledaren vill skriva det. Syns i listan.",
+            "title": "Name"
+          }
+        },
+        "title": "OneTimeCodeRequest",
+        "type": "object"
+      },
+      "trainmeet.hub-1.one-time-code": {
+        "additionalProperties": true,
+        "description": "Engångskoden (H56, KONTO-19): sex siffror, en gång, i 15 minuter, för träffen som kör.\nDen ger högst trafikledarens egen roll.",
+        "properties": {
+          "code": {
+            "description": "Visas en gång. Hubben sparar bara ett kontrollvärde.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.one-time-code.MeetRole"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "role",
+          "expires"
+        ],
+        "title": "OneTimeCode",
+        "type": "object"
+      },
+      "trainmeet.hub-1.one-time-code.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
+        "type": "string"
+      },
+      "trainmeet.hub-1.let-in": {
+        "additionalProperties": true,
+        "description": "Insläppt med engångskod: vem och tills när, aldrig koden eller nyckeln. Rollen gäller\ntills träffen slutar eller trafikledningen tar bort den (H56).",
+        "properties": {
+          "person": {
+            "description": "Ett kort id för inloggningen, för att kunna ta bort den.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Person",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.let-in.MeetRole"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "role",
+          "since",
+          "until"
+        ],
+        "title": "LetIn",
+        "type": "object"
+      },
+      "trainmeet.hub-1.let-in.MeetRole": {
+        "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+        "enum": [
+          "organizer",
+          "dispatcher",
+          "loco_lead",
+          "remote_clearer"
+        ],
+        "title": "MeetRole",
         "type": "string"
       },
       "trainmeet.planning-1.import": {

@@ -2,6 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.info.schema.json",
   "title": "trainmeet.hub-1.info",
+  "$defs": {
+    "MeetRole": {
+      "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+      "enum": [
+        "organizer",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer"
+      ],
+      "title": "MeetRole",
+      "type": "string"
+    }
+  },
   "additionalProperties": true,
   "properties": {
     "name": {
@@ -18,6 +31,24 @@
     "logged_in": {
       "title": "Logged In",
       "type": "boolean"
+    },
+    "admin": {
+      "default": false,
+      "description": "Inloggad med hubbens PIN (H18): får göra allt, också hubbens inställningar.",
+      "title": "Admin",
+      "type": "boolean"
+    },
+    "meet_role": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MeetRole"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där."
     }
   },
   "required": [

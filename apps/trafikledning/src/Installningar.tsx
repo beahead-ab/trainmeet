@@ -10,7 +10,10 @@ import { Chip, Chips } from "./ui";
 // what the hub can do today is here; the rest comes with its step.
 
 export type SettingsProps = {
+  /** May run the traffic: the meet's own settings (Under träffen). */
   admin: boolean;
+  /** The one with the hub's PIN (H18): Den här hubben. Left out, the same as admin. */
+  owner?: boolean;
   now: Now | null;
   hubName: string;
   version: Version | null;
@@ -66,7 +69,7 @@ export function heaps(now: Now | null): Heap[] {
 }
 
 export function SettingsPage(props: SettingsProps) {
-  const { now, hubName, version } = props;
+  const { now, hubName, version, owner = props.admin } = props;
   return (
     <>
       <div className="sidrubrik">
@@ -96,11 +99,11 @@ export function SettingsPage(props: SettingsProps) {
           {now && <Automatik {...props} now={now} />}
           {now && <Dygnsskifte {...props} now={now} />}
           {now && <Telefon {...props} now={now} />}
-          <TraffensWifi admin={props.admin} />
+          <TraffensWifi admin={owner} />
           <section id="hubben" className="kort" aria-labelledby="hubben-rubrik">
             <h2 id="hubben-rubrik">Namn och version</h2>
             <p className="liten">Gäller den här hubben och alla träffar på den.</p>
-            {props.admin ? (
+            {owner ? (
               <NamnOchPin {...props} />
             ) : (
               <dl className="bygge">
@@ -111,10 +114,10 @@ export function SettingsPage(props: SettingsProps) {
             {version && <Built version={version} />}
             <p className="liten">Språket kommer hit senare i steg 5.</p>
           </section>
-          <Natet admin={props.admin} />
-          <Uppdatering admin={props.admin} />
-          <Molnet admin={props.admin} />
-          <EgenAi {...props} />
+          <Natet admin={owner} />
+          <Uppdatering admin={owner} />
+          <Molnet admin={owner} />
+          <EgenAi {...props} admin={owner} />
         </div>
       </div>
     </>
@@ -162,7 +165,7 @@ export function Uppdatering({ admin, initial }: { admin: boolean; initial?: Upda
       <h2 id="uppdatering-rubrik">Uppdatering</h2>
       <p className="liten">Pi:n hämtar den senaste versionen, provar den och går tillbaka till den förra om hubben inte svarar. Träffarna och inställningarna finns kvar.</p>
       {!admin ? (
-        <p className="liten">Logga in för att uppdatera hubben.</p>
+        <p className="liten">Logga in med hubbens PIN-kod för att uppdatera hubben.</p>
       ) : !state ? (
         <p className="liten">Läser …</p>
       ) : !state.available ? (
@@ -247,7 +250,7 @@ export function TraffensWifi({ admin, initial }: { admin: boolean; initial?: Mee
       <h2 id="traffens-wifi-rubrik">Träffens Wi-Fi</h2>
       <p className="liten">Det deltagarna ser på träffens nät eller inloggade, i Dela träffen och i Anslut din TMBox. Pi:ns eget nät ställs under Den här hubben.</p>
       {!admin ? (
-        <p className="liten">Logga in för att ändra träffens Wi-Fi.</p>
+        <p className="liten">Logga in med hubbens PIN-kod för att ändra träffens Wi-Fi.</p>
       ) : (
         <form id="traffens-wifi-form" className="formular" onSubmit={(event) => void save(event)}>
           {state?.name && (
@@ -353,7 +356,7 @@ export function Natet({ admin, initial }: { admin: boolean; initial?: WifiStatus
       <h2 id="natet-rubrik">Pi:ns nät</h2>
       <p className="liten">De nät Pi:n själv ansluter till. Det är inte träffens Wi-Fi, som deltagarna ser. Näten och deras lösenord stannar på Pi:n.</p>
       {!admin ? (
-        <p className="liten">Logga in för att se Pi:ns nät.</p>
+        <p className="liten">Logga in med hubbens PIN-kod för att se Pi:ns nät.</p>
       ) : !state ? (
         <p className="liten">Läser Pi:ns nät …</p>
       ) : !state.supported ? (
@@ -521,7 +524,7 @@ export function Molnet({ admin, initial }: { admin: boolean; initial?: CloudLink
       <h2 id="molnet-rubrik">Molnet</h2>
       <p className="liten">En Pi följer en träff som planeras i molnhubben och hämtar varje version när den publiceras. Pi:n ringer alltid ut; ingen port öppnas på träffen.</p>
       {!admin ? (
-        <p className="liten">Logga in för att koppla Pi:n till molnet.</p>
+        <p className="liten">Logga in med hubbens PIN-kod för att koppla Pi:n till molnet.</p>
       ) : (
         <>
           {clouds && clouds.length > 0 && (
@@ -676,7 +679,7 @@ export function EgenAi({ admin, ai, onAi, onAiOff }: SettingsProps) {
       <h2 id="ai-rubrik">AI</h2>
       <p className="liten">Egen AI skriver av skannade sidor och bilder när underlag läggs till i Planering. Den betalas av din AI-tjänst; TrainMeet drar inga tokens. Underlag med text läses alltid med kod, utan AI.</p>
       {!admin ? (
-        <p className="liten" id="ai-state">{ai === undefined ? "Logga in för att se AI-tjänsten." : ai ? `${ai.model} är inkopplad.` : "Ingen egen AI är inkopplad."}</p>
+        <p className="liten" id="ai-state">{ai === undefined ? "Logga in med hubbens PIN-kod för att se AI-tjänsten." : ai ? `${ai.model} är inkopplad.` : "Ingen egen AI är inkopplad."}</p>
       ) : (
         <>
           <dl className="bygge" id="ai-state">

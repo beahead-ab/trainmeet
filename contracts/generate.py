@@ -120,6 +120,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.version": hub.Version,
     "trainmeet.hub-1.ai-service": hub.AiService,
     "trainmeet.hub-1.ai-service-change": hub.AiServiceChange,
+    "trainmeet.hub-1.code-login": hub.CodeLogIn,
+    "trainmeet.hub-1.one-time-code-request": hub.OneTimeCodeRequest,
+    "trainmeet.hub-1.one-time-code": hub.OneTimeCode,
+    "trainmeet.hub-1.let-in": hub.LetIn,
     "trainmeet.planning-1.import": planning.ImportResult,
     "trainmeet.planning-1.draft": planning.Draft,
     "trainmeet.planning-1.new-meet": planning.NewMeet,
@@ -541,6 +545,17 @@ def openapi() -> str:
     route("get", "/api/version", "hubVersion", h + "version")
     route("post", "/api/hub/setup", "hubSetUp", h + "session", h + "setup")
     route("post", "/api/hub/login", "hubLogIn", h + "session", h + "login")
+    route("post", "/api/hub/login/code", "hubCodeLogIn", h + "session", h + "code-login")
+    route(
+        "post",
+        "/api/drift/1/codes",
+        "giveOneTimeCode",
+        h + "one-time-code",
+        h + "one-time-code-request",
+        bearer=True,
+    )
+    route("get", "/api/drift/1/let-in", "letIn", h + "let-in", bearer=True, many=True)
+    route("post", "/api/drift/1/let-in/{person}/remove", "takeAwayLetIn", None, bearer=True)
     route("post", "/api/hub/name", "renameHub", h + "info", h + "rename", bearer=True)
     route("post", "/api/hub/pin", "changePin", None, h + "pin-change", bearer=True)
     route("get", "/api/hub/wifi", "piWifi", h + "wifi-status", bearer=True)

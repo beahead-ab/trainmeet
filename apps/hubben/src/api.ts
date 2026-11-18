@@ -6,6 +6,8 @@ import type { components } from "../../../contracts/types";
 
 type Schemas = components["schemas"];
 export type HubInfo = Schemas["trainmeet.hub-1.info"];
+export type OneTimeCode = Schemas["trainmeet.hub-1.one-time-code"];
+export type LetIn = Schemas["trainmeet.hub-1.let-in"];
 export type Version = Schemas["trainmeet.hub-1.version"];
 export type AiService = Schemas["trainmeet.hub-1.ai-service"];
 export type AiServiceChange = Schemas["trainmeet.hub-1.ai-service-change"];
@@ -67,6 +69,8 @@ export const hub = {
   version: () => call<Version>("/api/version"),
   setUp: (name: string, pin: string) => call<unknown>("/api/hub/setup", { name, pin }),
   logIn: (pin: string) => call<unknown>("/api/hub/login", { pin }),
+  /** Engångskoden från trafikledningen (H56): a role in the meet that runs, and only there. */
+  logInWithCode: (code: string) => call<unknown>("/api/hub/login/code", { code }),
   // På den här hubben (SYNK-07): the hub's name, and a new PIN with the current one first.
   rename: (name: string) => call<HubInfo>("/api/hub/name", { name }),
   changePin: (pin: string, newPin: string) => call<unknown>("/api/hub/pin", { pin, new_pin: newPin }),
@@ -107,6 +111,10 @@ export const hub = {
   connect: () => call<Joining>(`${DRIFT}/connect`),
   meets: () => call<MeetSummary[]>("/api/planering/1/meets"),
   start: (choice: StartMeet) => call<DriftEvent>(`${DRIFT}/start`, choice),
+  // Släpp in en person (H56, KONTO-19): six digits, once, for 15 minutes; never shown again.
+  giveCode: (name: string) => call<OneTimeCode>(`${DRIFT}/codes`, name.trim() ? { name: name.trim() } : {}),
+  letIn: () => call<LetIn[]>(`${DRIFT}/let-in`),
+  takeAway: (person: string) => call<unknown>(`${DRIFT}/let-in/${encodeURIComponent(person)}/remove`, {}),
 };
 
 /** The QR code for Anslut: the hub draws it, with the meet's code in the box's address. */

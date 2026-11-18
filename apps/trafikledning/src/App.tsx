@@ -49,7 +49,7 @@ export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
   const page = pageOf(path);
   const hubState = useHub();
-  const { admin, now, clients, info, act, say, readInfo, readNow, readClients } = hubState;
+  const { admin, owner, now, clients, info, act, say, readInfo, readNow, readClients } = hubState;
   const [automation, setAutomation] = useState<Automation | null>(null);
   const [automationSaved, setAutomationSaved] = useState(0);
 
@@ -108,9 +108,9 @@ export function App() {
     }
   }, []);
   useEffect(() => {
-    if (!admin || page !== "installningar") return setAi(undefined);
+    if (!owner || page !== "installningar") return setAi(undefined);
     void readAi();
-  }, [admin, page, readAi]);
+  }, [owner, page, readAi]);
   const onAi = async (change: AiServiceChange) => {
     const kept = await act(() => hub.connectAi(change));
     if (kept) say("AI-tjänsten är inkopplad. Modellen läste provbilden.");
@@ -260,7 +260,13 @@ export function App() {
       <main id="innehall" className={MAIN[page] ?? "drift"}>
         {/* Deltagarna (DELT-01, S1): what everyone sees without logging in, on / and on /deltagare. */}
         {(page === "deltagare" || (page === "start" && info?.set_up && !info.logged_in)) && (
-          <DeltagarePage now={now} elapsedMs={hubState.elapsedMs} message={hubState.message} onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))} />
+          <DeltagarePage
+            now={now}
+            elapsedMs={hubState.elapsedMs}
+            message={hubState.message}
+            onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))}
+            onLogInWithCode={(code) => void act(() => hub.logInWithCode(code)).then((done) => (done ? readInfo() : undefined))}
+          />
         )}
         {page === "start" && !(info?.set_up && !info.logged_in) && (
           <StartPage
@@ -270,6 +276,7 @@ export function App() {
             navigate={navigate}
             onSetUp={(name, pin) => void act(() => hub.setUp(name, pin)).then((done) => (done ? readInfo() : undefined))}
             onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))}
+            onLogInWithCode={(code) => void act(() => hub.logInWithCode(code)).then((done) => (done ? readInfo() : undefined))}
             onLogOut={() => void onLogOut()}
             onMessage={say}
           />
@@ -277,6 +284,7 @@ export function App() {
         {page === "nu" && (
           <NuPage
             admin={admin}
+            owner={owner}
             now={now}
             clients={clients}
             choices={hubState.choices}
@@ -303,11 +311,11 @@ export function App() {
             onPlace={(change) => void onPlace(change)}
           />
         )}
-        {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} />}
+        {page === "klienter" && <KlienterPage admin={admin} now={now} clients={clients} navigate={navigate} onChange={(change) => void onClient(change)} onMessage={say} />}
         {page === "logg" && <LoggPage admin={admin} now={now} pkg={pkg} clients={clients} navigate={navigate} onMessage={say} />}
         {page === "provbanan" && <ProvbananPage />}
         {page === "installningar" && (
-          <SettingsPage admin={admin} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} onRename={onRename} onPin={onPin} />
+          <SettingsPage admin={admin} owner={owner} now={now} hubName={info?.name ?? "Hubben"} version={hubState.version} automation={automation} automationSaved={automationSaved} onAutomation={(settings) => void onAutomation(settings)} onDay={(settings) => void onDay(settings)} phones={phones} onPhones={(changes) => void onPhones(changes)} ai={ai} onAi={onAi} onAiOff={() => void onAiOff()} onRename={onRename} onPin={onPin} />
         )}
         {(isDrift(page) || page === "installningar") && (
           <p id="message" className="meddelande" role="alert">
