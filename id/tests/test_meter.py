@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
@@ -51,15 +52,29 @@ class Metered:
     claude: PretendClaude
     app: TestClient
 
-    def read(self, reservation: str, images: int = 1) -> httpx.Response:
-        headers = {"Authorization": f"Bearer {self.world.keycloak.app_token('hub')}"}
-        body = {
+    def read(
+        self, reservation: str, images: int = 1, *, hold: bool = False, app: str = "hub"
+    ) -> httpx.Response:
+        headers = {"Authorization": f"Bearer {self.world.keycloak.app_token(app)}"}
+        body: dict[str, Any] = {
             "reservation": reservation,
             "prompt": "Skriv av stationslistan.",
             "images": [{"media_type": "image/png", "data": PICTURE}] * images,
         }
+        if hold:
+            body["hold"] = True
         answer: httpx.Response = self.app.post("/api/id/1/apps/meter", json=body, headers=headers)
         return answer
+
+    def balance(self, person: str) -> int:
+        headers = {"Authorization": f"Bearer {self.world.keycloak.app_token('hub')}"}
+        found = self.app.get(
+            "/api/id/1/apps/tokens",
+            params={"person": person, "owner": f"person:{person}"},
+            headers=headers,
+        ).json()
+        available: int = found["available"]
+        return available
 
 
 @pytest.fixture
@@ -234,3 +249,90 @@ def test_the_meter_never_reads_with_a_reservation_for_storage(metered: Metered) 
     # Still held for the storage, which Catalog draws itself.
     drawn = app_post(metered.world, f"reservations/{held['id']}/draw", {}, app="catalog")
     assert drawn.json()["balance"]["available"] == 80
+
+
+# --- Hold: the app draws after it has looked at the answer (CAT-145) ---------------------------
+
+
+def test_with_hold_the_meter_reads_but_the_app_draws(metered: Metered) -> None:
+    """The meter keeps the answer and says what it costs, and the reservation stays held. Asked
+    again, the held reservation gives the same answer without asking Claude; the app then draws
+    the cost, and the same reservation still gives the same answer."""
+    kim = person(metered.world)
+    held = reserve(metered.world, kim, f"person:{kim}", 24, "avlasning-1", app="catalog")
+    reservation = held.json()["id"]
+    read = metered.read(reservation, images=2, hold=True, app="catalog")
+    assert read.status_code == 200, read.text
+    answer = MeterAnswer.model_validate(read.json())
+    assert (answer.text, answer.cost) == ("Värnamo 07.12 avg 101", 24)
+    assert (answer.reservation.state, answer.reservation.drawn) == ("held", 0)
+    assert answer.reservation.balance.available == 76, "still reserved"
+
+    again = MeterAnswer.model_validate(
+        metered.read(reservation, images=2, hold=True, app="catalog").json()
+    )
+    assert (again.text, again.cost, again.reservation.state) == (answer.text, 24, "held")
+    assert len(metered.claude.calls) == 1, "asked once"
+
+    drawn = app_post(metered.world, f"reservations/{reservation}/draw", {"amount": 24}, "catalog")
+    assert (drawn.status_code, drawn.json()["state"], drawn.json()["drawn"]) == (200, "drawn", 24)
+    after = MeterAnswer.model_validate(metered.read(reservation, images=2, app="catalog").json())
+    assert (after.text, after.cost, after.reservation.state) == (answer.text, 24, "drawn")
+    assert metered.balance(kim) == 76
+    assert len(metered.claude.calls) == 1
+
+
+def test_a_held_answer_that_is_not_used_costs_nothing(metered: Metered) -> None:
+    """CAT-145: the app gives back the reservation, and nothing is drawn; the answer is not
+    given again for a reservation that went back."""
+    kim = person(metered.world)
+    reservation = reserve(metered.world, kim, f"person:{kim}", 12, "avlasning-2").json()["id"]
+    assert metered.read(reservation, hold=True).status_code == 200
+    back = app_post(metered.world, f"reservations/{reservation}/return", {})
+    assert (back.status_code, back.json()["state"]) == (200, "returned")
+    assert metered.balance(kim) == 100
+    assert metered.read(reservation, hold=True).status_code == 409
+
+
+def test_a_held_reservation_never_draws_more_than_was_reserved(metered: Metered) -> None:
+    kim = person(metered.world)
+    reservation = reserve(metered.world, kim, f"person:{kim}", 12, "avlasning-3").json()["id"]
+    assert MeterAnswer.model_validate(metered.read(reservation, hold=True).json()).cost == 12
+    more = app_post(metered.world, f"reservations/{reservation}/draw", {"amount": 13})
+    assert (more.status_code, more.json()["code"]) == (422, "invalid")
+    assert metered.balance(kim) == 88, "still held, nothing drawn"
+
+
+def test_a_held_answer_is_drawn_by_a_read_without_hold(metered: Metered) -> None:
+    """An app that asks again without hold gets the kept answer, and its cost is drawn."""
+    kim = person(metered.world)
+    reservation = reserve(metered.world, kim, f"person:{kim}", 12, "avlasning-4").json()["id"]
+    assert metered.read(reservation, hold=True).status_code == 200
+    drawn = MeterAnswer.model_validate(metered.read(reservation).json())
+    assert (drawn.cost, drawn.reservation.state, drawn.reservation.drawn) == (12, "drawn", 12)
+    assert len(metered.claude.calls) == 1
+
+
+def test_a_held_reservation_goes_back_by_itself(metered: Metered) -> None:
+    """A held reservation nobody draws goes back after half an hour, as any other."""
+    kim = person(metered.world)
+    reservation = reserve(metered.world, kim, f"person:{kim}", 12, "avlasning-5").json()["id"]
+    assert metered.read(reservation, hold=True).status_code == 200
+    with psycopg.connect(metered.world.url, autocommit=True) as conn:
+        conn.execute(
+            "UPDATE token_reservation SET expires = now() - interval '1 minute' WHERE id = %s",
+            (reservation,),
+        )
+    assert metered.balance(kim) == 100
+    late = app_post(metered.world, f"reservations/{reservation}/draw", {"amount": 12})
+    assert late.status_code == 409
+
+
+def test_when_the_ai_fails_with_hold_the_reservation_goes_back(metered: Metered) -> None:
+    kim = person(metered.world)
+    metered.claude.failing = True
+    reservation = reserve(metered.world, kim, f"person:{kim}", 12, "avlasning-6").json()["id"]
+    failed = metered.read(reservation, hold=True)
+    assert failed.status_code == 502
+    assert metered.balance(kim) == 100
+    assert metered.read(reservation, hold=True).status_code == 409

@@ -630,6 +630,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/readings/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["readingConsent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/readings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["readPhotos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/tags/{uid}/qr.svg": {
         parameters: {
             query?: never;
@@ -1770,7 +1802,8 @@ export interface components {
         };
         /**
          * Problem
-         * @description The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503.
+         * @description The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or
+         *     503.
          */
         "trainmeet.catalog-1.problem": {
             code: components["schemas"]["trainmeet.catalog-1.problem.ProblemCode"];
@@ -1787,7 +1820,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back" | "consent_required" | "reading_busy" | "reading_failed";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -3840,6 +3873,207 @@ export interface components {
              * Format: date-time
              */
             linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Reading
+         * @description What the AI suggests from the photos (CAT-136, CAT-137). Nothing of it is saved in a
+         *     vehicle until the owner saves the form.
+         */
+        "trainmeet.catalog-1.reading": {
+            /**
+             * Id
+             * Format: uuid
+             * @description The client's id for the reading (CAT-144).
+             */
+            id: string;
+            status: components["schemas"]["trainmeet.catalog-1.reading.ReadingStatus"];
+            /**
+             * Suggestions
+             * @description Only the fields the AI could read, by the rules.
+             */
+            suggestions?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.reading.Suggestion"];
+            };
+            /** @default null */
+            question: components["schemas"]["trainmeet.catalog-1.reading.ReadingQuestion"] | null;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Warnings
+             * @description What the owner should check.
+             */
+            warnings?: string[];
+            /**
+             * Suggested Next Photo
+             * @description Another photo the AI asks for, such as a close-up (CAT-135).
+             * @default
+             */
+            suggested_next_photo: string;
+            /**
+             * Cost
+             * @description Tokens drawn: 12 a picture, 0 with own AI (CAT-19).
+             */
+            cost: number;
+            /**
+             * Model
+             * @description The AI that read the photos.
+             */
+            model: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Confidence
+         * @description The AI's own judgement, not a probability.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.reading.Confidence": "high" | "medium" | "low";
+        /**
+         * ReadingQuestion
+         * @description An uncertain digit, asked of the owner (CAT-140).
+         */
+        "trainmeet.catalog-1.reading.ReadingQuestion": {
+            /**
+             * Field
+             * @constant
+             */
+            field: "number";
+            /**
+             * Options
+             * @description The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.
+             */
+            options: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadingStatus
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.reading.ReadingStatus": "pending" | "done" | "failed" | "discarded";
+        /**
+         * Suggestion
+         * @description A value the AI suggests for a core field. Never saved before the owner has seen it.
+         */
+        "trainmeet.catalog-1.reading.Suggestion": {
+            /**
+             * Value
+             * @description As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).
+             */
+            value: string;
+            confidence: components["schemas"]["trainmeet.catalog-1.reading.Confidence"];
+            basis: components["schemas"]["trainmeet.catalog-1.reading.SuggestionBasis"];
+            /**
+             * Evidence
+             * @description Where in the photo it stands, in the AI's words.
+             * @default
+             */
+            evidence: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SuggestionBasis
+         * @description What a suggestion rests on.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.reading.SuggestionBasis": "visible_text" | "visual_inference" | "unknown";
+        /**
+         * ReadingAsk
+         * @description The part data of the reading's form, as JSON. The photos are the parts images.
+         */
+        "trainmeet.catalog-1.reading-ask": {
+            /**
+             * Id
+             * Format: uuid
+             * @description Made by the client, new for each reading (CAT-144).
+             */
+            id: string;
+            /**
+             * Consent
+             * @description The person has seen what is sent and to whom, and says yes (CAT-142).
+             * @default false
+             */
+            consent: boolean;
+            /**
+             * Vehicle
+             * @description The vehicle the photos are of, when it is saved already.
+             * @default null
+             */
+            vehicle: string | null;
+            /**
+             * Version
+             * @description The vehicle's version, required with the vehicle: an answer after a change of the vehicle is not used (CAT-145).
+             * @default null
+             */
+            version: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadingConsent
+         * @description What is sent and to whom, before the first reading (CAT-142), and the price.
+         */
+        "trainmeet.catalog-1.reading-consent": {
+            /**
+             * Available
+             * @description The reading can be used here now.
+             */
+            available: boolean;
+            /**
+             * Message
+             * @description Why not, when it cannot be used.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Given
+             * @description The person has said yes before.
+             */
+            given: boolean;
+            /**
+             * Version
+             * @description The version of what the person says yes to.
+             */
+            version: string;
+            /**
+             * Sent To
+             * @description Who reads the photos: TrainMeets AI, or the account's own AI.
+             */
+            sent_to: string;
+            /**
+             * Text
+             * @description What is sent and to whom, as the person reads it.
+             */
+            text: string;
+            /**
+             * Own Ai
+             * @description The model of the account's own AI, when it is connected.
+             * @default null
+             */
+            own_ai: string | null;
+            /**
+             * Price Per Picture
+             * @description 12 tokens, or 0 with own AI (CAT-19).
+             */
+            price_per_picture: number;
+            /**
+             * Balance
+             * @description Tokens left on the balance that pays, when ID says.
+             * @default null
+             */
+            balance: number | null;
+            /**
+             * Payer
+             * @description Whose balance pays: the person's, or the club's.
+             * @default null
+             */
+            payer: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -6811,6 +7045,195 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    readingConsent: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.reading-consent"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    readPhotos: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The ask as JSON in the part data, and 1–4 photos in the parts images, each at most 15 MB and 40 megapixel (CAT-123). */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data: components["schemas"]["trainmeet.catalog-1.reading-ask"];
+                    images: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.reading"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
             };
         };
     };

@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.reading.schema.json",
+  "title": "trainmeet.catalog-1.reading",
+  "$defs": {
+    "Confidence": {
+      "description": "The AI's own judgement, not a probability.",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "ReadingQuestion": {
+      "additionalProperties": true,
+      "description": "An uncertain digit, asked of the owner (CAT-140).",
+      "properties": {
+        "field": {
+          "const": "number",
+          "title": "Field",
+          "type": "string"
+        },
+        "options": {
+          "description": "The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "field",
+        "options"
+      ],
+      "title": "ReadingQuestion",
+      "type": "object"
+    },
+    "ReadingStatus": {
+      "enum": [
+        "pending",
+        "done",
+        "failed",
+        "discarded"
+      ],
+      "title": "ReadingStatus",
+      "type": "string"
+    },
+    "Suggestion": {
+      "additionalProperties": true,
+      "description": "A value the AI suggests for a core field. Never saved before the owner has seen it.",
+      "properties": {
+        "value": {
+          "description": "As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "basis": {
+          "$ref": "#/$defs/SuggestionBasis"
+        },
+        "evidence": {
+          "default": "",
+          "description": "Where in the photo it stands, in the AI's words.",
+          "maxLength": 400,
+          "title": "Evidence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "confidence",
+        "basis"
+      ],
+      "title": "Suggestion",
+      "type": "object"
+    },
+    "SuggestionBasis": {
+      "description": "What a suggestion rests on.",
+      "enum": [
+        "visible_text",
+        "visual_inference",
+        "unknown"
+      ],
+      "title": "SuggestionBasis",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What the AI suggests from the photos (CAT-136, CAT-137). Nothing of it is saved in a\nvehicle until the owner saves the form.",
+  "properties": {
+    "id": {
+      "description": "The client's id for the reading (CAT-144).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ReadingStatus"
+    },
+    "suggestions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Suggestion"
+      },
+      "description": "Only the fields the AI could read, by the rules.",
+      "propertyNames": {
+        "enum": [
+          "kind",
+          "litt",
+          "number",
+          "operator",
+          "maker",
+          "article_number"
+        ]
+      },
+      "title": "Suggestions",
+      "type": "object"
+    },
+    "question": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReadingQuestion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "summary": {
+      "default": "",
+      "maxLength": 1000,
+      "title": "Summary",
+      "type": "string"
+    },
+    "warnings": {
+      "description": "What the owner should check.",
+      "items": {
+        "maxLength": 400,
+        "type": "string"
+      },
+      "maxItems": 12,
+      "title": "Warnings",
+      "type": "array"
+    },
+    "suggested_next_photo": {
+      "default": "",
+      "description": "Another photo the AI asks for, such as a close-up (CAT-135).",
+      "maxLength": 400,
+      "title": "Suggested Next Photo",
+      "type": "string"
+    },
+    "cost": {
+      "description": "Tokens drawn: 12 a picture, 0 with own AI (CAT-19).",
+      "minimum": 0,
+      "title": "Cost",
+      "type": "integer"
+    },
+    "model": {
+      "description": "The AI that read the photos.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "cost",
+    "model"
+  ],
+  "type": "object"
+}

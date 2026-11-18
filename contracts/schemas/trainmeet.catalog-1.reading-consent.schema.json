@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.reading-consent.schema.json",
+  "title": "trainmeet.catalog-1.reading-consent",
+  "additionalProperties": true,
+  "description": "What is sent and to whom, before the first reading (CAT-142), and the price.",
+  "properties": {
+    "available": {
+      "description": "The reading can be used here now.",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Why not, when it cannot be used.",
+      "title": "Message"
+    },
+    "given": {
+      "description": "The person has said yes before.",
+      "title": "Given",
+      "type": "boolean"
+    },
+    "version": {
+      "description": "The version of what the person says yes to.",
+      "title": "Version",
+      "type": "string"
+    },
+    "sent_to": {
+      "description": "Who reads the photos: TrainMeets AI, or the account's own AI.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Sent To",
+      "type": "string"
+    },
+    "text": {
+      "description": "What is sent and to whom, as the person reads it.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "own_ai": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The model of the account's own AI, when it is connected.",
+      "title": "Own Ai"
+    },
+    "price_per_picture": {
+      "description": "12 tokens, or 0 with own AI (CAT-19).",
+      "minimum": 0,
+      "title": "Price Per Picture",
+      "type": "integer"
+    },
+    "balance": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tokens left on the balance that pays, when ID says.",
+      "title": "Balance"
+    },
+    "payer": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Whose balance pays: the person's, or the club's.",
+      "title": "Payer"
+    }
+  },
+  "required": [
+    "available",
+    "given",
+    "version",
+    "sent_to",
+    "text",
+    "price_per_picture"
+  ],
+  "type": "object"
+}

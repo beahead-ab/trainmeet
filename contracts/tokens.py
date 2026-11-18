@@ -155,6 +155,11 @@ class TokenReservation(Contract):
 # the transcription and what it cost. The meter holds TrainMeet's key to Claude through Amazon
 # Bedrock in the EU; the apps never see it (TK7). The same reservation twice gives the same
 # answer and draws nothing twice.
+#
+# With hold the meter reads and keeps the answer, but draws nothing: the reservation stays held,
+# and the app draws the answer's cost, or gives it all back when the answer came too late to be
+# used (Catalog's reading, CAT-145). Asked again, a held reservation with a kept answer gives
+# that answer without reading again. A held reservation nobody draws goes back by itself.
 
 
 class MeterImage(Contract):
@@ -171,11 +176,19 @@ class MeterRead(Contract):
     prompt: str = Field(min_length=1, max_length=20_000, description="Vad AI:n ska göra.")
     images: list[MeterImage] = Field(min_length=1, max_length=4)
     max_tokens: int = Field(default=8192, ge=16, le=16_000)
+    hold: bool = Field(
+        default=False,
+        description="Håll reservationen: mätaren läser och behåller svaret, men drar inget. "
+        "Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används (CAT-145).",
+    )
 
 
 class MeterAnswer(Contract):
     text: str = Field(description="Avskriften, som AI:n skrev den.")
-    cost: int = Field(description="Det som drogs: 12 tokens per bild (TOKEN-14).")
+    cost: int = Field(
+        description="Det som drogs: 12 tokens per bild (TOKEN-14), 0 med egen AI. Med hold är "
+        "inget draget än: det är vad appen ska dra."
+    )
     model: Text
     reservation: TokenReservation
 

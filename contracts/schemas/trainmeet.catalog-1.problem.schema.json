@@ -32,14 +32,17 @@
         "lent",
         "on_another_trip",
         "archived",
-        "not_back"
+        "not_back",
+        "consent_required",
+        "reading_busy",
+        "reading_failed"
       ],
       "title": "ProblemCode",
       "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503.",
+  "description": "The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or\n503.",
   "properties": {
     "code": {
       "$ref": "#/$defs/ProblemCode"

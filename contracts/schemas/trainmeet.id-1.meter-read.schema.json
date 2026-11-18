@@ -62,6 +62,12 @@
       "minimum": 16,
       "title": "Max Tokens",
       "type": "integer"
+    },
+    "hold": {
+      "default": false,
+      "description": "Håll reservationen: mätaren läser och behåller svaret, men drar inget. Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används (CAT-145).",
+      "title": "Hold",
+      "type": "boolean"
     }
   },
   "required": [

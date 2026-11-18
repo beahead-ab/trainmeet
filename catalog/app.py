@@ -40,13 +40,23 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from catalog import fleet_api, id_login, login, migrate, pictures_api, tags_api, trips_api
+from catalog import (
+    fleet_api,
+    id_login,
+    login,
+    migrate,
+    pictures_api,
+    reading_api,
+    tags_api,
+    trips_api,
+)
 from catalog.access import Access
 from catalog.backgrounds import Segmenter, U2NetP
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
 from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store_for
+from catalog.reading import IdMeter, Readings
 from catalog.settings import Settings, from_env
 from catalog.storage import IdPayer
 from catalog.tags import Tags
@@ -164,6 +174,9 @@ def create_app(
         segmenter if segmenter is not None else U2NetP(settings.background_model),
         payer=IdPayer(roles) if roles is not None else None,
     )
+    # The reading of a photo with AI goes through ID's meter (CAT-26); without ID's API there is
+    # none, and the web app says so (CAT-142).
+    readings = Readings(db, IdMeter(roles) if roles is not None else None)
 
     async def storage_rounds() -> None:
         """The storage over the free level, charged once a day for the owners who are still
@@ -235,11 +248,13 @@ def create_app(
     )
     app.state.db = db
     app.state.pictures = pictures
+    app.state.readings = readings
 
     @app.exception_handler(Refused)
     def refused(_: Request, error: Refused) -> JSONResponse:
         problem = Problem(code=error.code, message=error.message)
-        return JSONResponse(problem.model_dump(mode="json"), status_code=error.status)
+        wait = {"Retry-After": str(error.retry_after)} if error.retry_after is not None else None
+        return JSONResponse(problem.model_dump(mode="json"), status_code=error.status, headers=wait)
 
     @app.exception_handler(UnknownOwner)
     def unknown_owner(_: Request, __: UnknownOwner) -> JSONResponse:
@@ -451,6 +466,7 @@ def create_app(
     app.include_router(tags_api.router(fleet, tags, logged_in, access))
     app.include_router(pictures_api.router(pictures, logged_in, access))
     app.include_router(trips_api.router(trips, logged_in, access))
+    app.include_router(reading_api.router(readings, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

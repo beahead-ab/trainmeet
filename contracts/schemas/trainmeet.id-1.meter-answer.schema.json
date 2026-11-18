@@ -188,7 +188,7 @@
       "type": "string"
     },
     "cost": {
-      "description": "Det som drogs: 12 tokens per bild (TOKEN-14).",
+      "description": "Det som drogs: 12 tokens per bild (TOKEN-14), 0 med egen AI. Med hold är inget draget än: det är vad appen ska dra.",
       "title": "Cost",
       "type": "integer"
     },

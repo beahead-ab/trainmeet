@@ -217,6 +217,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.tick-change": catalog.TickChange,
     "trainmeet.catalog-1.trip-tap": catalog.TripTap,
     "trainmeet.catalog-1.trip-tapped": catalog.TripTapped,
+    "trainmeet.catalog-1.reading": catalog.Reading,
+    "trainmeet.catalog-1.reading-ask": catalog.ReadingAsk,
+    "trainmeet.catalog-1.reading-consent": catalog.ReadingConsent,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -955,6 +958,50 @@ def catalog_openapi() -> str:
             },
         }
     }
+    # The reading of a photo with AI (CAT-135–CAT-146): a form with the ask and the photos.
+    readings = "/api/catalog/1/readings"
+    route(
+        "get",
+        readings + "/consent",
+        "readingConsent",
+        "reading-consent",
+        problems=(401, 404),
+    )
+    route(
+        "post",
+        readings,
+        "readPhotos",
+        "reading",
+        # 402: the balance is short. 409: changed, or reading_busy. 422: consent_required or a
+        # photo that cannot be read. 429: ten an hour, with Retry-After. 502: reading_failed.
+        problems=(401, 402, 404, 409, 413, 415, 422, 429, 502),
+    )
+    paths[readings]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The ask as JSON in the part data, and 1–4 photos in the parts images, "
+        "each at most 15 MB and 40 megapixel (CAT-123).",
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "data": openapi_ref(c + "reading-ask"),
+                        "images": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "binary"},
+                            "minItems": 1,
+                            "maxItems": 4,
+                        },
+                    },
+                    "required": ["data", "images"],
+                },
+                "encoding": {
+                    "data": {"contentType": "application/json"},
+                    "images": {"contentType": "image/jpeg, image/png, image/webp"},
+                },
+            }
+        },
+    }
     paths[t + "/{uid}/qr.svg"] = {
         "get": {
             "operationId": "tagQrCode",
@@ -988,6 +1035,7 @@ def catalog_openapi() -> str:
                 "/api/catalog/1/places",
                 "/api/catalog/1/storage",
                 "/api/catalog/1/meets",
+                "/api/catalog/1/readings",
             )
         ):
             continue
