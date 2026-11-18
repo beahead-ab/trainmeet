@@ -96,8 +96,11 @@ def world_with(
     tmp_path: Path,
     limits: PictureLimits | None = None,
     segmenter: Segmenter | None = None,
+    pretend: PretendIdWithClubs | None = None,
 ) -> Iterator[World]:
-    pretend = PretendIdWithClubs()
+    """Catalog with a pretend ID. This one bills no storage, as for an owner ID does not know,
+    so Catalog refuses over the free level; test_storage_tokens.py gives one that does."""
+    pretend = pretend if pretend is not None else PretendIdWithClubs()
     settings = Settings(
         database_url=database_url,
         migrate="auto",
@@ -285,6 +288,10 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
             "club": False,
             "pictures": 0,
             "backgrounds": False,
+            "over_free": False,
+            "paid_blocks": 0,
+            "price_per_gb": 20,
+            "unpaid": False,
         }
         car = world.vehicle()
         for _ in range(2):
@@ -312,6 +319,10 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
             "club": True,
             "pictures": 4,
             "backgrounds": False,
+            "over_free": False,
+            "paid_blocks": 0,
+            "price_per_gb": 20,
+            "unpaid": False,
         }
         assert world.b.get(f"{API}/storage").json()["used"] == 0  # not B's own
 

@@ -3,7 +3,9 @@
 The right is checked as for the vehicles (CAT-49, catalog/access.py): to look is enough to see
 the pictures, and to edit is needed to add, choose and remove them and to change their
 background (CAT-128). ?fleet=<owner> works in a
-shared fleet, and the pictures are stored with its owner, within the owner's limit (CAT-133).
+shared fleet, and the pictures are stored with its owner, within the owner's limit (CAT-133);
+over the free level the owner's balance in TrainMeet ID pays, 402 when it is short and 429 when
+the day's cap is reached (CAT-132, catalog/storage.py).
 The tag and the messages to the owner are hidden from the others; the pictures are not.
 
 The picture is the request's body as it is, image/jpeg, image/png or image/webp: no form, so no

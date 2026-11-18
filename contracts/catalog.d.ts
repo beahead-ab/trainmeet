@@ -1668,7 +1668,7 @@ export interface components {
         };
         /**
          * Problem
-         * @description The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503.
+         * @description The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503.
          */
         "trainmeet.catalog-1.problem": {
             code: components["schemas"]["trainmeet.catalog-1.problem.ProblemCode"];
@@ -1685,7 +1685,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "backgrounds_off" | "no_vehicle";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -2554,7 +2554,8 @@ export interface components {
         };
         /**
          * StorageUse
-         * @description The owner's storage: what the pictures take and the free level (CAT-17, CAT-131).
+         * @description The owner's storage: what the pictures take, the free level, and what is paid over it
+         *     this month (CAT-17, CAT-131, CAT-132).
          */
         "trainmeet.catalog-1.storage-use": {
             /**
@@ -2582,6 +2583,26 @@ export interface components {
              * @description The background removal is on at this Catalog, so the other backgrounds than the original can be chosen (CAT-127, CAT-128).
              */
             backgrounds: boolean;
+            /**
+             * Over Free
+             * @description The pictures take more than the free level (CAT-132).
+             */
+            over_free: boolean;
+            /**
+             * Paid Blocks
+             * @description Started GB over the free level that are paid this month, in Swedish time (CAT-132). They stay paid for the month, also when pictures are removed.
+             */
+            paid_blocks: number;
+            /**
+             * Price Per Gb
+             * @description Tokens a started GB over the free level costs a month: 20 (TK10).
+             */
+            price_per_gb: number;
+            /**
+             * Unpaid
+             * @description This month's storage over the free level could not be drawn from the owner's balance: the pictures stay, but nothing that makes the storage larger is saved until it is paid (TK15).
+             */
+            unpaid: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -4635,6 +4656,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4672,6 +4702,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4808,6 +4847,15 @@ export interface operations {
                 };
             };
             /** @description Catalog säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4836,6 +4884,15 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

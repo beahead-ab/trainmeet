@@ -4177,12 +4177,20 @@
       },
       "trainmeet.id-1.token-reserve": {
         "additionalProperties": true,
-        "description": "En app reserverar före ett arbete som kostar (TOKEN-24). Personen som arbetar ska få\nanvända saldot: sitt eget, eller klubbens som medlem i klubben.",
+        "description": "En app reserverar före ett arbete som kostar (TOKEN-24). Personen som arbetar ska få\nanvända saldot: sitt eget, eller klubbens som medlem i klubben.\n\nUtan person är det appens egen debitering av lagring över den fria nivån (CAT-132,\nTOKEN-16): ingen person arbetar, och det dras från ägarens saldo, personens eller klubbens\n(TOKEN-29). Det gäller också för den som redigerar en delad vagnpark och för appens dagliga\nrunda. Bara en app som debiterar lagring får reservera utan person (Catalog), och mätaren\nläser aldrig med en sådan reservation.",
         "properties": {
           "person": {
-            "format": "uuid",
-            "title": "Person",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Personen som arbetar. null bara för appens egen debitering av lagring.",
+            "title": "Person"
           },
           "owner": {
             "$ref": "#/components/schemas/trainmeet.id-1.token-reserve.TokenOwner"

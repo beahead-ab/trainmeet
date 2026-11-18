@@ -892,7 +892,8 @@ def catalog_openapi() -> str:
             ("keep_original", {"type": "boolean", "default": False}),
             ("background", backgrounds),
         ),
-        problems=(401, 404, 413, 415, 422, 503),
+        # 402 and 429: the storage over the free level could not be paid (CAT-132).
+        problems=(401, 402, 404, 413, 415, 422, 429, 503),
     )
     paths[pictures]["post"]["requestBody"] = {
         "required": True,
@@ -910,7 +911,7 @@ def catalog_openapi() -> str:
         "pictureBackground",
         "picture",
         "background-change",
-        problems=(*write, 503),
+        problems=(*write, 402, 429, 503),
     )
     route("delete", pictures + "/{picture}", "removePicture", "removed", problems=write)
     route("get", "/api/catalog/1/storage", "storageUse", "storage-use", problems=(401,))

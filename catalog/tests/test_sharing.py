@@ -53,7 +53,8 @@ class PretendId:
             return httpx.Response(401, json={"code": "login", "message": "Gammal token."})
         assert request.headers["authorization"] == f"Bearer t{self.tokens}"
         self.asked += 1
-        person = request.url.params["person"]
+        # No person for what it does not know, such as the storage's tokens: 404 below.
+        person = request.url.params.get("person", "")
         if request.url.path.endswith("/apps/access"):
             owner = request.url.params["resource"].removeprefix("fleet:")
             role = self.roles.get((person, owner))

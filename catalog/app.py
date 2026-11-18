@@ -8,9 +8,12 @@ addresses of their own (/fordon, /traffar ...), and all of them get index.html.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Final
 from uuid import UUID
@@ -26,6 +29,7 @@ from fastapi import (
     Request,
     Response,
 )
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -44,6 +48,7 @@ from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
 from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store_for
 from catalog.settings import Settings, from_env
+from catalog.storage import IdPayer
 from catalog.tags import Tags
 from contracts.catalog import (
     Account,
@@ -63,6 +68,10 @@ from contracts.common import AppKey
 
 LOGGER = logging.getLogger("catalog")
 API = "/api/catalog/1"
+STORAGE_ROUND: Final = timedelta(days=1)
+"""How often the storage over the free level is charged when no one uploads (CAT-132)."""
+STORAGE_ROUND_START: Final = timedelta(minutes=2)
+"""The first round waits a little, so that ID, which starts beside Catalog, can answer."""
 
 
 def content_security_policy(pictures_origin: str | None = None) -> str:
@@ -142,14 +151,32 @@ def create_app(
     with_id = id_login.IdLogin(db, settings.id, http=http) if settings.id is not None else None
     # Shared fleets: Catalog asks ID at every call (#49, KONTO-34). Without ID nothing is shared.
     id_api = settings.id if settings.id is not None and settings.id.api else None
-    access = Access(IdRoles(id_api, http) if id_api is not None else None)
+    roles = IdRoles(id_api, http) if id_api is not None else None
+    access = Access(roles)
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
+    # Over the free level the storage is paid in tokens in ID (CAT-132); without ID's API,
+    # Catalog refuses over the free level.
     pictures = Pictures(
         db,
         store_for(settings),
         picture_limits,
         segmenter if segmenter is not None else U2NetP(settings.background_model),
+        payer=IdPayer(roles) if roles is not None else None,
     )
+
+    async def storage_rounds() -> None:
+        """The storage over the free level, charged once a day for the owners who are still
+        over it when a new month begins (CAT-132). The round is idempotent per month."""
+        await asyncio.sleep(STORAGE_ROUND_START.total_seconds())
+        while True:
+            try:
+                paid = await run_in_threadpool(pictures.charge_round)
+            except Exception as error:
+                LOGGER.warning("Lagringens runda gick inte: %s", type(error).__name__)
+            else:
+                if paid:
+                    LOGGER.info("Lagringens runda drog %d påbörjade GB.", paid)
+            await asyncio.sleep(STORAGE_ROUND.total_seconds())
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -177,9 +204,14 @@ def create_app(
             pictures.sweep()
         except Exception as error:
             LOGGER.warning("Bildfilerna kunde inte städas vid starten: %s", type(error).__name__)
+        rounds = asyncio.create_task(storage_rounds()) if pictures.payer is not None else None
         try:
             yield
         finally:
+            if rounds is not None:
+                rounds.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await rounds
             db.close()
 
     # The interactive API pages load scripts from another site, so they are off. The

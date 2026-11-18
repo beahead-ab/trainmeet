@@ -877,6 +877,15 @@
   font-size: 15px;
   font-weight: 600;
 }
+/* The month's storage over the free level is not paid (CAT-132): as clear as an error. */
+.cat-lagring.cat-obetald {
+  color: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  .cat-lagring.cat-obetald {
+    color: #ff8a80;
+  }
+}
 .cat-dialogbild {
   display: block;
   margin: 0 0 12px;
