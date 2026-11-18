@@ -168,6 +168,14 @@
           ],
           "default": null
         },
+        "functions": {
+          "description": "Panelfunktionernas knappar i spårplanen, de som hör till en nod.",
+          "items": {
+            "$ref": "#/$defs/PanelFunctionButton"
+          },
+          "title": "Functions",
+          "type": "array"
+        },
         "real_box": {
           "anyOf": [
             {
@@ -281,6 +289,73 @@
       ],
       "title": "PanelField",
       "type": "object"
+    },
+    "PanelFunctionButton": {
+      "additionalProperties": true,
+      "description": "A panel function's button in the track plan, beside the node it belongs to: on the side\nthe plan's `function_sides` says, else under the track (STV-04, STV-53).",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/PanelFunctionType"
+        },
+        "node": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Node",
+          "type": "string"
+        },
+        "cell": {
+          "description": "Knappens mitt.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "side": {
+          "enum": [
+            "over",
+            "under"
+          ],
+          "title": "Side",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "node",
+        "cell",
+        "side"
+      ],
+      "title": "PanelFunctionButton",
+      "type": "object"
+    },
+    "PanelFunctionType": {
+      "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+      "enum": [
+        "signal_stop",
+        "local_release",
+        "traction_current",
+        "out_of_service",
+        "emergency_release",
+        "turntable",
+        "programming_track"
+      ],
+      "title": "PanelFunctionType",
+      "type": "string"
     },
     "PanelLabel": {
       "additionalProperties": true,

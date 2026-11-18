@@ -45,6 +45,7 @@ from contracts.station_model import (
     Name,
     NodeType,
     PanelBuilding,
+    PanelFunctionType,
     Point,
     Position,
     SignalType,
@@ -296,6 +297,17 @@ class PanelTable(Contract):
     real_radius: float | None = None
 
 
+class PanelFunctionButton(Contract):
+    """A panel function's button in the track plan, beside the node it belongs to: on the side
+    the plan's `function_sides` says, else under the track (STV-04, STV-53)."""
+
+    name: Text
+    type: PanelFunctionType
+    node: Name
+    cell: Cell = Field(description="Knappens mitt.")
+    side: LabelSide
+
+
 class PanelField(Contract):
     """A part of a station too wide for the screen, on the same grid (STD-03)."""
 
@@ -330,6 +342,10 @@ class Panel(Contract):
     tables: list[PanelTable] = Field(default_factory=list)
     platforms: list[tuple[float, float, float, float]] = Field(default_factory=list)
     building: PanelBuilding | None = None
+    functions: list[PanelFunctionButton] = Field(
+        default_factory=list,
+        description="Panelfunktionernas knappar i spårplanen, de som hör till en nod.",
+    )
     real_box: tuple[float, float, float, float] | None = Field(
         default=None, description="Ritningens ram för den mjuka vyn: x, y, bredd, höjd i mm."
     )
@@ -407,6 +423,7 @@ class TklAspect(StrEnum):
     STOP = "stop"  # stopp
     PROCEED = "proceed"  # kör, för en tågväg
     SHUNT = "shunt"  # växling, för en växlingsväg
+    LOCAL = "local"  # snett höger: växling i ett lokalt frigivet område (FR41, TKL44)
 
 
 class TklSectionPart(Contract):
@@ -455,6 +472,11 @@ class TklSetRoute(Contract):
         description="Delen där tågets front är: -1 innan tåget har passerat starten.",
     )
     aspect: TklAspect = Field(description="Vad startsignalen visar för vägen just nu.")
+    held: Text | None = Field(
+        default=None,
+        description="Vägen ligger kvar med sina lås men signalerna visar stopp, med skälet: "
+        "signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt.",
+    )
     passed: list[Name] = Field(
         default_factory=list,
         description="Signaler i färdriktningen som visar vägens besked tills tåget har "
@@ -493,19 +515,36 @@ class TklSwitchShown(Contract):
     routes: list[int] = Field(default_factory=list, description="Vägarna som låser växeln.")
     protection: bool = Field(
         default=False,
-        description="Låst av en väg som inte går över den: kort gult vid knuten (STV-20).",
+        description="Låst som skydd, av en väg som inte går över den eller av en lokal "
+        "frigivning: kort gult vid knuten (STV-20, TKL44).",
+    )
+    local: bool = Field(
+        default=False,
+        description="Lokalt frigiven: läggs med knappen på modulen, inte av ställverket. Blått "
+        "streck vid knuten (FR41, TKL44).",
+    )
+    function: Name | None = Field(
+        default=None, description="Panelfunktionen som låser växeln eller friger den."
     )
 
 
 class TklSignalShown(Contract):
     aspect: TklAspect = TklAspect.STOP
     end: bool = Field(default=False, description="Slutpunkt för en lagd väg: röd i 85 och 95.")
+    blocked: bool = Field(
+        default=False,
+        description="Spärrad i stopp: i signalstopp, eller infartssignal till ett lokalt "
+        "frigivet område (FR41). Fylld röd i 85 och 95.",
+    )
 
 
 class TklPieceState(StrEnum):
     TRAIN = "train"  # låst i en tågväg: grönt
     SHUNTING = "shunting"  # låst i en växlingsväg: gult
     OCCUPIED = "occupied"  # tåget står här: rött, före vägens färg
+    LOCAL = "local"  # frigivet för växling (TKL44): blått i 85 och 95
+    OUT_OF_SERVICE = "out_of_service"  # spår ur drift: streckat
+    PROGRAMMING = "programming"  # programmeringsspår (STV-53): blått
 
 
 class TklPieceShown(Contract):
@@ -551,6 +590,50 @@ class TklHappening(Contract):
     text: Text
 
 
+class TklFunctionMode(Contract):
+    """One of a function's positions: a traction current's mode, or a turntable's track."""
+
+    value: Name
+    label: Text
+
+
+class TklFunctionShown(Contract):
+    """A panel function from the catalogue (STV-04) with its state of the moment: what the
+    panel draws and what is saved with the interlocking. The parameters are the model's."""
+
+    name: Text = Field(description="Funktionens namn, som i stationsmodellen. Unikt i stationen.")
+    type: PanelFunctionType
+    on: bool = Field(
+        default=False,
+        description="Inkopplad: signalstopp, lokal frigivning, ur drift eller programmeringsspår.",
+    )
+    mode: Name | None = Field(
+        default=None, description="Körströmmens läge, eller spåret vändskivans brygga står mot."
+    )
+    modes: list[TklFunctionMode] = Field(default_factory=list, description="Lägena att välja.")
+    pieces: list[Name] = Field(
+        default_factory=list, description="Spårbitarna funktionen gäller: området eller spåret."
+    )
+    signals: list[Name] = Field(
+        default_factory=list, description="Signalerna i stopp, eller som visar växling."
+    )
+    blocked: list[Name] = Field(
+        default_factory=list,
+        description="Infartssignalerna som spärras medan området är lokalt frigivet (FR41).",
+    )
+    switches: list[Name] = Field(
+        default_factory=list, description="De lokala växlarna, som läggs med knappar på modulerna."
+    )
+    locked: dict[Name, Position] = Field(
+        default_factory=dict, description="Skyddsväxlarnas spakar och läget de låses i."
+    )
+    at: Name | None = Field(default=None, description="Noden knappen hör till i spårplanen.")
+    codes: dict[Name, Text] = Field(
+        default_factory=dict, description="Knappens kod per skal, till exempel L01 i 95."
+    )
+    note: Text | None = None
+
+
 class TklInterlocking(Contract):
     """Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09)."""
@@ -581,6 +664,15 @@ class TklInterlocking(Contract):
     tracks: dict[Name, Name] = Field(
         default_factory=dict,
         description="Sektionerna på stationsspåren, med spårets namn: där ett tåg kan sättas ut.",
+    )
+    sections: dict[Name, list[Name]] = Field(
+        default_factory=dict,
+        description="Sektionerna med sina spårbitar: där 59 har sina lampor, en till fyra per "
+        "spårledning, och avbrotten mellan spårledningarna.",
+    )
+    functions: list[TklFunctionShown] = Field(
+        default_factory=list,
+        description="Panelfunktionerna ur katalogen, med sitt läge (STV-04, STV-53).",
     )
     events: list[TklHappening] = Field(default_factory=list, description="Senaste först.")
     last_id: int = Field(default=0, ge=0, description="Det senaste id:t för en väg eller ett tåg.")
@@ -634,6 +726,24 @@ class TklReset(Contract):
 
     confirm: bool = False
     trains: bool = False
+
+
+class TklFunctionAction(StrEnum):
+    ON = "on"  # koppla in: signalstopp, lokal frigivning, ur drift, programmeringsspår
+    OFF = "off"  # koppla ur
+    SET = "set"  # välj läge: körströmmen, eller spåret vändskivan vrids mot
+    LAY = "lay"  # en lokal växel lagd med knappen på modulen, medan området är frigivet
+    RELEASE = "release"  # nödutlös spårledningarna, bekräftat
+
+
+class TklFunctionAsk(Contract):
+    """Manövrera en panelfunktion (STV-04): koppla in eller ur, välj läge, lägg en lokal växel
+    eller nödutlös. The interlocking says yes, or no with the reason."""
+
+    function: Text = Field(description="Funktionens namn.")
+    action: TklFunctionAction
+    value: Name | None = Field(default=None, description="Läget, spåret eller växeln.")
+    confirm: bool = Field(default=False, description="Nödutlösningen är bekräftad.")
 
 
 class TklReportKind(StrEnum):

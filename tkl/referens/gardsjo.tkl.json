@@ -6325,6 +6325,18 @@
  ],
  "functions": [
   {
+   "type": "signal_stop",
+   "name": "Signalstopp väster",
+   "signals": ["21", "23", "32", "42", "44", "51", "62", "64", "66", "72", "91"],
+   "note": "Alla signaler i stationens västra del visar stopp, som knappen Signaler stopp väster på referenssidan."
+  },
+  {
+   "type": "signal_stop",
+   "name": "Signalstopp öster",
+   "signals": ["22", "24", "31", "33", "35", "41", "43", "52", "61", "71", "92"],
+   "note": "Alla signaler i stationens östra del visar stopp, som knappen Signaler stopp öster på referenssidan."
+  },
+  {
    "type": "local_release",
    "name": "Lokal frigivning",
    "track_circuits": ["Spår 3", "Spår 4", "Spår 31", "Spår 32", "Enkelspår", "112/113", "136/133", "132"],
@@ -6335,6 +6347,13 @@
    },
    "signals": ["33", "35", "64", "66", "91", "92"],
    "note": "Området: spår 3, 4, 31 och 32, enkelspåret fram till utfartssignalen 43, och växlarna 113, 133 och 136."
+  },
+  {
+   "type": "traction_current",
+   "name": "Körström spår 3–4",
+   "track_circuits": ["Spår 3", "Spår 4"],
+   "modes": ["2R", "3R"],
+   "note": "Spår 3 och 4 körs med tvåräls (2R) eller mittledare (3R), som på referenssidan."
   }
  ]
 }

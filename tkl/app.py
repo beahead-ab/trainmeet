@@ -38,6 +38,7 @@ no with the reason, and the state:
     POST /api/tkl/1/stallverk/train               TklTrainPut: sätt ut ett tågnummer
     POST /api/tkl/1/stallverk/train/remove        TklTrainRef: ta bort ett tågnummer
     POST /api/tkl/1/stallverk/reset               TklReset: nollställ, bekräftat
+    POST /api/tkl/1/stallverk/function            TklFunctionAsk: en panelfunktion (STV-04)
 
 What the interlocking reports goes up to the hub as station commands when TKL is connected and
 approved for one place (tkl/hub_reports.py, STV-10).
@@ -82,6 +83,7 @@ from contracts.tkl import (
     TklConnect,
     TklConnection,
     TklEmergencyRelease,
+    TklFunctionAsk,
     TklIdState,
     TklInterlocking,
     TklLeverAsk,
@@ -1152,6 +1154,24 @@ def create_app(
         no_store(response)
         found = unlocked(slot, session)
         return operate(found, lambda made: made.reset(ask.confirm, ask.trains))
+
+    @routes.post("/stallverk/function")
+    def panel_function(
+        ask: TklFunctionAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Manövrera en panelfunktion ur katalogen (STV-04, STV-53): signalstopp, lokal
+        frigivning, körström, ur drift, nödutlösning, vändskivan och programmeringsspåret."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        return operate(
+            found,
+            lambda made: made.function(ask.function, ask.action, ask.value, confirm=ask.confirm),
+        )
 
     app.include_router(routes)
 

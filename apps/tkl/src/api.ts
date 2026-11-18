@@ -33,6 +33,10 @@ export type InterlockingWait = Schemas["trainmeet.tkl-1.interlocking-wait"];
 export type Targets = Schemas["trainmeet.tkl-1.interlocking-targets"];
 export type RouteKind = Schemas["trainmeet.tkl-1.route-ask.RouteKind"];
 export type TrainPut = Schemas["trainmeet.tkl-1.train-put"];
+// The panel functions from the catalogue (STV-04, STV-53): their state, and how one is operated.
+export type FunctionShown = Schemas["trainmeet.tkl-1.interlocking.TklFunctionShown"];
+export type FunctionAsk = Schemas["trainmeet.tkl-1.function-ask"];
+export type PanelFunctionButton = Schemas["trainmeet.tkl-1.track-plan.PanelFunctionButton"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -159,4 +163,5 @@ export const api = {
   removeTrain: (train: number) => call<InterlockingAnswer>(`${TKL}/stallverk/train/remove`, "POST", { train }),
   resetInterlocking: (confirm: boolean, trains = false) =>
     call<InterlockingAnswer>(`${TKL}/stallverk/reset`, "POST", { confirm, trains }),
+  panelFunction: (ask: FunctionAsk) => call<InterlockingAnswer>(`${TKL}/stallverk/function`, "POST", ask),
 };

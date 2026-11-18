@@ -20,7 +20,7 @@ from contracts import station
 from contracts.common import Side
 from contracts.meet import ClearanceMode, TrackKind
 from contracts.reasons import TEXT_SV, Reason
-from contracts.station_model import StationModel, to_json
+from contracts.station_model import PanelFunction, PanelFunctionType, StationModel, to_json
 from contracts.tkl import TklAnswer, TklInterlocking, TklTargets, TklWait
 from tkl.app import create_app
 from tkl.store import LOCAL, Connection
@@ -447,3 +447,27 @@ def test_without_a_meet_the_interlocking_works_and_says_nothing_went_up(
     assert all("inte ansluten" in (r.message or "") for r in left.reports)
     unknown = answer(client.post(S + "/train", json={"call": "c99"}))
     assert not unknown.accepted and "inte ansluten" in unknown.message
+
+
+def test_a_panel_function_is_operated_through_the_api_and_kept(tmp_path: Path) -> None:
+    """POST /stallverk/function (STV-04): yes or no with the reason and the state, which lists
+    the functions with theirs; it is kept with the station like the rest of the state."""
+    client = tkl(tmp_path)
+    assert set_up(client).status_code == 201
+    stop = PanelFunction(type=PanelFunctionType.SIGNAL_STOP, name="Signalstopp", signals=["In"])
+    with_model(client, model().model_copy(update={"functions": [stop]}))
+    assert [f["name"] for f in client.get(S).json()["functions"]] == ["Signalstopp"]
+    on = answer(client.post(S + "/function", json={"function": "Signalstopp", "action": "on"}))
+    assert on.accepted and on.state.functions[0].on and on.state.signals["In"].blocked
+    refused = answer(client.post(S + "/route", json={"start": "In", "end": "12"}))
+    assert not refused.accepted and "signalstopp" in refused.message
+    unknown = answer(client.post(S + "/function", json={"function": "Nej", "action": "on"}))
+    assert not unknown.accepted and "finns inte" in unknown.message
+    wrong = client.post(S + "/function", json={"function": "Signalstopp", "action": "turn"})
+    assert wrong.status_code == 422
+    again = tkl(tmp_path)
+    assert again.post(API + "/unlock", json={"pin": PIN}).status_code == 200
+    assert TklInterlocking.model_validate(again.get(S).json()).functions[0].on
+    client.post(API + "/lock")
+    locked = client.post(S + "/function", json={"function": "Signalstopp", "action": "off"})
+    assert locked.status_code == 401

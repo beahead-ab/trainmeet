@@ -1,27 +1,31 @@
-// Ställverket at level 1–2 (#84): the station's panel as a working interlocking, drawn in skin 85
-// (STV-41), over the bottom row Tåg · Klarering · Händelser (STV-07). Click the start signal and
-// the goal (STV-01, STV-03), the start again for a shunting route (STV-24), Esc to cancel; a
-// set route is chosen with a click, and Kör, Ankommit, Avgått, Lös ut and Nödutlös act on it.
-// A click on a switch lays its lever. Every operation asks TKL's interlocking, and its answer,
-// yes or no with the reason, is what the page shows (STV-43). Every screen waits for the next
-// change, so a second screen follows the first (STV-05); the skin, the proportion and the view
-// are chosen per screen and kept in this browser. Klarering is level 0's, as it is.
+// Ställverket at level 1–2 (#84): the station's panel as a working interlocking, drawn in skin 85,
+// 95 or 59 (STV-12, STV-41), over the bottom row Tåg · Klarering · Händelser (STV-07). Click the
+// start signal and the goal (STV-01, STV-03), the start again for a shunting route (STV-24), Esc
+// to cancel; in 59 the signals' toggles are flipped instead (STV-36). A set route is chosen with
+// a click, and Kör, Ankommit, Avgått, Lös ut and Nödutlös act on it. A click on a switch lays its
+// lever. The panel's buttons are the station's functions from the catalogue (STV-04, STV-53).
+// Every operation asks TKL's interlocking, and its answer, yes or no with the reason, is what
+// the page shows (STV-43). Every screen waits for the next change, so a second screen follows
+// the first (STV-05); the skin, the proportion and the view are chosen per screen and kept in
+// this browser. Klarering is level 0's, as it is.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type InterlockingAnswer, type Interlocking, type Outside, type TrackPlan, type View } from "./api";
+import { api, Problem, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Outside, type TrackPlan, type View } from "./api";
 import type { Happening } from "./handelser";
 import { trains as trainsOf } from "./niva0";
 import { Panelen } from "./Panelen";
-import { PROPORTION, readScreen, saveScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, SKINS, type Screen, type ScreenView } from "./skal";
+import { changeScreen, codeIn, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, SKINS, type Screen, type ScreenView, type Skin } from "./skal";
 import { Klarering, Questions, Stallverket, type Send } from "./Stallverket";
 import {
   act,
   busyLines,
   clickPoint,
   clickSwitch,
+  clickToggle,
   drawing,
   emergency,
   escape,
   filled,
+  functionCall,
   guidance,
   NOTHING,
   routeEnds,
@@ -155,11 +159,11 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
       setWorking(false);
     }
   };
-  const change = (next: Partial<Screen>) => {
-    const made = { ...settings, ...next };
-    setSettings(made);
-    saveScreen(screen, made, storage());
-  };
+  // A skin, a proportion or a view: this screen's own, kept in the browser; it sends no order
+  // (STV-05, STV-18).
+  const change = (next: Partial<Screen>) => setSettings(changeScreen(screen, settings, next, storage()));
+  const operate = (ask: FunctionAsk) => void run(() => functionCall(valet, ask, api));
+  const lamps = skin.style === "lamps";
   const chosen = state.routes.find((r) => r.id === valet.route) ?? null;
   const put = (work: () => Promise<InterlockingAnswer>) => void run(() => trainCall(valet, work));
 
@@ -188,22 +192,23 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
             drawn={drawn}
             skin={skin}
             say={say}
+            title={plan.summary.name}
             choice={valet.choice}
             chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
             height={panelHeight}
             onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
+            onToggle={(name) => void run(() => clickToggle(valet, name, state.routes, api, say))}
             onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
             onRoute={(route) => setValet({ ...valet, route, confirm: null })}
+            onButton={(name) => {
+              const found = state.functions.find((f) => f.name === name);
+              if (found) operate({ function: name, action: found.on ? "off" : "on", value: null, confirm: false });
+            }}
           />
-          <p className="liten forklaring stv-forklaring">
-            <span className="farg" style={{ background: skin.tracks.free }} /> {say("legendFree")}
-            <span className="farg" style={{ background: skin.tracks.train }} /> {say("legendTrain")}
-            <span className="farg" style={{ background: skin.tracks.shunting }} /> {say("legendShunting")}
-            <span className="farg" style={{ background: skin.tracks.occupied }} /> {say("legendOccupied")} · {say("legendGap")} · {say("legendProtection")} · {say("legendSignals")} · {say("legendNumbers")} · {say("skinName85")}
-          </p>
+          <Legend skin={skin} say={say} />
           <div className="stv-valet">
             <p className="stv-hjalp" aria-live="polite">
-              {guidance(valet, say)}
+              {guidance(valet, say, lamps)}
             </p>
             {valet.said ? (
               <p className={`stv-svar ${valet.said.ok ? "ja" : "nej"}`} role={valet.said.ok ? "status" : "alert"}>
@@ -224,6 +229,7 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
             onEmergency={(confirmed) => void run(() => emergency(valet, confirmed, api))}
             onCancel={() => setValet({ ...valet, confirm: null })}
           />
+          <FunctionRow functions={state.functions} skin={skin} working={working} say={say} onOperate={operate} />
         </section>
       ) : null}
       {settings.view !== "panel" ? (
@@ -243,6 +249,127 @@ export function Stallverk12({ plan, panel, state: raw, onState, view, hubNote, o
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function Legend({ skin, say }: { skin: Skin; say: Say }) {
+  const swatch = (colour: string) => <span className="farg" style={{ background: colour }} />;
+  if (skin.legend === "legend59") {
+    const p = skin.plan59;
+    return (
+      <p className="liten forklaring stv-forklaring">
+        {swatch(p?.lit ?? "#fff")} {say("legendLamps59")} {swatch(p?.train ?? "#0f0")} {say("legendArrows59")} {swatch(p?.position ?? "#00f")} {say("legendPosition59")} · {say("legendSignals59")} · {say("legendToggles59")} · {say("skinName59")}
+      </p>
+    );
+  }
+  const signals = skin.legend === "legend95" ? say("legendSignals95") : say("legendSignals");
+  return (
+    <p className="liten forklaring stv-forklaring">
+      {swatch(skin.tracks.free)} {say("legendFree")}
+      {swatch(skin.tracks.train)} {say("legendTrain")}
+      {swatch(skin.tracks.shunting)} {say("legendShunting")}
+      {swatch(skin.tracks.occupied)} {say("legendOccupied")}
+      {swatch(skin.tracks.local)} {say("legendLocal")} · {say("legendGap")} · {say("legendProtection")} · {signals}, {say("legendBlocked")} · {say("legendNumbers")} · {say(skin.legend === "legend95" ? "skinName95" : "skinName85")}
+    </p>
+  );
+}
+
+/** Panelens knappar (STV-04, STV-53): the station's panel functions from the catalogue, in the
+ * same place in every skin; in 59 as toggle switches with a lamp above (SJH s. 152, 158). */
+function FunctionRow({ functions, skin, working, say, onOperate }: { functions: FunctionShown[]; skin: Skin; working: boolean; say: Say; onOperate: (ask: FunctionAsk) => void }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
+  if (!functions.length) return null;
+  const ask = (name: string, action: FunctionAsk["action"], value: string | null = null, confirm = false): FunctionAsk => ({ function: name, action, value, confirm });
+  const lampOf = (f: FunctionShown) =>
+    f.type === "signal_stop" || f.type === "emergency_release" ? skin.lamps.stop : f.type === "local_release" ? skin.lamps.local : f.type === "programming_track" ? skin.local : skin.lamps.on;
+  const lamp = (f: FunctionShown, on: boolean) =>
+    skin.style === "lamps" ? (
+      <svg className="vippa59" width="18" height="30" viewBox="0 0 22 34" aria-hidden="true">
+        <circle cx="11" cy="6" r="4.2" fill={on ? lampOf(f) : skin.lamps.off} stroke="#141616" />
+        <circle cx="11" cy="23" r="7.5" fill="#c3c7c9" stroke="#6c7174" />
+        <circle cx="11" cy="23" r="3.4" fill="#1a1c1d" />
+        <circle cx={on ? 15 : 11} cy="22.3" r="4" fill="#f3f2ec" stroke="#8d908e" strokeWidth=".8" />
+      </svg>
+    ) : (
+      <span className="lampa" style={{ background: on ? lampOf(f) : skin.lamps.off, borderColor: lampOf(f) }} />
+    );
+  return (
+    <div className={`stv-funktioner skal-${skin.id}`} role="group" aria-label={say("functions")}>
+      <span className="liten">{say("functions")}:</span>
+      {functions.map((f) => {
+        const name = codeIn(f.codes, skin.id) ?? f.name;
+        const title = f.note ?? f.name;
+        if (f.type === "traction_current") {
+          const modes = f.modes ?? [];
+          const at = modes.findIndex((m) => m.value === f.mode);
+          const next = modes[(at + 1) % Math.max(1, modes.length)];
+          return (
+            <button key={f.name} type="button" className="funktion" title={title} disabled={working || !next} onClick={() => next && onOperate(ask(f.name, "set", next.value))}>
+              {skin.style === "lamps" ? lamp(f, false) : null}
+              {name} <span className="varde tm-mono">{f.mode ?? "–"}</span>
+            </button>
+          );
+        }
+        if (f.type === "turntable") {
+          return (
+            <label key={f.name} className="funktion" title={title}>
+              {say("turnTo", { name })}{" "}
+              <select value={f.mode ?? ""} disabled={working} onChange={(e) => onOperate(ask(f.name, "set", e.target.value))}>
+                <option value="" disabled>
+                  –
+                </option>
+                {(f.modes ?? []).map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        }
+        if (f.type === "emergency_release") {
+          return confirming === f.name ? (
+            <span key={f.name} className="funktion">
+              <button
+                type="button"
+                className="fara"
+                disabled={working}
+                onClick={() => {
+                  setConfirming(null);
+                  onOperate(ask(f.name, "release", null, true));
+                }}
+              >
+                {say("confirmFunction", { name })}
+              </button>
+              <button type="button" onClick={() => setConfirming(null)}>
+                {say("cancel")}
+              </button>
+            </span>
+          ) : (
+            <button key={f.name} type="button" className="funktion fara" title={title} disabled={working} onClick={() => setConfirming(f.name)}>
+              {lamp(f, false)}
+              {name}
+            </button>
+          );
+        }
+        const on = f.on ?? false;
+        return (
+          <span key={f.name} className="funktion-grupp">
+            <button type="button" className="funktion" aria-pressed={on} title={title} data-function={f.name} disabled={working} onClick={() => onOperate(ask(f.name, on ? "off" : "on"))}>
+              {lamp(f, on)}
+              {name} <span className="varde">{on ? say("functionOn") : say("functionOff")}</span>
+            </button>
+            {f.type === "local_release" && on
+              ? (f.switches ?? []).map((sw) => (
+                  <button key={sw} type="button" className="funktion modul" disabled={working} onClick={() => onOperate(ask(f.name, "lay", sw))}>
+                    {say("moduleButton", { name: sw })}
+                  </button>
+                ))
+              : null}
+          </span>
+        );
+      })}
     </div>
   );
 }

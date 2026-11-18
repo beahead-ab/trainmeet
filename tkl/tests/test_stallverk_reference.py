@@ -1,6 +1,7 @@
 """The interlocking on the four reference stations (#84, TKL40): every route the engine derives
 can be set from a clean state, run with Kör and released; every chain can be set; every lever
-lays its switches; and two switches that drag each other never lie crossed (TKL104).
+lays its switches; two switches that drag each other never lie crossed (TKL104); and every
+station's own panel functions do what their type says (STV-04, STV-53).
 
 Nothing here names a station (RS13): the stations are found from the model files, and a station
 is picked by what its data has.
@@ -13,9 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from contracts.station_model import Position, StationModel
-from contracts.tkl import TklReportKind
+from contracts.station_model import PanelFunctionType, Position, StationModel, SwitchControl
+from contracts.tkl import TklAspect, TklFunctionAction, TklReportKind
 from tkl.stallverk import Interlocking, Plant, Way, plant_of
+from tkl.stallverk.plant import DWARFS
 from tkl.standard import RouteKind
 
 MODELS = Path(__file__).resolve().parents[2] / "tkl" / "referens"
@@ -179,3 +181,74 @@ def test_switches_that_drag_each_other_never_lie_crossed(station: str) -> None:
         for first, other in pairs:
             crossed = (shown[first].position, shown[other].position) == (MINUS, PLUS)
             assert not crossed, (first, other)
+
+
+# --- the panel functions, each station's own (STV-04, STV-53, TKL44, FR41) -----------------------
+
+
+def _functions() -> list[tuple[str, str]]:
+    return [(station, name) for station in STATIONS for name in plant(station).functions]
+
+
+def test_the_reference_stations_have_the_catalogues_functions() -> None:
+    """Signal stop, local release, traction current, the turntable and the programming track
+    are each some reference station's own (the reference pages' buttons)."""
+    kinds = {plant(s).functions[n].type for s, n in _functions()}
+    assert kinds >= {
+        PanelFunctionType.SIGNAL_STOP,
+        PanelFunctionType.LOCAL_RELEASE,
+        PanelFunctionType.TRACTION_CURRENT,
+        PanelFunctionType.TURNTABLE,
+        PanelFunctionType.PROGRAMMING_TRACK,
+    }
+
+
+def _with(found: Plant, name: str) -> Interlocking:
+    it = Interlocking(found)
+    switched = it.function(name, TklFunctionAction.ON)
+    assert switched.accepted, (name, switched.message)
+    return it
+
+
+@pytest.mark.parametrize(("station", "name"), _functions())
+def test_every_reference_function_does_what_its_type_says(station: str, name: str) -> None:
+    found = plant(station)
+    function = found.functions[name]
+    kind = function.type
+    if kind == PanelFunctionType.TRACTION_CURRENT:
+        it = Interlocking(found)
+        for mode, _ in function.modes:
+            assert it.function(name, TklFunctionAction.SET, mode).accepted
+            assert next(f for f in it.view().functions if f.name == name).mode == mode
+        return
+    if kind == PanelFunctionType.TURNTABLE:
+        it = Interlocking(found)
+        for piece, label in function.modes:
+            turned = it.function(name, TklFunctionAction.SET, piece)
+            assert turned.accepted, turned.message
+            table = function.turntable or ""
+            assert piece in found.alignment(table, it.turntables[table] or "")
+            assert it.function(name, TklFunctionAction.SET, label).accepted
+        return
+    if kind == PanelFunctionType.LOCAL_RELEASE:
+        it = _with(found, name)
+        for part in function.switches:
+            if found.control.get(part) == SwitchControl.TKL:
+                laid = it.function(name, TklFunctionAction.LAY, part)
+                assert laid.accepted, (part, laid.message)
+                assert not it.lay_lever(part).accepted, "never laid by the interlocking"
+        shown = it.view()
+        for signal in function.signals:
+            if found.signals[signal].type in DWARFS:
+                assert shown.signals[signal].aspect == TklAspect.LOCAL, signal
+        assert all(shown.signals[s].blocked for s in function.blocked)
+    for way in found.preferred():
+        it = _with(found, name)
+        laid = it.set_route(way.start, way.end, way.kind)
+        if kind == PanelFunctionType.SIGNAL_STOP:
+            stopped = way.start in function.signals or set(way.route.passed) & set(function.signals)
+            assert laid.accepted != bool(stopped), (way.name, laid.message)
+        elif kind == PanelFunctionType.LOCAL_RELEASE:
+            assert laid.accepted != function.touches(way), (way.name, laid.message)
+        else:  # the programming track blocks no route (STV-53, TKL106)
+            assert laid.accepted, (way.name, laid.message)

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.function-ask.schema.json",
+  "title": "trainmeet.tkl-1.function-ask",
+  "$defs": {
+    "TklFunctionAction": {
+      "enum": [
+        "on",
+        "off",
+        "set",
+        "lay",
+        "release"
+      ],
+      "title": "TklFunctionAction",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Manövrera en panelfunktion (STV-04): koppla in eller ur, välj läge, lägg en lokal växel\neller nödutlös. The interlocking says yes, or no with the reason.",
+  "properties": {
+    "function": {
+      "description": "Funktionens namn.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Function",
+      "type": "string"
+    },
+    "action": {
+      "$ref": "#/$defs/TklFunctionAction"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Läget, spåret eller växeln.",
+      "title": "Value"
+    },
+    "confirm": {
+      "default": false,
+      "description": "Nödutlösningen är bekräftad.",
+      "title": "Confirm",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "function",
+    "action"
+  ],
+  "type": "object"
+}

@@ -185,6 +185,12 @@ Ställverkslogiken (#84): en tillståndsmaskin över stationsmodellen, i `tkl/st
 | Utfartens ruta | `TklExitShown` | Linjen utanför infartssignalen: hör till linjen och blir aldrig grön med vägen (STV-54). Där står tåg på väg hit. |
 | Rapport till Hubben | `TklReport` | Det ställverket skickar upp med stationsprotokollet (STV-10): `train.departed`, `train.arrived` eller `train.track.change`, och `signal.exit`. Aldrig `section.occupancy` på nivå 1–2. Hubbens svar kommer tillbaka som det gavs. |
 | Väntan | `TklWait`, `/stallverk/wait` | En andra skärm väntar på nästa ändring och läser om (STV-05). |
+| Panelfunktion i ställverket | `TklFunctionShown`, `TklFunctionAsk`, `/stallverk/function` | Stationens panelfunktioner ur katalogen med sitt läge (STV-04), manövrerade med namnet: koppla in eller ur, välj läge, lägg en lokal växel med knappen på modulen eller nödutlös. En vändskiva i modellen har alltid en. Panelens knappar står på samma plats i alla skal; en funktion som hör till en nod har också en knapp i spårplanen (`PanelFunctionButton`), som programmeringsspårets på spårstumpen (STV-53). |
+| Signalstopp | `PanelFunctionType.signal_stop`, `TklSignalShown.blocked` | Områdets signaler visar stopp, spärrade, och inga vägar läggs från dem. En väg som redan ligger där står kvar med sina lås men i stopp. |
+| Vägen står i stopp | `TklSetRoute.held` | En lagd väg vars signaler hålls i stopp av signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt; en signal går aldrig till kör av sig själv. |
+| Lokal frigivning | `PanelFunctionType.local_release`, `TklAspect.local`, `TklPieceState.local`, `TklSwitchShown.local` | Området frigivet för växling (TKL44, STD-14, FR41): skyddsväxlarna låsta, de lokala växlarna läggs med knappar på modulerna, dvärgsignalerna visar snett höger (blått), infartssignalerna är spärrade och inga vägar rör området. Går inte att koppla in under en väg i området. |
+| Sektionerna | `TklInterlocking.sections` | Varje sektion med sina spårbitar, för skalet 59: en till fyra lampor per spårledning och avbrotten mellan dem. |
+| Skal | `apps/tkl/src/skal.ts`, `Skin` | Symboler, färger, linjebredder och typsnitt över samma geometri: 85 efter TDOK 2014:0693, 95 efter TDOK 2021:0552 och 59 efter SJ:s modell 59, som manövreras med vippställare (STV-12, STV-36). Väljs per skärm och skickar aldrig några order (STV-05, STV-18). |
 
 ## TrainMeet Catalog
 
