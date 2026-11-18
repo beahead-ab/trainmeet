@@ -1106,10 +1106,12 @@ class Pictures:
         uploaded_by: UUID,
         club: bool,
         background: PictureBackground = PictureBackground.ORIGINAL,
+        within: Callable[[Connection[DictRow], UUID], None] | None = None,
     ) -> Picture:
         """A new picture of the owner's vehicle, stored with the owner within the owner's limit
         (CAT-131, CAT-133), on the background chosen (CAT-128). The first picture is the main
-        one (CAT-125)."""
+        one (CAT-125). within runs in the transaction that saves the picture, with its id: the
+        move from TrainCatalog notes there which old picture it was (catalog/flytten.py)."""
         prepared = prepare(data, keep_original, background, self.segmenter)
         # A first look without a lock, so a refused upload stores nothing. What it needs this
         # month over the free level is paid now, before anything is stored (CAT-132).
@@ -1153,6 +1155,8 @@ class Pictures:
                 },
             ).fetchone()
             assert row is not None
+            if within is not None:
+                within(conn, row["id"])
             return row
 
         return self._picture(self._keep(owner, files, save, club), time.time())

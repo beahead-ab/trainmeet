@@ -39,6 +39,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     tagged: false,
     picture: null,
     prototype: null,
+    legacy: {},
     created_at: NOW,
     updated_at: NOW,
     ...change,
@@ -121,6 +122,20 @@ describe("the card", () => {
     expect(html).toContain("DCC address");
     expect(html).toContain("F0 Ljus");
     expect(html).toContain("No EVN in the number.");
+  });
+
+  it("shows the old fields from TrainCatalog read-only, and nothing for a vehicle made here", () => {
+    const moved = vehicle({ legacy: { Benämning: "Hbis med skjutväggar", "L ö b": "14,5 m", RIV: "Ja" } });
+    const html = renderToStaticMarkup(<CardView ctx={ctx()} vehicle={moved} events={[]} error={null} />);
+    expect(html).toContain("Från gamla TrainCatalog");
+    expect(html).toContain("De går inte att ändra här.");
+    expect(html).toMatch(/<th scope="row">L ö b<\/th><td>14,5 m<\/td>/);
+    expect(html).toMatch(/<th scope="row">Benämning<\/th><td>Hbis med skjutväggar<\/td>/);
+    expect(html).not.toMatch(/<input|<textarea/);
+    expect(renderToStaticMarkup(<CardView ctx={ctx("en")} vehicle={moved} events={[]} error={null} />)).toContain("From the old TrainCatalog");
+    for (const plain of [vehicle(), vehicle({ legacy: undefined })]) {
+      expect(renderToStaticMarkup(<CardView ctx={ctx()} vehicle={plain} events={[]} error={null} />)).not.toContain("Från gamla TrainCatalog");
+    }
   });
 
   it("tells the history in words", () => {

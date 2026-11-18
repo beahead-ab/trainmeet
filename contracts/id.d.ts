@@ -3185,6 +3185,13 @@ export interface components {
              */
             prototype: components["schemas"]["trainmeet.id-1.account-export.VehiclePrototype"] | null;
             /**
+             * Legacy
+             * @description Från gamla TrainCatalog: de gamla fältens värden som inte är kärnfält, under det gamla fältets svenska etikett, till exempel {"L ö b": "14,5 m"} (CAT-205). Bara att läsa: sätts av flytten och ändras aldrig av ägaren. Aldrig i minikortet eller uppslaget. Tomt för fordon som inte kom från TrainCatalog.
+             */
+            legacy?: {
+                [key: string]: string;
+            };
+            /**
              * Created At
              * Format: date-time
              */

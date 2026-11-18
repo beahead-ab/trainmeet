@@ -41,6 +41,10 @@ CATALOG_BACKGROUND_MODEL
                        its SHA-256 when it is first needed. Default /app/models/u2netp.onnx,
                        where catalog/Dockerfile puts it. Without it only the original background
                        can be chosen, and the uploads work as before.
+CATALOG_FLYTT_PEPPER   The pepper for the hash of the old TrainCatalog owners' verified e-mail
+                       addresses (#57, CAT-204, catalog/waiting.py): at least 32 characters,
+                       the same for the move and for Catalog. A secret: never written to the
+                       log. Without it, no waiting fleet is taken over at the login.
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                        Which change is running, set when the image is built.
 """
@@ -63,6 +67,9 @@ REPO = Path(__file__).resolve().parents[1]
 DEFAULT_WEB_DIR = REPO / "apps" / "catalog" / "dist"
 DEFAULT_PICTURES_DIR = REPO / ".catalog" / "pictures"
 DEFAULT_BACKGROUND_MODEL = Path("/app/models/u2netp.onnx")
+PEPPER_ENV = "CATALOG_FLYTT_PEPPER"
+PEPPER_LENGTH = 32
+"""The shortest pepper, in characters: long enough that it cannot be guessed."""
 _COMMIT = re.compile(r"[0-9a-f]{7,40}")
 _REGION = re.compile(r"[a-z]{2}(-[a-z0-9]+)+")
 _BUCKET = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
@@ -131,6 +138,8 @@ class Settings:
     pictures_dir: Path = DEFAULT_PICTURES_DIR
     pictures_s3: S3Settings | None = None
     background_model: Path = DEFAULT_BACKGROUND_MODEL
+    flytt_pepper: bytes | None = field(default=None, repr=False)
+    """The pepper for the waiting fleets' hash (catalog/waiting.py). A secret."""
 
     def __repr__(self) -> str:  # the database address may hold a password
         return (
@@ -211,6 +220,17 @@ def s3_from_env(source: Mapping[str, str]) -> S3Settings | None:
     )
 
 
+def pepper_from_env(source: Mapping[str, str]) -> bytes | None:
+    """The pepper for the waiting fleets' hash, or None when it is not set. The error names
+    the setting, never its value."""
+    value = source.get(PEPPER_ENV, "").strip()
+    if not value:
+        return None
+    if len(value) < PEPPER_LENGTH:
+        raise SettingsError(f"{PEPPER_ENV} ska vara minst {PEPPER_LENGTH} tecken.")
+    return value.encode("utf-8")
+
+
 def build_from_env(source: Mapping[str, str]) -> CatalogVersion:
     """Which change is running. Values that look wrong are left out."""
 
@@ -264,4 +284,5 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         pictures_dir=Path(pictures_dir) if pictures_dir else DEFAULT_PICTURES_DIR,
         pictures_s3=s3_from_env(source),
         background_model=Path(background_model) if background_model else DEFAULT_BACKGROUND_MODEL,
+        flytt_pepper=pepper_from_env(source),
     )

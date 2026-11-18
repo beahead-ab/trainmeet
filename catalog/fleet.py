@@ -70,7 +70,7 @@ _COLUMNS = (
     "v.id, v.version, v.status, v.kind, v.litt, v.number, v.operator, v.epoch, v.scale, v.maker, "
     "v.article_number, v.note, v.dcc_address, v.functions, v.state, v.place_id, "
     "p.name AS place_name, v.lent_to, v.lent_since, v.lent_until, v.field_sources, "
-    "v.created_at, v.updated_at"
+    "v.legacy, v.created_at, v.updated_at"
 )
 _FROM = "vehicle v LEFT JOIN place p ON p.id = v.place_id"
 
@@ -165,6 +165,7 @@ def to_vehicle(
         notices=notices or [],
         picture=picture,
         prototype=prototype,
+        legacy=row["legacy"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -476,12 +477,17 @@ class Fleet:
         owner: UUID,
         fields: VehicleFields,
         sources: Mapping[str, FieldSource] | None = None,
+        *,
+        vehicle: UUID | None = None,
+        legacy: Mapping[str, str] | None = None,
     ) -> UUID:
         """A new vehicle in the caller's transaction, after the owner's row is locked (CAT-40).
         sources says where a field's value came from, such as the AI for a suggestion nobody
-        changed (CAT-64); the owner for the rest."""
+        changed (CAT-64); the owner for the rest. Only the move from TrainCatalog gives the
+        vehicle's id, which it keeps from there (CAT-52), and the old fields' values (CAT-205,
+        catalog/flytten.py)."""
         _check(fields)
-        vehicle = uuid.uuid4()
+        vehicle = vehicle if vehicle is not None else uuid.uuid4()
         values = _values(fields)
         given = sources or {}
         stored = {
@@ -493,9 +499,9 @@ class Fleet:
         conn.execute(
             "INSERT INTO vehicle (id, owner_id, status, kind, litt, number, operator, epoch, "
             "scale, maker, article_number, note, dcc_address, functions, place_id, "
-            "field_sources) VALUES (%(id)s, %(owner)s, %(status)s, %(kind)s, %(litt)s, "
+            "field_sources, legacy) VALUES (%(id)s, %(owner)s, %(status)s, %(kind)s, %(litt)s, "
             "%(number)s, %(operator)s, %(epoch)s, %(scale)s, %(maker)s, %(article_number)s, "
-            "%(note)s, %(dcc_address)s, %(functions)s, %(place)s, %(sources)s)",
+            "%(note)s, %(dcc_address)s, %(functions)s, %(place)s, %(sources)s, %(legacy)s)",
             {
                 **values,
                 "functions": Jsonb(values["functions"]),
@@ -504,6 +510,7 @@ class Fleet:
                 "status": fields.status.value,
                 "place": fields.place,
                 "sources": Jsonb(stored),
+                "legacy": Jsonb(dict(legacy or {})),
             },
         )
         conn.execute(
