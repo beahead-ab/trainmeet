@@ -32,6 +32,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Displaystorlek | `display` | 16×2 eller 20×4, som boxen säger när den ansluter. Allt annat räknas som 16×2. |
 | Planspår | `place.tracks[].name` | Spårets namn i planen. Tågbesöket behåller det. |
 | Spårtabell | `station.track_map` | Översätter planens spårnamn till stationens spår-id. |
+| Spår-vyn | `station.TrackDisplay`, `station.TrackDisplayChange`, `Snapshot.track_display` | Vilka av driftplatsens spår apparna visar och i vilken ordning, satt en gång per träff och plats och gemensam för alla appar där (BOXIOS-16, H65). Bara visning: den ändrar ingenting i trafiken och blir ingen drifthändelse. Revisionen räknar upp vid varje sparning och återställning, så ingen skriver över någon annans val. |
 | Sträcka | `section` | Planens klareringssträcka mellan två driftplatser, från infartssignal till infartssignal. Tåget får klart en gång för hela sträckan. |
 | Grafens linje | `display.graph_pages` | Ett blad i tågdiagrammet: platserna i ordning längs linjen, med avstånd, nummer och färg ur planen. |
 | Delsträcka | `section.parts` | Den fysiska biten mellan två platser längs en sträcka. Används för karta, graf och detektering. |

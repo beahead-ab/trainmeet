@@ -19,6 +19,7 @@ Transport (Claude, draft): HTTP with JSON under /api/station/1/ and an event str
     POST /api/station/1/commands           Command         -> Reply (always with the snapshot)
     GET  /api/station/1/places/{place}/events   Event stream (text/event-stream)
     POST /api/station/1/places/{place}/exits    ExitAnswer -> Snapshot: which exit (H26)
+    PUT  /api/station/1/places/{place}/track-display  TrackDisplayChange -> Snapshot (BOXIOS-16)
     PUT  /api/station/1/push               PushToken: the phone's address for push (F20)
     DELETE /api/station/1/push             no more push to this client
 
@@ -392,6 +393,30 @@ class ExitAnswer(Contract):
     exit: Id
 
 
+class TrackShown(Contract):
+    track: Text = Field(description="Spårets namn i planen, som tågbesöken använder.")
+    visible: bool = True
+
+
+class TrackDisplay(Contract):
+    """Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+    ones too. Set once per meet and place and shared by every app there; only presentation, it
+    changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md)."""
+
+    revision: int = Field(ge=0, description="Räknar upp vid varje sparning och återställning.")
+    customized: bool = False
+    tracks: list[TrackShown] = Field(default_factory=list)
+
+
+class TrackDisplayChange(Contract):
+    """PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly
+    once, in the new order; without tracks the meet's own order comes back (Återställ). A
+    revision other than the current one is refused, so no one's choice is overwritten."""
+
+    revision: int = Field(ge=0, description="Revisionen klienten läste.")
+    tracks: list[TrackShown] | None = None
+
+
 class LineMessage(Contract):
     message_id: Id
     section: Id
@@ -422,6 +447,10 @@ class Snapshot(Contract):
     )
     questions: list[ExitQuestion] = Field(
         default_factory=list, description="Hubbens frågor om stationens utfarter (H26)."
+    )
+    track_display: TrackDisplay = Field(
+        default_factory=lambda: TrackDisplay(revision=0),
+        description="Spår-vyn: platsens spår i stationens ordning (BOXIOS-16).",
     )
 
 

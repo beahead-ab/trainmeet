@@ -132,6 +132,12 @@ def test_a_phone_outside_the_meets_network_reaches_the_pi_through_the_cloud(
             404,
             "Utfarten eller sträckan finns inte här.",
         )
+        # The Spår-vy is saved through the relay too (BOXIOS-16): the watch reaches it there.
+        shown = cloud.put(
+            f"{base}/places/{place}/track-display", json={"revision": 0}, headers=headers
+        )
+        assert shown.status_code == 200, shown.text
+        assert shown.json()["track_display"]["revision"] == 1
         # Over the internet a code is needed: the relay never joins the meet without one.
         bare = {"kind": "tkl", "name": "TKL", "software": "TKL 0.1.0"}
         assert cloud.post(base + "/connect", json=bare).status_code == 401

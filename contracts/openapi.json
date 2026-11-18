@@ -200,6 +200,48 @@
         ]
       }
     },
+    "/api/station/1/places/{place}/track-display": {
+      "put": {
+        "operationId": "stationTrackDisplay",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.snapshot"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.station-1.track-display-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "place",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/station/1/push": {
       "put": {
         "operationId": "stationPush",
@@ -6382,6 +6424,10 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "track_display": {
+            "$ref": "#/components/schemas/trainmeet.station-1.reply.TrackDisplay",
+            "description": "Spår-vyn: platsens spår i stationens ordning (BOXIOS-16)."
           }
         },
         "required": [
@@ -6393,6 +6439,35 @@
         "title": "Snapshot",
         "type": "object"
       },
+      "trainmeet.station-1.reply.TrackDisplay": {
+        "additionalProperties": true,
+        "description": "Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden\nones too. Set once per meet and place and shared by every app there; only presentation, it\nchanges nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).",
+        "properties": {
+          "revision": {
+            "description": "Räknar upp vid varje sparning och återställning.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "customized": {
+            "default": false,
+            "title": "Customized",
+            "type": "boolean"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.TrackShown"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplay",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.TrackKind": {
         "enum": [
           "single",
@@ -6400,6 +6475,28 @@
         ],
         "title": "TrackKind",
         "type": "string"
+      },
+      "trainmeet.station-1.reply.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
+        "type": "object"
       },
       "trainmeet.station-1.reply.TrainOnSection": {
         "additionalProperties": true,
@@ -6566,6 +6663,10 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "track_display": {
+            "$ref": "#/components/schemas/trainmeet.station-1.snapshot.TrackDisplay",
+            "description": "Spår-vyn: platsens spår i stationens ordning (BOXIOS-16)."
           }
         },
         "required": [
@@ -7225,6 +7326,35 @@
         "title": "Side",
         "type": "string"
       },
+      "trainmeet.station-1.snapshot.TrackDisplay": {
+        "additionalProperties": true,
+        "description": "Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden\nones too. Set once per meet and place and shared by every app there; only presentation, it\nchanges nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).",
+        "properties": {
+          "revision": {
+            "description": "Räknar upp vid varje sparning och återställning.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "customized": {
+            "default": false,
+            "title": "Customized",
+            "type": "boolean"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.TrackShown"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplay",
+        "type": "object"
+      },
       "trainmeet.station-1.snapshot.TrackKind": {
         "enum": [
           "single",
@@ -7232,6 +7362,28 @@
         ],
         "title": "TrackKind",
         "type": "string"
+      },
+      "trainmeet.station-1.snapshot.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
+        "type": "object"
       },
       "trainmeet.station-1.snapshot.TrainOnSection": {
         "additionalProperties": true,
@@ -7601,6 +7753,60 @@
           "exit"
         ],
         "title": "ExitAnswer",
+        "type": "object"
+      },
+      "trainmeet.station-1.track-display-change": {
+        "additionalProperties": true,
+        "description": "PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly\nonce, in the new order; without tracks the meet's own order comes back (Återställ). A\nrevision other than the current one is refused, so no one's choice is overwritten.",
+        "properties": {
+          "revision": {
+            "description": "Revisionen klienten läste.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "tracks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.station-1.track-display-change.TrackShown"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tracks"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplayChange",
+        "type": "object"
+      },
+      "trainmeet.station-1.track-display-change.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
         "type": "object"
       },
       "trainmeet.terminal16.hello": {
@@ -29055,6 +29261,17 @@
               }
             ],
             "default": null
+          },
+          "track_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.TrackDisplayChange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -29417,7 +29634,8 @@
           "command",
           "revision",
           "push",
-          "exit"
+          "exit",
+          "track_display"
         ],
         "title": "RelayKind",
         "type": "string"
@@ -29543,6 +29761,60 @@
           "label"
         ],
         "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.TrackDisplayChange": {
+        "additionalProperties": true,
+        "description": "PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly\nonce, in the new order; without tracks the meet's own order comes back (Återställ). A\nrevision other than the current one is refused, so no one's choice is overwritten.",
+        "properties": {
+          "revision": {
+            "description": "Revisionen klienten läste.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "tracks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.TrackShown"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tracks"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplayChange",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
         "type": "object"
       },
       "trainmeet.sync-1.relay-calls": {
@@ -30021,6 +30293,17 @@
               }
             ],
             "default": null
+          },
+          "track_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.TrackDisplayChange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -30038,7 +30321,8 @@
           "command",
           "revision",
           "push",
-          "exit"
+          "exit",
+          "track_display"
         ],
         "title": "RelayKind",
         "type": "string"
@@ -30164,6 +30448,60 @@
           "label"
         ],
         "title": "StationTrack",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.TrackDisplayChange": {
+        "additionalProperties": true,
+        "description": "PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly\nonce, in the new order; without tracks the meet's own order comes back (Återställ). A\nrevision other than the current one is refused, so no one's choice is overwritten.",
+        "properties": {
+          "revision": {
+            "description": "Revisionen klienten läste.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "tracks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.TrackShown"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tracks"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplayChange",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
         "type": "object"
       },
       "trainmeet.sync-1.relay-answer": {
@@ -31336,6 +31674,10 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "track_display": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.TrackDisplay",
+            "description": "Spår-vyn: platsens spår i stationens ordning (BOXIOS-16)."
           }
         },
         "required": [
@@ -31347,6 +31689,35 @@
         "title": "Snapshot",
         "type": "object"
       },
+      "trainmeet.sync-1.relay-answer.TrackDisplay": {
+        "additionalProperties": true,
+        "description": "Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden\nones too. Set once per meet and place and shared by every app there; only presentation, it\nchanges nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).",
+        "properties": {
+          "revision": {
+            "description": "Räknar upp vid varje sparning och återställning.",
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "customized": {
+            "default": false,
+            "title": "Customized",
+            "type": "boolean"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.TrackShown"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "TrackDisplay",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-answer.TrackKind": {
         "enum": [
           "single",
@@ -31354,6 +31725,28 @@
         ],
         "title": "TrackKind",
         "type": "string"
+      },
+      "trainmeet.sync-1.relay-answer.TrackShown": {
+        "additionalProperties": true,
+        "properties": {
+          "track": {
+            "description": "Spårets namn i planen, som tågbesöken använder.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "track"
+        ],
+        "title": "TrackShown",
+        "type": "object"
       },
       "trainmeet.sync-1.relay-answer.TrainOnSection": {
         "additionalProperties": true,

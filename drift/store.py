@@ -28,6 +28,7 @@ from drift.notices import notices
 from drift.snapshot import snapshot
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
+from drift.track_display import base_order, checked, shown
 
 RUN_LIFETIME: Final = timedelta(days=1)
 MAX_RUNS: Final = 256
@@ -103,6 +104,11 @@ CREATE TABLE IF NOT EXISTS station_exit (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
     station_id TEXT NOT NULL, section TEXT NOT NULL, exit TEXT NOT NULL,
     PRIMARY KEY (run_id, station_id, section)
+);
+CREATE TABLE IF NOT EXISTS track_display (
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    place TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT,
+    PRIMARY KEY (run_id, place)
 );
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
@@ -929,7 +935,7 @@ class PreviewStore:
             remembered=remembered,
         )
 
-    def _with_exits(
+    def _dressed(
         self,
         db: sqlite3.Connection,
         run_id: str,
@@ -937,7 +943,11 @@ class PreviewStore:
         client_id: str,
         seen: station.Snapshot,
     ) -> station.Snapshot:
-        """The snapshot with the station's exits and Hubbens questions about them."""
+        """The snapshot with the place's Spår-vy, the station's exits and Hubbens questions
+        about them."""
+        seen = seen.model_copy(
+            update={"track_display": self._track_display(db, run_id, drift, seen)[0]}
+        )
         row = db.execute(
             "SELECT request FROM station_client WHERE client_id=?", (client_id,)
         ).fetchone()
@@ -993,6 +1003,43 @@ class PreviewStore:
             return place
         raise UnknownExit()
 
+    # --- Spår-vyn (BOXIOS-16, H65) ----------------------------------------------------------
+
+    def _track_display(
+        self, db: sqlite3.Connection, run_id: str, drift: Drift, seen: station.Snapshot
+    ) -> tuple[station.TrackDisplay, list[str]]:
+        """The place's tracks as the station shows them, and the plan's own order."""
+        here = next(p for p in drift.package.places if p.id == seen.place.place)
+        base = base_order(here, [c.planned_track or "" for c in seen.calls])
+        row = db.execute(
+            "SELECT revision, body FROM track_display WHERE run_id=? AND place=?",
+            (run_id, here.id),
+        ).fetchone()
+        revision, saved = (
+            (int(row[0]), json.loads(row[1]) if row[1] else None) if row else (0, None)
+        )
+        return shown(base, revision, saved), base
+
+    def station_track_display(
+        self, key: str, place: str, change: station.TrackDisplayChange
+    ) -> station.Snapshot:
+        """An app at the place saves the Spår-vy, or goes back to the meet's order. Only
+        presentation: nothing in the traffic changes, and no drift event is written."""
+        with self._transaction() as db:
+            client_id, run_id, places = self._approved(db, key)
+            if place not in places:
+                raise NotApproved()
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            seen = snapshot(drift, place, now)
+            current, base = self._track_display(db, run_id, drift, seen)
+            saved = checked(base, current.revision, change)
+            db.execute(
+                "INSERT OR REPLACE INTO track_display VALUES (?, ?, ?, ?)",
+                (run_id, place, current.revision + 1, json.dumps(saved) if saved else None),
+            )
+            return self._dressed(db, run_id, drift, client_id, seen)
+
     def station_exit(self, key: str, place: str, answer: station.ExitAnswer) -> station.Snapshot:
         """TKL answers which exit a section has (H26), with its key."""
         with self._transaction() as db:
@@ -1006,7 +1053,7 @@ class PreviewStore:
             now = now_utc()
             drift = self._load(db, run_id, now)
             self._answer_exit(db, run_id, drift, request, [place], answer)
-            return self._with_exits(db, run_id, drift, client_id, snapshot(drift, place, now))
+            return self._dressed(db, run_id, drift, client_id, snapshot(drift, place, now))
 
     def couple_exit(self, run_id: str, change: events.CoupleExit) -> list[dict[str, Any]]:
         """The dispatcher answers in Klienter (TRAFIK-05)."""
@@ -1089,7 +1136,7 @@ class PreviewStore:
             size = len(drift.history)
             self._heard(run_id, drift, client_id, place, now)
             self._save(db, run_id, drift.history[size:])
-            return self._with_exits(db, run_id, drift, client_id, snapshot(drift, place, now))
+            return self._dressed(db, run_id, drift, client_id, snapshot(drift, place, now))
 
     def place_revision(self, key: str, place: str) -> int:
         """For the event stream: the number that moves when the place's snapshot changes."""
@@ -1128,7 +1175,7 @@ class PreviewStore:
                     if first["status"] == station.ReplyStatus.ACCEPTED
                     else station.ReplyStatus(first["status"])
                 )
-                seen = self._with_exits(
+                seen = self._dressed(
                     db, run_id, drift, client_id, snapshot(drift, command.place, now)
                 )
                 return station.Reply.model_validate(
@@ -1175,9 +1222,7 @@ class PreviewStore:
                 "INSERT INTO station_reply VALUES (?, ?, ?, ?, ?)",
                 (run_id, client_id, command.message_id, signature, json.dumps(answer)),
             )
-            seen = self._with_exits(
-                db, run_id, drift, client_id, snapshot(drift, command.place, now)
-            )
+            seen = self._dressed(db, run_id, drift, client_id, snapshot(drift, command.place, now))
             return station.Reply.model_validate(
                 {**answer, "snapshot": seen.model_dump(mode="json")}
             )

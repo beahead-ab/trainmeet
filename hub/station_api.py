@@ -39,6 +39,7 @@ from drift.store import (
     UnknownExit,
     key_hash,
 )
+from drift.track_display import TrackDisplayConflict, TracksChanged
 from hub.deltagare import on_meet_network
 from hub.stores import AnyRun
 from synk.relay import Relay, RelayError
@@ -59,7 +60,17 @@ def _key(authorization: str | None) -> str:
     return key
 
 
-FAILURES = (UnknownClient, NotApproved, MissingRun, RunLimit, KeyError, ExitAnswered, UnknownExit)
+FAILURES = (
+    UnknownClient,
+    NotApproved,
+    MissingRun,
+    RunLimit,
+    KeyError,
+    ExitAnswered,
+    UnknownExit,
+    TrackDisplayConflict,
+    TracksChanged,
+)
 NO_CODE = "Koden finns inte, eller provkörningen har gått ut."
 NEEDS_CODE = "Över internet behövs en kod från trafikledningen."
 NO_MEET = "Ingen träff är startad på hubben."
@@ -71,6 +82,10 @@ def _failure(error: Exception) -> tuple[int, str]:
         return 429, "Gränsen för provkörningen har nåtts."
     if isinstance(error, NotApproved):
         return 403, TEXT_SV[Reason.NOT_APPROVED]
+    if isinstance(error, TrackDisplayConflict):
+        return 409, "Någon annan har ändrat spårvisningen sedan du läste den. Läs om."
+    if isinstance(error, TracksChanged):
+        return 409, "Stationens spår har ändrats. Läs om."
     if isinstance(error, ExitAnswered):
         return 409, str(error)
     if isinstance(error, UnknownExit):
@@ -158,6 +173,21 @@ def router(
             return store.station_exit(_key(authorization), place, answer).model_dump(mode="json")
         except failures as error:
             _error(error)
+
+    @routes.put("/places/{place}/track-display")
+    def track_display(
+        place: PlaceId,
+        change: station.TrackDisplayChange,
+        response: Response,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Spår-vyn for the place, shared by every app there (BOXIOS-16)."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            seen = store.station_track_display(_key(authorization), place, change)
+        except failures as error:
+            _error(error)
+        return seen.model_dump(mode="json")
 
     @routes.put("/push", status_code=204)
     def push(token: station.PushToken, authorization: Authorization = None) -> Response:
@@ -254,6 +284,14 @@ def relayed(store: AnyRun, call: RelayCall, relay: Callable[[], str | None]) -> 
             return answer(200, reply=store.station_command(key, call.command))
         if call.kind == RelayKind.EXIT and call.place is not None and call.exit is not None:
             return answer(200, snapshot=store.station_exit(key, call.place, call.exit))
+        if (
+            call.kind == RelayKind.TRACK_DISPLAY
+            and call.place is not None
+            and call.track_display is not None
+        ):
+            return answer(
+                200, snapshot=store.station_track_display(key, call.place, call.track_display)
+            )
         if call.kind == RelayKind.PUSH:
             store.set_push(key, call.push)
             return answer(204)
@@ -332,6 +370,21 @@ def relay_router(relay: Relay) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         hashed = key_hash(_key(authorization))
         asked = await ask(hub_id, RelayKind.EXIT, key_hash=hashed, place=place, exit=exit_answer)
+        return given(asked.snapshot)
+
+    @routes.put("/places/{place}/track-display")
+    async def track_display(
+        hub_id: HubId,
+        place: PlaceId,
+        change: station.TrackDisplayChange,
+        response: Response,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        hashed = key_hash(_key(authorization))
+        asked = await ask(
+            hub_id, RelayKind.TRACK_DISPLAY, key_hash=hashed, place=place, track_display=change
+        )
         return given(asked.snapshot)
 
     @routes.put("/push", status_code=204)
