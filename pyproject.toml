@@ -21,6 +21,10 @@ catalog = [
     "botocore>=1.35",
     # Talks to TrainMeet ID: the token exchange, and the ID token's signature (KONTO-10).
     "httpx>=0.27",
+    # The background removal on Catalog's own server (CAT-18, CAT-127): runs the U2NetP model
+    # on the CPU, with numpy for its input and output. Nothing is sent to an AI provider.
+    "numpy>=1.26",
+    "onnxruntime>=1.20",
     # Reads the vehicles' pictures, strips their metadata and makes the sizes (CAT-123–CAT-126).
     "pillow>=11",
     "psycopg[binary,pool]>=3.2",
