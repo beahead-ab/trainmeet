@@ -20,6 +20,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
+from contracts.station_model import StationModel
 from contracts.sync import StationPackage
 from contracts.tkl import TklIdState, TklMode, TklSaved
 from hub import id_login as hub_id
@@ -208,3 +209,25 @@ def test_a_login_that_did_not_start_here_logs_no_one_in(
     back = tkl.get(API + "/id/callback", params={"code": "kod", "state": "fel"})
     assert back.headers["location"] == "/?id=fel"
     assert id_state(tkl).person is None
+
+
+def test_the_station_s_model_goes_to_the_cloud_in_the_station_package(
+    tkl: TestClient, cloud: TestClient, pretend: PretendId
+) -> None:
+    """From level 1 the model is kept with the station and versioned with the outside; both go
+    to the cloud as one station package (SYNK-30, #83). The cloud keeps the inside as it came."""
+    listed = tkl.get(API + "/referens").json()
+    used = tkl.post(API + f"/referens/{listed[0]['id']}/use")
+    assert used.status_code == 200, used.text
+    assert tkl.post(API + "/studio/version").json()["versions"][0]["number"] == 2
+    log_in(tkl, pretend)
+    saved = TklSaved.model_validate(tkl.post(API + "/id/save", json={}).json())
+    assert saved.version == 1, saved
+    package = cloud.get(
+        "/api/sync/1/stations/asen/versions/1",
+        headers={"Authorization": "Bearer " + pretend.sign({"azp": "tkl"})},
+    )
+    assert package.status_code == 200, package.text
+    inside = StationPackage.model_validate(package.json()).inside
+    kept = StationModel.model_validate(inside["station_model"])
+    assert (kept.station_id, kept.name) == ("asen", "Åsen")

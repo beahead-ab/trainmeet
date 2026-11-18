@@ -16,7 +16,7 @@ from contracts.station_model import (
     SwitchType,
     TrackCircuit,
 )
-from tkl.standard import problems
+from tkl.standard import checks, notes, problems
 from tkl.tests.provstation import MINUS, PLUS, provby, switch
 
 
@@ -131,9 +131,13 @@ def test_no_number_or_name_is_used_twice() -> None:
     )
 
 
-def test_every_line_exit_has_a_neighbour() -> None:
+def test_a_line_exit_without_a_neighbour_is_a_note_not_a_problem() -> None:
+    """An exit is tied to a section per meet (H26), so the station file need not know the
+    neighbour: it is shown, but the model may run."""
     model = changed(provby(), "line_exits", 1, neighbour=None)
-    assert problems(model) == ["Linjeutfarten O saknar grannstation."]
+    assert problems(model) == []
+    assert notes(model) == ["Linjeutfarten O saknar grannstation."]
+    assert checks(model) == ([], ["Linjeutfarten O saknar grannstation."])
 
 
 def test_the_graph_holds_together() -> None:

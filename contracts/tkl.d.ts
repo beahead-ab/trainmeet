@@ -260,6 +260,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklStationModel"];
+        put: operations["tklImportModel"];
+        post?: never;
+        delete: operations["tklForgetModel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/referens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklReferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/referens/{station_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklReference"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/referens/{station_id}/use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklUseReference"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -348,6 +412,755 @@ export interface components {
              * @description Det som står på skärmen, till exempel Spår 1a.
              */
             label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationModel
+         * @description Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses.
+         */
+        "trainmeet.station-model-1": {
+            /**
+             * Format
+             * @default trainmeet.station-model/1
+             * @constant
+             */
+            format: "trainmeet.station-model/1";
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Level
+             * @enum {integer}
+             */
+            level: 1 | 2 | 3;
+            /**
+             * @description Källan för allt utan egen.
+             * @default null
+             */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+            /**
+             * Basis
+             * @description Underlaget modellen bygger på.
+             */
+            basis?: string[];
+            /** Nodes */
+            nodes: components["schemas"]["trainmeet.station-model-1.Node"][];
+            /** Pieces */
+            pieces: components["schemas"]["trainmeet.station-model-1.TrackPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.station-model-1.Switch"][];
+            /** Levers */
+            levers?: components["schemas"]["trainmeet.station-model-1.Lever"][];
+            /** Signals */
+            signals?: components["schemas"]["trainmeet.station-model-1.Signal"][];
+            /** Track Circuits */
+            track_circuits?: components["schemas"]["trainmeet.station-model-1.TrackCircuit"][];
+            /** Station Tracks */
+            station_tracks?: components["schemas"]["trainmeet.station-model-1.StationTrack"][];
+            /** Line Exits */
+            line_exits?: components["schemas"]["trainmeet.station-model-1.LineExit"][];
+            /** Turntables */
+            turntables?: components["schemas"]["trainmeet.station-model-1.Turntable"][];
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.station-model-1.PanelFunction"][];
+            /** @default null */
+            panel: components["schemas"]["trainmeet.station-model-1.PanelPlan"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Address
+         * @description A decoder or detector address on a bus (level 3).
+         */
+        "trainmeet.station-model-1.Address": {
+            /**
+             * Bus
+             * @description Bussen adressen gäller på.
+             * @default LocoNet
+             */
+            bus: string;
+            /** Number */
+            number: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Lever
+         * @description Spak: for + and -, the position each switch gets.
+         *
+         *     The lever's own switches are in both positions. A switch that only one position names is
+         *     dragged along by the lever in that position (drar med, TKL104) and has a lever of its own.
+         *     An own switch that gets - in the lever's + lies reversed (omvänd).
+         */
+        "trainmeet.station-model-1.Lever": {
+            /**
+             * Id
+             * @description Till exempel "101/102" eller "22".
+             */
+            id: string;
+            /** Plus */
+            plus: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
+            };
+            /** Minus */
+            minus: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineExit
+         * @description Linjeutfart: where a track leaves the station for the line.
+         */
+        "trainmeet.station-model-1.LineExit": {
+            /**
+             * Id
+             * @description Bokstav eller id, till exempel A1.
+             */
+            id: string;
+            /** Node */
+            node: string;
+            /**
+             * Neighbour
+             * @description Grannstationen.
+             * @default null
+             */
+            neighbour: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når hit.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen.
+             */
+            signals?: string[];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Node */
+        "trainmeet.station-model-1.Node": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.station-model-1.NodeType"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * Origin
+         * @description The source of one item, and whether the owner has confirmed it (RS5, RS7).
+         */
+        "trainmeet.station-model-1.Origin": {
+            source: components["schemas"]["trainmeet.station-model-1.Source"];
+            /**
+             * Confirmed
+             * @description Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.
+             * @default false
+             */
+            confirmed: boolean;
+            /**
+             * Ref
+             * @description Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.
+             * @default null
+             */
+            ref: string | null;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelBuilding */
+        "trainmeet.station-model-1.PanelBuilding": {
+            /** Cells */
+            cells: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelDeviation
+         * @description Where the plan departs from the drawing, said out loud (TKL82, STD-28).
+         *
+         *     The names here are the drawing's, so a piece that is not shown need not be in the model.
+         */
+        "trainmeet.station-model-1.PanelDeviation": {
+            /** Reason */
+            reason: string;
+            not_shown?: components["schemas"]["trainmeet.station-model-1.PanelHidden"];
+            /**
+             * Rewired
+             * @description Omkopplade spårbitar.
+             */
+            rewired?: string[];
+            /** New Pieces */
+            new_pieces?: string[];
+            /**
+             * Switches
+             * @description Nya växlar och växlar med ett annat nummer.
+             */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.PanelDeviationSwitch"];
+            };
+            /**
+             * Knots
+             * @description Noder mitt på ett annat spår.
+             */
+            knots?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelDeviationSwitch */
+        "trainmeet.station-model-1.PanelDeviationSwitch": {
+            /**
+             * Drawing Number
+             * @description Växelns nummer i ritningen. Saknas: växeln är ny.
+             * @default null
+             */
+            drawing_number: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelFunction
+         * @description A button on the panel, from the catalogue, with its parameters.
+         */
+        "trainmeet.station-model-1.PanelFunction": {
+            type: components["schemas"]["trainmeet.station-model-1.PanelFunctionType"];
+            /** Name */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Switches
+             * @description Lokala växlar, som läggs med knappar på modulerna.
+             */
+            switches?: string[];
+            /**
+             * Locked
+             * @description Skyddsväxlarnas spakar och läget de låses i.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
+            };
+            /**
+             * Signals
+             * @description Signaler som visar växling.
+             */
+            signals?: string[];
+            /**
+             * Pieces
+             * @description Spåret funktionen gäller.
+             */
+            pieces?: string[];
+            /**
+             * At
+             * @description Platsen för knappen, till exempel en nod.
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Modes
+             * @description Körströmmens lägen, 2R och 3R.
+             */
+            modes?: string[];
+            /**
+             * Codes
+             * @description Knappens kod per skal, till exempel L01 i 95.
+             */
+            codes?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelFunctionType
+         * @description The panel functions' catalogue. New functions are added here for all (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
+        /** PanelGrid */
+        "trainmeet.station-model-1.PanelGrid": {
+            /**
+             * Dx
+             * @description Rutans bredd.
+             */
+            dx: number;
+            /**
+             * Dy
+             * @description Rutans höjd.
+             */
+            dy: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelHidden */
+        "trainmeet.station-model-1.PanelHidden": {
+            /** Pieces */
+            pieces?: string[];
+            /** Switches */
+            switches?: string[];
+            /** Crossings */
+            crossings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelPiece */
+        "trainmeet.station-model-1.PanelPiece": {
+            /** Id */
+            id: string;
+            /**
+             * Reversed
+             * @description Spårbiten går åt andra hållet längs vägen.
+             * @default false
+             */
+            reversed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelPlacement */
+        "trainmeet.station-model-1.PanelPlacement": {
+            /** Piece */
+            piece: string;
+            /**
+             * At
+             * @description Läget längs spårbiten, 0 i början och 1 i slutet.
+             */
+            at: number;
+            /**
+             * Reversed
+             * @description Mot spårbitens riktning.
+             * @default false
+             */
+            reversed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelPlan
+         * @description Spårplan: the schematic panel, as the owner has redrawn it on the grid.
+         *
+         *     Del b builds and checks the panel from it; the model only holds it.
+         */
+        "trainmeet.station-model-1.PanelPlan": {
+            /**
+             * Basis
+             * @description Vad planen är ritad efter.
+             * @default null
+             */
+            basis: string | null;
+            grid: components["schemas"]["trainmeet.station-model-1.PanelGrid"];
+            /** @default null */
+            turntable: components["schemas"]["trainmeet.station-model-1.PanelTurntable"] | null;
+            /** Nodes */
+            nodes: {
+                [key: string]: [
+                    number,
+                    number
+                ];
+            };
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.station-model-1.PanelTrack"][];
+            /**
+             * Signals
+             * @description Var signalerna och de andra namngivna punkterna står: stoppunkter, utfarter och stoppbockar.
+             */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.PanelPlacement"];
+            };
+            /** Track Names */
+            track_names?: components["schemas"]["trainmeet.station-model-1.PanelTrackName"][];
+            /**
+             * Name Offset
+             * @description Spårnamnet över spåret.
+             * @default null
+             */
+            name_offset: number | null;
+            /** Platforms */
+            platforms?: [
+                number,
+                number,
+                number,
+                number
+            ][];
+            /** @default null */
+            building: components["schemas"]["trainmeet.station-model-1.PanelBuilding"] | null;
+            /**
+             * Function Sides
+             * @description Panelfunktionens knapp över eller under spåret.
+             */
+            function_sides?: {
+                [key: string]: "over" | "under";
+            };
+            /** @default null */
+            deviation: components["schemas"]["trainmeet.station-model-1.PanelDeviation"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelTrack
+         * @description A track on the grid: from a node to another, over the cells where it turns.
+         */
+        "trainmeet.station-model-1.PanelTrack": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Pieces */
+            pieces: components["schemas"]["trainmeet.station-model-1.PanelPiece"][];
+            /** Via */
+            via?: [
+                number,
+                number
+            ][];
+            /**
+             * Joints
+             * @description Skarvarna mellan spårbitarna, i rutor längs vägen.
+             */
+            joints?: number[];
+            /**
+             * Link
+             * @description Länken mellan två växlar i en korsväxel.
+             * @default false
+             */
+            link: boolean;
+            /**
+             * Free
+             * @description Får gå i vilken vinkel som helst.
+             * @default false
+             */
+            free: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelTrackName */
+        "trainmeet.station-model-1.PanelTrackName": {
+            /** Name */
+            name: string;
+            /** Piece */
+            piece: string;
+            /** At */
+            at: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelTurntable */
+        "trainmeet.station-model-1.PanelTurntable": {
+            /** Node */
+            node: string;
+            /** Radius */
+            radius: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.Position": "+" | "-";
+        /** Signal */
+        "trainmeet.station-model-1.Signal": {
+            /** Name */
+            name: string;
+            type: components["schemas"]["trainmeet.station-model-1.SignalType"];
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 3 …
+             * @default null
+             */
+            lamps: number | null;
+            /** Node */
+            node: string;
+            /**
+             * Approach
+             * @description Spårbiten tåget kommer på mot signalen. Signalen gäller i den riktningen.
+             */
+            approach: string;
+            /**
+             * Planned
+             * @description Planerad, finns inte än.
+             * @default false
+             */
+            planned: boolean;
+            /**
+             * @description Nivå 3.
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SlipPart
+         * @description One switch number in a slip, with its own position and lever, such as 22a in 22a/23.
+         */
+        "trainmeet.station-model-1.SlipPart": {
+            /** Number */
+            number: string;
+            /** @default null */
+            address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            /**
+             * Feedback
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Source
+         * @description Where an item in the model comes from (§2 "source", TKL41).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.Source": "drawn" | "photo" | "signal_plan" | "anyrail" | "jmri" | "assumed";
+        /**
+         * StationTrack
+         * @description Stationsspår: what the station's outside is made of (TKL92).
+         */
+        "trainmeet.station-model-1.StationTrack": {
+            /**
+             * Id
+             * @description Det korta namnet, till exempel 1a.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Till exempel Spår 1a.
+             */
+            label: string;
+            /** Pieces */
+            pieces?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Switch
+         * @description Växel, korsningsväxel eller korsning: the node where pieces divide or cross.
+         *
+         *     An ordinary switch or a Y-switch has a trunk, a straight leg (+) and a diverging leg (-); its
+         *     number is the part that a lever lays. A slip has four pieces, its parts and the paths through
+         *     it; a crossing without a switch has only the paths.
+         */
+        "trainmeet.station-model-1.Switch": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            type: components["schemas"]["trainmeet.station-model-1.SwitchType"];
+            /** Node */
+            node: string;
+            /**
+             * Trunk
+             * @description Stam.
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @description Rakt ben, läget +.
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @description Avvikande ben, läget -.
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Parts
+             * @description Korsningsväxelns delar.
+             */
+            parts?: components["schemas"]["trainmeet.station-model-1.SlipPart"][];
+            /** Paths */
+            paths?: components["schemas"]["trainmeet.station-model-1.SwitchPath"][];
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.station-model-1.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Design
+             * @description Hand och radie som källan säger.
+             * @default null
+             */
+            design: string | null;
+            /** @default null */
+            address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            /**
+             * Feedback
+             * @description Återrapport (nivå 3).
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchControl
+         * @description Who lays the switch. Only TKL's switches have a lever, and no route crosses another.
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * SwitchPath
+         * @description A way through a slip or a crossing: two of its pieces, and the positions it needs.
+         */
+        "trainmeet.station-model-1.SwitchPath": {
+            /** Between */
+            between: [
+                string,
+                string
+            ];
+            /**
+             * Positions
+             * @description Delarnas lägen. Tomt för en korsning utan växel.
+             */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * TrackCircuit
+         * @description Spårledning.
+         */
+        "trainmeet.station-model-1.TrackCircuit": {
+            /** Name */
+            name: string;
+            /** Pieces */
+            pieces: string[];
+            /**
+             * Detection
+             * @description Givare, eller utan.
+             * @default null
+             */
+            detection: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackPiece
+         * @description Spårbit: a piece of track from one node to another.
+         */
+        "trainmeet.station-model-1.TrackPiece": {
+            /** Id */
+            id: string;
+            /**
+             * Start
+             * @description Från-nod.
+             */
+            start: string;
+            /**
+             * End
+             * @description Till-nod.
+             */
+            end: string;
+            /**
+             * Track
+             * @description Spårnummer, till exempel 1, 31 eller 1a.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Geometry
+             * @description Verklig form ur ritningen, från start till slut, för den mjuka vyn (TKL42).
+             */
+            geometry?: [
+                number,
+                number
+            ][];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Turntable
+         * @description Vändskivan (RS4): its node and its tracks, with their angles.
+         */
+        "trainmeet.station-model-1.Turntable": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            /**
+             * Diameter
+             * @description I millimeter.
+             * @default null
+             */
+            diameter: number | null;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.station-model-1.TurntableTrack"][];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TurntableTrack */
+        "trainmeet.station-model-1.TurntableTrack": {
+            /** Piece */
+            piece: string;
+            /**
+             * Angle
+             * @description Strålens vinkel i grader, moturs från öster.
+             */
+            angle: number;
         } & {
             [key: string]: unknown;
         };
@@ -1070,9 +1883,15 @@ export interface components {
             versions?: components["schemas"]["trainmeet.tkl-1.studio.OutsideVersion"][];
             /**
              * Changed
-             * @description Listan skiljer sig från den senaste versionen.
+             * @description Listan eller stationsmodellen skiljer sig från den senaste versionen.
              */
             changed: boolean;
+            /**
+             * Station Model
+             * @description Stationen har en stationsmodell (nivå 1–2, #83).
+             * @default false
+             */
+            station_model: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1889,6 +2708,555 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklTrackPlan
+         * @description Spårplan i Studio: the model's summary, the checks, the routes and the panel.
+         */
+        "trainmeet.tkl-1.track-plan": {
+            summary: components["schemas"]["trainmeet.tkl-1.track-plan.TklModelSummary"];
+            checks: components["schemas"]["trainmeet.tkl-1.track-plan.TklChecks"];
+            /**
+             * Routes
+             * @description Vägarna per slag.
+             */
+            routes: {
+                [key: string]: number;
+            };
+            /** Route List */
+            route_list?: components["schemas"]["trainmeet.tkl-1.track-plan.TklRoute"][];
+            /**
+             * @description Inget när panelen inte går att bygga.
+             * @default null
+             */
+            panel: components["schemas"]["trainmeet.tkl-1.track-plan.Panel"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * Panel
+         * @description The station on the grid: the engine's proposal or the panel built from the station's
+         *     track plan. Columns grow to the east and rows downwards, in cells; a cell is `cell` wide
+         *     and high in pixels.
+         */
+        "trainmeet.tkl-1.track-plan.Panel": {
+            source: components["schemas"]["trainmeet.tkl-1.track-plan.PanelSource"];
+            /**
+             * Width
+             * @description I rutor.
+             */
+            width: number;
+            /**
+             * Height
+             * @description I rutor.
+             */
+            height: number;
+            /**
+             * Cell
+             * @description Rutans bredd och höjd i bildpunkter.
+             */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * @description Motorns vinkel. Spårplanens: inget.
+             * @default null
+             */
+            angle: components["schemas"]["trainmeet.tkl-1.track-plan.PanelAngle"] | null;
+            /**
+             * Rows
+             * @description Spårraderna, i motorns förslag.
+             * @default 0
+             */
+            rows: number;
+            /**
+             * Shortened
+             * @description Stationsspåren är kortade (STD-03).
+             * @default false
+             */
+            shortened: boolean;
+            /**
+             * Fields
+             * @description Fälten, när stationen inte får plats (STD-03).
+             */
+            fields?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelField"][];
+            /** Lines */
+            lines: components["schemas"]["trainmeet.tkl-1.track-plan.PanelLine"][];
+            /** Nodes */
+            nodes: components["schemas"]["trainmeet.tkl-1.track-plan.PanelNode"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelSwitch"][];
+            /** Signals */
+            signals?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelSignal"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelLabel"][];
+            /** Track Names */
+            track_names?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelTrackName"][];
+            /** Tables */
+            tables?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelTable"][];
+            /** Platforms */
+            platforms?: [
+                number,
+                number,
+                number,
+                number
+            ][];
+            /** @default null */
+            building: components["schemas"]["trainmeet.tkl-1.track-plan.PanelBuilding"] | null;
+            /**
+             * Real Box
+             * @description Ritningens ram för den mjuka vyn: x, y, bredd, höjd i mm.
+             * @default null
+             */
+            real_box: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelAngle
+         * @description The one transition angle of a panel (TKL6, STD-11).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.PanelAngle": "45" | "1:2";
+        /** PanelBuilding */
+        "trainmeet.tkl-1.track-plan.PanelBuilding": {
+            /** Cells */
+            cells: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelField
+         * @description A part of a station too wide for the screen, on the same grid (STD-03).
+         */
+        "trainmeet.tkl-1.track-plan.PanelField": {
+            /** Name */
+            name: string;
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelLabel
+         * @description A text in a fixed place: an exit at its row's end, a stop point, a buffer stop.
+         */
+        "trainmeet.tkl-1.track-plan.PanelLabel": {
+            /** Text */
+            text: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "exit" | "point";
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Anchor
+             * @default middle
+             * @enum {string}
+             */
+            anchor: "start" | "middle" | "end";
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelLine
+         * @description A track piece on the panel: its way over the grid, and its real shape for the soft view.
+         */
+        "trainmeet.tkl-1.track-plan.PanelLine": {
+            /** Piece */
+            piece: string;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Cells
+             * @description Från spårbitens början till slutet.
+             */
+            cells: [
+                number,
+                number
+            ][];
+            /**
+             * Real
+             * @description Ritningens form (TKL42).
+             */
+            real?: [
+                number,
+                number
+            ][];
+            /**
+             * Free
+             * @description Vid vändskivan: i vilken vinkel som helst.
+             * @default false
+             */
+            free: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelNode */
+        "trainmeet.tkl-1.track-plan.PanelNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.tkl-1.track-plan.NodeType"];
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelSignal
+         * @description A signal: its symbol in the track line, or beside it for a stop lamp (TKL45), and its id
+         *     over the track for a signal towards the east and under for one towards the west, outside
+         *     the pair on a double-track line (TKL43).
+         */
+        "trainmeet.tkl-1.track-plan.PanelSignal": {
+            /** Name */
+            name: string;
+            type: components["schemas"]["trainmeet.tkl-1.track-plan.SignalType"];
+            /** Node */
+            node: string;
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Toward
+             * @description Färdriktningen som signalen gäller, i rutor.
+             */
+            toward: [
+                number,
+                number
+            ];
+            /** Symbol */
+            symbol: [
+                number,
+                number
+            ];
+            /** Label */
+            label: [
+                number,
+                number
+            ];
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "over" | "under";
+            /**
+             * Planned
+             * @default false
+             */
+            planned: boolean;
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+            /**
+             * Real Toward
+             * @default null
+             */
+            real_toward: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelSource
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.PanelSource": "engine" | "plan";
+        /**
+         * PanelSwitch
+         * @description A switch, slip or crossing, with its legs and where its number stands (§3.4).
+         */
+        "trainmeet.tkl-1.track-plan.PanelSwitch": {
+            /** Number */
+            number: string;
+            type: components["schemas"]["trainmeet.tkl-1.track-plan.SwitchType"];
+            /** Node */
+            node: string;
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Pieces
+             * @description Korsningens fyra spårbitar.
+             */
+            pieces?: string[];
+            /**
+             * Label
+             * @description Växelnumret, vid knuten.
+             */
+            label: [
+                number,
+                number
+            ];
+            /**
+             * Laid
+             * @description TKL lägger den.
+             * @default true
+             */
+            laid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelTable
+         * @description The turntable: its centre and radius on the grid and in the drawing.
+         */
+        "trainmeet.tkl-1.track-plan.PanelTable": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Radius
+             * @description I rutor, vågrätt.
+             */
+            radius: number;
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+            /**
+             * Real Radius
+             * @default null
+             */
+            real_radius: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelTrackName
+         * @description The track number mid-track, with the train number's box right after it (§3.4).
+         */
+        "trainmeet.tkl-1.track-plan.PanelTrackName": {
+            /** Name */
+            name: string;
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /** Train Number */
+            train_number: [
+                number,
+                number
+            ];
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.Position": "+" | "-";
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.RouteKind": "train" | "shunting";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * TklChecks
+         * @description The checks before the model may run (§6, STD-04).
+         */
+        "trainmeet.tkl-1.track-plan.TklChecks": {
+            /**
+             * Problems
+             * @description Stoppar körningen.
+             */
+            problems?: string[];
+            /**
+             * Notes
+             * @description Visas men stoppar inte.
+             */
+            notes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklModelSummary */
+        "trainmeet.tkl-1.track-plan.TklModelSummary": {
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Pieces */
+            pieces: number;
+            /** Switches */
+            switches: number;
+            /** Levers */
+            levers: number;
+            /** Signals */
+            signals: number;
+            /** Track Circuits */
+            track_circuits: number;
+            /** Station Tracks */
+            station_tracks?: string[];
+            /** Line Exits */
+            line_exits?: string[];
+            /**
+             * Turntables
+             * @default 0
+             */
+            turntables: number;
+            /**
+             * Plan
+             * @description Stationen har en egen spårplan (STD-25).
+             */
+            plan: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklRoute
+         * @description A route the engine derived: read-only, for showing on the panel (STD-07).
+         */
+        "trainmeet.tkl-1.track-plan.TklRoute": {
+            kind: components["schemas"]["trainmeet.tkl-1.track-plan.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Pieces */
+            pieces: string[];
+            /** Positions */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.track-plan.Position"];
+            };
+            /**
+             * Turntable
+             * @default null
+             */
+            turntable: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklReference
+         * @description A reference station (TKL40): for trying, read-only.
+         */
+        "trainmeet.tkl-1.reference": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Plan */
+            plan: boolean;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -2310,6 +3678,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.saved"];
+                };
+            };
+        };
+    };
+    tklStationModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
+                };
+            };
+        };
+    };
+    tklImportModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.station-model-1"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
+                };
+            };
+        };
+    };
+    tklForgetModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.studio"];
+                };
+            };
+        };
+    };
+    tklReferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.reference"][];
+                };
+            };
+        };
+    };
+    tklReference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
+                };
+            };
+        };
+    };
+    tklUseReference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
                 };
             };
         };

@@ -5,11 +5,17 @@
 - Every track circuit has a name and at least one piece.
 - The levers have unambiguous positions.
 - No number or name is used twice.
-- Every line exit has a neighbouring station.
 - At level 3: addresses are unique per bus, and every switch has feedback or "without".
+- The panel can be made: the station's own track plan holds (STD-26, STD-28), or, without one,
+  the engine lays the station out so that it fits, or proposes fields (STD-03).
 
-That the panel's layout fits is the layout's check (del b). The model itself may be saved with
-problems, so that Studio can keep a station that is not finished; it just may not run.
+Some findings are notes, not problems: they are shown, but the model may still run. A line exit
+without a neighbouring station is one, since an exit is tied to a section per meet (H26, Utfart
+in ORDLISTA), so the neighbour is not known in the station file. So are the fields the engine
+proposes, and a panel too high for the screen.
+
+The model itself may be saved with problems, so that Studio can keep a station that is not
+finished; it just may not run.
 """
 
 from __future__ import annotations
@@ -24,7 +30,9 @@ from contracts.station_model import (
     SwitchControl,
     SwitchType,
 )
+from tkl.standard import plan
 from tkl.standard.graph import SLIP_TYPES, Graph, Step, parts
+from tkl.standard.layout import FITS, LayoutError, lay_out
 from tkl.standard.levers import Levers, own_parts
 from tkl.standard.routes import TRAIN_ENDS, TRAIN_STARTS
 
@@ -39,7 +47,17 @@ ONE_PIECE = {NodeType.BUFFER_STOP, NodeType.LINE_EXIT}
 
 def problems(model: StationModel) -> list[str]:
     """Everything that stops the model from running. Empty: it may run."""
-    return [
+    return checks(model)[0]
+
+
+def notes(model: StationModel) -> list[str]:
+    """What is shown with the model but does not stop it."""
+    return checks(model)[1]
+
+
+def checks(model: StationModel) -> tuple[list[str], list[str]]:
+    """The problems, which stop the model from running, and the notes, which do not."""
+    found = [
         *_twice(model),
         *_graph(model),
         *_switches(model),
@@ -49,6 +67,40 @@ def problems(model: StationModel) -> list[str]:
         *_line_exits(model),
         *(_level_3(model) if model.level == 3 else []),
     ]
+    remarks = _neighbours(model)
+    if not found:
+        trouble, more = _panel(model)
+        found += trouble
+        remarks += more
+    return found, remarks
+
+
+def _neighbours(model: StationModel) -> list[str]:
+    return [
+        f"Linjeutfarten {e.id} saknar grannstation." for e in model.line_exits if not e.neighbour
+    ]
+
+
+def _panel(model: StationModel) -> tuple[list[str], list[str]]:
+    """The panel can be made: from the station's own track plan, or by the engine (§6)."""
+    if model.panel is not None:
+        return plan.problems(model), []
+    try:
+        found = lay_out(model)
+    except LayoutError as error:
+        return [f"Motorn kan inte lägga ut panelen. {error}"], []
+    remarks: list[str] = []
+    if found.fields:
+        remarks.append(
+            f"Stationen får inte plats på skärmen ({found.width:g} rutor bred, högst "
+            f"{FITS[0]}): motorn föreslår {len(found.fields)} fält."
+        )
+    if found.height > FITS[1]:
+        remarks.append(
+            f"Panelen är {found.height:g} rutor hög och får inte plats på skärmen på höjden "
+            f"(högst {FITS[1]})."
+        )
+    return [], remarks
 
 
 def _repeated(names: Iterable[str]) -> list[str]:
@@ -253,8 +305,6 @@ def _line_exits(model: StationModel) -> list[str]:
             found.append(
                 f"Linjeutfarten {line.id} står i noden {line.node}, som inte är en utfart."
             )
-        if not line.neighbour:
-            found.append(f"Linjeutfarten {line.id} saknar grannstation.")
     return found
 
 

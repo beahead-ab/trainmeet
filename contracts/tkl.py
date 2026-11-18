@@ -8,13 +8,18 @@ protocol (contracts/station.py), nothing else.
 
 Level 0 (TKL21, KLAR-15): the tracks and exits are written as a list, without a drawing. The
 list is the station's outside; a new version of it is made with a button (TKL25).
+
+Level 1–2 (#83): the station's model (contracts/station_model.py) is imported in Studio and kept
+with the station, versioned with the outside. The web app draws the station as a panel: the
+layout engine's proposal on the grid, or the panel built from the station's own track plan
+(STD-09, STD-25). The four reference stations can be looked at and used as one's own.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Final
+from typing import Final, Literal
 
 from pydantic import Field
 
@@ -26,6 +31,16 @@ from contracts.station import (
     MessageId,
     Revision,
     Snapshot,
+)
+from contracts.station_model import (
+    Cell,
+    Name,
+    NodeType,
+    PanelBuilding,
+    Point,
+    Position,
+    SignalType,
+    SwitchType,
 )
 from contracts.station_outside import StationOutside
 
@@ -82,7 +97,12 @@ class TklStudio(Contract):
 
     draft: StationOutside
     versions: list[OutsideVersion] = Field(default_factory=list, description="Senaste först.")
-    changed: bool = Field(description="Listan skiljer sig från den senaste versionen.")
+    changed: bool = Field(
+        description="Listan eller stationsmodellen skiljer sig från den senaste versionen."
+    )
+    station_model: bool = Field(
+        default=False, description="Stationen har en stationsmodell (nivå 1–2, #83)."
+    )
 
 
 class FoundHub(Contract):
@@ -159,3 +179,202 @@ class TklSaved(Contract):
         default=None, description="Molnet har en nyare version, sparad från en annan dator."
     )
     message: Text | None = None
+
+
+# --- The panel: the station on the grid (#83, §3 of the standard interlocking) ------------
+
+
+class PanelAngle(StrEnum):
+    """The one transition angle of a panel (TKL6, STD-11)."""
+
+    STEEP = "45"  # 45°: 3 rutor i sidled per spår
+    FLAT = "1:2"  # flackt 1:2, ca 27°: 6 rutor i sidled per spår
+
+
+class PanelSource(StrEnum):
+    ENGINE = "engine"  # motorns förslag (STD-09)
+    PLAN = "plan"  # byggd ur stationens spårplan (STD-25)
+
+
+LabelSide = Literal["over", "under"]
+Anchor = Literal["start", "middle", "end"]
+
+
+class PanelLine(Contract):
+    """A track piece on the panel: its way over the grid, and its real shape for the soft view."""
+
+    piece: Name
+    track: Text | None = None
+    cells: list[Cell] = Field(min_length=2, description="Från spårbitens början till slutet.")
+    real: list[Point] = Field(default_factory=list, description="Ritningens form (TKL42).")
+    free: bool = Field(default=False, description="Vid vändskivan: i vilken vinkel som helst.")
+
+
+class PanelNode(Contract):
+    id: Name
+    type: NodeType
+    cell: Cell
+    real: Point | None = None
+
+
+class PanelSwitch(Contract):
+    """A switch, slip or crossing, with its legs and where its number stands (§3.4)."""
+
+    number: Name
+    type: SwitchType
+    node: Name
+    cell: Cell
+    real: Point | None = None
+    trunk: Name | None = None
+    straight: Name | None = None
+    diverging: Name | None = None
+    pieces: list[Name] = Field(default_factory=list, description="Korsningens fyra spårbitar.")
+    label: Cell = Field(description="Växelnumret, vid knuten.")
+    laid: bool = Field(default=True, description="TKL lägger den.")
+
+
+class PanelSignal(Contract):
+    """A signal: its symbol in the track line, or beside it for a stop lamp (TKL45), and its id
+    over the track for a signal towards the east and under for one towards the west, outside
+    the pair on a double-track line (TKL43)."""
+
+    name: Name
+    type: SignalType
+    node: Name
+    cell: Cell
+    toward: Cell = Field(description="Färdriktningen som signalen gäller, i rutor.")
+    symbol: Cell
+    label: Cell
+    side: LabelSide
+    planned: bool = False
+    real: Point | None = None
+    real_toward: Point | None = None
+
+
+class PanelLabel(Contract):
+    """A text in a fixed place: an exit at its row's end, a stop point, a buffer stop."""
+
+    text: Text
+    kind: Literal["exit", "point"]
+    cell: Cell
+    anchor: Anchor = "middle"
+    real: Point | None = None
+
+
+class PanelTrackName(Contract):
+    """The track number mid-track, with the train number's box right after it (§3.4)."""
+
+    name: Text
+    cell: Cell
+    train_number: Cell
+    real: Point | None = None
+
+
+class PanelTable(Contract):
+    """The turntable: its centre and radius on the grid and in the drawing."""
+
+    id: Name
+    node: Name
+    cell: Cell
+    radius: float = Field(gt=0, description="I rutor, vågrätt.")
+    real: Point | None = None
+    real_radius: float | None = None
+
+
+class PanelField(Contract):
+    """A part of a station too wide for the screen, on the same grid (STD-03)."""
+
+    name: Text
+    start: float
+    end: float
+
+
+class Panel(Contract):
+    """The station on the grid: the engine's proposal or the panel built from the station's
+    track plan. Columns grow to the east and rows downwards, in cells; a cell is `cell` wide
+    and high in pixels."""
+
+    source: PanelSource
+    width: float = Field(description="I rutor.")
+    height: float = Field(description="I rutor.")
+    cell: tuple[float, float] = Field(description="Rutans bredd och höjd i bildpunkter.")
+    angle: PanelAngle | None = Field(
+        default=None, description="Motorns vinkel. Spårplanens: inget."
+    )
+    rows: int = Field(default=0, ge=0, description="Spårraderna, i motorns förslag.")
+    shortened: bool = Field(default=False, description="Stationsspåren är kortade (STD-03).")
+    fields: list[PanelField] = Field(
+        default_factory=list, description="Fälten, när stationen inte får plats (STD-03)."
+    )
+    lines: list[PanelLine]
+    nodes: list[PanelNode]
+    switches: list[PanelSwitch] = Field(default_factory=list)
+    signals: list[PanelSignal] = Field(default_factory=list)
+    labels: list[PanelLabel] = Field(default_factory=list)
+    track_names: list[PanelTrackName] = Field(default_factory=list)
+    tables: list[PanelTable] = Field(default_factory=list)
+    platforms: list[tuple[float, float, float, float]] = Field(default_factory=list)
+    building: PanelBuilding | None = None
+    real_box: tuple[float, float, float, float] | None = Field(
+        default=None, description="Ritningens ram för den mjuka vyn: x, y, bredd, höjd i mm."
+    )
+
+
+# --- The station's model in Studio, and the reference stations (#83) -----------------------
+
+
+class TklChecks(Contract):
+    """The checks before the model may run (§6, STD-04)."""
+
+    problems: list[Text] = Field(default_factory=list, description="Stoppar körningen.")
+    notes: list[Text] = Field(default_factory=list, description="Visas men stoppar inte.")
+
+
+class RouteKind(StrEnum):
+    TRAIN = "train"  # tågväg
+    SHUNTING = "shunting"  # växlingsväg
+
+
+class TklRoute(Contract):
+    """A route the engine derived: read-only, for showing on the panel (STD-07)."""
+
+    kind: RouteKind
+    start: Name
+    end: Name
+    pieces: list[Name]
+    positions: dict[Name, Position] = Field(default_factory=dict)
+    turntable: Name | None = None
+
+
+class TklModelSummary(Contract):
+    station_id: Id
+    name: Text
+    level: int = Field(ge=1, le=3)
+    pieces: int = Field(ge=0)
+    switches: int = Field(ge=0)
+    levers: int = Field(ge=0)
+    signals: int = Field(ge=0)
+    track_circuits: int = Field(ge=0)
+    station_tracks: list[Text] = Field(default_factory=list)
+    line_exits: list[Name] = Field(default_factory=list)
+    turntables: int = Field(default=0, ge=0)
+    plan: bool = Field(description="Stationen har en egen spårplan (STD-25).")
+
+
+class TklTrackPlan(Contract):
+    """Spårplan i Studio: the model's summary, the checks, the routes and the panel."""
+
+    summary: TklModelSummary
+    checks: TklChecks
+    routes: dict[RouteKind, int] = Field(description="Vägarna per slag.")
+    route_list: list[TklRoute] = Field(default_factory=list)
+    panel: Panel | None = Field(default=None, description="Inget när panelen inte går att bygga.")
+
+
+class TklReference(Contract):
+    """A reference station (TKL40): for trying, read-only."""
+
+    id: Id
+    name: Text
+    level: int = Field(ge=1, le=3)
+    plan: bool

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.reference.schema.json",
+  "title": "trainmeet.tkl-1.reference",
+  "additionalProperties": true,
+  "description": "A reference station (TKL40): for trying, read-only.",
+  "properties": {
+    "id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "level": {
+      "maximum": 3,
+      "minimum": 1,
+      "title": "Level",
+      "type": "integer"
+    },
+    "plan": {
+      "title": "Plan",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "level",
+    "plan"
+  ],
+  "type": "object"
+}

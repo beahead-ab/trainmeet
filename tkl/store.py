@@ -1,6 +1,10 @@
 """What TKL keeps on the computer (KLAR-08): the station, its outside and its versions, the PIN
 that locks it, and the connection to a meet with the key from the approval.
 
+From level 1 the station also has its model (contracts/station_model.py, #83). It is kept with
+the station and versioned with the outside: a new version of the outside holds the model as it
+was, and both go to the cloud together as the station package (SYNK-30).
+
 The PIN is never stored, only an scrypt hash with its own salt, and wrong attempts are counted
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
 or a log (H31).
@@ -28,6 +32,7 @@ from typing import Final
 
 from contracts import station
 from contracts.common import Side
+from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.tkl import OutsideVersion, TklStation, TklStudio
 
@@ -72,6 +77,14 @@ CREATE TABLE IF NOT EXISTS connection (
     address TEXT NOT NULL, relay TEXT, hub_name TEXT, client_id TEXT NOT NULL,
     status TEXT NOT NULL, places TEXT NOT NULL, key TEXT, outside_version INTEGER NOT NULL,
     message TEXT
+);
+CREATE TABLE IF NOT EXISTS station_model (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS model_version (
+    slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
+    PRIMARY KEY (slot, number),
+    FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS seen (
     slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
@@ -297,14 +310,56 @@ class TklStore:
             (slot,),
         ).fetchall()
         latest = StationOutside.model_validate_json(versions[0][2]) if versions else None
+        model = self._model(db, slot)
+        latest_model = self._model_of(db, slot, versions[0][0]) if versions else None
         return TklStudio(
             draft=draft,
             versions=[
                 OutsideVersion(number=number, saved=datetime.fromtimestamp(saved, UTC))
                 for number, saved, _ in versions
             ],
-            changed=latest != draft,
+            changed=latest != draft or latest_model != model,
+            station_model=model is not None,
         )
+
+    @staticmethod
+    def _model(db: sqlite3.Connection, slot: str) -> str | None:
+        row = db.execute("SELECT body FROM station_model WHERE slot=?", (slot,)).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _model_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
+        row = db.execute(
+            "SELECT body FROM model_version WHERE slot=? AND number=?", (slot, number)
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    # --- The station's model (#83): kept with the station, versioned with the outside ------
+
+    def station_model(self, slot: str) -> StationModel | None:
+        with self._transaction() as db:
+            body = self._model(db, slot)
+        return None if body is None else StationModel.model_validate_json(body)
+
+    def save_model(self, slot: str, model: StationModel) -> StationModel:
+        """The station's model, with the station's own id and name. The station's level
+        follows it: 1 or 2; level 3 needs the addresses on the bus, which come later."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT station_id, name FROM station WHERE slot=?", (slot,)
+            ).fetchone()
+            if row is None:
+                raise NotSetUp()
+            kept = model.model_copy(update={"station_id": row[0], "name": row[1]})
+            db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
+            db.execute("UPDATE station SET level=? WHERE slot=?", (min(kept.level, 2), slot))
+        return kept
+
+    def forget_model(self, slot: str) -> None:
+        """Back to level 0: the list without a model."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
+            db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     def save_draft(self, slot: str, outside: StationOutside) -> TklStudio:
         """The list as it stands, saved on the computer. Its id and name are the station's."""
@@ -334,10 +389,18 @@ class TklStore:
                     "INSERT INTO outside_version VALUES (?, ?, ?, ?)",
                     (slot, number, now_utc().timestamp(), studio.draft.model_dump_json()),
                 )
+                model = self._model(db, slot)
+                if model is not None:
+                    db.execute("INSERT INTO model_version VALUES (?, ?, ?)", (slot, number, model))
             return self._studio(db, slot)
 
     def latest_outside(self, slot: str) -> tuple[int, StationOutside]:
         """The latest version, made from the list if there is none yet."""
+        number, outside, _ = self.latest_package(slot)
+        return number, outside
+
+    def latest_package(self, slot: str) -> tuple[int, StationOutside, StationModel | None]:
+        """The latest version: the outside, and the model as it was then, if any."""
         studio = self.studio(slot)
         if not studio.versions:
             studio = self.new_version(slot)
@@ -346,7 +409,12 @@ class TklStore:
             body = db.execute(
                 "SELECT body FROM outside_version WHERE slot=? AND number=?", (slot, number)
             ).fetchone()[0]
-        return number, StationOutside.model_validate_json(body)
+            model = self._model_of(db, slot, number)
+        return (
+            number,
+            StationOutside.model_validate_json(body),
+            None if model is None else StationModel.model_validate_json(model),
+        )
 
     # --- TrainMeet ID (TKL18, #78) and the cloud (SYNK-30) -------------------------------------
 

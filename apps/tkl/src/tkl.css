@@ -381,3 +381,161 @@ label.kryss input {
     display: none;
   }
 }
+
+/* Studio: Utsidan and Spårplan */
+.studio-flikar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.studio-flikar button[aria-current="page"] {
+  background: var(--tm-blue-soft);
+  border-color: var(--tm-blue);
+  font-weight: 600;
+}
+
+/* Spårplan (#83): the panel in one neutral style close to skin 85. Black ground (STV-42), grey
+   track, the route in its colour, the signal in the track line with its id beside it. */
+.sparplan .val-rad {
+  margin-bottom: 12px;
+}
+.sparplan .spar-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sparplan .spar-val button[aria-pressed="true"] {
+  background: var(--tm-head);
+  border-color: var(--tm-head);
+  color: var(--tm-head-text);
+}
+.panel-ram {
+  background: #000;
+  border-radius: 10px;
+  overflow: auto;
+  margin: 10px 0 6px;
+}
+svg.panel {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72vh;
+  font-family: var(--tm-mono);
+}
+svg.panel .botten {
+  fill: #000;
+}
+svg.panel .spar polyline,
+svg.panel .vag-linje polyline {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: butt;
+}
+svg.panel .spar polyline {
+  stroke: #8c8c8c;
+}
+svg.panel .vag-linje.tagvag polyline {
+  stroke: #7fd13b;
+}
+svg.panel .vag-linje.vaxling polyline {
+  stroke: #f2d33a;
+}
+svg.panel .blockgrans {
+  stroke: #000;
+}
+svg.panel .skiva {
+  fill: #000;
+  stroke: #8c8c8c;
+}
+svg.panel .perrong {
+  fill: #2b2b2b;
+}
+svg.panel .hus rect {
+  fill: none;
+  stroke: #b8b8b8;
+}
+svg.panel .hus text,
+svg.panel .utfart,
+svg.panel .spar-namn text {
+  fill: #f2f2f2;
+}
+svg.panel .vaxelnummer text,
+svg.panel .punkt {
+  fill: #a8a8a8;
+}
+svg.panel .tagnummer {
+  fill: none;
+  stroke: #444;
+}
+svg.panel .signal polygon,
+svg.panel .signal circle {
+  fill: #000;
+  stroke: #f2f2f2;
+}
+svg.panel .signal.dvsi polygon {
+  fill: #f2f2f2;
+}
+svg.panel .signal.hdvsi line {
+  stroke: #f2f2f2;
+}
+svg.panel .signal.stop_lamp polygon {
+  fill: #e0352b;
+  stroke: #e0352b;
+}
+svg.panel .signal text {
+  fill: #f5d90a;
+}
+svg.panel .signal.planerad {
+  opacity: 0.4;
+}
+.forklaring .farg {
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 4px 0 10px;
+}
+.forklaring .farg.ledigt {
+  background: #8c8c8c;
+  margin-left: 0;
+}
+.forklaring .farg.tagvag {
+  background: #7fd13b;
+}
+.forklaring .farg.vaxling {
+  background: #f2d33a;
+}
+.sparplan-kolumner {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+.sparplan .problem li {
+  color: #c4352b;
+}
+.sparplan .ok {
+  color: #1f7a3a;
+  font-weight: 600;
+}
+.vag-knappar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.vag-knappar button {
+  font-family: var(--tm-mono);
+  font-size: 13px;
+  padding: 3px 8px;
+}
+.vag-knappar button.vag.train[aria-pressed="true"] {
+  background: #7fd13b;
+  border-color: #5fa526;
+}
+.vag-knappar button.vag.shunting[aria-pressed="true"] {
+  background: #f2d33a;
+  border-color: #c9ab18;
+}
+@media (max-width: 980px) {
+  .sparplan-kolumner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

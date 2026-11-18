@@ -149,6 +149,7 @@ export function Studio({ studio, onSave, onVersion }: { studio: StudioData; onSa
         <span className="liten">
           {latest ? `Version ${latest.number} · ${new Date(latest.saved).toLocaleString("sv-SE")}` : "Ingen version än"}
           {studio.changed || dirty ? " · listan har ändrats sedan dess" : ""}
+          {studio.station_model ? " · stationsmodellen följer med versionen" : ""}
         </span>
         <span className="tm-fyll" />
         <button type="button" disabled={!dirty || wrong.length > 0} onClick={() => void save()}>

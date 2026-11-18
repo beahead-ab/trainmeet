@@ -112,6 +112,15 @@ describe("Tåg (KLAR-03, H22, H32)", () => {
     expect(html).toContain("Inget har hänt sedan sidan öppnades.");
   });
 
+  it("stays at level 0 when the station has a track plan, and says the rest comes next (#83)", () => {
+    const view = { snapshot: base, stale: false, heard: null, message: null };
+    const plain = renderToStaticMarkup(<Stallverket view={view} outside={outside} journal={[]} sounds={readSounds(null)} busy={false} onSend={() => undefined} onExit={() => undefined} />);
+    expect(plain).not.toContain("Stationen har en spårplan");
+    const html = renderToStaticMarkup(<Stallverket view={view} level={2} outside={outside} journal={[]} sounds={readSounds(null)} busy={false} onSend={() => undefined} onExit={() => undefined} />);
+    expect(html).toContain("Stationen har en spårplan; ställverket på nivå 1–2 kommer med nästa steg.");
+    expect(html).toContain("Klarering utan spårplan.");
+  });
+
   it("asks for the line for the train at the station, when it may", () => {
     const free = { ...base, sections: base.sections.map((s) => ({ ...s, occupied: false })), on_the_way: [], clearances: [] };
     const [toNorrby, toMellana] = blocks(free, outside);
