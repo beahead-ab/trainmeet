@@ -16,7 +16,16 @@ from typing import Annotated, Final
 from uuid import UUID
 
 import httpx
-from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import (
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+)
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -25,12 +34,14 @@ from fastapi.responses import (
     RedirectResponse,
 )
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
-from catalog import fleet_api, id_login, login, migrate, tags_api
+from catalog import fleet_api, id_login, login, migrate, pictures_api, tags_api
 from catalog.access import Access
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
+from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store_for
 from catalog.settings import Settings, from_env
 from catalog.tags import Tags
 from contracts.catalog import (
@@ -52,12 +63,19 @@ from contracts.common import AppKey
 LOGGER = logging.getLogger("catalog")
 API = "/api/catalog/1"
 
-# Only the app's own files run; nothing is loaded from another site (WCAG and privacy).
-CONTENT_SECURITY_POLICY: Final = (
-    "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
-    "font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; "
-    "form-action 'self'; frame-ancestors 'none'; object-src 'none'"
-)
+
+def content_security_policy(pictures_origin: str | None = None) -> str:
+    """Only the app's own files run; nothing is loaded from another site (WCAG and privacy).
+    The one exception is the pictures in Object Storage, from exactly its origin (CAT-130)."""
+    images = "'self' data: blob:" + (f" {pictures_origin}" if pictures_origin else "")
+    return (
+        f"default-src 'self'; img-src {images}; style-src 'self'; script-src 'self'; "
+        "font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; "
+        "form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+    )
+
+
+CONTENT_SECURITY_POLICY: Final = content_security_policy()
 SECURITY_HEADERS: Final = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "X-Content-Type-Options": "nosniff",
@@ -75,14 +93,20 @@ IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
 
 
 class SecurityHeaders(BaseHTTPMiddleware):
+    def __init__(self, app: ASGIApp, headers: dict[str, str] = SECURITY_HEADERS) -> None:
+        super().__init__(app)
+        self.headers = headers
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         response = await call_next(request)
-        for key, value in SECURITY_HEADERS.items():
+        for key, value in self.headers.items():
             response.headers.setdefault(key, value)
-        if request.url.path.startswith("/api/"):
-            # Answers about a person are never kept by a browser or a proxy.
+        path = request.url.path
+        if path.startswith("/api/") and not path.startswith(FILES_PATH):
+            # Answers about a person are never kept by a browser or a proxy. A picture's file
+            # is kept by the browser until its signed address expires (CAT-130).
             response.headers["Cache-Control"] = "private, no-store"
         return response
 
@@ -98,8 +122,14 @@ def _web_file(web_dir: Path, path: str) -> Path | None:
     return None
 
 
-def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None = None) -> FastAPI:
-    """The app. id_http is how Catalog reaches TrainMeet ID; the tests give a pretend ID."""
+def create_app(
+    settings: Settings | None = None,
+    *,
+    id_http: httpx.Client | None = None,
+    picture_limits: PictureLimits | None = None,
+) -> FastAPI:
+    """The app. id_http is how Catalog reaches TrainMeet ID; the tests give a pretend ID.
+    picture_limits are the free level for the pictures; the tests give tiny ones."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     sessions = login.Sessions(db)
@@ -110,6 +140,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     id_api = settings.id if settings.id is not None and settings.id.api else None
     access = Access(IdRoles(id_api, http) if id_api is not None else None)
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
+    pictures = Pictures(db, store_for(settings), picture_limits)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -128,6 +159,15 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
             settings.build.version,
             migrate.current_version(settings.database_url),
         )
+        LOGGER.info(
+            "Bilderna sparas %s.",
+            "i Object Storage" if isinstance(pictures.store, S3Store) else "på disken",
+        )
+        # Files left from before: removed pictures', and uploads that stopped halfway.
+        try:
+            pictures.sweep()
+        except Exception as error:
+            LOGGER.warning("Bildfilerna kunde inte städas vid starten: %s", type(error).__name__)
         try:
             yield
         finally:
@@ -143,8 +183,16 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         openapi_url=None,
         lifespan=lifespan,
     )
-    app.add_middleware(SecurityHeaders)
+    pictures_origin = settings.pictures_s3.origin if settings.pictures_s3 else None
+    app.add_middleware(
+        SecurityHeaders,
+        headers={
+            **SECURITY_HEADERS,
+            "Content-Security-Policy": content_security_policy(pictures_origin),
+        },
+    )
     app.state.db = db
+    app.state.pictures = pictures
 
     @app.exception_handler(Refused)
     def refused(_: Request, error: Refused) -> JSONResponse:
@@ -298,7 +346,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         set_cookie(response, request, key)
         return Session(account=account, login=login_kind, simulated_tags=settings.simulated_tags)
 
-    fleet = Fleet(db, tag_base=settings.tag_base)
+    fleet = Fleet(db, tag_base=settings.tag_base, main_pictures=pictures.main_links)
     tags = Tags(
         db,
         base=settings.tag_base,
@@ -319,10 +367,14 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         return fleet.export(person)
 
     @app.post(API + "/id/removed")
-    def removed_by_id(body: OwnersRemoved, _: None = Depends(from_id)) -> RemovedCount:
-        """The account is removed in ID: its fleet goes, and the clubs' that went with it."""
+    def removed_by_id(
+        body: OwnersRemoved, background: BackgroundTasks, _: None = Depends(from_id)
+    ) -> RemovedCount:
+        """The account is removed in ID: its fleet goes, and the clubs' that went with it. Their
+        pictures' files are deleted after the answer has gone."""
         removed = fleet.remove_owners(list(body.owners))
         LOGGER.info("ID tog bort %d ägare i Catalog.", removed)
+        background.add_task(pictures.sweep)
         return RemovedCount(removed=removed)
 
     @app.get(API + "/fleets")
@@ -352,8 +404,9 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         fleet.ensure_owners([(f.owner, f.title.removeprefix("Vagnparken · ")) for f in shared])
         return [mine, *shared]
 
-    app.include_router(fleet_api.router(fleet, logged_in, access))
+    app.include_router(fleet_api.router(fleet, logged_in, access, sweep=pictures.sweep))
     app.include_router(tags_api.router(fleet, tags, logged_in, access))
+    app.include_router(pictures_api.router(pictures, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

@@ -49,7 +49,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "The core fields the owner writes (CAT-53). Images, tag and prototype come later.",
+  "description": "The core fields the owner writes (CAT-53). The pictures and the tag have addresses of\ntheir own; the prototype comes later.",
   "properties": {
     "status": {
       "$ref": "#/$defs/VehicleStatus",

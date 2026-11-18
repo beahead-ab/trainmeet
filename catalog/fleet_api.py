@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
 from catalog.access import Access, Right, Work, shown, shown_list
 from catalog.fleet import Fleet, Refused
@@ -54,7 +54,15 @@ def needs(
     return check
 
 
-def router(fleet: Fleet, logged_in: Callable[..., Account | None], access: Access) -> APIRouter:
+def router(
+    fleet: Fleet,
+    logged_in: Callable[..., Account | None],
+    access: Access,
+    *,
+    sweep: Callable[[], object] | None = None,
+) -> APIRouter:
+    """sweep deletes the removed pictures' files, after the answer has gone (CAT-130)."""
+
     def person(account: Annotated[Account | None, Depends(logged_in)]) -> UUID:
         if account is None:
             raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
@@ -115,8 +123,12 @@ def router(fleet: Fleet, logged_in: Callable[..., Account | None], access: Acces
         return shown(fleet.change(work.owner, vehicle, body), work)
 
     @routes.delete("/vehicles/{vehicle}")
-    def remove_vehicle(vehicle: UUID, version: int, work: Own) -> Removed:
+    def remove_vehicle(
+        vehicle: UUID, version: int, work: Own, background: BackgroundTasks
+    ) -> Removed:
         fleet.remove(work.owner, vehicle, version)
+        if sweep is not None:
+            background.add_task(sweep)
         return Removed(id=vehicle)
 
     @routes.post("/vehicles/{vehicle}/lend")

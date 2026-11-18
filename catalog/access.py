@@ -5,8 +5,11 @@ The owner may do everything. Someone the fleet is shared with gets the right ID 
 the action needs more.
 
 What each right gives (CAT-46, CAT-47, CAT-71, CAT-74, CAT-77):
-- look: the fleet, the cards and the places' names. That a vehicle has a tag, never the tag.
-- edit: as look, and change the core fields and add vehicles. The place stays the owner's.
+- look: the fleet, the cards, the pictures and the places' names. That a vehicle has a tag,
+  never the tag.
+- edit: as look, and change the core fields, add vehicles, and add, choose and remove
+  pictures, which are stored with the owner within the owner's limit (CAT-133). The place
+  stays the owner's.
 - owner: also the tags and their history, the places, lending, the events, Säg till ägaren's
   messages, removing a vehicle, and the settings. A club's administrators have the owner's
   right to the club's fleet (CAT-51, C36, C39).
@@ -69,6 +72,13 @@ class Access:
         if right < need:
             raise Refused(403, ProblemCode.FORBIDDEN, "Det får bara ägaren göra.")
         return Work(person=person, owner=owner, right=right)
+
+    def is_club(self, person: UUID, owner: UUID) -> bool:
+        """Is the fleet's owner a club, as ID says to the person working in it (TOKEN-29)? A
+        person's own fleet never is."""
+        if person == owner or self.roles is None:
+            return False
+        return any(f.owner == owner and f.club for f in self.roles.shared_fleets(person))
 
     def shared_with(self, asker: UUID, owner: UUID) -> str | None:
         """For the tag lookup's fifth outcome (C35): view, edit, or nothing."""

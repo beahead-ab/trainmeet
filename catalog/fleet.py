@@ -12,7 +12,7 @@ or place that is not the asker's is answered as not found (CAT-50).
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +31,7 @@ from contracts.catalog import (
     Lending,
     Notice,
     OwnerSettings,
+    PictureLinks,
     Place,
     ProblemCode,
     Return,
@@ -71,6 +72,9 @@ _COLUMNS = (
     "v.created_at, v.updated_at"
 )
 _FROM = "vehicle v LEFT JOIN place p ON p.id = v.place_id"
+
+MainPictures = Callable[[Connection[DictRow], list[UUID]], dict[UUID, PictureLinks]]
+"""The main picture's addresses per vehicle, read in the same transaction (CAT-125)."""
 
 
 class Refused(Exception):
@@ -113,7 +117,10 @@ def _evn(number: str) -> EvnParts | None:
 
 
 def to_vehicle(
-    row: DictRow, tags: list[VehicleTag] | None = None, notices: list[Notice] | None = None
+    row: DictRow,
+    tags: list[VehicleTag] | None = None,
+    notices: list[Notice] | None = None,
+    picture: PictureLinks | None = None,
 ) -> Vehicle:
     lending = None
     if row["state"] == VehicleState.LENT and row["lent_to"] and row["lent_since"]:
@@ -141,6 +148,7 @@ def to_vehicle(
         field_sources={k: FieldSource(v) for k, v in row["field_sources"].items()},
         tags=tags or [],
         notices=notices or [],
+        picture=picture,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -206,9 +214,16 @@ def _event(
 
 
 class Fleet:
-    def __init__(self, db: Database, *, tag_base: str = "https://trainmeet.app/t/") -> None:
+    def __init__(
+        self,
+        db: Database,
+        *,
+        tag_base: str = "https://trainmeet.app/t/",
+        main_pictures: MainPictures | None = None,
+    ) -> None:
         self.db = db
         self.tag_base = tag_base.rstrip("/") + "/"
+        self.main_pictures = main_pictures
 
     # --- Reading ----------------------------------------------------------------------
 
@@ -253,7 +268,11 @@ class Fleet:
                 notices.setdefault(n["vehicle_id"], []).append(
                     Notice(id=n["id"], text=n["text"], at=n["at"])
                 )
-        return [to_vehicle(r, tags.get(r["id"]), notices.get(r["id"])) for r in rows]
+        pictures = self.main_pictures(conn, ids) if self.main_pictures and ids else {}
+        return [
+            to_vehicle(r, tags.get(r["id"]), notices.get(r["id"]), pictures.get(r["id"]))
+            for r in rows
+        ]
 
     def _read(self, conn: Connection[DictRow], owner: UUID, vehicle: UUID) -> Vehicle:
         row = conn.execute(
@@ -428,7 +447,8 @@ class Fleet:
             return self._read(conn, owner, vehicle)
 
     def remove(self, owner: UUID, vehicle: UUID, version: int) -> None:
-        """Remove a vehicle after the owner has confirmed. Its tags become free (CAT-68)."""
+        """Remove a vehicle after the owner has confirmed. Its tags become free (CAT-68), and
+        its pictures' files go to picture_trash, for the sweep."""
         with self.db.owner_transaction(owner) as conn:
             self._lock(conn, owner, vehicle, version)
             conn.execute(
@@ -552,7 +572,8 @@ class Fleet:
 
     def remove_owners(self, owners: list[UUID]) -> int:
         """The owners and everything that is theirs, in one transaction (CAT-193). Their id is
-        also taken out of other owners' tag history and vehicle history."""
+        also taken out of other owners' tag history, vehicle history and pictures. The pictures'
+        files go to picture_trash, for the sweep."""
         nobody = UUID(int=0)
         with self.db.transaction() as conn:
             conn.execute(
@@ -561,6 +582,9 @@ class Fleet:
             conn.execute(
                 "UPDATE vehicle_owner SET owner_id = %s WHERE owner_id = ANY(%s)",
                 (nobody, owners),
+            )
+            conn.execute(
+                "UPDATE picture SET uploaded_by = %s WHERE uploaded_by = ANY(%s)", (nobody, owners)
             )
             removed = conn.execute("DELETE FROM owner WHERE id = ANY(%s)", (owners,))
             return removed.rowcount

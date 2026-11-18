@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.storage-use.schema.json",
+  "title": "trainmeet.catalog-1.storage-use",
+  "additionalProperties": true,
+  "description": "The owner's storage: what the pictures take and the free level (CAT-17, CAT-131).",
+  "properties": {
+    "used": {
+      "description": "Bytes the owner's pictures take, drafts' included.",
+      "title": "Used",
+      "type": "integer"
+    },
+    "limit": {
+      "description": "The free level in bytes: 100 MB, or 2 GB for a club.",
+      "title": "Limit",
+      "type": "integer"
+    },
+    "club": {
+      "description": "The owner is a club (TOKEN-29).",
+      "title": "Club",
+      "type": "boolean"
+    },
+    "pictures": {
+      "description": "How many pictures the owner has.",
+      "title": "Pictures",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "used",
+    "limit",
+    "club",
+    "pictures"
+  ],
+  "type": "object"
+}

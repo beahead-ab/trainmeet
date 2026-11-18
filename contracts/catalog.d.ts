@@ -438,6 +438,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/vehicles/{vehicle}/pictures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vehiclePictures"];
+        put?: never;
+        post: operations["addPicture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}/main": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["mainPicture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removePicture"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["storageUse"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/pictures/file/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pictureFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/tags/{uid}/qr.svg": {
         parameters: {
             query?: never;
@@ -659,7 +739,8 @@ export interface components {
         "trainmeet.catalog-1.fleet-choice.FleetRight": "owner" | "edit" | "view";
         /**
          * VehicleFields
-         * @description The core fields the owner writes (CAT-53). Images, tag and prototype come later.
+         * @description The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+         *     their own; the prototype comes later.
          */
         "trainmeet.catalog-1.vehicle-fields": {
             /** @default draft */
@@ -953,6 +1034,11 @@ export interface components {
              */
             notices?: components["schemas"]["trainmeet.catalog-1.vehicle.Notice"][];
             /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.vehicle.PictureLinks"] | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -1056,6 +1142,25 @@ export interface components {
              * Format: date-time
              */
             at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.vehicle.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
         } & {
             [key: string]: unknown;
         };
@@ -1231,6 +1336,25 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.vehicle-list.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TagKind
          * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
          * @enum {string}
@@ -1341,6 +1465,11 @@ export interface components {
              * @description Newest first.
              */
             notices?: components["schemas"]["trainmeet.catalog-1.vehicle-list.Notice"][];
+            /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.vehicle-list.PictureLinks"] | null;
             /**
              * Created At
              * Format: date-time
@@ -1523,7 +1652,7 @@ export interface components {
         };
         /**
          * Problem
-         * @description The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.
+         * @description The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503.
          */
         "trainmeet.catalog-1.problem": {
             code: components["schemas"]["trainmeet.catalog-1.problem.ProblemCode"];
@@ -1540,7 +1669,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -2039,6 +2168,25 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.catalog-export.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Place
          * @description A named place at home: a box or a shelf (CAT-71).
          */
@@ -2175,6 +2323,11 @@ export interface components {
              */
             notices?: components["schemas"]["trainmeet.catalog-1.catalog-export.Notice"][];
             /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.catalog-export.PictureLinks"] | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -2299,6 +2452,107 @@ export interface components {
              * @description How many of the owners Catalog had.
              */
             removed: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Picture
+         * @description One of the vehicle's pictures (CAT-05).
+         */
+        "trainmeet.catalog-1.picture": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Main
+             * @description The vehicle's main picture: exactly one has it (CAT-125).
+             */
+            main: boolean;
+            /**
+             * Position
+             * @description The order the pictures were added in.
+             */
+            position: number;
+            /**
+             * Width
+             * @description The display picture's width in pixels.
+             */
+            width: number;
+            /**
+             * Height
+             * @description The display picture's height in pixels.
+             */
+            height: number;
+            /**
+             * Bytes
+             * @description What the picture takes of the owner's storage, all its sizes (CAT-131).
+             */
+            bytes: number;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Original Url
+             * @description The original, only with Spara original (CAT-17).
+             * @default null
+             */
+            original_url: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.picture-links": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StorageUse
+         * @description The owner's storage: what the pictures take and the free level (CAT-17, CAT-131).
+         */
+        "trainmeet.catalog-1.storage-use": {
+            /**
+             * Used
+             * @description Bytes the owner's pictures take, drafts' included.
+             */
+            used: number;
+            /**
+             * Limit
+             * @description The free level in bytes: 100 MB, or 2 GB for a club.
+             */
+            limit: number;
+            /**
+             * Club
+             * @description The owner is a club (TOKEN-29).
+             */
+            club: boolean;
+            /**
+             * Pictures
+             * @description How many pictures the owner has.
+             */
+            pictures: number;
         } & {
             [key: string]: unknown;
         };
@@ -4231,6 +4485,412 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
                 };
+            };
+        };
+    };
+    vehiclePictures: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.picture"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    addPicture: {
+        parameters: {
+            query?: {
+                keep_original?: boolean;
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        /** @description The picture: at most 15 MB and 40 megapixel (CAT-123). */
+        requestBody: {
+            content: {
+                "image/jpeg": string;
+                "image/png": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.picture"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    mainPicture: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+                picture: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.picture"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    removePicture: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+                picture: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.removed"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    storageUse: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.storage-use"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    pictureFile: {
+        parameters: {
+            query?: {
+                expires?: string;
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture, kept by the browser until the address expires */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description The address is not signed by Catalog, or has expired */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such picture, or the pictures are in Object Storage */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -161,6 +161,28 @@
       "title": "Notice",
       "type": "object"
     },
+    "PictureLinks": {
+      "additionalProperties": true,
+      "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+      "properties": {
+        "thumb_url": {
+          "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+          "title": "Thumb Url",
+          "type": "string"
+        },
+        "display_url": {
+          "description": "The display picture, at most 1800 pixels (CAT-126).",
+          "title": "Display Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "thumb_url",
+        "display_url"
+      ],
+      "title": "PictureLinks",
+      "type": "object"
+    },
     "TagKind": {
       "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
       "enum": [
@@ -428,6 +450,18 @@
       },
       "title": "Notices",
       "type": "array"
+    },
+    "picture": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PictureLinks"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The main picture, or null without pictures. Seen with every right."
     },
     "created_at": {
       "format": "date-time",

@@ -206,6 +206,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.catalog-export": catalog.CatalogExport,
     "trainmeet.catalog-1.owners-removed": catalog.OwnersRemoved,
     "trainmeet.catalog-1.removed-count": catalog.RemovedCount,
+    "trainmeet.catalog-1.picture": catalog.Picture,
+    "trainmeet.catalog-1.picture-links": catalog.PictureLinks,
+    "trainmeet.catalog-1.storage-use": catalog.StorageUse,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -870,6 +873,49 @@ def catalog_openapi() -> str:
     route(
         "post", v + "/{vehicle}/tags/unlink", "unlinkTag", "vehicle", "tag-unlink", problems=write
     )
+    # The pictures (CAT-05, CAT-17, CAT-123–CAT-133). The upload's body is the picture itself.
+    pictures = v + "/{vehicle}/pictures"
+    route("get", pictures, "vehiclePictures", "picture", many=True, problems=(401, 404))
+    route(
+        "post",
+        pictures,
+        "addPicture",
+        "picture",
+        created=True,
+        query=(("keep_original", {"type": "boolean", "default": False}),),
+        problems=(401, 404, 413, 415, 422),
+    )
+    paths[pictures]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The picture: at most 15 MB and 40 megapixel (CAT-123).",
+        "content": {
+            kind: {"schema": {"type": "string", "format": "binary"}}
+            for kind in ("image/jpeg", "image/png", "image/webp")
+        },
+    }
+    route("post", pictures + "/{picture}/main", "mainPicture", "picture", many=True, problems=write)
+    route("delete", pictures + "/{picture}", "removePicture", "removed", problems=write)
+    route("get", "/api/catalog/1/storage", "storageUse", "storage-use", problems=(401,))
+    # Only when Catalog keeps the pictures on its own disk: the signed address is the right.
+    paths["/api/catalog/1/pictures/file/{key}"] = {
+        "get": {
+            "operationId": "pictureFile",
+            "security": [],
+            "parameters": [
+                {"name": "key", "in": "path", "required": True, "schema": {"type": "string"}},
+                {"name": "expires", "in": "query", "schema": {"type": "string"}},
+                {"name": "sig", "in": "query", "schema": {"type": "string"}},
+            ],
+            "responses": {
+                "200": {
+                    "description": "The picture, kept by the browser until the address expires",
+                    "content": {"image/jpeg": {"schema": {"type": "string", "format": "binary"}}},
+                },
+                "403": {"description": "The address is not signed by Catalog, or has expired"},
+                "404": {"description": "No such picture, or the pictures are in Object Storage"},
+            },
+        }
+    }
     paths[t + "/{uid}/qr.svg"] = {
         "get": {
             "operationId": "tagQrCode",
@@ -897,7 +943,9 @@ def catalog_openapi() -> str:
         "schema": {"type": "string", "format": "uuid"},
     }
     for path, methods in paths.items():
-        if not path.startswith(("/api/catalog/1/vehicles", "/api/catalog/1/places")):
+        if not path.startswith(
+            ("/api/catalog/1/vehicles", "/api/catalog/1/places", "/api/catalog/1/storage")
+        ):
             continue
         for entry in methods.values():
             entry.setdefault("parameters", []).append(fleet_param)

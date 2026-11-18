@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.picture.schema.json",
+  "title": "trainmeet.catalog-1.picture",
+  "additionalProperties": true,
+  "description": "One of the vehicle's pictures (CAT-05).",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "main": {
+      "description": "The vehicle's main picture: exactly one has it (CAT-125).",
+      "title": "Main",
+      "type": "boolean"
+    },
+    "position": {
+      "description": "The order the pictures were added in.",
+      "minimum": 0,
+      "title": "Position",
+      "type": "integer"
+    },
+    "width": {
+      "description": "The display picture's width in pixels.",
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "description": "The display picture's height in pixels.",
+      "title": "Height",
+      "type": "integer"
+    },
+    "bytes": {
+      "description": "What the picture takes of the owner's storage, all its sizes (CAT-131).",
+      "title": "Bytes",
+      "type": "integer"
+    },
+    "display_url": {
+      "description": "The display picture, at most 1800 pixels (CAT-126).",
+      "title": "Display Url",
+      "type": "string"
+    },
+    "thumb_url": {
+      "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+      "title": "Thumb Url",
+      "type": "string"
+    },
+    "original_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The original, only with Spara original (CAT-17).",
+      "title": "Original Url"
+    }
+  },
+  "required": [
+    "id",
+    "main",
+    "position",
+    "width",
+    "height",
+    "bytes",
+    "display_url",
+    "thumb_url"
+  ],
+  "type": "object"
+}

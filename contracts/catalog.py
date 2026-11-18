@@ -196,7 +196,8 @@ class DccFunction(Contract):
 
 
 class VehicleFields(Contract):
-    """The core fields the owner writes (CAT-53). Images, tag and prototype come later."""
+    """The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+    their own; the prototype comes later."""
 
     status: VehicleStatus = VehicleStatus.DRAFT
     kind: VehicleKind | None = None
@@ -272,6 +273,14 @@ class Notice(Contract):
     at: datetime
 
 
+class PictureLinks(Contract):
+    """The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+    expire (CAT-130): read the vehicle again for new ones."""
+
+    thumb_url: str = Field(description="The thumbnail, at most 360×240 pixels (CAT-126).")
+    display_url: str = Field(description="The display picture, at most 1800 pixels (CAT-126).")
+
+
 class Vehicle(VehicleFields):
     """A vehicle as its owner sees it."""
 
@@ -290,6 +299,10 @@ class Vehicle(VehicleFields):
         description="The vehicle has a tag: what someone it is shared with sees (CAT-47).",
     )
     notices: list[Notice] = Field(default_factory=list, description="Newest first.")
+    picture: PictureLinks | None = Field(
+        default=None,
+        description="The main picture, or null without pictures. Seen with every right.",
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -381,11 +394,20 @@ class ProblemCode(StrEnum):
     FORBIDDEN = "forbidden"
     """The fleet is shared with the asker, but only the owner may do this (CAT-46, CAT-49)."""
     UNAVAILABLE = "unavailable"
-    """TrainMeet ID does not answer, so nothing shared can be shown just now (#49)."""
+    """TrainMeet ID, or the pictures' storage, does not answer just now (#49, CAT-130)."""
+    BAD_PICTURE = "bad_picture"
+    """Not a picture Catalog can read: JPEG, PNG or WebP (CAT-123)."""
+    PICTURE_TOO_LARGE = "picture_too_large"
+    """Over 15 MB (413) or over 40 megapixels (422) (CAT-123)."""
+    TOO_MANY_PICTURES = "too_many_pictures"
+    """The vehicle already has 10 pictures (CAT-17)."""
+    STORAGE_FULL = "storage_full"
+    """The owner's free storage is full: 100 MB for a person, 2 GB for a club (CAT-17,
+    TOKEN-29). Paid storage over the free level comes later (CAT-132)."""
 
 
 class Problem(Contract):
-    """The answer when Catalog says no: 401, 403, 404, 409, 422 or 503."""
+    """The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503."""
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
@@ -595,3 +617,56 @@ class OwnersRemoved(Contract):
 
 class RemovedCount(Contract):
     removed: int = Field(description="How many of the owners Catalog had.")
+
+
+# --- The pictures (CAT-05, CAT-17, CAT-123–CAT-133) -------------------------------------------
+#
+#     GET    /api/catalog/1/vehicles/{id}/pictures                    [Picture], in order
+#     POST   /api/catalog/1/vehicles/{id}/pictures?keep_original=     the picture -> Picture
+#     POST   /api/catalog/1/vehicles/{id}/pictures/{picture}/main     [Picture]
+#     DELETE /api/catalog/1/vehicles/{id}/pictures/{picture}          Removed
+#     GET    /api/catalog/1/storage                                   StorageUse
+#     GET    /api/catalog/1/pictures/file/{key}?expires=&sig=         the picture, only when
+#                                                                     Catalog keeps them on disk
+#
+# Rules:
+# - The picture is the request's body, as image/jpeg, image/png or image/webp: at most 15 MB
+#   and 40 megapixel (CAT-123). Its metadata, such as position and camera, is removed before
+#   anything is saved (CAT-124).
+# - A display picture and a thumbnail are made at the upload; the original is kept only with
+#   keep_original=true, Spara original, and counts in the storage (CAT-17, CAT-126).
+# - At most 10 pictures per vehicle. The first is the main picture, and the database keeps it
+#   to one (CAT-125). Removing the main picture makes the first of the rest the main one.
+# - The storage counts per owner: 100 MB free for a person, 2 GB for a club (CAT-17, TOKEN-29).
+#   Someone who edits a shared fleet stores with the owner, within the owner's limit (CAT-133).
+# - The pictures are private and fetched with signed addresses that expire (CAT-130). The same
+#   picture keeps its address for half an hour, so the browser can keep it.
+# - To look is enough to see the pictures; to edit is needed to add, choose and remove them.
+#   ?fleet=<owner> works in a shared fleet, as for the vehicles (#49).
+
+
+class Picture(Contract):
+    """One of the vehicle's pictures (CAT-05)."""
+
+    id: UUID
+    main: bool = Field(description="The vehicle's main picture: exactly one has it (CAT-125).")
+    position: int = Field(ge=0, description="The order the pictures were added in.")
+    width: int = Field(description="The display picture's width in pixels.")
+    height: int = Field(description="The display picture's height in pixels.")
+    bytes: int = Field(
+        description="What the picture takes of the owner's storage, all its sizes (CAT-131)."
+    )
+    display_url: str = Field(description="The display picture, at most 1800 pixels (CAT-126).")
+    thumb_url: str = Field(description="The thumbnail, at most 360×240 pixels (CAT-126).")
+    original_url: str | None = Field(
+        default=None, description="The original, only with Spara original (CAT-17)."
+    )
+
+
+class StorageUse(Contract):
+    """The owner's storage: what the pictures take and the free level (CAT-17, CAT-131)."""
+
+    used: int = Field(description="Bytes the owner's pictures take, drafts' included.")
+    limit: int = Field(description="The free level in bytes: 100 MB, or 2 GB for a club.")
+    club: bool = Field(description="The owner is a club (TOKEN-29).")
+    pictures: int = Field(description="How many pictures the owner has.")

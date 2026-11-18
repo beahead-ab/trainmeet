@@ -341,6 +341,7 @@ def test_a_fleet_is_shared_after_a_yes_and_unshared_at_once(world: World) -> Non
             "owner": {"kind": "fleet", "id": kim_id},
             "title": "Vagnparken · Kim Ek",
             "role": "editor",
+            "club": False,
         }
     ]
     # Only the owner sees and changes the sharing (KONTO-36).
@@ -494,7 +495,7 @@ def test_a_clubs_fleet_follows_the_clubs_roles(world: World) -> None:
     assert (roles("Kim Ek"), roles("Sara Holm"), roles("Olle Berg")) == (["admin"], ["viewer"], [])
     title = "Vagnparken · Västby MJK"
     assert apps(world, "fleets", person=ids["Kim Ek"]).json() == [
-        {"owner": {"kind": "fleet", "id": club}, "title": title, "role": "owner"}
+        {"owner": {"kind": "fleet", "id": club}, "title": title, "role": "owner", "club": True}
     ]
     assert apps(world, "fleets", person=ids["Sara Holm"]).json()[0]["role"] == "viewer"
 
@@ -506,13 +507,16 @@ def test_a_clubs_fleet_follows_the_clubs_roles(world: World) -> None:
     assert shared.json()["title"] == title
     sara.client.post(f"{API}/invitations/{shared.json()['id']}/answer", json={"accept": True})
     assert roles("Sara Holm") == ["editor", "viewer"]
-    assert apps(world, "fleets", person=ids["Sara Holm"]).json()[0]["role"] == "editor"
+    given = apps(world, "fleets", person=ids["Sara Holm"]).json()[0]
+    assert (given["role"], given["club"]) == ("editor", True)  # still the club's (TOKEN-29)
     # A member may not share the club's fleet.
     assert sara.client.get(f"{API}/fleets/{club}").status_code == 403
 
     # Out of the club: the club's right goes at once; the given right stays until taken.
     kim.client.delete(f"{API}/clubs/{club}/members/{ids['Sara Holm']}")
     assert roles("Sara Holm") == ["editor"]
+    left = apps(world, "fleets", person=ids["Sara Holm"]).json()
+    assert [(f["role"], f["club"]) for f in left] == [("editor", True)]
 
 
 def club_with(world: World, *people: tuple[str, str]) -> tuple[Who, str, dict[str, Who]]:
@@ -849,6 +853,7 @@ def test_removing_the_account_removes_it_in_catalog_keycloak_and_id(world: World
             "owner": {"kind": "fleet", "id": club},
             "title": "Vagnparken · Västby MJK",
             "role": "owner",
+            "club": True,
         }
     ]
     with psycopg.connect(world.url) as conn:

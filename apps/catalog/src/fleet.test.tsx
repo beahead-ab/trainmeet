@@ -37,6 +37,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     evn: { text: "21 74 245 2 253-0", interop: "21", country: "74", country_letters: "S", serial: "245 2 253", check: 0, given: 0, valid: true },
     field_sources: { litt: "owner" },
     tagged: false,
+    picture: null,
     created_at: NOW,
     updated_at: NOW,
     ...change,

@@ -155,6 +155,11 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Väntande koppling | `PendingLink` | Koppla tagg på kortet: fordonet väntar på nästa tagg i 10 minuter (CAT-94). |
 | Säg till ägaren | `Tell`, `Notice` | Den som är inloggad och blippar någon annans fordon skriver var det står. Ägaren ser beskedet utan avsändare (CAT-113). |
 | Visa mitt namn | `OwnerSettings.show_name` | Ägarens namn på minikortet, för den som är inloggad. Av från början (CAT-101). |
+| Fordonsbild | `Picture`, `/vehicles/{id}/pictures` | En av fordonets bilder (CAT-05): en visningsbild på högst 1800 pixlar och en miniatyr på högst 360×240 (CAT-126). Högst 10 per fordon, och högst 15 MB och 40 megapixel per uppladdning (CAT-17, CAT-123). Metadata som position och kamera tas bort innan något sparas (CAT-124). Att titta räcker för att se bilderna; att lägga till, välja och ta bort kräver att redigera. |
+| Huvudbild | `Picture.main`, `Vehicle.picture`, `PictureLinks` | Fordonets bild i listorna och på kortet. Den första bilden blir huvudbild, och databasen håller den till en per fordon. Tas huvudbilden bort blir den första av de andra huvudbild (CAT-125). |
+| Spara original | `?keep_original=true`, `Picture.original_url` | Originalet sparas också, utan metadata, och räknas i lagringen (CAT-17, CAT-126). |
+| Lagring | `StorageUse`, `/storage` | Vad ägarens bilder tar, utkastens med, och den fria nivån: 100 MB för en person och 2 GB för en vagnpark som en klubb äger (CAT-17, CAT-131, TOKEN-29). Den som redigerar en delad vagnpark lagrar hos ägaren, inom ägarens gräns (CAT-133). Över den fria nivån säger Catalog nej än så länge (`storage_full`); betald lagring kommer senare (CAT-132). |
+| Signerad länk | `display_url`, `thumb_url`, `original_url` | Bilderna ligger privat och hämtas med adresser som går ut (CAT-130): i Object Storage, eller på Catalogs egen disk när den saknas. Samma bild har samma adress en halvtimme, så att webbläsaren kan spara den. |
 
 ## TrainMeet ID
 
@@ -177,6 +182,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Uppgifterna som fil | `AccountExport`, `CatalogExport` | Allt TrainMeet har om personen, från ID och Catalog, i en fil före borttagningen (KONTO-31). |
 | Ägare borttagna | `OwnersRemoved` | ID säger till Catalog vilka ägare som är borta, och Catalog tar bort deras vagnparker (CAT-193). Bara ID:s egen klient får anropa. |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |
+| Klubbens vagnpark | `FleetAccess.club` | Vagnparken ägs av en klubb, så dess bilder räknas mot klubbens 2 GB och inte mot en persons 100 MB (TOKEN-29, TK17). |
 | Saldo | `TokenBalance`, `TokenOwner`, `GET /api/id/1/tokens` | TrainMeet tokens som går att använda nu, per person och per klubb (TK1, TOKEN-12). Det är månadens gratiskvot som är kvar och de köpta. |
 | Gratiskvot | `TokenBalance.free_left`, `free_monthly` | 100 tokens i månaden per person och 300 per klubb (TOKEN-14). Används först, och det som inte används sparas inte till nästa månad (TK2). |
 | Reservation | `TokenReserve`, `TokenReservation`, `TokenDraw`, `/api/id/1/apps/tokens/reservations` | En app reserverar före ett arbete som kostar, drar det som det kostade och lämnar tillbaka resten, eller allt om arbetet misslyckades (TOKEN-24). Samma nyckel två gånger ger samma reservation (TOKEN-28). En reservation som ingen drar går tillbaka efter 30 minuter. |
