@@ -20,6 +20,8 @@ import {
   type RemovalPlan,
   type Session,
   type TokenBalance,
+  type TokenPurchase,
+  type TokenShop,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { AccountIcon, ClubsIcon, MeetsIcon, TokensIcon } from "./icons";
@@ -79,6 +81,8 @@ export type Data = {
   removal?: RemovalPlan;
   /** The person's balance first, then their clubs' (#79, TOKEN-01). */
   tokens?: TokenBalance[];
+  /** Whether buying is open, and the packages (TOKEN-02). */
+  shop?: TokenShop;
 };
 
 export type Actions = {
@@ -97,6 +101,8 @@ export type Actions = {
   sendHelp?: (request: HelpRequest) => Promise<string | null>;
   changeRole?: (club: string, person: string, role: ClubRole) => Promise<string | null>;
   removeAccount?: () => Promise<string | null>;
+  /** Köp fler (TOKEN-02): to Stripe's page, and back to Tokens when paid. */
+  buy?: (purchase: TokenPurchase) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -286,7 +292,18 @@ function Content(props: ShellProps & { t: T }) {
     case "meet":
       return data.meet ? <MeetView t={t} page={data.meet} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "tokens":
-      return <TokensCard t={t} heading={1} tokens={data.tokens} language={language} />;
+      return (
+        <TokensCard
+          t={t}
+          heading={1}
+          tokens={data.tokens}
+          language={language}
+          shop={data.shop}
+          admin={(data.clubs ?? []).filter((club) => club.role === "admin").map((club) => club.id)}
+          buy={actions.buy}
+          bought={new URLSearchParams(props.search ?? "").get("kop")}
+        />
+      );
     case "remove":
       return <RemoveView t={t} plan={data.removal} navigate={navigate} remove={actions.removeAccount} />;
     case "help":
@@ -772,8 +789,30 @@ function InvitationsCard({ t, invitations, answer, heading = 2 }: { t: T; invita
 
 /** The balances (TOKEN-01, TOKEN-12): what can be used now, this month's free quota, which is
  * not saved, and the bought tokens, which never run out. */
-function TokensCard({ t, heading = 2, tokens, language }: { t: T; heading?: 1 | 2; tokens?: TokenBalance[]; language: Language }) {
+function TokensCard({
+  t,
+  heading = 2,
+  tokens,
+  language,
+  shop,
+  admin = [],
+  buy,
+  bought = null,
+}: {
+  t: T;
+  heading?: 1 | 2;
+  tokens?: TokenBalance[];
+  language: Language;
+  shop?: TokenShop;
+  admin?: string[];
+  buy?: Actions["buy"];
+  bought?: string | null;
+}) {
   const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB");
+  const [busy, problem, run] = useAction();
+  const open = shop?.mode === "test";
+  // A person buys for their own balance, and for a club's as its admin.
+  const mayBuy = (balance: TokenBalance) => balance.owner.kind === "person" || admin.includes(balance.owner.id);
   return (
     <section className="tm-kort">
       <Heading level={heading}>{t("tokensTitle")}</Heading>
@@ -789,11 +828,28 @@ function TokensCard({ t, heading = 2, tokens, language }: { t: T; heading?: 1 | 
                 {balance.reserved > 0 ? <div className="id-detalj">{t("tokensReserved", { n: number.format(balance.reserved) })}</div> : null}
               </div>
               <span className="id-saldo">{t("tokensAvailable", { n: number.format(balance.available) })}</span>
+              {open && buy && mayBuy(balance) ? (
+                <div className="id-knappar id-paket">
+                  {shop.packages.map((pack) => (
+                    <button
+                      key={pack.tokens}
+                      type="button"
+                      className="tm-knapp"
+                      disabled={busy}
+                      onClick={() => void run(() => buy({ owner: balance.owner, tokens: pack.tokens }))}
+                    >
+                      {t("tokensPackage", { n: number.format(pack.tokens), price: number.format(pack.price_sek) })}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
-      <p className="id-detalj">{t("tokensBuyLater")}</p>
+      {bought === "klart" ? <p role="status">{t("tokensBought_done")}</p> : null}
+      {open ? <p className="id-detalj">{t("tokensTestMode")}</p> : <p className="id-detalj">{t("tokensBuyLater")}</p>}
+      <Problem text={problem} />
     </section>
   );
 }
@@ -1026,9 +1082,11 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
           setData({ clubs, invitations, tokens });
           break;
         }
-        case "tokens":
-          setData({ tokens: await api.tokens() });
+        case "tokens": {
+          const [tokens, shop, clubs] = await Promise.all([api.tokens(), api.shop(), api.clubs()]);
+          setData({ tokens, shop, clubs });
           break;
+        }
         case "clubs":
           setData({ clubs: await api.clubs() });
           break;
@@ -1107,6 +1165,16 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     takeRole: (grant) => act(() => api.removeGrant(grant))(),
     sendHelp: (request) => act(() => api.help(request))(),
     changeRole: (club, person, role) => act(() => api.changeRole(club, person, role))(),
+    buy: async (purchase) => {
+      try {
+        const checkout = await api.buy(purchase);
+        window.location.assign(checkout.url);
+        return null;
+      } catch (error) {
+        if (error instanceof ApiError) return error.problem ?? t(`problem_${error.code ?? "conflict"}` as TextKey);
+        return t("offline");
+      }
+    },
     removeAccount: async () => {
       try {
         await api.removeAccount();

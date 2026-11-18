@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.token-shop.schema.json",
+  "title": "trainmeet.id-1.token-shop",
+  "$defs": {
+    "TokenPackage": {
+      "additionalProperties": true,
+      "properties": {
+        "tokens": {
+          "enum": [
+            500,
+            1500,
+            5000
+          ],
+          "title": "Tokens",
+          "type": "integer"
+        },
+        "price_sek": {
+          "description": "Priset i kronor, med moms (TK10).",
+          "title": "Price Sek",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens",
+        "price_sek"
+      ],
+      "title": "TokenPackage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "mode": {
+      "description": "Av: inga köp. Test: Stripes testläge, inga riktiga pengar dras.",
+      "enum": [
+        "off",
+        "test"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "packages": {
+      "items": {
+        "$ref": "#/$defs/TokenPackage"
+      },
+      "title": "Packages",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mode",
+    "packages"
+  ],
+  "type": "object"
+}

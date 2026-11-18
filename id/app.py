@@ -17,6 +17,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -63,9 +64,12 @@ from contracts.tokens import (
     MeterAnswer,
     MeterRead,
     TokenBalance,
+    TokenCheckout,
     TokenDraw,
+    TokenPurchase,
     TokenReservation,
     TokenReserve,
+    TokenShop,
 )
 from id import login as id_login
 from id import migrate
@@ -77,6 +81,8 @@ from id.meter import BedrockClaude, Claude, Meter
 from id.meter import settings_from as meter_settings
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
+from id.shop import Shop, ShopSettings
+from id.shop import settings_from as stripe_settings
 from id.tickets import Tickets
 from id.tokens import Tokens, owner_from
 
@@ -126,6 +132,7 @@ def create_app(
     http: httpx.Client | None = None,
     mailer: AllMail | None = None,
     claude: Claude | None = None,
+    shop_settings: ShopSettings | None = None,
 ) -> FastAPI:
     """The app. The tests give a pretend Keycloak (http), a pretend mail server and a pretend
     Claude for the meter."""
@@ -140,6 +147,13 @@ def create_app(
     if claude is None and (metered := meter_settings()) is not None:
         claude = BedrockClaude(metered)
     meter = Meter(db, tokens, claude)
+    shop = Shop(
+        db,
+        tokens,
+        shop_settings if shop_settings is not None else stripe_settings(),
+        http,
+        settings.public_url,
+    )
     help_desk = HelpDesk(mail, settings.support)
     accounts = Accounts(settings, http, roles)
 
@@ -412,6 +426,22 @@ def create_app(
     def my_tokens(person: Person) -> list[TokenBalance]:
         """The person's balance and their clubs' (TOKEN-01)."""
         return tokens.balances_for(person.id)
+
+    @app.get(API + "/tokens/shop")
+    def token_shop(_: Person) -> TokenShop:
+        """The packages, and whether buying is open (TOKEN-02): only Stripe's test mode yet."""
+        return shop.shop()
+
+    @app.post(API + "/tokens/purchases")
+    def buy_tokens(body: TokenPurchase, person: Person) -> TokenCheckout:
+        return shop.start(person, body)
+
+    @app.post(API + "/stripe/webhook")
+    async def stripe_webhook(request: Request) -> dict[str, bool]:
+        """Stripe says a payment is done (TOKEN-11). Signed by Stripe; nothing else counts."""
+        body = await request.body()
+        await run_in_threadpool(shop.webhook, body, request.headers.get("stripe-signature"))
+        return {"received": True}
 
     @app.get(API + "/apps/tokens")
     def app_tokens(person: UUID, owner: str, _: App) -> TokenBalance:

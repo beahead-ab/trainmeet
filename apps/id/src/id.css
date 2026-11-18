@@ -82,6 +82,10 @@
   font-weight: 600;
 }
 /* Tokens (#79): the number that can be used now, beside what it is made of. */
+/* The packages under a balance the person may buy for (TOKEN-02). */
+.id-paket {
+  flex-basis: 100%;
+}
 .id-saldo {
   font-size: 20px;
   font-weight: 600;

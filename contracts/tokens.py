@@ -19,6 +19,10 @@ För apparna, med en token från Keycloaks client credentials (KONTO-34):
     POST   /api/id/1/apps/tokens/reservations/{id}/return TokenReservation
     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer (TOKEN-28)
 
+Köpen (TOKEN-02, TOKEN-11), för personen:
+    GET    /api/id/1/tokens/shop                          TokenShop
+    POST   /api/id/1/tokens/purchases                     TokenPurchase -> TokenCheckout
+
 Att köra en träff, publicera, synka och importera utan AI kostar aldrig något (TOKEN-17), så de
 delarna frågar aldrig saldot.
 """
@@ -148,3 +152,44 @@ class MeterAnswer(Contract):
     cost: int = Field(description="Det som drogs: 12 tokens per bild (TOKEN-14).")
     model: Text
     reservation: TokenReservation
+
+
+# --- Köp (TOKEN-02, TOKEN-11, TK10) ---------------------------------------------------------
+#
+#     GET    /api/id/1/tokens/shop                          TokenShop
+#     POST   /api/id/1/tokens/purchases                     TokenPurchase -> TokenCheckout
+#     POST   /api/id/1/stripe/webhook                       Stripe's event, signed by Stripe
+#
+# The person pays by card with Stripe Checkout, and Stripe sends the receipt by e-mail. The
+# tokens come when Stripe says the payment is done, once. Buying is open only in Stripe's test
+# mode until the question MOMS is decided (#79, #92).
+
+
+class TokenPackage(Contract):
+    tokens: Literal[500, 1500, 5000]
+    price_sek: int = Field(description="Priset i kronor, med moms (TK10).")
+
+
+PACKAGES: tuple[TokenPackage, ...] = (
+    TokenPackage(tokens=500, price_sek=49),
+    TokenPackage(tokens=1500, price_sek=129),
+    TokenPackage(tokens=5000, price_sek=399),
+)
+
+
+class TokenShop(Contract):
+    mode: Literal["off", "test"] = Field(
+        description="Av: inga köp. Test: Stripes testläge, inga riktiga pengar dras."
+    )
+    packages: list[TokenPackage]
+
+
+class TokenPurchase(Contract):
+    """Köp ett paket till sitt eget saldo, eller till klubbens som dess administratör."""
+
+    owner: TokenOwner
+    tokens: Literal[500, 1500, 5000]
+
+
+class TokenCheckout(Contract):
+    url: str = Field(description="Stripes betalsida, dit webbläsaren går för att betala.")
