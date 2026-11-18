@@ -23,7 +23,9 @@ cd /srv/trainmeet
 umask 077
 test -s catalog.env || { echo "catalog.env saknas på servern." >&2; exit 1; }
 test -s id.env || { echo "id.env saknas på servern." >&2; exit 1; }
-mkdir -p id-vault
+mkdir -p id-vault catalog-vault
+# Catalogs bilder (#51) on the server's disk when there is no bucket; Catalog runs as this user.
+mkdir -p catalog-pictures
 # Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
 # then (CAT-214, #66).
 TRIAL=on
