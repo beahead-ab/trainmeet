@@ -4,6 +4,7 @@
 export type Page =
   | "vehicles"
   | "newVehicle"
+  | "newPhoto"
   | "vehicle"
   | "editVehicle"
   | "lend"
@@ -22,6 +23,8 @@ export type Route = { page: Page; id?: string };
 export const PATHS = {
   vehicles: "/fordon",
   newVehicle: "/fordon/nytt",
+  /** Lägg till med foto: fota, AI:n föreslår, granska, plats och tagg (CAT-134). */
+  newPhoto: "/fordon/nytt/foto",
   places: "/platser",
   meets: "/traffar",
   prototypes: "/forebilder",
@@ -68,7 +71,7 @@ export function routeFor(address: string): Route {
 export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
   if (page === "meet") return "meets";
-  return ["newVehicle", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
+  return ["newVehicle", "newPhoto", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 
 /** Where to go after logging in: the address one came from, when it is one of Catalog's own

@@ -5,6 +5,7 @@ import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import { isOwner, type Ctx } from "./common";
 import { LendPage } from "./LendPage";
+import { PhotoFlowPage } from "./PhotoFlow";
 import { PlacesPage } from "./PlacesPage";
 import { TagPage } from "./TagPage";
 import { TapPage } from "./TapPage";
@@ -49,6 +50,7 @@ function everyApp(t: T, host: string): SwitcherApp[] {
 const TITLES: Record<Page, TextKey> = {
   vehicles: "vehicles",
   newVehicle: "newTitle",
+  newPhoto: "photoTitle",
   vehicle: "cardEyebrow",
   editVehicle: "edit",
   lend: "lendTitle",
@@ -276,8 +278,9 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     shareUrl: props.working ? (other?.share_url ?? null) : (props.session?.share_url ?? null),
     workIn: props.onWorkIn,
     fleets: props.fleets,
+    tokensUrl: props.session?.tokens_url ?? null,
   };
-  const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
+  const fleetPages: Page[] = ["newVehicle", "newPhoto", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
   if (fleetPages.includes(page) && !account) {
     return (
       <section className="tm-kort cat-tomt">
@@ -296,6 +299,8 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
   switch (page) {
     case "newVehicle":
       return <VehicleFormPage ctx={ctx} />;
+    case "newPhoto":
+      return <PhotoFlowPage key={props.working ?? "egen"} ctx={ctx} />;
     case "vehicle":
       return <VehicleCardPage key={id} ctx={ctx} id={id ?? ""} />;
     case "editVehicle":

@@ -206,7 +206,7 @@ describe("a fleet shared with someone (#49)", () => {
     );
     expect(html).toContain("Vagnparken · Provkonto A");
     expect(html).not.toContain("Dela vagnparken");
-    expect(html).not.toContain("Lägg till fordon");
+    expect(html).not.toContain("Lägg till");
     expect(html).not.toContain('type="checkbox"');
     expect(html).not.toContain(">Platser<");
   });
@@ -215,7 +215,8 @@ describe("a fleet shared with someone (#49)", () => {
     const html = renderToStaticMarkup(
       <VehiclesView ctx={shared("edit")} account={account} list={list([vehicle()])} q="" state={null} group="all" selected={new Set()} error={null} />,
     );
-    expect(html).toContain("Lägg till fordon");
+    expect(html).toContain(">Lägg till för hand<");
+    expect(html).not.toContain("Lägg till med foto"); // the AI reading is the owner's (CAT-46)
     const card = renderToStaticMarkup(<CardView ctx={shared("edit")} vehicle={vehicle({ tagged: true, tags: [] })} events={[]} error={null} />);
     expect(card).toContain(">Ändra<");
     expect(card).toContain("Fordonet har en tagg. Bara ägaren ser den."); // CAT-47

@@ -20,6 +20,8 @@ export type Ctx = {
   workIn?: (owner: string | null) => void;
   /** The fleets the person can work in: their own first (CAT-50). */
   fleets?: FleetChoice[] | null;
+  /** Tokens in TrainMeet ID, where one buys more (TOKEN-01), from the session. */
+  tokensUrl?: string | null;
 };
 
 /** The owner may do everything; someone the fleet is shared with less (CAT-46). */
