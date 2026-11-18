@@ -456,6 +456,7 @@ section.lok-val {
 }
 .lok-sokfalt {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1423,6 +1424,266 @@ section > .lok-lista {
 .lok-notis .lok-lank {
   color: var(--lok-on-yellow);
   text-decoration: underline;
+}
+
+/* Efter pappret (LOK-13, LOK-29, LOK-33; foto-saknas.jpg, papper.jpg). Amber is what was read
+   from the photos and not yet approved; green is approved. */
+.lok-kamera {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  border-radius: 16px;
+  border: 1px solid var(--tm-blue-soft);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  cursor: pointer;
+}
+.lok-kamera:focus-within {
+  outline: 2px solid var(--tm-focus);
+  outline-offset: 2px;
+}
+.lok-kamera svg {
+  width: 26px;
+  height: 26px;
+}
+.lok-kamera.av,
+.lok-ny-sida.av {
+  opacity: 0.5;
+  cursor: default;
+}
+.lok-sidor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.lok-sidor li {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+.lok-sidor img,
+.lok-ny-sida {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+}
+.lok-sidor img {
+  object-fit: cover;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-panel);
+}
+.lok-sidor li > span {
+  color: var(--tm-mute);
+  font-size: 15px;
+  text-align: center;
+}
+.lok-ny-sida {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  border: 2px dashed var(--tm-line);
+  background: var(--tm-panel);
+  color: var(--tm-mute);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.lok-ny-sida:focus-within {
+  outline: 2px solid var(--tm-focus);
+  outline-offset: 2px;
+}
+.lok-ny-sida svg {
+  width: 32px;
+  height: 32px;
+}
+.lok-ta-bort {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--lok-shade);
+  color: #ffffff;
+  cursor: pointer;
+}
+.lok-ta-bort svg {
+  width: 20px;
+  height: 20px;
+}
+.lok-pris p {
+  margin: 4px 0;
+}
+.lok-pris-rad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lok-pris-rad .lok-overrubrik {
+  margin: 0;
+}
+.lok-betalare {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+.lok-pris .lok-pris-summa {
+  margin: 6px 0;
+  font-size: 30px;
+  font-weight: 800;
+}
+.lok-pa-pappret {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.lok-pa-pappret p {
+  margin: 2px 0;
+  font-size: 17px;
+}
+.lok-ditt-foto {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  border: 1.5px dashed var(--tm-line);
+  color: var(--tm-mute);
+}
+.lok-ditt-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lok-ditt-foto svg {
+  width: 28px;
+  height: 28px;
+}
+.lok-pa-pappret-nummer {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 26px;
+}
+.lok-mute {
+  color: var(--tm-mute);
+}
+.lok-papper-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+  font-size: 14px;
+  font-weight: 700;
+}
+.lok-papper-status.approved {
+  background: var(--lok-green-soft);
+  color: var(--lok-green);
+}
+.lok-papper.liten {
+  padding: 0 6px;
+  font-size: 11px;
+}
+.lok-olaslig {
+  display: block;
+  color: var(--lok-amber);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+p > .lok-olaslig,
+b + .lok-olaslig {
+  display: inline;
+}
+.lok-moment.okand .lok-tid {
+  color: var(--lok-amber);
+}
+.lok-papper-banner {
+  margin: -16px -16px 12px;
+  padding: 12px 16px;
+  background: var(--lok-amber-soft);
+  color: var(--lok-amber);
+}
+.lok-papper-banner > p {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  font-weight: 600;
+}
+.lok-papper-banner > p svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.lok-papper-banner.godkand {
+  background: var(--lok-green-soft);
+  color: var(--lok-green);
+}
+.lok-papper-banner .lok-foton {
+  margin: 10px 0 0 32px;
+}
+.lok-papper-banner .lok-overrubrik {
+  color: inherit;
+}
+.lok-foton ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lok-foton > .lok-overrubrik {
+  display: block;
+  margin: 12px 0 6px;
+}
+.lok-papper-banner .lok-foton > .lok-overrubrik {
+  margin-top: 0;
+}
+.lok-foto {
+  display: block;
+  width: 48px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--tm-line);
+  border-radius: 8px;
+  background: var(--tm-panel);
+  cursor: pointer;
+}
+.lok-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lok-foto-stor {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #ffffff;
+}
+.lok-avslagen .lok-knapp {
+  width: 100%;
+}
+.lok-framsida > .lok-papper {
+  margin-bottom: 6px;
 }
 
 @media (min-width: 761px) {

@@ -115,6 +115,19 @@ export const Icon = {
       </g>
     </svg>
   ),
+  camera: (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <g {...stroke}>
+        <path d="M4 8h3.5l1.8-2.5h5.4L16.5 8H20v11H4z" />
+        <circle cx="12" cy="13" r="3.5" />
+      </g>
+    </svg>
+  ),
+  close: (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 6l12 12M18 6L6 18" {...stroke} strokeWidth={2.2} />
+    </svg>
+  ),
 };
 
 /** The blue train mark: where the train is according to the stations (LOK-38). */
@@ -146,7 +159,7 @@ export function ClockPill({ mode, speed, text }: { mode: ClockMode; speed: numbe
 }
 
 /** A sheet from the bottom, over the page (meddela.jpg, slapp.jpg): Escape and Avbryt close it. */
-export function Sheet({ title, onClose, children, text }: { title: string; onClose: () => void; children: ReactNode; text: Text }) {
+export function Sheet({ title, onClose, children, text, closeLabel }: { title: string; onClose: () => void; children: ReactNode; text: Text; closeLabel?: string }) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     panel.current?.querySelector<HTMLElement>("button, input, select, a[href]")?.focus();
@@ -163,7 +176,7 @@ export function Sheet({ title, onClose, children, text }: { title: string; onClo
         <h2>{title}</h2>
         {children}
         <button type="button" className="lok-avbryt" onClick={onClose}>
-          {text.cancel}
+          {closeLabel ?? text.cancel}
         </button>
       </div>
     </div>

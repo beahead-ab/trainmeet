@@ -162,6 +162,10 @@ def test_unreadable_times_stay_unknown_and_there_is_no_reality_before_approval()
     asen = plan.rows[1]
     assert (asen.arrival, asen.departure) == ("06:49", None)
     assert drift.drivers.papers[PAPER].reading.rows[1].unreadable
+    assert [row.unreadable for row in plan.rows] == [
+        row.unreadable for row in drift.drivers.papers[PAPER].reading.rows
+    ]
+    assert asen.unreadable and not plan.rows[0].unreadable
     assert all(row.real is None and row.clearance is None for row in plan.rows)
     assert plan.position is None
 

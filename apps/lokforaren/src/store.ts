@@ -6,6 +6,7 @@ import {
   api,
   rowsOf,
   Problem,
+  PAPER_PAGES,
   refKey,
   type ClaimedBy,
   type DriverMe,
@@ -15,6 +16,8 @@ import {
   type Korplan,
   type Level,
   type MessageKind,
+  type PaperPrice,
+  type PaperService,
   type Presence,
   type Profile,
   type ServiceList,
@@ -23,11 +26,12 @@ import {
 import { MeetClock } from "./clock";
 import { ChangedMarks, countdown, dueReminder, wholeMinutes } from "./korplan";
 import { Memory } from "./memory";
+import { redrawPage, type Page } from "./photo";
 import { beep, browserNotifier, type Notifier } from "./remind";
 import { guessLanguage, languageOf, TEXT, type Language, type Text } from "./text";
 
-export type Route = "korplan" | "tag" | "forare" | "jag" | "instruktioner" | "tjanst";
-export const ROUTES: Route[] = ["korplan", "tag", "forare", "jag", "instruktioner", "tjanst"];
+export type Route = "korplan" | "tag" | "forare" | "jag" | "instruktioner" | "tjanst" | "papper";
+export const ROUTES: Route[] = ["korplan", "tag", "forare", "jag", "instruktioner", "tjanst", "papper"];
 export type Sheet = "messages" | "release" | "checkin" | null;
 export type Theme = "morkt" | "ljust" | "auto";
 export type Phase = "loading" | "join" | "nomeet" | "app";
@@ -78,9 +82,15 @@ export type LokState = {
   framme: string[];
   /** The driver chose to see the körplan before the start. */
   showKorplan: boolean;
+  /** Efter pappret (LOK-29): the pages photographed and drawn anew in the phone, not yet read. */
+  pages: Page[];
+  /** The price for those pages, and who pays, before anything is read (LOK-33). */
+  price: PaperPrice | null;
+  /** The AI reads the paper: it may take a while. */
+  reading: boolean;
 };
 
-type Options = { monotonic?: () => number; memory?: Memory; notifier?: Notifier; sound?: () => void };
+type Options = { monotonic?: () => number; memory?: Memory; notifier?: Notifier; sound?: () => void; redraw?: (file: File) => Promise<Page> };
 
 export class Lok {
   readonly clock: MeetClock;
@@ -88,6 +98,8 @@ export class Lok {
   private readonly memory: Memory;
   private readonly notifier: Notifier;
   private readonly sound: () => void;
+  private readonly redraw: (file: File) => Promise<Page>;
+  private priceAsked = 0;
   private listeners = new Set<() => void>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private waiting: AbortController | null = null;
@@ -101,6 +113,7 @@ export class Lok {
     this.memory = options.memory ?? new Memory();
     this.notifier = options.notifier ?? browserNotifier;
     this.sound = options.sound ?? beep;
+    this.redraw = options.redraw ?? redrawPage;
     const memory = this.memory;
     this.state = {
       phase: "loading",
@@ -131,6 +144,9 @@ export class Lok {
       seen: memory.get("sedda", []),
       framme: memory.get("framme", []),
       showKorplan: false,
+      pages: [],
+      price: null,
+      reading: false,
     };
   }
 
@@ -151,12 +167,16 @@ export class Lok {
   }
 
   /** The hub's no, in the driver's language: the English for the reasons it has, else the
-   * hub's own words. */
-  private say(error: unknown): string {
+   * hub's own words. byStatus: what a status means where the hub gives no reason, for the
+   * English, and for when the hub gave no words. */
+  private say(error: unknown, byStatus: Record<number, string> = {}): string {
     if (error instanceof Problem) {
       if (error.status === 0) return this.text.offline;
       const known = error.reason ? this.text.reasons[error.reason] : undefined;
-      return known ?? (error.message || this.text.failed);
+      if (known) return known;
+      const meant = byStatus[error.status];
+      const said = this.text.hubFirst ? error.message || meant : meant || error.message;
+      return said || this.text.failed;
     }
     return this.text.failed;
   }
@@ -245,7 +265,9 @@ export class Lok {
     const serviceOf = (found: DriverMe | null) => (found?.service ? refKey(found.service.service) : null);
     const sameService = serviceOf(me) === serviceOf(this.state.me);
     const first = this.state.phase !== "app";
+    const decided = first ? null : paperDecided(this.state.me?.paper, me.paper);
     this.set({ me, phase: "app", showKorplan: sameService && this.state.showKorplan });
+    if (decided) this.set({ notice: decided.status === "approved" ? this.text.noticeApproved(decided.train_number ?? "") : this.text.noticeRejected(decided.reason) });
     if (first) {
       this.navigate(this.initial ?? (me.service ? "korplan" : "tag"), true);
       this.initial = null;
@@ -416,8 +438,16 @@ export class Lok {
     }
   }
 
+  /** May the driver take a service now: without one, or running after a paper that waits for
+   * Trafikledningen, which the planned service then takes the place of (LF16). */
+  mayTake(): boolean {
+    const service = this.state.me?.service;
+    return !service || service.paper === "waiting";
+  }
+
   /** Ta tjänsten: the first one gets it; the other is told it is taken (LOK-40). The paper's
-   * number goes with it when it was not the plan's (LOK-19). */
+   * number goes with it when it was not the plan's (LOK-19). Instead of a paper that waits,
+   * the paper is let go (LF16). */
   async claim(offer: ServiceOffer, paper: string | null = null): Promise<boolean> {
     const done = await this.act(async () => {
       const me = await api.claim(offer.service);
@@ -427,7 +457,7 @@ export class Lok {
       }
       this.remember("seen", "sedda", [...this.state.seen.filter((k) => k !== key), key]);
       this.clock.accept(me.clock);
-      this.set({ me, selected: null, sheet: null, showKorplan: false, paper: null, query: "" });
+      this.set({ me, selected: null, sheet: null, showKorplan: false, paper: null, query: "", pages: [], price: null });
       await this.loadKorplan();
     });
     if (done) this.navigate("korplan");
@@ -518,8 +548,86 @@ export class Lok {
     if (!done) return false;
     this.waiting?.abort();
     for (const key of ["papper", "sedda", "framme"]) this.memory.forget(key);
-    this.set({ phase: "join", me: null, korplan: null, sheet: null, papers: {}, seen: [], framme: [], presence: null, selected: null, sessionLost: false });
+    this.set({ phase: "join", me: null, korplan: null, sheet: null, papers: {}, seen: [], framme: [], presence: null, selected: null, sessionLost: false, pages: [], price: null });
     return true;
+  }
+
+  // --- Efter pappret (LOK-13, LOK-29, LOK-33) -------------------------------------------------
+
+  /** Photos of the paper's pages, at most four: each drawn anew in the phone, without the
+   * camera's data, before anything is sent. Then the price for them. */
+  async addPages(files: File[]): Promise<void> {
+    const room = PAPER_PAGES - this.state.pages.length;
+    const chosen = files.filter((file) => file.type.startsWith("image/") || !file.type);
+    this.set({ problem: chosen.length > room ? this.text.pagesMax(PAPER_PAGES) : null });
+    const drawn: Page[] = [];
+    for (const file of chosen.slice(0, Math.max(0, room))) {
+      try {
+        drawn.push(await this.redraw(file));
+      } catch {
+        this.set({ problem: this.text.photoBad });
+      }
+    }
+    if (!drawn.length && chosen.length) return;
+    this.set({ pages: [...this.state.pages, ...drawn].slice(0, PAPER_PAGES) });
+    await this.loadPrice();
+  }
+
+  removePage(index: number): void {
+    this.set({ pages: this.state.pages.filter((_, i) => i !== index), problem: null });
+    void this.loadPrice();
+  }
+
+  /** The price before reading (TOKEN-14): for the pages chosen, or for one page before any,
+   * so that the driver knows before photographing whether the paper can be read. */
+  async loadPrice(): Promise<void> {
+    if (this.state.me?.service) return;
+    const pages = Math.max(1, this.state.pages.length);
+    const asked = ++this.priceAsked;
+    try {
+      const price = await api.paperPrice(pages);
+      if (asked === this.priceAsked) this.set({ price });
+    } catch (error) {
+      if (asked === this.priceAsked) this.set({ price: null, problem: this.say(error) });
+    }
+  }
+
+  /** Läs pappret (LOK-29): the photos with the price the driver saw. The reading becomes the
+   * driver's service, waiting for Trafikledningen (LOK-13), and the planned services nearest
+   * its start come with it (LF16): the page shows them first. */
+  async readPaper(): Promise<boolean> {
+    const { pages, price } = this.state;
+    if (!pages.length || !price?.ready || this.state.reading) return false;
+    this.set({ busy: true, reading: true, problem: null });
+    try {
+      await api.readPaper(pages.map((page) => page.picture), price.price);
+      this.set({ busy: false, reading: false, pages: [], price: null, showKorplan: false });
+      await this.refresh();
+      return true;
+    } catch (error) {
+      this.set({ busy: false, reading: false, problem: this.say(error, this.text.paperErrors) });
+      if (error instanceof Problem && error.status === 401) await this.refresh();
+      else if (error instanceof Problem && error.reason === "one_service") await this.refresh();
+      else if (error instanceof Problem && [402, 403, 409].includes(error.status)) await this.loadPrice();
+      return false;
+    }
+  }
+
+  /** What the price says when it cannot be read: the English for what the app knows, else the
+   * hub's own words. */
+  priceProblem(price: PaperPrice | null): string | null {
+    if (!price || price.ready) return null;
+    const text = this.text;
+    const short = price.paid_by && price.available !== null && price.available !== undefined && price.available < price.price;
+    if (!text.hubFirst && short) return text.shortOf(price.available ?? 0, price.price);
+    if (!text.hubFirst && needsLogin(price)) return text.logInFirst;
+    return price.message || (short ? text.shortOf(price.available ?? 0, price.price) : text.failed);
+  }
+
+  /** Logging in with TrainMeet ID would let the paper be read: the driver's own tokens pay
+   * (hub/paper_reading.py LOG_IN), and the hub offers the login. */
+  offersLogin(price: PaperPrice | null): boolean {
+    return Boolean(price && !price.ready && needsLogin(price) && this.state.hub?.id_login && !this.state.hub.person);
   }
 
   // --- The phone's own choices --------------------------------------------------------------
@@ -589,6 +697,17 @@ export class Lok {
   paperOf(offer: ServiceOffer | null | undefined): string | null {
     return offer ? (this.state.papers[refKey(offer.service)] ?? null) : null;
   }
+}
+
+/** The driver's own tokens pay and the driver is not logged in (PaperPrice.log_in, LOK-33). */
+export function needsLogin(price: PaperPrice): boolean {
+  return !price.ready && price.log_in;
+}
+
+/** The paper Trafikledningen has just decided on: approved, or rejected with the reason. */
+export function paperDecided(before: PaperService | null | undefined, after: PaperService | null | undefined): PaperService | null {
+  if (!before || before.status !== "waiting" || !after || after.paper !== before.paper) return null;
+  return after.status === "approved" || after.status === "rejected" ? after : null;
 }
 
 export function routeOf(pathname: string): Route | null {

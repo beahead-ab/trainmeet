@@ -7,12 +7,16 @@ import { CHANGED_MINUTES, REMINDERS } from "./api";
 import { DAY, timeSeconds } from "./clock";
 
 export type MomentKind = "arrival" | "departure" | "pass";
-export type Moment = { t: number; kind: MomentKind; row: KorplanRow; index: number };
+/** unknown: a time that stood on the paper but could not be read (LOK-29). It is shown as
+ * unknown, never guessed; on the axis it stands just before the next time that was read, so it
+ * counts as passed only once that one has. */
+export type Moment = { t: number; kind: MomentKind; row: KorplanRow; index: number; unknown?: boolean };
 
 /** The service's moments in time order, on a running axis: a time more than six hours before
  * the one before has gone past midnight. The service begins with a departure and ends with an
- * arrival; a call the train passes is one moment. */
-export function momentsOf(rows: KorplanRow[]): Moment[] {
+ * arrival; a call the train passes is one moment. unreadable: the rows of a körplan after the
+ * paper whose times could not be read, kept with an unknown time in their place. */
+export function momentsOf(rows: KorplanRow[], unreadable: (index: number) => boolean = () => false): Moment[] {
   const moments: Moment[] = [];
   let last: number | null = null;
   const onAxis = (value: string | null | undefined): number | null => {
@@ -22,26 +26,33 @@ export function momentsOf(rows: KorplanRow[]): Moment[] {
     last = t;
     return t;
   };
+  const add = (kind: MomentKind, row: KorplanRow, index: number, value: string | null | undefined, keep: boolean) => {
+    const t = onAxis(value);
+    if (t !== null) moments.push({ t, kind, row, index });
+    else if (keep && unreadable(index)) moments.push({ t: Number.NaN, kind, row, index, unknown: true });
+  };
   rows.forEach((row, index) => {
     const first = index === 0;
     if (!row.stops) {
-      const t = onAxis(row.departure ?? row.arrival);
-      if (t !== null) moments.push({ t, kind: "pass", row, index });
+      add("pass", row, index, row.departure ?? row.arrival, true);
       return;
     }
-    if (!first && row.arrival) {
-      const t = onAxis(row.arrival);
-      if (t !== null) moments.push({ t, kind: "arrival", row, index });
-    }
-    if (!row.last && row.departure) {
-      const t = onAxis(row.departure);
-      if (t !== null) moments.push({ t, kind: "departure", row, index });
-    }
-    if (row.last && !row.arrival && row.departure) {
-      const t = onAxis(row.departure);
-      if (t !== null) moments.push({ t, kind: "arrival", row, index });
-    }
+    if (!first && (row.arrival || !row.last || !row.departure)) add("arrival", row, index, row.arrival, true);
+    if (!row.last) add("departure", row, index, row.departure, true);
+    if (row.last && !row.arrival && row.departure) add("arrival", row, index, row.departure, false);
   });
+  // An unknown time stands just before the next time that was read (or after the last one).
+  let next: number | null = null;
+  for (let i = moments.length - 1; i >= 0; i -= 1) {
+    const moment = moments[i]!;
+    if (!moment.unknown) next = moment.t;
+    else if (next !== null) moment.t = next;
+  }
+  let before = 0;
+  for (const moment of moments) {
+    if (!moment.unknown) before = moment.t;
+    else if (Number.isNaN(moment.t)) moment.t = before;
+  }
   return moments;
 }
 

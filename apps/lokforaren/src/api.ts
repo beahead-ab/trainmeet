@@ -31,6 +31,13 @@ export type MessageKind = Schemas["trainmeet.driver-1.message-send"]["kind"];
 export type ClaimedBy = NonNullable<DriverMe["claimed_by"]>;
 export type Now = Schemas["trainmeet.drift-1.now"];
 export type HubInfo = Schemas["trainmeet.hub-1.info"];
+/** Efter pappret (LOK-13, LOK-29, LOK-33): the price before reading, and the paper as read. */
+export type PaperPrice = Schemas["trainmeet.driver-1.paper-price"];
+export type PaperService = Schemas["trainmeet.driver-1.me.PaperService"];
+export type PaperRow = Schemas["trainmeet.driver-1.me.PaperRow"];
+export type PaperEnd = Schemas["trainmeet.driver-1.me.PaperEnd"];
+export type PaperStatus = Schemas["trainmeet.driver-1.me.PaperStatus"];
+export type PaperPayer = Schemas["trainmeet.driver-1.me.PaperPayer"];
 
 export const DRIVERS = "/api/drift/1/drivers";
 export const LEVELS: Level[] = ["easy", "medium", "experienced"];
@@ -39,6 +46,11 @@ export const MESSAGE_KINDS: MessageKind[] = ["delayed", "stopped_on_line", "need
 export const REMINDERS = [20, 10] as const;
 /** How long Ändrat stays, in game minutes (contracts/driver.py CHANGED_MINUTES, LOK-41). */
 export const CHANGED_MINUTES = 10;
+/** The most pages of a duty photographed at a time (contracts/driver.py PAPER_PAGES, LOK-29). */
+export const PAPER_PAGES = 4;
+/** A place on the paper the meet does not have: its name stands as it was read
+ * (contracts/driver.py UNKNOWN_PLACE). */
+export const UNKNOWN_PLACE = "okand";
 
 /** What the hub said no to, in its own words and with its reason, or that it could not be
  * reached (status 0). */
@@ -52,18 +64,19 @@ export class Problem extends Error {
   }
 }
 
-type Send = { body?: unknown; raw?: Blob; signal?: AbortSignal };
+type Send = { body?: unknown; raw?: Blob; form?: FormData; signal?: AbortSignal };
 
-/** One call to the hub: GET without a body, POST with JSON or a picture's bytes. */
+/** One call to the hub: GET without a body, POST with JSON, a picture's bytes or a form. A form
+ * gets its Content-Type with the boundary from the browser. */
 export async function call<T>(path: string, send: Send = {}): Promise<T> {
-  const posting = send.body !== undefined || send.raw !== undefined;
+  const posting = send.body !== undefined || send.raw !== undefined || send.form !== undefined;
   const headers: Record<string, string> = {};
   if (send.body !== undefined) headers["Content-Type"] = "application/json";
   if (send.raw !== undefined) headers["Content-Type"] = send.raw.type || "application/octet-stream";
   const response = await fetch(path, {
     method: posting ? "POST" : "GET",
     headers,
-    body: send.raw ?? (send.body !== undefined ? JSON.stringify(send.body) : undefined),
+    body: send.form ?? send.raw ?? (send.body !== undefined ? JSON.stringify(send.body) : undefined),
     credentials: "same-origin",
     cache: "no-store",
     signal: send.signal,
@@ -102,6 +115,15 @@ export const api = {
   wait: (after: number, signal?: AbortSignal) => call<Wait>(`${DRIVERS}/wait?after=${after}`, { signal }),
   instructions: () => call<Instructions>(`${DRIVERS}/instructions`),
   leave: () => call<void>(`${DRIVERS}/leave`, json({})),
+  /** The price before anything is read (LOK-33, TOKEN-14), and whether it can be read now. */
+  paperPrice: (pages: number) => call<PaperPrice>(`${DRIVERS}/paper/price?pages=${pages}`),
+  /** Kör efter pappret (LOK-29): the photos as a form, each part named pages, with the price the
+   * driver was shown; a higher one is not paid without asking again. */
+  readPaper: (pages: Blob[], price: number) => {
+    const form = new FormData();
+    pages.forEach((page, index) => form.append("pages", page, `sida${index + 1}.${extensionOf(page)}`));
+    return call<PaperService>(`${DRIVERS}/paper?price=${price}`, { form });
+  },
   /** Nu is open to everyone and holds no names (B13): the meet's name and its places. */
   now: () => call<Now>("/api/drift/1/now"),
   hub: () => call<HubInfo>("/api/hub"),
@@ -112,6 +134,10 @@ export const idLoginAddress = (next: string, language: string) => `/api/hub/id/l
 
 export const refKey = (ref: ServiceRef) => `${ref.kind}:${ref.id}`;
 
+const extensionOf = (picture: Blob) => (picture.type === "image/png" ? "png" : picture.type === "image/webp" ? "webp" : "jpg");
+
 /** The lists the hub always sends, though the contract gives them defaults. */
 export const rowsOf = (korplan: Korplan | null | undefined): KorplanRow[] => korplan?.rows ?? [];
 export const trainsOf = (offer: ServiceOffer | null | undefined): string[] => offer?.trains ?? [];
+export const candidatesOf = (paper: PaperService | null | undefined): ServiceOffer[] => paper?.candidates ?? [];
+export const photosOf = (paper: PaperService | null | undefined): string[] => paper?.photos ?? [];

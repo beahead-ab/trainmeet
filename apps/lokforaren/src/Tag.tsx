@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { LEVELS, refKey, trainsOf, type Level, type ServiceOffer } from "./api";
 import { timeSeconds } from "./clock";
 import { onAxis, wholeMinutes } from "./korplan";
+import { paperStatusText, RejectedCard, runningPaper } from "./Papper";
 import type { Lok, LokState } from "./store";
 import { TEXT, type Text } from "./text";
 import { Icon, PageHead, Problem } from "./ui";
 
-// Tåg (LOK-17, LOK-18, LOK-19, LOK-25, LOK-31, LOK-32, LOK-40; valj-tjanst.jpg, sok-nummer.jpg,
-// valj-tag.jpg, ta-over.jpg): the services in start order with the driver's level first, a
-// search on the paper's number, a service released on the line to take over, and one handed out
-// by the dispatcher. On a meet without duties the services are the trains.
+// Tåg (LOK-17, LOK-18, LOK-19, LOK-25, LOK-29, LOK-31, LOK-32, LOK-40; valj-tjanst.jpg,
+// sok-nummer.jpg, valj-tag.jpg, ta-over.jpg): the services in start order with the driver's
+// level first, a search on the paper's number, the camera for the paper's front, a service
+// released on the line to take over, and one handed out by the dispatcher. On a meet without
+// duties the services are the trains. A driver running after a paper that waits for
+// Trafikledningen may still take a planned service instead (LF16).
 
 const rank = (level: Level | null | undefined) => (level ? LEVELS.indexOf(level) : -1);
 
@@ -56,8 +59,10 @@ function Status({ offer, mine, text, trains }: { offer: ServiceOffer; mine: stri
   );
 }
 
-function Row({ lok, state, offer, now, text }: { lok: Lok; state: LokState; offer: ServiceOffer; now: number | null; text: Text }) {
-  const trains = state.services?.kind === "train";
+/** A service in a list (valj-tjanst.jpg): its number, the way, the end, who drives and the
+ * level. withStart: the start time first, as beside the paper (foto-saknas.jpg). */
+export function Row({ lok, state, offer, now, text, withStart = false, onChoose }: { lok: Lok; state: LokState; offer: ServiceOffer; now: number | null; text: Text; withStart?: boolean; onChoose?: (offer: ServiceOffer) => void }) {
+  const trains = offer.service.kind === "train";
   const me = state.me?.driver;
   const over = overLevel(offer, me?.level);
   const minutes = minutesTo(offer.start.time, now);
@@ -66,10 +71,11 @@ function Row({ lok, state, offer, now, text }: { lok: Lok; state: LokState; offe
     : `${text.until(offer.end.time ?? "")}${over ? ` · ${text.overLevel}` : offer.operator ? ` · ${offer.operator}` : ""}`;
   return (
     <li>
-      <button type="button" className={`lok-tjanst${offer.taken || offer.done ? " upptagen" : ""}`} onClick={() => lok.select(offer)}>
+      <button type="button" className={`lok-tjanst${offer.taken || offer.done ? " upptagen" : ""}`} onClick={() => (onChoose ? onChoose(offer) : lok.select(offer))}>
         <span className="lok-nummer tm-mono">{offer.number}</span>
         <span className="lok-vag">
           <b>
+            {withStart && offer.start.time ? `${offer.start.time} · ` : ""}
             {offer.start.place_name} → {offer.end.place_name}
           </b>
           <span className={over ? "over" : undefined}>{detail}</span>
@@ -90,6 +96,7 @@ export function Front({ offer, text, paper, now }: { offer: ServiceOffer; text: 
   const minutes = minutesTo(offer.start.time, now);
   return (
     <div className="lok-framsida">
+      {offer.paper && <span className="lok-papper">{text.afterPaper}</span>}
       <span className="lok-framsida-ord">{trains ? text.train : text.service}</span>
       <span className="lok-framsida-nummer tm-mono">{offer.number}</span>
       {paper && paper !== offer.number && <span className="lok-pa-papper">{text.onPaper(paper)}</span>}
@@ -138,12 +145,32 @@ export function GivenCard({ lok, state, now }: { lok: Lok; state: LokState; now:
   );
 }
 
+/** The camera beside the search (valj-tjanst.jpg): the paper's front and its pages, to the page
+ * that shows the price before anything is read (LOK-18, LOK-29). */
+function Camera({ lok, state, text }: { lok: Lok; state: LokState; text: Text }) {
+  const choose = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = "";
+    lok.navigate("papper");
+    if (files.length) void lok.addPages(files);
+  };
+  return (
+    <label className={`lok-kamera${state.me?.service ? " av" : ""}`} title={text.photoFront}>
+      {Icon.camera}
+      <span className="lok-dold">{text.photoFront}</span>
+      <input className="lok-dold" type="file" accept="image/*" capture="environment" multiple disabled={Boolean(state.me?.service) || state.busy} onChange={choose} />
+    </label>
+  );
+}
+
 export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: number | null }) {
   const text = TEXT[state.language];
   const [query, setQuery] = useState(state.query);
   const offers = state.services?.services ?? [];
   const trains = state.services?.kind === "train";
   const mine = state.me?.service;
+  const paper = runningPaper(state);
+  const blocked = !lok.mayTake();
   const searching = query.trim() !== "";
   const exact = searching ? offers.find((o) => o.exact) : undefined;
   const groups = groupServices(searching && exact ? offers.filter((o) => o !== exact) : offers);
@@ -161,15 +188,20 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
       <PageHead title={trains ? text.chooseTrain : text.chooseService} sub={trains ? text.noDuties : (state.meetName ?? "")} />
       {!(searching && exact) && <Problem text={state.problem} />}
       <GivenCard lok={lok} state={state} now={now} />
+      <RejectedCard lok={lok} state={state} />
       {mine && !lok.givenBy() && (
         <section className="lok-min-tjanst">
-          <p className="lok-overrubrik">{text.yourService}</p>
+          <p className="lok-overrubrik">
+            {text.yourService}
+            {paper ? ` · ${text.afterPaper}` : ""}
+          </p>
           <div className="lok-utdelad-rad">
-            <b>{trains ? text.trainNumber(mine.number) : text.serviceNumber(mine.number)}</b>
+            <b>{mine.service.kind === "train" ? text.trainNumber(mine.number) : text.serviceNumber(mine.number)}</b>
             <span className="tm-mono">{mine.start.time}</span>
           </div>
           <p>
             {mine.start.place_name} → {mine.end.place_name}
+            {paper ? ` · ${paperStatusText(paper, text)}` : ""}
           </p>
           <button type="button" className="lok-knapp primar" onClick={() => lok.navigate("korplan")}>
             {text.toKorplan}
@@ -189,7 +221,7 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
           <p>
             {offer.start.place_name} → {offer.end.place_name} · {text.until(offer.end.time ?? "")}
           </p>
-          <button type="button" className="lok-knapp primar" disabled={state.busy || Boolean(mine)} onClick={() => void lok.claim(offer, state.paper)}>
+          <button type="button" className="lok-knapp primar" disabled={state.busy || blocked} onClick={() => void lok.claim(offer, state.paper)}>
             {text.takeOver}
           </button>
         </section>
@@ -200,8 +232,8 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
           <span className="lok-dold">{trains ? text.searchTrain : text.searchService}</span>
           <input type="search" inputMode="numeric" value={query} placeholder={trains ? text.searchTrain : text.searchService} onChange={(event) => search(event.target.value)} />
         </label>
+        {!trains && <Camera lok={lok} state={state} text={text} />}
       </div>
-      <p className="lok-not">{text.photoSoon}</p>
       {state.paper && !searching && (
         <p className="lok-upplysning">
           {text.paperChip(state.paper)} · {text.wrongNumber}{" "}
@@ -222,7 +254,7 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
           </p>
           <Problem text={state.problem} />
           <div className="lok-knappar staplade">
-            <button type="button" className="lok-knapp primar stor" disabled={state.busy || exact.taken || Boolean(mine)} onClick={() => void lok.claim(exact)}>
+            <button type="button" className="lok-knapp primar stor" disabled={state.busy || exact.taken || blocked} onClick={() => void lok.claim(exact)}>
               {exact.taken ? (exact.driver_name ? text.drives(exact.driver_name) : text.someoneDrives) : text.thatsMine}
             </button>
             <button type="button" className="lok-knapp stor" onClick={lookByStart}>
@@ -237,6 +269,14 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
           <button type="button" className="lok-lank" onClick={lookByStart}>
             {text.notIt}
           </button>
+          {!trains && !mine && (
+            <>
+              {" "}
+              <button type="button" className="lok-lank" onClick={() => lok.navigate("papper")}>
+                {text.notFound}
+              </button>
+            </>
+          )}
         </p>
       )}
       {groups.fits.length > 0 && level && (
@@ -267,6 +307,11 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
         </section>
       )}
       <p className="lok-not">{trains ? text.trainsOnly : text.wrongNumber}</p>
+      {!trains && !mine && (
+        <button type="button" className="lok-knapp stor" onClick={() => lok.navigate("papper")}>
+          {Icon.camera} {text.notFound}
+        </button>
+      )}
     </main>
   );
 }
@@ -287,13 +332,15 @@ export function TjanstKort({ lok, state, now }: { lok: Lok; state: LokState; now
   const isMine = Boolean(me?.service && refKey(me.service.service) === refKey(offer.service));
   const paper = isMine ? lok.paperOf(offer) : state.paper;
   const takenByOther = offer.taken && !isMine;
+  // Instead of the paper that waits for Trafikledningen (LF16): the paper is let go.
+  const instead = !isMine && me?.service?.paper === "waiting";
   return (
     <main className="lok-sida" id="innehall">
       <PageHead
         title={trains ? text.trainNumber(offer.number) : text.serviceNumber(offer.number)}
         sub={[trainsOf(offer).length ? text.trains(trainsOf(offer).join(", ")) : null, offer.operator].filter(Boolean).join(" · ")}
         back
-        onBack={() => lok.navigate(isMine ? "korplan" : "tag")}
+        onBack={() => lok.navigate(isMine ? "korplan" : instead ? "papper" : "tag")}
         backLabel={text.back}
       />
       <Problem text={state.problem} />
@@ -315,14 +362,15 @@ export function TjanstKort({ lok, state, now }: { lok: Lok; state: LokState; now
         ) : takenByOther ? (
           <p className="lok-upplysning">{offer.driver_name ? text.drives(offer.driver_name) : text.taken}</p>
         ) : (
-          <button type="button" className="lok-knapp primar stor" disabled={state.busy || offer.done || Boolean(me?.service)} onClick={() => void lok.claim(offer, state.paper)}>
-            {offer.released_on_line ? text.takeOver : trains ? text.takeTrain : text.takeIt}
+          <button type="button" className="lok-knapp primar stor" disabled={state.busy || offer.done || !lok.mayTake()} onClick={() => void lok.claim(offer, state.paper)}>
+            {instead ? text.takeInstead : offer.released_on_line ? text.takeOver : trains ? text.takeTrain : text.takeIt}
           </button>
         )}
-        <button type="button" className="lok-knapp stor" onClick={() => lok.navigate(isMine ? "korplan" : "tag")}>
+        <button type="button" className="lok-knapp stor" onClick={() => lok.navigate(isMine ? "korplan" : instead ? "papper" : "tag")}>
           {text.back}
         </button>
       </div>
+      {instead && <p className="lok-not">{text.paperGoes}</p>}
     </main>
   );
 }
