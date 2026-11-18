@@ -678,6 +678,21 @@ class Kept:
     bytes: int
 
 
+@dataclass(frozen=True)
+class Stored:
+    """A vehicle's picture as it is stored, for the account export (CAT-188)."""
+
+    id: UUID
+    vehicle: UUID
+    main: bool
+    position: int
+    width: int
+    height: int
+    background: PictureBackground
+    display_key: str
+    original_key: str | None
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -980,6 +995,44 @@ class Pictures:
             raise
         self._discard([key for key in keys if key not in held])
         return result
+
+    def main_file(self, owner: UUID, vehicle: UUID) -> bytes | None:
+        """The vehicle's main picture's display picture as stored, for a file in Tellurian's
+        format (CAT-185). None without pictures."""
+        with self.db.transaction() as conn:
+            row = conn.execute(
+                "SELECT display_key FROM picture WHERE vehicle_id = %s AND owner_id = %s "
+                "AND is_main",
+                (vehicle, owner),
+            ).fetchone()
+        if row is None:
+            return None
+        return self.fetch(row["display_key"])
+
+    def of_owner(self, owner: UUID) -> list[Stored]:
+        """Every picture of the owner's vehicles, for the account export (CAT-188): by vehicle,
+        in order, with the keys of the display picture and the original."""
+        with self.db.transaction() as conn:
+            rows = conn.execute(
+                "SELECT id, vehicle_id, is_main, position, width, height, background, "
+                "display_key, original_key FROM picture WHERE owner_id = %s "
+                "ORDER BY vehicle_id, position, created_at, id",
+                (owner,),
+            ).fetchall()
+        return [
+            Stored(
+                id=row["id"],
+                vehicle=row["vehicle_id"],
+                main=row["is_main"],
+                position=row["position"],
+                width=row["width"],
+                height=row["height"],
+                background=PictureBackground(row["background"]),
+                display_key=row["display_key"],
+                original_key=row["original_key"],
+            )
+            for row in rows
+        ]
 
     def links(self, display_key: str, thumb_key: str) -> PictureLinks:
         """A draft's picture's signed addresses (CAT-130)."""

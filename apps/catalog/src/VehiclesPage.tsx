@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api, STATES, type Account, type BatchSummary, type Place, type Vehicle, type VehicleKind, type VehicleList, type VehicleState } from "./api";
 import { BatchesSection } from "./BatchPage";
 import { Dialog, ErrorLine, isOwner, mayEdit, problemText, StatePill, subtitle, title, type Ctx } from "./common";
-import { PATHS, vehiclePath } from "./routes";
+import { labelsPath, PATHS, vehiclePath } from "./routes";
 
 type KindGroup = "all" | "engines" | "wagons";
 const GROUPS: Record<KindGroup, VehicleKind[]> = {
@@ -62,6 +62,18 @@ export function VehiclesView(props: VehiclesViewProps) {
           {isOwner(ctx) ? (
             <a className="tm-knapp" href={PATHS.places} onClick={linkClick(navigate, PATHS.places)}>
               {t("places")}
+            </a>
+          ) : null}
+          {isOwner(ctx) ? (
+            // The QR labels are the owner's, as the tags are (CAT-46, CAT-184).
+            <a className="tm-knapp" href={PATHS.labels} onClick={linkClick(navigate, PATHS.labels)}>
+              {t("labelsTitle")}
+            </a>
+          ) : null}
+          {mayEdit(ctx) ? (
+            // Each file a draft that the owner approves, as the photos (CAT-186).
+            <a className="tm-knapp" href={PATHS.importFiles} onClick={linkClick(navigate, PATHS.importFiles)}>
+              {t("importTitle")}
             </a>
           ) : null}
           {isOwner(ctx) ? (
@@ -128,6 +140,9 @@ export function VehiclesView(props: VehiclesViewProps) {
             <button type="button" className="tm-knapp" onClick={props.onMove}>
               {t("moveSelected", { n: selected.size })}
             </button>
+            <a className="tm-knapp" href={labelsPath([...selected])} onClick={linkClick(navigate, labelsPath([...selected]))}>
+              {t("labelsSelected", { n: selected.size })}
+            </a>
           </div>
         ) : null}
 

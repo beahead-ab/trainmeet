@@ -5,7 +5,7 @@
   "$defs": {
     "BatchCard": {
       "additionalProperties": true,
-      "description": "One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).",
+      "description": "One photo of a batch, or one file of an import in Tellurian's format: a draft of one\nvehicle, not a vehicle (CAT-147, CAT-148, CAT-186).",
       "properties": {
         "id": {
           "format": "uuid",
@@ -22,6 +22,24 @@
           "minimum": 0,
           "title": "Position",
           "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/BatchSource",
+          "default": "photo",
+          "description": "A photo, or a file in Tellurian's format."
+        },
+        "file_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The file the draft came from, as it was named when sent.",
+          "title": "File Name"
         },
         "status": {
           "$ref": "#/$defs/BatchCardStatus"
@@ -150,6 +168,15 @@
         "approved"
       ],
       "title": "BatchCardStatus",
+      "type": "string"
+    },
+    "BatchSource": {
+      "description": "What a batch's drafts come from (#56).",
+      "enum": [
+        "photo",
+        "file"
+      ],
+      "title": "BatchSource",
       "type": "string"
     },
     "Confidence": {
@@ -431,7 +458,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "A batch of photos and its cards (CAT-147).",
+  "description": "A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186).",
   "properties": {
     "id": {
       "description": "Made by the client (CAT-149).",
@@ -443,6 +470,11 @@
       "description": "The photos are read with AI; else they are filled in by hand.",
       "title": "Ai",
       "type": "boolean"
+    },
+    "source": {
+      "$ref": "#/$defs/BatchSource",
+      "default": "photo",
+      "description": "What the cards come from: photos, or files in Tellurian's format."
     },
     "mine": {
       "description": "The person asking made the batch.",

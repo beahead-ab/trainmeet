@@ -202,6 +202,22 @@ def ai_sources(fields: VehicleFields, suggestions: Mapping[str, Any]) -> dict[st
     }
 
 
+def imported_sources(
+    fields: VehicleFields, imported: Mapping[str, Any] | None
+) -> dict[str, FieldSource]:
+    """The import as the source of a value a file gave that nobody changed; the owner of the
+    rest (CAT-64). imported are a file's values, as a draft from a file in Tellurian's format
+    keeps them (catalog/batches.py, CAT-186)."""
+    if not imported:
+        return {}
+    shown = fields.model_dump(mode="json")
+    return {
+        name: FieldSource.IMPORT
+        for name in CORE_FIELDS
+        if name in imported and shown.get(name) == imported[name]
+    }
+
+
 def _suggested(
     conn: Connection[DictRow], owner: UUID, person: UUID | None, reading: UUID | None
 ) -> dict[str, Any]:
@@ -733,6 +749,12 @@ class Fleet:
             )
             removed = conn.execute("DELETE FROM owner WHERE id = ANY(%s)", (owners,))
             return removed.rowcount
+
+    def owner_name(self, owner: UUID) -> str:
+        """The owner's name as Catalog has it: from the login, or from ID for a club (CAT-51)."""
+        with self.db.transaction() as conn:
+            row = conn.execute("SELECT name FROM owner WHERE id = %s", (owner,)).fetchone()
+        return str(row["name"]) if row is not None else ""
 
     def settings(self, owner: UUID) -> OwnerSettings:
         with self.db.transaction() as conn:

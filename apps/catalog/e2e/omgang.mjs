@@ -13,6 +13,10 @@
 // fjärde blir att fylla i för hand med ett besked (CAT-147, CAT-152). Godkänn alla stoppas av det
 // tomma fotot, som pekas ut (CAT-150); det fylls i, alla fyra godkänns och står bland fordonen
 // med sina bilder.
+//
+// Sist Utskrift och filer (#56): två filer i Tellurians format importeras som utkast och godkänns
+// (CAT-186), ett fordon går ut som en fil med EVN delat (CAT-185), kontoexporten är en ZIP
+// (CAT-188), och arket med QR-etiketter skrivs ut med littera och nummer under koden (CAT-184).
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -76,6 +80,26 @@ function photo([r, g, b], note) {
 
 const RUN = `webblasarprovet ${Date.now()}`;
 const file = (name, colour) => ({ name, mimeType: "image/png", buffer: photo(colour, RUN) });
+
+/** A file in Tellurian's format as the card app writes it, with what the import reads. Made for the
+ * test: no one's data. */
+function tellurianFile(name, wagon) {
+  const base = {
+    Scale: 0,
+    OperatorSignature: "NSB",
+    VehicleClass: "Rps",
+    InteroperatbilityNumber: 31,
+    CountryRegistrationNumber: 76,
+    VehicleNumber: "393 3 013",
+    Epoch: "V",
+    ModelManufacturer: "Provmodeller",
+    ModelNumber: "R-1",
+    IsPassengerWagon: false,
+    Description: RUN,
+    Owner: { OwnerName: "", ClubName: "", PhoneNumber: "", EmailAddress: "" },
+  };
+  return { name, mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...base, ...wagon })) };
+}
 
 // --- Kontrollerna -------------------------------------------------------------------------------
 
@@ -251,6 +275,79 @@ async function batch(page) {
   console.log("Lägg till flera: fyra foton, tre lästa och ett för hand, stoppat, ifyllt och godkänt.");
 }
 
+async function files(page) {
+  // 1. Importera från Tellurian: two files, each a draft (CAT-186).
+  await page.goto(`${BASE}/fordon`);
+  await heading(page, "Fordon");
+  await page.getByRole("link", { name: "Importera från Tellurian", exact: true }).click();
+  await heading(page, "Filer i Tellurians format");
+  await page.locator('input[type="file"]').setInputFiles([
+    tellurianFile("Rps.json", {}),
+    tellurianFile("B7.json", { OperatorSignature: "SJ", VehicleClass: "B7", InteroperatbilityNumber: 50, CountryRegistrationNumber: 74, VehicleNumber: "20-35 123", IsPassengerWagon: true, Scale: 1 }),
+  ]);
+  await page.getByRole("button", { name: "Importera 2 filer", exact: true }).click();
+  const outcome = page.getByRole("status").filter({ hasText: "Så gick importen" });
+  await outcome.getByText("2 nya utkast · 0 fanns redan · 0 gick inte", { exact: true }).waitFor();
+  check((await outcome.getByText("Typuppgifterna i filen", { exact: false }).count()) === 2, "Importen säger inte att typuppgifterna inte kom med.");
+  await screenshot(page, "tellurian-importen");
+  // The drafts are not vehicles until they are approved (CAT-148).
+  check((await fromCatalog(page, "/api/catalog/1/vehicles")).total === 4, "Utkasten från filerna står bland fordonen.");
+
+  // 2. The drafts in the batch's page, with the EVN joined again, and Godkänn alla (CAT-150).
+  await outcome.getByRole("link", { name: "Granska och godkänn", exact: true }).click();
+  await heading(page, "Importen från Tellurian");
+  const rows = page.locator(".cat-omgangskort");
+  await rows.nth(1).waitFor();
+  const names = await rows.locator("b").allInnerTexts();
+  check(JSON.stringify(names) === JSON.stringify(["Rps 31 76 393 3 013-1", "B7 50 74 20-35 123-5"]), `Utkasten är ${names.join(", ")}.`);
+  await rows.nth(0).getByText("Från Rps.json", { exact: true }).waitFor();
+  await screenshot(page, "tellurian-utkasten");
+  await page.getByRole("button", { name: "Godkänn alla (2)", exact: true }).click();
+  await page.waitForURL(`${BASE}/fordon`);
+  await page.waitForFunction(() => document.querySelectorAll(".cat-tabell tbody tr").length === 6);
+  const vehicles = (await fromCatalog(page, "/api/catalog/1/vehicles")).vehicles;
+  const rps = vehicles.find((vehicle) => vehicle.litt === "Rps");
+  const b7 = vehicles.find((vehicle) => vehicle.litt === "B7");
+  check(rps?.field_sources.number === "import" && b7?.scale === "N", "Filernas fordon har inte importen som källa.");
+  check(rps?.evn?.text === "31 76 393 3 013-1" && rps.evn.valid, "Rps har inte sitt EVN.");
+
+  // 3. Out again as a file for Tellurian's card app, with the EVN split (CAT-185).
+  const wagon = await fromCatalog(page, `/api/catalog/1/vehicles/${b7.id}/tellurian`);
+  const split = [wagon.InteroperatbilityNumber, wagon.CountryRegistrationNumber, wagon.VehicleNumber];
+  check(JSON.stringify(split) === JSON.stringify([50, 74, "20-35 123"]), `EVN i filen är ${split.join(" | ")}.`);
+
+  // 4. Hämta allt mitt: one ZIP, from the account menu (CAT-188).
+  await page.getByRole("button", { name: "PA, Kontomenyn, Provkonto A" }).click();
+  const link = page.getByRole("link", { name: "Hämta allt mitt", exact: true });
+  check((await link.getAttribute("href")) === "/api/catalog/1/export", "Hämta allt mitt pekar fel.");
+  const zip = await page.evaluate(async () => {
+    const answer = await fetch("/api/catalog/1/export");
+    const start = new Uint8Array(await answer.arrayBuffer()).slice(0, 2);
+    return { status: answer.status, type: answer.headers.get("content-type"), start: String.fromCharCode(...start) };
+  });
+  check(zip.status === 200 && zip.type === "application/zip" && zip.start === "PK", `Kontoexporten är ${JSON.stringify(zip)}.`);
+  await page.keyboard.press("Escape");
+
+  // 5. The QR label for Rps on an A4 sheet: made when it is printed, with the litt and the
+  // number under the code (CAT-184). The print dialog is the test's own.
+  await page.goto(`${BASE}/fordon/etiketter?fordon=${rps.id}`);
+  await heading(page, "Skriv ut QR-etiketter");
+  await page.evaluate(() => {
+    window.print = () => {
+      window.utskrivet = true;
+    };
+  });
+  await page.getByRole("button", { name: "Skriv ut 1 etikett", exact: true }).click();
+  await page.waitForFunction(() => window.utskrivet === true);
+  const sheet = page.locator(".cat-ark");
+  await sheet.locator("figcaption", { hasText: "Rps 31 76 393 3 013-1" }).waitFor();
+  await picturesShown(page, ".cat-ark img", 1);
+  const tags = (await fromCatalog(page, `/api/catalog/1/vehicles/${rps.id}`)).tags;
+  check(tags.length === 1 && tags[0].kind === "qr", "Rps fick ingen QR-etikett.");
+  await screenshot(page, "etiketterna");
+  console.log("Utskrift och filer: två filer från Tellurian godkända, filen ut, kontoexporten och QR-etiketten.");
+}
+
 async function main() {
   check(CHROME, "CHROME_PATH saknas: sökvägen till Chrome eller Chromium.");
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -269,6 +366,7 @@ async function main() {
     });
     await singlePhoto(page);
     await batch(page);
+    await files(page);
     check(problems.length === 0, problems.join("\n"));
     console.log("Webbläsarprovet gick igenom.");
   } catch (error) {

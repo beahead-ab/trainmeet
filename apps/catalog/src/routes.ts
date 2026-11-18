@@ -7,6 +7,8 @@ export type Page =
   | "newPhoto"
   | "newBatch"
   | "batch"
+  | "labels"
+  | "importFiles"
   | "vehicle"
   | "editVehicle"
   | "lend"
@@ -33,6 +35,10 @@ export const PATHS = {
   newPhoto: "/fordon/nytt/foto",
   /** Lägg till flera: up to 30 photos in a batch, one per vehicle (CAT-147). */
   newBatch: "/fordon/nytt/flera",
+  /** Skriv ut QR-etiketter: one or several on an A4 sheet (CAT-184). */
+  labels: "/fordon/etiketter",
+  /** Importera från Tellurian: 1–50 files that become drafts (CAT-186). */
+  importFiles: "/fordon/importera",
   places: "/platser",
   meets: "/traffar",
   prototypes: "/forebilder",
@@ -55,6 +61,8 @@ export const prototypePath = (id: string) => `/forebilder/${id}`;
 export const changePrototypePath = (id: string) => `/forebilder/${id}/andra`;
 /** A batch of photos and its drafts (CAT-147–CAT-153). */
 export const batchPath = (id: string) => `/fordon/omgangar/${id}`;
+/** The label sheet with these vehicles chosen (CAT-184). */
+export const labelsPath = (vehicles: string[]) => (vehicles.length ? `${PATHS.labels}?fordon=${vehicles.join(",")}` : PATHS.labels);
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATTERNS: [RegExp, Page][] = [
@@ -92,7 +100,7 @@ export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
   if (page === "meet") return "meets";
   if (["prototype", "newPrototype", "changePrototype", "reviewQueue"].includes(page)) return "prototypes";
-  return ["newVehicle", "newPhoto", "newBatch", "batch", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
+  return ["newVehicle", "newPhoto", "newBatch", "batch", "labels", "importFiles", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 
 /** Where to go after logging in: the address one came from, when it is one of Catalog's own

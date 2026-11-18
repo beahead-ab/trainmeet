@@ -43,6 +43,7 @@ from starlette.types import ASGIApp
 
 from catalog import (
     batches_api,
+    files_api,
     fleet_api,
     id_login,
     login,
@@ -55,6 +56,7 @@ from catalog import (
     trips_api,
 )
 from catalog.access import Access
+from catalog.account_export import Exports
 from catalog.backgrounds import Segmenter, U2NetP
 from catalog.batches import Batches
 from catalog.db import Database, UnknownOwner
@@ -454,7 +456,9 @@ def create_app(
     @app.get(API + "/id/export")
     def export_for_id(person: UUID, _: None = Depends(from_id)) -> CatalogExport:
         """The person's data for the file they fetch in ID before removing the account."""
-        return fleet.export(person).model_copy(update={"trips": trips.export(person)})
+        return fleet.export(person).model_copy(
+            update={"trips": trips.export(person), "tags": tags.export(person)}
+        )
 
     @app.post(API + "/id/removed")
     def removed_by_id(
@@ -501,6 +505,10 @@ def create_app(
     app.include_router(reading_api.router(readings, logged_in, access))
     app.include_router(batches_api.router(batches, logged_in, access, sweep=pictures.sweep))
     app.include_router(prototypes_api.router(catalog_of_prototypes, logged_in, access))
+    # Printing and files (#56): Tellurian's format and the account export.
+    exports = Exports(fleet, tags, trips, pictures)
+    app.state.exports = exports
+    app.include_router(files_api.router(fleet, batches, pictures, exports, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

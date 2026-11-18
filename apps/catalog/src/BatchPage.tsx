@@ -77,16 +77,18 @@ export function CardRow({ ctx, card, n, ai, stopped, busy, onEdit, onRemove, onR
   const note = byHand && !filledIn(card) ? (language === "sv" && card.message ? card.message : t(card.status === "failed" ? "cardFailed" : "cardManual")) : null;
   const unsure = openQuestion(flow) ? t("cardQuestion") : stillUnreadable(flow).length ? t("batchUnreadable") : null;
   const sub = [kindText(t, card.values.kind), card.values.operator].filter(Boolean).join(" · ");
+  const file = card.source === "file";
   return (
     <li id={`kort-${card.id}`} className={`cat-omgangskort${stopped ? " cat-stoppad" : ""}`} tabIndex={-1}>
       {card.picture ? (
-        <img className="cat-listbild" src={card.picture.thumb_url} alt={t("cardAlt", { n })} width={72} height={48} decoding="async" />
+        <img className="cat-listbild" src={card.picture.thumb_url} alt={t(file ? "fileAlt" : "cardAlt", { n })} width={72} height={48} decoding="async" />
       ) : (
         <span className="cat-listbild cat-fotoplats" aria-hidden="true" />
       )}
       <div className="cat-kortinfo">
         <b className={queued ? "cat-under" : undefined}>{headline(t, card)}</b>
         {sub ? <span className="cat-under">{sub}</span> : null}
+        {file && card.file_name ? <span className="cat-under cat-filnamn">{t("fileFrom", { name: card.file_name })}</span> : null}
         {([false, true] as const).map((low) => {
           // The sure suggestions together, then the unsure ones, each with the pill of the form.
           const fields = marked.filter((field) => (flow.marks[field]?.confidence === "low") === low);
@@ -107,7 +109,7 @@ export function CardRow({ ctx, card, n, ai, stopped, busy, onEdit, onRemove, onR
       {approved ? null : (
         <div className="cat-kortknappar">
           {queued ? null : (
-            <button type="button" className="tm-knapp cat-godkann" disabled={busy} aria-label={t("cardEdit", { n })} onClick={onEdit}>
+            <button type="button" className="tm-knapp cat-godkann" disabled={busy} aria-label={t(file ? "fileEdit" : "cardEdit", { n })} onClick={onEdit}>
               {t("edit")}
             </button>
           )}
@@ -116,7 +118,7 @@ export function CardRow({ ctx, card, n, ai, stopped, busy, onEdit, onRemove, onR
               {t("cardRetry")}
             </button>
           ) : null}
-          <button type="button" className="tm-knapp cat-godkann" disabled={busy} aria-label={t("cardRemove", { n })} onClick={onRemove}>
+          <button type="button" className="tm-knapp cat-godkann" disabled={busy} aria-label={t(file ? "fileRemove" : "cardRemove", { n })} onClick={onRemove}>
             {t("removeYes")}
           </button>
         </div>
@@ -173,21 +175,40 @@ export function BatchView(props: BatchViewProps) {
   const stopped = new Set(props.stopped ?? []);
   const queued = cards.some(inQueue);
   const already = props.already ?? 0;
-  const intro = ai ? t("batchIntro") : !owner ? t("batchLeaveIntro") : props.noAi ? t("batchNoAi") : t("batchIntroManual");
+  // A batch of files in Tellurian's format (CAT-186): its drafts as the photos', without AI.
+  const files = batch?.source === "file";
+  const intro = files
+    ? owner
+      ? t("fileBatchIntro")
+      : t("importIntroLeave")
+    : ai
+      ? t("batchIntro")
+      : !owner
+        ? t("batchLeaveIntro")
+        : props.noAi
+          ? t("batchNoAi")
+          : t("batchIntroManual");
   const start = ai ? (chosen.length === 1 ? t("batchStartOne") : t("batchStart", { n: chosen.length })) : chosen.length === 1 ? t("batchLeaveOne") : t("batchLeave", { n: chosen.length });
+  const listed = files ? (cards.length === 1 ? t("fileCardsOne") : t("fileCards", { n: cards.length })) : cardsText(t, cards.length);
   return (
     <>
-      <Crumbs ctx={ctx} items={[{ href: PATHS.vehicles, label: t("vehicles") }, { label: t("batchTitle") }]} />
-      <p className="tm-overrubrik">{owner ? t("batchTitle") : t("leaveToOwner")}</p>
-      <h1>{owner ? t("batchHeading") : t("batchLeaveHeading")}</h1>
+      <Crumbs ctx={ctx} items={[{ href: PATHS.vehicles, label: t("vehicles") }, { label: files ? t("importTitle") : t("batchTitle") }]} />
+      <p className="tm-overrubrik">{files ? t("importTitle") : owner ? t("batchTitle") : t("leaveToOwner")}</p>
+      <h1>{files ? t("fileBatchHeading") : owner ? t("batchHeading") : t("batchLeaveHeading")}</h1>
       <p className="cat-ingress">{intro}</p>
       <ErrorLine text={props.error ?? null} />
       <div className="cat-kortet">
         <section className="tm-kort cat-omgang" aria-labelledby={`${id}-foton`}>
           <div className="cat-kortrubrik">
-            <h2 id={`${id}-foton`}>{cards.length ? cardsText(t, cards.length) : t("photosTitle")}</h2>
+            <h2 id={`${id}-foton`}>{cards.length ? listed : t("photosTitle")}</h2>
             {cards.length ? <span className="cat-under">{tallyText(t, counts)}</span> : null}
           </div>
+          {files ? (
+            <a className="tm-knapp" href={PATHS.importFiles} onClick={linkClick(ctx.navigate, PATHS.importFiles)}>
+              {t("fileImportMore")}
+            </a>
+          ) : (
+          <>
           <label className={`tm-knapp cat-bildknapp cat-slapp${room <= 0 || sending ? " cat-av" : ""}`}>
             <input
               className="cat-dold"
@@ -232,6 +253,8 @@ export function BatchView(props: BatchViewProps) {
               </button>
             </div>
           ) : null}
+          </>
+          )}
           {sending ? (
             <div className="cat-arbete" role="status">
               <progress max={sending.of} value={sending.done} aria-hidden="true" />
@@ -257,7 +280,7 @@ export function BatchView(props: BatchViewProps) {
             </div>
           ) : null}
           {cards.length ? (
-            <ol className="cat-omgangslista" aria-label={t("batchList")}>
+            <ol className="cat-omgangslista" aria-label={files ? t("fileList") : t("batchList")}>
               {cards.map((card, index) => (
                 <CardRow
                   key={card.id}
@@ -286,12 +309,12 @@ export function BatchView(props: BatchViewProps) {
                 <p className="cat-hjalp">{t("batchCostHelp")}</p>
               </>
             ) : (
-              <p>{t("batchFree")}</p>
+              <p>{files ? t("fileBatchFree") : t("batchFree")}</p>
             )}
           </section>
           <section className="tm-kort cat-avsnitt cat-lasav" aria-labelledby={`${id}-sedan`}>
             <h2 id={`${id}-sedan`}>{t("batchThen")}</h2>
-            <p>{owner ? t("batchThenText") : t("batchThenLeave")}</p>
+            <p>{files ? (owner ? t("fileThenText") : t("fileThenLeave")) : owner ? t("batchThenText") : t("batchThenLeave")}</p>
             {owner && batch && open.length ? (
               <>
                 <button type="button" className="tm-knapp primar" disabled={!canApprove(batch) || props.approving} onClick={props.onApprove}>
@@ -332,15 +355,17 @@ export function CardEditView({ ctx, batch, card, n, flow, places, busy, error, o
   const marked = Object.keys(flow.marks).length > 0;
   const warnings = card.warnings ?? [];
   const suggested = Object.keys(card.suggestions ?? {}).length > 0;
+  // A draft from a file in Tellurian's format: its notes say what the file had that was left out.
+  const file = card.source === "file";
   const before = (
     <div className="cat-fore">
-      {card.picture ? <img className="cat-kortbild" src={card.picture.display_url} alt={t("cardAlt", { n })} /> : null}
+      {card.picture ? <img className="cat-kortbild" src={card.picture.display_url} alt={t(file ? "fileAlt" : "cardAlt", { n })} /> : null}
       {options ? (
         <QuestionView ctx={ctx} number={String(flow.fields.number ?? "")} options={options} canAdd={false} onAnswer={(option) => onChange?.(answer(flow, option))} />
       ) : null}
       {warnings.length ? (
-        <section className="tm-kort cat-avsnitt" aria-label={t("checkTitle")}>
-          <p className="cat-varning">{t("checkTitle")}</p>
+        <section className="tm-kort cat-avsnitt" aria-label={t(file ? "fileLeftOut" : "checkTitle")}>
+          <p className="cat-varning">{t(file ? "fileLeftOut" : "checkTitle")}</p>
           <ul className="cat-varningar">
             {warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -363,10 +388,10 @@ export function CardEditView({ ctx, batch, card, n, flow, places, busy, error, o
       ctx={ctx}
       fields={flow.fields}
       places={places}
-      eyebrow={suggested ? t("reviewEyebrow") : t("cardByHand")}
-      heading={t("cardHeading", { n })}
-      intro={t("cardIntro")}
-      crumb={t("batchTitle")}
+      eyebrow={file ? t("fileEyebrow") : suggested ? t("reviewEyebrow") : t("cardByHand")}
+      heading={t(file ? "fileHeading" : "cardHeading", { n })}
+      intro={t(file ? "fileIntro" : "cardIntro")}
+      crumb={file ? t("importTitle") : t("batchTitle")}
       before={before}
       marks={flow.marks}
       onAccept={(field) => onChange?.(accept(flow, field))}
@@ -398,10 +423,10 @@ export function BatchesSection({ ctx, batches }: { ctx: Ctx; batches: BatchSumma
           return (
             <li key={found.id}>
               <a href={batchPath(found.id)} onClick={linkClick(navigate, batchPath(found.id))}>
-                {t("batchesOpen", { time: timeText(language, found.created_at) })}
+                {t(found.source === "file" ? "batchesFileOpen" : "batchesOpen", { time: timeText(language, found.created_at) })}
               </a>
               <span className="cat-under">
-                {t("batchesRow", { open: found.open, cards: found.cards })} · {tallyText(t, counts)}
+                {t(found.source === "file" ? "batchesFileRow" : "batchesRow", { open: found.open, cards: found.cards })} · {tallyText(t, counts)}
                 {found.mine ? "" : ` · ${t("batchesBy")}`}
               </span>
             </li>

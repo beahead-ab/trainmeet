@@ -4,7 +4,8 @@ Catalog is its own service with its own database (C16, CAT-30). It never calls t
 the Hub never calls it (K7, CAT-37). Step 1 (#48) has the version, the session and the trial
 login, and #50 the vehicles and the places at home. The mini card, the tag, the lookup and the
 prototype come with their steps (#54 and #53), in this file. The trip to the meet (#55) is the
-owner's own list; the link to the Hub's meet waits (CAT-174, CAT-189, VILAR).
+owner's own list; the link to the Hub's meet waits (CAT-174, CAT-189, VILAR). Printing and files
+(#56) are the QR labels, Tellurian's format and the account export, last in this file.
 
 Addresses:
     GET    /api/version                       CatalogVersion
@@ -466,7 +467,11 @@ class ProblemCode(StrEnum):
     BAD_FORM = "bad_form"
     """The form with the photos could not be read: not multipart/form-data, a part missing or
     one too many, too few or too many photos, or the part data not as the contract says.
-    Nothing was read, drawn or kept."""
+    Nothing was read, drawn or kept. For an import in Tellurian's format: not 1–50 files
+    (CAT-186)."""
+    FILES_TOO_LARGE = "files_too_large"
+    """The files of an import in Tellurian's format are more than 60 MB together: import fewer at
+    a time (CAT-186). Nothing was imported."""
 
 
 class Problem(Contract):
@@ -619,6 +624,28 @@ class TagEvent(Contract):
     event: TagEventKind
     at: datetime
     vehicle_id: UUID | None
+
+
+class TagAssignment(Contract):
+    """A link between a tag and one of the owner's vehicles, from start to end (CAT-81)."""
+
+    id: UUID
+    vehicle: UUID
+    started_at: datetime
+    ended_at: datetime | None = Field(default=None, description="Null while it is linked.")
+
+
+class TagHistory(Contract):
+    """One of the owner's tags in the owner's file (CAT-188, KONTO-31): its links to the owner's
+    vehicles, and the events the owner made (CAT-93). Never another owner's links or events."""
+
+    id: UUID
+    uid: str = Field(description="What stands after /t/ in the address.")
+    name: str
+    kind: TagKind
+    address: str
+    assignments: list[TagAssignment] = Field(description="Oldest first.")
+    events: list[TagEvent] = Field(description="Oldest first.")
 
 
 class NewPending(Contract):
@@ -845,16 +872,30 @@ class VehicleHistory(Contract):
 
 
 class CatalogExport(Contract):
-    """Everything Catalog holds for one owner, for the file the person fetches before removing the
-    account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own."""
+    """Everything Catalog holds for one owner: for the file the person fetches in TrainMeet ID
+    before removing the account (KONTO-31, ID7), which only ID asks for, with a token of its
+    own; and as catalog.json in the owner's account export, a ZIP with the pictures' files
+    beside it (CAT-188, GET /api/catalog/1/export). In the ZIP the vehicles' picture addresses
+    are left out, since they expire (CAT-130): the pictures are files in the ZIP instead."""
 
     owner: UUID
-    vehicles: list[Vehicle]
+    vehicles: list[Vehicle] = Field(
+        description="With their tags and their link to a prototype, its type data included."
+    )
     history: list[VehicleHistory]
     places: list[Place]
     settings: OwnerSettings
     trips: list[Trip] = Field(
         default_factory=list, description="The meets with their pack lists and ticks (#55)."
+    )
+    tags: list[TagHistory] = Field(
+        default_factory=list,
+        description="The owner's tags with their links and the owner's own events (CAT-93).",
+    )
+    pictures: list[ExportPicture] = Field(
+        default_factory=list,
+        description="Only in the account export: the pictures, whose files are in the same ZIP "
+        "(CAT-188). Empty in the file for TrainMeet ID.",
     )
 
 
@@ -1195,6 +1236,15 @@ MAX_BATCH_PHOTOS = 30
 """Photos in one batch (CAT-147)."""
 
 
+class BatchSource(StrEnum):
+    """What a batch's drafts come from (#56)."""
+
+    PHOTO = "photo"
+    """Photos, one per vehicle, read with AI or filled in by hand (CAT-147)."""
+    FILE = "file"
+    """Files in Tellurian's format, one per vehicle, read by no AI (CAT-186)."""
+
+
 class BatchCardStatus(StrEnum):
     """Where a photo of a batch is (CAT-147–CAT-153)."""
 
@@ -1217,11 +1267,18 @@ class BatchCardStatus(StrEnum):
 
 
 class BatchCard(Contract):
-    """One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148)."""
+    """One photo of a batch, or one file of an import in Tellurian's format: a draft of one
+    vehicle, not a vehicle (CAT-147, CAT-148, CAT-186)."""
 
     id: UUID
     batch: UUID
     position: int = Field(ge=0, description="The order the photos came in, and are read in.")
+    source: BatchSource = Field(
+        default=BatchSource.PHOTO, description="A photo, or a file in Tellurian's format."
+    )
+    file_name: str | None = Field(
+        default=None, description="The file the draft came from, as it was named when sent."
+    )
     status: BatchCardStatus
     version: int = Field(
         ge=1,
@@ -1260,10 +1317,14 @@ class BatchCard(Contract):
 
 
 class Batch(Contract):
-    """A batch of photos and its cards (CAT-147)."""
+    """A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186)."""
 
     id: UUID = Field(description="Made by the client (CAT-149).")
     ai: bool = Field(description="The photos are read with AI; else they are filled in by hand.")
+    source: BatchSource = Field(
+        default=BatchSource.PHOTO,
+        description="What the cards come from: photos, or files in Tellurian's format.",
+    )
     mine: bool = Field(description="The person asking made the batch.")
     created_at: datetime
     cards: list[BatchCard] = Field(
@@ -1283,10 +1344,11 @@ class Batch(Contract):
 
 
 class BatchSummary(Contract):
-    """A batch in the list: one with photos still to approve."""
+    """A batch in the list: one with photos, or files, still to approve."""
 
     id: UUID
     ai: bool
+    source: BatchSource = BatchSource.PHOTO
     mine: bool
     created_at: datetime
     cards: int = Field(description="Its cards, approved ones included.")
@@ -1615,6 +1677,101 @@ class VehiclePrototype(Contract):
     )
     latest: int = Field(description="The prototype's newest reviewed revision.")
     newer: bool = Field(description="Ny version finns: latest is newer than the snapshot.")
+
+
+# --- Utskrift och filer (#56, CAT-184–CAT-188) ------------------------------------------------
+#
+#     GET    /api/catalog/1/vehicles/{id}/tellurian   the vehicle as a file in Tellurian's format
+#     POST   /api/catalog/1/batches/tellurian         multipart: data (TellurianAsk, JSON) and
+#                                                     1–50 files -> TellurianImport
+#     GET    /api/catalog/1/export                    the owner's account export, one ZIP file
+#
+# Rules:
+# - The QR label is the only thing Catalog prints (C20, CAT-184). The web app prints one or
+#   several on an A4 sheet, each from the label's own QR code (GET /tags/{uid}/qr.svg), with the
+#   litt and the number in plain text under it. A vehicle without a label gets one when it is
+#   printed (POST /vehicles/{id}/tags/qr); one that has a label keeps it, unless the owner says
+#   yes to replacing it.
+# - Tellurian's format is the card app's file for one wagon (C14, C18): JSON with the app's own
+#   property names. The export splits the EVN into the interoperability code, the country number
+#   and the seven-digit serial number with its painted grouping (CAT-185); the app adds the
+#   check digit itself. The file is named after the litt and the number. Only the owner exports
+#   (CAT-46): 403 for someone the fleet is shared with.
+# - An import is 1–50 files at a time, at most 20 MB each and 60 MB together (CAT-186). Each
+#   file becomes a draft in a batch whose source is file, read by no AI and reviewed and approved
+#   with Godkänn alla as the photos' drafts are (CAT-150). The import is not a vehicle until it is
+#   approved (CAT-148). A file that cannot be read is reported by itself, in Swedish, and the
+#   others go on. The same file, by its SHA-256, is never two drafts (CAT-149). Only the core
+#   fields and the model picture are taken in, the parts of the number joined to the number as
+#   painted; the type data, the owner's details and the markings are left out with a note. A
+#   value approved as the file had it gets the source import (CAT-64). To edit is enough, as for
+#   the photos: the owner approves.
+# - The account export is everything the owner has (CAT-188): one ZIP with catalog.json
+#   (CatalogExport) and the pictures' files, the display picture and the original where Spara
+#   original kept one. It is written while it is sent, so a large fleet is never held in memory.
+#   Only the owner, and a club's administrators the club's fleet: 403 for someone the fleet is
+#   shared with. ?fleet=<owner> as for the vehicles.
+# - The meet export (CAT-189, CAT-190) is built when there is a receiver (C4, VILAR).
+
+MAX_TELLURIAN_FILES = 50
+"""Files in Tellurian's format in one import (CAT-186)."""
+
+
+class TellurianAsk(Contract):
+    """The part data of the import's form, as JSON. The files are the parts files."""
+
+    id: UUID = Field(
+        description="Made by the client: the batch the drafts go in. The same files sent again "
+        "give the same drafts (CAT-149)."
+    )
+
+
+class TellurianFile(Contract):
+    """One file of an import (CAT-186): the draft it became, or why it was not read."""
+
+    name: str = Field(description="The file's name, as it was sent.")
+    ok: bool
+    card: UUID | None = Field(
+        default=None,
+        description="The draft the file is: new, or the one it already was (CAT-149).",
+    )
+    batch: UUID | None = Field(default=None, description="The batch that draft is in.")
+    already: bool = Field(
+        default=False, description="The same file was a draft already, and was not added again."
+    )
+    error: str | None = Field(
+        default=None, description="Why the file was not read, in Swedish. Null when ok."
+    )
+    notes: list[str] = Field(
+        default_factory=list,
+        description="What the file had that was left out, in Swedish, such as the type data.",
+    )
+
+
+class TellurianImport(Contract):
+    """The answer to an import: the batch with the new drafts, and how each file went."""
+
+    batch: Batch | None = Field(
+        description="The batch the drafts are in, to review and approve; null when no file "
+        "made a draft in it."
+    )
+    files: list[TellurianFile] = Field(description="In the order they were sent.")
+
+
+class ExportPicture(Contract):
+    """A picture in the account export (CAT-188). Its files are in the same ZIP."""
+
+    id: UUID
+    vehicle: UUID
+    main: bool
+    position: int = Field(ge=0)
+    width: int = Field(description="The display picture's width in pixels.")
+    height: int = Field(description="The display picture's height in pixels.")
+    background: PictureBackground
+    display: str = Field(description="The display picture's file in the ZIP (CAT-126).")
+    original: str | None = Field(
+        default=None, description="The original's file in the ZIP, only with Spara original."
+    )
 
 
 # The vehicle, the reading and the batch card name the prototype's models, which come last in

@@ -227,6 +227,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.batch-ask": catalog.BatchAsk,
     "trainmeet.catalog-1.batch-card-change": catalog.BatchCardChange,
     "trainmeet.catalog-1.batch-approval": catalog.BatchApproval,
+    "trainmeet.catalog-1.tellurian-ask": catalog.TellurianAsk,
+    "trainmeet.catalog-1.tellurian-import": catalog.TellurianImport,
     "trainmeet.catalog-1.field-register": catalog.FieldRegister,
     "trainmeet.catalog-1.prototype": catalog.Prototype,
     "trainmeet.catalog-1.prototype-list": catalog.PrototypeList,
@@ -1076,6 +1078,85 @@ def catalog_openapi() -> str:
         # 402 and 429: the storage over the free level could not be paid (CAT-132).
         problems=(*batch_write, 402, 429),
     )
+
+    # Printing and files (#56, CAT-184–CAT-188). The QR labels are printed from the label's own
+    # QR code; Tellurian's format is a file each way, and the account export one ZIP.
+    def problem_answers(*codes: int) -> dict[str, JsonSchemaValue]:
+        return {
+            str(code): {
+                "description": "Catalog säger nej",
+                "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+            }
+            for code in codes
+        }
+
+    paths[v + "/{vehicle}/tellurian"] = {
+        "get": {
+            "operationId": "tellurianFile",
+            "summary": "Fordonet som en fil i Tellurians format, med EVN delat (CAT-185).",
+            "parameters": [
+                {"name": "vehicle", "in": "path", "required": True, "schema": {"type": "string"}}
+            ],
+            "responses": {
+                "200": {
+                    "description": "The file, named after the litt and the number, to download",
+                    "content": {"application/json": {"schema": {"type": "object"}}},
+                },
+                **problem_answers(401, 404),
+            },
+        }
+    }
+    route(
+        "post",
+        b + "/tellurian",
+        "importTellurian",
+        "tellurian-import",
+        # 409: the id is another batch's. 413: over 60 MB together. 422: not 1–50 files, or more
+        # drafts waiting than the owner may have. A file that cannot be read is in the answer.
+        problems=(401, 404, 409, 413, 422),
+    )
+    paths[b + "/tellurian"]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The ask as JSON in the part data, and 1–50 files in Tellurian's format in "
+        "the parts files, each with its name, at most 20 MB each and 60 MB together (CAT-186).",
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "data": openapi_ref(c + "tellurian-ask"),
+                        "files": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "binary"},
+                            "minItems": 1,
+                            "maxItems": catalog.MAX_TELLURIAN_FILES,
+                        },
+                    },
+                    "required": ["data", "files"],
+                },
+                "encoding": {
+                    "data": {"contentType": "application/json"},
+                    "files": {"contentType": "application/json"},
+                },
+            }
+        },
+    }
+    paths["/api/catalog/1/export"] = {
+        "get": {
+            "operationId": "accountExport",
+            "summary": "Kontoexport: allt ägaren har, som en ZIP med catalog.json och bilderna "
+            "(CAT-188).",
+            "responses": {
+                "200": {
+                    "description": "The ZIP: catalog.json (catalog-export) and the pictures' files",
+                    "content": {
+                        "application/zip": {"schema": {"type": "string", "format": "binary"}}
+                    },
+                },
+                **problem_answers(401, 404),
+            },
+        }
+    }
     # The prototype catalog (#53 del a, CAT-155–CAT-165, CAT-173). The register is open to all.
     f = "/api/catalog/1/prototypes"
     route("get", f + "/fields", "fieldRegister", "field-register")
@@ -1181,6 +1262,7 @@ def catalog_openapi() -> str:
                 "/api/catalog/1/meets",
                 "/api/catalog/1/readings",
                 "/api/catalog/1/batches",
+                "/api/catalog/1/export",
             )
         ):
             continue

@@ -51,6 +51,11 @@ export type BatchSummary = Schemas["trainmeet.catalog-1.batch-summary"];
 export type BatchAsk = Schemas["trainmeet.catalog-1.batch-ask"];
 export type BatchCardChange = Schemas["trainmeet.catalog-1.batch-card-change"];
 export type BatchApproval = Schemas["trainmeet.catalog-1.batch-approval"];
+export type BatchSource = NonNullable<Batch["source"]>;
+/** Utskrift och filer (#56, CAT-184–CAT-188): Tellurian's format and the account export. */
+export type TellurianAsk = Schemas["trainmeet.catalog-1.tellurian-ask"];
+export type TellurianImport = Schemas["trainmeet.catalog-1.tellurian-import"];
+export type TellurianFile = TellurianImport["files"][number];
 /** The core fields the AI suggests from a photo (CAT-137, CAT-139): SuggestedField in
  * contracts/catalog.py. The generated type keys Reading.suggestions by any string, so the names
  * are written here, as KINDS and STATES are. */
@@ -91,6 +96,11 @@ export const SUGGESTED_FIELDS: SuggestedField[] = ["kind", "litt", "number", "op
 export const READING_PICTURES = 4;
 /** As in contracts/catalog.py: up to 30 photos in a batch, one per vehicle (CAT-147). */
 export const BATCH_PHOTOS = 30;
+/** As in contracts/catalog.py and catalog/tellurian.py: 1–50 files in Tellurian's format at a
+ * time, at most 20 MB each and 60 MB together (CAT-186). */
+export const TELLURIAN_FILES = 50;
+export const TELLURIAN_FILE_MAX_BYTES = 20 * 1024 * 1024;
+export const TELLURIAN_IMPORT_MAX_BYTES = 60 * 1024 * 1024;
 /** Where a batch's photo is (CAT-147–CAT-153), in the order a photo goes. */
 export const CARD_STATUSES: BatchCardStatus[] = ["waiting", "reading", "ready", "review", "failed", "manual", "approved"];
 
@@ -144,6 +154,14 @@ export const readingForm = (ask: ReadingAsk, photos: Blob[]): FormData => photoF
 
 /** A batch's form (catalog/batches_api.py): the BatchAsk and the photos sent this time. */
 export const batchForm = (ask: BatchAsk, photos: Blob[]): FormData => photoForm(ask, photos);
+
+/** An import's form (catalog/files_api.py): the TellurianAsk, and the files, each with its name. */
+export function tellurianForm(ask: TellurianAsk, files: File[]): FormData {
+  const form = new FormData();
+  form.append("data", JSON.stringify(ask));
+  files.forEach((file, index) => form.append("files", file, file.name || `fil-${index + 1}.json`));
+  return form;
+}
 
 /** The code in Catalog's answer when it said no, if it is one, and the cards it names. */
 function problemOf(body: string): { code: ProblemCode | null; cards: string[] } {
@@ -314,7 +332,16 @@ export const api = {
   retryCard: (batch: string, card: string) => call<BatchCard>("POST", inFleet(`${B}/${batch}/cards/${card}/retry`)),
   /** Godkänn alla: every open card as it was seen, or none (CAT-150). */
   approveBatch: (batch: string, approval: BatchApproval) => call<Batch>("POST", inFleet(`${B}/${batch}/approve`), approval),
+  /** Files in Tellurian's format, each a draft in a batch of files, or why not (CAT-186). */
+  importTellurian: (ask: TellurianAsk, files: File[]) => call<TellurianImport>("POST", inFleet(`${B}/tellurian`), tellurianForm(ask, files)),
 };
+
+/** The vehicle as a file in Tellurian's format, for the browser to download (CAT-185). */
+export const tellurianHref = (vehicle: string) => inFleet(`${V}/${vehicle}/tellurian`);
+
+/** Kontoexport: everything in the person's own fleet as one ZIP, for the browser to download
+ * (CAT-188). Always the person's own, wherever they work now. */
+export const EXPORT_HREF = "/api/catalog/1/export";
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);
 

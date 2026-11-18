@@ -33,6 +33,7 @@ MAX_FORM: Final = MAX_PICTURES * MAX_BYTES + 64 * 1024
 MAX_DATA: Final = 4096
 _BOUNDARY: Final = re.compile(r'boundary=(?:"([^"\r\n]{1,70})"|([^\s;",]{1,70}))', re.IGNORECASE)
 _NAME: Final = re.compile(r'(?:^|;)\s*name="([^"\r\n]*)"', re.IGNORECASE)
+_FILENAME: Final = re.compile(r'(?:^|;)\s*filename="([^"\r\n]*)"', re.IGNORECASE)
 
 
 def bad_form(why: str = "Avläsningens formulär kunde inte läsas.") -> Refused:
@@ -65,11 +66,30 @@ async def read_form(
     return parts(request.headers.get("content-type", ""), body, bad)
 
 
+async def read_named_form(
+    request: Request,
+    refused: Callable[[], Refused] = too_large,
+    bad: Callable[[], Refused] = bad_form,
+) -> list[tuple[str, str, bytes]]:
+    """The form's parts, by name and with the file name each part was sent with, such as the
+    files of an import in Tellurian's format (#56). Read as read_form() reads them."""
+    body = await _body(request, refused)
+    return named_parts(request.headers.get("content-type", ""), body, bad)
+
+
 def parts(
     content_type: str, body: bytes, bad: Callable[[], Refused] = bad_form
 ) -> list[tuple[str, bytes]]:
     """The form's parts, by name, as multipart/form-data has them (RFC 7578). Anything that
     does not follow it is refused, rather than read as well as it goes."""
+    return [(name, data) for name, _, data in named_parts(content_type, body, bad)]
+
+
+def named_parts(
+    content_type: str, body: bytes, bad: Callable[[], Refused] = bad_form
+) -> list[tuple[str, str, bytes]]:
+    """The form's parts, by name and with their file names, empty for a part that is not a
+    file. A browser sends a file name in UTF-8 as it is."""
     kind = content_type.split(";", 1)[0].strip().lower()
     boundary = _BOUNDARY.search(content_type)
     if kind != "multipart/form-data" or boundary is None:
@@ -79,21 +99,26 @@ def parts(
     # The preamble, the parts, and what follows the closing delimiter, which starts with --.
     if len(chunks) < 3 or chunks[0] or not chunks[-1].startswith(b"--"):
         raise bad()
-    found: list[tuple[str, bytes]] = []
+    found: list[tuple[str, str, bytes]] = []
     for chunk in chunks[1:-1]:
         head, separator, data = chunk.lstrip(b" \t").partition(b"\r\n\r\n")
         if not separator or not head.startswith(b"\r\n"):
             raise bad()
-        names = [
-            _NAME.search(value)
+        dispositions = [
+            value
             for key, _, value in (
                 line.partition(":") for line in head[2:].decode("latin-1").split("\r\n")
             )
             if key.strip().lower() == "content-disposition"
         ]
-        if len(names) != 1 or names[0] is None:
+        name = _NAME.search(dispositions[0]) if len(dispositions) == 1 else None
+        if name is None:
             raise bad()
-        found.append((names[0][1], data))
+        sent = _FILENAME.search(dispositions[0])
+        file_name = (
+            sent[1].encode("latin-1").decode("utf-8", errors="replace") if sent is not None else ""
+        )
+        found.append((name[1], file_name, data))
     return found
 
 

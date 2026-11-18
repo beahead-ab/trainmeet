@@ -17,6 +17,15 @@
       "title": "BatchCardStatus",
       "type": "string"
     },
+    "BatchSource": {
+      "description": "What a batch's drafts come from (#56).",
+      "enum": [
+        "photo",
+        "file"
+      ],
+      "title": "BatchSource",
+      "type": "string"
+    },
     "Confidence": {
       "description": "The AI's own judgement, not a probability.",
       "enum": [
@@ -296,7 +305,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).",
+  "description": "One photo of a batch, or one file of an import in Tellurian's format: a draft of one\nvehicle, not a vehicle (CAT-147, CAT-148, CAT-186).",
   "properties": {
     "id": {
       "format": "uuid",
@@ -313,6 +322,24 @@
       "minimum": 0,
       "title": "Position",
       "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/BatchSource",
+      "default": "photo",
+      "description": "A photo, or a file in Tellurian's format."
+    },
+    "file_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The file the draft came from, as it was named when sent.",
+      "title": "File Name"
     },
     "status": {
       "$ref": "#/$defs/BatchCardStatus"
