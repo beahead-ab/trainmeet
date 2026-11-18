@@ -37,6 +37,15 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(running).toContain('class="hknapp har"');
   });
 
+  it("shows who is logged in with TrainMeet ID, and Logga ut, without the dispatcher's buttons (#78, S1)", () => {
+    const person = header({ admin: false, owner: false, loggedIn: true, person: "Provare Ett" });
+    expect(person).toContain('id="logout"');
+    expect(person).toContain('title="Inloggad som Provare Ett"');
+    expect(person).toContain("Provare Ett · </span>Logga ut");
+    expect(person).not.toContain('id="connect"');
+    expect(person).not.toContain('href="/">Logga in</a>');
+  });
+
   it("gives someone let in with a one-time code the meet that runs, but not Byt träff (H56)", () => {
     const dispatcher = header({ admin: true, owner: false });
     for (const part of ['id="connect"', 'id="waiting"', 'id="logout"']) expect(dispatcher).toContain(part);

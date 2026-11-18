@@ -143,6 +143,15 @@ describe("the start page (S1, H52)", () => {
     expect(dispatcher).not.toContain("Planera en träff");
   });
 
+  it("logs in with TrainMeet ID when the hub has it, and says who one is (#78)", () => {
+    expect(page(info({}))).not.toContain('id="id-login"');
+    const offered = page(info({ id_login: true }));
+    expect(offered).toContain('id="id-login" class="tm-knapp primar" href="/api/hub/id/login?next=%2F&amp;lang=sv">Logga in med TrainMeet ID<');
+    const person = page(info({ logged_in: true, person: "Provare Ett", id_login: true }));
+    expect(person).toContain("Du är inloggad med TrainMeet ID som Provare Ett.");
+    expect(person).not.toContain("Planera en träff");
+  });
+
   it("keeps the hub's own settings to the one with the PIN (H18, H56)", () => {
     const html = renderToStaticMarkup(<SettingsPage admin owner={false} now={null} hubName="Testhubben" version={null} automation={null} automationSaved={0} />);
     expect(html).toContain("Logga in med hubbens PIN-kod för att se AI-tjänsten.");

@@ -148,10 +148,42 @@
         "email",
         "kc-admin-api"
       ]
+    },
+    {
+      "clientId": "hub",
+      "name": "TrainMeet Hub",
+      "description": "Hubben loggar in med ID (#78) och frågar ID:s API om rollerna på träffen med en egen token (KONTO-34).",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ID_HUB_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${ID_HUB_URL}/api/hub/id/callback"
+      ],
+      "webOrigins": [
+        "${ID_HUB_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ID_HUB_URL}/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "basic",
+        "profile",
+        "email"
+      ]
     }
   ],
   "attributes": {
-    "trainmeetVersion": "5"
+    "trainmeetVersion": "6"
   },
   "users": [
     {

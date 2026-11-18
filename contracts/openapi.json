@@ -1623,6 +1623,23 @@
         }
       }
     },
+    "/api/hub/logout": {
+      "post": {
+        "operationId": "hubLogOut",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.logged-out"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/drift/1/codes": {
       "post": {
         "operationId": "giveOneTimeCode",
@@ -17065,6 +17082,27 @@
             ],
             "default": null,
             "description": "Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där."
+          },
+          "person": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Inloggad med TrainMeet ID (#78): namnet för sidhuvudet (S1), aldrig adressen.",
+            "title": "Person"
+          },
+          "id_login": {
+            "default": false,
+            "description": "Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?",
+            "title": "Id Login",
+            "type": "boolean"
           }
         },
         "required": [
@@ -18097,6 +18135,26 @@
           "code"
         ],
         "title": "CodeLogIn",
+        "type": "object"
+      },
+      "trainmeet.hub-1.logged-out": {
+        "additionalProperties": true,
+        "description": "Logga ut. Var det en inloggning med ID går webbläsaren till ID och loggar ut där också\n(KONTO-01), och kommer sedan tillbaka.",
+        "properties": {
+          "logout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Logout Url"
+          }
+        },
+        "title": "LoggedOut",
         "type": "object"
       },
       "trainmeet.hub-1.one-time-code-request": {

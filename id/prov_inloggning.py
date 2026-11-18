@@ -1,7 +1,7 @@
 """Provar inloggningen i TrainMeet ID från början till slut, som en webbläsare och Catalog gör.
 
     python -m id.prov_inloggning <ID> <mejlfil> <klienthemlighet> <Catalog> [--catalog]
-        [--id-app=<ID:s webbapp>]
+        [--id-app=<ID:s webbapp>] [--hub=<Hubben>]
 
 Skapa konto med namn och e-post, koden ur mejlet, sedan Catalogs utbyte av koden mot en token
 med verifierad e-post (KONTO-10, KONTO-27). Sedan en ny inloggning med samma e-post utan namn, och
@@ -20,6 +20,10 @@ bjuds in med mejl och svarar ja, och klubben får en träff där medlemmen blir 
 (ID10). Med båda delas en vagnpark i ID och syns i Catalog (#49), och klubbens vagnpark provas:
 administratören gör ägarens saker, medlemmen tittar (CAT-51, C39). Sist hämtas uppgifterna som en
 fil och kontot tas bort i Catalog, Keycloak och ID (KONTO-31, CAT-193).
+
+Med --hub körs Hubben på den adressen med klienten hub (#78), och provet loggar in där som en
+webbläsare: genom ID med en kod till e-posten och tillbaka in i Hubben, som visar namnet men inte
+adressen och inte gör personen till hubbens administratör, och sedan ut ur både Hubben och ID.
 
 Körs av kontrollen "ID:s bild" och lokalt mot en Keycloak med realmen i id/realm.
 """
@@ -442,6 +446,45 @@ def run_catalog(base: str, mails: Path, catalog: str) -> None:
     print("Ut ur Catalog och ID: ok")
 
 
+def run_hub(base: str, mails: Path, hub: str) -> None:
+    """Logga in med TrainMeet ID i Hubben (#78), as a browser: through ID with a code to the
+    e-mail and back into the hub, which knows the name but not the address; then out of both."""
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    browser = Browser(base, hub, session="/api/hub")
+    check(browser.session()["id_login"] is True, "Hubben har ingen inloggning med ID.")
+    page = browser.open("/api/hub/id/login?next=%2Fdrift&lang=sv")
+    check(page.status_code == 200 and "Skicka en kod" in page.text, "ID:s sida kom inte.")
+    create = browser.id.post(page.text, {"create": "1"}).text
+    seen = mail_count(mails)
+    sent = browser.id.post(
+        create, {"creating": "1", "name": "Provare Fyra", "email": address, "send": "1"}
+    )
+    code, _ = code_from(mails, address, seen)
+    offer = browser.id.post(sent.text, {"code": code})
+    check(OFFER in offer.text, "ID frågade inte om en passkey.")
+    back = browser.id.post(offer.text, {"passkey": "no"})
+    check(back.status_code == 302, f"ID skickade inte tillbaka: {back.status_code}.")
+    check(back.headers["location"].startswith(hub.rstrip("/")), "Inte tillbaka till Hubben.")
+    landed = browser.app.get(back.headers["location"].removeprefix(hub.rstrip("/")))
+    check(landed.headers.get("location") == "/drift", "Hubben gick inte till sidan man kom från.")
+    seen_hub = browser.session()
+    check(seen_hub["logged_in"] is True, "Inte inloggad i Hubben.")
+    check(seen_hub["person"] == "Provare Fyra", "Hubben visar inte namnet.")
+    check(seen_hub["admin"] is False, "Inloggad med ID blev hubbens administratör.")
+    check(address not in json.dumps(seen_hub), "Hubben visar adressen.")
+    print("In i Hubben med en kod till e-posten: ok")
+
+    out = browser.app.post("/api/hub/logout").json()
+    logout = out.get("logout_url")
+    check(isinstance(logout, str), "Utloggningen sa inte var ID loggar ut.")
+    assert isinstance(logout, str)
+    browser.open(logout)
+    check(browser.session()["logged_in"] is False, "Fortfarande inloggad i Hubben.")
+    page = browser.open("/api/hub/id/login?next=%2F")
+    check("Skicka en kod" in page.text, "Fortfarande inloggad i ID efter utloggningen.")
+    print("Ut ur Hubben och ID: ok")
+
+
 def log_in_to_app(browser: Browser, mails: Path, address: str, name: str, start: str) -> None:
     """A new account through the app's login, with the code, and back into the app."""
     page = browser.open(start)
@@ -687,7 +730,10 @@ def run_removal(base: str, mails: Path, catalog: str, id_app: str) -> None:
 def main(argv: list[str]) -> int:
     through_catalog = "--catalog" in argv
     id_app = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--id-app=")), None)
-    argv = [arg for arg in argv if arg != "--catalog" and not arg.startswith("--id-app=")]
+    hub = next((arg.split("=", 1)[1] for arg in argv if arg.startswith("--hub=")), None)
+    argv = [
+        arg for arg in argv if arg != "--catalog" and not arg.startswith(("--id-app=", "--hub="))
+    ]
     if len(argv) != 5:
         print(__doc__)
         return 2
@@ -701,6 +747,8 @@ def main(argv: list[str]) -> int:
             run_sharing(argv[1], Path(argv[2]), argv[4], id_app)
             run_club_fleet(argv[1], Path(argv[2]), argv[4], id_app)
             run_removal(argv[1], Path(argv[2]), argv[4], id_app)
+        if hub:
+            run_hub(argv[1], Path(argv[2]), hub)
     except ProvFel as fel:
         print(f"FEL: {fel}", file=sys.stderr)
         return 1

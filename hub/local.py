@@ -35,6 +35,9 @@ CODE_LIFETIME: Final = timedelta(minutes=15)
 LET_IN_LIFETIME: Final = timedelta(days=7)
 ADMIN: Final = "admin"
 DISPATCHER: Final = "dispatcher"
+PERSON: Final = "person"
+"""Logged in with TrainMeet ID (#78): the roles at a meet come from ID, not from the hub."""
+ID_LOGIN_LIFETIME: Final = timedelta(minutes=10)
 NAME_LIMIT: Final = 40
 
 _SCHEMA = """
@@ -57,6 +60,14 @@ CREATE TABLE IF NOT EXISTS one_time_code (
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS login_failure (at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS id_login (
+    key_hash TEXT PRIMARY KEY,
+    state TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    verifier TEXT NOT NULL,
+    next_path TEXT NOT NULL,
+    expires REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ai (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     format TEXT NOT NULL,
@@ -115,6 +126,35 @@ class MeetWifi:
     password: str | None = field(default=None, repr=False)
 
 
+# Columns the session table got after its first version (#78), in order.
+_SESSION_COLUMNS: Final = (
+    ("role", "TEXT NOT NULL DEFAULT 'admin'"),
+    ("run", "TEXT"),
+    ("since", "REAL"),
+    ("name", "TEXT"),
+    ("person", "TEXT"),
+    ("id_token", "TEXT"),
+)
+
+
+@dataclass(frozen=True)
+class IdAttempt:
+    """A login with TrainMeet ID this browser started: what comes back must match it."""
+
+    state: str
+    nonce: str
+    verifier: str
+    next_path: str
+
+
+@dataclass(frozen=True)
+class Person:
+    """Who is logged in with TrainMeet ID: ID's subject and the name, never the address."""
+
+    id: str
+    name: str
+
+
 @dataclass(frozen=True)
 class LetIn:
     """Someone let in with a one-time code: never the code, only who and until when."""
@@ -158,16 +198,12 @@ class LocalLogin:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with closing(sqlite3.connect(self.path)) as db:
                     db.executescript(_SCHEMA)
-                    # A hub from before the one-time code (#78) has sessions without a role:
-                    # they are the local administrator's.
+                    # A hub from before #78 has sessions without a role: they are the local
+                    # administrator's. Later columns are added the same way, one at a time.
                     columns = {row[1] for row in db.execute("PRAGMA table_info(session)")}
-                    if "role" not in columns:
-                        db.execute(
-                            "ALTER TABLE session ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'"
-                        )
-                        db.execute("ALTER TABLE session ADD COLUMN run TEXT")
-                        db.execute("ALTER TABLE session ADD COLUMN since REAL")
-                        db.execute("ALTER TABLE session ADD COLUMN name TEXT")
+                    for column, kind in _SESSION_COLUMNS:
+                        if column not in columns:
+                            db.execute(f"ALTER TABLE session ADD COLUMN {column} {kind}")
                     db.commit()
                 self._ready = True
             with closing(sqlite3.connect(self.path)) as db, db:
@@ -423,8 +459,71 @@ class LocalLogin:
         with self._transaction() as db:
             db.execute("DELETE FROM ai")
 
-    def log_out(self, token: str | None) -> None:
-        if not token:
-            return
+    def log_out(self, token: str | None) -> str | None:
+        """Ends the session. Returns ID's token if it was a login with ID, to log out there too."""
+        if not token or len(token) > 120:
+            return None
         with self._transaction() as db:
+            row = db.execute(
+                "SELECT id_token FROM session WHERE token_hash=?", (_token_hash(token),)
+            ).fetchone()
             db.execute("DELETE FROM session WHERE token_hash=?", (_token_hash(token),))
+        return str(row[0]) if row is not None and row[0] else None
+
+    # --- TrainMeet ID (#78, KONTO-27) -----------------------------------------------------
+
+    def begin_id_login(self, state: str, nonce: str, verifier: str, next_path: str) -> str:
+        """Keeps a login with ID while the browser is at ID. Returns the browser's key to it."""
+        key = token_urlsafe(32)
+        now = _now()
+        with self._transaction() as db:
+            db.execute("DELETE FROM id_login WHERE expires<=?", (now.timestamp(),))
+            db.execute(
+                "INSERT INTO id_login VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    _token_hash(key),
+                    state,
+                    nonce,
+                    verifier,
+                    next_path,
+                    (now + ID_LOGIN_LIFETIME).timestamp(),
+                ),
+            )
+        return key
+
+    def take_id_login(self, key: str | None) -> IdAttempt | None:
+        """The login this browser started, used once, if it has not run out."""
+        if not key or len(key) > 200:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT state, nonce, verifier, next_path, expires FROM id_login WHERE key_hash=?",
+                (_token_hash(key),),
+            ).fetchone()
+            db.execute("DELETE FROM id_login WHERE key_hash=?", (_token_hash(key),))
+        if row is None or row[4] <= _now().timestamp():
+            return None
+        return IdAttempt(str(row[0]), str(row[1]), str(row[2]), str(row[3]))
+
+    def log_in_with_id(self, person: Person, id_token: str) -> str:
+        """A session for someone ID vouched for. The hub keeps ID's token only to log out of ID
+        too, and it goes with the session."""
+        with self._transaction() as db:
+            token = self._new_session(db, PERSON, name=person.name)
+            db.execute(
+                "UPDATE session SET person=?, id_token=? WHERE token_hash=?",
+                (person.id, id_token, _token_hash(token)),
+            )
+        return token
+
+    def person(self, token: str | None) -> Person | None:
+        """Who the session is, if it is a login with ID."""
+        if not token or len(token) > 120:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT person, name FROM session WHERE token_hash=? AND expires>? "
+                "AND person IS NOT NULL",
+                (_token_hash(token), _now().timestamp()),
+            ).fetchone()
+        return Person(str(row[0]), str(row[1] or "")) if row is not None else None

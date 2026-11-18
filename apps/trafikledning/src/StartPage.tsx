@@ -1,6 +1,6 @@
 import { linkClick } from "@trainmeet/design";
 import { useState, type FormEvent } from "react";
-import type { HubInfo, Version } from "./api";
+import { idLoginAddress, type HubInfo, type Version } from "./api";
 
 // The start page: Den här hubben (first start, logging in, who one is: S1, H52) and what runs
 // on the hub, as before (hub/page.py).
@@ -162,6 +162,7 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, o
             </button>
           )}
         </form>
+        {info.id_login && <IdLogIn />}
         <p id="hub-message" className="meddelande" role="alert">
           {message}
         </p>
@@ -173,6 +174,8 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, o
       <h1>Inloggad</h1>
       {info.admin ? (
         <p className="ingress">Du är inloggad som hubbens lokala administratör.</p>
+      ) : info.person ? (
+        <p className="ingress">{`Du är inloggad med TrainMeet ID som ${info.person}. Dina roller på träffarna kommer från ID.`}</p>
       ) : (
         <p className="ingress">Du är insläppt som trafikledare med en engångskod. Det gäller den här träffen, tills den slutar eller trafikledningen tar bort dig.</p>
       )}
@@ -192,6 +195,25 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, o
         {message}
       </p>
     </section>
+  );
+}
+
+/** Logga in med TrainMeet ID (#78, KONTO-27): to ID and back to the page one came from. A
+ * login that did not go through comes back with ?inloggning=fel. */
+export function IdLogIn({ label = "Logga in med TrainMeet ID", failedText = "Inloggningen med TrainMeet ID gick inte. Försök igen." }: { label?: string; failedText?: string }) {
+  const failed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("inloggning") === "fel";
+  const back = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") ?? window.location.pathname : "/";
+  return (
+    <div className="idinloggning">
+      <a id="id-login" className="tm-knapp primar" href={idLoginAddress(back)}>
+        {label}
+      </a>
+      {failed && (
+        <p className="meddelande" role="alert">
+          {failedText}
+        </p>
+      )}
+    </div>
   );
 }
 

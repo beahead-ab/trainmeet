@@ -275,6 +275,7 @@ jobs:
             echo "ID_ADMIN_PASSWORD=$(openssl rand -hex 24)"
             echo "ID_CATALOG_SECRET=$(openssl rand -hex 32)"
             echo "ID_APP_SECRET=$(openssl rand -hex 32)"
+            echo "ID_HUB_SECRET=$(openssl rand -hex 32)"
             echo "HOST_UID=$(id -u)"
           } > .env
           docker compose up -d --wait catalog-db
@@ -369,6 +370,7 @@ jobs:
             -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_FROM=konto@trainmeet.se \
             -e ID_CATALOG_SECRET=prov-hemlighet -e ID_CATALOG_URL=http://localhost:8001 \
             -e ID_APP_SECRET=id-hemlighet -e ID_PUBLIC_URL=http://localhost:8002 \
+            -e ID_HUB_SECRET=hub-hemlighet -e ID_HUB_URL=http://localhost:8003 \
             trainmeet-id:prov
           for i in $(seq 1 120); do curl -fsS http://127.0.0.1:9000/health/ready >/dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:9000/health/ready
@@ -385,7 +387,7 @@ jobs:
             -e ID_SMTP_HOST=127.0.0.1 -e ID_SMTP_PORT=2525 -e ID_SMTP_SSL=false -e ID_SMTP_STARTTLS=false \
             -e ID_SMTP_AUTH=true -e ID_SMTP_USER=prov-projekt -e ID_SMTP_PASSWORD_FILE=/vault/trainmeet_smtp-password \
             -e ID_SUPPORT_ADDRESS=support@example.com \
-            -e ID_API_CATALOG=http://127.0.0.1:8001 \
+            -e ID_API_CATALOG=http://127.0.0.1:8001 -e ID_API_APPS=catalog,hub \
             --user "$(id -u):0" \
             trainmeet-idapi:prov uvicorn id.app:app --host 127.0.0.1 --port 8002 --no-access-log
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8002/healthz >/dev/null 2>&1 && break; sleep 1; done
@@ -402,11 +404,23 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8001/healthz >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://127.0.0.1:8001/healthz
 
-      # Från ID:s sida som Catalog, och sedan genom Catalog som en webbläsare (KONTO-27).
-      - name: Logga in med en kod till e-posten, också i Catalog
+      # Hubben med klienten hub (#78), som i testmiljön.
+      - name: Starta Hubben mot ID
+        run: |
+          mkdir -p "$RUNNER_TEMP/hubb"
+          TRAINMEET_PREVIEW_DB="$RUNNER_TEMP/hubb/provbanan.sqlite3" \
+          TRAINMEET_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet TRAINMEET_ID_SECRET=hub-hemlighet \
+          TRAINMEET_PUBLIC_URL=http://localhost:8003 TRAINMEET_ID_API=http://127.0.0.1:8002 \
+            nohup uv run uvicorn hub.app:app --port 8003 --no-access-log > "$RUNNER_TEMP/hubb.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8003/api/hub >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8003/api/hub | grep -q '"id_login":true'
+
+      # Från ID:s sida som Catalog, och sedan genom Catalog och Hubben som en webbläsare (KONTO-27).
+      - name: Logga in med en kod till e-posten, också i Catalog och Hubben
         run: >
           uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt"
           prov-hemlighet http://localhost:8001 --catalog --id-app=http://localhost:8002
+          --hub=http://localhost:8003
 
       - name: Visa loggen om något gick fel
         if: failure()
@@ -415,6 +429,7 @@ jobs:
           docker logs id-api 2>&1 | tail -50 || true
           cat "$RUNNER_TEMP/postlada.log" || true
           cat "$RUNNER_TEMP/catalog.log" || true
+          cat "$RUNNER_TEMP/hubb.log" || true
 
       # Mejlservern och Catalog körs genom uv och håller uv:s cache låst. De stängs av före
       # jobbets egen städning, som annars väntar på låset tills den ger upp.
@@ -423,7 +438,8 @@ jobs:
         run: |
           pkill -f "id/postlada.py" || true
           pkill -f "uvicorn catalog.app" || true
-          for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app" >/dev/null || break; sleep 1; done
+          pkill -f "uvicorn hub.app" || true
+          for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app|uvicorn hub.app" >/dev/null || break; sleep 1; done
 
   # Pi-paketet (steg 5, DRIFT-20): hubben för en Raspberry Pi, som tjänster i systemd utan
   # containrar. Samma sidor och samma låsta beroenden som bilden. Paketet installeras och startas

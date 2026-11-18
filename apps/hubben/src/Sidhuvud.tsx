@@ -43,6 +43,10 @@ export type HeaderProps = {
   /** The one with the hub's PIN (H18): Byt träff too. Someone let in with a one-time code runs
    * the meet that runs, and no other (H56). */
   owner?: boolean;
+  /** Logged in at all: also with TrainMeet ID and no role at the meet yet (#78). */
+  loggedIn?: boolean;
+  /** The name of the one logged in with TrainMeet ID, shown by Logga ut (S1). */
+  person?: string | null;
   now: Now | null;
   /** Milliseconds since Nu came from the hub, for the clock between its answers. */
   elapsedMs: number;
@@ -59,7 +63,7 @@ export type HeaderProps = {
 };
 
 export function Sidhuvud(props: HeaderProps) {
-  const { current, viewed, bottom, hubName, admin, owner = admin, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
+  const { current, viewed, bottom, hubName, admin, owner = admin, loggedIn = admin, person, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
   const toggle = (which: Menu) => onMenu(menu === which ? null : which);
   const tab = (href: string) => ({ "aria-current": href === current ? ("page" as const) : undefined, onClick: linkClick(navigate, href) });
   return (
@@ -112,7 +116,7 @@ export function Sidhuvud(props: HeaderProps) {
           <a id="gear" className="hknapp kugge" href="/installningar" aria-label="Inställningar" title="Inställningar" {...tab("/installningar")}>
             <Gear />
           </a>
-          {admin ? (
+          {admin && (
             <>
               <button id="connect" type="button" className="hknapp" aria-expanded={menu === "anslut"} aria-controls="connect-panel" onClick={() => toggle("anslut")}>
                 Anslut
@@ -120,10 +124,12 @@ export function Sidhuvud(props: HeaderProps) {
               <a id="waiting" className={"hknapp" + (waiting > 0 ? " har" : "")} href="/drift/klienter" onClick={linkClick(navigate, "/drift/klienter")}>
                 Väntar <b id="waiting-count">{waiting}</b>
               </a>
-              <button id="logout" type="button" className="hknapp" onClick={props.onLogOut}>
-                Logga ut
-              </button>
             </>
+          )}
+          {loggedIn ? (
+            <button id="logout" type="button" className="hknapp" title={person ? `Inloggad som ${person}` : undefined} onClick={props.onLogOut}>
+              {person ? <span className="tm-person">{person} · </span> : null}Logga ut
+            </button>
           ) : (
             <a className="tm-knapp primar loggain" href="/" onClick={linkClick(navigate, "/")}>
               Logga in

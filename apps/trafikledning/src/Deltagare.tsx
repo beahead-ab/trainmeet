@@ -1,6 +1,7 @@
 import { Banoversikt, clockText, ENGLISH, hub, nextHappenings, numbers, SWEDISH, trafficOf, type Now, type Package, type Participant, type Weekday, type Words } from "@trainmeet/hubben";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "./api";
+import { IdLogIn } from "./StartPage";
 
 // Deltagarna (DELT-01–DELT-20): the page everyone sees without logging in, telephone first and
 // two columns on a computer. The clock, the line and the next happenings come from Drift's open
@@ -41,6 +42,8 @@ export const TEXT = {
     pin: "Hubbens PIN-kod",
     code: "Engångskod från trafikledningen",
     useCode: "Jag har en engångskod",
+    idLogIn: "Logga in med TrainMeet ID",
+    idFailed: "Inloggningen med TrainMeet ID gick inte. Försök igen.",
     usePin: "Jag har hubbens PIN-kod",
     toDrift: "Till driften →",
     close: "Stäng",
@@ -87,6 +90,8 @@ export const TEXT = {
     pin: "The hub's PIN",
     code: "One-time code from the dispatchers",
     useCode: "I have a one-time code",
+    idLogIn: "Log in with TrainMeet ID",
+    idFailed: "Logging in with TrainMeet ID did not work. Try again.",
     usePin: "I have the hub's PIN",
     toDrift: "To operations →",
     close: "Close",
@@ -127,18 +132,21 @@ export type DeltagareProps = {
   onLogIn: (pin: string) => void;
   /** Engångskoden från trafikledningen (H56). */
   onLogInWithCode?: (code: string) => void;
+  /** The hub logs in with TrainMeet ID (#78). */
+  idLogin?: boolean;
 };
 
 /** The key that says when the package Drift goes by has changed: the version and the
  * driftändringar on top of it. */
 const packageKey = (now: Now) => `${now.meet_id}:${now.version}:${(now.changes ?? []).map((change) => `${change.change_id}:${change.status}`).join(",")}`;
 
-export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn, onLogInWithCode }: DeltagareProps) {
+export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn, onLogInWithCode, idLogin = false }: DeltagareProps) {
   const t = TEXT[language];
   const [participant, setParticipant] = useState<Participant | null>(initial?.participant ?? null);
   const [pkg, setPkg] = useState<Package | null>(initial?.pkg ?? null);
   const [sheet, setSheet] = useState<"share" | "connect" | null>(null);
-  const [loggingIn, setLoggingIn] = useState(false);
+  // Back from ID with a login that did not go through: the login is open, with the reason.
+  const [loggingIn, setLoggingIn] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("inloggning"));
   const key = now ? packageKey(now) : null;
 
   useEffect(() => {
@@ -206,7 +214,10 @@ export function DeltagarePage({ now, elapsedMs, message, language = languageOf(t
             <a href="/drift">{t.toDrift}</a>
           </p>
         ) : loggingIn ? (
-          <LogIn t={t} message={message} onLogIn={onLogIn} onLogInWithCode={onLogInWithCode} />
+          <>
+            <LogIn t={t} message={message} onLogIn={onLogIn} onLogInWithCode={onLogInWithCode} />
+            {idLogin && <IdLogIn label={t.idLogIn} failedText={t.idFailed} />}
+          </>
         ) : (
           <button id="deltagare-logga-in" type="button" className="tm-knapp" onClick={() => setLoggingIn(true)}>
             {t.logIn}

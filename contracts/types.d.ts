@@ -900,6 +900,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hubLogOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/codes": {
         parameters: {
             query?: never;
@@ -8164,6 +8180,18 @@ export interface components {
              * @default null
              */
             meet_role: components["schemas"]["trainmeet.hub-1.info.MeetRole"] | null;
+            /**
+             * Person
+             * @description Inloggad med TrainMeet ID (#78): namnet för sidhuvudet (S1), aldrig adressen.
+             * @default null
+             */
+            person: string | null;
+            /**
+             * Id Login
+             * @description Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?
+             * @default false
+             */
+            id_login: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -8712,6 +8740,20 @@ export interface components {
              * @description Sex siffror. Skrivs aldrig ut i loggen.
              */
             code: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LoggedOut
+         * @description Logga ut. Var det en inloggning med ID går webbläsaren till ID och loggar ut där också
+         *     (KONTO-01), och kommer sedan tillbaka.
+         */
+        "trainmeet.hub-1.logged-out": {
+            /**
+             * Logout Url
+             * @default null
+             */
+            logout_url: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -17443,6 +17485,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.session"];
+                };
+            };
+        };
+    };
+    hubLogOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.logged-out"];
                 };
             };
         };

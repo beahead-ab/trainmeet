@@ -61,7 +61,7 @@ def test_a_pin_is_six_to_twelve_digits(hub: TestClient, pin: str) -> None:
 
 def test_log_out_and_in_again(hub: TestClient) -> None:
     hub.post("/api/hub/setup", json={"name": "Hubben", "pin": PIN})
-    assert hub.post("/api/hub/logout").status_code == 204
+    assert hub.post("/api/hub/logout").json() == {"logout_url": None}
     assert info(hub).logged_in is False
     assert hub.post("/api/hub/login", json={"pin": "000000"}).status_code == 401
     assert info(hub).logged_in is False
@@ -72,7 +72,7 @@ def test_log_out_and_in_again(hub: TestClient) -> None:
 def test_a_logged_out_key_stops_working(hub: TestClient) -> None:
     key = hub.post("/api/hub/setup", json={"name": "Hubben", "pin": PIN}).json()["session_key"]
     headers = {"Authorization": "Bearer " + key}
-    assert hub.post("/api/hub/logout", headers=headers).status_code == 204
+    assert hub.post("/api/hub/logout", headers=headers).status_code == 200
     assert TestClient(hub.app).get("/api/hub", headers=headers).json()["logged_in"] is False
 
 

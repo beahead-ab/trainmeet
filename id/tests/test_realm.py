@@ -192,6 +192,25 @@ def test_ids_api_may_remove_accounts_and_nothing_more() -> None:
     assert "kc-admin-api" in client["defaultClientScopes"] and "protocolMappers" not in client
 
 
+def test_the_hub_logs_in_and_asks_like_catalog_in_the_file_and_the_update() -> None:
+    """#78: the client "hub" logs in with the code flow and PKCE, and asks ID's API about the
+    roles with client credentials (KONTO-34), the same in the realm file and in update 6."""
+    hub = next(c for c in realm()["clients"] if c["clientId"] == "hub")
+    assert hub["publicClient"] is False and hub["secret"] == "${ID_HUB_SECRET}"
+    assert hub["standardFlowEnabled"] is True and hub["serviceAccountsEnabled"] is True
+    assert hub["directAccessGrantsEnabled"] is False and hub["implicitFlowEnabled"] is False
+    assert hub["attributes"]["pkce.code.challenge.method"] == "S256"
+    assert hub["redirectUris"] == ["${ID_HUB_URL}/api/hub/id/callback"]
+    assert hub["attributes"]["post.logout.redirect.uris"] == "${ID_HUB_URL}/*"
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert "RealmUpdates::hubLogsIn" in updates
+    assert 'address + "/api/hub/id/callback"' in updates
+    assert 'System.getenv("ID_HUB_SECRET")' in updates
+    scopes = re.search(r"SCOPES = List.of\(([^)]*)\)", updates)
+    assert scopes is not None
+    assert re.findall(r'"([a-z-]+)"', scopes.group(1)) == hub["defaultClientScopes"]
+
+
 def test_there_is_one_update_for_every_number_after_the_first() -> None:
     """Update i takes the realm from i - 1 to i; the list runs in order, one transaction each."""
     updates = UPDATES.read_text(encoding="utf-8")
