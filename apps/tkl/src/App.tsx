@@ -10,6 +10,7 @@ import { FirstStart, Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
 import { KopplaIn } from "./KopplaIn";
+import { Rita } from "./Rita";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
 import { Sparplan } from "./Sparplan";
@@ -22,6 +23,7 @@ const PAGES: Record<Page, string> = { stallverket: "/", studio: "/studio", insta
 const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : path.startsWith("/installningar") ? "installningar" : "stallverket");
 const SPARPLAN = "/studio/sparplan";
 const KOPPLA_IN = "/studio/koppla-in";
+const RITA = "/studio/rita";
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
@@ -226,20 +228,30 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   if (page === "studio") {
     const plan = path.startsWith(SPARPLAN);
     const koppla = path.startsWith(KOPPLA_IN);
+    const rita = path.startsWith(RITA);
+    const changedModel = () => {
+      void api.state().then(onLocked);
+      void api.studio().then(setStudio);
+    };
     body = (
       <>
         <nav className="studio-flikar" aria-label="Studio">
-          <button type="button" aria-current={plan || koppla ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+          <button type="button" aria-current={plan || rita || koppla ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
             Utsidan
           </button>
           <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
             Spårplan
           </button>
+          <button type="button" aria-current={rita ? "page" : undefined} onClick={() => navigate(RITA)}>
+            Rita
+          </button>
           <button type="button" aria-current={koppla ? "page" : undefined} onClick={() => navigate(KOPPLA_IN)}>
             Koppla in
           </button>
         </nav>
-        {koppla ? (
+        {rita ? (
+          <Rita onChanged={changedModel} />
+        ) : koppla ? (
           <KopplaIn />
         ) : plan ? (
           <Sparplan

@@ -29,6 +29,11 @@ adress (STUDIO-17). The pretend LocoNet stands in for the layout, "LocoNet ej an
 Prova uses (STUDIO-21, STUDIO-24). With LocoNet the interlocking waits for the switches' feedback,
 the track circuits move the train numbers, and only green and Utan adress objects run (STV-15 –
 STV-17).
+
+Rita (#85): the owner draws the station on the grid in Studio, or redraws the panel of one that
+has a model, under /api/tkl/1/studio/rita. The drawing is the station model with its panel plan;
+it is kept as a draft, problems and all, until the owner takes it into use, and then it is the
+station's model like an imported one (STUDIO-02, STUDIO-30).
 """
 
 from __future__ import annotations
@@ -59,6 +64,7 @@ from contracts.station_model import (
     Point,
     Position,
     SignalType,
+    StationModel,
     SwitchControl,
     SwitchType,
 )
@@ -419,6 +425,86 @@ class TklReference(Contract):
     name: Text
     level: int = Field(ge=1, le=3)
     plan: bool
+
+
+# --- Rita in Studio (#85): the station drawn on the grid (STUDIO-02, STUDIO-30) -------------
+
+
+class TklDrawing(Contract):
+    """Rita: the station as the owner draws it, the station model with its panel plan.
+
+    The panel plan is the drawing (STD-25, TKL81): every switch, crossing and track end in a
+    cell, every track a way over the grid from node to node, horizontally, vertically or at
+    45°, with the joints between its pieces. The six objects stand on it: the tracks' pieces,
+    the switches, the signals, the track-circuit boundaries, the buffer stops and the line exits
+    (STUDIO-02). What is not drawn is computed when the drawing becomes the model: the nodes'
+    types, the track circuits between the boundaries, the signals that lead out at each exit,
+    and where the panel shows the signals, the exits and the track names (tkl/studio/rita.py).
+    The routes are never drawn (STD-07).
+
+    A station without a plan of its own opens on the engine's layout, the first proposal
+    (STD-09). While the owner has only named things on it, the proposal is not kept as a plan,
+    and the engine lays the panel out again."""
+
+    model: StationModel
+    proposal: bool = Field(
+        default=False,
+        description="Rutnätet är motorns förslag och sparas inte som spårplan förrän ägaren "
+        "ritar om det.",
+    )
+
+
+class TklDrawingState(StrEnum):
+    NEW = "new"  # ingen ritning och ingen stationsmodell än
+    DRAFT = "draft"  # ett utkast, sparat på datorn, som inte är stationens modell
+    IN_USE = "in_use"  # ritningen är stationens modell, den Ställverket kör
+
+
+class TklObjectKind(StrEnum):
+    """What a finding is about, to select it in the drawing (RS7)."""
+
+    NODE = "node"
+    PIECE = "piece"
+    SWITCH = "switch"  # med växelns nummer
+    SIGNAL = "signal"
+    CIRCUIT = "circuit"
+    LEVER = "lever"
+    EXIT = "exit"
+
+
+class TklObjectRef(Contract):
+    kind: TklObjectKind
+    id: Name = Field(description="Nodens eller spårbitens id, växelns nummer eller namnet.")
+
+
+class TklFinding(Contract):
+    """A problem, which stops the drawing from being used, or a note, which does not, with the
+    object it is about when it names one (RS7)."""
+
+    text: Text
+    problem: bool
+    target: TklObjectRef | None = None
+
+
+class TklRita(Contract):
+    """Rita i Studio: the drawing, the model it becomes, the checks and the routes.
+
+    Saving keeps a draft, problems and all. Använd ritningen makes it the station's model only
+    without problems, as an import (STD-04); the outside is then derived from it (TKL92) and
+    the interlocking gets it, never under set routes or train numbers."""
+
+    drawing: TklDrawing
+    state: TklDrawingState
+    model: StationModel = Field(description="Stationsmodellen som ritningen blir.")
+    loose: list[Name] = Field(
+        default_factory=list,
+        description="Noderna där ett spår slutar utan att nå något: röda punkter (RS7).",
+    )
+    findings: list[TklFinding] = Field(
+        default_factory=list, description="Kontrollernas problem först, sedan det att veta."
+    )
+    routes: dict[RouteKind, int] = Field(description="Vägarna per slag.")
+    route_list: list[TklRoute] = Field(default_factory=list)
 
 
 # --- Manöver: the owner's free panel (STV-46, TKL86) ---------------------------------------
