@@ -460,7 +460,13 @@ def router(
                 assert offered is not None and tokens is not None
                 person, owner = offered[1], offered[2]
                 read = tokens.read(
-                    person, owner, prompt, page.image, f"En sida i importen: {name}", 8192
+                    person,
+                    owner,
+                    prompt,
+                    page.image,
+                    f"En sida i importen: {name}",
+                    8192,
+                    amount=0 if offered[0].own_ai else TOKENS_PER_PAGE,
                 )
                 store.keep_transcript(page.digest, read.model, read.text)
                 return read.text
@@ -516,8 +522,12 @@ def router(
             if club is not None:
                 owner = TokenOwner(kind=TokenOwnerKind.CLUB, id=club.club)
         balance = tokens.balance(person.id, owner)
+        # With own AI on the account the meter reads with it, and nothing is drawn (TK4).
         offer = planning.TrainMeetAi(
-            payer=balance.title, available=balance.available, price=TOKENS_PER_PAGE * pages
+            payer=balance.title,
+            available=balance.available,
+            price=0 if balance.own_ai else TOKENS_PER_PAGE * pages,
+            own_ai=balance.own_ai,
         )
         return offer, person.id, owner
 

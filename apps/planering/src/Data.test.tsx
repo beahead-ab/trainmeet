@@ -145,7 +145,7 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
   });
 
   it("offers TrainMeets AI with where the pages go and who pays, chosen by the planner (#79, TK12)", () => {
-    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude i Amazon Bedrock i Stockholm" } };
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude i Amazon Bedrock i Stockholm", own_ai: null } };
     const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
     expect(html).toContain("TrainMeets AI");
     expect(html).toContain("Sidorna läses av Claude i Amazon Bedrock i Stockholm. 24 tokens dras från Västby MJK, som har 1\u00a0500 kvar.");
@@ -158,6 +158,11 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
     const poor = renderToStaticMarkup(<Skriv pages={{ ...pages, trainmeet_ai: { ...pages.trainmeet_ai, available: 10 } }} writing={false} onWrite={go} />);
     expect(poor).toContain("Saldot räcker inte. Köp fler tokens i TrainMeet ID, eller koppla in egen AI.");
     expect(radio(poor, "trainmeet")).toContain('disabled=""');
+    // The club's own AI on its account in ID reads for nothing (TK4, TOKEN-03).
+    const theirs = renderToStaticMarkup(<Skriv pages={{ ...pages, trainmeet_ai: { ...pages.trainmeet_ai, price: 0, available: 0, own_ai: "en-modell" } }} writing={false} onWrite={go} />);
+    expect(theirs).toContain("Egen AI på kontot");
+    expect(theirs).toContain("Sidorna läses av den egna AI:n som Västby MJK har kopplat in i TrainMeet ID (en-modell). Inga tokens dras.");
+    expect(radio(theirs, "trainmeet")).not.toContain('disabled=""');
   });
 });
 

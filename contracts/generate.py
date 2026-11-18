@@ -232,6 +232,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.token-shop": tokens.TokenShop,
     "trainmeet.id-1.token-purchase": tokens.TokenPurchase,
     "trainmeet.id-1.token-checkout": tokens.TokenCheckout,
+    "trainmeet.id-1.own-ai-state": tokens.OwnAiState,
+    "trainmeet.id-1.own-ai-change": tokens.OwnAiChange,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -1101,6 +1103,32 @@ def id_openapi() -> str:
     route("get", a + "/tokens", "tokens", "token-balance", many=True, problems=(401,))
     # Köpen (TOKEN-02, TOKEN-11): Stripe Checkout, in test mode until MOMS is decided.
     route("get", a + "/tokens/shop", "tokenShop", "token-shop", problems=(401,))
+    # Egen AI på kontot (TOKEN-03): the answer to GET is null when none is connected.
+    route(
+        "get",
+        a + "/tokens/own-ai",
+        "ownAi",
+        "own-ai-state",
+        query=("owner",),
+        problems=(401, 403, 404, 422),
+    )
+    route(
+        "put",
+        a + "/tokens/own-ai",
+        "connectOwnAi",
+        "own-ai-state",
+        "own-ai-change",
+        query=("owner",),
+        problems=(401, 403, 404, 422),
+    )
+    route(
+        "delete",
+        a + "/tokens/own-ai",
+        "removeOwnAi",
+        None,
+        query=("owner",),
+        problems=(401, 403, 404, 422),
+    )
     route(
         "post",
         a + "/tokens/purchases",

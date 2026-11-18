@@ -42,6 +42,7 @@ from contracts.tokens import (
     MeterAnswer,
     MeterRead,
     TokenDraw,
+    TokenOwner,
     TokenReservationState,
 )
 from id.db import Database
@@ -158,17 +159,38 @@ class BedrockClaude:
         return text
 
 
+class OwnAiLookup(Protocol):
+    def __call__(self, owner: TokenOwner) -> OwnAiUse | None: ...
+
+
+class OwnAiUse(Protocol):
+    @property
+    def model(self) -> str: ...
+
+    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> str: ...
+
+
 class Meter:
-    def __init__(self, db: Database, tokens: Tokens, claude: Claude | None) -> None:
+    def __init__(
+        self,
+        db: Database,
+        tokens: Tokens,
+        claude: Claude | None,
+        own_ai: OwnAiLookup = lambda owner: None,
+    ) -> None:
         self.db = db
         self.tokens = tokens
         self.claude = claude
+        self.own_ai = own_ai
 
     def read(self, app: str, asked: MeterRead) -> MeterAnswer:
-        if self.claude is None:
+        held = self.tokens.reservation(app, asked.reservation)
+        own = self.own_ai(held.owner) if held.state == TokenReservationState.HELD else None
+        if own is not None:
+            return self._own(app, asked, own)
+        if self.claude is None and held.state == TokenReservationState.HELD:
             raise Refused(503, ProblemCode.UNAVAILABLE, "TrainMeets AI är inte inkopplad här.")
         cost = TOKENS_PER_PAGE * len(asked.images)
-        held = self.tokens.reservation(app, asked.reservation)
         if held.state == TokenReservationState.DRAWN:
             kept = self._kept(asked.reservation)
             if kept is None:
@@ -186,6 +208,7 @@ class Meter:
                 ProblemCode.INVALID,
                 f"Reservationen räcker inte: {cost} tokens behövs för {len(asked.images)} bilder.",
             )
+        assert self.claude is not None
         try:
             text = self.claude.read(
                 asked.prompt, [(i.media_type, i.data) for i in asked.images], asked.max_tokens
@@ -196,6 +219,20 @@ class Meter:
         drawn = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
         text, model = self._keep(asked.reservation, text, self.claude.model)
         return MeterAnswer(text=text, cost=cost, model=model, reservation=drawn)
+
+    def _own(self, app: str, asked: MeterRead, own: OwnAiUse) -> MeterAnswer:
+        """The owner's own AI (TK4): read with it, and draw nothing. The reservation is drawn
+        with nothing, so that the same reservation again gives the same answer."""
+        try:
+            text = own.read(
+                asked.prompt, [(i.media_type, i.data) for i in asked.images], asked.max_tokens
+            )
+        except MeterFailed as error:
+            self.tokens.give_back(app, asked.reservation)
+            raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
+        drawn = self.tokens.draw(app, asked.reservation, TokenDraw(amount=0))
+        text, model = self._keep(asked.reservation, text, own.model)
+        return MeterAnswer(text=text, cost=0, model=model, reservation=drawn)
 
     def _keep(self, reservation: UUID, text: str, model: str) -> tuple[str, str]:
         """The first answer for the reservation is the one: two at once give the same."""

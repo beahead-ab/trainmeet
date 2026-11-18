@@ -20,6 +20,7 @@ import {
   type RemovalPlan,
   type Session,
   type TokenBalance,
+  type OwnAiChange,
   type TokenPurchase,
   type TokenShop,
 } from "./api";
@@ -103,6 +104,9 @@ export type Actions = {
   removeAccount?: () => Promise<string | null>;
   /** Köp fler (TOKEN-02): to Stripe's page, and back to Tokens when paid. */
   buy?: (purchase: TokenPurchase) => Promise<string | null>;
+  /** Egen AI på kontot (TOKEN-03): checked with a picture before it is saved. */
+  connectOwnAi?: (owner: string, change: OwnAiChange) => Promise<string | null>;
+  removeOwnAi?: (owner: string) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -302,6 +306,8 @@ function Content(props: ShellProps & { t: T }) {
           admin={(data.clubs ?? []).filter((club) => club.role === "admin").map((club) => club.id)}
           buy={actions.buy}
           bought={new URLSearchParams(props.search ?? "").get("kop")}
+          connect={actions.connectOwnAi}
+          remove={actions.removeOwnAi}
         />
       );
     case "remove":
@@ -798,6 +804,8 @@ function TokensCard({
   admin = [],
   buy,
   bought = null,
+  connect,
+  remove,
 }: {
   t: T;
   heading?: 1 | 2;
@@ -807,6 +815,8 @@ function TokensCard({
   admin?: string[];
   buy?: Actions["buy"];
   bought?: string | null;
+  connect?: Actions["connectOwnAi"];
+  remove?: Actions["removeOwnAi"];
 }) {
   const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB");
   const [busy, problem, run] = useAction();
@@ -843,6 +853,7 @@ function TokensCard({
                   ))}
                 </div>
               ) : null}
+              {connect && remove && mayBuy(balance) ? <OwnAiForm t={t} balance={balance} connect={connect} remove={remove} /> : null}
             </li>
           ))}
         </ul>
@@ -851,6 +862,61 @@ function TokensCard({
       {open ? <p className="id-detalj">{t("tokensTestMode")}</p> : <p className="id-detalj">{t("tokensBuyLater")}</p>}
       <Problem text={problem} />
     </section>
+  );
+}
+
+/** Egen AI på kontot (TOKEN-03, TK4): the first choice, with which no AI tokens are drawn. */
+function OwnAiForm({ t, balance, connect, remove }: { t: T; balance: TokenBalance; connect: NonNullable<Actions["connectOwnAi"]>; remove: NonNullable<Actions["removeOwnAi"]> }) {
+  const owner = `${balance.owner.kind}:${balance.owner.id}`;
+  const [format, setFormat] = useState<OwnAiChange["format"]>("chat");
+  const [address, setAddress] = useState("");
+  const [model, setModel] = useState("");
+  const [key, setKey] = useState("");
+  const [busy, problem, run] = useAction();
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    if (await run(() => connect(owner, { format, address, model, key: key || null }))) setKey("");
+  };
+  return (
+    <div className="id-egen-ai">
+      {balance.own_ai ? (
+        <p className="id-detalj">
+          {t("ownAiNow", { model: balance.own_ai })}{" "}
+          <button type="button" className="tm-knapp lank" disabled={busy} onClick={() => void run(() => remove(owner))}>
+            {t("ownAiRemove")}
+          </button>
+        </p>
+      ) : null}
+      <details>
+        <summary>{balance.own_ai ? t("ownAiChange") : t("ownAiOpen")}</summary>
+        <p className="id-detalj">{t("ownAiIntro")}</p>
+        <form onSubmit={(event) => void send(event)} className="id-formular">
+          <label>
+            {t("ownAiFormat")}
+            <select value={format} onChange={(event) => setFormat(event.target.value as OwnAiChange["format"])}>
+              <option value="chat">{t("ownAiChat")}</option>
+              <option value="claude">{t("ownAiClaude")}</option>
+            </select>
+          </label>
+          <label>
+            {t("ownAiAddress")}
+            <input type="url" required value={address} placeholder="https://" onChange={(event) => setAddress(event.target.value)} />
+          </label>
+          <label>
+            {t("ownAiModel")}
+            <input required value={model} onChange={(event) => setModel(event.target.value)} />
+          </label>
+          <label>
+            {t("ownAiKey")}
+            <input type="password" autoComplete="off" value={key} required={!balance.own_ai} placeholder={balance.own_ai ? t("ownAiKeyKept") : ""} onChange={(event) => setKey(event.target.value)} />
+          </label>
+          <button type="submit" className="tm-knapp primar" disabled={busy}>
+            {t("ownAiConnect")}
+          </button>
+        </form>
+      </details>
+      <Problem text={problem} />
+    </div>
   );
 }
 
@@ -1165,6 +1231,8 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     takeRole: (grant) => act(() => api.removeGrant(grant))(),
     sendHelp: (request) => act(() => api.help(request))(),
     changeRole: (club, person, role) => act(() => api.changeRole(club, person, role))(),
+    connectOwnAi: (owner, change) => act(() => api.connectOwnAi(owner, change))(),
+    removeOwnAi: (owner) => act(() => api.removeOwnAi(owner))(),
     buy: async (purchase) => {
       try {
         const checkout = await api.buy(purchase);

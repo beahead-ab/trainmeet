@@ -61,13 +61,14 @@ class IdTokens:
         image: ai.Image,
         what: str,
         max_tokens: int,
+        amount: int = 12,
     ) -> MeterAnswer:
         """One page through the meter: reserved, read and drawn, or given back by ID when the
-        AI does not answer."""
+        AI does not answer. With own AI on the account nothing is reserved (TK4)."""
         body = {
             "person": person,
             "owner": owner.model_dump(mode="json"),
-            "amount": 12,
+            "amount": amount,
             "key": f"hubben-{secrets.token_hex(12)}",
             "what": what[:120],
         }

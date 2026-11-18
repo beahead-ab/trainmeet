@@ -50,6 +50,8 @@ class PretendIdMeter(PretendIdApi):
     text: str = ""
     failing: bool = False
 
+    own_ai: str | None = None
+
     def balance(self, owner: TokenOwner) -> TokenBalance:
         key = f"{owner.kind}:{owner.id}"
         title = "Västby MJK" if owner.kind == "club" else "Provare Ett"
@@ -63,6 +65,7 @@ class PretendIdMeter(PretendIdApi):
             reserved=0,
             available=left,
             month="2026-11",
+            own_ai=self.own_ai if owner.kind == "club" else None,
         )
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -203,3 +206,17 @@ def test_without_tokens_or_an_answer_the_planner_is_told(tmp_path: Any) -> None:
     failed = send(person, meet, "trainmeet")
     assert failed.status_code == 502
     assert failed.json()["detail"] == "TrainMeets AI svarar inte just nu. Inget drogs."
+
+
+def test_the_clubs_own_ai_reads_for_nothing(tmp_path: Any) -> None:
+    """TK4, TOKEN-03: the club has its own AI on its account in ID: the pages cost no tokens."""
+    pretend = PretendIdMeter(
+        text=transcript(varnamo_plan(), "Lek", "Lek Lekby"), own_ai="en-modell"
+    )
+    pretend.roles = {str(AUTUMN): ["organizer"]}
+    _, person = hub_with(pretend, tmp_path)
+    meet = planning.Draft.model_validate(make_meet(person).json()).meet.id
+    offer = planning.AiPages.model_validate(send(person, meet).json()).trainmeet_ai
+    assert offer is not None and (offer.price, offer.own_ai) == (0, "en-modell")
+    pretend.available[f"club:{CLUB}"] = 0
+    assert send(person, meet, "trainmeet").status_code == 201, "no tokens needed"

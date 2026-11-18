@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.own-ai-change.schema.json",
+  "title": "trainmeet.id-1.own-ai-change",
+  "additionalProperties": true,
+  "properties": {
+    "format": {
+      "enum": [
+        "chat",
+        "claude"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "address": {
+      "maxLength": 300,
+      "minLength": 8,
+      "title": "Address",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "key": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Skickas när den läggs in eller byts; annars står den kvar.",
+      "title": "Key"
+    }
+  },
+  "required": [
+    "format",
+    "address",
+    "model"
+  ],
+  "type": "object"
+}

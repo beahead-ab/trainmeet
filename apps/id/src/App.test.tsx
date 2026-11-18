@@ -55,8 +55,8 @@ describe("TrainMeet ID's web app", () => {
 
   it("shows the person's balance and the club's, with the free quota and the bought tokens (#79)", () => {
     const tokens: TokenBalance[] = [
-      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 64, free_monthly: 100, bought: 1500, reserved: 12, available: 1564, month: "2026-11" },
-      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
+      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 64, free_monthly: 100, bought: 1500, reserved: 12, available: 1564, month: "2026-11", own_ai: null },
+      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11", own_ai: null },
     ];
     const html = render({ route: { page: "tokens" }, data: { tokens } });
     expect(html).toContain("Ditt saldo");
@@ -72,9 +72,9 @@ describe("TrainMeet ID's web app", () => {
   it("sells the packages in Stripe's test mode, for one's own balance and as the club's admin (TOKEN-02)", () => {
     const member = { id: "2f2e2d2c-3333-4444-8555-966677778888", name: "Grannklubben", role: "member" as const };
     const tokens: TokenBalance[] = [
-      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 100, free_monthly: 100, bought: 0, reserved: 0, available: 100, month: "2026-11" },
-      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
-      { owner: { kind: "club", id: member.id }, title: "Grannklubben", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
+      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 100, free_monthly: 100, bought: 0, reserved: 0, available: 100, month: "2026-11", own_ai: null },
+      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11", own_ai: null },
+      { owner: { kind: "club", id: member.id }, title: "Grannklubben", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11", own_ai: null },
     ];
     const shop = { mode: "test" as const, packages: [{ tokens: 500 as const, price_sek: 49 }, { tokens: 1500 as const, price_sek: 129 }, { tokens: 5000 as const, price_sek: 399 }] };
     const html = render({ route: { page: "tokens" }, data: { tokens, shop, clubs: [club, member] }, actions: { buy: async () => null }, search: "?kop=klart" });
@@ -88,6 +88,23 @@ describe("TrainMeet ID's web app", () => {
     const closed = render({ route: { page: "tokens" }, data: { tokens, shop: { ...shop, mode: "off" }, clubs: [club] }, actions: { buy: async () => null } });
     expect(closed).not.toContain("Köp 500");
     expect(closed).toContain("Att köpa fler kommer snart.");
+  });
+
+  it("connects the account's own AI, the first choice, for one's own balance and the club's admin (TOKEN-03)", () => {
+    const tokens: TokenBalance[] = [
+      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 100, free_monthly: 100, bought: 0, reserved: 0, available: 100, month: "2026-11", own_ai: "en-modell" },
+      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11", own_ai: null },
+    ];
+    const html = render({ route: { page: "tokens" }, data: { tokens, clubs: [{ ...club, role: "member" }] }, actions: { connectOwnAi: async () => null, removeOwnAi: async () => null } });
+    expect(html).toContain("Egen AI: en-modell");
+    expect(html).toContain(">Koppla ur</button>");
+    expect(html).toContain("Ändra egen AI");
+    expect(html).toContain("Lämna tom för att behålla nyckeln");
+    // A member does not change the club's own AI.
+    expect(html).not.toContain("Koppla in egen AI");
+    const admin = render({ route: { page: "tokens" }, data: { tokens, clubs: [club] }, actions: { connectOwnAi: async () => null, removeOwnAi: async () => null } });
+    expect(admin).toContain("Koppla in egen AI");
+    expect(admin).toContain("Claudes eget API");
   });
 
   it("shows the club's members, and only the admin may invite and remove", () => {

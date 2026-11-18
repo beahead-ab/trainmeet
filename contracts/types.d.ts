@@ -12205,6 +12205,12 @@ export interface components {
              * @default Claude i Amazon Bedrock i Stockholm
              */
             where: string;
+            /**
+             * Own Ai
+             * @description Den som betalar har egen AI på kontot (TOKEN-03): sidorna läses av den modellen, och inga tokens dras (TK4).
+             * @default null
+             */
+            own_ai: string | null;
         } & {
             [key: string]: unknown;
         };
