@@ -39,6 +39,7 @@ from contracts.id import (
     FleetAccess,
     FleetInvite,
     FleetPage,
+    Grant,
     HelpRequest,
     HelpSent,
     Invitation,
@@ -54,6 +55,7 @@ from contracts.id import (
     Removed,
     Resource,
     ResourceKind,
+    ReviewerGrant,
     Session,
     Switcher,
     Ticket,
@@ -463,6 +465,19 @@ def create_app(
     @app.put(API + "/owner/settings")
     def change_owner_settings(body: TokenSettings, person: Person) -> OwnerPage:
         return owner.change(person, body)
+
+    @app.get(API + "/owner/reviewers")
+    def reviewers(person: Person) -> list[Grant]:
+        """Granskare i Catalog (KONTO-30, ID6): given and taken by TrainMeet's owners."""
+        return owner.reviewers(person)
+
+    @app.post(API + "/owner/reviewers")
+    def give_reviewer(body: ReviewerGrant, person: Person) -> list[Grant]:
+        return owner.give_reviewer(person, body.email)
+
+    @app.delete(API + "/owner/reviewers/{reviewer}")
+    def take_reviewer(reviewer: UUID, person: Person) -> list[Grant]:
+        return owner.take_reviewer(person, reviewer)
 
     @app.get(API + "/tokens/own-ai")
     def own_ai(owner: str, person: Person) -> OwnAiState | None:

@@ -6,6 +6,7 @@ import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, 
 import { Crumbs, dateText, Dialog, ErrorLine, isOwner, kindText, mayEdit, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
 import { nfcSupported, writeAddress } from "./nfc";
 import { PicturesSection } from "./Pictures";
+import { PrototypeSection } from "./PrototypeBlock";
 import { editPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
 
@@ -184,6 +185,8 @@ export type CardViewProps = {
   onWrite?: () => void;
   /** Bilderna, above the card: PicturesSection, or PicturesView in the tests (CAT-05). */
   pictures?: ReactNode;
+  /** Förebilden, below the card: the type data as a block of their own (#53, CAT-160). */
+  prototype?: ReactNode;
 };
 
 export function CardView(props: CardViewProps) {
@@ -242,6 +245,7 @@ export function CardView(props: CardViewProps) {
               </tbody>
             </table>
           </section>
+          {props.prototype}
         </div>
 
         <div className="cat-sidokolumn">
@@ -382,6 +386,7 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
         onNewLabel={(replace) => act(() => api.newLabel(vehicle.id, replace?.assignment ?? null))}
         onClearNotice={(notice) => act(() => api.clearNotice(vehicle.id, notice))}
         pictures={<PicturesSection ctx={ctx} vehicle={vehicle} />}
+        prototype={<PrototypeSection ctx={ctx} vehicle={vehicle} onChanged={setVehicle} />}
         writing={(() => {
           const tag = writeUid ? (vehicle.tags ?? []).find((each) => each.uid === writeUid.toLowerCase().replace(/[:-]/g, "")) : undefined;
           return tag ? { address: tag.address, state: written } : null;

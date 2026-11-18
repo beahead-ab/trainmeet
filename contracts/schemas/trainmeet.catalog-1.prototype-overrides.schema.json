@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-overrides.schema.json",
+  "title": "trainmeet.catalog-1.prototype-overrides",
+  "additionalProperties": true,
+  "description": "The type data as the owner wants them on the vehicle (CAT-162). A value equal to the\nsnapshot's inherits; any other, an empty one too, is the owner's own.",
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "fields": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Fields",
+      "type": "object"
+    }
+  },
+  "required": [
+    "version",
+    "fields"
+  ],
+  "type": "object"
+}

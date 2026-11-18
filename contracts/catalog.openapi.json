@@ -4746,6 +4746,682 @@
         ]
       }
     },
+    "/api/catalog/1/prototypes/fields": {
+      "get": {
+        "operationId": "fieldRegister",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.field-register"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/catalog/1/prototypes": {
+      "get": {
+        "operationId": "prototypes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/prototypes/proposals": {
+      "post": {
+        "operationId": "proposePrototype",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-proposal"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/prototypes/proposals/mine": {
+      "get": {
+        "operationId": "myProposals",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/prototypes/proposals/queue": {
+      "get": {
+        "operationId": "reviewQueue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/prototypes/proposals/{revision}/review": {
+      "post": {
+        "operationId": "reviewProposal",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-review"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/prototypes/{prototype}": {
+      "get": {
+        "operationId": "prototype",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "prototype",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/prototype": {
+      "post": {
+        "operationId": "linkPrototype",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-link"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "changeTypeData",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-overrides"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "unlinkPrototype",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/catalog/1/tags/{uid}/qr.svg": {
       "get": {
         "operationId": "tagQrCode",
@@ -5618,6 +6294,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -5722,6 +6410,16 @@
         ],
         "title": "EvnParts",
         "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
       },
       "trainmeet.catalog-1.vehicle.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
@@ -5840,6 +6538,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.catalog-1.vehicle.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -6028,6 +6816,16 @@
         ],
         "title": "EvnParts",
         "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-list.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
       },
       "trainmeet.catalog-1.vehicle-list.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
@@ -6323,6 +7121,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -6355,6 +7165,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-list.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.catalog-1.vehicle-list.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -6715,7 +7615,8 @@
           "not_back",
           "consent_required",
           "reading_busy",
-          "reading_failed"
+          "reading_failed",
+          "bad_type_data"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -7490,6 +8391,16 @@
         "title": "EvnParts",
         "type": "object"
       },
+      "trainmeet.catalog-1.catalog-export.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
       "trainmeet.catalog-1.catalog-export.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
         "enum": [
@@ -8018,6 +8929,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -8131,6 +9054,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.catalog-1.catalog-export.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -8715,6 +9728,16 @@
         "title": "EvnParts",
         "type": "object"
       },
+      "trainmeet.catalog-1.trip.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
       "trainmeet.catalog-1.trip.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
         "enum": [
@@ -9100,6 +10123,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.trip.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -9132,6 +10167,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.catalog-1.trip.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.trip.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.trip.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.catalog-1.trip.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -9468,6 +10593,16 @@
         ],
         "title": "EvnParts",
         "type": "object"
+      },
+      "trainmeet.catalog-1.trip-tapped.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
       },
       "trainmeet.catalog-1.trip-tapped.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
@@ -9959,6 +11094,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.trip-tapped.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -9991,6 +11138,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.catalog-1.trip-tapped.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.trip-tapped.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.trip-tapped.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.catalog-1.trip-tapped.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -10139,6 +11376,18 @@
             "minLength": 1,
             "title": "Model",
             "type": "string"
+          },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.reading.PrototypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A reviewed prototype in the catalog whose litt and operator match the suggested ones (CAT-141). Linked only when the owner says so (CAT-136)."
           }
         },
         "required": [
@@ -10159,6 +11408,33 @@
         ],
         "title": "Confidence",
         "type": "string"
+      },
+      "trainmeet.catalog-1.reading.PrototypeSummary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
+        "type": "object"
       },
       "trainmeet.catalog-1.reading.ReadingQuestion": {
         "additionalProperties": true,
@@ -10587,6 +11863,18 @@
             "minimum": 0,
             "title": "Attempts",
             "type": "integer"
+          },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.batch.PrototypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A reviewed prototype whose litt and operator match the card's values (CAT-141), looked up when the card is read. Linked only when the owner says so, once the card is a vehicle (CAT-136)."
           }
         },
         "required": [
@@ -10668,6 +11956,33 @@
           "display_url"
         ],
         "title": "PictureLinks",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.batch.PrototypeSummary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
         "type": "object"
       },
       "trainmeet.catalog-1.batch.ReadingQuestion": {
@@ -10974,6 +12289,18 @@
             "minimum": 0,
             "title": "Attempts",
             "type": "integer"
+          },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.batch-card.PrototypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A reviewed prototype whose litt and operator match the card's values (CAT-141), looked up when the card is read. Linked only when the owner says so, once the card is a vehicle (CAT-136)."
           }
         },
         "required": [
@@ -11055,6 +12382,33 @@
           "display_url"
         ],
         "title": "PictureLinks",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.batch-card.PrototypeSummary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
         "type": "object"
       },
       "trainmeet.catalog-1.batch-card.ReadingQuestion": {
@@ -11560,6 +12914,1314 @@
         ],
         "title": "BatchCardSeen",
         "type": "object"
+      },
+      "trainmeet.catalog-1.field-register": {
+        "additionalProperties": true,
+        "description": "The field register and the profiles, published so that others read the type data the\nsame way (CAT-156, CAT-158).",
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.field-register.TypeField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.field-register.ProfileFields"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields",
+          "profiles"
+        ],
+        "title": "FieldRegister",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.field-register.FieldKind": {
+        "description": "What a field in the register holds.",
+        "enum": [
+          "text",
+          "number",
+          "integer"
+        ],
+        "title": "FieldKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.field-register.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.field-register.ProfileField": {
+        "additionalProperties": true,
+        "description": "A key as a profile shows it: in its order, with the profile's label.",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_en": {
+            "title": "Label En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "label_en"
+        ],
+        "title": "ProfileField",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.field-register.ProfileFields": {
+        "additionalProperties": true,
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.field-register.FieldProfile"
+          },
+          "name": {
+            "description": "Sverige, Europa or USA.",
+            "title": "Name",
+            "type": "string"
+          },
+          "name_en": {
+            "title": "Name En",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.field-register.ProfileField"
+            },
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "name",
+          "name_en",
+          "fields"
+        ],
+        "title": "ProfileFields",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.field-register.TypeField": {
+        "additionalProperties": true,
+        "description": "A key in the field register: its kind and unit never change (CAT-156).",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.field-register.FieldKind"
+          },
+          "unit": {
+            "description": "For example mm, t, km/h or ft. Empty when the field has none.",
+            "title": "Unit",
+            "type": "string"
+          },
+          "label": {
+            "description": "The Swedish label, unless the profile says another.",
+            "title": "Label",
+            "type": "string"
+          },
+          "label_en": {
+            "title": "Label En",
+            "type": "string"
+          },
+          "max_length": {
+            "description": "The longest value, in characters.",
+            "title": "Max Length",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "unit",
+          "label",
+          "label_en",
+          "max_length"
+        ],
+        "title": "TypeField",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype": {
+        "additionalProperties": true,
+        "description": "A type in the catalog: one row in the list (CAT-173), and the prototype's page.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeStatus",
+            "description": "Reviewed once a revision is; until then the first proposal's status."
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reviewed revision shown, the latest one; null before.",
+            "title": "Revision"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.FieldProfile"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeSource"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reviewed At"
+          },
+          "vehicles": {
+            "description": "Används: how many vehicles in Catalog are linked to it.",
+            "title": "Vehicles",
+            "type": "integer"
+          },
+          "waiting": {
+            "default": 0,
+            "description": "Proposals for it waiting in the review queue that one may see.",
+            "title": "Waiting",
+            "type": "integer"
+          },
+          "revisions": {
+            "description": "Only on the prototype's page: the reviewed revisions, newest first, and the ones the person may see besides.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeRevision"
+            },
+            "title": "Revisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "name",
+          "profile",
+          "fields",
+          "source",
+          "vehicles"
+        ],
+        "title": "Prototype",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype.PrototypeRevision": {
+        "additionalProperties": true,
+        "description": "One revision of a prototype: a proposal, reviewed or rejected (CAT-159).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "prototype": {
+            "format": "uuid",
+            "title": "Prototype",
+            "type": "string"
+          },
+          "number": {
+            "description": "Counts every proposal for the prototype, from 1.",
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reviewed revision a change was built on; null if new.",
+            "title": "Base"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeStatus"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.FieldProfile"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeSource"
+          },
+          "mine": {
+            "default": false,
+            "description": "The person asking proposed it.",
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "proposed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The proposer's name: only in the review queue, and in one's own proposals.",
+            "title": "Proposed By"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "description": "The reviewer's comment.",
+            "title": "Comment",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reviewed At"
+          }
+        },
+        "required": [
+          "id",
+          "prototype",
+          "number",
+          "status",
+          "name",
+          "profile",
+          "fields",
+          "source",
+          "created_at"
+        ],
+        "title": "PrototypeRevision",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype.PrototypeSource": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeSourceKind"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "PrototypeSource",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype.PrototypeSourceKind": {
+        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "enum": [
+          "own",
+          "reference"
+        ],
+        "title": "PrototypeSourceKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype.PrototypeStatus": {
+        "description": "A prototype's or a revision's place in the review (CAT-164).",
+        "enum": [
+          "proposed",
+          "reviewed",
+          "rejected"
+        ],
+        "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-list": {
+        "additionalProperties": true,
+        "description": "The catalog (CAT-173): one type per row with its type data. The reviewed prototypes, and\nthe person's own proposals for new ones.",
+        "properties": {
+          "prototypes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.Prototype"
+            },
+            "title": "Prototypes",
+            "type": "array"
+          },
+          "reviewer": {
+            "description": "The person is a reviewer and sees the review queue.",
+            "title": "Reviewer",
+            "type": "boolean"
+          },
+          "to_review": {
+            "default": 0,
+            "description": "Proposals in the queue, for a reviewer.",
+            "title": "To Review",
+            "type": "integer"
+          },
+          "license": {
+            "default": "CC BY-SA 4.0",
+            "description": "CC BY-SA 4.0 (CAT-213).",
+            "title": "License",
+            "type": "string"
+          },
+          "license_url": {
+            "default": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "title": "License Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prototypes",
+          "reviewer"
+        ],
+        "title": "PrototypeList",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-list.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-list.Prototype": {
+        "additionalProperties": true,
+        "description": "A type in the catalog: one row in the list (CAT-173), and the prototype's page.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeStatus",
+            "description": "Reviewed once a revision is; until then the first proposal's status."
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reviewed revision shown, the latest one; null before.",
+            "title": "Revision"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.FieldProfile"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeSource"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reviewed At"
+          },
+          "vehicles": {
+            "description": "Används: how many vehicles in Catalog are linked to it.",
+            "title": "Vehicles",
+            "type": "integer"
+          },
+          "waiting": {
+            "default": 0,
+            "description": "Proposals for it waiting in the review queue that one may see.",
+            "title": "Waiting",
+            "type": "integer"
+          },
+          "revisions": {
+            "description": "Only on the prototype's page: the reviewed revisions, newest first, and the ones the person may see besides.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeRevision"
+            },
+            "title": "Revisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "name",
+          "profile",
+          "fields",
+          "source",
+          "vehicles"
+        ],
+        "title": "Prototype",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-list.PrototypeRevision": {
+        "additionalProperties": true,
+        "description": "One revision of a prototype: a proposal, reviewed or rejected (CAT-159).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "prototype": {
+            "format": "uuid",
+            "title": "Prototype",
+            "type": "string"
+          },
+          "number": {
+            "description": "Counts every proposal for the prototype, from 1.",
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reviewed revision a change was built on; null if new.",
+            "title": "Base"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeStatus"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.FieldProfile"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeSource"
+          },
+          "mine": {
+            "default": false,
+            "description": "The person asking proposed it.",
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "proposed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The proposer's name: only in the review queue, and in one's own proposals.",
+            "title": "Proposed By"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "description": "The reviewer's comment.",
+            "title": "Comment",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reviewed At"
+          }
+        },
+        "required": [
+          "id",
+          "prototype",
+          "number",
+          "status",
+          "name",
+          "profile",
+          "fields",
+          "source",
+          "created_at"
+        ],
+        "title": "PrototypeRevision",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-list.PrototypeSource": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeSourceKind"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "PrototypeSource",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-list.PrototypeSourceKind": {
+        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "enum": [
+          "own",
+          "reference"
+        ],
+        "title": "PrototypeSourceKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-list.PrototypeStatus": {
+        "description": "A prototype's or a revision's place in the review (CAT-164).",
+        "enum": [
+          "proposed",
+          "reviewed",
+          "rejected"
+        ],
+        "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-list.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-revision": {
+        "additionalProperties": true,
+        "description": "One revision of a prototype: a proposal, reviewed or rejected (CAT-159).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "prototype": {
+            "format": "uuid",
+            "title": "Prototype",
+            "type": "string"
+          },
+          "number": {
+            "description": "Counts every proposal for the prototype, from 1.",
+            "minimum": 1,
+            "title": "Number",
+            "type": "integer"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reviewed revision a change was built on; null if new.",
+            "title": "Base"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.PrototypeStatus"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.FieldProfile"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.PrototypeSource"
+          },
+          "mine": {
+            "default": false,
+            "description": "The person asking proposed it.",
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "proposed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The proposer's name: only in the review queue, and in one's own proposals.",
+            "title": "Proposed By"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "description": "The reviewer's comment.",
+            "title": "Comment",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reviewed At"
+          }
+        },
+        "required": [
+          "id",
+          "prototype",
+          "number",
+          "status",
+          "name",
+          "profile",
+          "fields",
+          "source",
+          "created_at"
+        ],
+        "title": "PrototypeRevision",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-revision.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-revision.PrototypeSource": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.PrototypeSourceKind"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "PrototypeSource",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-revision.PrototypeSourceKind": {
+        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "enum": [
+          "own",
+          "reference"
+        ],
+        "title": "PrototypeSourceKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-revision.PrototypeStatus": {
+        "description": "A prototype's or a revision's place in the review (CAT-164).",
+        "enum": [
+          "proposed",
+          "reviewed",
+          "rejected"
+        ],
+        "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-revision.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-proposal": {
+        "additionalProperties": true,
+        "description": "Föreslå förebild, or Föreslå ändring: the whole revision as it should be (CAT-163).",
+        "properties": {
+          "prototype": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype to change; null proposes a new one.",
+            "title": "Prototype"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For a change: the reviewed revision it was built on. Required with prototype.",
+            "title": "Base"
+          },
+          "name": {
+            "description": "The type's name, for example Hbis.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-proposal.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-proposal.FieldProfile",
+            "default": "SE"
+          },
+          "fields": {
+            "description": "Only the profile's keys.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-proposal.PrototypeSource"
+          },
+          "may_share": {
+            "const": true,
+            "description": "The proposer confirms that the data may be shared under CC BY-SA 4.0.",
+            "title": "May Share",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "source",
+          "may_share"
+        ],
+        "title": "PrototypeProposal",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-proposal.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-proposal.PrototypeSource": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-proposal.PrototypeSourceKind"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "title": "PrototypeSource",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-proposal.PrototypeSourceKind": {
+        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "enum": [
+          "own",
+          "reference"
+        ],
+        "title": "PrototypeSourceKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-proposal.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-review": {
+        "additionalProperties": true,
+        "description": "Godkänn or Avslå, with a comment; a rejection needs one (CAT-164).",
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-review.ReviewDecision"
+          },
+          "comment": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "PrototypeReview",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-review.ReviewDecision": {
+        "enum": [
+          "approve",
+          "reject"
+        ],
+        "title": "ReviewDecision",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-summary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-link": {
+        "additionalProperties": true,
+        "description": "Koppla förebild, or Uppdatera to a newer revision (CAT-160, CAT-161).",
+        "properties": {
+          "version": {
+            "description": "The vehicle's version, as seen (CAT-63).",
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "prototype": {
+            "format": "uuid",
+            "title": "Prototype",
+            "type": "string"
+          },
+          "revision": {
+            "description": "A reviewed revision of the prototype.",
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "prototype",
+          "revision"
+        ],
+        "title": "PrototypeLink",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-overrides": {
+        "additionalProperties": true,
+        "description": "The type data as the owner wants them on the vehicle (CAT-162). A value equal to the\nsnapshot's inherits; any other, an empty one too, is the owner's own.",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "fields": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          }
+        },
+        "required": [
+          "version",
+          "fields"
+        ],
+        "title": "PrototypeOverrides",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-prototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-prototype.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-prototype.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle-prototype.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.vehicle-prototype.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
       }
     },
     "securitySchemes": {

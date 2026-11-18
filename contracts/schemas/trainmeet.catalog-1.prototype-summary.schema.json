@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-summary.schema.json",
+  "title": "trainmeet.catalog-1.prototype-summary",
+  "additionalProperties": true,
+  "description": "A prototype in short: what a suggestion names (CAT-141).",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "revision": {
+      "description": "The reviewed revision, the version a link would get.",
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "revision"
+  ],
+  "type": "object"
+}

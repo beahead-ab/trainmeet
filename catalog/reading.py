@@ -59,6 +59,7 @@ from catalog.db import Database
 from catalog.fleet import Refused, not_found
 from catalog.id_roles import IdRoles, unavailable
 from catalog.pictures import prepare
+from catalog.prototypes import suggest
 from contracts.catalog import (
     Confidence,
     ProblemCode,
@@ -548,9 +549,20 @@ class Readings:
         basis = _basis(owner, ask, pictures)
         self._give_up_old(person)
         stored = self._start(person, owner, ask, basis, len(pictures))
-        if stored is not None:
-            return stored
-        return self._run(person, _payer(owner, club), ask, pictures)
+        found = (
+            stored if stored is not None else self._run(person, _payer(owner, club), ask, pictures)
+        )
+        return self.with_prototype(found)
+
+    def with_prototype(self, reading: Reading) -> Reading:
+        """The reading with the reviewed prototype its litt and operator match, looked up now,
+        so a prototype reviewed since is found too (CAT-141). Only a suggestion (CAT-136)."""
+        litt, operator = reading.suggestions.get("litt"), reading.suggestions.get("operator")
+        if litt is None or operator is None:
+            return reading
+        with self.db.transaction() as conn:
+            found = suggest(conn, litt.value, operator.value)
+        return reading.model_copy(update={"prototype": found})
 
     def read_for_batch(
         self,

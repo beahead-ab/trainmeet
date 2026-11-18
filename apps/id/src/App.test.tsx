@@ -131,6 +131,27 @@ describe("TrainMeet ID's web app", () => {
     expect(render({ route: { page: "tokens" }, data: { tokens: [] } })).not.toContain('href="/agare"');
   });
 
+  it("lets the owner give and take the reviewer role in Catalog (KONTO-30, ID6)", () => {
+    const page = {
+      settings: { ai_factor: 2, storage_factor: 10, monthly_budget_sek: 1000, daily_cap_person: 240, daily_cap_club: 1200, usd_sek: 9.7, price_in_usd: 2, price_out_usd: 10 },
+      page_tokens: 12,
+      cost_per_page_sek: null,
+      factor_page_tokens: null,
+      budget_used: 0,
+      months: [],
+    };
+    const reviewer = { id: "5d4c3b2a-4444-4555-8666-977788889999", person: sara, role: "reviewer" as const, resource: { kind: "catalog" as const, id: "prototypes" }, at };
+    const actions = { giveReviewer: async () => null, takeReviewer: async () => null };
+    const html = render({ route: { page: "owner" }, data: { owner: page, reviewers: [reviewer] }, actions });
+    expect(html).toContain("Granskare i Catalog");
+    expect(html).toContain("Sara Holm");
+    expect(html).toContain('aria-label="Ta bort rollen som granskare från Sara Holm"');
+    expect(html).toContain("Gör till granskare");
+    const none = render({ route: { page: "owner" }, data: { owner: page, reviewers: [] }, actions, language: "en" });
+    expect(none).toContain("Nobody is a reviewer yet.");
+    expect(none).toContain("Make a reviewer");
+  });
+
   it("shows the club's members, and only the admin may invite and remove", () => {
     const page: ClubPage = {
       club,

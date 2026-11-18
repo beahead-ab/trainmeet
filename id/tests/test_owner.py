@@ -19,7 +19,17 @@ from fastapi.testclient import TestClient
 from contracts.tokens import OwnerPage
 from id.app import create_app
 from id.settings import Settings
-from id.tests.test_api import INTERNAL, ISSUER, PUBLIC, SECRET, Who, World, club_with, log_in
+from id.tests.test_api import (
+    INTERNAL,
+    ISSUER,
+    PUBLIC,
+    SECRET,
+    Who,
+    World,
+    apps,
+    club_with,
+    log_in,
+)
 from id.tests.test_meter import PretendClaude
 from id.tests.test_tokens import reserve
 
@@ -147,3 +157,43 @@ def test_the_budget_raises_the_alarm_at_80_and_stops_at_100(owned: Owned) -> Non
     assert page.months[0].pages == 3 and round(page.months[0].cost_sek, 2) == 1.28
     assert page.cost_per_page_sek is not None and round(page.cost_per_page_sek, 3) == 0.427
     assert page.factor_page_tokens == 11, "0.427 kr × 2 / 7.84 öre"
+
+
+def test_the_owner_gives_and_takes_the_reviewer_role_in_catalog(owned: Owned) -> None:
+    """KONTO-30, ID6, CAT-165: Granskare i Catalog is given and taken on the owner page, to
+    someone who has logged in to ID, and Catalog sees it at once through the apps' question."""
+    kim, _club, people = club_with(owned.world, ("Sara Holm", "sara@example.com"))
+    me, sara = owned.as_(kim), owned.as_(people["Sara Holm"])
+    sara_id = people["Sara Holm"].id
+    reviewers = "/api/id/1/owner/reviewers"
+
+    def roles() -> list[str]:
+        asked = apps(owned.world, "access", person=sara_id, resource="catalog:prototypes")
+        assert asked.status_code == 200, asked.text
+        found: list[str] = asked.json()["roles"]
+        return found
+
+    assert roles() == []
+    # Only TrainMeet's owners give it, see it and take it.
+    assert sara.get(reviewers).status_code == 403
+    assert sara.post(reviewers, json={"email": "sara@example.com"}).status_code == 403
+    given = me.post(reviewers, json={"email": "Sara@Example.com"})
+    assert given.status_code == 200, given.text
+    assert [(g["person"]["name"], g["role"], g["resource"]) for g in given.json()] == [
+        ("Sara Holm", "reviewer", {"kind": "catalog", "id": "prototypes"})
+    ]
+    assert me.post(reviewers, json={"email": "sara@example.com"}).json() == given.json()
+    assert me.get(reviewers).json() == given.json()
+    assert roles() == ["reviewer"]
+    # Nobody who has not logged in to ID, and no address that is not one.
+    unknown = me.post(reviewers, json={"email": "okand@example.com"})
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "not_found")
+    assert me.post(reviewers, json={"email": "inte en adress"}).status_code == 422
+    # The role is taken where it was given, never through the sharing's address.
+    grant = given.json()[0]["id"]
+    assert sara.delete(f"/api/id/1/grants/{grant}").status_code == 403
+    assert sara.delete(f"{reviewers}/{sara_id}").status_code == 403
+    taken = me.delete(f"{reviewers}/{sara_id}")
+    assert (taken.status_code, taken.json()) == (200, [])
+    assert roles() == []
+    assert me.delete(f"{reviewers}/{sara_id}").status_code == 404

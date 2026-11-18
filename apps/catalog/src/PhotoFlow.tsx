@@ -4,11 +4,12 @@
 // reading stores nothing (CAT-143): Spara makes the vehicle through its own address, and the
 // photos become its pictures afterwards. The logic is in reading.ts.
 import { linkClick } from "@trainmeet/design";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, PICTURE_KINDS, READING_PICTURES, type Place, type ReadingConsent, type SuggestedField, type Vehicle } from "./api";
 import { Crumbs, Dialog, ErrorLine, isOwner, problemText, title, type Ctx, type T } from "./common";
 import type { TextKey } from "./i18n";
 import { pictureProblem } from "./Pictures";
+import { SuggestedPrototype } from "./PrototypeBlock";
 import {
   accept,
   addPhotos,
@@ -398,11 +399,13 @@ export type PlaceStepProps = {
   onPlace?: (place: string | null) => void;
   onTag?: () => void;
   onDone?: () => void;
+  /** The prototype the AI suggests from the catalog, with Koppla (#53, CAT-141). */
+  suggestion?: ReactNode;
 };
 
 /** Plats och tagg, once the vehicle is saved: the place picker, and a tag now or later through
  * the card's waiting link (CAT-94). Klar without either skips the step. */
-export function PlaceStepView({ ctx, vehicle, places, place, uploads, busy, error, onPlace, onTag, onDone }: PlaceStepProps) {
+export function PlaceStepView({ ctx, vehicle, places, place, uploads, busy, error, onPlace, onTag, onDone, suggestion }: PlaceStepProps) {
   const { t } = ctx;
   const id = useId();
   const uploading = uploads !== null && uploads.done < uploads.of;
@@ -425,6 +428,7 @@ export function PlaceStepView({ ctx, vehicle, places, place, uploads, busy, erro
         ) : null}
       </div>
       {uploads?.problem && !uploading ? <p className="cat-varning cat-fotoarbete">{t("picturesFailed", { problem: uploads.problem })}</p> : null}
+      {suggestion}
       <form
         className="tm-kort cat-formular"
         onSubmit={(event) => {
@@ -634,6 +638,7 @@ function PhotoFlow({ ctx }: { ctx: Ctx }) {
         onPlace={setPlace}
         onTag={() => void finish(true)}
         onDone={() => void finish(false)}
+        suggestion={flow.reading?.prototype ? <SuggestedPrototype ctx={ctx} suggestion={flow.reading.prototype} vehicle={saved} onLinked={setSaved} /> : null}
       />
     );
   else if (flow.step === "reading") page = <ReadingView ctx={ctx} flow={flow} previews={previews} />;

@@ -13,6 +13,33 @@
       "title": "Confidence",
       "type": "string"
     },
+    "PrototypeSummary": {
+      "additionalProperties": true,
+      "description": "A prototype in short: what a suggestion names (CAT-141).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The reviewed revision, the version a link would get.",
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "revision"
+      ],
+      "title": "PrototypeSummary",
+      "type": "object"
+    },
     "ReadingQuestion": {
       "additionalProperties": true,
       "description": "An uncertain digit, asked of the owner (CAT-140).",
@@ -170,6 +197,18 @@
       "minLength": 1,
       "title": "Model",
       "type": "string"
+    },
+    "prototype": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PrototypeSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A reviewed prototype in the catalog whose litt and operator match the suggested ones (CAT-141). Linked only when the owner says so (CAT-136)."
     }
   },
   "required": [

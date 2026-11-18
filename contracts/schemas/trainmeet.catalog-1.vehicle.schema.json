@@ -87,6 +87,16 @@
       "title": "EvnParts",
       "type": "object"
     },
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
     "FieldSource": {
       "description": "Where a core field's value came from (CAT-64).",
       "enum": [
@@ -204,6 +214,96 @@
       ],
       "title": "VehicleKind",
       "type": "string"
+    },
+    "VehiclePrototype": {
+      "additionalProperties": true,
+      "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "$ref": "#/$defs/FieldProfile"
+        },
+        "revision": {
+          "description": "The revision of the snapshot.",
+          "title": "Revision",
+          "type": "integer"
+        },
+        "snapshot": {
+          "description": "The prototype's type data at that revision.",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,39}$": {
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          "title": "Snapshot",
+          "type": "object"
+        },
+        "overrides": {
+          "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,39}$": {
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          "title": "Overrides",
+          "type": "object"
+        },
+        "fields": {
+          "description": "What the card shows: the snapshot with the owner's own values over it.",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,39}$": {
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "latest": {
+          "description": "The prototype's newest reviewed revision.",
+          "title": "Latest",
+          "type": "integer"
+        },
+        "newer": {
+          "description": "Ny version finns: latest is newer than the snapshot.",
+          "title": "Newer",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "profile",
+        "revision",
+        "snapshot",
+        "overrides",
+        "fields",
+        "latest",
+        "newer"
+      ],
+      "title": "VehiclePrototype",
+      "type": "object"
     },
     "VehicleState": {
       "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -462,6 +562,18 @@
       ],
       "default": null,
       "description": "The main picture, or null without pictures. Seen with every right."
+    },
+    "prototype": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehiclePrototype"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
     },
     "created_at": {
       "format": "date-time",

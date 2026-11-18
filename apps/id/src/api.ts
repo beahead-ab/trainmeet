@@ -36,6 +36,8 @@ export type OwnAiState = Schemas["trainmeet.id-1.own-ai-state"];
 /** Ägarsidan (TOKEN-05): for TrainMeet's owners. */
 export type OwnerPage = Schemas["trainmeet.id-1.owner-page"];
 export type TokenSettings = Schemas["trainmeet.id-1.token-settings"];
+/** Granskare i Catalog (KONTO-30, ID6): given and taken on the owner page. */
+export type ReviewerGrant = Schemas["trainmeet.id-1.reviewer-grant"];
 
 /** The person's file, from ID and Catalog (KONTO-31). The browser fetches it itself. */
 export const EXPORT_HREF = "/api/id/1/account/export";
@@ -115,4 +117,7 @@ export const api = {
   removeOwnAi: (owner: string) => call<null>("DELETE", `${A}/tokens/own-ai?${new URLSearchParams({ owner })}`),
   owner: () => call<OwnerPage>("GET", `${A}/owner`),
   changeOwner: (settings: TokenSettings) => call<OwnerPage>("PUT", `${A}/owner/settings`, settings),
+  reviewers: () => call<Grant[]>("GET", `${A}/owner/reviewers`),
+  giveReviewer: (email: string) => call<Grant[]>("POST", `${A}/owner/reviewers`, { email } satisfies ReviewerGrant),
+  takeReviewer: (person: string) => call<Grant[]>("DELETE", `${A}/owner/reviewers/${person}`),
 };

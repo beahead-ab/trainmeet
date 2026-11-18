@@ -73,6 +73,11 @@ class Access:
             raise Refused(403, ProblemCode.FORBIDDEN, "Det får bara ägaren göra.")
         return Work(person=person, owner=owner, right=right)
 
+    def reviewer(self, person: UUID) -> bool:
+        """Does ID say the person reviews the prototypes now (CAT-165)? Never without ID. Refused
+        with 503 when ID does not answer."""
+        return self.roles is not None and self.roles.reviewer(person)
+
     def is_club(self, person: UUID, owner: UUID) -> bool:
         """Is the fleet's owner a club, as ID says to the person working in it (TOKEN-29)? A
         person's own fleet never is."""

@@ -69,6 +69,7 @@ function reading(change: Partial<Reading> = {}): Reading {
     suggested_next_photo: "",
     cost: 24,
     model: "Claude",
+    prototype: null,
     ...change,
   };
 }
@@ -98,6 +99,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     tags: [],
     tagged: false,
     picture: null,
+    prototype: null,
     created_at: NOW,
     updated_at: NOW,
     ...change,

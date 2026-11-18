@@ -42,6 +42,7 @@ from contracts.catalog import (
     VehicleHistory,
     VehicleKind,
     VehicleList,
+    VehiclePrototype,
     VehicleState,
     VehicleStatus,
     VehicleTag,
@@ -75,6 +76,8 @@ _FROM = "vehicle v LEFT JOIN place p ON p.id = v.place_id"
 
 MainPictures = Callable[[Connection[DictRow], list[UUID]], dict[UUID, PictureLinks]]
 """The main picture's addresses per vehicle, read in the same transaction (CAT-125)."""
+LinkedPrototypes = Callable[[Connection[DictRow], list[UUID]], dict[UUID, VehiclePrototype]]
+"""The prototype each vehicle is linked to, with its type data (catalog/prototypes.py, #53)."""
 
 
 class Refused(Exception):
@@ -132,6 +135,7 @@ def to_vehicle(
     tags: list[VehicleTag] | None = None,
     notices: list[Notice] | None = None,
     picture: PictureLinks | None = None,
+    prototype: VehiclePrototype | None = None,
 ) -> Vehicle:
     lending = None
     if row["state"] == VehicleState.LENT and row["lent_to"] and row["lent_since"]:
@@ -160,6 +164,7 @@ def to_vehicle(
         tags=tags or [],
         notices=notices or [],
         picture=picture,
+        prototype=prototype,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -232,10 +237,12 @@ class Fleet:
         *,
         tag_base: str = "https://trainmeet.app/t/",
         main_pictures: MainPictures | None = None,
+        prototypes: LinkedPrototypes | None = None,
     ) -> None:
         self.db = db
         self.tag_base = tag_base.rstrip("/") + "/"
         self.main_pictures = main_pictures
+        self.prototypes = prototypes
 
     # --- Reading ----------------------------------------------------------------------
 
@@ -281,8 +288,15 @@ class Fleet:
                     Notice(id=n["id"], text=n["text"], at=n["at"])
                 )
         pictures = self.main_pictures(conn, ids) if self.main_pictures and ids else {}
+        linked = self.prototypes(conn, ids) if self.prototypes and ids else {}
         return [
-            to_vehicle(r, tags.get(r["id"]), notices.get(r["id"]), pictures.get(r["id"]))
+            to_vehicle(
+                r,
+                tags.get(r["id"]),
+                notices.get(r["id"]),
+                pictures.get(r["id"]),
+                linked.get(r["id"]),
+            )
             for r in rows
         ]
 

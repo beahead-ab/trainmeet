@@ -7,6 +7,7 @@ import { isOwner, type Ctx } from "./common";
 import { LendPage } from "./LendPage";
 import { PhotoFlowPage } from "./PhotoFlow";
 import { PlacesPage } from "./PlacesPage";
+import { ProposalPage, PrototypePage, PrototypesPage, ReviewQueuePage } from "./PrototypesPage";
 import { TagPage } from "./TagPage";
 import { TapPage } from "./TapPage";
 import { MeetsPage, TripPage } from "./TripsPage";
@@ -58,6 +59,10 @@ const TITLES: Record<Page, TextKey> = {
   meets: "meets",
   meet: "meetTitle",
   prototypes: "prototypes",
+  prototype: "prototypes",
+  newPrototype: "protoNewTitle",
+  changePrototype: "protoChangeTitle",
+  reviewQueue: "protoQueueTitle",
   tap: "tapTitle",
   login: "logIn",
   help: "help",
@@ -342,12 +347,23 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
         <TripPage key={id} ctx={ctx} id={id ?? ""} simulated={props.session?.simulated_tags ?? false} />
       );
     case "prototypes":
-      return (
-        <>
-          <h1>{t("prototypes")}</h1>
-          <Empty title={t("prototypesEmpty")} detail={t("prototypesEmptyDetail")} />
-        </>
-      );
+    case "prototype":
+    case "newPrototype":
+    case "changePrototype":
+    case "reviewQueue":
+      // Förebildskatalogen (#53): shared by everyone who is logged in (CAT-155).
+      if (!account)
+        return (
+          <section className="tm-kort cat-tomt">
+            <p className="cat-tomt-rubrik">{t("protoLoginFirst")}</p>
+            {loginLink}
+          </section>
+        );
+      if (page === "prototype") return <PrototypePage key={id} ctx={ctx} id={id ?? ""} />;
+      if (page === "newPrototype") return <ProposalPage ctx={ctx} />;
+      if (page === "changePrototype") return <ProposalPage key={id} ctx={ctx} id={id ?? ""} />;
+      if (page === "reviewQueue") return <ReviewQueuePage ctx={ctx} />;
+      return <PrototypesPage ctx={ctx} />;
     case "tap":
       return <TapPage ctx={ctx} account={account} simulated={props.session?.simulated_tags ?? false} />;
     case "help":

@@ -47,6 +47,23 @@ export type Suggestion = Schemas["trainmeet.catalog-1.reading.Suggestion"];
  * contracts/catalog.py. The generated type keys Reading.suggestions by any string, so the names
  * are written here, as KINDS and STATES are. */
 export type SuggestedField = "kind" | "litt" | "number" | "operator" | "maker" | "article_number";
+/** Förebildskatalogen (#53, CAT-155–CAT-165, CAT-173). */
+export type FieldRegister = Schemas["trainmeet.catalog-1.field-register"];
+export type TypeField = FieldRegister["fields"][number];
+export type ProfileFields = FieldRegister["profiles"][number];
+export type FieldProfile = ProfileFields["profile"];
+export type Prototype = Schemas["trainmeet.catalog-1.prototype"];
+export type PrototypeList = Schemas["trainmeet.catalog-1.prototype-list"];
+export type PrototypeRevision = Schemas["trainmeet.catalog-1.prototype-revision"];
+export type PrototypeProposal = Schemas["trainmeet.catalog-1.prototype-proposal"];
+export type PrototypeReview = Schemas["trainmeet.catalog-1.prototype-review"];
+export type PrototypeSummary = Schemas["trainmeet.catalog-1.prototype-summary"];
+export type PrototypeLink = Schemas["trainmeet.catalog-1.prototype-link"];
+export type PrototypeStatus = Prototype["status"];
+export type PrototypeSourceKind = PrototypeRevision["source"]["kind"];
+export type VehiclePrototype = Schemas["trainmeet.catalog-1.vehicle-prototype"];
+/** Typuppgifter: the values by the field register's keys (CAT-156). */
+export type TypeData = Record<string, string>;
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
@@ -153,6 +170,7 @@ const V = "/api/catalog/1/vehicles";
 const P = "/api/catalog/1/places";
 const M = "/api/catalog/1/meets";
 const R = "/api/catalog/1/readings";
+const F = "/api/catalog/1/prototypes";
 
 /** The fleet the person works in: null for their own, otherwise the owner's id (CAT-50, #49). */
 let working: string | null = null;
@@ -238,6 +256,21 @@ export const api = {
   /** The AI's suggestions from the photos. The same id and photos again give the same reading,
    * without reading or drawing again (CAT-144). Nothing is saved in a vehicle (CAT-143). */
   read: (ask: ReadingAsk, photos: Blob[]) => call<Reading>("POST", inFleet(R), readingForm(ask, photos)),
+  /** The field register and the profiles (CAT-156, CAT-158). */
+  fieldRegister: () => call<FieldRegister>("GET", `${F}/fields`),
+  /** The catalog: reviewed prototypes, and the person's own proposals for new ones (CAT-173). */
+  prototypes: (q = "", kinds: VehicleKind[] = []) => call<PrototypeList>("GET", F + query({ q, kinds })),
+  prototype: (id: string) => call<Prototype>("GET", `${F}/${id}`),
+  propose: (proposal: PrototypeProposal) => call<PrototypeRevision>("POST", `${F}/proposals`, proposal),
+  myProposals: () => call<PrototypeRevision[]>("GET", `${F}/proposals/mine`),
+  /** Granskningskön, only for the reviewers TrainMeet ID names (CAT-165). */
+  reviewQueue: () => call<PrototypeRevision[]>("GET", `${F}/proposals/queue`),
+  review: (revision: string, review: PrototypeReview) => call<PrototypeRevision>("POST", `${F}/proposals/${revision}/review`, review),
+  /** Koppla förebild, or Uppdatera to a newer revision (CAT-160, CAT-161). */
+  linkPrototype: (vehicle: string, link: PrototypeLink) => call<Vehicle>("POST", inFleet(`${V}/${vehicle}/prototype`), link),
+  /** The type data as the owner wants them on the vehicle: equal values inherit (CAT-162). */
+  changeTypeData: (vehicle: string, version: number, fields: TypeData) => call<Vehicle>("PUT", inFleet(`${V}/${vehicle}/prototype`), { version, fields }),
+  unlinkPrototype: (vehicle: string, version: number) => call<Vehicle>("DELETE", inFleet(`${V}/${vehicle}/prototype?version=${version}`)),
 };
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);

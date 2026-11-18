@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-link.schema.json",
+  "title": "trainmeet.catalog-1.prototype-link",
+  "additionalProperties": true,
+  "description": "Koppla förebild, or Uppdatera to a newer revision (CAT-160, CAT-161).",
+  "properties": {
+    "version": {
+      "description": "The vehicle's version, as seen (CAT-63).",
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "prototype": {
+      "format": "uuid",
+      "title": "Prototype",
+      "type": "string"
+    },
+    "revision": {
+      "description": "A reviewed revision of the prototype.",
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "prototype",
+    "revision"
+  ],
+  "type": "object"
+}
