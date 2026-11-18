@@ -62,9 +62,16 @@ def no_tokens(available: int, needed: int) -> Refused:
 
 
 class Tokens:
-    def __init__(self, db: Database, clock: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self,
+        db: Database,
+        clock: Callable[[], datetime] | None = None,
+        caps: Callable[[], tuple[int, int]] | None = None,
+    ) -> None:
+        """caps: the caps per day for an account and a club (TK15), from the owner page."""
         self.db = db
         self.clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self.caps = caps
 
     # --- Reading ----------------------------------------------------------------------------
 
@@ -108,6 +115,17 @@ class Tokens:
             available = free_left + account["bought"]
             if asked.amount > available:
                 raise no_tokens(available, asked.amount)
+            if self.caps is not None and asked.amount:
+                person_cap, club_cap = self.caps()
+                cap = person_cap if asked.owner.kind == TokenOwnerKind.PERSON else club_cap
+                today = self._used_today(conn, account["id"])
+                if today + asked.amount > cap:
+                    raise Refused(
+                        429,
+                        ProblemCode.TOO_MANY,
+                        f"Taket för i dag är nått: {cap} tokens per dygn. Försök i morgon, "
+                        "eller använd egen AI.",
+                    )
             from_free = min(asked.amount, free_left)
             from_bought = asked.amount - from_free
             conn.execute(
@@ -322,6 +340,17 @@ class Tokens:
                 "UPDATE token_account SET bought = bought + %s WHERE id = %s",
                 (bought, account["id"]),
             )
+
+    def _used_today(self, conn: Connection[DictRow], account: UUID) -> int:
+        """What an account has reserved or drawn today, in Swedish time (TK15)."""
+        row = conn.execute(
+            "SELECT coalesce(sum(CASE state WHEN 'held' THEN amount WHEN 'drawn' THEN drawn "
+            "ELSE 0 END), 0) AS used FROM token_reservation WHERE account_id = %s AND "
+            "(at AT TIME ZONE 'Europe/Stockholm')::date = (%s::timestamptz AT TIME ZONE "
+            "'Europe/Stockholm')::date",
+            (account, self.clock()),
+        ).fetchone()
+        return int(row["used"]) if row else 0
 
     def _month(self, conn: Connection[DictRow]) -> str:
         """The month in Swedish time, from the database, which always has the time zones."""

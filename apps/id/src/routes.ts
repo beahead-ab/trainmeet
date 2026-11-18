@@ -2,7 +2,7 @@
 // gives index.html for each of them (id/app.py). The tabs are Konto, Klubbar, Träffar and
 // Tokens (KONTO-38).
 
-export type Page = "account" | "clubs" | "club" | "meets" | "meet" | "tokens" | "invitations" | "fleet" | "help" | "remove" | "missing";
+export type Page = "account" | "clubs" | "club" | "meets" | "meet" | "tokens" | "owner" | "invitations" | "fleet" | "help" | "remove" | "missing";
 export type Route = { page: Page; id?: string };
 
 export const PATHS = {
@@ -10,6 +10,7 @@ export const PATHS = {
   clubs: "/klubbar",
   meets: "/traffar",
   tokens: "/tokens",
+  owner: "/agare",
   invitations: "/inbjudningar",
   help: "/hjalp",
   remove: "/konto/ta-bort",
@@ -42,5 +43,6 @@ export function tabOf(page: Page): Page {
   if (page === "club") return "clubs";
   if (page === "meet") return "meets";
   if (page === "invitations" || page === "fleet" || page === "help" || page === "remove") return "account";
+  if (page === "owner") return "tokens";
   return page;
 }

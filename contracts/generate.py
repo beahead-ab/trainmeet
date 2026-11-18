@@ -234,6 +234,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.token-checkout": tokens.TokenCheckout,
     "trainmeet.id-1.own-ai-state": tokens.OwnAiState,
     "trainmeet.id-1.own-ai-change": tokens.OwnAiChange,
+    "trainmeet.id-1.token-settings": tokens.TokenSettings,
+    "trainmeet.id-1.token-month": tokens.TokenMonth,
+    "trainmeet.id-1.owner-page": tokens.OwnerPage,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -1103,6 +1106,16 @@ def id_openapi() -> str:
     route("get", a + "/tokens", "tokens", "token-balance", many=True, problems=(401,))
     # Köpen (TOKEN-02, TOKEN-11): Stripe Checkout, in test mode until MOMS is decided.
     route("get", a + "/tokens/shop", "tokenShop", "token-shop", problems=(401,))
+    # Ägarsidan (TOKEN-05, TOKEN-18): for TrainMeet's owners.
+    route("get", a + "/owner", "ownerPage", "owner-page", problems=(401, 403))
+    route(
+        "put",
+        a + "/owner/settings",
+        "changeOwnerSettings",
+        "owner-page",
+        "token-settings",
+        problems=(401, 403, 422),
+    )
     # Egen AI på kontot (TOKEN-03): the answer to GET is null when none is connected.
     route(
         "get",

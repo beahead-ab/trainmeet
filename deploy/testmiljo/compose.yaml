@@ -203,6 +203,8 @@ services:
       # Köpen (#79, TOKEN-02): Stripe's test keys in id-vault. Without them buying is closed, and
       # a key that is not a test key is never used before MOMS is decided.
       ID_STRIPE_KEY_FILE: /vault/trainmeet_stripe-key
+      # Ägarsidan (#79, TOKEN-05): the owners' addresses in id-vault, never in the code.
+      ID_OWNERS_FILE: /vault/trainmeet_owners
       FORWARDED_ALLOW_IPS: "*"
     volumes:
       - ./id-vault:/vault:ro

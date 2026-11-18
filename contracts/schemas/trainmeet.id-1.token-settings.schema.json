@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.token-settings.schema.json",
+  "title": "trainmeet.id-1.token-settings",
+  "additionalProperties": true,
+  "properties": {
+    "ai_factor": {
+      "description": "Påslaget för AI (TK6), startvärde ×2.",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Ai Factor",
+      "type": "number"
+    },
+    "storage_factor": {
+      "description": "Påslaget för lagring, ×10.",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Storage Factor",
+      "type": "number"
+    },
+    "monthly_budget_sek": {
+      "description": "Månadens budget för TrainMeets AI, i kronor.",
+      "maximum": 10000000,
+      "minimum": 0,
+      "title": "Monthly Budget Sek",
+      "type": "integer"
+    },
+    "daily_cap_person": {
+      "description": "Tak per dygn för ett konto.",
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Daily Cap Person",
+      "type": "integer"
+    },
+    "daily_cap_club": {
+      "description": "Tak per dygn för en klubb.",
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Daily Cap Club",
+      "type": "integer"
+    },
+    "usd_sek": {
+      "description": "Kronor per dollar, för kostnaden.",
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Usd Sek",
+      "type": "number"
+    },
+    "price_in_usd": {
+      "description": "Dollar per miljon tokens in.",
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Price In Usd",
+      "type": "number"
+    },
+    "price_out_usd": {
+      "description": "Dollar per miljon tokens ut.",
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Price Out Usd",
+      "type": "number"
+    }
+  },
+  "required": [
+    "ai_factor",
+    "storage_factor",
+    "monthly_budget_sek",
+    "daily_cap_person",
+    "daily_cap_club",
+    "usd_sek",
+    "price_in_usd",
+    "price_out_usd"
+  ],
+  "type": "object"
+}

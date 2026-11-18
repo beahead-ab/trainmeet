@@ -12,6 +12,7 @@ import os
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Final, Protocol
 from uuid import UUID
 
@@ -65,6 +66,7 @@ from contracts.tokens import (
     MeterRead,
     OwnAiChange,
     OwnAiState,
+    OwnerPage,
     TokenBalance,
     TokenCheckout,
     TokenDraw,
@@ -72,6 +74,7 @@ from contracts.tokens import (
     TokenPurchase,
     TokenReservation,
     TokenReserve,
+    TokenSettings,
     TokenShop,
 )
 from id import login as id_login
@@ -83,6 +86,7 @@ from id.mail import SmtpMailer
 from id.meter import BedrockClaude, Claude, Meter
 from id.meter import settings_from as meter_settings
 from id.own_ai import OwnAis, OwnReader, sealer
+from id.owner import Owner, owners_from
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
 from id.shop import Shop, ShopSettings
@@ -137,17 +141,24 @@ def create_app(
     mailer: AllMail | None = None,
     claude: Claude | None = None,
     shop_settings: ShopSettings | None = None,
+    owners_file: Path | None = None,
 ) -> FastAPI:
     """The app. The tests give a pretend Keycloak (http), a pretend mail server and a pretend
     Claude for the meter."""
     settings = settings if settings is not None else from_env()
+    owners_file = owners_file if owners_file is not None else owners_from()
     db = Database(settings.database_url)
     http = http if http is not None else httpx.Client(timeout=10.0)
     login = id_login.Login(db, settings, http)
     mail: AllMail = mailer if mailer is not None else SmtpMailer(settings.smtp)
     roles = Roles(db, mail, settings.public_url)
     tickets = Tickets(db, roles, settings.public_url)
-    tokens = Tokens(db)
+    owner = Owner(
+        db,
+        owners_file,
+        alarm=lambda to, subject, body: mail.help(to, to, subject, body),
+    )
+    tokens = Tokens(db, caps=owner.caps)
     if claude is None and (metered := meter_settings()) is not None:
         claude = BedrockClaude(metered)
     own_ais = OwnAis(db, tokens, sealer(settings.secret), http)
@@ -156,7 +167,7 @@ def create_app(
         found = own_ais.for_owner(owner)
         return OwnReader(found, http) if found else None
 
-    meter = Meter(db, tokens, claude, own_ai_for)
+    meter = Meter(db, tokens, claude, own_ai_for, budget=owner)
     shop = Shop(
         db,
         tokens,
@@ -228,7 +239,9 @@ def create_app(
     def get_session(session: SessionCookie = None) -> Session:
         account = login.account(session)
         apps = roles.switcher(account.id).apps if account else []
-        return Session(account=account, apps=apps)
+        return Session(
+            account=account, apps=apps, owner=bool(account and owner.is_owner(account.email))
+        )
 
     @app.delete(API + "/session")
     def log_out(response: Response, session: SessionCookie = None) -> Session:
@@ -441,6 +454,15 @@ def create_app(
     def token_shop(_: Person) -> TokenShop:
         """The packages, and whether buying is open (TOKEN-02): only Stripe's test mode yet."""
         return shop.shop()
+
+    @app.get(API + "/owner")
+    def owner_page(person: Person) -> OwnerPage:
+        """Ägarsidan (TOKEN-05): the factors, the budget and the caps, the cost and the revenue."""
+        return owner.page(person)
+
+    @app.put(API + "/owner/settings")
+    def change_owner_settings(body: TokenSettings, person: Person) -> OwnerPage:
+        return owner.change(person, body)
 
     @app.get(API + "/tokens/own-ai")
     def own_ai(owner: str, person: Person) -> OwnAiState | None:

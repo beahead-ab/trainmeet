@@ -24,6 +24,10 @@ Egen AI på kontot (TOKEN-03), för personen eller klubbens administratör:
     PUT    /api/id/1/tokens/own-ai?owner=                 OwnAiChange -> OwnAiState
     DELETE /api/id/1/tokens/own-ai?owner=                 null
 
+Ägarsidan (TOKEN-05, TOKEN-18), för TrainMeets ägare:
+    GET    /api/id/1/owner                                OwnerPage
+    PUT    /api/id/1/owner/settings                       TokenSettings -> OwnerPage
+
 Köpen (TOKEN-02, TOKEN-11), för personen:
     GET    /api/id/1/tokens/shop                          TokenShop
     POST   /api/id/1/tokens/purchases                     TokenPurchase -> TokenCheckout
@@ -243,3 +247,48 @@ class OwnAiChange(Contract):
         max_length=500,
         description="Skickas när den läggs in eller byts; annars står den kvar.",
     )
+
+
+# --- Ägarsidan (TOKEN-05, TOKEN-18, TK6, TK15) ------------------------------------------------
+#
+#     GET    /api/id/1/owner                                OwnerPage, for TrainMeet's owners
+#     PUT    /api/id/1/owner/settings                       TokenSettings -> OwnerPage
+#
+# The owner sets the factors, the month's budget and the caps per day, and sees the cost, the
+# revenue and what the factor makes of the measured cost per page. The month's budget raises an
+# alarm at 80 % and stops TrainMeets AI at 100 %; own AI goes on (TK15).
+
+
+class TokenSettings(Contract):
+    ai_factor: float = Field(ge=1, le=100, description="Påslaget för AI (TK6), startvärde ×2.")
+    storage_factor: float = Field(ge=1, le=100, description="Påslaget för lagring, ×10.")
+    monthly_budget_sek: int = Field(
+        ge=0, le=10_000_000, description="Månadens budget för TrainMeets AI, i kronor."
+    )
+    daily_cap_person: int = Field(ge=0, le=1_000_000, description="Tak per dygn för ett konto.")
+    daily_cap_club: int = Field(ge=0, le=1_000_000, description="Tak per dygn för en klubb.")
+    usd_sek: float = Field(gt=0, le=100, description="Kronor per dollar, för kostnaden.")
+    price_in_usd: float = Field(ge=0, le=1000, description="Dollar per miljon tokens in.")
+    price_out_usd: float = Field(ge=0, le=1000, description="Dollar per miljon tokens ut.")
+
+
+class TokenMonth(Contract):
+    month: Annotated[str, StringConstraints(pattern=r"^[0-9]{4}-[0-9]{2}$")]
+    revenue_sek: float = Field(description="Betalda köp, med moms. Testläget räknas inte.")
+    test_revenue_sek: float = Field(description="Köp i Stripes testläge, utan riktiga pengar.")
+    cost_sek: float = Field(description="Vad TrainMeets AI kostade, uppmätt.")
+    pages: int = Field(description="Sidor och bilder som TrainMeets AI läste.")
+
+
+class OwnerPage(Contract):
+    settings: TokenSettings
+    page_tokens: int = Field(description="Tokens per AI-sida nu (TK10, startvärde 12).")
+    cost_per_page_sek: float | None = Field(
+        default=None, description="Uppmätt kostnad per sida de senaste 30 dagarna."
+    )
+    factor_page_tokens: int | None = Field(
+        default=None,
+        description="Vad faktorn gör av den uppmätta kostnaden, i tokens per sida (TK6).",
+    )
+    budget_used: int = Field(ge=0, description="Hur mycket av månadens budget som är använd, %.")
+    months: list[TokenMonth] = Field(description="Den här månaden och förra.")
