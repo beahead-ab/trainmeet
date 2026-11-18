@@ -1,0 +1,80 @@
+/* Studio › Prova (#85 del c): the progress, the routes with the failures first, Klart, and
+   Provkör's question. */
+.prova .prova-framsteg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+.prova .prova-framsteg progress {
+  flex: 1;
+  height: 12px;
+}
+.prova .prova-klart {
+  background: #e3f4e7;
+  color: #12401f;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.prova .notis.varning {
+  background: #fff4d6;
+  color: #5c4300;
+}
+.prova .prova-vagar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.prova .prova-vag {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 14em) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  text-align: left;
+}
+.prova .prova-vag[aria-pressed="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+}
+.prova .prova-markering {
+  font-weight: 700;
+  text-align: center;
+}
+.prova .prova-vag.passed .prova-markering {
+  color: #1f7a3a;
+}
+.prova .prova-vag.failed .prova-markering,
+.prova .prova-vag.failed .prova-skal {
+  color: #c4352b;
+}
+.prova .prova-vag.skipped .prova-markering {
+  color: var(--tm-mute);
+}
+.prova .prova-skal {
+  font-size: 13px;
+}
+.prova .prova-fraga {
+  border: 2px solid var(--tm-blue);
+  background: var(--tm-blue-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0;
+}
+.prova .prova-fraga h3 {
+  margin: 4px 0;
+  font-size: 18px;
+}
+.prova form.rad label {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .prova .prova-vag {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .prova .prova-skal {
+    grid-column: 2;
+  }
+}

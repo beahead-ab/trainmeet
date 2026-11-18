@@ -80,6 +80,12 @@
       "default": null,
       "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
       "title": "Relay"
+    },
+    "preview": {
+      "default": false,
+      "description": "Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
+      "title": "Preview",
+      "type": "boolean"
     }
   },
   "required": [

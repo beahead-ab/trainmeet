@@ -2851,6 +2851,18 @@ export interface components {
              * @default null
              */
             code: string | null;
+            /**
+             * Level
+             * @description Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.
+             * @default 0
+             */
+            level: number;
+            /**
+             * Preview Only
+             * @description Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview_only: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2979,6 +2991,12 @@ export interface components {
              * @default null
              */
             relay: string | null;
+            /**
+             * Preview
+             * @description Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3220,6 +3238,9 @@ export interface components {
         /**
          * SectionOccupancy
          * @description Level 3 only: a section's detection. The section is free when every part is empty.
+         *     Accepted from a client that connected at level 3, for a section from its place (DRIFT-10).
+         *     It stops direct clearance and the automation on the section, and never frees anything by
+         *     itself (DRIFT-16).
          */
         "trainmeet.station-1.command.SectionOccupancy": {
             /** Section */
@@ -3690,6 +3711,12 @@ export interface components {
              * @default false
              */
             occupied: boolean;
+            /**
+             * Detected
+             * @description Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).
+             * @default false
+             */
+            detected: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -4227,6 +4254,12 @@ export interface components {
              * @default false
              */
             occupied: boolean;
+            /**
+             * Detected
+             * @description Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).
+             * @default false
+             */
+            detected: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -6141,6 +6174,10 @@ export interface components {
             data: components["schemas"]["trainmeet.drift-1.event.ExitSignalSet"];
         } | {
             /** @constant */
+            kind: "section.occupancy";
+            data: components["schemas"]["trainmeet.drift-1.event.SectionOccupied"];
+        } | {
+            /** @constant */
             kind: "place.manned";
             data: components["schemas"]["trainmeet.drift-1.event.PlaceManned"];
         } | {
@@ -6951,6 +6988,26 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * SectionOccupied
+         * @description Beläggningen från detekteringen (section.occupancy, DRIFT-10): from a station that
+         *     connected at level 3, about a section from its place. The event names the place; Drift keeps
+         *     the latest per section and place, and the section is occupied while any of them says so. It
+         *     stops direct clearance and the automation on the section, and never frees anything by itself
+         *     (DRIFT-16).
+         */
+        "trainmeet.drift-1.event.SectionOccupied": {
+            /** Section */
+            section: string;
+            /** Occupied */
+            occupied: boolean;
+            /** Parts */
+            parts?: {
+                [key: string]: boolean;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PlaceManned
          * @description The first box or TKL that works a place mans it (F14).
          */
@@ -7487,6 +7544,11 @@ export interface components {
              * @description Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).
              */
             driver_messages?: components["schemas"]["trainmeet.drift-1.now.NowDriverMessage"][];
+            /**
+             * Detected
+             * @description Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 (section.occupancy, DRIFT-16).
+             */
+            detected?: components["schemas"]["trainmeet.drift-1.now.DetectedSection"][];
         } & {
             [key: string]: unknown;
         };
@@ -7816,6 +7878,25 @@ export interface components {
              * @description Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).
              */
             waiting: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DetectedSection
+         * @description En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16).
+         */
+        "trainmeet.drift-1.now.DetectedSection": {
+            /** Section */
+            section: string;
+            /** Place A */
+            place_a: string;
+            /** Place B */
+            place_b: string;
+            /**
+             * By
+             * @description Driftplatserna som säger belagd.
+             */
+            by?: string[];
         } & {
             [key: string]: unknown;
         };
@@ -12041,6 +12122,25 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DetectedSection
+         * @description En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16).
+         */
+        "trainmeet.screen-1.picture.DetectedSection": {
+            /** Section */
+            section: string;
+            /** Place A */
+            place_a: string;
+            /** Place B */
+            place_b: string;
+            /**
+             * By
+             * @description Driftplatserna som säger belagd.
+             */
+            by?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * DriverAlarm
          * @description Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit
          *     över. Utan förarens namn (B13).
@@ -12471,6 +12571,11 @@ export interface components {
              * @description Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).
              */
             driver_messages?: components["schemas"]["trainmeet.screen-1.picture.NowDriverMessage"][];
+            /**
+             * Detected
+             * @description Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 (section.occupancy, DRIFT-16).
+             */
+            detected?: components["schemas"]["trainmeet.screen-1.picture.DetectedSection"][];
         } & {
             [key: string]: unknown;
         };
@@ -19808,6 +19913,18 @@ export interface components {
              * @default null
              */
             code: string | null;
+            /**
+             * Level
+             * @description Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.
+             * @default 0
+             */
+            level: number;
+            /**
+             * Preview Only
+             * @description Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview_only: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -20104,6 +20221,18 @@ export interface components {
              * @default null
              */
             code: string | null;
+            /**
+             * Level
+             * @description Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.
+             * @default 0
+             */
+            level: number;
+            /**
+             * Preview Only
+             * @description Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview_only: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -20587,6 +20716,12 @@ export interface components {
              * @default null
              */
             relay: string | null;
+            /**
+             * Preview
+             * @description Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -20837,6 +20972,12 @@ export interface components {
              * @default false
              */
             occupied: boolean;
+            /**
+             * Detected
+             * @description Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).
+             * @default false
+             */
+            detected: boolean;
         } & {
             [key: string]: unknown;
         };

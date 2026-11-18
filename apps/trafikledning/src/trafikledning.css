@@ -809,3 +809,12 @@ tr.skiljer td {
   align-items: center;
   margin-top: 0.5rem;
 }
+
+/* Belagd enligt detekteringen (section.occupancy från en station på nivå 3, DRIFT-16). */
+.belagd {
+  color: var(--rod);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}

@@ -345,6 +345,21 @@ describe("Tellurian Dispatch i skugga (IMPORT-06, IMPORT-34)", () => {
     expect(on).toContain('value="http://127.0.0.1:8765"');
   });
 
+  it("marks a section occupied by detection from a station at level 3 (DRIFT-16)", () => {
+    const places = [
+      { place: "nby", code: "Nby", name: "Norrby" },
+      { place: "asn", code: "Ån", name: "Åsen" },
+    ];
+    const leg = { leg: "t101-nby", train: "t101", train_number: "101", section: "s-nby-asn", from_place: "nby", to_place: "asn", departure: "06:00", arrival: "06:08", state: "on_the_way", track: "1" };
+    const later = { ...leg, leg: "t103-nby", train: "t103", train_number: "103", departure: "07:00", arrival: "07:08", state: "planned" };
+    const detected = [{ section: "s-nby-asn", place_a: "nby", place_b: "asn", by: ["asn"] }];
+    const html = renderToStaticMarkup(<NuPage admin={false} now={{ ...now, places, legs: [leg, later], detected } as unknown as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(html).toContain('<p id="belagda" class="liten">Belagt enligt detekteringen: <span><span class="belagd">Nby–Ån</span></span> · stoppar direktklarering och automatiken där.</p>');
+    expect(html.match(/class="belagd" title="Belagd enligt detekteringen"/g)?.length).toBe(1);
+    expect(html).toContain('Norrby → Åsen<span class="belagd" title="Belagd enligt detekteringen"> belagd</span>');
+    expect(renderToStaticMarkup(<NuPage admin={false} now={{ ...now, places, legs: [leg] } as unknown as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />)).not.toContain("belagd");
+  });
+
   it("lists what Tellurian changed in Logg, beside Drift's own log", () => {
     const html = renderToStaticMarkup(<TellurianLog entries={[{ at: "2026-11-18T05:00:00Z", clock: "06:12", text: "103 Ån–Mlå: begärd", differs: true }]} />);
     expect(html).toContain("Tellurian i skugga");

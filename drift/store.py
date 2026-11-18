@@ -177,6 +177,10 @@ class ExitAnswered(Exception):
         super().__init__(f"Frågan är redan besvarad: utfart {exit_id}.")
 
 
+class NotPreview(Exception):
+    """Prova in TKL asked for a preview run, and the code belongs to a real meet (STUDIO-12)."""
+
+
 class UnknownExit(Exception):
     """No such exit at the station, or no such section at the place."""
 
@@ -237,11 +241,14 @@ class PreviewStore:
         copy: EventCopy | None = None,
         max_clients: int = MAX_CLIENTS,
         exit_memory: ExitMemory | None = None,
+        preview: bool = False,
     ) -> None:
         """Provbanan's runs by default: one per browser for a day, with limits for the shared
         test hub. The hub's own meet uses the same store in a file of its own, with no end
-        and no small limits (spec 7: a file per running meet)."""
+        and no small limits (spec 7: a file per running meet). preview: the runs are
+        Provbanan's, never a real meet; Prova in TKL connects only to such a run (STUDIO-12)."""
         self.path = path
+        self.preview = preview
         self.package = package
         self.version = version
         # The meet's other versions, for a version switch in the run (DRIFT-29).
@@ -837,6 +844,8 @@ class PreviewStore:
         meet = self.current() if here and not request.code else None
         with self._transaction() as db:
             run_id = meet or self._run_by_code(db, request.code or "")
+            if request.preview_only and not self.preview:
+                raise NotPreview()
             count = db.execute(
                 "SELECT count(*) FROM station_client WHERE run_id=?", (run_id,)
             ).fetchone()[0]
@@ -856,7 +865,9 @@ class PreviewStore:
                     station.ApprovalStatus.WAITING.value,
                 ),
             )
-        return station.ConnectReply(client_id=client_id, status=station.ApprovalStatus.WAITING)
+        return station.ConnectReply(
+            client_id=client_id, status=station.ApprovalStatus.WAITING, preview=self.preview
+        )
 
     def connection(self, client_id: str) -> station.ConnectReply:
         """How the approval stands. The key comes once, in the first answer after it."""
@@ -873,7 +884,9 @@ class PreviewStore:
                 db.execute(
                     "UPDATE station_client SET key_once=NULL WHERE client_id=?", (client_id,)
                 )
-        return station.ConnectReply(client_id=client_id, status=status, places=places, key=key)
+        return station.ConnectReply(
+            client_id=client_id, status=status, places=places, key=key, preview=self.preview
+        )
 
     def approve(self, run_id: str, approval: events.Approve) -> list[dict[str, Any]]:
         """The dispatcher approves a client for places. A new key replaces any old one."""
@@ -1226,13 +1239,22 @@ class PreviewStore:
             self.automatik(run_id).observe(client_id, place)
             return drift.place_revision.get(place, 0)
 
+    def _level(self, db: sqlite3.Connection, client_id: str) -> int:
+        """The level the client's station connected at: section.occupancy needs 3 (DRIFT-10)."""
+        row = db.execute(
+            "SELECT request FROM station_client WHERE client_id=?", (client_id,)
+        ).fetchone()
+        return 0 if row is None else station.ConnectRequest.model_validate_json(row[0]).level
+
     def station_command(self, key: str, command: station.Command) -> station.Reply:
         """One command from an approved client, answered with the place's snapshot. The same
-        message id answers the same, without a second effect (v2)."""
+        message id answers the same, without a second effect (v2). The client's level is the
+        one its station connected with; a reconnect brings the new one."""
         with self._transaction() as db:
             client_id, run_id, places = self._approved(db, key)
             if command.client_id != client_id or command.place not in places:
                 raise NotApproved()
+            level = self._level(db, client_id)
             now = now_utc()
             signature = sha256(command.model_dump_json().encode()).hexdigest()
             earlier = db.execute(
@@ -1271,7 +1293,7 @@ class PreviewStore:
             reason: Reason | None = None
             outcome = Outcome()
             try:
-                outcome = drift.command(command, now)
+                outcome = drift.command(command, now, level=level)
             except Refused as error:
                 reason = error.reason
             self._save(db, run_id, drift.history[size:])

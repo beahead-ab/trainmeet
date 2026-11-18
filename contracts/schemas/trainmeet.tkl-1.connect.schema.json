@@ -23,6 +23,12 @@
       ],
       "default": null,
       "title": "Code"
+    },
+    "prova": {
+      "default": false,
+      "description": "Från Prova: bara en provkörning i Provbanan, med dess kod, aldrig en riktig träff (STUDIO-12). Gäller också när låtsas-LocoNet är ansluten.",
+      "title": "Prova",
+      "type": "boolean"
     }
   },
   "required": [

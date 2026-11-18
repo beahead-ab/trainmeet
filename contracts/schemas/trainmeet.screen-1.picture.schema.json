@@ -659,6 +659,43 @@
       "title": "DayStatus",
       "type": "object"
     },
+    "DetectedSection": {
+      "additionalProperties": true,
+      "description": "En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16).",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "place_a": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place A",
+          "type": "string"
+        },
+        "place_b": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place B",
+          "type": "string"
+        },
+        "by": {
+          "description": "Driftplatserna som säger belagd.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "By",
+          "type": "array"
+        }
+      },
+      "required": [
+        "section",
+        "place_a",
+        "place_b"
+      ],
+      "title": "DetectedSection",
+      "type": "object"
+    },
     "DriverAlarm": {
       "additionalProperties": true,
       "description": "Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit\növer. Utan förarens namn (B13).",
@@ -1476,6 +1513,14 @@
             "$ref": "#/$defs/NowDriverMessage"
           },
           "title": "Driver Messages",
+          "type": "array"
+        },
+        "detected": {
+          "description": "Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 (section.occupancy, DRIFT-16).",
+          "items": {
+            "$ref": "#/$defs/DetectedSection"
+          },
+          "title": "Detected",
           "type": "array"
         }
       },

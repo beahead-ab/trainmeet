@@ -288,6 +288,11 @@ class PretendLoconet:
         data, self._out = bytes(self._out), bytearray()
         return data
 
+    @property
+    def pending(self) -> bool:
+        """Something waits to be read: an echo or an answer."""
+        return bool(self._out)
+
     def close(self) -> None:
         self.closed = True
 

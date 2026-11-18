@@ -707,6 +707,12 @@
           "default": false,
           "title": "Occupied",
           "type": "boolean"
+        },
+        "detected": {
+          "default": false,
+          "description": "Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+          "title": "Detected",
+          "type": "boolean"
         }
       },
       "required": [

@@ -312,6 +312,8 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
   const counts: Record<string, number> = {};
   for (const leg of now.legs) counts[leg.state] = (counts[leg.state] ?? 0) + 1;
   const legs = now.legs.filter((leg) => filter === "all" || leg.state === filter);
+  // Belagd enligt detekteringen från en station på nivå 3 (section.occupancy, DRIFT-16).
+  const detected = new Set((now.detected ?? []).map((d) => d.section));
   return (
     <section id="meet">
       <div className="sidrubrik">
@@ -366,6 +368,7 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
           <li className="tom">Inga öppna klareringar.</li>
         )}
       </ul>
+      <Belagda now={now} />
       <h2>Tågen</h2>
       <Chips label="Visa">
         <Chip label="Alla" pressed={filter === "all"} onClick={() => setFilter("all")} count={now.legs.length} />
@@ -392,7 +395,15 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
                   {leg.train_number}
                   {leg.paper && <span className="markt"> efter pappret</span>}
                 </td>
-                <td>{`${placeName(now, leg.from_place)} → ${placeName(now, leg.to_place)}`}</td>
+                <td>
+                  {`${placeName(now, leg.from_place)} → ${placeName(now, leg.to_place)}`}
+                  {detected.has(leg.section) && leg.state !== "arrived" && leg.state !== "planned" ? (
+                    <span className="belagd" title="Belagd enligt detekteringen">
+                      {" "}
+                      belagd
+                    </span>
+                  ) : null}
+                </td>
                 <td>{leg.departure ?? "–"}</td>
                 <td>{leg.arrival ?? "–"}</td>
                 <td>
@@ -405,6 +416,25 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
         </table>
       </div>
     </section>
+  );
+}
+
+/** The sections a station at level 3 says are occupied (section.occupancy): they stop direct
+ * clearance and the automation there, and free nothing by themselves (DRIFT-16). */
+function Belagda({ now }: { now: Now }) {
+  const found = now.detected ?? [];
+  if (!found.length) return null;
+  return (
+    <p id="belagda" className="liten">
+      Belagt enligt detekteringen:{" "}
+      {found.map((d, i) => (
+        <span key={d.section}>
+          {i ? ", " : ""}
+          <span className="belagd">{`${placeCode(now, d.place_a)}–${placeCode(now, d.place_b)}`}</span>
+        </span>
+      ))}
+      {" · stoppar direktklarering och automatiken där."}
+    </p>
   );
 }
 

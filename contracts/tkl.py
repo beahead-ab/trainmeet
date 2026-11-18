@@ -34,6 +34,14 @@ Rita (#85): the owner draws the station on the grid in Studio, or redraws the pa
 has a model, under /api/tkl/1/studio/rita. The drawing is the station model with its panel plan;
 it is kept as a draft, problems and all, until the owner takes it into use, and then it is the
 station's model like an imported one (STUDIO-02, STUDIO-30).
+
+Studio's Prova (#85 del c), under /api/tkl/1/studio/prova: TKL's simulator runs a train through
+every train route and every shunting route of the station's model, one at a time from a clean
+state, in the background (STUDIO-05, STUDIO-21, STUDIO-27). At level 3 against the pretend
+LocoNet, at level 1–2 with Kör. When every route has passed the station is Klart, until the model
+changes. With LocoNet connected to the layout, Provkör sets each route on the real layout and
+asks the owner. Prova connects only to a preview run in the hub, never to a real meet
+(STUDIO-12).
 """
 
 from __future__ import annotations
@@ -84,6 +92,11 @@ class TklStation(Contract):
     station_id: Id = Field(description="Stationens id: kort namn, skapat vid första start.")
     name: Text
     level: int = Field(default=LEVEL_0, ge=0, le=3)
+    tried: bool = Field(
+        default=False,
+        description="Klart i Prova i Studio: varje väg i stationsmodellen gick igenom, och "
+        "modellen har inte ändrats sedan (STUDIO-05).",
+    )
 
 
 class TklState(Contract):
@@ -150,6 +163,11 @@ class FoundHub(Contract):
 class TklConnect(Contract):
     address: Text = Field(max_length=200)
     code: Text | None = Field(default=None, max_length=20)
+    prova: bool = Field(
+        default=False,
+        description="Från Prova: bara en provkörning i Provbanan, med dess kod, aldrig en riktig "
+        "träff (STUDIO-12). Gäller också när låtsas-LocoNet är ansluten.",
+    )
 
 
 class TklConnection(Contract):
@@ -162,6 +180,9 @@ class TklConnection(Contract):
     places: list[Id] = Field(default_factory=list)
     outside_version: int | None = Field(default=None, description="Utsidan som följde med.")
     message: Text | None = None
+    preview: bool = Field(
+        default=False, description="En provkörning i Provbanan, inte en riktig träff (STUDIO-12)."
+    )
 
 
 class TklView(Contract):
@@ -1246,3 +1267,93 @@ class TklListen(Contract):
 
     connected: bool
     messages: list[TklHeard] = Field(default_factory=list)
+
+
+# --- Studio's Prova (#85 del c, STUDIO-05, STUDIO-12, STUDIO-21, STUDIO-27) -------------------
+
+
+class TklProvaResult(StrEnum):
+    PASSED = "passed"  # gick igenom
+    FAILED = "failed"  # gick inte, med skälet
+    SKIPPED = "skipped"  # hoppades över i Provkör
+
+
+class TklProvaSimulator(StrEnum):
+    """How Prova runs the train: the interlocking at level 3 against the pretend LocoNet, or at
+    level 1–2 with Kör."""
+
+    PRETEND = "pretend"  # nivå 3: låtsas-LocoNet, växlarna återrapporterar, spårledningarna styr
+    KOR = "kor"  # nivå 1–2: ställverket med Kör, sektion för sektion
+
+
+class TklProvaWay(Contract):
+    """A route Prova runs: one of the engine's train routes or shunting routes."""
+
+    kind: RouteKind
+    start: Name
+    end: Name
+    pieces: list[Name] = Field(default_factory=list, description="Vägens spårbitar, för panelen.")
+
+
+class TklProvaRoute(TklProvaWay):
+    """A route's result in Prova or Provkör: passed, or failed with the reason in Swedish."""
+
+    result: TklProvaResult
+    reason: Text | None = None
+
+
+class TklProvkor(Contract):
+    """Provkör (STUDIO-05, STUDIO-27): with LocoNet connected to the layout, each route is set on
+    the real layout. TKL orders the switches and checks their feedback; the owner confirms the
+    signal and the train's path, says it is wrong, or skips the route."""
+
+    available: bool = Field(description="LocoNet är anslutet till banan, på nivå 3.")
+    reason: Text | None = Field(default=None, description="Varför Provkör inte går nu.")
+    running: bool = False
+    done: int = Field(default=0, ge=0)
+    total: int = Field(default=0, ge=0)
+    route: TklProvaWay | None = Field(default=None, description="Vägen som provas nu.")
+    waiting: Text | None = Field(
+        default=None, description="Vad TKL väntar på, till exempel återrapporten från en växel."
+    )
+    question: Text | None = Field(default=None, description="Frågan till ägaren, när vägen ligger.")
+    routes: list[TklProvaRoute] = Field(
+        default_factory=list, description="Vägarna som är provkörda, de som inte gick först."
+    )
+    finished: datetime | None = None
+
+
+class TklProva(Contract):
+    """Studio's Prova: a simulated train through every route (STUDIO-05, STUDIO-27), run in the
+    background with its progress, and the results kept with the station until the model
+    changes. Klart (`tried`) when every route has passed: Ställverket then opens without the
+    note that the station is not tried."""
+
+    level: int = Field(ge=0, le=3)
+    simulator: TklProvaSimulator | None = Field(
+        default=None, description="Hur tåget körs; inget utan stationsmodell."
+    )
+    running: bool = False
+    done: int = Field(default=0, ge=0, description="Vägarna som är provade hittills.")
+    total: int = Field(default=0, ge=0, description="Vägarna i modellen.")
+    routes: list[TklProvaRoute] = Field(
+        default_factory=list, description="Vägarnas resultat, de som inte gick först."
+    )
+    passed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    tried: bool = Field(default=False, description="Klart: varje väg gick igenom (STUDIO-05).")
+    started: datetime | None = None
+    finished: datetime | None = None
+    invalidated: bool = Field(
+        default=False,
+        description="Stationsmodellen har ändrats sedan Prova kördes: resultaten gäller inte.",
+    )
+    message: Text | None = None
+    provkor: TklProvkor
+
+
+class TklProvkorAnswer(Contract):
+    """The owner's answer in Provkör: the signal and the path are right, wrong, or the route is
+    skipped."""
+
+    answer: Literal["right", "wrong", "skip"]

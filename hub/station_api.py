@@ -33,6 +33,7 @@ from drift.store import (
     KeyHash,
     MissingRun,
     NotApproved,
+    NotPreview,
     PreviewStore,
     RunLimit,
     UnknownClient,
@@ -70,14 +71,21 @@ FAILURES = (
     UnknownExit,
     TrackDisplayConflict,
     TracksChanged,
+    NotPreview,
 )
 NO_CODE = "Koden finns inte, eller provkörningen har gått ut."
+NOT_PREVIEW = (
+    "Koden gäller en riktig träff. Prova i TKL ansluts bara till en provkörning i Provbanan, "
+    "aldrig till en riktig träff (STUDIO-12)."
+)
 NEEDS_CODE = "Över internet behövs en kod från trafikledningen."
 NO_MEET = "Ingen träff är startad på hubben."
 NO_CLIENT = "Klienten finns inte."
 
 
 def _failure(error: Exception) -> tuple[int, str]:
+    if isinstance(error, NotPreview):
+        return 409, NOT_PREVIEW
     if isinstance(error, RunLimit):
         return 429, "Gränsen för provkörningen har nåtts."
     if isinstance(error, NotApproved):
@@ -127,7 +135,7 @@ def router(
                 raise HTTPException(401, NEEDS_CODE)
         except MissingRun as error:
             raise HTTPException(404, NO_CODE) from error
-        except RunLimit as error:
+        except (RunLimit, NotPreview) as error:
             _error(error)
         return reply.model_copy(update={"relay": relay()}).model_dump(mode="json")
 

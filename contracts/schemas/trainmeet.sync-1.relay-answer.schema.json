@@ -436,6 +436,12 @@
           "default": null,
           "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
           "title": "Relay"
+        },
+        "preview": {
+          "default": false,
+          "description": "Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
+          "title": "Preview",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1060,6 +1066,12 @@
         "occupied": {
           "default": false,
           "title": "Occupied",
+          "type": "boolean"
+        },
+        "detected": {
+          "default": false,
+          "description": "Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+          "title": "Detected",
           "type": "boolean"
         }
       },

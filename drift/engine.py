@@ -34,9 +34,17 @@ DAY_CHANGE_WAIT: Final = 30 * 60
 # The automation acts through the same station commands as a box, under its own name (F14).
 AUTOMATION: Final = "automatik"
 # What a box or TKL may still do at a place left to the automation: look, and take it back.
+# A station at level 3 still reports its detection: occupancy stops the automation (DRIFT-16).
 _ALLOWED_WHEN_LEFT: Final = frozenset(
-    {station.Action.TRAIN_LOOKUP, station.Action.PLACE_LEAVE, station.Action.PLACE_TAKE_BACK}
+    {
+        station.Action.TRAIN_LOOKUP,
+        station.Action.PLACE_LEAVE,
+        station.Action.PLACE_TAKE_BACK,
+        station.Action.SECTION_OCCUPANCY,
+    }
 )
+# Detection comes from a station whose TKL connected at level 3 (DRIFT-10, KLAR-16).
+DETECTION_LEVEL: Final = 3
 
 
 _AT_ARRIVAL: Final = frozenset(
@@ -245,6 +253,10 @@ class Drift:
         # The exit signals' latest aspects from TKL (signal.exit, DRIFT-10), by place and exit:
         # a station fact like the phone numbers, read back from the events after a restart.
         self.exit_signals: dict[tuple[str, str], events.ExitSignalSet] = {}
+        # The detection from stations at level 3 (section.occupancy, DRIFT-10), by section and
+        # reporting place: the latest of each. A section is occupied while any place says so.
+        # It stops direct clearance and the automation, and never frees anything (DRIFT-16).
+        self.occupancy: dict[tuple[str, str], events.SectionOccupied] = {}
         self.changes: dict[str, ChangeState] = {}
         self.applied: list[str] = []
         # Places a driftändring made unmanned: the automation runs them (F2).
@@ -854,6 +866,13 @@ class Drift:
                 assert event.place is not None
                 shown = events.ExitSignalSet.model_validate(event.data)
                 self.exit_signals[(event.place, shown.exit)] = shown
+            case events.EventKind.SECTION_OCCUPANCY:
+                assert event.place is not None
+                detected = events.SectionOccupied.model_validate(event.data)
+                self.occupancy[(detected.section, event.place)] = detected
+                found = self._section(detected.section)
+                if found is not None:
+                    self._touch_places(found.place_a, found.place_b)
             case events.EventKind.LINE_ACKNOWLEDGED:
                 line = self.lines[events.LineAcknowledged.model_validate(event.data).message_id]
                 line.acknowledged = True
@@ -1569,7 +1588,8 @@ class Drift:
             leg=leg,
         )
         mode = leg.section.clearance_mode or self.package.meet.clearance_mode
-        if mode == ClearanceMode.DIRECT:
+        # Occupancy stops direct clearance (DRIFT-16): the request waits for the receiver.
+        if mode == ClearanceMode.DIRECT and not self.detected(leg.section.id):
             self._record(
                 events.EventKind.CLEARANCE_ANSWERED,
                 {"clearance_id": payload.clearance_id, "approved": True},
@@ -1866,6 +1886,47 @@ class Drift:
         the neighbour (LOK-08); None before the first."""
         return self.exit_signals.get((place, exit_id))
 
+    def _section(self, section_id: str) -> Section | None:
+        return next((s for s in self.package.sections if s.id == section_id), None)
+
+    def _occupancy(self, command: station.Command, now: datetime, level: int) -> None:
+        """Beläggningen (section.occupancy, DRIFT-10): only from a station that connected at
+        level 3 (KLAR-11, KLAR-16), for a section from its place, as signal.exit. The same
+        occupancy again changes nothing. It frees nothing: an arrival is still Ankommit, or the
+        entry route released after passage, which TKL reports as train.arrived (DRIFT-16)."""
+        if level < DETECTION_LEVEL:
+            raise Refused(Reason.NOT_LEVEL_3)
+        shown = station.SectionOccupancy.model_validate(command.payload)
+        section = self._section(shown.section)
+        if section is None:
+            raise Refused(Reason.UNKNOWN_SECTION)
+        if command.place not in {section.place_a, section.place_b}:
+            raise Refused(Reason.WRONG_PLACE)
+        data = events.SectionOccupied(
+            section=shown.section, occupied=shown.occupied, parts=dict(shown.parts)
+        )
+        if self.occupancy.get((shown.section, command.place)) == data:
+            return
+        self._record(
+            events.EventKind.SECTION_OCCUPANCY, data.model_dump(mode="json"), now, command=command
+        )
+
+    def detected(self, section_id: str) -> bool:
+        """The section is occupied by detection: a station at level 3 said so last (DRIFT-16)."""
+        return any(
+            shown.occupied
+            for (section, _), shown in self.occupancy.items()
+            if section == section_id
+        )
+
+    def detected_by(self, section_id: str) -> list[str]:
+        """The places whose latest occupancy of the section says occupied."""
+        return sorted(
+            place
+            for (section, place), shown in self.occupancy.items()
+            if section == section_id and shown.occupied
+        )
+
     def _line_acknowledge(self, command: station.Command, now: datetime) -> str:
         message_id = station.LineAcknowledge.model_validate(command.payload).message_id
         line = self.lines.get(message_id)
@@ -1898,11 +1959,12 @@ class Drift:
         if expected.value != current:
             raise Refused(Reason.STALE_REVISION)
 
-    def command(self, command: station.Command, now: datetime) -> Outcome:
+    def command(self, command: station.Command, now: datetime, *, level: int = 0) -> Outcome:
         """Carry out one station command, or refuse it with a reason and change nothing. A
-        driftändring waiting for the train applies as soon as it is in (H38)."""
+        driftändring waiting for the train applies as soon as it is in (H38). level: the
+        level the client's station connected at; detection needs level 3 (DRIFT-10)."""
         self._writable()
-        outcome = self._command(command, now)
+        outcome = self._command(command, now, level)
         self._apply_if_waiting(now)
         return outcome
 
@@ -1922,7 +1984,7 @@ class Drift:
                 ),
             )
 
-    def _command(self, command: station.Command, now: datetime) -> Outcome:
+    def _command(self, command: station.Command, now: datetime, level: int = 0) -> Outcome:
         if command.context != self.context:
             raise Refused(Reason.STALE_MEET_CONTEXT)
         if command.client_id == AUTOMATION:
@@ -1979,7 +2041,8 @@ class Drift:
                 self._exit_signal(command, now)
                 return Outcome(revision=self._place_revision(command.place))
             case station.Action.SECTION_OCCUPANCY:
-                raise Refused(Reason.NOT_LEVEL_3)  # Detection comes with TKL level 3.
+                self._occupancy(command, now, level)
+                return Outcome(revision=self._place_revision(command.place))
             case _:
                 raise Refused(Reason.UNKNOWN_ACTION)
         if case_id is not None:

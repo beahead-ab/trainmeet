@@ -13,6 +13,7 @@ import { KopplaIn } from "./KopplaIn";
 import { Rita } from "./Rita";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
+import { Prova } from "./Prova";
 import { Sparplan } from "./Sparplan";
 import { StallverketSida } from "./Stallverk12";
 import { Stallverket } from "./Stallverket";
@@ -24,6 +25,7 @@ const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : 
 const SPARPLAN = "/studio/sparplan";
 const KOPPLA_IN = "/studio/koppla-in";
 const RITA = "/studio/rita";
+const PROVA = "/studio/prova";
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
@@ -229,6 +231,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     const plan = path.startsWith(SPARPLAN);
     const koppla = path.startsWith(KOPPLA_IN);
     const rita = path.startsWith(RITA);
+    const prova = path.startsWith(PROVA);
     const changedModel = () => {
       void api.state().then(onLocked);
       void api.studio().then(setStudio);
@@ -236,7 +239,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     body = (
       <>
         <nav className="studio-flikar" aria-label="Studio">
-          <button type="button" aria-current={plan || rita || koppla ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+          <button type="button" aria-current={plan || rita || koppla || prova ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
             Utsidan
           </button>
           <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
@@ -248,9 +251,14 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           <button type="button" aria-current={koppla ? "page" : undefined} onClick={() => navigate(KOPPLA_IN)}>
             Koppla in
           </button>
+          <button type="button" aria-current={prova ? "page" : undefined} onClick={() => navigate(PROVA)}>
+            Prova
+          </button>
         </nav>
         {rita ? (
           <Rita onChanged={changedModel} />
+        ) : prova ? (
+          <Prova onChanged={() => void api.state().then(onLocked)} />
         ) : koppla ? (
           <KopplaIn />
         ) : plan ? (
@@ -355,8 +363,21 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           </button>
         </p>
       ) : null}
+      {page === "stallverket" && (state.station?.level ?? 0) >= 1 && !state.station?.tried ? <Untried onGo={() => navigate(PROVA)} /> : null}
       {body}
     </Frame>
+  );
+}
+
+/** Klart in Studio › Prova (STUDIO-05): until then Ställverket shows this note; never a lock. */
+function Untried({ onGo }: { onGo: () => void }) {
+  return (
+    <p className="notis" role="note">
+      Stationen är inte provad i Studio › Prova.{" "}
+      <button type="button" className="lank" onClick={onGo}>
+        Prova
+      </button>
+    </p>
   );
 }
 

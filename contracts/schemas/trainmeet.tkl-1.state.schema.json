@@ -32,6 +32,12 @@
           "minimum": 0,
           "title": "Level",
           "type": "integer"
+        },
+        "tried": {
+          "default": false,
+          "description": "Klart i Prova i Studio: varje väg i stationsmodellen gick igenom, och modellen har inte ändrats sedan (STUDIO-05).",
+          "title": "Tried",
+          "type": "boolean"
         }
       },
       "required": [

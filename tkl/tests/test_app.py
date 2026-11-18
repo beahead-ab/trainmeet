@@ -33,7 +33,12 @@ def test_first_start_locks_with_a_pin(tmp_path: Path) -> None:
     assert client.get(API + "/studio").status_code == 401
     made = set_up(client)
     assert made.status_code == 201, made.text
-    assert made.json()["station"] == {"station_id": "exb", "name": "Exempelby", "level": 0}
+    assert made.json()["station"] == {
+        "station_id": "exb",
+        "name": "Exempelby",
+        "level": 0,
+        "tried": False,
+    }
     assert made.json()["unlocked"] is True
     assert set_up(client).status_code == 409, "one station on the computer"
     # Locked: the PIN opens it again; a wrong one does not.
@@ -101,6 +106,7 @@ def test_not_connected_says_so(tmp_path: Path) -> None:
         "places": [],
         "outside_version": None,
         "message": None,
+        "preview": False,
     }
     assert client.get(API + "/places/exb").status_code == 409
     assert client.get(API + "/hubs").json() == []
