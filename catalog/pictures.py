@@ -25,9 +25,18 @@ The background removal (catalog/backgrounds.py, CAT-127–CAT-129) runs at the u
 model is there: the photo is cut around the vehicle and gets the background chosen, original
 by default. For any other background the photo at display size is kept too, and the mask
 always, so the background can be changed later without a new upload; both count in the
-storage. With the original background the display picture is itself the kept photo.
+storage. With the original background the display picture is itself the kept photo. The
+background removal itself is free (TOKEN-17).
 
-Paid storage over the free level (CAT-132) comes later.
+Over the free level the storage is paid in tokens from the owner's balance in TrainMeet ID, 20
+tokens per started GB and month (CAT-132, catalog/storage.py). A change that grows the storage
+past what is paid this month pays the next GB first, outside any transaction, before its files
+are stored; the decisive check is made again when the picture is saved under the owner's lock,
+and what another upload took meanwhile is paid then. So two uploads never both get in unpaid,
+and the same GB is never paid twice. When it cannot be paid, nothing is stored, the pictures
+that are there stay, and removing them always works. A daily round (charge_round) charges the
+owners who are still over the free level when a new month begins. Without ID's API, Catalog
+refuses over the free level as before.
 """
 
 from __future__ import annotations
@@ -71,6 +80,7 @@ from catalog.backgrounds import (
 from catalog.db import Database
 from catalog.fleet import Refused, not_found
 from catalog.settings import Settings
+from catalog.storage import GB, PRICE_PER_GB, NotPaid, Payer, Why, storage_key
 from contracts.catalog import (
     Picture,
     PictureBackground,
@@ -78,6 +88,7 @@ from contracts.catalog import (
     ProblemCode,
     StorageUse,
 )
+from contracts.tokens import TokenOwner, TokenOwnerKind
 
 LOGGER = logging.getLogger("catalog.pictures")
 
@@ -110,6 +121,8 @@ _KEY: Final = re.compile(
 )
 _UPLOAD_GRACE: Final = timedelta(hours=1)
 _SWEEP_BATCH: Final = 200
+_SAVE_ATTEMPTS: Final = 3
+"""How many times a save may pay what another upload took meanwhile before it gives up."""
 _SRGB: Final = ImageCms.createProfile("sRGB")
 _COLUMNS: Final = (
     "id, is_main, position, width, height, bytes, display_key, thumb_key, original_key, "
@@ -160,6 +173,12 @@ def _picture_changed() -> Refused:
 def _store_down() -> Refused:
     return Refused(
         503, ProblemCode.UNAVAILABLE, "Bilderna kan inte sparas just nu. Försök igen om en stund."
+    )
+
+
+def _storage_changed() -> Refused:
+    return Refused(
+        409, ProblemCode.CHANGED, "Lagringen ändrades under tiden. Försök igen om en stund."
     )
 
 
@@ -592,11 +611,46 @@ def store_for(settings: Settings, http: httpx.Client | None = None) -> Store:
 
 @dataclass(frozen=True)
 class PictureLimits:
-    """The free level (CAT-17, TOKEN-29). The tests give tiny ones."""
+    """The free level (CAT-17, TOKEN-29), and what is paid over it at a time: a started GB
+    (CAT-132). The tests give tiny ones."""
 
     person: int = PERSON_LIMIT
     club: int = CLUB_LIMIT
     per_vehicle: int = PER_VEHICLE
+    block: int = GB
+
+
+@dataclass(frozen=True)
+class Room:
+    """The owner's storage for a change, in the month it is made (CAT-131, CAT-132)."""
+
+    month: str
+    """The month in Swedish time, as ID counts it: YYYY-MM."""
+    used: int
+    """Bytes stored now."""
+    grow: int
+    """Bytes the change adds; zero or less for one that does not grow."""
+    paid: int
+    """Started GB over the free level that are paid this month."""
+    needed: int
+    """Started GB over the free level after the change."""
+    now_needed: int
+    """Started GB over the free level for what is stored now."""
+
+    @property
+    def short(self) -> bool:
+        """The change grows the storage past the free level and what is paid this month."""
+        return self.grow > 0 and self.needed > self.paid
+
+
+class _Unpaid(Exception):
+    """A save under the owner's lock found more to pay than is paid: another upload took it
+    meanwhile, or a new month began. It is paid outside the transaction, and the save is tried
+    again."""
+
+    def __init__(self, room: Room) -> None:
+        super().__init__("unpaid")
+        self.room = room
 
 
 @dataclass(frozen=True)
@@ -610,6 +664,10 @@ class _File:
 
 def _file(owner: UUID, data: bytes, kind: str = "image/jpeg") -> _File:
     return _File(new_key(owner, kind), data, kind)
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _opened(data: bytes, mode: str) -> Image.Image:
@@ -629,11 +687,18 @@ class Pictures:
         store: Store,
         limits: PictureLimits | None = None,
         segmenter: Segmenter | None = None,
+        payer: Payer | None = None,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
+        """payer draws the storage over the free level from the owner's balance in ID
+        (CAT-132); without it Catalog refuses over the free level. clock says which month it
+        is; the tests move it."""
         self.db = db
         self.store = store
         self.limits = limits if limits is not None else PictureLimits()
         self.segmenter: Segmenter = segmenter if segmenter is not None else NoSegmenter()
+        self.payer = payer
+        self.clock: Callable[[], datetime] = clock if clock is not None else _now
 
     def _picture(self, row: DictRow, now: float) -> Picture:
         original = row["original_key"]
@@ -679,15 +744,80 @@ class Pictures:
             "Ta bort bilder för att få plats med fler.",
         )
 
+    def _not_paid(self, why: Why, club: bool) -> Refused:
+        """Why the storage over the free level could not be paid (CAT-132, TK15)."""
+        if why == "account":
+            return self._full(club)
+        if why == "cap":
+            return Refused(
+                429,
+                ProblemCode.TOO_MANY,
+                "Taket för tokens per dygn är nått, så mer lagring kan inte betalas i dag. "
+                "Försök i morgon, eller ta bort bilder.",
+            )
+        whose = "Klubbens fria lagring" if club else "Den fria lagringen"
+        balance = "klubbens saldo" if club else "saldot"
+        return Refused(
+            402,
+            ProblemCode.NO_TOKENS,
+            f"{whose} på {_size(self._limit(club))} är full, och {balance} räcker inte till "
+            f"mer: {PRICE_PER_GB} tokens per påbörjad GB och månad. Köp tokens i TrainMeet ID, "
+            "eller ta bort bilder.",
+        )
+
+    def _blocks(self, used: int, club: bool) -> int:
+        """Started blocks, GB, over the free level (CAT-132)."""
+        over = used - self._limit(club)
+        return -(-over // self.limits.block) if over > 0 else 0
+
+    def _month(self, conn: Connection[DictRow]) -> str:
+        """The month in Swedish time, from the database, which always has the time zones, as
+        ID counts its months (id/tokens.py)."""
+        row = conn.execute(
+            "SELECT to_char(%s::timestamptz AT TIME ZONE 'Europe/Stockholm', 'YYYY-MM') AS m",
+            (self.clock(),),
+        ).fetchone()
+        assert row is not None
+        return str(row["m"])
+
+    def _space(self, conn: Connection[DictRow], owner: UUID, grow: int, club: bool) -> Room:
+        """What the owner's storage needs for `grow` more bytes this month (CAT-131)."""
+        row = conn.execute(
+            "SELECT coalesce(sum(bytes), 0) AS used FROM picture WHERE owner_id = %s", (owner,)
+        ).fetchone()
+        assert row is not None
+        used = int(row["used"])
+        month = self._month(conn)
+        charge = conn.execute(
+            "SELECT blocks FROM storage_charge WHERE owner_id = %s AND month = %s", (owner, month)
+        ).fetchone()
+        return Room(
+            month=month,
+            used=used,
+            grow=grow,
+            paid=int(charge["blocks"]) if charge is not None else 0,
+            needed=self._blocks(used + grow, club),
+            now_needed=self._blocks(used, club),
+        )
+
+    def _enough(self, room: Room, club: bool) -> bool:
+        """Does the change fit within the free level and what is paid this month? One that does
+        not grow always does, also over the limit. Without paid storage, refused when it does
+        not fit."""
+        if not room.short:
+            return True
+        if self.payer is None:
+            raise self._full(club)
+        return False
+
     def _check(
         self, conn: Connection[DictRow], owner: UUID, vehicle: UUID, size: int, club: bool
-    ) -> None:
-        """The vehicle is the owner's, has room for one more, and so has the storage."""
+    ) -> Room:
+        """The vehicle is the owner's and has room for one more; what the storage needs for
+        it."""
         self._vehicle(conn, owner, vehicle)
         row = conn.execute(
-            "SELECT count(*) FILTER (WHERE vehicle_id = %s) AS here, "
-            "coalesce(sum(bytes), 0) AS used FROM picture WHERE owner_id = %s",
-            (vehicle, owner),
+            "SELECT count(*) AS here FROM picture WHERE vehicle_id = %s", (vehicle,)
         ).fetchone()
         assert row is not None
         if row["here"] >= self.limits.per_vehicle:
@@ -696,22 +826,58 @@ class Pictures:
                 ProblemCode.TOO_MANY_PICTURES,
                 f"Ett fordon kan ha högst {self.limits.per_vehicle} bilder. Ta bort en först.",
             )
-        if row["used"] + size > self._limit(club):
-            raise self._full(club)
+        return self._space(conn, owner, size, club)
 
-    def _room(
-        self, conn: Connection[DictRow], owner: UUID, before: int, after: int, club: bool
-    ) -> None:
-        """A picture that grows from `before` to `after` bytes needs room for it in the
-        storage. One that does not grow is always possible, also over the limit."""
-        if after <= before:
-            return
-        row = conn.execute(
-            "SELECT coalesce(sum(bytes), 0) AS used FROM picture WHERE owner_id = %s", (owner,)
-        ).fetchone()
-        assert row is not None
-        if row["used"] - before + after > self._limit(club):
-            raise self._full(club)
+    def _pay_first(self, owner: UUID, club: bool, room: Room) -> None:
+        """What a change needs this month is paid before anything is stored, so a change that
+        cannot be paid stores nothing (CAT-132)."""
+        if not self._enough(room, club):
+            self._settle(owner, club, room)
+
+    def _settle(self, owner: UUID, club: bool, room: Room) -> int:
+        """Pay the month's started GB that the room needs, one by one in order, each with its
+        own key in ID, outside any transaction (catalog/storage.py). What was paid is recorded,
+        also when ID says no halfway. Refused with no_tokens, too_many or storage_full when it
+        cannot be paid, and unavailable when ID does not answer. How many GB were paid now."""
+        payer = self.payer
+        assert payer is not None
+        kind = TokenOwnerKind.CLUB if club else TokenOwnerKind.PERSON
+        account = TokenOwner(kind=kind, id=owner)
+        paid, why, done = room.paid, None, False
+        try:
+            for block in range(room.paid + 1, room.needed + 1):
+                what = (
+                    f"Bildlagring i Catalog {room.month}, påbörjad GB {block} över den fria nivån"
+                )
+                payer.pay(account, storage_key(owner, room.month, block), PRICE_PER_GB, what)
+                paid = block
+            done = True
+        except NotPaid as refused:
+            why = refused.why
+        finally:
+            # Paid: the month is no longer unpaid. Short of tokens: unpaid if what is stored
+            # now is not paid, whatever the change wanted. Otherwise as it was.
+            unpaid = (
+                False if done else (paid < room.now_needed if why in ("balance", "cap") else None)
+            )
+            if paid > room.paid or unpaid is not None:
+                self._record(owner, room.month, paid, club, unpaid)
+        if why is not None:
+            raise self._not_paid(why, club)
+        return paid - room.paid
+
+    def _record(self, owner: UUID, month: str, paid: int, club: bool, unpaid: bool | None) -> None:
+        """What is paid this month, under the owner's lock (CAT-40); it never goes down.
+        unpaid None leaves it as it was."""
+        with self.db.owner_transaction(owner) as conn:
+            conn.execute(
+                "INSERT INTO storage_charge (owner_id, month, blocks, club, unpaid) "
+                "VALUES (%(owner)s, %(month)s, %(blocks)s, %(club)s, coalesce(%(unpaid)s, false)) "
+                "ON CONFLICT (owner_id, month) DO UPDATE SET "
+                "blocks = greatest(storage_charge.blocks, excluded.blocks), club = excluded.club, "
+                "unpaid = coalesce(%(unpaid)s, storage_charge.unpaid), changed_at = now()",
+                {"owner": owner, "month": month, "blocks": paid, "club": club, "unpaid": unpaid},
+            )
 
     def of_vehicle(self, owner: UUID, vehicle: UUID) -> list[Picture]:
         """The vehicle's pictures in order. To look is enough (CAT-46)."""
@@ -724,10 +890,13 @@ class Pictures:
         owner: UUID,
         files: list[_File],
         save: Callable[[Connection[DictRow]], DictRow],
+        club: bool,
     ) -> DictRow:
         """Store new files, then save the row that holds them under the owner's lock (CAT-40).
         The keys are marked in picture_trash before the files are stored, and the marks go in
-        the transaction that saves: whatever fails, even the process, leaves no file behind."""
+        the transaction that saves: whatever fails, even the process, leaves no file behind.
+        A save that finds more storage to pay (_Unpaid) pays it outside the transaction and is
+        tried again; when it cannot be paid, the files go."""
         keys = [file.key for file in files]
         with self.db.transaction() as conn:
             conn.execute(
@@ -738,9 +907,18 @@ class Pictures:
         try:
             for file in files:
                 self.store.put(file.key, file.data, file.kind)
-            with self.db.owner_transaction(owner) as conn:
-                row = save(conn)
-                conn.execute("DELETE FROM picture_trash WHERE key = ANY(%s)", (keys,))
+            attempt = 1
+            while True:
+                try:
+                    with self.db.owner_transaction(owner) as conn:
+                        row = save(conn)
+                        conn.execute("DELETE FROM picture_trash WHERE key = ANY(%s)", (keys,))
+                    break
+                except _Unpaid as unpaid:
+                    if attempt == _SAVE_ATTEMPTS:
+                        raise _storage_changed() from None
+                    attempt += 1
+                    self._settle(owner, club, unpaid.room)
         except StoreFailed as error:
             self._discard(keys)
             raise _store_down() from error
@@ -764,9 +942,11 @@ class Pictures:
         (CAT-131, CAT-133), on the background chosen (CAT-128). The first picture is the main
         one (CAT-125)."""
         prepared = prepare(data, keep_original, background, self.segmenter)
-        # A first look without a lock, so a refused upload stores nothing.
+        # A first look without a lock, so a refused upload stores nothing. What it needs this
+        # month over the free level is paid now, before anything is stored (CAT-132).
         with self.db.transaction() as conn:
-            self._check(conn, owner, vehicle, prepared.size, club)
+            room = self._check(conn, owner, vehicle, prepared.size, club)
+        self._pay_first(owner, club, room)
         display = _file(owner, prepared.display, prepared.kind)
         thumb = _file(owner, prepared.thumb, prepared.kind)
         original = _file(owner, prepared.original) if prepared.original is not None else None
@@ -775,7 +955,10 @@ class Pictures:
         files = [f for f in (display, thumb, original, source, mask) if f is not None]
 
         def save(conn: Connection[DictRow]) -> DictRow:
-            self._check(conn, owner, vehicle, prepared.size, club)
+            # The decisive check, under the owner's lock (CAT-131).
+            room = self._check(conn, owner, vehicle, prepared.size, club)
+            if not self._enough(room, club):
+                raise _Unpaid(room)
             row = conn.execute(
                 "INSERT INTO picture (id, vehicle_id, owner_id, position, is_main, width, "
                 "height, display_key, thumb_key, original_key, background, source_key, "
@@ -803,7 +986,7 @@ class Pictures:
             assert row is not None
             return row
 
-        return self._picture(self._keep(owner, files, save), time.time())
+        return self._picture(self._keep(owner, files, save, club), time.time())
 
     def change_background(
         self,
@@ -867,11 +1050,17 @@ class Pictures:
             files = (photo_data, mask_data, display.data, thumb.data)
         mask_key = row["mask_key"] or (made_mask.key if made_mask is not None else None)
         size = original + sum(len(data) for data in files if data is not None)
+        # A picture that grows needs room in the storage, paid first over the free level; one
+        # that does not grow is always possible, also over it (CAT-132).
+        grow = size - int(row["bytes"])
         with self.db.transaction() as conn:
-            self._room(conn, owner, row["bytes"], size, club)
+            room = self._space(conn, owner, grow, club)
+        self._pay_first(owner, club, room)
 
         def save(conn: Connection[DictRow]) -> DictRow:
-            self._room(conn, owner, row["bytes"], size, club)
+            room = self._space(conn, owner, grow, club)
+            if not self._enough(room, club):
+                raise _Unpaid(room)
             changed = conn.execute(
                 "UPDATE picture SET background = %(background)s, display_key = %(display)s, "
                 "thumb_key = %(thumb)s, source_key = %(source)s, mask_key = %(mask)s, "
@@ -900,7 +1089,7 @@ class Pictures:
                 raise _picture_changed()
             return changed
 
-        return self._picture(self._keep(owner, new, save), time.time())
+        return self._picture(self._keep(owner, new, save, club), time.time())
 
     def _discard(self, keys: list[str]) -> None:
         """New files that were never saved, from an upload or a change of background that
@@ -959,21 +1148,71 @@ class Pictures:
                 )
 
     def usage(self, owner: UUID, *, club: bool) -> StorageUse:
-        """What the owner's pictures take, drafts' included, and the free level (CAT-131)."""
+        """What the owner's pictures take, drafts' included, the free level, and what is paid
+        over it this month (CAT-131, CAT-132)."""
         with self.db.transaction() as conn:
             row = conn.execute(
                 "SELECT coalesce(sum(bytes), 0) AS used, count(*) AS pictures FROM picture "
                 "WHERE owner_id = %s",
                 (owner,),
             ).fetchone()
+            charge = conn.execute(
+                "SELECT blocks, unpaid FROM storage_charge WHERE owner_id = %s AND month = %s",
+                (owner, self._month(conn)),
+            ).fetchone()
         assert row is not None
+        used = int(row["used"])
+        paid = int(charge["blocks"]) if charge is not None else 0
         return StorageUse(
-            used=row["used"],
+            used=used,
             limit=self._limit(club),
             club=club,
             pictures=row["pictures"],
             backgrounds=self.segmenter.available(),
+            over_free=used > self._limit(club),
+            paid_blocks=paid,
+            price_per_gb=PRICE_PER_GB,
+            unpaid=charge is not None and charge["unpaid"] and self._blocks(used, club) > paid,
         )
+
+    def charge_round(self) -> int:
+        """The daily round (CAT-132): every owner still over the free level is charged for this
+        month's storage, the first time it is needed, also when no one uploads. Idempotent per
+        month: an owner whose month is paid is not asked again, and a GB that is paid is never
+        drawn again. An owner whose balance is short is marked unpaid; the pictures stay.
+
+        Only owners that have paid before are in the round: whose balance pays, the person's or
+        the club's (TOKEN-29), is as ID said at that charge, since the round has no person to
+        ask with. An owner over the free level has always paid before. How many GB were paid."""
+        if self.payer is None:
+            return 0
+        with self.db.transaction() as conn:
+            month = self._month(conn)
+            rows = conn.execute(
+                "WITH used AS (SELECT owner_id, sum(bytes) AS used FROM picture "
+                "GROUP BY owner_id HAVING sum(bytes) > %(least)s), "
+                "known AS (SELECT DISTINCT ON (owner_id) owner_id, club FROM storage_charge "
+                "ORDER BY owner_id, month DESC) "
+                "SELECT u.owner_id, u.used, k.club, coalesce(c.blocks, 0) AS paid "
+                "FROM used u JOIN known k USING (owner_id) LEFT JOIN storage_charge c "
+                "ON c.owner_id = u.owner_id AND c.month = %(month)s ORDER BY u.owner_id",
+                {"least": min(self.limits.person, self.limits.club), "month": month},
+            ).fetchall()
+        paid = 0
+        for row in rows:
+            used, club = int(row["used"]), bool(row["club"])
+            needed = self._blocks(used, club)
+            if needed <= row["paid"]:
+                continue
+            room = Room(month, used, 0, int(row["paid"]), needed, needed)
+            try:
+                paid += self._settle(row["owner_id"], club, room)
+            except Refused as refused:
+                if refused.code is ProblemCode.UNAVAILABLE:
+                    LOGGER.warning("Lagringens runda avbröts: TrainMeet ID svarar inte.")
+                    break
+                # Short of tokens, or the day's cap: marked unpaid, and the pictures stay.
+        return paid
 
     def main_links(
         self, conn: Connection[DictRow], vehicles: list[UUID]

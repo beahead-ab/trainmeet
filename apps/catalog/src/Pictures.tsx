@@ -27,24 +27,36 @@ export function checkPicture(file: { size: number; type: string }): "bad_picture
   return null;
 }
 
+/** The storage as the line shows it: what is paid over the free level is optional. */
+export type StorageLine = Pick<StorageUse, "used" | "limit" | "club"> & Partial<Pick<StorageUse, "over_free" | "paid_blocks" | "price_per_gb" | "unpaid">>;
+
 /** "Lagring: 12 av 100 MB", the club's in GB (CAT-131, TOKEN-29), or the owner's for someone
- * who edits a fleet shared with them (CAT-133). */
-export function storageText(t: T, language: Language, storage: Pick<StorageUse, "used" | "limit" | "club">, shared = false): string {
-  const unit = storage.limit >= GB ? "GB" : "MB";
+ * who edits a fleet shared with them (CAT-133). Over the free level, what is paid this month,
+ * "Lagring: 1,3 av 0,1 GB · 40 tokens den här månaden", or that the month is not paid (CAT-132). */
+export function storageText(t: T, language: Language, storage: StorageLine, shared = false): string {
+  const unit = Math.max(storage.limit, storage.used) >= GB ? "GB" : "MB";
   const size = unit === "GB" ? GB : MB;
   const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB", { maximumFractionDigits: 1 });
   const used = storage.used / size;
-  return t(storage.club ? "storageClub" : shared ? "storageOwner" : "storage", {
+  const line = t(storage.club ? "storageClub" : shared ? "storageOwner" : "storage", {
     used: number.format(storage.used > 0 && used < 0.1 ? 0.1 : used),
     limit: number.format(storage.limit / size),
     unit,
   });
+  const price = storage.price_per_gb ?? 20;
+  const paid = storage.paid_blocks ?? 0;
+  if (storage.unpaid) return `${line} · ${t("storageUnpaid")}`;
+  if (paid > 0) return `${line} · ${t("storagePaid", { tokens: number.format(paid * price) })}`;
+  if (storage.over_free) return `${line} · ${t("storagePrice", { price })}`;
+  return line;
 }
 
 /** Why a picture could not be added or changed. A 413 may come from the proxy, without Catalog's answer. */
 export function pictureProblem(t: T, error: unknown): string {
   if (error instanceof ApiError && error.status === 413) return t("problem_picture_too_large");
   if (error instanceof ApiError && error.code === "unavailable") return t("picturesUnavailable");
+  // For a picture, too many is the cap of tokens per day in ID (TK15, CAT-132).
+  if (error instanceof ApiError && error.code === "too_many") return t("storageCap");
   return problemText(t, error);
 }
 
@@ -218,7 +230,7 @@ export function PicturesView(props: PicturesViewProps) {
           <p id={`${id}-ny`} className="cat-hjalp">
             {full ? t("picturesFull", { max: PICTURES_PER_VEHICLE }) : t("addPictureHelp")}
           </p>
-          {storage ? <p className="cat-lagring">{storageText(t, language, storage, !isOwner(ctx))}</p> : null}
+          {storage ? <p className={storage.unpaid ? "cat-lagring cat-obetald" : "cat-lagring"}>{storageText(t, language, storage, !isOwner(ctx))}</p> : null}
         </div>
       ) : null}
     </section>

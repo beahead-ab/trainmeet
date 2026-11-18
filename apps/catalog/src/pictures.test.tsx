@@ -13,6 +13,7 @@ const editor: Ctx = { ...ctx(), right: "edit", fleetTitle: "Vagnparken · Provko
 const account = { id: "8a3e1f0c-1111-5222-8333-944455556666", name: "Provkonto A", initials: "PA" };
 const NOW = "2026-11-15T12:00:00Z";
 const MB = 1024 * 1024;
+const GB = 1024 * MB;
 const t = ctx().t;
 
 function vehicle(change: Partial<Vehicle> = {}): Vehicle {
@@ -62,7 +63,18 @@ function picture(n: number, change: Partial<Picture> = {}): Picture {
   };
 }
 
-const storage = (change: Partial<StorageUse> = {}): StorageUse => ({ used: 12 * MB, limit: 100 * MB, club: false, pictures: 3, backgrounds: true, ...change });
+const storage = (change: Partial<StorageUse> = {}): StorageUse => ({
+  used: 12 * MB,
+  limit: 100 * MB,
+  club: false,
+  pictures: 3,
+  backgrounds: true,
+  over_free: false,
+  paid_blocks: 0,
+  price_per_gb: 20,
+  unpaid: false,
+  ...change,
+});
 const three = [picture(1), picture(2, { main: true, background: "white" }), picture(3)];
 
 function view(props: Partial<PicturesViewProps> = {}): string {
@@ -172,7 +184,13 @@ describe("the pictures on the card (CAT-05, CAT-125)", () => {
     expect(pictureProblem(t, new ApiError(503, "unavailable"))).toBe("Bilderna kan inte sparas just nu. Försök igen om en stund.");
     expect(pictureProblem(t, new ApiError(422, "too_many_pictures"))).toBe("Fordonet har redan 10 bilder. Ta bort en först.");
     expect(pictureProblem(t, new TypeError("offline"))).toBe(t("problem_other"));
-    for (const code of ["bad_picture", "picture_too_large", "too_many_pictures", "storage_full", "backgrounds_off", "no_vehicle", "changed"]) {
+    expect(pictureProblem(t, new ApiError(402, "no_tokens"))).toBe(
+      "Den fria lagringen är full och saldot räcker inte till mer. Köp tokens i TrainMeet ID, eller ta bort bilder.",
+    );
+    expect(pictureProblem(t, new ApiError(429, "too_many"))).toBe(
+      "Taket för tokens per dygn är nått, så mer lagring kan inte betalas i dag. Försök i morgon, eller ta bort bilder.",
+    );
+    for (const code of ["bad_picture", "picture_too_large", "too_many_pictures", "storage_full", "no_tokens", "backgrounds_off", "no_vehicle", "changed"]) {
       for (const language of ["sv", "en"] as const) expect(TEXTS[language]).toHaveProperty(`problem_${code}`);
     }
   });
@@ -211,6 +229,35 @@ describe("the storage (CAT-131)", () => {
     expect(storageText(ctx("en").t, "en", { used: 12.34 * MB, limit: 100 * MB, club: false })).toBe("Storage: 12.3 of 100 MB");
     expect(storageText(t, "sv", { used: 0, limit: 100 * MB, club: false })).toBe("Lagring: 0 av 100 MB");
     expect(storageText(t, "sv", { used: 20_000, limit: 100 * MB, club: false })).toBe("Lagring: 0,1 av 100 MB");
+  });
+
+  it("shows what is paid over the free level this month (CAT-132)", () => {
+    const over = { used: 1.3 * GB, limit: 100 * MB, club: false, over_free: true, price_per_gb: 20 };
+    expect(storageText(t, "sv", { ...over, paid_blocks: 2 })).toBe("Lagring: 1,3 av 0,1 GB · 40 tokens den här månaden");
+    expect(storageText(ctx("en").t, "en", { ...over, paid_blocks: 2 })).toBe("Storage: 1.3 of 0.1 GB · 40 tokens this month");
+    expect(storageText(t, "sv", { used: 150 * MB, limit: 100 * MB, club: false, over_free: true, paid_blocks: 1, price_per_gb: 20 })).toBe(
+      "Lagring: 150 av 100 MB · 20 tokens den här månaden",
+    );
+    expect(storageText(t, "sv", { used: 2.5 * GB, limit: 2 * GB, club: true, over_free: true, paid_blocks: 1, price_per_gb: 20 })).toBe(
+      "Klubbens lagring: 2,5 av 2 GB · 20 tokens den här månaden",
+    );
+    // A new month that is not charged yet: what it costs.
+    expect(storageText(t, "sv", { ...over, paid_blocks: 0 })).toBe("Lagring: 1,3 av 0,1 GB · 20 tokens per påbörjad GB och månad över den fria nivån");
+    // Back under the free level, the month's paid GB are still shown.
+    expect(storageText(t, "sv", { used: 80 * MB, limit: 100 * MB, club: false, over_free: false, paid_blocks: 1, price_per_gb: 20 })).toBe(
+      "Lagring: 80 av 100 MB · 20 tokens den här månaden",
+    );
+  });
+
+  it("shows an unpaid month clearly", () => {
+    const unpaid = storage({ used: 1.3 * GB, over_free: true, paid_blocks: 0, unpaid: true });
+    expect(storageText(t, "sv", unpaid)).toBe(
+      "Lagring: 1,3 av 0,1 GB · Månadens lagring över den fria nivån är inte betald. Köp tokens i TrainMeet ID för att ladda upp fler bilder.",
+    );
+    expect(view({ storage: unpaid })).toContain('<p class="cat-lagring cat-obetald">Lagring: 1,3 av 0,1 GB · Månadens lagring');
+    expect(view({ storage: storage({ used: 1.3 * GB, over_free: true, paid_blocks: 2 }) })).toContain(
+      '<p class="cat-lagring">Lagring: 1,3 av 0,1 GB · 40 tokens den här månaden</p>',
+    );
   });
 });
 

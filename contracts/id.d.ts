@@ -1450,13 +1450,19 @@ export interface components {
          * TokenReserve
          * @description En app reserverar före ett arbete som kostar (TOKEN-24). Personen som arbetar ska få
          *     använda saldot: sitt eget, eller klubbens som medlem i klubben.
+         *
+         *     Utan person är det appens egen debitering av lagring över den fria nivån (CAT-132,
+         *     TOKEN-16): ingen person arbetar, och det dras från ägarens saldo, personens eller klubbens
+         *     (TOKEN-29). Det gäller också för den som redigerar en delad vagnpark och för appens dagliga
+         *     runda. Bara en app som debiterar lagring får reservera utan person (Catalog), och mätaren
+         *     läser aldrig med en sådan reservation.
          */
         "trainmeet.id-1.token-reserve": {
             /**
              * Person
-             * Format: uuid
+             * @description Personen som arbetar. null bara för appens egen debitering av lagring.
              */
-            person: string;
+            person: string | null;
             owner: components["schemas"]["trainmeet.id-1.token-reserve.TokenOwner"];
             /**
              * Amount

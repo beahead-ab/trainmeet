@@ -15,6 +15,7 @@ För personen, med ID:s sessionskaka:
 För apparna, med en token från Keycloaks client credentials (KONTO-34):
     GET    /api/id/1/apps/tokens?person=&owner=           TokenBalance
     POST   /api/id/1/apps/tokens/reservations             TokenReserve -> TokenReservation
+                                                          (utan person: lagring, CAT-132)
     POST   /api/id/1/apps/tokens/reservations/{id}/draw   TokenDraw -> TokenReservation
     POST   /api/id/1/apps/tokens/reservations/{id}/return TokenReservation
     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer (TOKEN-28)
@@ -103,9 +104,17 @@ ReservationKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0
 
 class TokenReserve(Contract):
     """En app reserverar före ett arbete som kostar (TOKEN-24). Personen som arbetar ska få
-    använda saldot: sitt eget, eller klubbens som medlem i klubben."""
+    använda saldot: sitt eget, eller klubbens som medlem i klubben.
 
-    person: UUID
+    Utan person är det appens egen debitering av lagring över den fria nivån (CAT-132,
+    TOKEN-16): ingen person arbetar, och det dras från ägarens saldo, personens eller klubbens
+    (TOKEN-29). Det gäller också för den som redigerar en delad vagnpark och för appens dagliga
+    runda. Bara en app som debiterar lagring får reservera utan person (Catalog), och mätaren
+    läser aldrig med en sådan reservation."""
+
+    person: UUID | None = Field(
+        description="Personen som arbetar. null bara för appens egen debitering av lagring."
+    )
     owner: TokenOwner
     amount: int = Field(
         ge=0,

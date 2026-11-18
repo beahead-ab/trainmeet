@@ -388,7 +388,9 @@ class ProblemCode(StrEnum):
     BAD_TAG = "bad_tag"
     """Not a tag's address: an NFC serial number in hex, a QR label or a simulated tag."""
     TOO_MANY = "too_many"
-    """More than 30 lookups in a minute: try again in a minute (CAT-111, CAT-112)."""
+    """More than 30 lookups in a minute: try again in a minute (CAT-111, CAT-112). For a picture:
+    the owner's cap of tokens per day in TrainMeet ID is reached, so the storage over the free
+    level cannot be paid today (TK15, CAT-132)."""
     NOT_HERE = "not_here"
     """Simulated tags exist only in the test environment (CAT-96)."""
     FORBIDDEN = "forbidden"
@@ -403,7 +405,12 @@ class ProblemCode(StrEnum):
     """The vehicle already has 10 pictures (CAT-17)."""
     STORAGE_FULL = "storage_full"
     """The owner's free storage is full: 100 MB for a person, 2 GB for a club (CAT-17,
-    TOKEN-29). Paid storage over the free level comes later (CAT-132)."""
+    TOKEN-29), and this Catalog cannot take tokens for more: it does not reach TrainMeet ID's
+    API, or ID does not know the owner, such as a trial account."""
+    NO_TOKENS = "no_tokens"
+    """The owner's free storage is full and the owner's balance in TrainMeet ID does not cover
+    the next started GB this month, 20 tokens (CAT-132): buy tokens in ID, or remove pictures.
+    Nothing was stored, and the pictures that are there stay."""
     BACKGROUNDS_OFF = "backgrounds_off"
     """The background removal is not on at this Catalog just now: only the original background
     can be chosen (CAT-127). StorageUse.backgrounds says so before anyone tries."""
@@ -412,7 +419,7 @@ class ProblemCode(StrEnum):
 
 
 class Problem(Contract):
-    """The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503."""
+    """The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503."""
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
@@ -701,7 +708,8 @@ class Picture(Contract):
 
 
 class StorageUse(Contract):
-    """The owner's storage: what the pictures take and the free level (CAT-17, CAT-131)."""
+    """The owner's storage: what the pictures take, the free level, and what is paid over it
+    this month (CAT-17, CAT-131, CAT-132)."""
 
     used: int = Field(description="Bytes the owner's pictures take, drafts' included.")
     limit: int = Field(description="The free level in bytes: 100 MB, or 2 GB for a club.")
@@ -710,6 +718,20 @@ class StorageUse(Contract):
     backgrounds: bool = Field(
         description="The background removal is on at this Catalog, so the other backgrounds "
         "than the original can be chosen (CAT-127, CAT-128)."
+    )
+    over_free: bool = Field(description="The pictures take more than the free level (CAT-132).")
+    paid_blocks: int = Field(
+        ge=0,
+        description="Started GB over the free level that are paid this month, in Swedish time "
+        "(CAT-132). They stay paid for the month, also when pictures are removed.",
+    )
+    price_per_gb: int = Field(
+        description="Tokens a started GB over the free level costs a month: 20 (TK10)."
+    )
+    unpaid: bool = Field(
+        description="This month's storage over the free level could not be drawn from the "
+        "owner's balance: the pictures stay, but nothing that makes the storage larger is saved "
+        "until it is paid (TK15)."
     )
 
 

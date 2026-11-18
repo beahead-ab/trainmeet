@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.storage-use.schema.json",
   "title": "trainmeet.catalog-1.storage-use",
   "additionalProperties": true,
-  "description": "The owner's storage: what the pictures take and the free level (CAT-17, CAT-131).",
+  "description": "The owner's storage: what the pictures take, the free level, and what is paid over it\nthis month (CAT-17, CAT-131, CAT-132).",
   "properties": {
     "used": {
       "description": "Bytes the owner's pictures take, drafts' included.",
@@ -29,6 +29,27 @@
       "description": "The background removal is on at this Catalog, so the other backgrounds than the original can be chosen (CAT-127, CAT-128).",
       "title": "Backgrounds",
       "type": "boolean"
+    },
+    "over_free": {
+      "description": "The pictures take more than the free level (CAT-132).",
+      "title": "Over Free",
+      "type": "boolean"
+    },
+    "paid_blocks": {
+      "description": "Started GB over the free level that are paid this month, in Swedish time (CAT-132). They stay paid for the month, also when pictures are removed.",
+      "minimum": 0,
+      "title": "Paid Blocks",
+      "type": "integer"
+    },
+    "price_per_gb": {
+      "description": "Tokens a started GB over the free level costs a month: 20 (TK10).",
+      "title": "Price Per Gb",
+      "type": "integer"
+    },
+    "unpaid": {
+      "description": "This month's storage over the free level could not be drawn from the owner's balance: the pictures stay, but nothing that makes the storage larger is saved until it is paid (TK15).",
+      "title": "Unpaid",
+      "type": "boolean"
     }
   },
   "required": [
@@ -36,7 +57,11 @@
     "limit",
     "club",
     "pictures",
-    "backgrounds"
+    "backgrounds",
+    "over_free",
+    "paid_blocks",
+    "price_per_gb",
+    "unpaid"
   ],
   "type": "object"
 }

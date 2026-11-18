@@ -3,6 +3,8 @@
 Catalog asks ID's API with a token of its own, from Keycloak's client credentials, kept until
 shortly before it runs out. The answer is never kept: a changed sharing applies at once. If ID
 does not answer, nothing shared is shown (503), while the owner's own fleet works as before.
+The same token reserves and draws the tokens for the storage over the free level (CAT-132,
+catalog/storage.py).
 """
 
 from __future__ import annotations
@@ -65,12 +67,23 @@ class IdRoles:
                 self._until = time.monotonic() + max(int(body.get("expires_in", 60)) - 30, 5)
             return self._token
 
-    def _get(self, path: str, params: dict[str, str]) -> object:
+    def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        body: dict[str, object] | None = None,
+    ) -> httpx.Response:
+        """ID's answer to the app's call, whatever it says; a refused token is made anew once.
+        Refused with 503 when ID does not answer."""
         for attempt in (1, 2):
             try:
-                answer = self.http.get(
+                answer = self.http.request(
+                    method,
                     f"{self.api}/api/id/1/apps/{path}",
                     params=params,
+                    json=body,
                     headers={"Authorization": f"Bearer {self._bearer()}"},
                 )
             except httpx.HTTPError as error:
@@ -80,12 +93,16 @@ class IdRoles:
                 with self._lock:
                     self._token = None  # a new token, once
                 continue
-            if answer.status_code != 200:
-                LOGGER.warning("ID:s API svarade %s.", answer.status_code)
-                raise unavailable()
-            result: object = answer.json()
-            return result
+            return answer
         raise unavailable()
+
+    def _get(self, path: str, params: dict[str, str]) -> object:
+        answer = self.call("GET", path, params=params)
+        if answer.status_code != 200:
+            LOGGER.warning("ID:s API svarade %s.", answer.status_code)
+            raise unavailable()
+        result: object = answer.json()
+        return result
 
     def fleet_roles(self, person: UUID, owner: UUID) -> set[str]:
         """The person's roles for the owner's fleet, as ID says now."""

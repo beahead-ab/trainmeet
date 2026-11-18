@@ -9,6 +9,11 @@ goes back (TOKEN-24). A reservation nobody draws or returns goes back by itself 
 The app's own key makes it safe to ask again: the same key gives the same reservation and draws
 nothing twice (TOKEN-28). Every change happens in one short transaction with the account's row
 locked, so two calls at once can never spend the same token.
+
+An app that bills its own storage over the free level (Catalog, CAT-132) reserves without a
+person: the owner's account pays for what is stored, whoever uploaded it, also at the app's
+daily round when no person is there. Only the apps in storage_apps may, and the meter never reads
+with such a reservation (id/meter.py).
 """
 
 from __future__ import annotations
@@ -41,6 +46,9 @@ FREE_CLUB: Final = 300
 """Månadens gratiskvot per klubb (TK10, TOKEN-14)."""
 HOLD: Final = timedelta(minutes=30)
 """How long a reservation is held before it goes back by itself."""
+STORAGE_APPS: Final = frozenset({"catalog"})
+"""The apps that bill their own storage over the free level (CAT-132, TOKEN-16): they alone may
+reserve without a person, from the owner's balance."""
 
 
 def owner_from(text: str) -> TokenOwner:
@@ -67,11 +75,14 @@ class Tokens:
         db: Database,
         clock: Callable[[], datetime] | None = None,
         caps: Callable[[], tuple[int, int]] | None = None,
+        storage_apps: frozenset[str] = STORAGE_APPS,
     ) -> None:
-        """caps: the caps per day for an account and a club (TK15), from the owner page."""
+        """caps: the caps per day for an account and a club (TK15), from the owner page.
+        storage_apps: the apps that may reserve without a person, for their storage."""
         self.db = db
         self.clock = clock if clock is not None else lambda: datetime.now(UTC)
         self.caps = caps
+        self.storage_apps = storage_apps
 
     # --- Reading ----------------------------------------------------------------------------
 
@@ -97,8 +108,14 @@ class Tokens:
     # --- Reserve, draw and return -----------------------------------------------------------
 
     def reserve(self, app: str, asked: TokenReserve) -> TokenReservation:
+        """Hold the amount for the work. Without a person it is the app's own billing of its
+        storage (CAT-132), which only the apps in storage_apps may do; the caps per day count
+        all the same (TK15)."""
         with self.db.transaction() as conn:
-            self._may_use(conn, asked.person, asked.owner)
+            if asked.person is None:
+                self._may_bill_storage(app)
+            else:
+                self._may_use(conn, asked.person, asked.owner)
             account = self._account(conn, asked.owner)
             same = conn.execute(
                 "SELECT * FROM token_reservation WHERE app = %s AND key = %s",
@@ -203,6 +220,19 @@ class Tokens:
             row, account = self._held(conn, app, reservation)
             return self._out(conn, account, row)
 
+    def has_person(self, app: str, reservation: UUID) -> bool:
+        """Is the app's reservation for a person's work? One without a person is the app's own
+        billing of its storage (CAT-132), or its person's account is removed: the meter never
+        reads with it."""
+        with self.db.transaction() as conn:
+            row = conn.execute(
+                "SELECT person_id FROM token_reservation WHERE id = %s AND app = %s",
+                (reservation, app),
+            ).fetchone()
+        if row is None:
+            raise not_found()
+        return row["person_id"] is not None
+
     def give_back(self, app: str, reservation: UUID) -> TokenReservation:
         """The work did not happen, or failed: everything goes back (TOKEN-24)."""
         with self.db.transaction() as conn:
@@ -236,6 +266,15 @@ class Tokens:
         return found
 
     # --- Inside -----------------------------------------------------------------------------
+
+    def _may_bill_storage(self, app: str) -> None:
+        """A reservation without a person: only an app that bills its own storage (CAT-132)."""
+        if app not in self.storage_apps:
+            raise Refused(
+                403,
+                ProblemCode.FORBIDDEN,
+                "Bara en app som tar betalt för sin lagring reserverar utan en person.",
+            )
 
     def _may_use(self, conn: Connection[DictRow], person: UUID, owner: TokenOwner) -> None:
         """A person uses their own balance, and their club's as its member or admin."""
