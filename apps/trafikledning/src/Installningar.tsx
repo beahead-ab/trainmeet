@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
+import { hub, type AiService, type AiServiceChange, type Automation, type ClockSource, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -58,6 +58,7 @@ export function heaps(now: Now | null): Heap[] {
       label: "Under träffen",
       note: "gäller medan den körs",
       items: [
+        ["klockan", "Klockan"],
         ["automatik", "Automatik"],
         ["dygnsskifte", "Dygnsskifte"],
         ["telefon", "Telefonnummer"],
@@ -96,6 +97,7 @@ export function SettingsPage(props: SettingsProps) {
         </nav>
         <div className="kortlista">
           {now && <Meet now={now} />}
+          {now && <Klockan admin={props.admin} now={now} />}
           {now && <Automatik {...props} now={now} />}
           {now && <Dygnsskifte {...props} now={now} />}
           {now && <Telefon {...props} now={now} />}
@@ -276,6 +278,111 @@ export function TraffensWifi({ admin, initial }: { admin: boolean; initial?: Mee
               {said || "Utan namn delas träffens Wi-Fi inte."}
             </span>
             <button type="submit" className="primar">
+              Spara
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+const FASTCLOCK = "https://fastclock.azurewebsites.net";
+
+/** Klockan (F12, IMPORT-35): Drift's own clock, or FastClock, which Drift then follows. The
+ * hub reads FastClock before it is saved; the password is never shown again. */
+export function Klockan({ admin, now, initial }: { admin: boolean; now: Now; initial?: ClockSource }) {
+  const [state, setState] = useState<ClockSource | null>(initial ?? null);
+  const [source, setSource] = useState<"drift" | "fastclock">(initial?.source ?? "drift");
+  const [name, setName] = useState(initial?.clock_name ?? "");
+  const [url, setUrl] = useState(initial?.url ?? FASTCLOCK);
+  const [user, setUser] = useState(initial?.user ?? "");
+  const [password, setPassword] = useState("");
+  const [every, setEvery] = useState(initial?.poll_interval ?? 2);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
+  const take = (found: ClockSource) => {
+    setState(found);
+    setSource(found.source);
+    setName(found.clock_name);
+    setUrl(found.url);
+    setUser(found.user);
+    setEvery(found.poll_interval);
+  };
+  useEffect(() => {
+    if (!admin || initial) return;
+    void hub.clockSource().then(take, () => undefined);
+  }, [admin, initial]);
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setSaid(source === "fastclock" ? "Läser FastClock …" : "");
+    try {
+      const saved = await hub.saveClockSource({ source, clock_name: name, url, user, password: password || null, poll_interval: every });
+      take(saved);
+      setPassword("");
+      setSaid(saved.source === "fastclock" ? "Sparat. Klockan följer FastClock." : "Sparat. Drifts klocka står där FastClock var; starta den i Nu.");
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const external = now.external_clock;
+  return (
+    <section id="klockan" className="kort" aria-labelledby="klockan-rubrik">
+      <h2 id="klockan-rubrik">Klockan</h2>
+      <p className="liten">Drifts egen klocka, eller FastClock som Drift följer. Skärmar, boxar och TKL läser tiden från Hubben som förut. Gäller den här träffen.</p>
+      {external && (
+        <p className={"liten" + (external.available ? "" : " varning")} id="klockan-lage" role="status">
+          {external.available ? `Följer FastClock · ${external.name}.` : external.warning}
+        </p>
+      )}
+      {!admin ? (
+        <p className="liten">Logga in som trafikledare för att byta klocka.</p>
+      ) : (
+        <form id="klockan-form" className="formular" onSubmit={(event) => void save(event)}>
+          <fieldset className="val">
+            <legend>Klocka</legend>
+            <label className="kryss">
+              <input type="radio" name="klocka" value="drift" checked={source === "drift"} onChange={() => setSource("drift")} /> Drifts klocka
+            </label>
+            <label className="kryss">
+              <input type="radio" name="klocka" value="fastclock" checked={source === "fastclock"} onChange={() => setSource("fastclock")} /> FastClock
+            </label>
+          </fieldset>
+          {source === "fastclock" && (
+            <>
+              <label>
+                Klockans namn i FastClock <input id="klockan-namn" maxLength={100} value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />
+              </label>
+              <label>
+                FastClocks adress <input id="klockan-adress" className="tm-mono" maxLength={255} value={url} autoComplete="off" spellCheck={false} onChange={(event) => setUrl(event.target.value)} />
+              </label>
+              <label>
+                Användare för start och stopp härifrån <input id="klockan-anvandare" maxLength={100} value={user} autoComplete="off" placeholder="tomt: bara följa" onChange={(event) => setUser(event.target.value)} />
+              </label>
+              {user && (
+                <label>
+                  Lösenord <input id="klockan-losen" type="password" maxLength={256} autoComplete="off" placeholder={state?.has_password ? "oförändrat" : ""} value={password} onChange={(event) => setPassword(event.target.value)} />
+                </label>
+              )}
+              <label>
+                Läs var{" "}
+                <select id="klockan-intervall" value={every} onChange={(event) => setEvery(Number(event.target.value))}>
+                  {[2, 5, 10, 30].map((seconds) => (
+                    <option key={seconds} value={seconds}>{`${seconds} sekunder`}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="liten">Tiden och hastigheten ändras i FastClock. Utan svar står klockan kvar på senaste tiden, med en varning i Nu.</p>
+            </>
+          )}
+          <div className="installningsfot">
+            <span className="liten" role="status" id="klockan-said">
+              {said}
+            </span>
+            <button type="submit" className="primar" disabled={busy || (source === "fastclock" && !name.trim())}>
               Spara
             </button>
           </div>

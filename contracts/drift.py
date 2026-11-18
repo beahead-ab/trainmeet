@@ -878,6 +878,30 @@ class SwitchWaiting(Contract):
     waits_for: list[Text] = Field(default_factory=list)
 
 
+class ExternalClockNow(Contract):
+    """FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open
+    to everyone who looks, so it holds no user or password."""
+
+    source: Literal["fastclock"] = "fastclock"
+    name: Text = Field(description="Klockans namn i FastClock.")
+    available: bool = Field(description="FastClock svarar, och klockan följer den.")
+    can_control: bool = Field(
+        description="Start och stopp i Nu går till FastClock; annars bara i FastClock."
+    )
+    warning: str | None = Field(
+        default=None,
+        description="Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.",
+    )
+    reason: str | None = Field(
+        default=None, description="FastClocks orsak till paus eller stopp, om den har någon."
+    )
+    message: str | None = Field(default=None, description="FastClocks meddelande, som det står.")
+    completed: bool = Field(default=False, description="Dagens spel är slut i FastClock.")
+    weekday: Weekday | None = Field(
+        default=None, description="FastClocks veckodag. Den visas, men byter aldrig trafikdag."
+    )
+
+
 class Leader(Contract):
     """Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14)."""
 
@@ -919,6 +943,9 @@ class Now(Contract):
     leader: Leader | None = Field(
         default=None,
         description="En annan hubb leder träffen och den här följer den live (SYNK-14).",
+    )
+    external_clock: ExternalClockNow | None = Field(
+        default=None, description="FastClock är träffens klocka (F12, IMPORT-35)."
     )
 
 

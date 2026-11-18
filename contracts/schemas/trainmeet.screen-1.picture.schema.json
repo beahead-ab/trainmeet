@@ -653,6 +653,99 @@
       "title": "DayStatus",
       "type": "object"
     },
+    "ExternalClockNow": {
+      "additionalProperties": true,
+      "description": "FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open\nto everyone who looks, so it holds no user or password.",
+      "properties": {
+        "source": {
+          "const": "fastclock",
+          "default": "fastclock",
+          "title": "Source",
+          "type": "string"
+        },
+        "name": {
+          "description": "Klockans namn i FastClock.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "available": {
+          "description": "FastClock svarar, och klockan följer den.",
+          "title": "Available",
+          "type": "boolean"
+        },
+        "can_control": {
+          "description": "Start och stopp i Nu går till FastClock; annars bara i FastClock.",
+          "title": "Can Control",
+          "type": "boolean"
+        },
+        "warning": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.",
+          "title": "Warning"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FastClocks orsak till paus eller stopp, om den har någon.",
+          "title": "Reason"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FastClocks meddelande, som det står.",
+          "title": "Message"
+        },
+        "completed": {
+          "default": false,
+          "description": "Dagens spel är slut i FastClock.",
+          "title": "Completed",
+          "type": "boolean"
+        },
+        "weekday": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Weekday"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FastClocks veckodag. Den visas, men byter aldrig trafikdag."
+        }
+      },
+      "required": [
+        "name",
+        "available",
+        "can_control"
+      ],
+      "title": "ExternalClockNow",
+      "type": "object"
+    },
     "ExtraTrain": {
       "additionalProperties": true,
       "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
@@ -1121,6 +1214,18 @@
           ],
           "default": null,
           "description": "En annan hubb leder träffen och den här följer den live (SYNK-14)."
+        },
+        "external_clock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalClockNow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FastClock är träffens klocka (F12, IMPORT-35)."
         }
       },
       "required": [

@@ -32,6 +32,7 @@ from drift.store import (
     UnknownClient,
     UnknownExit,
 )
+from hub.clock_source import ClockSource
 from hub.hubben import Authorization, SessionCookie, session_of
 from hub.id_roles import PLANS, RUNS
 from hub.local import DISPATCHER, PERSON, LocalLogin
@@ -65,9 +66,15 @@ def _latest(history: list[drift.DriftEvent], kind: drift.EventKind | None) -> dr
     return next(event for event in reversed(history) if event.kind == kind)
 
 
-def router(running: Running, login: LocalLogin, rights: Rights | None = None) -> APIRouter:
+def router(
+    running: Running,
+    login: LocalLogin,
+    rights: Rights | None = None,
+    clock_source: ClockSource | None = None,
+) -> APIRouter:
     """rights: who may run the meet: the hub's PIN, someone let in with a one-time code (H56),
-    or Administratör and Trafikledare at the meet in TrainMeet ID (ID3, #78)."""
+    or Administratör and Trafikledare at the meet in TrainMeet ID (ID3, #78). clock_source:
+    FastClock as the meet's clock, when it is chosen (F12, hub/clock_source.py)."""
     routes = APIRouter(prefix="/api/drift/1")
     failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient, ExitAnswered, UnknownExit)
     may = rights if rights is not None else Rights(login)
@@ -159,6 +166,9 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         run_id = dispatching(session, authorization)
+        if clock_source is not None and clock_source.control(control.action):
+            # FastClock is the clock: start and stop went there, and Drift followed (F12).
+            return _latest(running.store.state(run_id).history, None).model_dump(mode="json")
         try:
             state = running.store.clock(run_id, control)
         except failures as error:
@@ -406,6 +416,8 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
             seen = seen.model_copy(
                 update={"leader": drift.Leader(hub_name=hub_name, heard=heard, silent=silent)}
             )
+        if clock_source is not None:
+            seen = seen.model_copy(update={"external_clock": clock_source.now()})
         if seen.changes and running.meet != PROVBANAN:
             answers = running.answers(running.meet)
             seen = seen.model_copy(

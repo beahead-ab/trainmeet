@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, Molnet, Natet, newSeed, SettingsPage, Uppdatering } from "./Installningar";
+import { heaps, Klockan, Molnet, Natet, newSeed, SettingsPage, Uppdatering } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage } from "./Logg";
 import { NuPage } from "./Nu";
@@ -277,6 +277,37 @@ describe("Namn och PIN under the gear (SYNK-07, H46)", () => {
   });
 });
 
+describe("FastClock as the meet's clock (F12, IMPORT-35)", () => {
+  const external = { source: "fastclock", name: "Träffen", available: true, can_control: false, warning: null, reason: null, message: "Vi börjar 13:00", completed: false, weekday: "sat" };
+  const following = { ...now, external_clock: external } as Now;
+
+  it("says in Nu that the clock follows FastClock, and leaves the time and speed to it", () => {
+    const html = renderToStaticMarkup(<NuPage admin now={following} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(html).toContain("Klockan följer FastClock · Träffen");
+    expect(html).toContain("FastClock säger lördag · Vi börjar 13:00");
+    expect(html).not.toContain('id="clock-controls"');
+    expect(html).not.toContain('id="jump-slider"');
+    const steering = renderToStaticMarkup(<NuPage admin now={{ ...following, external_clock: { ...external, can_control: true } } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(steering).toContain('id="clock-toggle"');
+    expect(steering).not.toContain(">4×</button>");
+    expect(steering).toContain("Start och stopp går till FastClock.");
+    // Without an answer the last time stands, with a warning.
+    const lost = renderToStaticMarkup(<NuPage admin={false} now={{ ...following, external_clock: { ...external, available: false, warning: "Väntar på FastClock. Senast mottagna tid visas." } } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(lost).toContain('role="alert"');
+    expect(lost).toContain("Väntar på FastClock. Senast mottagna tid visas.");
+  });
+
+  it("sets the clock under Inställningar, and never shows the password", () => {
+    const saved = { meet: "provbanan", source: "fastclock", clock_name: "Träffen", url: "https://fastclock.azurewebsites.net", user: "Trafikledare", has_password: true, poll_interval: 2 } as const;
+    const html = renderToStaticMarkup(<Klockan admin now={following} initial={saved} />);
+    expect(html).toContain('value="Träffen"');
+    expect(html).toContain('placeholder="oförändrat"');
+    expect(html).toContain("Följer FastClock · Träffen.");
+    expect(renderToStaticMarkup(<Klockan admin={false} now={now} />)).toContain("Logga in som trafikledare för att byta klocka.");
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toContain("klockan");
+  });
+});
+
 describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   const automation = {
     settings: { enabled: true, lost_contact_minutes: 0, disturbance: "off", where: "both", seed: "", stabling: true, stabling_minutes: 5, late_stop_minutes: 2, answer_seconds: 3 },
@@ -351,7 +382,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
 
   it("lets the administrator choose the day change by hand or automatic, and its time (F7)", () => {
     const day = { mode: "automatic", time: "04:30", fixed: true, next_game_day: 2, next_traffic_day: "tue", suggested: "04:30", due: false, waiting: false };
-    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["automatik", "dygnsskifte", "telefon", "traffens-wifi"]);
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["klockan", "automatik", "dygnsskifte", "telefon", "traffens-wifi"]);
     const html = settings(true, { ...now, day } as Now);
     expect(html).toContain('id="dygnsskifte"');
     expect(html).toContain('aria-pressed="true">Automatiskt</button>');

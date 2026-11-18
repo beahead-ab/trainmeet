@@ -1028,6 +1028,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/clock-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["clockSource"];
+        put?: never;
+        post: operations["setClockSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/meet-wifi": {
         parameters: {
             query?: never;
@@ -6316,6 +6332,11 @@ export interface components {
              * @default null
              */
             leader: components["schemas"]["trainmeet.drift-1.now.Leader"] | null;
+            /**
+             * @description FastClock är träffens klocka (F12, IMPORT-35).
+             * @default null
+             */
+            external_clock: components["schemas"]["trainmeet.drift-1.now.ExternalClockNow"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6639,6 +6660,65 @@ export interface components {
              * @description Automatiskt: tiden har passerats, men dagens tåg är ute (högst 30 min).
              */
             waiting: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExternalClockNow
+         * @description FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open
+         *     to everyone who looks, so it holds no user or password.
+         */
+        "trainmeet.drift-1.now.ExternalClockNow": {
+            /**
+             * Source
+             * @default fastclock
+             * @constant
+             */
+            source: "fastclock";
+            /**
+             * Name
+             * @description Klockans namn i FastClock.
+             */
+            name: string;
+            /**
+             * Available
+             * @description FastClock svarar, och klockan följer den.
+             */
+            available: boolean;
+            /**
+             * Can Control
+             * @description Start och stopp i Nu går till FastClock; annars bara i FastClock.
+             */
+            can_control: boolean;
+            /**
+             * Warning
+             * @description Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.
+             * @default null
+             */
+            warning: string | null;
+            /**
+             * Reason
+             * @description FastClocks orsak till paus eller stopp, om den har någon.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Message
+             * @description FastClocks meddelande, som det står.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Completed
+             * @description Dagens spel är slut i FastClock.
+             * @default false
+             */
+            completed: boolean;
+            /**
+             * @description FastClocks veckodag. Den visas, men byter aldrig trafikdag.
+             * @default null
+             */
+            weekday: components["schemas"]["trainmeet.drift-1.now.Weekday"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -7884,6 +7964,65 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExternalClockNow
+         * @description FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open
+         *     to everyone who looks, so it holds no user or password.
+         */
+        "trainmeet.screen-1.picture.ExternalClockNow": {
+            /**
+             * Source
+             * @default fastclock
+             * @constant
+             */
+            source: "fastclock";
+            /**
+             * Name
+             * @description Klockans namn i FastClock.
+             */
+            name: string;
+            /**
+             * Available
+             * @description FastClock svarar, och klockan följer den.
+             */
+            available: boolean;
+            /**
+             * Can Control
+             * @description Start och stopp i Nu går till FastClock; annars bara i FastClock.
+             */
+            can_control: boolean;
+            /**
+             * Warning
+             * @description Varför klockan står: inget svar, eller ett fel. Senaste tiden står kvar.
+             * @default null
+             */
+            warning: string | null;
+            /**
+             * Reason
+             * @description FastClocks orsak till paus eller stopp, om den har någon.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Message
+             * @description FastClocks meddelande, som det står.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Completed
+             * @description Dagens spel är slut i FastClock.
+             * @default false
+             */
+            completed: boolean;
+            /**
+             * @description FastClocks veckodag. Den visas, men byter aldrig trafikdag.
+             * @default null
+             */
+            weekday: components["schemas"]["trainmeet.screen-1.picture.Weekday"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
          *     departure time, where Drift fills in the places between.
@@ -8124,6 +8263,11 @@ export interface components {
              * @default null
              */
             leader: components["schemas"]["trainmeet.screen-1.picture.Leader"] | null;
+            /**
+             * @description FastClock är träffens klocka (F12, IMPORT-35).
+             * @default null
+             */
+            external_clock: components["schemas"]["trainmeet.screen-1.picture.ExternalClockNow"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -8639,6 +8783,84 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ClockSourceSettings
+         * @description Klockan for the meet that runs, as Trafikledningen sees it. The password is never
+         *     shown, only whether there is one.
+         */
+        "trainmeet.hub-1.clock-source": {
+            /** Meet */
+            meet: string;
+            source: components["schemas"]["trainmeet.hub-1.clock-source.ClockSource"];
+            /** Clock Name */
+            clock_name: string;
+            /**
+             * Url
+             * @description FastClocks adress, en publik HTTPS-adress.
+             */
+            url: string;
+            /**
+             * User
+             * @description För start och stopp härifrån; tomt: bara följa.
+             */
+            user: string;
+            /** Has Password */
+            has_password: boolean;
+            /**
+             * Poll Interval
+             * @description Sekunder mellan läsningarna.
+             */
+            poll_interval: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockSource
+         * @description Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.
+         * @enum {string}
+         */
+        "trainmeet.hub-1.clock-source.ClockSource": "drift" | "fastclock";
+        /**
+         * ClockSourceChange
+         * @description Byt klocka. FastClock is read before it is saved; without a password the one kept is
+         *     used, unless the clock, the user or the address is another.
+         */
+        "trainmeet.hub-1.clock-source-change": {
+            source: components["schemas"]["trainmeet.hub-1.clock-source-change.ClockSource"];
+            /**
+             * Clock Name
+             * @default
+             */
+            clock_name: string;
+            /**
+             * Url
+             * @default https://fastclock.azurewebsites.net
+             */
+            url: string;
+            /**
+             * User
+             * @default
+             */
+            user: string;
+            /**
+             * Password
+             * @default null
+             */
+            password: string | null;
+            /**
+             * Poll Interval
+             * @default 2
+             */
+            poll_interval: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockSource
+         * @description Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.
+         * @enum {string}
+         */
+        "trainmeet.hub-1.clock-source-change.ClockSource": "drift" | "fastclock";
         /**
          * SharedWifi
          * @description Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).
@@ -17923,6 +18145,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.update-status"];
+                };
+            };
+        };
+    };
+    clockSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.clock-source"];
+                };
+            };
+        };
+    };
+    setClockSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.clock-source-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.clock-source"];
                 };
             };
         };

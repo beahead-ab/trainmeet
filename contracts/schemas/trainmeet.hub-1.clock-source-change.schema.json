@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.clock-source-change.schema.json",
+  "title": "trainmeet.hub-1.clock-source-change",
+  "$defs": {
+    "ClockSource": {
+      "description": "Träffens klocka (F12): Drifts egen, eller FastClock som Drift följer.",
+      "enum": [
+        "drift",
+        "fastclock"
+      ],
+      "title": "ClockSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Byt klocka. FastClock is read before it is saved; without a password the one kept is\nused, unless the clock, the user or the address is another.",
+  "properties": {
+    "source": {
+      "$ref": "#/$defs/ClockSource"
+    },
+    "clock_name": {
+      "default": "",
+      "maxLength": 100,
+      "title": "Clock Name",
+      "type": "string"
+    },
+    "url": {
+      "default": "https://fastclock.azurewebsites.net",
+      "maxLength": 255,
+      "title": "Url",
+      "type": "string"
+    },
+    "user": {
+      "default": "",
+      "maxLength": 100,
+      "title": "User",
+      "type": "string"
+    },
+    "password": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Password"
+    },
+    "poll_interval": {
+      "default": 2,
+      "maximum": 30,
+      "minimum": 2,
+      "title": "Poll Interval",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "source"
+  ],
+  "type": "object"
+}
