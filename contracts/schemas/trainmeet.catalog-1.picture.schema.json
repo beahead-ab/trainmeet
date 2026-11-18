@@ -2,6 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.picture.schema.json",
   "title": "trainmeet.catalog-1.picture",
+  "$defs": {
+    "PictureBackground": {
+      "description": "The picture's background (CAT-128). All but the original need the background removal.",
+      "enum": [
+        "original",
+        "white",
+        "grey",
+        "transparent",
+        "rails"
+      ],
+      "title": "PictureBackground",
+      "type": "string"
+    }
+  },
   "additionalProperties": true,
   "description": "One of the vehicle's pictures (CAT-05).",
   "properties": {
@@ -58,6 +72,10 @@
       "default": null,
       "description": "The original, only with Spara original (CAT-17).",
       "title": "Original Url"
+    },
+    "background": {
+      "$ref": "#/$defs/PictureBackground",
+      "description": "The background the display picture and the thumbnail have (CAT-128)."
     }
   },
   "required": [
@@ -68,7 +86,8 @@
     "height",
     "bytes",
     "display_url",
-    "thumb_url"
+    "thumb_url",
+    "background"
   ],
   "type": "object"
 }

@@ -25,7 +25,9 @@
         "bad_picture",
         "picture_too_large",
         "too_many_pictures",
-        "storage_full"
+        "storage_full",
+        "backgrounds_off",
+        "no_vehicle"
       ],
       "title": "ProblemCode",
       "type": "string"

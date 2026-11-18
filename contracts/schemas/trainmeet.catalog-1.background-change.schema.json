@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.background-change.schema.json",
+  "title": "trainmeet.catalog-1.background-change",
+  "$defs": {
+    "PictureBackground": {
+      "description": "The picture's background (CAT-128). All but the original need the background removal.",
+      "enum": [
+        "original",
+        "white",
+        "grey",
+        "transparent",
+        "rails"
+      ],
+      "title": "PictureBackground",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A new background for a picture, made from what was kept at the upload (CAT-128).",
+  "properties": {
+    "background": {
+      "$ref": "#/$defs/PictureBackground"
+    }
+  },
+  "required": [
+    "background"
+  ],
+  "type": "object"
+}

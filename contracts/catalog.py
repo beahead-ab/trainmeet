@@ -404,6 +404,11 @@ class ProblemCode(StrEnum):
     STORAGE_FULL = "storage_full"
     """The owner's free storage is full: 100 MB for a person, 2 GB for a club (CAT-17,
     TOKEN-29). Paid storage over the free level comes later (CAT-132)."""
+    BACKGROUNDS_OFF = "backgrounds_off"
+    """The background removal is not on at this Catalog just now: only the original background
+    can be chosen (CAT-127). StorageUse.backgrounds says so before anyone tries."""
+    NO_VEHICLE = "no_vehicle"
+    """The background removal found no clear vehicle in the picture (CAT-129)."""
 
 
 class Problem(Contract):
@@ -622,8 +627,11 @@ class RemovedCount(Contract):
 # --- The pictures (CAT-05, CAT-17, CAT-123–CAT-133) -------------------------------------------
 #
 #     GET    /api/catalog/1/vehicles/{id}/pictures                    [Picture], in order
-#     POST   /api/catalog/1/vehicles/{id}/pictures?keep_original=     the picture -> Picture
+#     POST   /api/catalog/1/vehicles/{id}/pictures?keep_original=&background=
+#                                                                     the picture -> Picture
 #     POST   /api/catalog/1/vehicles/{id}/pictures/{picture}/main     [Picture]
+#     POST   /api/catalog/1/vehicles/{id}/pictures/{picture}/background
+#                                                                     BackgroundChange -> Picture
 #     DELETE /api/catalog/1/vehicles/{id}/pictures/{picture}          Removed
 #     GET    /api/catalog/1/storage                                   StorageUse
 #     GET    /api/catalog/1/pictures/file/{key}?expires=&sig=         the picture, only when
@@ -641,8 +649,34 @@ class RemovedCount(Contract):
 #   Someone who edits a shared fleet stores with the owner, within the owner's limit (CAT-133).
 # - The pictures are private and fetched with signed addresses that expire (CAT-130). The same
 #   picture keeps its address for half an hour, so the browser can keep it.
-# - To look is enough to see the pictures; to edit is needed to add, choose and remove them.
-#   ?fleet=<owner> works in a shared fleet, as for the vehicles (#49).
+# - The background removal (friläggning) runs on Catalog's own server with the U2NetP model and
+#   costs no tokens; nothing is sent to an AI provider (CAT-18, CAT-127). Its mask gives the
+#   vehicle's outline, and the vehicle's colours come only from the photo itself.
+# - Five backgrounds (CAT-128): original, white, grey, transparent and rails. One is chosen at
+#   the upload, original by default, and can be changed later without uploading again. With the
+#   mask, the display picture and the thumbnail are cropped around the vehicle, so it stands in
+#   the middle and fills them (CAT-129); the original background is cropped within the photo.
+#   Transparent is a WebP with an alpha channel; the others are JPEG.
+# - What is kept to change the background again, the photo at display size and the mask, counts
+#   in the storage. A change that makes the picture larger needs room for it; one that does not
+#   is always possible. Without the model only the original background can be chosen
+#   (backgrounds_off, StorageUse.backgrounds); the uploads work as before.
+# - To look is enough to see the pictures; to edit is needed to add, choose and remove them and
+#   to change their background. ?fleet=<owner> works in a shared fleet, as for the vehicles
+#   (#49).
+
+
+class PictureBackground(StrEnum):
+    """The picture's background (CAT-128). All but the original need the background removal."""
+
+    ORIGINAL = "original"
+    """The photo's own background, cropped around the vehicle when the mask is there."""
+    WHITE = "white"
+    GREY = "grey"
+    TRANSPARENT = "transparent"
+    """No background: a WebP with an alpha channel."""
+    RAILS = "rails"
+    """Räls: the vehicle stands on a track with sleepers, drawn by Catalog itself."""
 
 
 class Picture(Contract):
@@ -661,6 +695,9 @@ class Picture(Contract):
     original_url: str | None = Field(
         default=None, description="The original, only with Spara original (CAT-17)."
     )
+    background: PictureBackground = Field(
+        description="The background the display picture and the thumbnail have (CAT-128)."
+    )
 
 
 class StorageUse(Contract):
@@ -670,3 +707,13 @@ class StorageUse(Contract):
     limit: int = Field(description="The free level in bytes: 100 MB, or 2 GB for a club.")
     club: bool = Field(description="The owner is a club (TOKEN-29).")
     pictures: int = Field(description="How many pictures the owner has.")
+    backgrounds: bool = Field(
+        description="The background removal is on at this Catalog, so the other backgrounds "
+        "than the original can be chosen (CAT-127, CAT-128)."
+    )
+
+
+class BackgroundChange(Contract):
+    """A new background for a picture, made from what was kept at the upload (CAT-128)."""
+
+    background: PictureBackground

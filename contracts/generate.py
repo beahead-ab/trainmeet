@@ -209,6 +209,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.picture": catalog.Picture,
     "trainmeet.catalog-1.picture-links": catalog.PictureLinks,
     "trainmeet.catalog-1.storage-use": catalog.StorageUse,
+    "trainmeet.catalog-1.background-change": catalog.BackgroundChange,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -875,6 +876,11 @@ def catalog_openapi() -> str:
     )
     # The pictures (CAT-05, CAT-17, CAT-123–CAT-133). The upload's body is the picture itself.
     pictures = v + "/{vehicle}/pictures"
+    backgrounds: JsonSchemaValue = {
+        "type": "string",
+        "enum": [b.value for b in catalog.PictureBackground],
+        "default": catalog.PictureBackground.ORIGINAL.value,
+    }
     route("get", pictures, "vehiclePictures", "picture", many=True, problems=(401, 404))
     route(
         "post",
@@ -882,8 +888,11 @@ def catalog_openapi() -> str:
         "addPicture",
         "picture",
         created=True,
-        query=(("keep_original", {"type": "boolean", "default": False}),),
-        problems=(401, 404, 413, 415, 422),
+        query=(
+            ("keep_original", {"type": "boolean", "default": False}),
+            ("background", backgrounds),
+        ),
+        problems=(401, 404, 413, 415, 422, 503),
     )
     paths[pictures]["post"]["requestBody"] = {
         "required": True,
@@ -894,6 +903,15 @@ def catalog_openapi() -> str:
         },
     }
     route("post", pictures + "/{picture}/main", "mainPicture", "picture", many=True, problems=write)
+    # Friläggningen (CAT-127–CAT-129): made again from the photo and the mask kept at the upload.
+    route(
+        "post",
+        pictures + "/{picture}/background",
+        "pictureBackground",
+        "picture",
+        "background-change",
+        problems=(*write, 503),
+    )
     route("delete", pictures + "/{picture}", "removePicture", "removed", problems=write)
     route("get", "/api/catalog/1/storage", "storageUse", "storage-use", problems=(401,))
     # Only when Catalog keeps the pictures on its own disk: the signed address is the right.
@@ -909,7 +927,10 @@ def catalog_openapi() -> str:
             "responses": {
                 "200": {
                     "description": "The picture, kept by the browser until the address expires",
-                    "content": {"image/jpeg": {"schema": {"type": "string", "format": "binary"}}},
+                    "content": {
+                        kind: {"schema": {"type": "string", "format": "binary"}}
+                        for kind in ("image/jpeg", "image/webp")
+                    },
                 },
                 "403": {"description": "The address is not signed by Catalog, or has expired"},
                 "404": {"description": "No such picture, or the pictures are in Object Storage"},

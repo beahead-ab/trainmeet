@@ -2469,7 +2469,7 @@
               }
             }
           },
-          "403": {
+          "503": {
             "description": "Catalog säger nej",
             "content": {
               "application/json": {
@@ -2479,7 +2479,7 @@
               }
             }
           },
-          "503": {
+          "403": {
             "description": "Catalog säger nej",
             "content": {
               "application/json": {
@@ -2505,6 +2505,21 @@
             "schema": {
               "type": "boolean",
               "default": false
+            }
+          },
+          {
+            "name": "background",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "original",
+                "white",
+                "grey",
+                "transparent",
+                "rails"
+              ],
+              "default": "original"
             }
           },
           {
@@ -2617,6 +2632,120 @@
                 "schema": {
                   "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
                 }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "picture",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}/background": {
+      "post": {
+        "operationId": "pictureBackground",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.picture"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.background-change"
               }
             }
           }
@@ -2845,6 +2974,12 @@
             "description": "The picture, kept by the browser until the address expires",
             "content": {
               "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -4790,7 +4925,9 @@
           "bad_picture",
           "picture_too_large",
           "too_many_pictures",
-          "storage_full"
+          "storage_full",
+          "backgrounds_off",
+          "no_vehicle"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -6150,6 +6287,10 @@
             "default": null,
             "description": "The original, only with Spara original (CAT-17).",
             "title": "Original Url"
+          },
+          "background": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.picture.PictureBackground",
+            "description": "The background the display picture and the thumbnail have (CAT-128)."
           }
         },
         "required": [
@@ -6160,10 +6301,23 @@
           "height",
           "bytes",
           "display_url",
-          "thumb_url"
+          "thumb_url",
+          "background"
         ],
         "title": "Picture",
         "type": "object"
+      },
+      "trainmeet.catalog-1.picture.PictureBackground": {
+        "description": "The picture's background (CAT-128). All but the original need the background removal.",
+        "enum": [
+          "original",
+          "white",
+          "grey",
+          "transparent",
+          "rails"
+        ],
+        "title": "PictureBackground",
+        "type": "string"
       },
       "trainmeet.catalog-1.picture-links": {
         "additionalProperties": true,
@@ -6210,16 +6364,48 @@
             "description": "How many pictures the owner has.",
             "title": "Pictures",
             "type": "integer"
+          },
+          "backgrounds": {
+            "description": "The background removal is on at this Catalog, so the other backgrounds than the original can be chosen (CAT-127, CAT-128).",
+            "title": "Backgrounds",
+            "type": "boolean"
           }
         },
         "required": [
           "used",
           "limit",
           "club",
-          "pictures"
+          "pictures",
+          "backgrounds"
         ],
         "title": "StorageUse",
         "type": "object"
+      },
+      "trainmeet.catalog-1.background-change": {
+        "additionalProperties": true,
+        "description": "A new background for a picture, made from what was kept at the upload (CAT-128).",
+        "properties": {
+          "background": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.background-change.PictureBackground"
+          }
+        },
+        "required": [
+          "background"
+        ],
+        "title": "BackgroundChange",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.background-change.PictureBackground": {
+        "description": "The picture's background (CAT-128). All but the original need the background removal.",
+        "enum": [
+          "original",
+          "white",
+          "grey",
+          "transparent",
+          "rails"
+        ],
+        "title": "PictureBackground",
+        "type": "string"
       }
     },
     "securitySchemes": {

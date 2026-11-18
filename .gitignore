@@ -27,3 +27,6 @@ apps/*/dist/
 
 # TrainMeet ID: the extension is built by id/Dockerfile
 id/email-code/target/
+
+# The background removal's model (CATALOG_BACKGROUND_MODEL): fetched by catalog/Dockerfile, never in the repo
+*.onnx

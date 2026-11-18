@@ -1,12 +1,15 @@
 """The pictures' addresses (contracts/catalog.py, CAT-05, CAT-17, CAT-123–CAT-133).
 
 The right is checked as for the vehicles (CAT-49, catalog/access.py): to look is enough to see
-the pictures, and to edit is needed to add, choose and remove them. ?fleet=<owner> works in a
+the pictures, and to edit is needed to add, choose and remove them and to change their
+background (CAT-128). ?fleet=<owner> works in a
 shared fleet, and the pictures are stored with its owner, within the owner's limit (CAT-133).
 The tag and the messages to the owner are hidden from the others; the pictures are not.
 
 The picture is the request's body as it is, image/jpeg, image/png or image/webp: no form, so no
-library for one. At most 15 MB is read; more is refused with 413 (CAT-123).
+library for one. At most 15 MB is read; more is refused with 413 (CAT-123). ?background= chooses
+its background at the upload, original by default; the background removal runs in a worker
+thread, as the rest of the preparing does.
 
 No `from __future__ import annotations` here: FastAPI reads the local dependencies from the
 annotations, which must then be real objects.
@@ -29,10 +32,18 @@ from catalog.pictures import (
     MAX_BYTES,
     DiskStore,
     Pictures,
+    kind_of,
     too_large,
     wrong_kind,
 )
-from contracts.catalog import Account, Picture, Removed, StorageUse
+from contracts.catalog import (
+    Account,
+    BackgroundChange,
+    Picture,
+    PictureBackground,
+    Removed,
+    StorageUse,
+)
 
 API = "/api/catalog/1"
 
@@ -66,7 +77,11 @@ def router(
 
     @routes.post("/vehicles/{vehicle}/pictures", status_code=status.HTTP_201_CREATED)
     async def add_picture(
-        vehicle: UUID, request: Request, work: Edit, keep_original: bool = False
+        vehicle: UUID,
+        request: Request,
+        work: Edit,
+        keep_original: bool = False,
+        background: PictureBackground = PictureBackground.ORIGINAL,
     ) -> Picture:
         data = await _body(request)
         # A club's fleet counts against the club's storage (TOKEN-29); ID says which it is.
@@ -79,12 +94,26 @@ def router(
                 keep_original=keep_original,
                 uploaded_by=work.person,
                 club=club,
+                background=background,
             )
         )
 
     @routes.post("/vehicles/{vehicle}/pictures/{picture}/main")
     def make_main(vehicle: UUID, picture: UUID, work: Edit) -> list[Picture]:
         return pictures.set_main(work.owner, vehicle, picture)
+
+    @routes.post("/vehicles/{vehicle}/pictures/{picture}/background")
+    def change_background(
+        vehicle: UUID, picture: UUID, body: BackgroundChange, work: Edit, tasks: BackgroundTasks
+    ) -> Picture:
+        """A new background, made from what was kept at the upload (CAT-128). The files it
+        replaces are deleted after the answer has gone."""
+        club = access.is_club(work.person, work.owner)
+        changed = pictures.change_background(
+            work.owner, vehicle, picture, body.background, club=club
+        )
+        tasks.add_task(pictures.sweep)
+        return changed
 
     @routes.delete("/vehicles/{vehicle}/pictures/{picture}")
     def remove_picture(
@@ -116,7 +145,7 @@ def router(
         left = max(0, until - int(time.time()))
         return FileResponse(
             path,
-            media_type="image/jpeg",
+            media_type=kind_of(key),
             headers={"Cache-Control": f"private, max-age={left}"},
         )
 

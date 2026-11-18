@@ -32,6 +32,7 @@ from fastapi.testclient import TestClient
 from PIL import ExifTags, Image, ImageCms
 
 from catalog.app import CONTENT_SECURITY_POLICY, content_security_policy, create_app
+from catalog.backgrounds import NoSegmenter, Segmenter
 from catalog.fleet import Fleet, Refused
 from catalog.pictures import (
     LINK_LIFETIME,
@@ -91,7 +92,10 @@ def _in(path: str, fleet: str | None) -> str:
 
 @contextmanager
 def world_with(
-    database_url: str, tmp_path: Path, limits: PictureLimits | None = None
+    database_url: str,
+    tmp_path: Path,
+    limits: PictureLimits | None = None,
+    segmenter: Segmenter | None = None,
 ) -> Iterator[World]:
     pretend = PretendIdWithClubs()
     settings = Settings(
@@ -115,6 +119,7 @@ def world_with(
         settings,
         id_http=httpx.Client(transport=httpx.MockTransport(pretend.handle)),
         picture_limits=limits,
+        segmenter=segmenter if segmenter is not None else NoSegmenter(),
     )
     with TestClient(app) as a, TestClient(app) as b:
         for client, who in ((a, A), (b, B)):
@@ -274,7 +279,13 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
     limits = PictureLimits(person=size * 2 + size // 2, club=size * 4 + size // 2)
     with world_with(database_url, tmp_path, limits) as world:
         mine = world.a.get(f"{API}/storage").json()
-        assert mine == {"used": 0, "limit": limits.person, "club": False, "pictures": 0}
+        assert mine == {
+            "used": 0,
+            "limit": limits.person,
+            "club": False,
+            "pictures": 0,
+            "backgrounds": False,
+        }
         car = world.vehicle()
         for _ in range(2):
             added(upload(world, car, photo()))
@@ -295,7 +306,13 @@ def test_the_free_storage_counts_per_owner_and_a_club_has_its_own(
         assert problem(refused) == (422, "storage_full")
         assert refused.json()["message"].startswith("Klubbens fria lagring på ")
         club = world.b.get(_in(f"{API}/storage", CLUB)).json()
-        assert club == {"used": size * 4, "limit": limits.club, "club": True, "pictures": 4}
+        assert club == {
+            "used": size * 4,
+            "limit": limits.club,
+            "club": True,
+            "pictures": 4,
+            "backgrounds": False,
+        }
         assert world.b.get(f"{API}/storage").json()["used"] == 0  # not B's own
 
     # The real free level: 100 MB for a person, 2 GB for a club.
@@ -470,6 +487,12 @@ def test_two_uploads_at_the_edge_never_both_get_in(world: World, database_url: s
             inner.put(key, content, content_type)
             meet.wait()
 
+        def get(self, key: str) -> bytes:
+            return inner.get(key)
+
+        def size(self, key: str) -> int:
+            return inner.size(key)
+
         def delete(self, key: str) -> None:
             inner.delete(key)
 
@@ -518,6 +541,12 @@ def test_an_upload_the_store_fails_leaves_nothing_behind(world: World, database_
             if self.puts == 2:
                 raise StoreFailed("nere")
             inner.put(key, content, content_type)
+
+        def get(self, key: str) -> bytes:
+            return inner.get(key)
+
+        def size(self, key: str) -> int:
+            return inner.size(key)
 
         def delete(self, key: str) -> None:
             inner.delete(key)
@@ -622,6 +651,38 @@ def test_object_storage_signs_its_requests_and_presigns_the_addresses(
     plain = AWSRequest(method="GET", url=f"https://s3.nl-ams.scw.cloud/tm-bilder/{key}")
     S3SigV4QueryAuth(Credentials("SCWAKEY", "hemlig"), "s3", "nl-ams", expires=3600).add_auth(plain)
     assert url == plain.url
+
+
+def test_object_storage_reads_back_a_file_and_tells_its_size() -> None:
+    """A new background is made from the kept photo (CAT-128): fetched with a signed GET, and
+    the original's size read with a signed HEAD, without fetching it."""
+    seen: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if "saknas" in request.url.path:
+            return httpx.Response(404)
+        if request.method == "HEAD":
+            return httpx.Response(200, headers={"Content-Length": "1234"})
+        return httpx.Response(200, content=b"fotot")
+
+    http = httpx.Client(transport=httpx.MockTransport(answer))
+    store = S3Store("https://s3.nl-ams.scw.cloud", "tm-bilder", "nl-ams", "SCWAKEY", "hemlig", http)
+    key = new_key(UUID(A), "image/png")
+    assert key.endswith(".png")
+    assert store.get(key) == b"fotot"
+    assert store.size(key) == 1234
+    assert [(r.method, r.url.path) for r in seen] == [
+        ("GET", f"/tm-bilder/{key}"),
+        ("HEAD", f"/tm-bilder/{key}"),
+    ]
+    for request in seen:
+        assert request.headers["authorization"].startswith("AWS4-HMAC-SHA256 Credential=SCWAKEY/")
+    missing = f"{A}/saknas"
+    with pytest.raises(StoreFailed):
+        store.get(missing)
+    with pytest.raises(StoreFailed):
+        store.size(missing)
 
 
 def test_object_storage_that_says_no_or_does_not_answer_fails(world: World) -> None:
