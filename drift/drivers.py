@@ -13,6 +13,11 @@ nobody works (LOK-39). The clock is always Drift's (LOK-12).
 
 The drivers' names stay out of here: the events and the views carry the driver's id, and the
 hub puts the names in where they may be shown (LOK-37).
+
+A service run after the paper (LOK-13, drift/paper.py) is a service like the others for the
+driver who runs it, built from what was read. Until Trafikledningen approves it, its train is
+not Drift's: no event about it names a train, so no station hears of it. Approved, it is the
+extra train Drift added, with Drift's reality and the clearances' word like any train.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ from contracts import driver as contract
 from contracts import station
 from contracts.meet import Call, DriverLevel, TrackKind, Train
 from contracts.reasons import Reason
-from drift.driver_book import Checkin, Message, Moment, key_of
+from drift.driver_book import Checkin, Message, Moment, Paper, key_of
 from drift.engine import SECONDS_PER_DAY, Drift, Leg, Refused, leg_times, model_time, parse_time
 
 CHANGED_SECONDS: Final = contract.CHANGED_MINUTES * 60
@@ -54,6 +59,7 @@ class Service:
     number: str
     level: DriverLevel | None
     parts: list[Part]
+    paper: Paper | None = None
 
     @property
     def calls(self) -> list[Call]:
@@ -94,6 +100,7 @@ def services(drift: Drift) -> tuple[events.ServiceKind, list[Service]]:
                 ref = events.ServiceRef(kind=events.ServiceKind.DUTY, id=duty.id)
                 found.append(Service(ref, duty.name, duty.level, parts))
         return events.ServiceKind.DUTY, found
+    papers = drift.drivers.paper_trains
     return events.ServiceKind.TRAIN, [
         Service(
             events.ServiceRef(kind=events.ServiceKind.TRAIN, id=train.id),
@@ -102,15 +109,63 @@ def services(drift: Drift) -> tuple[events.ServiceKind, list[Service]]:
             [Part(train, list(train.calls))],
         )
         for train in drift.package.trains
-        if day in train.days and len(train.calls) > 1
+        if day in train.days and len(train.calls) > 1 and train.id not in papers
     ]
 
 
 def find(drift: Drift, ref: events.ServiceRef) -> Service | None:
-    kind, found = services(drift)
+    if ref.kind == events.ServiceKind.PAPER:
+        found = drift.drivers.papers.get(ref.id)
+        return paper_service(drift, found) if found is not None else None
+    kind, listed = services(drift)
     if kind != ref.kind:
         return None
-    return next((service for service in found if service.ref == ref), None)
+    return next((service for service in listed if service.ref == ref), None)
+
+
+PAPER_NUMBER: Final = "Efter pappret"
+"""What a service run after the paper is called when its number could not be read."""
+
+
+def paper_service(drift: Drift, paper: Paper) -> Service | None:
+    """A service run after the paper (LOK-13): approved, the extra train Drift added for it;
+    before that, a train of its own made from the rows at the meet's places, which Drift does
+    not know. None when no row is at one of the meet's places."""
+    ref = events.ServiceRef(kind=events.ServiceKind.PAPER, id=paper.id)
+    number = paper.reading.number or PAPER_NUMBER
+    if paper.train is not None and paper.status == events.PaperStatus.APPROVED:
+        train = next((t for t in drift.package.trains if t.id == paper.train), None)
+        if train is not None:
+            return Service(ref, number, None, [Part(train, list(train.calls))], paper)
+    calls = [
+        Call(
+            id=f"{paper.id}-{index}",
+            place=row.place,
+            track=row.track,
+            arrival=row.arrival,
+            departure=row.departure,
+            stops=row.stops,
+            note=row.note,
+        )
+        for index, row in enumerate(paper.reading.rows)
+        if row.place is not None
+    ]
+    if not calls:
+        return None
+    train = Train(
+        id=paper.id,
+        number=paper.train_number or paper.reading.train_number or number,
+        operator=paper.reading.operator,
+        days=[drift.traffic_day],
+        calls=calls,
+    )
+    return Service(ref, number, None, [Part(train, calls)], paper)
+
+
+def known_train(drift: Drift, train: str | None) -> str | None:
+    """The train, if Drift knows it: a service run after the paper names none until it is
+    approved, so that no station hears of it (LOK-13)."""
+    return train if any(t.id == train for t in drift.package.trains) else None
 
 
 def _stop_calls(drift: Drift, calls: list[Call]) -> list[Call]:
@@ -156,7 +211,26 @@ def _end(drift: Drift, call: Call, *, arrival: bool) -> contract.ServiceEnd:
     return contract.ServiceEnd(time=time, place=place.id, place_name=place.name)
 
 
+def _paper_end(
+    drift: Drift, given: events.PaperEnd, call: Call, *, arrival: bool
+) -> contract.ServiceEnd:
+    """Where a service run after the paper starts or ends as its front says it, and else as its
+    first or last row does (LOK-19)."""
+    planned = _end(drift, call, arrival=arrival)
+    if given.place is None and given.place_name is None:
+        return planned.model_copy(update={"time": given.time or planned.time})
+    place = next((p for p in drift.package.places if p.id == given.place), None)
+    return contract.ServiceEnd(
+        time=given.time or planned.time,
+        place=place.id if place else contract.UNKNOWN_PLACE,
+        place_name=place.name if place else (given.place_name or planned.place_name),
+    )
+
+
 def start_seconds(service: Service) -> int:
+    begins = service.paper.reading.start.time if service.paper is not None else None
+    if begins is not None:
+        return parse_time(begins)
     first = service.calls[0]
     found = _seconds(first)
     return found if found is not None else SECONDS_PER_DAY * 8
@@ -174,12 +248,19 @@ def offer(
     key = key_of(service.ref)
     held = drift.drivers.holders.get(key)
     calls = service.calls
+    paper = service.paper
     operator = next((p.train.operator for p in service.parts if p.train.operator), None)
+    if operator is None and paper is not None:
+        operator = paper.reading.operator
     return contract.ServiceOffer(
         service=service.ref,
         number=service.number,
-        start=_end(drift, calls[0], arrival=False),
-        end=_end(drift, calls[-1], arrival=True),
+        start=_paper_end(drift, paper.reading.start, calls[0], arrival=False)
+        if paper
+        else _end(drift, calls[0], arrival=False),
+        end=_paper_end(drift, paper.reading.end, calls[-1], arrival=True)
+        if paper
+        else _end(drift, calls[-1], arrival=True),
         operator=operator,
         level=service.level,
         trains=list(dict.fromkeys(part.train.number for part in service.parts)),
@@ -190,6 +271,7 @@ def offer(
         matches_level=level is not None and service.level == level,
         exact=query is not None and service.number.casefold() == query.casefold(),
         done=key in drift.drivers.done,
+        paper=paper.status if paper else None,
     )
 
 
@@ -238,7 +320,15 @@ def _minutes(late: float | None) -> int | None:
 
 
 def position(drift: Drift, train: Train, now: datetime) -> contract.TrainPosition:
-    """Where the train is according to the stations, and how late (LOK-20)."""
+    """Where the train is according to the stations, and how late (LOK-20). A train run after
+    the paper is marked so (LOK-13)."""
+    found = _position(drift, train, now)
+    if train.id in drift.drivers.paper_trains:
+        return found.model_copy(update={"paper": True})
+    return found
+
+
+def _position(drift: Drift, train: Train, now: datetime) -> contract.TrainPosition:
     at = drift.clock.at(now)
     legs = [drift.legs[c.id] for c in train.calls if c.id in drift.legs]
     for index, leg in enumerate(legs):
@@ -408,6 +498,8 @@ def _reality(drift: Drift, call: Call, at: float, ahead: bool) -> contract.RowRe
 def korplan(drift: Drift, service: Service, now: datetime, revision: int) -> contract.Korplan:
     """The körplan from the duty's parts, or the train's timetable (LOK-03). Under the game's
     settings, Drift's reality and the clearances' word beside the plan (LOK-20, LOK-21)."""
+    if service.paper is not None:
+        return _paper_korplan(drift, service, service.paper, now, revision)
     at = drift.clock.at(now)
     settings = drift.drivers.settings
     places = {place.id: place for place in drift.package.places}
@@ -453,6 +545,60 @@ def korplan(drift: Drift, service: Service, now: datetime, revision: int) -> con
         settings=settings,
         position=position(drift, current.train, now) if settings.reality else None,
         revision=revision,
+    )
+
+
+def _paper_korplan(
+    drift: Drift, service: Service, paper: Paper, now: datetime, revision: int
+) -> contract.Korplan:
+    """The körplan after the paper (LOK-29): every row as it was read, marked, with the NU-linje
+    on its times. A row at a place the meet does not have stands with its name as read. Until
+    Trafikledningen approves it, Drift has no reality for it, since the train is not in the
+    plan; approved, its rows are the extra train's calls, with the reality and the clearances'
+    word under the game's settings."""
+    at = drift.clock.at(now)
+    settings = drift.drivers.settings
+    places = {place.id: place for place in drift.package.places}
+    part = service.parts[0]
+    approved = paper.status == events.PaperStatus.APPROVED and part.train.id == paper.train
+    # The extra train has a call for each row at a known place, in the paper's order.
+    known = iter(part.calls) if approved else None
+    rows: list[contract.KorplanRow] = []
+    last = len(paper.reading.rows) - 1
+    for index, row in enumerate(paper.reading.rows):
+        place = places.get(row.place or "")
+        call = next(known, None) if known is not None and place is not None else None
+        call_id = call.id if call is not None else f"{paper.id}-{index}"
+        ours = call if call is not None and call_id in drift.calls else None
+        rows.append(
+            contract.KorplanRow(
+                call=call_id,
+                train=part.train.id,
+                train_number=part.train.number,
+                place=place.id if place else contract.UNKNOWN_PLACE,
+                place_code=place.code if place else row.place_name,
+                place_name=place.name if place else row.place_name,
+                arrival=row.arrival,
+                departure=row.departure,
+                track=drift.assigned.get(call_id, call.track) if call else row.track,
+                stops=row.stops,
+                note=row.note,
+                first_of_train=index == 0,
+                last=index == last,
+                changed=ours is not None and _recent(drift.drivers.changed.get(call_id), drift, at),
+                real=_reality(drift, ours, at, True) if ours and settings.reality else None,
+                clearance=_clearance(drift, ours) if ours and settings.clearances else None,
+            )
+        )
+    return contract.Korplan(
+        service=service.ref,
+        number=service.number,
+        rows=rows,
+        clock=clock(drift, now),
+        settings=settings,
+        position=position(drift, part.train, now) if approved and settings.reality else None,
+        revision=revision,
+        paper=paper.status,
     )
 
 
@@ -631,6 +777,7 @@ def release(
     service = find(drift, held.service)
     leg = on_line(drift, service) if service is not None else None
     train = leg.train.id if leg else (current_part(drift, service).train.id if service else None)
+    train = known_train(drift, train)
     drift.record_driver(
         events.EventKind.SERVICE_RELEASED,
         events.ServiceReleased(
@@ -663,13 +810,23 @@ def claim(
     service = find(drift, ref)
     if service is None:
         raise Refused(Reason.UNKNOWN_SERVICE)
+    if service.paper is not None and service.paper.status != events.PaperStatus.APPROVED:
+        # Only its own driver runs a paper before it is approved; after, it is a train like
+        # the others, and another driver may take over (LOK-25).
+        raise Refused(Reason.UNKNOWN_SERVICE)
     held = drift.drivers.holders.get(key_of(ref))
     if held is not None and held.driver == driver:
         return
     if by == "driver":
         if held is not None:
             raise Refused(Reason.SERVICE_TAKEN)
-        if drift.drivers.service_of(driver) is not None:
+        mine = drift.drivers.service_of(driver)
+        paper = mine.service.kind == events.ServiceKind.PAPER if mine is not None else False
+        waiting = drift.drivers.papers.get(mine.service.id) if mine and paper else None
+        if waiting is not None and waiting.status == events.PaperStatus.WAITING:
+            # The driver takes a planned service instead of the paper (LF16).
+            release(drift, driver, now)
+        elif mine is not None:
             raise Refused(Reason.ONE_SERVICE)
     else:
         if held is not None:
@@ -681,7 +838,7 @@ def claim(
         events.ServiceClaimed(driver=driver, service=ref, by=by).model_dump(mode="json"),
         now,
         actor=actor_of(by, driver),
-        train=current_part(drift, service).train.id,
+        train=known_train(drift, current_part(drift, service).train.id),
     )
 
 
@@ -704,6 +861,7 @@ def check_in(drift: Drift, driver: str, place: str, track: str | None, now: date
             train = current.train.id
         elif here:
             train = here[-1].train.id
+        train = known_train(drift, train)
     drift.record_driver(
         events.EventKind.DRIVER_CHECKED_IN,
         events.DriverCheckedIn(
@@ -724,6 +882,8 @@ def message(
     held = drift.drivers.service_of(driver)
     service = find(drift, held.service) if held is not None else None
     train = current_part(drift, service).train if service is not None else None
+    if train is not None and known_train(drift, train.id) is None:
+        train = None  # A paper not yet approved: no station hears of it (LOK-13).
     where = drift.places_of_train_now(train.id) if train is not None else set()
     leg = on_line(drift, service) if service is not None else None
     place = leg.departure.place if leg else (sorted(where)[0] if len(where) == 1 else None)

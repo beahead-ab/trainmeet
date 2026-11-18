@@ -32,6 +32,17 @@ sets, or in the header X-Driver-Key; never in the address or the body after the 
     GET  /api/drift/1/drivers/instructions.pdf
     POST /api/drift/1/drivers/leave         -> 204                        lämna träffen
 
+Efter pappret (LOK-13, LOK-29, LOK-33): a duty missing from the plan, read from the driver's
+photos of its pages. The price is told first: 12 tokens a page (TOKEN-14), paid by the meet or
+by the driver as the meet chose in Förarna, or nothing with the hub's own AI. The photos come as
+multipart/form-data, 1–4 parts named pages, and their metadata is stripped before anything is
+sent. AI only suggests: a time it could not read stays empty. The planned services nearest the
+paper's start come with the reading, and the driver may take one of them instead.
+
+    GET  /api/drift/1/drivers/paper/price?pages=  PaperPrice                    before reading
+    POST /api/drift/1/drivers/paper         the photos -> PaperService    read, and run by it
+    GET  /api/drift/1/drivers/paper/{paper}/pages/{page}   a photo, cleaned
+
 The dispatcher's side, Förare in Drift (TRAFIK-33), for Trafikledningen and the lokledare:
 
     GET  /api/drift/1/drivers/overview      DriverOverview
@@ -41,6 +52,17 @@ The dispatcher's side, Förare in Drift (TRAFIK-33), for Trafikledningen and the
     POST /api/drift/1/drivers/alarms/clear  ServiceRef -> DriverOverview
     GET  /api/drift/1/drivers/connect       Joining                       the QR code's address
     GET  /api/drift/1/drivers/connect.svg
+    POST /api/drift/1/drivers/paper/{paper}/approve  PaperApprove -> DriverOverview  LOK-13
+    POST /api/drift/1/drivers/paper/{paper}/reject   PaperReject -> DriverOverview
+
+Until Trafikledningen approves a service run after the paper, only the driver and Förare see it:
+no station snapshot, no clearance. Approved, it is an extra train in Drift with the paper's
+calls, marked Efter pappret (paper) wherever it shows. Rejected, the driver gets the reason.
+
+Förarna in Planering (PLAN-40, LOK-33): who pays when a driver's photos are read, per meet.
+
+    GET  /api/planering/1/meets/{meet}/paper-reading   PaperReadingSettings
+    POST /api/planering/1/meets/{meet}/paper-reading   PaperReadingChange -> PaperReadingSettings
 
 Names and photos of drivers are shown only on the meet's network or to someone logged in, never
 over the internet without logging in (LOK-37, S8): there the name, the initials and the photo
@@ -60,6 +82,10 @@ from contracts.drift import (
     ClaimedBy,
     DriverAlarm,
     DriverSettings,
+    PaperEnd,
+    PaperPayer,
+    PaperRow,
+    PaperStatus,
     ServiceKind,
     ServiceRef,
 )
@@ -77,6 +103,11 @@ CHANGED_MINUTES: Final = 10
 CHECKIN_VISIBLE_MINUTES: Final = 10
 CHECKIN_FADE_MINUTES: Final = 5
 """A check-in is seen 10 game minutes and fades out over 5 more (the old Server, A8)."""
+PAPER_PAGES: Final = 4
+"""The most pages of a duty a driver photographs at a time (LOK-29)."""
+UNKNOWN_PLACE: Final = "okand"
+"""The place id a körplan row or a service's end has when the place on the paper is not one of
+the meet's: the name stands as it was read (LOK-29)."""
 
 __all__ = [
     "PROTOCOL",
@@ -85,6 +116,10 @@ __all__ = [
     "DriverLevel",
     "DriverMessageKind",
     "DriverSettings",
+    "PaperEnd",
+    "PaperPayer",
+    "PaperRow",
+    "PaperStatus",
     "ServiceKind",
     "ServiceRef",
 ]
@@ -203,6 +238,9 @@ class ServiceOffer(Contract):
     matches_level: bool = Field(default=False, description="Passar förarens nivå (LOK-32).")
     exact: bool = Field(default=False, description="Numret är exakt det som söktes.")
     done: bool = Field(default=False, description="Klar: Framme vid sista tågbesöket.")
+    paper: PaperStatus | None = Field(
+        default=None, description="Efter pappret: tjänsten finns inte i planen (LOK-13)."
+    )
 
 
 class ServiceList(Contract):
@@ -316,6 +354,9 @@ class TrainPosition(Contract):
     to_place: Id | None = None
     section: Id | None = None
     delay: int | None = Field(default=None, description="Minuter sent; tomt när det inte vet.")
+    paper: bool = Field(
+        default=False, description="Efter pappret: tåget finns inte i planen (LOK-13)."
+    )
 
 
 class LateOncoming(Contract):
@@ -389,6 +430,114 @@ class Korplan(Contract):
         default=None, description="Förarens egen incheckning, bredvid tågets läge (LOK-22)."
     )
     revision: int = Field(ge=0, description="Senaste drifthändelsen.")
+    paper: PaperStatus | None = Field(
+        default=None,
+        description="Efter pappret: avläst ur förarens foton och inte i planen. Utan "
+        "verklighet från Drift tills trafikledningen har godkänt den (LOK-13).",
+    )
+
+
+# --- Efter pappret (LOK-13, LOK-29, LOK-33) ------------------------------------------------
+
+
+class PaperService(Contract):
+    """En tjänst efter pappret, som föraren och Förare ser den: framsidan och tidtabellen som
+    AI:n läste dem, var den står, och de tjänster i planen som startar närmast (LF16). Inga
+    stationer ser den förrän trafikledningen har godkänt den (LOK-13)."""
+
+    paper: Id
+    service: ServiceRef
+    status: PaperStatus
+    driver: Id
+    driver_name: Text | None = Field(default=None, description="Bara där namn får visas.")
+    number: Text | None = Field(default=None, description="Tjänstens nummer på pappret.")
+    train_number: Text | None = Field(
+        default=None, description="Tågnumret: på pappret, eller det trafikledningen gav."
+    )
+    operator: Text | None = None
+    start: PaperEnd
+    end: PaperEnd
+    rows: list[PaperRow] = Field(default_factory=list)
+    pages: int = Field(ge=1, le=PAPER_PAGES)
+    photos: list[str] = Field(default_factory=list, description="Adresserna till fotona.")
+    paid_by: PaperPayer
+    cost: int = Field(ge=0, description="Tokens som drogs för läsningen.")
+    said: Text = Field(
+        description="Pappret jämfört med planen: ingen tjänst startar där och då, eller "
+        "vilken som gör det."
+    )
+    candidates: list[ServiceOffer] = Field(
+        default_factory=list,
+        description="Tjänsterna i planen som startar närmast papprets start (LF16). Föraren kan "
+        "ta en av dem i stället.",
+    )
+    reason: Text | None = Field(default=None, description="Avslagen: trafikledningens skäl.")
+    train: Id | None = Field(default=None, description="Godkänd: tåget i Drift.")
+    model_time: TimeOfDay = Field(description="När pappret lästes, på träffklockan.")
+    wall_time: datetime
+
+
+class PaperPrice(Contract):
+    """Priset innan något läses (TOKEN-14): 12 tokens per sida, ur träffens saldo eller förarens
+    eget som träffen valt (LOK-33), eller inget med hubbens egen AI. ready säger om det går."""
+
+    pages: int = Field(ge=1, le=PAPER_PAGES)
+    price: int = Field(ge=0, description="Tokens för sidorna.")
+    per_page: int = Field(ge=0)
+    paid_by: PaperPayer | None = None
+    payer: Text | None = Field(
+        default=None, description="Vems saldo: klubbens, personens, eller hubbens egen AI."
+    )
+    available: int | None = Field(default=None, description="Saldot som är kvar.")
+    ready: bool = Field(description="Går att läsa nu.")
+    message: Text | None = Field(default=None, description="Varför inte, och vad föraren gör.")
+
+
+class PaperApprove(Contract):
+    """Godkänn tjänsten efter pappret (LOK-13): den blir ett extratåg i Drift med papprets
+    tågbesök, och tågklarerarna ser det märkt Efter pappret."""
+
+    train_number: Text | None = Field(
+        default=None,
+        max_length=20,
+        description="Tågnumret hos tågklarerarna; tomt betyder det som står på pappret.",
+    )
+
+
+class PaperReject(Contract):
+    """Avslå tjänsten efter pappret: föraren får skälet."""
+
+    reason: Text = Field(max_length=200)
+
+
+PaperReadingPayer = Literal["meet", "driver"]
+
+
+class PaperReadingSettings(Contract):
+    """Förarna i Planering (PLAN-40, LOK-33): vem som står för AI-läsningen när en förare fotar
+    ett köruppdrag som saknas i planen. Förarens egna tokens är förval."""
+
+    payer: PaperReadingPayer = "driver"
+    payer_title: Text | None = Field(
+        default=None, description="Träffens saldo: klubbens namn, eller personens."
+    )
+    available: int | None = Field(default=None, description="Det som är kvar på träffens saldo.")
+    per_page: int = Field(ge=0, description="Tokens per fotad sida (TOKEN-14).")
+    own_ai: Text | None = Field(
+        default=None,
+        description="Hubbens egen AI, när den finns: den läser då utan tokens (TOKEN-13).",
+    )
+    trainmeet_ai: bool = Field(
+        default=False, description="Hubben når mätaren i TrainMeet ID (molnhubben)."
+    )
+    may_change: bool = Field(default=False, description="Den som frågar får ändra valet.")
+
+
+class PaperReadingChange(Contract):
+    """Träffens tokens eller förarens egna. Träffens tokens väljs inloggad med TrainMeet ID:
+    då betalar klubben för en träff i ID, annars den som valde (TK16)."""
+
+    payer: PaperReadingPayer
 
 
 class DriverMe(Contract):
@@ -406,6 +555,11 @@ class DriverMe(Contract):
     clock: Clock
     settings: DriverSettings
     revision: int = Field(ge=0, description="Senaste drifthändelsen, för väntan på nästa.")
+    paper: PaperService | None = Field(
+        default=None,
+        description="Förarens tjänst efter pappret: den föraren kör, eller den senast avslagna "
+        "med skälet så länge föraren inte har tagit en annan (LOK-13).",
+    )
 
 
 class DriverWait(Contract):
@@ -460,6 +614,11 @@ class DriverOverview(Contract):
     may_hand_out: bool = False
     may_set: bool = Field(default=False, description="Får ändra trafikspelets val.")
     names_shown: bool = Field(default=True, description="Namnen visas här (LOK-37).")
+    papers: list[PaperService] = Field(
+        default_factory=list,
+        description="Tjänsterna efter pappret, de som väntar på godkännande först (LOK-13). "
+        "Trafikledningen godkänner eller avslår.",
+    )
 
 
 __all__ += [
@@ -484,6 +643,13 @@ __all__ += [
     "Korplan",
     "KorplanRow",
     "LateOncoming",
+    "PaperApprove",
+    "PaperPrice",
+    "PaperReadingChange",
+    "PaperReadingPayer",
+    "PaperReadingSettings",
+    "PaperReject",
+    "PaperService",
     "RowClearance",
     "RowReality",
     "ServiceEnd",

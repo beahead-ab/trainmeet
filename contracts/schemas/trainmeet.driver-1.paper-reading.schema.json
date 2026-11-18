@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper-reading.schema.json",
+  "title": "trainmeet.driver-1.paper-reading",
+  "additionalProperties": true,
+  "description": "Förarna i Planering (PLAN-40, LOK-33): vem som står för AI-läsningen när en förare fotar\nett köruppdrag som saknas i planen. Förarens egna tokens är förval.",
+  "properties": {
+    "payer": {
+      "default": "driver",
+      "enum": [
+        "meet",
+        "driver"
+      ],
+      "title": "Payer",
+      "type": "string"
+    },
+    "payer_title": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffens saldo: klubbens namn, eller personens.",
+      "title": "Payer Title"
+    },
+    "available": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Det som är kvar på träffens saldo.",
+      "title": "Available"
+    },
+    "per_page": {
+      "description": "Tokens per fotad sida (TOKEN-14).",
+      "minimum": 0,
+      "title": "Per Page",
+      "type": "integer"
+    },
+    "own_ai": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Hubbens egen AI, när den finns: den läser då utan tokens (TOKEN-13).",
+      "title": "Own Ai"
+    },
+    "trainmeet_ai": {
+      "default": false,
+      "description": "Hubben når mätaren i TrainMeet ID (molnhubben).",
+      "title": "Trainmeet Ai",
+      "type": "boolean"
+    },
+    "may_change": {
+      "default": false,
+      "description": "Den som frågar får ändra valet.",
+      "title": "May Change",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "per_page"
+  ],
+  "type": "object"
+}

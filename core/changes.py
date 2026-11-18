@@ -273,6 +273,8 @@ def _place(package: MeetPackage, change: changes.ChangePlace) -> MeetPackage:
 
 
 def _extra(package: MeetPackage, change: changes.ExtraTrain, train_id: str) -> Train:
+    if change.calls:
+        return _from_paper(package, change, train_id)
     start = _seconds(change.departure)
     if change.copy_of is not None:
         source = train(package, change.copy_of)
@@ -319,6 +321,46 @@ def _extra(package: MeetPackage, change: changes.ExtraTrain, train_id: str) -> T
         number=change.number,
         days=change.days or list(Weekday),
         calls=calls,
+    )
+
+
+def _from_paper(package: MeetPackage, change: changes.ExtraTrain, train_id: str) -> Train:
+    """A train run after the paper (LOK-13): the calls as the paper has them, at the meet's
+    places. A time missing on the paper stays missing; a time more than half a day before the
+    one before it is after midnight."""
+    known = {p.id for p in package.places}
+    calls: list[Call] = []
+    day = 0
+    last: int | None = None
+
+    def moment(value: str | None) -> int | None:
+        nonlocal day, last
+        if value is None:
+            return None
+        found = _seconds(value) + day * DAY
+        if last is not None and found < last - DAY // 2:
+            day += 1
+            found += DAY
+        last = found
+        return found
+
+    for index, given in enumerate(change.calls):
+        if given.place not in known:
+            raise ChangeError(Reason.UNKNOWN_PLACE)
+        call = Call(
+            id=f"{train_id}-{index}",
+            place=given.place,
+            track=given.track,
+            stops=given.stops,
+            note=given.note,
+        )
+        calls.append(_with_times(call, moment(given.arrival), moment(given.departure)))
+    return Train(
+        id=train_id,
+        number=change.number,
+        days=change.days or list(Weekday),
+        calls=calls,
+        note=None,
     )
 
 

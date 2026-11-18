@@ -111,6 +111,7 @@ def _on_section(drift: Drift, case: Case, other: str) -> station.TrainOnSection:
         other_place=other,
         planned_track=drift.planned_track(leg),
         departed_at=drift.departed_at.get(case.id, model_time(drift.clock.seconds)),
+        paper=leg.train.id in drift.drivers.paper_trains,
     )
 
 
@@ -128,11 +129,14 @@ def clearance_of(drift: Drift, case: Case) -> station.Clearance:
         requested_at=drift.requested_at.get(case.id, "00:00"),
         reminders=case.reminders,
         revision=case.revision,
+        paper=leg.train.id in drift.drivers.paper_trains,
     )
 
 
 def _calls(drift: Drift, place: str) -> list[station.CallHere]:
-    """Every call at the place on the traffic day, in timetable order."""
+    """Every call at the place on the traffic day, in timetable order. A train run after the
+    paper is here only once Trafikledningen has approved it, and is marked so (LOK-13)."""
+    papers = drift.drivers.paper_trains
     found = []
     for train, call in drift.calls.values():
         if call.place != place:
@@ -162,6 +166,7 @@ def _calls(drift: Drift, place: str) -> list[station.CallHere]:
                     crew_ready=call.id in drift.crew_ready,
                     revision=drift.call_revision.get(call.id, 0),
                     allowed_actions=allowed_actions(drift, call.id),
+                    paper=train.id in papers,
                 ),
             )
         )

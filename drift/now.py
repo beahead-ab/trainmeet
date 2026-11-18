@@ -132,4 +132,5 @@ def _leg(drift: Drift, leg: Leg) -> contract.LegNow:
         state=state,
         clearance_id=case.id if case is not None else None,
         track=drift.tracks.get(key) if key in drift.arrived else drift.planned_track(leg),
+        paper=leg.train.id in drift.drivers.paper_trains,
     )

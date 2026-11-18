@@ -28,6 +28,7 @@ const call = (given: Partial<CallHere> & Pick<CallHere, "call" | "train_number">
   crew_ready: false,
   revision: 0,
   allowed_actions: [],
+  paper: false,
   ...given,
 });
 
@@ -46,10 +47,10 @@ const base: Snapshot = {
     call({ call: "t101-asn", train_number: "101", arrival: "06:08", departure: "06:10", planned_track: "1", track: "1", from_place: "nby", to_place: "mla", arrival_state: "arrived", allowed_actions: ["clearance.request", "line.available.publish", "train.track.change"] }),
     call({ call: "t4501-asn", train_number: "4501", arrival: "06:43", departure: "06:45", planned_track: "1", from_place: "nby", to_place: "mla" }),
   ],
-  on_the_way: [{ call: "t102-asn", train_number: "102", train_type: null, section: "s-asn-mla", other_place: "mla", planned_track: "2", departed_at: "06:05" }],
+  on_the_way: [{ call: "t102-asn", train_number: "102", train_type: null, section: "s-asn-mla", other_place: "mla", planned_track: "2", departed_at: "06:05", paper: false }],
   have_left: [],
   clearances: [
-    { clearance_id: "c-7", call: "t7-nby", train_number: "7", section: "s-nby-asn", from_place: "nby", to_place: "asn", status: "waiting", departed: false, requested_at: "06:06", reminders: 1, revision: 2 },
+    { clearance_id: "c-7", call: "t7-nby", train_number: "7", section: "s-nby-asn", from_place: "nby", to_place: "asn", status: "waiting", departed: false, requested_at: "06:06", reminders: 1, revision: 2, paper: false },
   ],
   line_messages: [],
   neighbours: [
@@ -149,7 +150,7 @@ describe("Händelser (KLAR-05) and the sounds (TKL33)", () => {
       place_revision: 4,
       clearances: [
         { ...base.clearances[0]!, status: "waiting", reminders: 2 },
-        { clearance_id: "c-9", call: "t9-mla", train_number: "9", section: "s-asn-mla", from_place: "mla", to_place: "asn", status: "waiting", departed: false, requested_at: "06:11", reminders: 0, revision: 1 },
+        { clearance_id: "c-9", call: "t9-mla", train_number: "9", section: "s-asn-mla", from_place: "mla", to_place: "asn", status: "waiting", departed: false, requested_at: "06:11", reminders: 0, revision: 1, paper: false },
       ],
       calls: calls.map((c) => (c.call === "t102-asn" ? call({ ...c, arrival_state: "arrived", track: "2" }) : c)),
       on_the_way: [],

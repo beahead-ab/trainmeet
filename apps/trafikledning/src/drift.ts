@@ -68,6 +68,10 @@ export const EVENTS: Record<string, string> = {
   "driver.message": "Meddelande från föraren",
   "driver.arrived": "Föraren: Framme",
   "driver.settings": "Förarnas val ändrade",
+  // Efter pappret (LOK-13, LOK-29): a duty missing from the plan, read from the driver's photos.
+  "paper.created": "Föraren kör efter pappret: tjänsten saknas i planen",
+  "paper.approved": "Tjänsten efter pappret godkänd",
+  "paper.rejected": "Tjänsten efter pappret avslagen",
 };
 
 /** The drivers' ready-made messages (LOK-23), as Trafikledningen reads them. */
@@ -207,6 +211,8 @@ export function describe(event: DriftEvent, pkg: Package | null = null): string 
     return data["on_line"] ? "Tjänsten släppt på linjen: tåget står utan förare" : "Tjänsten släppt";
   }
   if (event.kind === "driver.arrived") return data["counted"] ? "Föraren: Framme, räknas som ankomst" : "Föraren: Framme";
+  if (event.kind === "paper.approved" && typeof data["train_number"] === "string") return `Tjänsten efter pappret godkänd: tåg ${data["train_number"]}, märkt Efter pappret`;
+  if (event.kind === "paper.rejected" && typeof data["reason"] === "string") return `Tjänsten efter pappret avslagen: ${data["reason"]}`;
   return EVENTS[event.kind] ?? event.kind;
 }
 

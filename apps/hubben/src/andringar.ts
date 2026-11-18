@@ -34,10 +34,14 @@ export function changeText(change: DriftChange, pkg: Package | null, number?: st
   switch (change.kind) {
     case "cancel":
       return `Inställt tåg ${trainNumber(pkg, change.train, number)}`;
-    case "extra":
+    case "extra": {
+      // A service run after the paper, approved: its own calls, marked so (LOK-13).
+      const calls = change.calls ?? [];
+      if (change.paper && calls.length) return `Extratåg ${change.number} efter pappret ${placeName(pkg, calls[0]!.place)}–${placeName(pkg, calls.at(-1)!.place)} kl. ${change.departure}`;
       return change.copy_of
         ? `Extratåg ${change.number}, kopia av ${trainNumber(pkg, change.copy_of)} kl. ${change.departure}`
         : `Extratåg ${change.number} ${placeName(pkg, change.from_place)}–${placeName(pkg, change.to_place)} kl. ${change.departure}`;
+    }
     case "times": {
       const minutes = change.minutes ? `${change.minutes > 0 ? "+" : "−"}${Math.abs(change.minutes)} min` : "nya tider";
       return `Tåg ${trainNumber(pkg, change.train, number)}: ${minutes}${change.from_call ? ` från ${callPlace(pkg, change.from_call)}` : ""}`;

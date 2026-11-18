@@ -481,6 +481,12 @@ export interface components {
             revision: number;
             /** Allowed Actions */
             allowed_actions?: components["schemas"]["trainmeet.station-1.reply.Action"][];
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -514,6 +520,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -721,7 +733,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number";
         /**
          * ReplyStatus
          * @enum {string}
@@ -902,6 +914,12 @@ export interface components {
             planned_track: string | null;
             /** Departed At */
             departed_at: string;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1349,6 +1367,12 @@ export interface components {
             revision: number;
             /** Allowed Actions */
             allowed_actions?: components["schemas"]["trainmeet.tkl-1.view.Action"][];
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1382,6 +1406,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1715,6 +1745,12 @@ export interface components {
             planned_track: string | null;
             /** Departed At */
             departed_at: string;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };

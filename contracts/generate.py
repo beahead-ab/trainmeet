@@ -125,6 +125,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.driver-1.overview": driver.DriverOverview,
     "trainmeet.driver-1.hand-out": driver.HandOut,
     "trainmeet.driver-1.take-back": driver.TakeBack,
+    "trainmeet.driver-1.paper": driver.PaperService,
+    "trainmeet.driver-1.paper-price": driver.PaperPrice,
+    "trainmeet.driver-1.paper-approve": driver.PaperApprove,
+    "trainmeet.driver-1.paper-reject": driver.PaperReject,
+    "trainmeet.driver-1.paper-reading": driver.PaperReadingSettings,
+    "trainmeet.driver-1.paper-reading-change": driver.PaperReadingChange,
     "trainmeet.screen-1.login": screen.ScreenLogin,
     "trainmeet.screen-1.session": screen.ScreenSession,
     "trainmeet.screen-1.show": screen.ShowView,
@@ -648,6 +654,34 @@ def openapi() -> str:
     ]
     route("get", dr + "/instructions", "driverInstructions", f + "instructions")
     route("post", dr + "/leave", "driverLeave", None, driver_key=True)
+    # Efter pappret (LOK-13, LOK-29, LOK-33): the price first, then the photos as a form.
+    route("get", dr + "/paper/price", "paperPrice", f + "paper-price", driver_key=True)
+    paths[dr + "/paper/price"]["get"]["parameters"] = [
+        {"name": "pages", "in": "query", "required": True, "schema": {"type": "integer"}}
+    ]
+    route("post", dr + "/paper", "readPaper", f + "paper", driver_key=True)
+    paths[dr + "/paper"]["post"]["requestBody"] = {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "pages": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 4,
+                            "items": {"type": "string", "format": "binary"},
+                        }
+                    },
+                    "required": ["pages"],
+                }
+            }
+        },
+    }
+    paths[dr + "/paper"]["post"]["parameters"] = [
+        {"name": "price", "in": "query", "schema": {"type": "integer"}}
+    ]
     route("get", dr + "/overview", "driverOverview", f + "overview", bearer=True)
     route("post", dr + "/hand-out", "handOutService", f + "overview", f + "hand-out", bearer=True)
     route(
@@ -663,6 +697,22 @@ def openapi() -> str:
     )
     route("post", dr + "/alarms/clear", "clearAlarm", f + "overview", d + "service", bearer=True)
     route("get", dr + "/connect", "driverJoining", d + "joining", bearer=True)
+    route(
+        "post",
+        dr + "/paper/{paper}/approve",
+        "approvePaper",
+        f + "overview",
+        f + "paper-approve",
+        bearer=True,
+    )
+    route(
+        "post",
+        dr + "/paper/{paper}/reject",
+        "rejectPaper",
+        f + "overview",
+        f + "paper-reject",
+        bearer=True,
+    )
     # Provbanan: one run per browser, in a cookie of its own (H51).
     pv = "/api/provbanan"
     route("get", pv, "preview", d + "preview")
@@ -816,6 +866,16 @@ def openapi() -> str:
     # Lägg till underlag: the file's own bytes, its name in the address.
     route("post", m + "/{meet}/sources", "addSource", p + "import-preview", bearer=True)
     route("post", m + "/{meet}/sources/{source}/apply", "applySource", p + "draft", bearer=True)
+    # Förarna (PLAN-40, LOK-33): who pays when a driver's paper is read.
+    route("get", m + "/{meet}/paper-reading", "paperReading", f + "paper-reading")
+    route(
+        "post",
+        m + "/{meet}/paper-reading",
+        "choosePaperReading",
+        f + "paper-reading",
+        f + "paper-reading-change",
+        bearer=True,
+    )
     # Förarna (PLAN-40): the general instructions as PDF, kept beside the package.
     route("post", m + "/{meet}/instructions.pdf", "instructionsPdf", p + "draft", bearer=True)
     paths[m + "/{meet}/instructions.pdf"]["post"]["requestBody"] = {

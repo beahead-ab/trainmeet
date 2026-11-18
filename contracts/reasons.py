@@ -81,6 +81,13 @@ class Reason(StrEnum):
     NO_SERVICE = "no_service"
     UNKNOWN_DRIVER = "unknown_driver"
     NOT_IN_SERVICE = "not_in_service"
+    # Efter pappret (LOK-13, LOK-29): a service missing from the plan, read from the photos
+    UNKNOWN_PAPER = "unknown_paper"
+    PAPER_DECIDED = "paper_decided"
+    PAPER_NO_PLACES = "paper_no_places"
+    PAPER_FEW_PLACES = "paper_few_places"
+    PAPER_NO_TIMES = "paper_no_times"
+    PAPER_NO_NUMBER = "paper_no_number"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -141,6 +148,17 @@ TEXT_SV: dict[Reason, str] = {
     Reason.NO_SERVICE: "Du har ingen tjänst.",
     Reason.UNKNOWN_DRIVER: "Föraren finns inte i träffen.",
     Reason.NOT_IN_SERVICE: "Platsen eller tågbesöket finns inte i tjänsten.",
+    Reason.UNKNOWN_PAPER: "Tjänsten efter pappret finns inte.",
+    Reason.PAPER_DECIDED: "Tjänsten efter pappret är redan godkänd, avslagen eller släppt.",
+    Reason.PAPER_NO_PLACES: (
+        "Pappret nämner ingen driftplats i träffen. Fota sidorna igen, eller be trafikledningen "
+        "om hjälp."
+    ),
+    Reason.PAPER_FEW_PLACES: (
+        "Tåget behöver två driftplatser i träffen för att tågklarerarna ska kunna klarera det."
+    ),
+    Reason.PAPER_NO_TIMES: "Ingen tid på pappret gick att läsa, så tåget kan inte sättas in.",
+    Reason.PAPER_NO_NUMBER: "Tågnumret gick inte att läsa på pappret. Skriv det.",
     Reason.DAY_STILL_RUNNING: (
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."
@@ -156,6 +174,11 @@ TEXT_EN: dict[Reason, str] = {
     Reason.NO_SERVICE: "You have no service.",
     Reason.UNKNOWN_DRIVER: "The driver is not in the meet.",
     Reason.NOT_IN_SERVICE: "The place or call is not in the service.",
+    Reason.UNKNOWN_PAPER: "The service run after the paper does not exist.",
+    Reason.PAPER_DECIDED: "The service run after the paper is already decided or released.",
+    Reason.PAPER_NO_PLACES: (
+        "The paper names no place in the meet. Take the photos again, or ask the dispatcher."
+    ),
     Reason.NO_ACTIVE_MEET: "No meet is running.",
     Reason.UNKNOWN_PLACE: "The place is not in the meet.",
     Reason.DRIFT_LOCKED: "Operations are locked. Ask the dispatcher.",

@@ -115,6 +115,11 @@ CREATE TABLE IF NOT EXISTS clock_source (
     password TEXT NOT NULL,
     poll_interval INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS paper_reading (
+    meet TEXT PRIMARY KEY,
+    payer TEXT NOT NULL,
+    person TEXT
+);
 """
 
 
@@ -147,6 +152,17 @@ class AiSetting:
     model: str
     key: str = field(repr=False)
     checked: datetime | None = None
+
+
+@dataclass(frozen=True)
+class PaperReading:
+    """Who pays when a driver's photos of a duty missing from the plan are read (LOK-33,
+    PLAN-40): the driver's own tokens by default, or the meet's. For the meet's, the person in
+    TrainMeet ID who chose it, as ID's id: their club's balance pays for a meet in ID, else
+    their own (TK16)."""
+
+    payer: str = "driver"
+    person: str | None = None
 
 
 @dataclass(frozen=True)
@@ -542,6 +558,23 @@ class LocalLogin:
                     settings.password,
                     settings.poll_interval,
                 ),
+            )
+
+    def paper_reading(self, meet: str) -> PaperReading:
+        """Who pays for reading a driver's paper at the meet (LOK-33): the driver by default."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT payer, person FROM paper_reading WHERE meet=?", (meet,)
+            ).fetchone()
+        if row is None or row[0] != "meet":
+            return PaperReading()
+        return PaperReading("meet", row[1])
+
+    def set_paper_reading(self, meet: str, choice: PaperReading) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO paper_reading VALUES (?, ?, ?)",
+                (meet, choice.payer, choice.person if choice.payer == "meet" else None),
             )
 
     def meet_wifi(self) -> MeetWifi | None:

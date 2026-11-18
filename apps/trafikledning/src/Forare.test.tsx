@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { DriftEvent, DriverOverview, Now } from "./api";
+import type { DriftEvent, DriverOverview, Now, PaperService } from "./api";
 import { pageOf } from "./App";
 import { describe as describeEvent } from "./drift";
-import { alarmText, ForarePage, TEXT } from "./Forare";
+import { alarmText, ForarePage, paperMark, paperRowText, TEXT } from "./Forare";
 import { Forarna } from "./Nu";
 
 const now = {
@@ -147,5 +147,99 @@ describe("Lokföraren in Nu and Logg (LOK-35, LOK-23)", () => {
     expect(describeEvent(event("service.released", { done: true }))).toBe("Tjänsten klar: Framme vid slutet");
     expect(describeEvent(event("driver.arrived", { counted: true }))).toBe("Föraren: Framme, räknas som ankomst");
     expect(describeEvent(event("service.claimed", {}))).toBe("Tjänsten tagen");
+  });
+});
+
+// Tjänst 24 on Provbanan, run after the paper by Anna: missing from the plan, waiting (LOK-13).
+const paper = (status: string, extra: Record<string, unknown> = {}) =>
+  ({
+    paper: "papper-0a1b2c3d4e",
+    service: { kind: "paper", id: "papper-0a1b2c3d4e" },
+    status,
+    driver: "forare-a",
+    driver_name: "Anna Ek",
+    number: "24",
+    train_number: "G 4521",
+    operator: "Green Cargo",
+    start: { time: "06:31", place: "nby", place_name: "Norrby", unreadable: false },
+    end: { time: "07:20", place: "sjv", place_name: "Sjövik", unreadable: false },
+    rows: [
+      { place: "nby", place_name: "Norrby", arrival: null, departure: "06:41", track: "3", stops: true, note: "Koppla loket.", unreadable: false },
+      { place: "asn", place_name: "Åsen", arrival: "06:49", departure: null, track: null, stops: true, note: null, unreadable: true },
+      { place: null, place_name: "Gårdsjö", arrival: "07:05", departure: "07:06", track: null, stops: true, note: null, unreadable: false },
+    ],
+    pages: 3,
+    photos: ["/api/drift/1/drivers/paper/papper-0a1b2c3d4e/pages/1"],
+    paid_by: "meet",
+    cost: 36,
+    said: "Ingen tjänst startar 06:31 vid Norrby. Närmast: 3 kl. 06:35.",
+    candidates: [offer("3", { start: { time: "06:35", place: "nby", place_name: "Norrby" }, trains: ["4501", "4502"] })],
+    reason: null,
+    train: null,
+    model_time: "06:20",
+    wall_time: "2026-11-18T09:05:00Z",
+    ...extra,
+  }) as unknown as PaperService;
+
+const withPaper = (maySet: boolean, found: PaperService): DriverOverview => {
+  const base = overview(maySet);
+  const anna = { ...base.drivers![0]!, service: offer("24", { service: { kind: "paper", id: found.paper }, taken: true, driver: "forare-a", paper: found.status, trains: ["G 4521"] }) };
+  return { ...base, drivers: [anna, ...base.drivers!.slice(1)], papers: [found] } as unknown as DriverOverview;
+};
+
+describe("Efter pappret in Förare (LOK-13, LOK-29, LF22)", () => {
+  it("shows the paper waiting, marked, with the front and the timetable as read", () => {
+    const html = renderToStaticMarkup(<ForarePage loggedIn now={now} navigate={go} language="sv" initial={{ overview: withPaper(true, paper("waiting")), joining }} />);
+    expect(html).toContain("Anna Ek kör efter pappret");
+    expect(html).toContain("Efter pappret · Väntar på dig");
+    expect(html).toContain("Tjänst 24 på pappret");
+    expect(html).toContain("06:31 · Norrby");
+    expect(html).toContain("Green Cargo");
+    expect(html).toContain("3 sidor fotade 06:20. Lästa med träffens tokens.");
+    expect(html).toContain('href="/api/drift/1/drivers/paper/papper-0a1b2c3d4e/pages/1"');
+    expect(html).toContain("Norrby · avg 06:41 · spår 3 · Koppla loket.");
+    expect(html).toContain("Åsen · ank 06:49 · tid gick inte att läsa");
+    expect(html).toContain("Gårdsjö · ank 07:05 · avg 07:06 · finns inte i träffen");
+    expect(html).toContain("Ingen tjänst startar 06:31 vid Norrby. Närmast: 3 kl. 06:35.");
+    expect(html).toContain(">Dela ut den i stället<");
+    expect(html).toContain(">Godkänn tjänsten<");
+    expect(html).toContain(">Avslå<");
+    expect(html).toContain("Godkänner du syns G 4521 hos tågklarerarna, märkt Efter pappret.");
+    // In the drivers' list too: the service is marked wherever it shows (LOK-13).
+    expect(html).toContain("Tjänst 24 · tåg G 4521 · Efter pappret · Väntar på dig");
+  });
+
+  it("lets only Trafikledningen approve or reject; the lokledare sees it", () => {
+    const lead = renderToStaticMarkup(<ForarePage loggedIn now={now} navigate={go} language="sv" initial={{ overview: withPaper(false, paper("waiting")), joining }} />);
+    expect(lead).toContain("Anna Ek kör efter pappret");
+    expect(lead).not.toContain(">Godkänn tjänsten<");
+    expect(lead).not.toContain(">Avslå<");
+  });
+
+  it("says how it was decided, and asks nothing more", () => {
+    const approved = renderToStaticMarkup(<ForarePage loggedIn now={now} navigate={go} language="sv" initial={{ overview: withPaper(true, paper("approved", { train: "x-c-papper-0a1b2c3d4e" })), joining }} />);
+    expect(approved).toContain("Godkänd som tåg G 4521, märkt Efter pappret.");
+    expect(approved).not.toContain(">Godkänn tjänsten<");
+    const rejected = renderToStaticMarkup(<ForarePage loggedIn now={now} navigate={go} language="sv" initial={{ overview: withPaper(true, paper("rejected", { reason: "Tjänst 3 är samma." })), joining }} />);
+    expect(rejected).toContain("Avslagen: Tjänst 3 är samma.");
+    expect(rejected).not.toContain(">Avslå<");
+  });
+
+  it("marks the service and the rows in words, in English too", () => {
+    expect(paperMark(offer("24", { paper: "approved" }) as never, TEXT.en)).toBe("After the paper · Approved");
+    expect(paperMark(offer("1") as never, TEXT.sv)).toBeNull();
+    expect(paperRowText(paper("waiting").rows![1]!, TEXT.en)).toBe("Åsen · arr 06:49 · time could not be read");
+    const html = renderToStaticMarkup(<ForarePage loggedIn now={now} navigate={go} language="en" initial={{ overview: withPaper(true, paper("waiting")), joining }} />);
+    expect(html).toContain("Anna Ek runs after the paper");
+    expect(html).toContain(">Approve the service<");
+  });
+
+  it("tells Logg and Nu, with the mark on the train", () => {
+    const event = (kind: string, data: Record<string, unknown>) => ({ kind, data }) as unknown as DriftEvent;
+    expect(describeEvent(event("paper.created", {}))).toBe("Föraren kör efter pappret: tjänsten saknas i planen");
+    expect(describeEvent(event("paper.approved", { train_number: "G 4521" }))).toBe("Tjänsten efter pappret godkänd: tåg G 4521, märkt Efter pappret");
+    expect(describeEvent(event("paper.rejected", { reason: "Fel tid." }))).toBe("Tjänsten efter pappret avslagen: Fel tid.");
+    const extra = { kind: "extra", number: "G 4521", departure: "06:41", copy_of: null, from_place: null, to_place: null, days: ["mon"], calls: [{ place: "nby" }, { place: "sjv" }], paper: "papper-0a1b2c3d4e" };
+    expect(describeEvent(event("change.made", { change: extra }), { places: now.places.map((p) => ({ id: p.place, code: p.code, name: p.name, kind: "manned" })) } as never)).toBe("Driftändring: Extratåg G 4521 efter pappret Norrby–Sjövik kl. 06:41");
   });
 });

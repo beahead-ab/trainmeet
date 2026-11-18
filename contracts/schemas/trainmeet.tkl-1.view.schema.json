@@ -202,6 +202,12 @@
           },
           "title": "Allowed Actions",
           "type": "array"
+        },
+        "paper": {
+          "default": false,
+          "description": "Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).",
+          "title": "Paper",
+          "type": "boolean"
         }
       },
       "required": [
@@ -271,6 +277,12 @@
           "minimum": 0,
           "title": "Revision",
           "type": "integer"
+        },
+        "paper": {
+          "default": false,
+          "description": "Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).",
+          "title": "Paper",
+          "type": "boolean"
         }
       },
       "required": [
@@ -951,6 +963,12 @@
           "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
           "title": "Departed At",
           "type": "string"
+        },
+        "paper": {
+          "default": false,
+          "description": "Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).",
+          "title": "Paper",
+          "type": "boolean"
         }
       },
       "required": [

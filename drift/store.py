@@ -41,6 +41,9 @@ MAX_REFUSALS: Final = 500
 MAX_DRIVERS: Final = 500
 # A driver's photo is a small picture the phone has already cut and scaled (LOK-27).
 PHOTO_MAX_BYTES: Final = 96 * 1024
+# The photos of the papers run after the paper (LOK-29), cleaned, for Förare to compare with
+# what was read: as many pages as a big meet's drivers photograph, and then no more are kept.
+MAX_PAPER_PAGES: Final = 400
 
 T = TypeVar("T")
 
@@ -132,6 +135,11 @@ CREATE TABLE IF NOT EXISTS driver (
 CREATE TABLE IF NOT EXISTS driver_join (
     run_id TEXT PRIMARY KEY REFERENCES preview_run(id) ON DELETE CASCADE,
     code TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS paper_page (
+    run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
+    paper TEXT NOT NULL, page INTEGER NOT NULL, media_type TEXT NOT NULL, body BLOB NOT NULL,
+    PRIMARY KEY (run_id, paper, page)
 );
 CREATE TABLE IF NOT EXISTS station_reply (
     run_id TEXT NOT NULL REFERENCES preview_run(id) ON DELETE CASCADE,
@@ -1744,6 +1752,40 @@ class PreviewStore:
                 "SELECT photo, photo_type FROM driver "
                 "WHERE driver_id=? AND run_id=? AND photo IS NOT NULL",
                 (driver_id, run_id),
+            ).fetchone()
+        return None if row is None else (bytes(row[0]), str(row[1]))
+
+    def keep_paper_pages(self, run_id: str, paper: str, pages: list[tuple[bytes, str]]) -> int:
+        """The photos of a paper run after the paper, already cleaned of their metadata, kept as
+        long as the run for Förare and the driver. How many were kept: none once the run has
+        MAX_PAPER_PAGES."""
+        with self._transaction() as db:
+            count = db.execute(
+                "SELECT count(*) FROM paper_page WHERE run_id=?", (run_id,)
+            ).fetchone()[0]
+            if count + len(pages) > MAX_PAPER_PAGES:
+                return 0
+            db.executemany(
+                "INSERT OR REPLACE INTO paper_page VALUES (?, ?, ?, ?, ?)",
+                (
+                    (run_id, paper, number, kind, data)
+                    for number, (data, kind) in enumerate(pages, 1)
+                ),
+            )
+        return len(pages)
+
+    def paper_pages(self, run_id: str, paper: str) -> int:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT count(*) FROM paper_page WHERE run_id=? AND paper=?", (run_id, paper)
+            ).fetchone()
+        return int(row[0])
+
+    def paper_page(self, run_id: str, paper: str, page: int) -> tuple[bytes, str] | None:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT body, media_type FROM paper_page WHERE run_id=? AND paper=? AND page=?",
+                (run_id, paper, page),
             ).fetchone()
         return None if row is None else (bytes(row[0]), str(row[1]))
 

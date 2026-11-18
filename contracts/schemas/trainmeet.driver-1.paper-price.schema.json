@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper-price.schema.json",
+  "title": "trainmeet.driver-1.paper-price",
+  "$defs": {
+    "PaperPayer": {
+      "description": "Vem som stod för AI-läsningen (LOK-33).",
+      "enum": [
+        "meet",
+        "driver",
+        "hub"
+      ],
+      "title": "PaperPayer",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Priset innan något läses (TOKEN-14): 12 tokens per sida, ur träffens saldo eller förarens\neget som träffen valt (LOK-33), eller inget med hubbens egen AI. ready säger om det går.",
+  "properties": {
+    "pages": {
+      "maximum": 4,
+      "minimum": 1,
+      "title": "Pages",
+      "type": "integer"
+    },
+    "price": {
+      "description": "Tokens för sidorna.",
+      "minimum": 0,
+      "title": "Price",
+      "type": "integer"
+    },
+    "per_page": {
+      "minimum": 0,
+      "title": "Per Page",
+      "type": "integer"
+    },
+    "paid_by": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperPayer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "payer": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vems saldo: klubbens, personens, eller hubbens egen AI.",
+      "title": "Payer"
+    },
+    "available": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Saldot som är kvar.",
+      "title": "Available"
+    },
+    "ready": {
+      "description": "Går att läsa nu.",
+      "title": "Ready",
+      "type": "boolean"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför inte, och vad föraren gör.",
+      "title": "Message"
+    }
+  },
+  "required": [
+    "pages",
+    "price",
+    "per_page",
+    "ready"
+  ],
+  "type": "object"
+}

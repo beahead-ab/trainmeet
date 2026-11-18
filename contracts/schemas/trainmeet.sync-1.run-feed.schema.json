@@ -216,7 +216,10 @@
         "driver.checked_in",
         "driver.message",
         "driver.arrived",
-        "driver.settings"
+        "driver.settings",
+        "paper.created",
+        "paper.approved",
+        "paper.rejected"
       ],
       "title": "EventKind",
       "type": "string"

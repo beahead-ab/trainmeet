@@ -57,7 +57,7 @@ group("Driftändringar (DRIFT-41, TRAFIK-02)", () => {
     const draft = (kind: Parameters<typeof emptyDraft>[0], part: object = {}) => ({ ...emptyDraft(kind, now), ...part });
     expect(buildChange(draft("cancel"))).toBe("Välj ett tåg.");
     expect(buildChange(draft("cancel", { train: "t101" }))).toEqual({ kind: "cancel", train: "t101" });
-    expect(buildChange(draft("extra", { number: "9101", copyOf: "t101" }))).toEqual({ kind: "extra", number: "9101", departure: "07:00", copy_of: "t101", from_place: null, to_place: null, days: ["mon"] });
+    expect(buildChange(draft("extra", { number: "9101", copyOf: "t101" }))).toEqual({ kind: "extra", number: "9101", departure: "07:00", copy_of: "t101", from_place: null, to_place: null, days: ["mon"], calls: [], paper: null });
     expect(buildChange(draft("extra", { number: "9", copy: false, from: "nby", to: "nby" }))).toBe("Från och till är samma driftplats.");
     expect(buildChange(draft("times", { train: "t101", minutes: "x" }))).toBe("Skriv hur många minuter, till exempel 10 eller −5.");
     expect(buildChange(draft("times", { train: "t101", minutes: "-5", call: "t101-asn" }))).toEqual({ kind: "times", train: "t101", minutes: -5, from_call: "t101-asn", calls: [] });

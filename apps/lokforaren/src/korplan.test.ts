@@ -101,7 +101,7 @@ describe("Framme only when allowed and only where nobody works (LOK-39)", () => 
 
   it("goes by the stations' word on where the train is, when the game shows it", () => {
     const moments = momentsOf(rows());
-    const late = { train: "t101", train_number: "101", state: "on_the_way" as const, from_place: "nby", to_place: "asn", section: "s", place: null, delay: 6 };
+    const late = { train: "t101", train_number: "101", state: "on_the_way" as const, from_place: "nby", to_place: "asn", section: "s", place: null, delay: 6, paper: false };
     expect(frammeRow(moments, at("06:12"), late)?.place).toBe("asn");
     expect(frammeRow(moments, at("06:04"), { ...late, state: "at", place: "nby", to_place: null })).toBeNull();
   });

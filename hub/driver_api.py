@@ -12,6 +12,12 @@ not. A driver always sees their own.
 
 The updates: Nu is read every other second by the pages, and Drift's events are written as they
 happen; a driver's phone waits for the next event on /wait (a long poll) and reads again.
+
+Efter pappret (LOK-13, LOK-29, LOK-33): the driver photographs a duty missing from the plan. The
+photos are cleaned of their metadata before anything is sent, the price is told first, and the
+hub's own AI reads them, or TrainMeets AI through the meter in ID on the meet's tokens or the
+driver's own (hub/paper_reading.py): reserved, read, and drawn only when the reading became the
+driver's service, else given back. Trafikledningen approves or rejects it in Förare.
 """
 
 from __future__ import annotations
@@ -19,19 +25,23 @@ from __future__ import annotations
 import asyncio
 import io
 import re
+import secrets
 from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated, Any, Final, NoReturn, TypeVar
 
 import segno
-from fastapi import APIRouter, Cookie, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Cookie, Header, HTTPException, Path, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import drift as events
 from contracts import driver as contract
+from contracts.common import Id
 from contracts.meet import AttachmentKind
 from contracts.reasons import TEXT_SV, Reason
 from drift import drivers
+from drift import paper as papers
+from drift.driver_book import Paper
 from drift.engine import Drift, Refused, now_utc
 from drift.store import (
     PHOTO_MAX_BYTES,
@@ -42,11 +52,16 @@ from drift.store import (
     UnknownDriver,
 )
 from hub.deltagare import on_meet_network
-from hub.hubben import Authorization, SessionCookie, _secure, session_of
+from hub.hubben import Authorization, SessionCookie, _secure, service_of, session_of
+from hub.id_tokens import IdTokens
 from hub.local import PERSON, LocalLogin
 from hub.network_api import _same_site
+from hub.paper_reading import NoPayer, PaperReadings, Payment, short_of
 from hub.rights import Rights
-from hub.running import Running
+from hub.running import PROVBANAN, Running
+from integrationer import ai
+from integrationer import paper as reader
+from integrationer.scanned import MAX_PICTURE
 
 COOKIE: Final = "trainmeet_forare"
 KeyCookie = Annotated[str | None, Cookie(alias=COOKIE, max_length=120)]
@@ -56,6 +71,11 @@ WAIT_INTERVAL: Final = 0.5
 KEY_LIFETIME: Final = 7 * 24 * 3600
 NOT_IN: Final = "Kom in med QR-koden på träffen först."
 NO_MEET: Final = "Ingen träff är startad."
+# The photos of a paper: four pages of at most 5 MB, and the form around them (LOK-29).
+PAPER_FORM: Final = reader.MAX_PAGES * MAX_PICTURE + 64 * 1024
+_BOUNDARY: Final = re.compile(r'boundary=(?:"([^"\r\n]{1,70})"|([^\s;",]{1,70}))', re.IGNORECASE)
+_NAME: Final = re.compile(r'(?:^|;)\s*name="([^"\r\n]*)"', re.IGNORECASE)
+BAD_FORM: Final = "Fotona kom inte fram som ett formulär. Fota sidorna igen."
 PHOTO_TYPES: Final = {
     b"\x89PNG\r\n\x1a\n": "image/png",
     b"\xff\xd8\xff": "image/jpeg",
@@ -93,15 +113,54 @@ def _claimed_by(by: str) -> events.ClaimedBy:
     return "driver"
 
 
+def form_parts(content_type: str, body: bytes) -> list[tuple[str, bytes]]:
+    """The parts of a multipart/form-data form (RFC 7578), by name, read in memory: the photos
+    never go to a temporary file before their metadata is gone. A form that does not follow
+    the rule is refused, rather than read as well as it goes."""
+    kind = content_type.split(";", 1)[0].strip().lower()
+    boundary = _BOUNDARY.search(content_type)
+    if kind != "multipart/form-data" or boundary is None:
+        raise HTTPException(422, BAD_FORM)
+    delimiter = b"\r\n--" + (boundary[1] or boundary[2]).encode("latin-1")
+    chunks = (b"\r\n" + body).split(delimiter)
+    if len(chunks) < 3 or chunks[0] or not chunks[-1].startswith(b"--"):
+        raise HTTPException(422, BAD_FORM)
+    found: list[tuple[str, bytes]] = []
+    for chunk in chunks[1:-1]:
+        head, separator, data = chunk.partition(b"\r\n\r\n")
+        if not separator or not head.startswith(b"\r\n"):
+            raise HTTPException(422, BAD_FORM)
+        dispositions = [
+            value
+            for key, _, value in (
+                line.partition(":") for line in head[2:].decode("latin-1").split("\r\n")
+            )
+            if key.strip().lower() == "content-disposition"
+        ]
+        name = _NAME.search(dispositions[0]) if len(dispositions) == 1 else None
+        if name is None:
+            raise HTTPException(422, BAD_FORM)
+        found.append((name[1], data))
+    return found
+
+
 def _refused(error: Refused) -> NoReturn:
     raise HTTPException(409, TEXT_SV[error.reason], headers={"X-Reason": error.reason.value}) from (
         error
     )
 
 
-def router(running: Running, login: LocalLogin, rights: Rights | None = None) -> APIRouter:
+def router(
+    running: Running,
+    login: LocalLogin,
+    rights: Rights | None = None,
+    tokens: IdTokens | None = None,
+) -> APIRouter:
+    """tokens: TrainMeets AI through the meter in ID, in the cloud hub (#79), for reading a
+    driver's paper (LOK-33)."""
     routes = APIRouter(prefix="/api/drift/1/drivers")
     may = rights if rights is not None else Rights(login)
+    readings = PaperReadings(login, tokens, may.roles)
 
     def store() -> PreviewStore:
         return running.store
@@ -169,10 +228,19 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
         except MissingRun as error:
             raise HTTPException(404, NO_MEET) from error
 
+    def paper_view(
+        found: PreviewStore, run_id: str, drift: Drift, kept: Paper, names: dict[str, str | None]
+    ) -> contract.PaperService:
+        pages = found.paper_pages(run_id, kept.id)
+        photos = [f"/api/drift/1/drivers/paper/{kept.id}/pages/{n}" for n in range(1, pages + 1)]
+        return papers.view(drift, kept, names=names, photos=photos)
+
     def me_view(drift: Drift, record: DriverRecord) -> dict[str, Any]:
         now = now_utc()
         held = drift.drivers.service_of(record.id)
         service = drivers.find(drift, held.service) if held is not None else None
+        mine = drift.drivers.paper_of(record.id)
+        names: dict[str, str | None] = {record.id: record.name}
         return contract.DriverMe(
             driver=view(record, True),
             service=drivers.offer(
@@ -186,6 +254,7 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
             clock=drivers.clock(drift, now),
             settings=drift.drivers.settings,
             revision=len(drift.history),
+            paper=paper_view(store(), record.run_id, drift, mine, names) if mine else None,
         ).model_dump(mode="json")
 
     def person_of(session: str | None, authorization: str | None) -> str | None:
@@ -480,6 +549,187 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
         sent = drift.drivers.messages[-1]
         return drivers.message_of(drift, sent, {record.id: record.name}).model_dump(mode="json")
 
+    # --- Efter pappret (LOK-13, LOK-29, LOK-33): the driver's side ----------------------------
+
+    @routes.get("/paper/price")
+    def paper_price(
+        response: Response,
+        pages: int = Query(ge=1, le=reader.MAX_PAGES),
+        cookie: KeyCookie = None,
+        header: KeyHeader = None,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Any:
+        """Priset innan något läses (TOKEN-14): 12 tokens per sida, ur träffens saldo eller
+        förarens eget som träffen valt (LOK-33), eller inget med hubbens egen AI. Says what to
+        do when it cannot be read: log in, or ask Trafikledningen."""
+        response.headers["Cache-Control"] = "no-store"
+        found, record = me(cookie, header)
+        meet = state(found, record.run_id).package.meet
+        return readings.price(
+            meet.id, meet.id_meet, person_of(session, authorization), pages
+        ).model_dump(mode="json")
+
+    @routes.post("/paper", status_code=201)
+    async def read_paper(
+        request: Request,
+        response: Response,
+        price: int | None = Query(default=None, ge=0, description="Priset föraren såg."),
+        cookie: KeyCookie = None,
+        header: KeyHeader = None,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Any:
+        """Kör efter pappret (LOK-29): 1–4 photos of the duty's pages as multipart/form-data,
+        each part named pages. They are cleaned, read by AI and compared with the plan; the
+        reading becomes the driver's service, waiting for Trafikledningen (LOK-13), and the
+        planned services nearest its start come with it (LF16). With price, the price the
+        driver was shown: a higher one is not paid without asking again."""
+        response.headers["Cache-Control"] = "no-store"
+        same_site(request)
+        found, record = await run_in_threadpool(me, cookie, header)
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > PAPER_FORM:
+            raise HTTPException(413, "Fotona är för stora. Fota igen med lägre upplösning.")
+        data = bytearray()
+        async for chunk in request.stream():
+            data += chunk
+            if len(data) > PAPER_FORM:
+                raise HTTPException(413, "Fotona är för stora. Fota igen med lägre upplösning.")
+        parts = form_parts(request.headers.get("content-type", ""), bytes(data))
+        if any(name != "pages" for name, _ in parts):
+            raise HTTPException(422, BAD_FORM)
+        photos = [body for _, body in parts]
+        token = session_of(session, authorization)
+        return await run_in_threadpool(read_the_paper, found, record, photos, price, token)
+
+    def read_the_paper(
+        found: PreviewStore,
+        record: DriverRecord,
+        photos: list[bytes],
+        price: int | None,
+        token: str | None,
+    ) -> dict[str, Any]:
+        drift = state(found, record.run_id)
+        try:
+            papers.may_read(drift, record.id)  # before anything costs (LOK-40)
+            images = reader.pages_of(photos)
+        except Refused as error:
+            _refused(error)
+        except reader.PaperError as error:
+            raise HTTPException(422, str(error)) from error
+        meet = drift.package.meet
+        person = login.person(token) if login.role(token) == PERSON else None
+        try:
+            payment = readings.payment(meet.id, meet.id_meet, person.id if person else None)
+        except NoPayer as error:
+            raise HTTPException(error.status, error.message) from error
+        cost = payment.price(len(images))
+        if price is not None and cost > price:
+            raise HTTPException(409, f"Läsningen kostar nu {cost} tokens. Se priset och läs igen.")
+        if payment.available is not None and payment.available < cost:
+            raise HTTPException(402, short_of(payment.available, cost))
+        paper_id = f"papper-{secrets.token_hex(5)}"
+        if payment.paid_by == events.PaperPayer.HUB:
+            setting = login.ai()
+            assert setting is not None
+            try:
+                text = ai.ask(
+                    service_of(setting), reader.PROMPT, images, max_tokens=reader.MAX_TOKENS
+                )
+            except ai.AiError as error:
+                raise HTTPException(502, f"Läsningen stannade: {error}") from None
+            drift = become(found, record, paper_id, text, len(images), payment, 0)
+        else:
+            assert tokens is not None and payment.person and payment.owner is not None
+            answer = tokens.read(
+                payment.person,
+                payment.owner,
+                reader.PROMPT,
+                images,
+                f"Ett köruppdrag efter pappret, {len(images)} sidor",
+                reader.MAX_TOKENS,
+                amount=cost,
+                hold=True,
+            )
+            try:
+                drift = become(
+                    found, record, paper_id, answer.text, len(images), payment, answer.cost
+                )
+            except HTTPException:
+                # Not used: nothing is drawn (TOKEN-24).
+                tokens.give_back(answer.reservation.id)
+                raise
+            tokens.draw(payment.person, answer.reservation.id, answer.cost)
+        found.keep_paper_pages(
+            record.run_id, paper_id, [(image.data, image.media_type) for image in images]
+        )
+        names: dict[str, str | None] = {record.id: record.name}
+        kept = drift.drivers.papers[paper_id]
+        return paper_view(found, record.run_id, drift, kept, names).model_dump(mode="json")
+
+    def become(
+        found: PreviewStore,
+        record: DriverRecord,
+        paper_id: str,
+        text: str,
+        pages: int,
+        payment: Payment,
+        cost: int,
+    ) -> Drift:
+        """What the AI wrote, read with code and made the driver's service after the paper."""
+        try:
+            reading = reader.reading(text)
+        except reader.PaperError as error:
+            raise HTTPException(422, str(error)) from error
+        return act(
+            found,
+            record.run_id,
+            lambda d, now: papers.create(
+                d,
+                record.id,
+                paper_id,
+                reading,
+                pages=pages,
+                paid_by=payment.paid_by,
+                cost=cost,
+                now=now,
+            ),
+        )
+
+    @routes.get("/paper/{paper_id}/pages/{page}")
+    def paper_page(
+        paper_id: Id,
+        page: int = Path(ge=1, le=reader.MAX_PAGES),
+        cookie: KeyCookie = None,
+        header: KeyHeader = None,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Response:
+        """A photo of the paper, cleaned: for its driver, and for Trafikledningen and the
+        lokledare to compare with what was read."""
+        found = store()
+        run_id = current(found)
+        kept = state(found, run_id).drivers.papers.get(paper_id)
+        own = None
+        if header or cookie:
+            try:
+                own = found.driver_by_key(header or cookie or "").id
+            except UnknownDriver:
+                own = None
+        token = session_of(session, authorization)
+        leads = may.may_lead_drivers(token, run_id, found.package.meet.id_meet)
+        if kept is None or (own != kept.driver and not leads):
+            raise HTTPException(404, "Fotot visas för föraren och trafikledningen.")
+        photo = found.paper_page(run_id, paper_id, page)
+        if photo is None:
+            raise HTTPException(404, "Sidan finns inte.")
+        return Response(
+            photo[0],
+            media_type=photo[1],
+            headers={"Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
+        )
+
     # --- Open like Nu: the clock, the trains and the drivers -----------------------------------
 
     @routes.get("/clock")
@@ -644,6 +894,7 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
             may_hand_out=True,
             may_set=runs,
             names_shown=True,
+            papers=[paper_view(found, run_id, drift, p, names) for p in papers.listed(drift)][:50],
         ).model_dump(mode="json")
 
     def by(runs: bool) -> events.ClaimedBy:
@@ -735,6 +986,51 @@ def router(running: Running, login: LocalLogin, rights: Rights | None = None) ->
         found, run_id, runs = leading(session, authorization)
         running_it(runs)
         act(found, run_id, lambda d, now: drivers.clear_alarm(d, given, now))
+        return overview(found, run_id, runs)
+
+    @routes.post("/paper/{paper_id}/approve")
+    def approve_paper(
+        paper_id: Id,
+        given: contract.PaperApprove,
+        request: Request,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Any:
+        """Godkänn (LOK-13, LF22): the service run after the paper becomes an extra train in
+        Drift with the paper's calls, which the stations see and clear, marked Efter pappret.
+        Like every driftändring it is a proposal for the next version (4.4)."""
+        response.headers["Cache-Control"] = "no-store"
+        same_site(request)
+        found, run_id, runs = leading(session, authorization)
+        running_it(runs)
+        made: list[events.ExtraTrain] = []
+        drift = act(
+            found,
+            run_id,
+            lambda d, now: made.append(papers.approve(d, paper_id, given.train_number, now)),
+        )
+        if running.meet != PROVBANAN and running.home_here(running.meet):
+            running.planning.propose(
+                running.meet, drift.version, papers.change_id_of(paper_id), made[0], None
+            )
+        return overview(found, run_id, runs)
+
+    @routes.post("/paper/{paper_id}/reject")
+    def reject_paper(
+        paper_id: Id,
+        given: contract.PaperReject,
+        request: Request,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> Any:
+        """Avslå: the driver no longer runs it, and is told why."""
+        response.headers["Cache-Control"] = "no-store"
+        same_site(request)
+        found, run_id, runs = leading(session, authorization)
+        running_it(runs)
+        act(found, run_id, lambda d, now: papers.reject(d, paper_id, given.reason, now))
         return overview(found, run_id, runs)
 
     def address(request: Request, code: str) -> str:

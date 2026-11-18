@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { planning, type Draft } from "./api";
+import { planning, type Draft, type PaperReadingPayer, type PaperReadingSettings } from "./api";
 import type { Duty, Package } from "./data";
 
 // Förarna (PLAN-40, LOK-34, LF21): the duties per driver level, as the papers' fronts say it,
 // and the general instructions the duties refer to, as text or as a PDF. They are kept in the
 // meet package, the text in the package's about and the PDF as its attachment, and go with the
-// next version to Drift, where Lokföraren shows what there is. Swedish and English (ST10).
+// next version to Drift, where Lokföraren shows what there is. And the meet's choice of whose
+// tokens read a duty a driver photographs because it is missing from the plan (LOK-33): the
+// meet's or the driver's own, kept in the hub, not in the package. Swedish and English (ST10).
 
 export type Language = "sv" | "en";
 
@@ -42,6 +44,19 @@ export const TEXT = {
     pdfSaved: "PDF:en är inlagd i utkastet.",
     pdfRemoved: "PDF:en är borttagen ur utkastet.",
     size: (kilobytes: number) => `${kilobytes} kB`,
+    paper: "När en förare fotar ett köruppdrag",
+    paperNote: "Saknas tjänsten i planen läser Lokföraren tidtabellen ur förarens foton. AI-läsningen kostar tokens. Välj vem som står för dem på den här träffen.",
+    paperLegend: "AI-läsning av köruppdrag som saknas",
+    meetTokens: "Träffens tokens",
+    meetTokensNote: "Föraren behöver inget konto. Väljs inloggad med TrainMeet ID: klubben betalar för en träff i ID.",
+    driverTokens: "Förarens egna tokens",
+    driverTokensNote: "Kräver att föraren har TrainMeet ID. Förval.",
+    balance: (title: string, available: number) => `${title} har ${available} tokens kvar.`,
+    price: (perPage: number) => `En läsning kostar ${perPage} tokens per sida, så fyra sidor kostar ${perPage * 4}.`,
+    ownAi: (model: string) => `Hubben har egen AI (${model}): den läser fotona utan tokens.`,
+    noAi: "Hubben har ingen egen AI och når inte TrainMeets AI. Förarna kan inte få pappret läst här.",
+    paperSaved: (meet: boolean): string => (meet ? "Träffens tokens läser fotade köruppdrag." : "Förarens egna tokens läser fotade köruppdrag."),
+    paperReadOnly: "Bara arrangören ändrar valet.",
   },
   en: {
     title: "Drivers",
@@ -68,6 +83,19 @@ export const TEXT = {
     pdfSaved: "The PDF is added to the draft.",
     pdfRemoved: "The PDF is removed from the draft.",
     size: (kilobytes: number) => `${kilobytes} kB`,
+    paper: "When a driver photographs a duty",
+    paperNote: "When the service is missing from the plan, Lokföraren reads the timetable from the driver's photos. The AI reading costs tokens. Choose who pays for them at this meet.",
+    paperLegend: "AI reading of missing duties",
+    meetTokens: "The meet's tokens",
+    meetTokensNote: "The driver needs no account. Chosen logged in with TrainMeet ID: the club pays for a meet in ID.",
+    driverTokens: "The driver's own tokens",
+    driverTokensNote: "The driver needs TrainMeet ID. The default.",
+    balance: (title: string, available: number) => `${title} has ${available} tokens left.`,
+    price: (perPage: number) => `A reading costs ${perPage} tokens a page, so four pages cost ${perPage * 4}.`,
+    ownAi: (model: string) => `The hub has its own AI (${model}): it reads the photos without tokens.`,
+    noAi: "The hub has no AI of its own and does not reach TrainMeets AI. The drivers cannot have a paper read here.",
+    paperSaved: (meet: boolean): string => (meet ? "The meet's tokens read photographed duties." : "The driver's own tokens read photographed duties."),
+    paperReadOnly: "Only the organiser changes the choice.",
   },
 };
 
@@ -102,10 +130,32 @@ export type ForarnaProps = {
   onDraft: (draft: Draft) => void;
   onTell: (text: string, good?: boolean) => void;
   onFail: (error: unknown) => void;
+  /** Given in tests; the page reads it from the hub itself. */
+  paperReading?: PaperReadingSettings | null;
 };
 
-export function ForarnaPage({ admin, meet, draft, language = "sv", onDraft, onTell, onFail }: ForarnaProps) {
+export function ForarnaPage({ admin, meet, draft, language = "sv", onDraft, onTell, onFail, paperReading = null }: ForarnaProps) {
   const text: Text = TEXT[language];
+  const [reading, setReading] = useState<PaperReadingSettings | null>(paperReading);
+  useEffect(() => {
+    if (paperReading) return;
+    let current = true;
+    planning.paperReading(meet).then(
+      (found) => current && setReading(found),
+      () => current && setReading(null),
+    );
+    return () => {
+      current = false;
+    };
+  }, [meet, paperReading]);
+  const choose = async (payer: PaperReadingPayer) => {
+    try {
+      setReading(await planning.choosePaperReading(meet, payer));
+      onTell(text.paperSaved(payer === "meet"), true);
+    } catch (error) {
+      onFail(error);
+    }
+  };
   const pkg = draft?.package ?? null;
   const [lang, setLang] = useState<Language>("sv");
   const kept = pkg?.about?.[lang]?.instructions ?? "";
@@ -179,6 +229,7 @@ export function ForarnaPage({ admin, meet, draft, language = "sv", onDraft, onTe
               ))
             )}
           </section>
+          {reading && <PaperReading reading={reading} text={text} onChoose={(payer) => void choose(payer)} />}
           <section id="forarna-instruktioner" className="kort" aria-labelledby="instruktioner-rubrik">
             <h2 id="instruktioner-rubrik">{text.instructions}</h2>
             <p className="liten">{admin ? text.instructionsNote : text.readOnly}</p>
@@ -231,5 +282,33 @@ export function ForarnaPage({ admin, meet, draft, language = "sv", onDraft, onTe
         </>
       )}
     </>
+  );
+}
+
+/** Vem står för AI-läsningen (LOK-33, PLAN-40): the meet's tokens or the driver's own, the
+ * driver's by default. The hub's own AI reads without tokens whichever is chosen (TOKEN-13). */
+export function PaperReading({ reading, text, onChoose }: { reading: PaperReadingSettings; text: Text; onChoose: (payer: PaperReadingPayer) => void }) {
+  const option = (payer: PaperReadingPayer, label: string, note: string) => (
+    <label className="val">
+      <input type="radio" name="vem-betalar" value={payer} checked={reading.payer === payer} disabled={!reading.may_change} onChange={() => onChoose(payer)} />{" "}
+      <span>
+        <b>{label}</b> <span className="liten">{note}</span>
+      </span>
+    </label>
+  );
+  return (
+    <section id="forarna-papper" className="kort" aria-labelledby="papper-rubrik">
+      <h2 id="papper-rubrik">{text.paper}</h2>
+      <p className="liten">{text.paperNote}</p>
+      <fieldset>
+        <legend>{text.paperLegend}</legend>
+        {option("meet", text.meetTokens, text.meetTokensNote)}
+        {option("driver", text.driverTokens, text.driverTokensNote)}
+      </fieldset>
+      {reading.payer === "meet" && reading.payer_title && reading.available != null && <p className="liten">{text.balance(reading.payer_title, reading.available)}</p>}
+      <p className="liten">{text.price(reading.per_page)}</p>
+      {reading.own_ai ? <p className="liten">{text.ownAi(reading.own_ai)}</p> : !reading.trainmeet_ai && <p className="liten">{text.noAi}</p>}
+      {!reading.may_change && <p className="liten">{text.paperReadOnly}</p>}
+    </section>
   );
 }
