@@ -20,6 +20,8 @@ COPY apps/tkl/package.json apps/tkl/
 COPY apps/lokforaren/package.json apps/lokforaren/
 RUN npm ci --no-audit --no-fund
 COPY contracts/tkl.d.ts contracts/
+# The four reference stations, which the web app's tests draw in Foto.
+COPY tkl/referens tkl/referens
 COPY apps/design apps/design
 COPY apps/tkl apps/tkl
 # Types and tests first: a red web app never becomes an image.
