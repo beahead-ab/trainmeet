@@ -287,6 +287,20 @@ class SectionChange(Contract):
     clearance_mode: ClearanceMode | None = None
 
 
+class TrainMeetAi(Contract):
+    """TrainMeets AI genom mätaren (#79, TOKEN-28, TK12): offered in the cloud hub to someone
+    logged in with TrainMeet ID. Egen AI is the first choice; before TrainMeets AI is used the
+    planner is told where the pages go and who pays (TK16)."""
+
+    payer: Text = Field(description="Vems saldo som betalar: klubbens, eller personens.")
+    available: int = Field(ge=0, description="Det saldot har kvar nu.")
+    price: int = Field(ge=0, description="12 tokens per sida som inte är avskriven (TOKEN-14).")
+    where: Text = Field(
+        default="Claude i Amazon Bedrock i Stockholm",
+        description="Var sidorna läses (TK14), som sägs innan de skickas (TK12).",
+    )
+
+
 class AiPages(Contract):
     """Sidor att skriva av (IMPORT-05): what a scanned file needs before AI starts. Nothing is
     sent to the AI until the planner says Skriv av."""
@@ -304,6 +318,10 @@ class AiPages(Contract):
         ge=0,
         description="Ungefär så många tokens kostar sidorna som inte är avskrivna att skicka: "
         "bilderna och uppmaningen. Svaret kommer till.",
+    )
+    trainmeet_ai: TrainMeetAi | None = Field(
+        default=None,
+        description="TrainMeets AI som tillval, där den finns för den som frågar (#79).",
     )
 
 

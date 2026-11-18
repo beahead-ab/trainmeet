@@ -12169,6 +12169,42 @@ export interface components {
              * @default 0
              */
             tokens: number;
+            /**
+             * @description TrainMeets AI som tillval, där den finns för den som frågar (#79).
+             * @default null
+             */
+            trainmeet_ai: components["schemas"]["trainmeet.planning-1.ai-pages.TrainMeetAi"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrainMeetAi
+         * @description TrainMeets AI genom mätaren (#79, TOKEN-28, TK12): offered in the cloud hub to someone
+         *     logged in with TrainMeet ID. Egen AI is the first choice; before TrainMeets AI is used the
+         *     planner is told where the pages go and who pays (TK16).
+         */
+        "trainmeet.planning-1.ai-pages.TrainMeetAi": {
+            /**
+             * Payer
+             * @description Vems saldo som betalar: klubbens, eller personens.
+             */
+            payer: string;
+            /**
+             * Available
+             * @description Det saldot har kvar nu.
+             */
+            available: number;
+            /**
+             * Price
+             * @description 12 tokens per sida som inte är avskriven (TOKEN-14).
+             */
+            price: number;
+            /**
+             * Where
+             * @description Var sidorna läses (TK14), som sägs innan de skickas (TK12).
+             * @default Claude i Amazon Bedrock i Stockholm
+             */
+            where: string;
         } & {
             [key: string]: unknown;
         };

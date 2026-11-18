@@ -25,8 +25,10 @@ from fastapi.concurrency import run_in_threadpool
 from contracts import planning
 from contracts.meet import MapPoint, Meet
 from contracts.station_outside import StationOutside
+from contracts.tokens import TOKENS_PER_PAGE, TokenOwner, TokenOwnerKind
 from hub.hubben import Authorization, SessionCookie, service_of, session_of
 from hub.id_roles import PLANS, publishes, roles_of, withdraws
+from hub.id_tokens import IdTokens
 from hub.local import PERSON, LocalLogin
 from hub.rights import NOT_LOGGED_IN, Rights
 from integrationer import (
@@ -67,9 +69,11 @@ def router(
     login: LocalLogin,
     published: Callable[[str], None] = lambda meet: None,
     rights: Rights | None = None,
+    tokens: IdTokens | None = None,
 ) -> APIRouter:
     """rights: who may plan which meet: the hub's PIN, or Administratör and Arrangör at the
-    meet in TrainMeet ID (PLAN-19, #78)."""
+    meet in TrainMeet ID (PLAN-19, #78). tokens: TrainMeets AI through the meter in ID, in a
+    cloud hub with ID's API (#79)."""
     may = rights if rights is not None else Rights(login)
 
     def at_home(request: Request) -> None:
@@ -217,6 +221,7 @@ def router(
         response: Response,
         name: str = Query(min_length=1, max_length=300),
         transcribe: Literal["lists", "picture", "graph"] | None = Query(default=None),
+        ai_by: Literal["own", "trainmeet"] = Query(default="own", alias="ai"),
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
@@ -224,7 +229,8 @@ def router(
         is read and what it would change is shown; nothing changes until it is laid in. A
         scanned file first answers 202 with the pages to transcribe (IMPORT-05); sent again with
         transcribe, the hub's own AI writes them down: as station lists, or as the track
-        picture."""
+        picture. With ai=trainmeet TrainMeets AI writes them down through the meter in ID
+        instead, which the planner chose after being told where and who pays (TK12, #79)."""
         response.headers["Cache-Control"] = "no-store"
         await run_in_threadpool(planner, meet, session, authorization)
         chunks: list[bytes] = []
@@ -238,7 +244,10 @@ def router(
         if not data:
             raise HTTPException(422, "Filen är tom.")
         if scanned.needs_ai(data, filename(name)):
-            asked = await run_in_threadpool(_scanned, meet, filename(name), data, transcribe)
+            token = session_of(session, authorization)
+            asked = await run_in_threadpool(
+                _scanned, meet, filename(name), data, transcribe, token, ai_by
+            )
             if isinstance(asked, planning.AiPages):
                 response.status_code = 202
                 return asked.model_dump(mode="json")
@@ -387,6 +396,8 @@ def router(
         name: str,
         data: bytes,
         transcribe: Literal["lists", "picture", "graph"] | None,
+        token: str | None = None,
+        ai_by: Literal["own", "trainmeet"] = "own",
     ) -> planning.AiPages | dict[str, Any]:
         """Skannade stationslistor (4c2): the pages to write down first, then, asked to, the
         hub's own AI writes down the pages not already written, and code reads the rows. Each
@@ -405,6 +416,8 @@ def router(
             pages = [scanned.Page(p.number, p.image, _graph_key(p)) for p in pages]
         saved = {p.digest: text for p in pages if (text := store.transcript(p.digest))}
         setting = login.ai()
+        left = len([p for p in pages if p.digest not in saved])
+        offered = _trainmeet_ai(meet, token, left)
         if transcribe is None:
             return planning.AiPages(
                 filename=name,
@@ -412,8 +425,21 @@ def router(
                 saved=len(saved),
                 model=setting.model if setting else None,
                 tokens=scanned.tokens([p for p in pages if p.digest not in saved]),
+                trainmeet_ai=offered[0] if offered else None,
             )
-        if len(saved) < len(pages) and setting is None:
+        metered = ai_by == "trainmeet" and left > 0
+        if metered and offered is None:
+            raise HTTPException(
+                422,
+                "TrainMeets AI finns i molnhubben för den som är inloggad med TrainMeet ID.",
+            )
+        if metered and offered is not None and offered[0].available < offered[0].price:
+            raise HTTPException(
+                402,
+                f"Saldot räcker inte: {offered[0].available} tokens kvar, {offered[0].price} "
+                "behövs. Köp fler eller använd egen AI.",
+            )
+        if left and not metered and setting is None:
             raise HTTPException(
                 422,
                 "Den här filen behöver AI. Koppla in egen AI under Inställningar → Den här "
@@ -423,7 +449,6 @@ def router(
         def transcript(page: scanned.Page) -> str:
             if page.digest in saved:
                 return saved[page.digest]
-            assert setting is not None
             prompt = (
                 track_picture.PHOTO_PROMPT
                 if transcribe == "picture"
@@ -431,6 +456,15 @@ def router(
                 if transcribe == "graph"
                 else scanned.PROMPT
             )
+            if metered:
+                assert offered is not None and tokens is not None
+                person, owner = offered[1], offered[2]
+                read = tokens.read(
+                    person, owner, prompt, page.image, f"En sida i importen: {name}", 8192
+                )
+                store.keep_transcript(page.digest, read.model, read.text)
+                return read.text
+            assert setting is not None
             text = ai.ask(service_of(setting), prompt, [page.image], max_tokens=8192)
             store.keep_transcript(page.digest, setting.model, text)
             return text
@@ -463,6 +497,29 @@ def router(
         except station_lists.ListError as error:
             raise HTTPException(422, str(error)) from error
         return _lists(meet, name, data, current, digest, found)
+
+    def _trainmeet_ai(
+        meet: str, token: str | None, pages: int
+    ) -> tuple[planning.TrainMeetAi, str, TokenOwner] | None:
+        """TrainMeets AI for the one who asks (#79): in the cloud hub with ID's API, to someone
+        logged in with TrainMeet ID. The meet's owner pays (TK16): the club of the meet in ID,
+        or else the person. None where it is not offered."""
+        if tokens is None or may.roles is None or login.role(token) != PERSON:
+            return None
+        person = login.person(token)
+        if person is None:
+            return None
+        owner = TokenOwner(kind=TokenOwnerKind.PERSON, id=UUID(person.id))
+        id_meet = id_meet_of(meet)
+        if id_meet is not None:
+            club = next((m for m in may.roles.meets(person.id) if m.id == id_meet), None)
+            if club is not None:
+                owner = TokenOwner(kind=TokenOwnerKind.CLUB, id=club.club)
+        balance = tokens.balance(person.id, owner)
+        offer = planning.TrainMeetAi(
+            payer=balance.title, available=balance.available, price=TOKENS_PER_PAGE * pages
+        )
+        return offer, person.id, owner
 
     def _lists(
         meet: str,

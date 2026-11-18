@@ -112,6 +112,37 @@ class IdRoles:
             return result
         raise unavailable()
 
+    def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        body: object = None,
+        timeout: float | None = None,
+    ) -> httpx.Response:
+        """One call to ID's API for the apps with the hub's own token, once more with a new
+        token if it had run out. The answer as it came; a hub that cannot reach ID gets 503."""
+        for attempt in (1, 2):
+            try:
+                answer = self.http.request(
+                    method,
+                    f"{self.api}/api/id/1/apps/{path}",
+                    params=params,
+                    json=body,
+                    headers={"Authorization": f"Bearer {self._bearer()}"},
+                    timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
+                )
+            except httpx.HTTPError as error:
+                LOGGER.warning("ID:s API: %s", type(error).__name__)
+                raise unavailable() from error
+            if answer.status_code == 401 and attempt == 1:
+                with self._lock:
+                    self._token = None
+                continue
+            return answer
+        raise unavailable()
+
     def ticket(self, person: str, hub: str, meets: list[UUID]) -> str:
         """Biljetten för Pi:n (KONTO-11, KONTO-37): signed by ID for the Pi with the hub id,
         with the person's roles at the meets."""

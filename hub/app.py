@@ -27,6 +27,7 @@ from hub import (
     hubben,
     id_login,
     id_roles,
+    id_tokens,
     network_api,
     pi_login,
     planering_api,
@@ -289,7 +290,15 @@ def create_app(
     app.include_router(drift_api.router(running, login, may))
     app.include_router(
         planering_api.router(
-            plans, versions, links, homes, me, login, published=follower.nudge, rights=may
+            plans,
+            versions,
+            links,
+            homes,
+            me,
+            login,
+            published=follower.nudge,
+            rights=may,
+            tokens=id_tokens.IdTokens(roles_from_id) if roles_from_id is not None else None,
         )
     )
     app.include_router(

@@ -121,9 +121,12 @@ describe("Data (S6, PLAN-37)", () => {
   });
 });
 
+/** The radio button for a choice, whatever order React writes its attributes in. */
+const radio = (html: string, value: string) => html.match(new RegExp(`<input[^>]*value="${value}"[^>]*>`))?.[0] ?? "";
+
 describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
   it("says the pages to write down and who pays, and asks first", () => {
-    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: "en-modell", tokens: 3460 };
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: "en-modell", tokens: 3460, trainmeet_ai: null };
     const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
     expect(html).toContain("3 sidor att skriva av · cirka 3\u00a0460 tokens · 1 redan avskriven, kostar inget");
     expect(html).toContain("2 sidor betalas av din AI-tjänst (en-modell).");
@@ -139,6 +142,22 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
     const panel = renderToStaticMarkup(<Underlag meet="m" onClose={go} onApplied={go} initial={{ name: "Lekby.png", state: "ai", pages }} />);
     expect(panel).toContain("Skannad · skrivs av med AI");
     expect(panel).toContain("Behöver AI");
+  });
+
+  it("offers TrainMeets AI with where the pages go and who pays, chosen by the planner (#79, TK12)", () => {
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude i Amazon Bedrock i Stockholm" } };
+    const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
+    expect(html).toContain("TrainMeets AI");
+    expect(html).toContain("Sidorna läses av Claude i Amazon Bedrock i Stockholm. 24 tokens dras från Västby MJK, som har 1\u00a0500 kvar.");
+    // Nothing is chosen for the planner: the buttons wait until TrainMeets AI is chosen.
+    expect(html).not.toContain("checked");
+    expect(html).toMatch(/id="transcribe"[^>]*disabled=""/);
+    const own = renderToStaticMarkup(<Skriv pages={{ ...pages, model: "en-modell" }} writing={false} onWrite={go} />);
+    expect(radio(own, "own")).toContain('checked=""');
+    expect(own).not.toMatch(/id="transcribe"[^>]*disabled=""/);
+    const poor = renderToStaticMarkup(<Skriv pages={{ ...pages, trainmeet_ai: { ...pages.trainmeet_ai, available: 10 } }} writing={false} onWrite={go} />);
+    expect(poor).toContain("Saldot räcker inte. Köp fler tokens i TrainMeet ID, eller koppla in egen AI.");
+    expect(radio(poor, "trainmeet")).toContain('disabled=""');
   });
 });
 
