@@ -9,6 +9,7 @@ import {
   type ClubPage,
   type FleetPage,
   type FleetRole,
+  type Grant,
   type Invitation,
   type Meet,
   type MeetPage,
@@ -89,6 +90,8 @@ export type Data = {
   shop?: TokenShop;
   /** Ägarsidan, for TrainMeet's owners (TOKEN-05). */
   owner?: OwnerPage;
+  /** Granskare i Catalog, on the owner page (KONTO-30, ID6). */
+  reviewers?: Grant[];
 };
 
 export type Actions = {
@@ -113,6 +116,8 @@ export type Actions = {
   connectOwnAi?: (owner: string, change: OwnAiChange) => Promise<string | null>;
   removeOwnAi?: (owner: string) => Promise<string | null>;
   changeOwner?: (settings: TokenSettings) => Promise<string | null>;
+  giveReviewer?: (email: string) => Promise<string | null>;
+  takeReviewer?: (person: string) => Promise<string | null>;
 };
 
 export type ShellProps = {
@@ -318,7 +323,9 @@ function Content(props: ShellProps & { t: T }) {
         />
       );
     case "owner":
-      return data.owner ? <OwnerView t={t} page={data.owner} language={language} change={actions.changeOwner} /> : null;
+      return data.owner ? (
+        <OwnerView t={t} page={data.owner} language={language} change={actions.changeOwner} reviewers={data.reviewers} give={actions.giveReviewer} take={actions.takeReviewer} />
+      ) : null;
     case "remove":
       return <RemoveView t={t} plan={data.removal} navigate={navigate} remove={actions.removeAccount} />;
     case "help":
@@ -938,7 +945,23 @@ function OwnAiForm({ t, balance, connect, remove }: { t: T; balance: TokenBalanc
 
 /** Ägarsidan (TOKEN-05, TOKEN-18, TK6, TK15): the factors, the budget and the caps, and what
  * TrainMeets AI cost and the purchases brought in, this month and last. */
-function OwnerView({ t, page, language, change }: { t: T; page: OwnerPage; language: Language; change?: Actions["changeOwner"] }) {
+function OwnerView({
+  t,
+  page,
+  language,
+  change,
+  reviewers,
+  give,
+  take,
+}: {
+  t: T;
+  page: OwnerPage;
+  language: Language;
+  change?: Actions["changeOwner"];
+  reviewers?: Grant[];
+  give?: Actions["giveReviewer"];
+  take?: Actions["takeReviewer"];
+}) {
   const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB", { maximumFractionDigits: 2 });
   const [given, setGiven] = useState<TokenSettings>(page.settings);
   const [busy, problem, run] = useAction();
@@ -971,6 +994,7 @@ function OwnerView({ t, page, language, change }: { t: T; page: OwnerPage; langu
               : t("ownerCost", { cost: number.format(page.cost_per_page_sek), factor: number.format(page.settings.ai_factor), implied: number.format(page.factor_page_tokens ?? 0), tokens: number.format(page.page_tokens) })}
           </p>
         </section>
+        <ReviewersCard t={t} reviewers={reviewers} give={give} take={take} />
       </div>
       <div className="id-kolumn">
         <section className="tm-kort">
@@ -998,6 +1022,36 @@ function OwnerView({ t, page, language, change }: { t: T; page: OwnerPage; langu
         </section>
       </div>
     </div>
+  );
+}
+
+/** Granskare i Catalog (KONTO-30, ID6, CAT-165): the owner gives the role to someone who has
+ * logged in to ID, and takes it back. Catalog asks for it at every call, so it applies at once. */
+function ReviewersCard({ t, reviewers, give, take }: { t: T; reviewers?: Grant[]; give?: Actions["giveReviewer"]; take?: Actions["takeReviewer"] }) {
+  const [busy, problem, run] = useAction();
+  return (
+    <section className="tm-kort" aria-labelledby="granskare">
+      <h2 id="granskare">{t("reviewersTitle")}</h2>
+      <p className="id-detalj">{t("reviewersIntro")}</p>
+      {reviewers?.length ? (
+        <ul className="id-lista">
+          {reviewers.map((grant) => (
+            <li key={grant.id}>
+              <p className="id-namn">{grant.person.name}</p>
+              <div className="id-knappar">
+                <button type="button" className="tm-knapp" disabled={busy || !take} aria-label={t("reviewersTakeNamed", { name: grant.person.name })} onClick={() => run(() => take?.(grant.person.id) ?? Promise.resolve(null))}>
+                  {t("reviewersTake")}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="id-detalj">{t("reviewersNone")}</p>
+      )}
+      <Problem text={problem} />
+      <InviteForm t={t} submitLabel="reviewersGive" onSend={(email) => give?.(email) ?? Promise.resolve(null)} />
+    </section>
   );
 }
 
@@ -1229,9 +1283,11 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
           setData({ clubs, invitations, tokens });
           break;
         }
-        case "owner":
-          setData({ owner: await api.owner() });
+        case "owner": {
+          const [owner, reviewers] = await Promise.all([api.owner(), api.reviewers()]);
+          setData({ owner, reviewers });
           break;
+        }
         case "tokens": {
           const [tokens, shop, clubs] = await Promise.all([api.tokens(), api.shop(), api.clubs()]);
           setData({ tokens, shop, clubs });
@@ -1318,6 +1374,8 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
     connectOwnAi: (owner, change) => act(() => api.connectOwnAi(owner, change))(),
     removeOwnAi: (owner) => act(() => api.removeOwnAi(owner))(),
     changeOwner: (settings) => act(() => api.changeOwner(settings))(),
+    giveReviewer: (email) => act(() => api.giveReviewer(email))(),
+    takeReviewer: (person) => act(() => api.takeReviewer(person))(),
     buy: async (purchase) => {
       try {
         const checkout = await api.buy(purchase);

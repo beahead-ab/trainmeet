@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.field-register.schema.json",
+  "title": "trainmeet.catalog-1.field-register",
+  "$defs": {
+    "FieldKind": {
+      "description": "What a field in the register holds.",
+      "enum": [
+        "text",
+        "number",
+        "integer"
+      ],
+      "title": "FieldKind",
+      "type": "string"
+    },
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "ProfileField": {
+      "additionalProperties": true,
+      "description": "A key as a profile shows it: in its order, with the profile's label.",
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "label_en": {
+          "title": "Label En",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "label_en"
+      ],
+      "title": "ProfileField",
+      "type": "object"
+    },
+    "ProfileFields": {
+      "additionalProperties": true,
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/FieldProfile"
+        },
+        "name": {
+          "description": "Sverige, Europa or USA.",
+          "title": "Name",
+          "type": "string"
+        },
+        "name_en": {
+          "title": "Name En",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/ProfileField"
+          },
+          "title": "Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "profile",
+        "name",
+        "name_en",
+        "fields"
+      ],
+      "title": "ProfileFields",
+      "type": "object"
+    },
+    "TypeField": {
+      "additionalProperties": true,
+      "description": "A key in the field register: its kind and unit never change (CAT-156).",
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/FieldKind"
+        },
+        "unit": {
+          "description": "For example mm, t, km/h or ft. Empty when the field has none.",
+          "title": "Unit",
+          "type": "string"
+        },
+        "label": {
+          "description": "The Swedish label, unless the profile says another.",
+          "title": "Label",
+          "type": "string"
+        },
+        "label_en": {
+          "title": "Label En",
+          "type": "string"
+        },
+        "max_length": {
+          "description": "The longest value, in characters.",
+          "title": "Max Length",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "unit",
+        "label",
+        "label_en",
+        "max_length"
+      ],
+      "title": "TypeField",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The field register and the profiles, published so that others read the type data the\nsame way (CAT-156, CAT-158).",
+  "properties": {
+    "fields": {
+      "items": {
+        "$ref": "#/$defs/TypeField"
+      },
+      "title": "Fields",
+      "type": "array"
+    },
+    "profiles": {
+      "items": {
+        "$ref": "#/$defs/ProfileFields"
+      },
+      "title": "Profiles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "fields",
+    "profiles"
+  ],
+  "type": "object"
+}

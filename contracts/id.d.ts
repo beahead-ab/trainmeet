@@ -516,6 +516,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/owner/reviewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["reviewers"];
+        put?: never;
+        post: operations["giveReviewer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/owner/reviewers/{reviewer}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["takeReviewer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/tokens/own-ai": {
         parameters: {
             query?: never;
@@ -2447,6 +2479,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * FieldProfile
+         * @description The field profiles from the start (CAT-158, C31).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.FieldProfile": "SE" | "EU" | "US";
+        /**
          * FieldSource
          * @description Where a core field's value came from (CAT-64).
          * @enum {string}
@@ -2992,6 +3030,11 @@ export interface components {
              */
             picture: components["schemas"]["trainmeet.id-1.account-export.PictureLinks"] | null;
             /**
+             * @description The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked.
+             * @default null
+             */
+            prototype: components["schemas"]["trainmeet.id-1.account-export.VehiclePrototype"] | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -3055,6 +3098,60 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.account-export.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehiclePrototype
+         * @description The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).
+         */
+        "trainmeet.id-1.account-export.VehiclePrototype": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** @default null */
+            kind: components["schemas"]["trainmeet.id-1.account-export.VehicleKind"] | null;
+            profile: components["schemas"]["trainmeet.id-1.account-export.FieldProfile"];
+            /**
+             * Revision
+             * @description The revision of the snapshot.
+             */
+            revision: number;
+            /**
+             * Snapshot
+             * @description The prototype's type data at that revision.
+             */
+            snapshot: {
+                [key: string]: string;
+            };
+            /**
+             * Overrides
+             * @description The owner's own values, which the prototype never overwrites (CAT-162).
+             */
+            overrides: {
+                [key: string]: string;
+            };
+            /**
+             * Fields
+             * @description What the card shows: the snapshot with the owner's own values over it.
+             */
+            fields: {
+                [key: string]: string;
+            };
+            /**
+             * Latest
+             * @description The prototype's newest reviewed revision.
+             */
+            latest: number;
+            /**
+             * Newer
+             * @description Ny version finns: latest is newer than the snapshot.
+             */
+            newer: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * VehicleState
          * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
@@ -3394,6 +3491,17 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.meet-grant.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
+        /**
+         * ReviewerGrant
+         * @description The owner page gives the role Granskare in Catalog to a person, by the verified address
+         *     they log in to ID with (KONTO-30, ID6).
+         */
+        "trainmeet.id-1.reviewer-grant": {
+            /** Email */
+            email: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Problem */
         "trainmeet.id-1.problem": {
             code: components["schemas"]["trainmeet.id-1.problem.ProblemCode"];
@@ -5146,6 +5254,162 @@ export interface operations {
             };
             /** @description ID säger nej */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    reviewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.grant"][];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    giveReviewer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.reviewer-grant"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.grant"][];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    takeReviewer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewer: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.grant"][];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

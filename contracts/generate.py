@@ -226,6 +226,16 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.batch-ask": catalog.BatchAsk,
     "trainmeet.catalog-1.batch-card-change": catalog.BatchCardChange,
     "trainmeet.catalog-1.batch-approval": catalog.BatchApproval,
+    "trainmeet.catalog-1.field-register": catalog.FieldRegister,
+    "trainmeet.catalog-1.prototype": catalog.Prototype,
+    "trainmeet.catalog-1.prototype-list": catalog.PrototypeList,
+    "trainmeet.catalog-1.prototype-revision": catalog.PrototypeRevision,
+    "trainmeet.catalog-1.prototype-proposal": catalog.PrototypeProposal,
+    "trainmeet.catalog-1.prototype-review": catalog.PrototypeReview,
+    "trainmeet.catalog-1.prototype-summary": catalog.PrototypeSummary,
+    "trainmeet.catalog-1.prototype-link": catalog.PrototypeLink,
+    "trainmeet.catalog-1.prototype-overrides": catalog.PrototypeOverrides,
+    "trainmeet.catalog-1.vehicle-prototype": catalog.VehiclePrototype,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -276,6 +286,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.meet": id_api.Meet,
     "trainmeet.id-1.meet-page": id_api.MeetPage,
     "trainmeet.id-1.meet-grant": id_api.MeetGrant,
+    "trainmeet.id-1.reviewer-grant": id_api.ReviewerGrant,
     "trainmeet.id-1.problem": id_api.Problem,
 }
 
@@ -1064,6 +1075,76 @@ def catalog_openapi() -> str:
         # 402 and 429: the storage over the free level could not be paid (CAT-132).
         problems=(*batch_write, 402, 429),
     )
+    # The prototype catalog (#53 del a, CAT-155–CAT-165, CAT-173). The register is open to all.
+    f = "/api/catalog/1/prototypes"
+    route("get", f + "/fields", "fieldRegister", "field-register")
+    paths[f + "/fields"]["get"]["security"] = []
+    route(
+        "get",
+        f,
+        "prototypes",
+        "prototype-list",
+        query=(("q", text), ("kind", kinds)),
+        problems=(401, 422),
+    )
+    route(
+        "post",
+        f + "/proposals",
+        "proposePrototype",
+        "prototype-revision",
+        "prototype-proposal",
+        created=True,
+        problems=(401, 404, 409, 422),
+    )
+    route(
+        "get",
+        f + "/proposals/mine",
+        "myProposals",
+        "prototype-revision",
+        many=True,
+        problems=(401,),
+    )
+    route(
+        "get",
+        f + "/proposals/queue",
+        "reviewQueue",
+        "prototype-revision",
+        many=True,
+        problems=(401, 403, 503),
+    )
+    route(
+        "post",
+        f + "/proposals/{revision}/review",
+        "reviewProposal",
+        "prototype-revision",
+        "prototype-review",
+        problems=(401, 403, 404, 409, 422, 503),
+    )
+    route("get", f + "/{prototype}", "prototype", "prototype", problems=(401, 404))
+    route(
+        "post",
+        v + "/{vehicle}/prototype",
+        "linkPrototype",
+        "vehicle",
+        "prototype-link",
+        problems=write,
+    )
+    route(
+        "put",
+        v + "/{vehicle}/prototype",
+        "changeTypeData",
+        "vehicle",
+        "prototype-overrides",
+        problems=write,
+    )
+    route(
+        "delete",
+        v + "/{vehicle}/prototype",
+        "unlinkPrototype",
+        "vehicle",
+        query=(("version", {"type": "integer"}),),
+        problems=write,
+    )
     paths[t + "/{uid}/qr.svg"] = {
         "get": {
             "operationId": "tagQrCode",
@@ -1342,6 +1423,25 @@ def id_openapi() -> str:
         "owner-page",
         "token-settings",
         problems=(401, 403, 422),
+    )
+    # Granskare i Catalog (KONTO-30, ID6, CAT-165): given and taken on the owner page.
+    route("get", a + "/owner/reviewers", "reviewers", "grant", many=True, problems=(401, 403))
+    route(
+        "post",
+        a + "/owner/reviewers",
+        "giveReviewer",
+        "grant",
+        "reviewer-grant",
+        many=True,
+        problems=(401, 403, 404, 422),
+    )
+    route(
+        "delete",
+        a + "/owner/reviewers/{reviewer}",
+        "takeReviewer",
+        "grant",
+        many=True,
+        problems=(401, 403, 404, 422),
     )
     # Egen AI på kontot (TOKEN-03): the answer to GET is null when none is connected.
     route(

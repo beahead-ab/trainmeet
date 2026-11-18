@@ -1,7 +1,9 @@
 // Swedish and English from the start (ST10, CAT-199). Every text has both; the type makes
 // a missing English text a compile error. Product names are never translated.
+import { prototypeEn, prototypeSv } from "./prototypeTexts";
 
 const sv = {
+  ...prototypeSv,
   product: "TrainMeet Catalog",
   skip: "Hoppa till innehållet",
   mainNav: "Huvudmeny",
@@ -480,6 +482,7 @@ export type TextKey = keyof typeof sv;
 type Texts = { readonly [K in TextKey]: string };
 
 const en: Texts = {
+  ...prototypeEn,
   product: "TrainMeet Catalog",
   skip: "Skip to content",
   mainNav: "Main menu",

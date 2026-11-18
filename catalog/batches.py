@@ -53,6 +53,7 @@ from catalog.access import Work
 from catalog.db import Database
 from catalog.fleet import Fleet, Refused
 from catalog.pictures import Kept, Pictures, Prepared, prepare
+from catalog.prototypes import suggest
 from catalog.reading import Readings, without_id
 from contracts.catalog import (
     MAX_BATCH_PHOTOS,
@@ -162,13 +163,15 @@ class Batches:
             raise _no_batch()
         return row
 
-    def _card(self, row: DictRow) -> BatchCard:
+    def _card(self, row: DictRow, conn: Connection[DictRow] | None = None) -> BatchCard:
+        """The card; with conn, also the reviewed prototype its litt and operator match now
+        (CAT-141), only as a suggestion (CAT-136)."""
         picture = (
             self.pictures.links(row["display_key"], row["thumb_key"])
             if row["display_key"] is not None
             else None
         )
-        return BatchCard.model_validate(
+        card = BatchCard.model_validate(
             {
                 "id": row["id"],
                 "batch": row["batch_id"],
@@ -185,6 +188,10 @@ class Batches:
                 "attempts": row["attempts"],
             }
         )
+        if conn is None:
+            return card
+        found = suggest(conn, card.values.litt, card.values.operator)
+        return card.model_copy(update={"prototype": found})
 
     def _read_card(
         self, conn: Connection[DictRow], work: Work, batch: UUID, card: UUID, *, lock: bool = False
@@ -210,7 +217,7 @@ class Batches:
             ai=row["ai"],
             mine=row["created_by"] == work.person,
             created_at=row["created_at"],
-            cards=[self._card(card) for card in cards],
+            cards=[self._card(card, conn) for card in cards],
             waiting_until=row["wait_until"],
             message=row["wait_message"],
         )
@@ -416,7 +423,7 @@ class Batches:
                 (Jsonb(values.model_dump(mode="json")), card),
             ).fetchone()
             assert changed is not None
-            return self._card(changed)
+            return self._card(changed, conn)
 
     @staticmethod
     def _changeable(row: DictRow) -> None:

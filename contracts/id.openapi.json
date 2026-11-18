@@ -2036,6 +2036,184 @@
         }
       }
     },
+    "/api/id/1/owner/reviewers": {
+      "get": {
+        "operationId": "reviewers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.grant"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "giveReviewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.grant"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.reviewer-grant"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/owner/reviewers/{reviewer}": {
+      "delete": {
+        "operationId": "takeReviewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.grant"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "reviewer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/id/1/tokens/own-ai": {
       "get": {
         "operationId": "ownAi",
@@ -5876,6 +6054,16 @@
         "title": "EvnParts",
         "type": "object"
       },
+      "trainmeet.id-1.account-export.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
       "trainmeet.id-1.account-export.FieldSource": {
         "description": "Where a core field's value came from (CAT-64).",
         "enum": [
@@ -6763,6 +6951,18 @@
             "default": null,
             "description": "The main picture, or null without pictures. Seen with every right."
           },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.id-1.account-export.VehiclePrototype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The prototype the vehicle is linked to, with its type data: a block of its own, apart from the core fields (CAT-160–CAT-162). Null when not linked."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -6876,6 +7076,96 @@
         ],
         "title": "VehicleKind",
         "type": "string"
+      },
+      "trainmeet.id-1.account-export.VehiclePrototype": {
+        "additionalProperties": true,
+        "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.id-1.account-export.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.id-1.account-export.FieldProfile"
+          },
+          "revision": {
+            "description": "The revision of the snapshot.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "The prototype's type data at that revision.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "overrides": {
+            "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "fields": {
+            "description": "What the card shows: the snapshot with the owner's own values over it.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "latest": {
+            "description": "The prototype's newest reviewed revision.",
+            "title": "Latest",
+            "type": "integer"
+          },
+          "newer": {
+            "description": "Ny version finns: latest is newer than the snapshot.",
+            "title": "Newer",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profile",
+          "revision",
+          "snapshot",
+          "overrides",
+          "fields",
+          "latest",
+          "newer"
+        ],
+        "title": "VehiclePrototype",
+        "type": "object"
       },
       "trainmeet.id-1.account-export.VehicleState": {
         "description": "Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).",
@@ -7427,6 +7717,23 @@
         ],
         "title": "MeetRole",
         "type": "string"
+      },
+      "trainmeet.id-1.reviewer-grant": {
+        "additionalProperties": true,
+        "description": "The owner page gives the role Granskare in Catalog to a person, by the verified address\nthey log in to ID with (KONTO-30, ID6).",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ReviewerGrant",
+        "type": "object"
       },
       "trainmeet.id-1.problem": {
         "additionalProperties": true,

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-review.schema.json",
+  "title": "trainmeet.catalog-1.prototype-review",
+  "$defs": {
+    "ReviewDecision": {
+      "enum": [
+        "approve",
+        "reject"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Godkänn or Avslå, with a comment; a rejection needs one (CAT-164).",
+  "properties": {
+    "decision": {
+      "$ref": "#/$defs/ReviewDecision"
+    },
+    "comment": {
+      "default": "",
+      "maxLength": 1000,
+      "title": "Comment",
+      "type": "string"
+    }
+  },
+  "required": [
+    "decision"
+  ],
+  "type": "object"
+}

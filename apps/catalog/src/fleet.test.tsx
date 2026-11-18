@@ -38,6 +38,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     field_sources: { litt: "owner" },
     tagged: false,
     picture: null,
+    prototype: null,
     created_at: NOW,
     updated_at: NOW,
     ...change,

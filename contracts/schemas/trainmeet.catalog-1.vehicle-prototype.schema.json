@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.vehicle-prototype.schema.json",
+  "title": "trainmeet.catalog-1.vehicle-prototype",
+  "$defs": {
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162).",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehicleKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profile": {
+      "$ref": "#/$defs/FieldProfile"
+    },
+    "revision": {
+      "description": "The revision of the snapshot.",
+      "title": "Revision",
+      "type": "integer"
+    },
+    "snapshot": {
+      "description": "The prototype's type data at that revision.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "overrides": {
+      "description": "The owner's own values, which the prototype never overwrites (CAT-162).",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Overrides",
+      "type": "object"
+    },
+    "fields": {
+      "description": "What the card shows: the snapshot with the owner's own values over it.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "latest": {
+      "description": "The prototype's newest reviewed revision.",
+      "title": "Latest",
+      "type": "integer"
+    },
+    "newer": {
+      "description": "Ny version finns: latest is newer than the snapshot.",
+      "title": "Newer",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "profile",
+    "revision",
+    "snapshot",
+    "overrides",
+    "fields",
+    "latest",
+    "newer"
+  ],
+  "type": "object"
+}

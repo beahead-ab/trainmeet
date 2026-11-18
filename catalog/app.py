@@ -48,6 +48,8 @@ from catalog import (
     login,
     migrate,
     pictures_api,
+    prototypes,
+    prototypes_api,
     reading_api,
     tags_api,
     trips_api,
@@ -426,7 +428,14 @@ def create_app(
         set_cookie(response, request, key)
         return Session(account=account, login=login_kind, simulated_tags=settings.simulated_tags)
 
-    fleet = Fleet(db, tag_base=settings.tag_base, main_pictures=pictures.main_links)
+    fleet = Fleet(
+        db,
+        tag_base=settings.tag_base,
+        main_pictures=pictures.main_links,
+        prototypes=prototypes.linked,
+    )
+    # The prototype catalog (#53): the reviewers are a role in ID, asked at every call (CAT-165).
+    catalog_of_prototypes = prototypes.Prototypes(db, fleet, access.reviewer)
     tags = Tags(
         db,
         base=settings.tag_base,
@@ -491,6 +500,7 @@ def create_app(
     app.include_router(trips_api.router(trips, logged_in, access))
     app.include_router(reading_api.router(readings, logged_in, access))
     app.include_router(batches_api.router(batches, logged_in, access, sweep=pictures.sweep))
+    app.include_router(prototypes_api.router(catalog_of_prototypes, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

@@ -12,6 +12,10 @@ export type Page =
   | "meets"
   | "meet"
   | "prototypes"
+  | "prototype"
+  | "newPrototype"
+  | "changePrototype"
+  | "reviewQueue"
   | "tap"
   | "login"
   | "help"
@@ -28,6 +32,10 @@ export const PATHS = {
   places: "/platser",
   meets: "/traffar",
   prototypes: "/forebilder",
+  /** Föreslå förebild (CAT-163). */
+  newPrototype: "/forebilder/ny",
+  /** Granskningskön, for the reviewers (CAT-164). */
+  reviewQueue: "/forebilder/granska",
   tap: "/blippa",
   login: "/logga-in",
   help: "/hjalp",
@@ -38,6 +46,9 @@ export const editPath = (id: string) => `/fordon/${id}/andra`;
 export const lendPath = (id: string) => `/fordon/${id}/lana-ut`;
 export const tagPagePath = (uid: string) => `/t/${encodeURIComponent(uid)}`;
 export const meetPath = (id: string) => `/traffar/${id}`;
+export const prototypePath = (id: string) => `/forebilder/${id}`;
+/** Föreslå ändring of a reviewed prototype (CAT-163). */
+export const changePrototypePath = (id: string) => `/forebilder/${id}/andra`;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATTERNS: [RegExp, Page][] = [
@@ -45,6 +56,8 @@ const PATTERNS: [RegExp, Page][] = [
   [new RegExp(`^/fordon/(${UUID})/andra$`), "editVehicle"],
   [new RegExp(`^/fordon/(${UUID})/lana-ut$`), "lend"],
   [new RegExp(`^/traffar/(${UUID})$`), "meet"],
+  [new RegExp(`^/forebilder/(${UUID})$`), "prototype"],
+  [new RegExp(`^/forebilder/(${UUID})/andra$`), "changePrototype"],
   [/^\/t\/([^/]{1,80})$/, "tag"],
 ];
 
@@ -71,6 +84,7 @@ export function routeFor(address: string): Route {
 export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
   if (page === "meet") return "meets";
+  if (["prototype", "newPrototype", "changePrototype", "reviewQueue"].includes(page)) return "prototypes";
   return ["newVehicle", "newPhoto", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 

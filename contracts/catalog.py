@@ -23,10 +23,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, RootModel, StringConstraints
+from pydantic import Field, RootModel, StringConstraints, model_validator
 
 from contracts.common import AppKey, Contract, Text
 
@@ -303,6 +303,11 @@ class Vehicle(VehicleFields):
         default=None,
         description="The main picture, or null without pictures. Seen with every right.",
     )
+    prototype: VehiclePrototype | None = Field(
+        default=None,
+        description="The prototype the vehicle is linked to, with its type data: a block of its "
+        "own, apart from the core fields (CAT-160–CAT-162). Null when not linked.",
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -441,6 +446,10 @@ class ProblemCode(StrEnum):
     READING_FAILED = "reading_failed"
     """The AI could not read the photos, or its answer could not be read. Nothing was changed
     and nothing was drawn; try again with a new reading (CAT-20)."""
+    BAD_TYPE_DATA = "bad_type_data"
+    """The type data do not follow the field register: an unknown key, a key outside the
+    prototype's field profile, or a value that is not of the field's kind, such as a number
+    (CAT-156, CAT-157)."""
 
 
 class Problem(Contract):
@@ -1067,6 +1076,11 @@ class Reading(Contract):
     )
     cost: int = Field(ge=0, description="Tokens drawn: 12 a picture, 0 with own AI (CAT-19).")
     model: Text = Field(description="The AI that read the photos.")
+    prototype: PrototypeSummary | None = Field(
+        default=None,
+        description="A reviewed prototype in the catalog whose litt and operator match the "
+        "suggested ones (CAT-141). Linked only when the owner says so (CAT-136).",
+    )
 
 
 class ReadingAsk(Contract):
@@ -1217,6 +1231,12 @@ class BatchCard(Contract):
     )
     vehicle: UUID | None = Field(default=None, description="The vehicle, once approved.")
     attempts: int = Field(ge=0, description="How many times the AI has been asked to read it.")
+    prototype: PrototypeSummary | None = Field(
+        default=None,
+        description="A reviewed prototype whose litt and operator match the card's values "
+        "(CAT-141), looked up when the card is read. Linked only when the owner says so, once "
+        "the card is a vehicle (CAT-136).",
+    )
 
 
 class Batch(Contract):
@@ -1287,3 +1307,307 @@ class BatchApproval(Contract):
     """Godkänn alla: every open card of the batch, as seen (CAT-150)."""
 
     cards: list[BatchCardSeen] = Field(min_length=1, max_length=MAX_BATCH_PHOTOS)
+
+
+# --- Förebildskatalogen (#53 del a, CAT-03, CAT-141, CAT-155–CAT-165, CAT-173, CAT-213) --------
+#
+#     GET    /api/catalog/1/prototypes/fields                 FieldRegister: keys and profiles
+#     GET    /api/catalog/1/prototypes                        PrototypeList; ?q= kind=
+#     GET    /api/catalog/1/prototypes/{prototype}            Prototype, with its revisions
+#     POST   /api/catalog/1/prototypes/proposals              PrototypeProposal -> PrototypeRevision
+#     GET    /api/catalog/1/prototypes/proposals/mine         [PrototypeRevision]: one's own
+#     GET    /api/catalog/1/prototypes/proposals/queue        [PrototypeRevision]: for reviewers
+#     POST   /api/catalog/1/prototypes/proposals/{revision}/review
+#                                                             PrototypeReview -> PrototypeRevision
+#     POST   /api/catalog/1/vehicles/{id}/prototype           PrototypeLink -> Vehicle
+#     PUT    /api/catalog/1/vehicles/{id}/prototype           PrototypeOverrides -> Vehicle
+#     DELETE /api/catalog/1/vehicles/{id}/prototype?version=  Vehicle, unlinked
+#
+# Rules:
+# - The catalog is shared by everyone who is logged in, and holds only the prototype's type data:
+#   never a vehicle's number, pictures or the model's data (CAT-155). Its data are published
+#   under CC BY-SA 4.0 (CAT-213, PROTOTYPE_LICENSE).
+# - The type data follow the field register (CAT-156): a key always means the same thing with
+#   the same unit, and is never reused with another meaning. The values are text, so a number
+#   keeps no more and no less than was written; a number is written with a point. The field
+#   profiles for Sweden, Europe and the USA say which keys a prototype shows, in which order and
+#   under which label (CAT-158). US units have keys of their own.
+# - A prototype has revisions (CAT-159). Every proposal, a new prototype or a change, is a new
+#   revision that goes to the review queue (CAT-163, CAT-164). It needs a name, a source and
+#   may_share, the yes that the data may be shared under the licence. Only reviewed revisions
+#   are seen by others; the proposer sees their own proposals, and the reviewers the queue.
+# - The reviewer is a role in TrainMeet ID, reviewer on catalog:prototypes (CAT-165, ID6), asked
+#   at every call. The reviewer approves or rejects, with a comment; a rejection needs one. A
+#   change built on an older revision than the one reviewed now cannot be approved (409
+#   changed): someone proposes it again on the new one.
+# - A vehicle linked to a prototype keeps a snapshot of its type data and of the revision
+#   (CAT-160). A new revision never changes the vehicle in the background: the card says that a
+#   newer one exists, and the owner chooses to update (CAT-161). Linking again to the same
+#   prototype is the update, and keeps the owner's own values; linking another one starts
+#   without them.
+# - What the owner changes in the type data on the vehicle is the owner's own deviation, and
+#   the prototype does not overwrite it. A value equal to the snapshot's is not a deviation
+#   (CAT-162). Unlinking takes the type data away from the vehicle; its core fields stay.
+# - An editor in a shared fleet links, updates and unlinks, as for the core fields (CAT-46).
+#   Someone who may only look does not (403). ?fleet=<owner> as for the vehicles.
+# - When a reading or a batch card has a litt and an operator, a reviewed prototype with the
+#   same litt and operator, regardless of case and spaces, is suggested (CAT-141). It is linked
+#   only when the owner says so (CAT-136).
+# - The web search for the type data (CAT-166–CAT-172) is not here yet. It will be a source
+#   kind of its own (PrototypeSourceKind).
+
+PROTOTYPE_LICENSE = "CC BY-SA 4.0"
+"""The licence the catalog's data are published under (CAT-213, C23)."""
+PROTOTYPE_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+
+TypeKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
+"""A key in the field register (CAT-156)."""
+TypeValue = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
+TypeData = dict[TypeKey, TypeValue]
+"""Typuppgifter: a prototype's values by the field register's keys. Empty values are left out."""
+
+
+class FieldKind(StrEnum):
+    """What a field in the register holds."""
+
+    TEXT = "text"
+    NUMBER = "number"
+    """A number, at least 0, written with a point: 14.5."""
+    INTEGER = "integer"
+    """A whole number, at least 0."""
+
+
+class FieldProfile(StrEnum):
+    """The field profiles from the start (CAT-158, C31)."""
+
+    SE = "SE"
+    """Sverige."""
+    EU = "EU"
+    """Europa, with the UIC's markings."""
+    US = "US"
+    """USA, with US units."""
+
+
+class TypeField(Contract):
+    """A key in the field register: its kind and unit never change (CAT-156)."""
+
+    key: TypeKey
+    kind: FieldKind
+    unit: str = Field(description="For example mm, t, km/h or ft. Empty when the field has none.")
+    label: str = Field(description="The Swedish label, unless the profile says another.")
+    label_en: str
+    max_length: int = Field(description="The longest value, in characters.")
+
+
+class ProfileField(Contract):
+    """A key as a profile shows it: in its order, with the profile's label."""
+
+    key: TypeKey
+    label: str
+    label_en: str
+
+
+class ProfileFields(Contract):
+    profile: FieldProfile
+    name: str = Field(description="Sverige, Europa or USA.")
+    name_en: str
+    fields: list[ProfileField]
+
+
+class FieldRegister(Contract):
+    """The field register and the profiles, published so that others read the type data the
+    same way (CAT-156, CAT-158)."""
+
+    fields: list[TypeField]
+    profiles: list[ProfileFields]
+
+
+class PrototypeStatus(StrEnum):
+    """A prototype's or a revision's place in the review (CAT-164)."""
+
+    PROPOSED = "proposed"
+    """Förslag: waits in the review queue. Only the proposer and the reviewers see it."""
+    REVIEWED = "reviewed"
+    """Granskad: seen by everyone."""
+    REJECTED = "rejected"
+    """Avslagen, with the reviewer's comment."""
+
+
+class PrototypeSourceKind(StrEnum):
+    """Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own."""
+
+    OWN = "own"
+    """Own measurement or knowledge."""
+    REFERENCE = "reference"
+    """A reference: a book, a magazine, a drawing or a web page."""
+
+
+class PrototypeSource(Contract):
+    kind: PrototypeSourceKind
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
+PrototypeName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)
+]
+
+
+class PrototypeProposal(Contract):
+    """Föreslå förebild, or Föreslå ändring: the whole revision as it should be (CAT-163)."""
+
+    prototype: UUID | None = Field(
+        default=None, description="The prototype to change; null proposes a new one."
+    )
+    base: int | None = Field(
+        default=None,
+        ge=1,
+        description="For a change: the reviewed revision it was built on. Required with prototype.",
+    )
+    name: PrototypeName = Field(description="The type's name, for example Hbis.")
+    kind: VehicleKind | None = None
+    profile: FieldProfile = FieldProfile.SE
+    fields: TypeData = Field(default_factory=dict, description="Only the profile's keys.")
+    source: PrototypeSource
+    may_share: Literal[True] = Field(
+        description="The proposer confirms that the data may be shared under CC BY-SA 4.0."
+    )
+
+
+class ReviewDecision(StrEnum):
+    APPROVE = "approve"
+    REJECT = "reject"
+
+
+class PrototypeReview(Contract):
+    """Godkänn or Avslå, with a comment; a rejection needs one (CAT-164)."""
+
+    decision: ReviewDecision
+    comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] = ""
+
+    @model_validator(mode="after")
+    def _rejected_with_a_comment(self) -> Self:
+        if self.decision is ReviewDecision.REJECT and not self.comment:
+            raise ValueError("Skriv varför förslaget avslås.")
+        return self
+
+
+class PrototypeRevision(Contract):
+    """One revision of a prototype: a proposal, reviewed or rejected (CAT-159)."""
+
+    id: UUID
+    prototype: UUID
+    number: int = Field(ge=1, description="Counts every proposal for the prototype, from 1.")
+    base: int | None = Field(
+        default=None, description="The reviewed revision a change was built on; null if new."
+    )
+    status: PrototypeStatus
+    name: str
+    kind: VehicleKind | None = None
+    profile: FieldProfile
+    fields: TypeData
+    source: PrototypeSource
+    mine: bool = Field(default=False, description="The person asking proposed it.")
+    proposed_by: str | None = Field(
+        default=None,
+        description="The proposer's name: only in the review queue, and in one's own proposals.",
+    )
+    created_at: datetime
+    comment: str = Field(default="", description="The reviewer's comment.")
+    reviewed_at: datetime | None = None
+
+
+class PrototypeSummary(Contract):
+    """A prototype in short: what a suggestion names (CAT-141)."""
+
+    id: UUID
+    name: str
+    revision: int = Field(description="The reviewed revision, the version a link would get.")
+
+
+class Prototype(Contract):
+    """A type in the catalog: one row in the list (CAT-173), and the prototype's page."""
+
+    id: UUID
+    status: PrototypeStatus = Field(
+        description="Reviewed once a revision is; until then the first proposal's status."
+    )
+    revision: int | None = Field(
+        default=None, description="The reviewed revision shown, the latest one; null before."
+    )
+    name: str
+    kind: VehicleKind | None = None
+    profile: FieldProfile
+    fields: TypeData
+    source: PrototypeSource
+    reviewed_at: datetime | None = None
+    vehicles: int = Field(description="Används: how many vehicles in Catalog are linked to it.")
+    waiting: int = Field(
+        default=0, description="Proposals for it waiting in the review queue that one may see."
+    )
+    revisions: list[PrototypeRevision] = Field(
+        default_factory=list,
+        description="Only on the prototype's page: the reviewed revisions, newest first, and "
+        "the ones the person may see besides.",
+    )
+
+
+class PrototypeList(Contract):
+    """The catalog (CAT-173): one type per row with its type data. The reviewed prototypes, and
+    the person's own proposals for new ones."""
+
+    prototypes: list[Prototype]
+    reviewer: bool = Field(description="The person is a reviewer and sees the review queue.")
+    to_review: int = Field(default=0, description="Proposals in the queue, for a reviewer.")
+    license: str = Field(default=PROTOTYPE_LICENSE, description="CC BY-SA 4.0 (CAT-213).")
+    license_url: str = PROTOTYPE_LICENSE_URL
+
+
+class PrototypeLink(Contract):
+    """Koppla förebild, or Uppdatera to a newer revision (CAT-160, CAT-161)."""
+
+    version: int = Field(ge=1, description="The vehicle's version, as seen (CAT-63).")
+    prototype: UUID
+    revision: int = Field(ge=1, description="A reviewed revision of the prototype.")
+
+
+class PrototypeOverrides(Contract):
+    """The type data as the owner wants them on the vehicle (CAT-162). A value equal to the
+    snapshot's inherits; any other, an empty one too, is the owner's own."""
+
+    version: int = Field(ge=1)
+    fields: TypeData
+
+
+class VehiclePrototype(Contract):
+    """The vehicle's link to a prototype, with the type data the card shows (CAT-160–CAT-162)."""
+
+    id: UUID
+    name: str
+    kind: VehicleKind | None = None
+    profile: FieldProfile
+    revision: int = Field(description="The revision of the snapshot.")
+    snapshot: TypeData = Field(description="The prototype's type data at that revision.")
+    overrides: TypeData = Field(
+        description="The owner's own values, which the prototype never overwrites (CAT-162)."
+    )
+    fields: TypeData = Field(
+        description="What the card shows: the snapshot with the owner's own values over it."
+    )
+    latest: int = Field(description="The prototype's newest reviewed revision.")
+    newer: bool = Field(description="Ny version finns: latest is newer than the snapshot.")
+
+
+# The vehicle, the reading and the batch card name the prototype's models, which come last in
+# this file. Built again here, so that every model is complete when the module is imported.
+for _model in (
+    Vehicle,
+    VehicleList,
+    TripRow,
+    Trip,
+    TripTapped,
+    CatalogExport,
+    Reading,
+    BatchCard,
+    Batch,
+):
+    _model.model_rebuild()

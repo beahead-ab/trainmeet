@@ -72,6 +72,33 @@
       "title": "PictureLinks",
       "type": "object"
     },
+    "PrototypeSummary": {
+      "additionalProperties": true,
+      "description": "A prototype in short: what a suggestion names (CAT-141).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The reviewed revision, the version a link would get.",
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "revision"
+      ],
+      "title": "PrototypeSummary",
+      "type": "object"
+    },
     "ReadingQuestion": {
       "additionalProperties": true,
       "description": "An uncertain digit, asked of the owner (CAT-140).",
@@ -376,6 +403,18 @@
       "minimum": 0,
       "title": "Attempts",
       "type": "integer"
+    },
+    "prototype": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PrototypeSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A reviewed prototype whose litt and operator match the card's values (CAT-141), looked up when the card is read. Linked only when the owner says so, once the card is a vehicle (CAT-136)."
     }
   },
   "required": [

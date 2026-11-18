@@ -21,6 +21,7 @@ import httpx
 from catalog.fleet import Refused
 from catalog.settings import IdSettings
 from contracts.catalog import ProblemCode
+from contracts.id import PROTOTYPE_REVIEWERS, ResourceKind, Role
 
 LOGGER = logging.getLogger("catalog.id")
 
@@ -113,6 +114,13 @@ class IdRoles:
         body = self._get("access", {"person": str(person), "resource": f"fleet:{owner}"})
         roles = body.get("roles", []) if isinstance(body, dict) else []
         return {str(role) for role in roles}
+
+    def reviewer(self, person: UUID) -> bool:
+        """Is the person a reviewer of the prototypes, as ID says now (CAT-165, ID6)?"""
+        resource = f"{ResourceKind.CATALOG.value}:{PROTOTYPE_REVIEWERS}"
+        body = self._get("access", {"person": str(person), "resource": resource})
+        roles = body.get("roles", []) if isinstance(body, dict) else []
+        return Role.REVIEWER.value in {str(role) for role in roles}
 
     def switcher(self, person: UUID) -> list[str]:
         """The apps the person has something in, for the app switcher (ID11)."""

@@ -41,6 +41,7 @@ function vehicle(change: Partial<Vehicle> = {}): Vehicle {
     tags: [],
     tagged: false,
     picture: { thumb_url: "https://bilder.example/m2.jpg", display_url: "https://bilder.example/d2.jpg" },
+    prototype: null,
     created_at: NOW,
     updated_at: NOW,
     ...change,

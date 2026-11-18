@@ -39,12 +39,20 @@ For the apps, with an access token from Keycloak's client credentials (KONTO-34)
     GET    /api/id/1/apps/fleets?person=                  [FleetAccess], the fleets shared with
     GET    /api/id/1/apps/switcher?person=                Switcher: the apps to show (ID11)
 
+For TrainMeet's owners, named in ID's vault (TOKEN-05), on the owner page:
+    GET    /api/id/1/owner/reviewers                      [Grant]: Granskare in Catalog (ID6)
+    POST   /api/id/1/owner/reviewers                      ReviewerGrant -> [Grant]
+    DELETE /api/id/1/owner/reviewers/{reviewer}           [Grant]
+
 Rules:
 - Every changing call checks on the server who asks (CAT-195 for ID).
 - A role always applies to one resource (KONTO-03). The resource's owner, or the admin of the
   club that owns it, hands out its roles (KONTO-36).
 - An invitation gives nothing until the person it was sent to has said yes, logged in with the
   same verified address (KONTO-29, KONTO-35, CAT-45).
+- Granskare of Catalog's prototypes is the role reviewer on catalog:prototypes (KONTO-30, ID6,
+  CAT-165). Only TrainMeet's owners give and take it, on the owner page, to someone who has
+  logged in to ID. Catalog asks for it at every call, as for a fleet.
 """
 
 from __future__ import annotations
@@ -92,6 +100,11 @@ class ResourceKind(StrEnum):
     """A hub."""
     CATALOG = "catalog"
     """Catalog as a whole, for the reviewers of prototypes (KONTO-30)."""
+
+
+PROTOTYPE_REVIEWERS = "prototypes"
+"""The id of the resource the reviewers of Catalog's prototypes have their role on, of the kind
+catalog: catalog:prototypes (KONTO-30, ID6, CAT-165)."""
 
 
 class Resource(Contract):
@@ -363,6 +376,13 @@ class FleetPage(Contract):
     title: Text
     grants: list[Grant]
     invitations: list[Invitation]
+
+
+class ReviewerGrant(Contract):
+    """The owner page gives the role Granskare in Catalog to a person, by the verified address
+    they log in to ID with (KONTO-30, ID6)."""
+
+    email: Email
 
 
 class Answer(Contract):

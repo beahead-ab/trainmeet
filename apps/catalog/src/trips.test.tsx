@@ -36,6 +36,7 @@ function vehicle(id: string, litt: string, number: string, change: Partial<Vehic
     tagged: false,
     notices: [],
     picture: null,
+    prototype: null,
     created_at: NOW,
     updated_at: NOW,
     ...change,

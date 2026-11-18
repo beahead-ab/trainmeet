@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-proposal.schema.json",
+  "title": "trainmeet.catalog-1.prototype-proposal",
+  "$defs": {
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "PrototypeSource": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/PrototypeSourceKind"
+        },
+        "text": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "PrototypeSource",
+      "type": "object"
+    },
+    "PrototypeSourceKind": {
+      "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+      "enum": [
+        "own",
+        "reference"
+      ],
+      "title": "PrototypeSourceKind",
+      "type": "string"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Föreslå förebild, or Föreslå ändring: the whole revision as it should be (CAT-163).",
+  "properties": {
+    "prototype": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The prototype to change; null proposes a new one.",
+      "title": "Prototype"
+    },
+    "base": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "For a change: the reviewed revision it was built on. Required with prototype.",
+      "title": "Base"
+    },
+    "name": {
+      "description": "The type's name, for example Hbis.",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehicleKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profile": {
+      "$ref": "#/$defs/FieldProfile",
+      "default": "SE"
+    },
+    "fields": {
+      "description": "Only the profile's keys.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "source": {
+      "$ref": "#/$defs/PrototypeSource"
+    },
+    "may_share": {
+      "const": true,
+      "description": "The proposer confirms that the data may be shared under CC BY-SA 4.0.",
+      "title": "May Share",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "source",
+    "may_share"
+  ],
+  "type": "object"
+}

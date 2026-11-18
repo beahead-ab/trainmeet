@@ -5,6 +5,10 @@ an account and a club, and sees the cost, the revenue and what the factor makes 
 cost per page. The month's budget raises an alarm by mail to the owners at 80 % and stops
 TrainMeets AI at 100 %; own AI goes on. Nobody can use up the owner's limits at the AI provider.
 
+The owner also gives and takes the role Granskare in Catalog (KONTO-30, ID6, CAT-165): reviewer
+on catalog:prototypes, for a person who has logged in to ID, named by their verified address.
+Catalog asks for it at every call, so a change applies at once.
+
 The owners are named by their verified address in a file in ID's vault, never in the code:
 
 ID_OWNERS_FILE   One address per line. Without the file nobody sees the owner page.
@@ -15,18 +19,28 @@ from __future__ import annotations
 import logging
 import math
 import os
+import uuid
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
+from uuid import UUID
 
 from psycopg import Connection
 from psycopg.rows import DictRow
 
-from contracts.id import ProblemCode
+from contracts.id import (
+    PROTOTYPE_REVIEWERS,
+    Grant,
+    Person,
+    ProblemCode,
+    Resource,
+    ResourceKind,
+    Role,
+)
 from contracts.tokens import TOKENS_PER_PAGE, OwnerPage, TokenMonth, TokenSettings
 from id.db import Database
-from id.roles import Asker, Refused
+from id.roles import Asker, Refused, initials
 
 LOGGER = logging.getLogger("id.owner")
 
@@ -117,6 +131,73 @@ class Owner:
                 ),
             )
         return self.page(asker)
+
+    # --- Granskare i Catalog (KONTO-30, ID6, CAT-165) ----------------------------------------
+
+    REVIEWERS: Final = Resource(kind=ResourceKind.CATALOG, id=PROTOTYPE_REVIEWERS)
+
+    def reviewers(self, asker: Asker) -> list[Grant]:
+        """The people who review Catalog's prototypes."""
+        self._require(asker)
+        with self.db.transaction() as conn:
+            return self._reviewers(conn)
+
+    def _reviewers(self, conn: Connection[DictRow]) -> list[Grant]:
+        rows = conn.execute(
+            "SELECT g.id AS grant_id, g.at, p.id, p.name FROM role_grant g "
+            "JOIN person p ON p.id = g.person_id WHERE g.resource_kind = %s "
+            "AND g.resource_id = %s AND g.role = %s ORDER BY lower(p.name), g.at",
+            (self.REVIEWERS.kind.value, self.REVIEWERS.id, Role.REVIEWER.value),
+        ).fetchall()
+        return [
+            Grant(
+                id=row["grant_id"],
+                person=Person(id=row["id"], name=row["name"], initials=initials(row["name"])),
+                role=Role.REVIEWER,
+                resource=self.REVIEWERS,
+                at=row["at"],
+            )
+            for row in rows
+        ]
+
+    def give_reviewer(self, asker: Asker, email: str) -> list[Grant]:
+        """The role to the person with the address, who must have logged in to ID once. Given
+        twice, it is still one role."""
+        self._require(asker)
+        with self.db.transaction() as conn:
+            found = conn.execute("SELECT id FROM person WHERE email = %s", (email,)).fetchone()
+            if found is None:
+                raise Refused(
+                    404,
+                    ProblemCode.NOT_FOUND,
+                    "Ingen med den adressen har loggat in i TrainMeet ID än.",
+                )
+            conn.execute(
+                "INSERT INTO role_grant (id, person_id, role, resource_kind, resource_id, "
+                "granted_by) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (
+                    uuid.uuid4(),
+                    found["id"],
+                    Role.REVIEWER.value,
+                    self.REVIEWERS.kind.value,
+                    self.REVIEWERS.id,
+                    asker.id,
+                ),
+            )
+            return self._reviewers(conn)
+
+    def take_reviewer(self, asker: Asker, person: UUID) -> list[Grant]:
+        """The role taken back. It applies at once in Catalog."""
+        self._require(asker)
+        with self.db.transaction() as conn:
+            gone = conn.execute(
+                "DELETE FROM role_grant WHERE person_id = %s AND role = %s "
+                "AND resource_kind = %s AND resource_id = %s RETURNING id",
+                (person, Role.REVIEWER.value, self.REVIEWERS.kind.value, self.REVIEWERS.id),
+            ).fetchall()
+            if not gone:
+                raise Refused(404, ProblemCode.NOT_FOUND, "Personen är inte granskare.")
+            return self._reviewers(conn)
 
     # --- The budget -------------------------------------------------------------------------
 

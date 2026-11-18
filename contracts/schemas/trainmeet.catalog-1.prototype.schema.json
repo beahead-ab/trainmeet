@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype.schema.json",
+  "title": "trainmeet.catalog-1.prototype",
+  "$defs": {
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "PrototypeRevision": {
+      "additionalProperties": true,
+      "description": "One revision of a prototype: a proposal, reviewed or rejected (CAT-159).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "prototype": {
+          "format": "uuid",
+          "title": "Prototype",
+          "type": "string"
+        },
+        "number": {
+          "description": "Counts every proposal for the prototype, from 1.",
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "base": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The reviewed revision a change was built on; null if new.",
+          "title": "Base"
+        },
+        "status": {
+          "$ref": "#/$defs/PrototypeStatus"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "$ref": "#/$defs/FieldProfile"
+        },
+        "fields": {
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,39}$": {
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "source": {
+          "$ref": "#/$defs/PrototypeSource"
+        },
+        "mine": {
+          "default": false,
+          "description": "The person asking proposed it.",
+          "title": "Mine",
+          "type": "boolean"
+        },
+        "proposed_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The proposer's name: only in the review queue, and in one's own proposals.",
+          "title": "Proposed By"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "comment": {
+          "default": "",
+          "description": "The reviewer's comment.",
+          "title": "Comment",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        }
+      },
+      "required": [
+        "id",
+        "prototype",
+        "number",
+        "status",
+        "name",
+        "profile",
+        "fields",
+        "source",
+        "created_at"
+      ],
+      "title": "PrototypeRevision",
+      "type": "object"
+    },
+    "PrototypeSource": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/PrototypeSourceKind"
+        },
+        "text": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "PrototypeSource",
+      "type": "object"
+    },
+    "PrototypeSourceKind": {
+      "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+      "enum": [
+        "own",
+        "reference"
+      ],
+      "title": "PrototypeSourceKind",
+      "type": "string"
+    },
+    "PrototypeStatus": {
+      "description": "A prototype's or a revision's place in the review (CAT-164).",
+      "enum": [
+        "proposed",
+        "reviewed",
+        "rejected"
+      ],
+      "title": "PrototypeStatus",
+      "type": "string"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A type in the catalog: one row in the list (CAT-173), and the prototype's page.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/PrototypeStatus",
+      "description": "Reviewed once a revision is; until then the first proposal's status."
+    },
+    "revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The reviewed revision shown, the latest one; null before.",
+      "title": "Revision"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehicleKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profile": {
+      "$ref": "#/$defs/FieldProfile"
+    },
+    "fields": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "source": {
+      "$ref": "#/$defs/PrototypeSource"
+    },
+    "reviewed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reviewed At"
+    },
+    "vehicles": {
+      "description": "Används: how many vehicles in Catalog are linked to it.",
+      "title": "Vehicles",
+      "type": "integer"
+    },
+    "waiting": {
+      "default": 0,
+      "description": "Proposals for it waiting in the review queue that one may see.",
+      "title": "Waiting",
+      "type": "integer"
+    },
+    "revisions": {
+      "description": "Only on the prototype's page: the reviewed revisions, newest first, and the ones the person may see besides.",
+      "items": {
+        "$ref": "#/$defs/PrototypeRevision"
+      },
+      "title": "Revisions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "name",
+    "profile",
+    "fields",
+    "source",
+    "vehicles"
+  ],
+  "type": "object"
+}
