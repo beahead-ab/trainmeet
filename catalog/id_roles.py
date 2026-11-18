@@ -31,6 +31,8 @@ class SharedFleet:
     owner: UUID
     title: str
     role: str
+    club: bool = False
+    """The owner is a club: its pictures count against the club's storage (TOKEN-29)."""
 
 
 class IdRoles:
@@ -109,8 +111,13 @@ class IdRoles:
         for item in body if isinstance(body, list) else []:
             try:
                 found.append(
-                    SharedFleet(UUID(item["owner"]["id"]), str(item["title"]), str(item["role"]))
+                    SharedFleet(
+                        UUID(item["owner"]["id"]),
+                        str(item["title"]),
+                        str(item["role"]),
+                        club=item.get("club") is True,
+                    )
                 )
-            except (KeyError, ValueError, TypeError):
+            except (KeyError, ValueError, TypeError, AttributeError):
                 continue
         return found

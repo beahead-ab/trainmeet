@@ -2185,6 +2185,12 @@ export interface components {
              */
             title: string;
             role: components["schemas"]["trainmeet.id-1.fleet-access.FleetAccessRole"];
+            /**
+             * Club
+             * @description The owner is a club: the fleet's pictures count against the club's 2 GB, not a person's 100 MB (TOKEN-29, TK17).
+             * @default false
+             */
+            club: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2605,6 +2611,25 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.id-1.account-export.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Place
          * @description A named place at home: a box or a shelf (CAT-71).
          */
@@ -2831,6 +2856,11 @@ export interface components {
              * @description Newest first.
              */
             notices?: components["schemas"]["trainmeet.id-1.account-export.Notice"][];
+            /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.id-1.account-export.PictureLinks"] | null;
             /**
              * Created At
              * Format: date-time

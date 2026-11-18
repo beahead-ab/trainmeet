@@ -22,5 +22,8 @@ dist/
 node_modules/
 apps/*/dist/
 
+# TrainMeet Catalog's pictures on disk, when run locally (CATALOG_PICTURES_DIR)
+.catalog/
+
 # TrainMeet ID: the extension is built by id/Dockerfile
 id/email-code/target/

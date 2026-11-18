@@ -64,6 +64,12 @@
     },
     "role": {
       "$ref": "#/$defs/FleetAccessRole"
+    },
+    "club": {
+      "default": false,
+      "description": "The owner is a club: the fleet's pictures count against the club's 2 GB, not a person's 100 MB (TOKEN-29, TK17).",
+      "title": "Club",
+      "type": "boolean"
     }
   },
   "required": [

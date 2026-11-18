@@ -840,18 +840,20 @@ class Roles:
 
     def fleets_for(self, person: UUID) -> list[FleetAccess]:
         """The fleets the person may work in besides their own: shared with them, and their
-        clubs' (CAT-50, CAT-51). The strongest right counts."""
+        clubs' (CAT-50, CAT-51). The strongest right counts. club says that the owner is a
+        club, whose fleet's pictures count against the club's storage (TOKEN-29)."""
         strength = {FleetAccessRole.VIEWER: 1, FleetAccessRole.EDITOR: 2, FleetAccessRole.OWNER: 3}
         with self.db.transaction() as conn:
             rows = conn.execute(
-                "SELECT g.resource_id AS owner, g.role, coalesce(c.name, p.name) AS whose "
+                "SELECT g.resource_id AS owner, g.role, coalesce(c.name, p.name) AS whose, "
+                "c.id IS NOT NULL AS club "
                 "FROM role_grant g LEFT JOIN club c ON c.id::text = g.resource_id "
                 "LEFT JOIN person p ON p.id::text = g.resource_id "
                 "WHERE g.person_id = %s AND g.resource_kind = 'fleet' "
                 "AND g.role IN ('viewer', 'editor') "
                 "UNION ALL "
                 "SELECT c.id::text, "
-                "CASE g.role WHEN 'admin' THEN 'owner' ELSE 'viewer' END, c.name "
+                "CASE g.role WHEN 'admin' THEN 'owner' ELSE 'viewer' END, c.name, true "
                 "FROM role_grant g JOIN club c ON c.id::text = g.resource_id "
                 "WHERE g.person_id = %s AND g.resource_kind = 'club' "
                 "AND g.role IN ('admin', 'member')",
@@ -866,5 +868,6 @@ class Roles:
                     owner=Resource(kind=ResourceKind.FLEET, id=row["owner"]),
                     title=f"Vagnparken · {row['whose'] or 'okänd'}",
                     role=role,
+                    club=bool(row["club"]),
                 )
         return sorted(found.values(), key=lambda f: f.title.lower())

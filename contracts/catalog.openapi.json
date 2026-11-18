@@ -2328,6 +2328,539 @@
         ]
       }
     },
+    "/api/catalog/1/vehicles/{vehicle}/pictures": {
+      "get": {
+        "operationId": "vehiclePictures",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.picture"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "addPicture",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.picture"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keep_original",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The picture: at most 15 MB and 40 megapixel (CAT-123).",
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}/main": {
+      "post": {
+        "operationId": "mainPicture",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.picture"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "picture",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/vehicles/{vehicle}/pictures/{picture}": {
+      "delete": {
+        "operationId": "removePicture",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "picture",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/storage": {
+      "get": {
+        "operationId": "storageUse",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.storage-use"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/pictures/file/{key}": {
+      "get": {
+        "operationId": "pictureFile",
+        "security": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture, kept by the browser until the address expires",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The address is not signed by Catalog, or has expired"
+          },
+          "404": {
+            "description": "No such picture, or the pictures are in Object Storage"
+          }
+        }
+      }
+    },
     "/api/catalog/1/tags/{uid}/qr.svg": {
       "get": {
         "operationId": "tagQrCode",
@@ -2710,7 +3243,7 @@
       },
       "trainmeet.catalog-1.vehicle-fields": {
         "additionalProperties": true,
-        "description": "The core fields the owner writes (CAT-53). Images, tag and prototype come later.",
+        "description": "The core fields the owner writes (CAT-53). The pictures and the tag have addresses of\ntheir own; the prototype comes later.",
         "properties": {
           "status": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-fields.VehicleStatus",
@@ -3188,6 +3721,18 @@
             "title": "Notices",
             "type": "array"
           },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle.PictureLinks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The main picture, or null without pictures. Seen with every right."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3365,6 +3910,28 @@
           "at"
         ],
         "title": "Notice",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.vehicle.PictureLinks": {
+        "additionalProperties": true,
+        "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+        "properties": {
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thumb_url",
+          "display_url"
+        ],
+        "title": "PictureLinks",
         "type": "object"
       },
       "trainmeet.catalog-1.vehicle.TagKind": {
@@ -3651,6 +4218,28 @@
         "title": "Notice",
         "type": "object"
       },
+      "trainmeet.catalog-1.vehicle-list.PictureLinks": {
+        "additionalProperties": true,
+        "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+        "properties": {
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thumb_url",
+          "display_url"
+        ],
+        "title": "PictureLinks",
+        "type": "object"
+      },
       "trainmeet.catalog-1.vehicle-list.TagKind": {
         "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",
         "enum": [
@@ -3836,6 +4425,18 @@
             },
             "title": "Notices",
             "type": "array"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.vehicle-list.PictureLinks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The main picture, or null without pictures. Seen with every right."
           },
           "created_at": {
             "format": "date-time",
@@ -4149,7 +4750,7 @@
       },
       "trainmeet.catalog-1.problem": {
         "additionalProperties": true,
-        "description": "The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.",
+        "description": "The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503.",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.problem.ProblemCode"
@@ -4185,7 +4786,11 @@
           "too_many",
           "not_here",
           "forbidden",
-          "unavailable"
+          "unavailable",
+          "bad_picture",
+          "picture_too_large",
+          "too_many_pictures",
+          "storage_full"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -5026,6 +5631,28 @@
         "title": "OwnerSettings",
         "type": "object"
       },
+      "trainmeet.catalog-1.catalog-export.PictureLinks": {
+        "additionalProperties": true,
+        "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+        "properties": {
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thumb_url",
+          "display_url"
+        ],
+        "title": "PictureLinks",
+        "type": "object"
+      },
       "trainmeet.catalog-1.catalog-export.Place": {
         "additionalProperties": true,
         "description": "A named place at home: a box or a shelf (CAT-71).",
@@ -5247,6 +5874,18 @@
             "title": "Notices",
             "type": "array"
           },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.PictureLinks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The main picture, or null without pictures. Seen with every right."
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -5452,6 +6091,134 @@
           "removed"
         ],
         "title": "RemovedCount",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.picture": {
+        "additionalProperties": true,
+        "description": "One of the vehicle's pictures (CAT-05).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "main": {
+            "description": "The vehicle's main picture: exactly one has it (CAT-125).",
+            "title": "Main",
+            "type": "boolean"
+          },
+          "position": {
+            "description": "The order the pictures were added in.",
+            "minimum": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "width": {
+            "description": "The display picture's width in pixels.",
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "description": "The display picture's height in pixels.",
+            "title": "Height",
+            "type": "integer"
+          },
+          "bytes": {
+            "description": "What the picture takes of the owner's storage, all its sizes (CAT-131).",
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          },
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "original_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The original, only with Spara original (CAT-17).",
+            "title": "Original Url"
+          }
+        },
+        "required": [
+          "id",
+          "main",
+          "position",
+          "width",
+          "height",
+          "bytes",
+          "display_url",
+          "thumb_url"
+        ],
+        "title": "Picture",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.picture-links": {
+        "additionalProperties": true,
+        "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+        "properties": {
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thumb_url",
+          "display_url"
+        ],
+        "title": "PictureLinks",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.storage-use": {
+        "additionalProperties": true,
+        "description": "The owner's storage: what the pictures take and the free level (CAT-17, CAT-131).",
+        "properties": {
+          "used": {
+            "description": "Bytes the owner's pictures take, drafts' included.",
+            "title": "Used",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "The free level in bytes: 100 MB, or 2 GB for a club.",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "club": {
+            "description": "The owner is a club (TOKEN-29).",
+            "title": "Club",
+            "type": "boolean"
+          },
+          "pictures": {
+            "description": "How many pictures the owner has.",
+            "title": "Pictures",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "club",
+          "pictures"
+        ],
+        "title": "StorageUse",
         "type": "object"
       }
     },

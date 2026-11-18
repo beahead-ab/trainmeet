@@ -464,3 +464,97 @@ def test_ids_api_runs_beside_keycloak_at_the_same_address() -> None:
     assert "id-api:8083" in up
     service = compose.split("  id-api:")[1].split("\n  caddy:")[0]
     assert '"127.0.0.1:8083:8080"' in service  # only on the server itself
+
+
+# --- Catalogs bilder (#51, C35, CAT-130) -------------------------------------------------
+
+
+def _secrets() -> Mock:
+    stored: dict[str, str] = {}
+
+    def list_secrets(name: str, **_: object) -> SimpleNamespace:
+        found = [SimpleNamespace(id="s1", name=name, version_count=1)] if stored else []
+        return SimpleNamespace(secrets=found)
+
+    api = Mock()
+    api.list_secrets.side_effect = list_secrets
+    api.create_secret.return_value = SimpleNamespace(id="s1", name="x", version_count=0)
+    api.create_secret_version.side_effect = lambda secret_id, data: stored.update(data=data)
+    api.access_secret_version.side_effect = lambda **_: SimpleNamespace(data=stored["data"])
+    return api
+
+
+def test_the_pictures_get_a_key_that_only_reaches_object_storage_in_the_project() -> None:
+    iam = Mock()
+    iam.list_applications_all.return_value = []
+    iam.create_application.return_value = SimpleNamespace(id="app", name=testmiljo.PICTURES_NAME)
+    iam.list_policies_all.return_value = []
+    iam.create_api_key.return_value = SimpleNamespace(access_key="SCWNYCKEL", secret_key="hemlig")
+    secrets = _secrets()
+    key = testmiljo.ensure_picture_key(iam, secrets, "proj-1", "org-1")
+    assert (key.access_key, key.secret_key) == ("SCWNYCKEL", "hemlig")
+    rules = iam.create_policy.call_args.kwargs["rules"]
+    assert [(r.permission_set_names, r.project_ids) for r in rules] == [
+        (["ObjectStorageFullAccess"], ["proj-1"])
+    ]
+    assert "hemlig" not in repr(key)
+    assert key.key_file() == "SCWNYCKEL\nhemlig\n"
+    # The second deploy reads the key back and makes nothing new.
+    iam.list_applications_all.return_value = [iam.create_application.return_value]
+    iam.list_policies_all.return_value = [SimpleNamespace(name=testmiljo.PICTURES_NAME)]
+    assert testmiljo.ensure_picture_key(iam, secrets, "proj-1", "org-1") == key
+    assert iam.create_application.call_count == 1
+    assert iam.create_policy.call_count == 1
+    assert iam.create_api_key.call_count == 1
+
+
+def test_the_bucket_is_made_once_and_a_new_policy_is_waited_for() -> None:
+    key = testmiljo.PictureKey(access_key="a", secret_key="b")
+    answers = iter([403, 404, 200])
+    calls: list[tuple[str, str]] = []
+
+    def send(method: str, url: str, given: testmiljo.PictureKey) -> int:
+        calls.append((method, url))
+        return next(answers)
+
+    waited: list[float] = []
+    testmiljo.ensure_bucket(key, "trainmeet-test-bilder-abc", send, waited.append)
+    assert calls == [
+        ("HEAD", "https://s3.nl-ams.scw.cloud/trainmeet-test-bilder-abc"),
+        ("HEAD", "https://s3.nl-ams.scw.cloud/trainmeet-test-bilder-abc"),
+        ("PUT", "https://s3.nl-ams.scw.cloud/trainmeet-test-bilder-abc"),
+    ]
+    assert len(waited) == 1
+    assert testmiljo.bucket_name("ABCD1234-ef56-7890") == "trainmeet-test-bilder-abcd1234"
+
+
+def test_without_the_bucket_the_pictures_lie_on_disk_and_the_deploy_goes_on(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    iam = Mock()
+    iam.list_applications_all.return_value = [
+        SimpleNamespace(id="app", name=testmiljo.PICTURES_NAME)
+    ]
+    iam.list_policies_all.return_value = [SimpleNamespace(name=testmiljo.PICTURES_NAME)]
+    iam.create_api_key.return_value = SimpleNamespace(access_key="SCWNYCKEL", secret_key="hemlig")
+
+    def broken(method: str, url: str, given: testmiljo.PictureKey) -> int:
+        return 500
+
+    assert testmiljo.ensure_pictures(iam, _secrets(), "proj-1", "org-1", broken) is None
+    said = capsys.readouterr().out
+    assert "ligger på serverns disk" in said and "HTTP 500" in said
+    assert "hemlig" not in said
+
+
+def test_catalog_reads_the_pictures_key_from_its_vault_and_keeps_disk_pictures() -> None:
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    catalog = compose.split("\n  catalog:\n", 1)[1].split("\n  # ", 1)[0]
+    assert 'user: "${HOST_UID}:0"' in catalog
+    assert "CATALOG_PICTURES_S3_KEY_FILE: ${CATALOG_PICTURES_S3_BUCKET:+/vault/" in catalog
+    assert "- ./catalog-vault:/vault:ro" in catalog
+    assert "- ./catalog-pictures:/pictures" in catalog
+    up = (ROOT / "deploy" / "testmiljo" / "up.sh").read_text()
+    assert "mkdir -p catalog-pictures" in up
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    assert 'catalog-vault/trainmeet_pictures-key\' < "$PICTURES_KEY"' in workflow

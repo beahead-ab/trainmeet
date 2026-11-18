@@ -86,6 +86,9 @@ services:
   catalog:
     image: trainmeet-catalog:${CATALOG_TAG:?CATALOG_TAG saknas}
     restart: unless-stopped
+    # Runs as the deploy user, so it can read the pictures' key in catalog-vault, which only it
+    # may read, and write the pictures on disk when there is no bucket (#51).
+    user: "${HOST_UID}:0"
     depends_on:
       catalog-db:
         condition: service_healthy
@@ -109,7 +112,18 @@ services:
       # trainmeet.app/t/ once its DNS row points here, else Catalog's own address (C38).
       CATALOG_TAG_BASE: ${CATALOG_TAG_BASE:?CATALOG_TAG_BASE saknas}
       CATALOG_SIMULATED_TAGS: "on"
+      # Bilderna (#51, C35, CAT-130): a bucket of their own in Object Storage in Amsterdam, with
+      # a key that only reaches Object Storage, in catalog-vault. Without the bucket the
+      # pictures lie on the server's disk, with links Catalog signs itself.
+      CATALOG_PICTURES_S3_ENDPOINT: ${CATALOG_PICTURES_S3_BUCKET:+https://s3.nl-ams.scw.cloud}
+      CATALOG_PICTURES_S3_BUCKET: ${CATALOG_PICTURES_S3_BUCKET:-}
+      CATALOG_PICTURES_S3_REGION: nl-ams
+      CATALOG_PICTURES_S3_KEY_FILE: ${CATALOG_PICTURES_S3_BUCKET:+/vault/trainmeet_pictures-key}
+      CATALOG_PICTURES_DIR: /pictures
       FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - ./catalog-vault:/vault:ro
+      - ./catalog-pictures:/pictures
     ports:
       - "127.0.0.1:8081:8080"
 

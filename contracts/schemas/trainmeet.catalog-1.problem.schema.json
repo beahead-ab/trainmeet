@@ -21,14 +21,18 @@
         "too_many",
         "not_here",
         "forbidden",
-        "unavailable"
+        "unavailable",
+        "bad_picture",
+        "picture_too_large",
+        "too_many_pictures",
+        "storage_full"
       ],
       "title": "ProblemCode",
       "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "The answer when Catalog says no: 401, 403, 404, 409, 422 or 503.",
+  "description": "The answer when Catalog says no: 401, 403, 404, 409, 413, 415, 422 or 503.",
   "properties": {
     "code": {
       "$ref": "#/$defs/ProblemCode"

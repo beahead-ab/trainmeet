@@ -424,6 +424,13 @@ class FleetAccess(Contract):
     owner: Resource = Field(description="Kind fleet: the owner's id, a person's or a club's.")
     title: Text = Field(description="Whose fleet it is, as the owner shows it.")
     role: FleetAccessRole
+    club: bool = Field(
+        default=False,
+        description=(
+            "The owner is a club: the fleet's pictures count against the club's 2 GB, not a "
+            "person's 100 MB (TOKEN-29, TK17)."
+        ),
+    )
 
 
 class ProblemCode(StrEnum):

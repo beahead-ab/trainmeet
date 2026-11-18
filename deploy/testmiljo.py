@@ -22,7 +22,12 @@ Miljön (secrets i GitHub):
 Valfritt:
     TESTMILJO_TYPE      servertyp, förval DEV1-S
     TESTMILJO_SSH_DIR   var nyckelfilerna skrivs för jobbets ssh, förval ~/.ssh
-Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, created.
+- Catalogs bilder (#51, C35): en egen hink i Object Storage och en egen IAM-app med en nyckel
+  som bara når Object Storage i det här projektet. Nyckeln sparas i Secret Manager och läggs i
+  catalog-vault på servern. Utan rätten att skapa IAM-appar ligger bilderna på serverns disk.
+
+Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, created, och
+pictures_key när hinken finns.
 """
 
 from __future__ import annotations
@@ -36,13 +41,13 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
 from scaleway import Client
 from scaleway.iam.v1alpha1 import IamV1Alpha1API
-from scaleway.iam.v1alpha1.types import Quotum
+from scaleway.iam.v1alpha1.types import Quotum, RuleSpecs
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
 from scaleway.instance.v1.types import (
     Ip,
@@ -69,6 +74,11 @@ NAME = "trainmeet-testhub"
 TAG = "trainmeet-testmiljo"
 SECRET_NAME = "trainmeet-testmiljo-ssh"
 CATALOG_SECRET_NAME = "trainmeet-testmiljo-catalog"
+# Catalogs bilder (#51, C35, CAT-130): a bucket of their own in Object Storage, reached with a
+# key of their own that only gives Object Storage in this project, never the deploy's key.
+PICTURES_NAME = "trainmeet-testmiljo-catalog-bilder"
+PICTURES_SECRET_NAME = "trainmeet-testmiljo-catalog-bilder-nyckel"
+S3_ENDPOINT = "https://s3.nl-ams.scw.cloud"
 ID_SECRET_NAME = "trainmeet-testmiljo-id"
 ID_API_SECRET_NAME = "trainmeet-testmiljo-id-api"
 ID_HUB_SECRET_NAME = "trainmeet-testmiljo-id-hub"
@@ -521,9 +531,172 @@ def write_private(name: str, text: str) -> Path:
     return path
 
 
-def write_catalog_env(catalog: CatalogSecrets) -> Path:
-    """Catalog's secrets as a private file, for the deploy to put on the server."""
-    return write_private("testmiljo_catalog.env", catalog.env_file())
+def write_catalog_env(catalog: CatalogSecrets, bucket: str | None = None) -> Path:
+    """Catalog's secrets as a private file, for the deploy to put on the server, with the
+    pictures' bucket when there is one (#51)."""
+    text = catalog.env_file() + (f"CATALOG_PICTURES_S3_BUCKET={bucket}\n" if bucket else "")
+    return write_private("testmiljo_catalog.env", text)
+
+
+# --- Catalogs bilder (#51) --------------------------------------------------------------
+
+
+class PicturesError(Exception):
+    """The bucket could not be made. The message never holds a key."""
+
+
+@dataclass(frozen=True)
+class PictureKey:
+    """The key Catalog reaches its bucket with: Object Storage only, in this project."""
+
+    access_key: str
+    secret_key: str = field(repr=False)
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> PictureKey:
+        data = json.loads(text)
+        return cls(access_key=str(data["access_key"]), secret_key=str(data["secret_key"]))
+
+    def key_file(self) -> str:
+        """The file Catalog reads the key from (CATALOG_PICTURES_S3_KEY_FILE)."""
+        return f"{self.access_key}\n{self.secret_key}\n"
+
+
+def bucket_name(project_id: str) -> str:
+    """A bucket name is unique across Scaleway; the project's first part makes it ours."""
+    return f"trainmeet-test-bilder-{project_id.split('-')[0].lower()}"
+
+
+def ensure_picture_key(
+    iam: IamV1Alpha1API, secrets: SecretV1Beta1API, project_id: str, organization_id: str
+) -> PictureKey:
+    """An IAM application with a policy for Object Storage in this project only, and its key
+    in Secret Manager. Made the first time, then read back."""
+    found = iam.list_applications_all(organization_id=organization_id, name=PICTURES_NAME)
+    application = next((a for a in found if a.name == PICTURES_NAME), None)
+    if application is None:
+        application = iam.create_application(
+            name=PICTURES_NAME,
+            description="Catalogs bilder i testmiljön. Skapas av deploy/testmiljo.py.",
+            organization_id=organization_id,
+            tags=[TAG],
+        )
+        print("Catalogs bilder fick en egen IAM-app.")
+    policies = iam.list_policies_all(
+        organization_id=organization_id, application_ids=[application.id]
+    )
+    if not any(policy.name == PICTURES_NAME for policy in policies):
+        iam.create_policy(
+            name=PICTURES_NAME,
+            description="Bara Object Storage, bara i testmiljöns projekt.",
+            organization_id=organization_id,
+            application_id=application.id,
+            rules=[
+                RuleSpecs(
+                    condition="",
+                    permission_set_names=["ObjectStorageFullAccess"],
+                    project_ids=[project_id],
+                )
+            ],
+            tags=[TAG],
+        )
+
+    def new() -> str:
+        made = iam.create_api_key(
+            application_id=application.id,
+            description="Catalogs bilder i testmiljön.",
+            default_project_id=project_id,
+        )
+        if not made.secret_key:
+            raise PicturesError("Scaleway gav ingen hemlig nyckel till Catalogs bilder.")
+        return PictureKey(access_key=made.access_key, secret_key=made.secret_key).to_json()
+
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        PICTURES_SECRET_NAME,
+        "Nyckeln till Catalogs bilder i testmiljön. Skapas av deploy/testmiljo.py.",
+        new,
+    )
+    if created:
+        print("Catalogs bilder fick en egen nyckel, sparad i Secret Manager.")
+    return PictureKey.from_json(text)
+
+
+Send = Callable[[str, str, PictureKey], int]
+
+
+def s3_send(method: str, url: str, key: PictureKey) -> int:
+    """One empty S3 call signed with SigV4, as Object Storage wants it. Gives the status."""
+    import hashlib
+
+    import httpx
+    from botocore.auth import S3SigV4Auth
+    from botocore.awsrequest import AWSRequest
+    from botocore.credentials import Credentials
+
+    request = AWSRequest(
+        method=method,
+        url=url,
+        data=b"",
+        headers={"x-amz-content-sha256": hashlib.sha256(b"").hexdigest()},
+    )
+    S3SigV4Auth(Credentials(key.access_key, key.secret_key), "s3", REGION).add_auth(request)
+    answer = httpx.request(method, url, headers=dict(request.headers.items()), timeout=30.0)
+    return answer.status_code
+
+
+def ensure_bucket(
+    key: PictureKey,
+    bucket: str,
+    send: Send = s3_send,
+    wait: Callable[[float], None] = time.sleep,
+) -> None:
+    """The bucket, private as Object Storage makes it. A new policy can take a moment to
+    reach Object Storage, so a refusal is tried again a few times."""
+    url = f"{S3_ENDPOINT}/{bucket}"
+    status = 0
+    for attempt in range(8):
+        status = send("HEAD", url, key)
+        if status == 200:
+            return
+        if status == 404:
+            status = send("PUT", url, key)
+            if status == 200:
+                print("Catalogs hink för bilderna skapad.")
+                return
+        if status not in (401, 403, 409):
+            break
+        wait(5.0 * (attempt + 1))
+    raise PicturesError(f"Hinken för Catalogs bilder gick inte att nå (HTTP {status}).")
+
+
+def ensure_pictures(
+    iam: IamV1Alpha1API,
+    secrets: SecretV1Beta1API,
+    project_id: str,
+    organization_id: str,
+    send: Send = s3_send,
+) -> tuple[str, PictureKey] | None:
+    """The bucket and its key, or None: then the pictures lie on the server's disk, and the
+    deploy goes on. The reason is said, never a key."""
+    try:
+        key = ensure_picture_key(iam, secrets, project_id, organization_id)
+        bucket = bucket_name(project_id)
+        ensure_bucket(key, bucket, send)
+    except ScalewayException as error:
+        print(
+            "::notice::Catalogs bilder ligger på serverns disk: Scaleway nekade IAM-appen "
+            f"(HTTP {error.status_code}). Nyckeln behöver rätten att skapa IAM-appar."
+        )
+        return None
+    except PicturesError as error:
+        print(f"::notice::Catalogs bilder ligger på serverns disk: {error}")
+        return None
+    return bucket, key
 
 
 def ensure_id_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdSecrets:
@@ -655,6 +828,9 @@ def main(argv: list[str]) -> int:
         id_secrets = ensure_id_secrets(secrets, project_id)
         id_api_secrets = ensure_id_api_secrets(secrets, project_id)
         id_hub_secrets = ensure_id_hub_secrets(secrets, project_id)
+        pictures = ensure_pictures(
+            IamV1Alpha1API(client), secrets, project_id, env("SCW_DEFAULT_ORGANIZATION_ID")
+        )
         security_group_id = ensure_security_group(instance, project_id)
         ip = ensure_ip(instance, project_id)
         _, created = ensure_server(
@@ -676,7 +852,10 @@ def main(argv: list[str]) -> int:
     output("user", DEPLOY_USER)
     output("key_file", str(key_file))
     output("known_hosts", str(known_hosts))
-    output("catalog_env", str(write_catalog_env(catalog)))
+    output("catalog_env", str(write_catalog_env(catalog, pictures[0] if pictures else None)))
+    # The pictures' key goes to catalog-vault on the server, which only the deploy user reads.
+    if pictures is not None:
+        output("pictures_key", str(write_private("testmiljo_bilder.key", pictures[1].key_file())))
     # up.sh puts both files in .env, so Catalog reads ID_CATALOG_SECRET from there too, and the
     # hub ID_HUB_SECRET (#78). ID sends its codes with Scaleway's Transactional Email in this
     # project (#66).

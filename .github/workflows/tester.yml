@@ -257,6 +257,8 @@ jobs:
           cp deploy/testmiljo/compose.yaml deploy/testmiljo/catalog-backup.sh "$PROV/"
           cd "$PROV"
           umask 077
+          # As up.sh does on the server: Catalog's vault, and its pictures on disk (#51).
+          mkdir -p catalog-vault catalog-pictures
           {
             echo "HUB_TAG=prov"
             echo "HUB_DOMAIN=localhost"
@@ -315,7 +317,19 @@ jobs:
           TAGG=$(curl -fsS -b "$PROV/kakor" -X POST http://localhost:8081/api/catalog/1/tags/simulated | jq -r .uid)
           curl -fsS -b "$PROV/kakor" "http://localhost:8081/api/catalog/1/tags/$TAGG" | grep -q '"outcome":"unknown"'
           curl -fsS "http://localhost:8081/t/$TAGG" | grep -q 'id="root"'
-          docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)" | grep -qx catalog
+          # Fordonens bilder (#51): a picture is uploaded, made smaller, and fetched with its
+          # signed link, from the server's disk here.
+          FORDON=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' \
+            -d '{"status":"ready","kind":"freight_wagon","litt":"Hbis","number":"21 74 245 2 253-0"}' \
+            http://localhost:8081/api/catalog/1/vehicles | jq -r .id)
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' | base64 -d > "$PROV/bild.png"
+          BILD=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: image/png' --data-binary @"$PROV/bild.png" \
+            "http://localhost:8081/api/catalog/1/vehicles/$FORDON/pictures")
+          echo "$BILD" | jq -e '.main == true' >/dev/null
+          curl -fsS -o /dev/null "http://localhost:8081$(echo "$BILD" | jq -r .thumb_url)"
+          # Catalog runs as the deploy user, never as root, so it can read its key in catalog-vault (#51).
+          CATALOG_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q catalog)")
+          case "$CATALOG_USER" in ""|0|0:*|root|root:*) echo "Catalog kör som root." >&2; exit 1;; esac
 
       - name: Nattens säkerhetskopia, med data i
         run: |
@@ -638,6 +652,7 @@ jobs:
           KNOWN: ${{ steps.server.outputs.known_hosts }}
           CATALOG_ENV: ${{ steps.server.outputs.catalog_env }}
           ID_ENV: ${{ steps.server.outputs.id_env }}
+          PICTURES_KEY: ${{ steps.server.outputs.pictures_key }}
         run: |
           echo "CATALOG_ENV=$CATALOG_ENV" >> "$GITHUB_ENV"
           echo "ID_ENV=$ID_ENV" >> "$GITHUB_ENV"
@@ -684,6 +699,11 @@ jobs:
           # Catalogs hemligheter går direkt från Secret Manager till servern och skrivs aldrig ut.
           $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/catalog.env' < "$CATALOG_ENV"
           $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/id.env' < "$ID_ENV"
+          # Catalogs bilder (#51): nyckeln som bara når hinken går från Secret Manager till
+          # catalog-vault på servern och skrivs aldrig ut. Utan den ligger bilderna på disken.
+          if [ -n "$PICTURES_KEY" ] && [ -s "$PICTURES_KEY" ]; then
+            $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/catalog-vault && cat > /srv/trainmeet/catalog-vault/trainmeet_pictures-key' < "$PICTURES_KEY"
+          fi
           # Mejlnyckeln (#66) går från GitHub direkt till ID:s valv på servern och skrivs aldrig ut.
           if [ -n "$TEM_SECRET_KEY" ]; then
             printf '%s' "$TEM_SECRET_KEY" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_smtp-password'
