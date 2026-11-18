@@ -361,13 +361,16 @@ def router(
     # --- Stationspaketen (SYNK-06, SYNK-18, H71): the owner's private versions ----------------
 
     def owner_of(authorization: str | None) -> str:
-        found = (owners or NoOwners()).owner(authorization)
-        if found is None:
+        asked = owners or NoOwners()
+        found = asked.owner(authorization)
+        if found is None and isinstance(asked, NoOwners):
             raise HTTPException(
                 403,
-                "Synken av stationspaket kräver inloggning med TrainMeet ID. Den kommer i "
-                "hubben med ärende 78.",
+                "Synken av stationspaket kräver inloggning med TrainMeet ID, och den här hubben "
+                "har ingen (SYNK-30).",
             )
+        if found is None:
+            raise HTTPException(401, "Logga in med TrainMeet ID i TKL för att spara i molnet.")
         return found
 
     def kept() -> Stations:

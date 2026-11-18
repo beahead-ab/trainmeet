@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CallHere, Outside, Snapshot } from "./api";
 import { FirstStart, shortId } from "./Forsta";
 import { happenings } from "./handelser";
+import { Molnet } from "./Installningar";
 import { readSounds } from "./ljud";
 import { blocks, clockAt, revisionOf, trains } from "./niva0";
 import { Stallverket } from "./Stallverket";
@@ -198,5 +199,21 @@ describe("Första start and Studio (KLAR-01, TKL18, TKL21)", () => {
     expect(problems({ ...outside, tracks: [] })).toEqual(["Stationen behöver minst ett spår."]);
     expect(problems({ ...outside, exits: [...outside.exits, { id: "v", side: "right", name: null, tracks: [], signals: [] }] })).toEqual(["Två utfarter har samma id."]);
     expect(problems({ ...outside, tracks: [{ id: "spår 3", label: "Spår 3" }] })).toEqual(['"spår 3" går inte som id: bokstäver, siffror, punkt, kolon eller bindestreck.']);
+  });
+});
+
+describe("TrainMeet ID och molnet (TKL18, SYNK-30, H71)", () => {
+  it("offers the login with ID, and then Spara i molnet with what is where", () => {
+    const out = renderToStaticMarkup(<Molnet initial={{ available: true, person: null, cloud: "https://moln.example.test", saved: null, local: 2 }} />);
+    expect(out).toContain('id="id-login" class="knapp primar" href="/api/tkl/1/id/login">Logga in med TrainMeet ID<');
+    const inside = renderToStaticMarkup(<Molnet initial={{ available: true, person: "Tomas Ek", cloud: "https://moln.example.test", saved: 1, local: 2 }} />);
+    expect(inside).toContain("Inloggad som <b>Tomas Ek</b>.");
+    expect(inside).toContain("Utsidan på datorn: version 2. I molnet: version 1.");
+    expect(inside).toContain('id="spara-i-molnet"');
+  });
+
+  it("says when this TKL has no login with ID", () => {
+    const html = renderToStaticMarkup(<Molnet initial={{ available: false, person: null, cloud: null, saved: null, local: null }} />);
+    expect(html).toContain("Den här TKL har ingen inloggning med TrainMeet ID.");
   });
 });

@@ -288,6 +288,32 @@ class IdLogin:
                 self._keys_read = time.monotonic()
             return self._keys[kid]
 
+    # --- An app's token (TKL18, SYNK-30) ----------------------------------------------------
+
+    def app_subject(self, authorization: str | None, apps: frozenset[str]) -> str | None:
+        """The person an app's access token from ID belongs to: signed by ID, not run out, and
+        issued to one of the apps (azp). None for anything else; never why in the answer."""
+        scheme, _, token = (authorization or "").partition(" ")
+        token = token.strip()
+        if scheme.lower() != "bearer" or not token or len(token) > 8000:
+            return None
+        try:
+            header = jwt.get_unverified_header(token)
+            key = self._key(str(header.get("kid", "")))
+            claims: dict[str, Any] = jwt.decode(
+                token,
+                key=key,
+                algorithms=[key.algorithm_name],
+                issuer=self.settings.issuer,
+                leeway=30,
+                options={"require": ["exp", "iat", "iss", "sub"], "verify_aud": False},
+            )
+            subject = str(UUID(str(claims["sub"])))
+        except (jwt.PyJWTError, httpx.HTTPError, LookupError, ValueError) as error:
+            LOGGER.info("En apps token godtas inte: %s", type(error).__name__)
+            return None
+        return subject if claims.get("azp") in apps else None
+
     # --- Logging out ------------------------------------------------------------------------
 
     def logout_address(self, id_token: str) -> str:

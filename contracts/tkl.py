@@ -131,3 +131,31 @@ class TklCommand(Contract):
     action: Action
     expected_revision: Revision | None = None
     payload: dict[str, object] = Field(default_factory=dict)
+
+
+class TklIdState(Contract):
+    """TrainMeet ID i TKL (TKL18, #78) och stationspaketet i molnet (SYNK-30)."""
+
+    available: bool = Field(description="Har TKL inloggning med TrainMeet ID?")
+    person: Text | None = Field(default=None, description="Den som är inloggad: namnet.")
+    cloud: Text | None = Field(default=None, description="Molnhubben där stationspaketen sparas.")
+    saved: int | None = Field(
+        default=None, description="Den senaste versionen i molnet som TKL har sparat eller sett."
+    )
+    local: int | None = Field(default=None, description="Utsidans senaste version på datorn.")
+
+
+class TklSave(Contract):
+    """Spara i molnet: utsidans senaste version som ett nytt stationspaket (SYNK-06). on_top:
+    spara ovanpå den versionen när molnet har en nyare än TKL känner (H71). Utelämnat: ovanpå
+    den TKL känner, och en nyare i molnet nekar."""
+
+    on_top: int | None = Field(default=None, ge=0)
+
+
+class TklSaved(Contract):
+    version: int | None = Field(default=None, description="Sparad som den versionen i molnet.")
+    behind: int | None = Field(
+        default=None, description="Molnet har en nyare version, sparad från en annan dator."
+    )
+    message: Text | None = None

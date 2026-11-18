@@ -79,7 +79,7 @@ export function FirstStart({ cloud, onSetUp }: { cloud: boolean; onSetUp: (name:
         <fieldset className="ruta valfri">
           <legend>3 · TrainMeet ID · valfritt</legend>
           <p>Synka stationens utsida till Hubben och använd TKL i molnet.</p>
-          <p className="liten">Kommer när inloggningen med TrainMeet ID kommer till TKL. Till dess stannar allt på datorn.</p>
+          <p className="liten">Efter första start loggar du in med TrainMeet ID under Inställningar › TrainMeet ID och molnet, och sparar stationen i molnet. Utan inloggning stannar allt på datorn.</p>
         </fieldset>
       </div>
       <p className="liten">Efter starten är stationen på nivå 0: skriv spår och utfarter i Studio och anslut till träffen. Inget lämnar datorn förrän du ansluter.</p>

@@ -6,8 +6,8 @@ an older version is refused, and the owner chooses which counts (linear, H71). N
 written over quietly, and the package is kept as the bytes it came as, with its checksum. Only
 the outside ever goes on, to a meet or a Pi (SYNK-12).
 
-Who the owner is comes from TrainMeet ID (TKL18). Until the hub logs in with ID (#78, SYNK-30)
-no one is an owner here, and every call is refused with 403.
+Who the owner is comes from TrainMeet ID (TKL18): the person TKL's token from ID names (#78,
+SYNK-30). A hub without the login with ID has no owners, and every call is refused with 403.
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ class Owners(Protocol):
 
 
 class NoOwners:
-    """Until the hub logs in with TrainMeet ID (#78): no one is an owner here."""
+    """A hub without the login with TrainMeet ID: no one is an owner here."""
 
     def owner(self, authorization: str | None) -> str | None:
         return None

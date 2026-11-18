@@ -49,6 +49,9 @@ def test_the_realm_holds_no_secret() -> None:
     data = realm()
     assert data["smtpServer"]["password"] == "${vault.smtp-password}"
     for client in data["clients"]:
+        if client["publicClient"]:
+            assert "secret" not in client, "a public client has no secret"
+            continue
         assert client["secret"].startswith("${") and client["secret"].endswith("}")
     text = REALM.read_text(encoding="utf-8")
     assert not re.search(r"@(?!trainmeet\.)[a-z0-9-]+\.[a-z]{2,}", text), "An address in the realm"
@@ -209,6 +212,25 @@ def test_the_hub_logs_in_and_asks_like_catalog_in_the_file_and_the_update() -> N
     scopes = re.search(r"SCOPES = List.of\(([^)]*)\)", updates)
     assert scopes is not None
     assert re.findall(r'"([a-z-]+)"', scopes.group(1)) == hub["defaultClientScopes"]
+
+
+def test_tkl_logs_in_as_a_public_client_with_pkce_in_the_file_and_the_update() -> None:
+    """#78, TKL18: TKL runs on the station's own computer too, so its client has no secret and
+    PKCE is required; the cloud's address and the station's computer on port 8090."""
+    tkl = next(c for c in realm()["clients"] if c["clientId"] == "tkl")
+    assert tkl["publicClient"] is True and "secret" not in tkl
+    assert tkl["standardFlowEnabled"] is True and tkl["directAccessGrantsEnabled"] is False
+    assert tkl["serviceAccountsEnabled"] is False and tkl["implicitFlowEnabled"] is False
+    assert tkl["attributes"]["pkce.code.challenge.method"] == "S256"
+    assert tkl["redirectUris"] == [
+        "${ID_TKL_URL}/api/tkl/1/id/callback",
+        "http://localhost:8090/api/tkl/1/id/callback",
+        "http://127.0.0.1:8090/api/tkl/1/id/callback",
+    ]
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert "tklLogsIn(realm)" in updates and "client.setPublicClient(true)" in updates
+    assert 'local + "/api/tkl/1/id/callback"' in updates
+    assert '"http://localhost:8090", "http://127.0.0.1:8090"' in updates
 
 
 def test_there_is_one_update_for_every_number_after_the_first() -> None:

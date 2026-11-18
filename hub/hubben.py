@@ -41,7 +41,9 @@ IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE, max_length=2
 TICKET_COOKIE = "trainmeet_ticket"
 """On the meet's Pi: the ticket from ID, for logging in again without internet (KONTO-11)."""
 TicketCookie = Annotated[str | None, Cookie(alias=TICKET_COOKIE, max_length=4000)]
-Authorization = Annotated[str | None, Header(max_length=200)]
+# Room for an access token from TrainMeet ID (TKL's, SYNK-30). The hub's own keys are checked
+# for their length where they are used.
+Authorization = Annotated[str | None, Header(max_length=8000)]
 
 
 def session_of(cookie: str | None, authorization: str | None) -> str | None:

@@ -1,14 +1,15 @@
 // Inställningar (TKLAPP): Anslutning to the meet (KLAR-02, KLAR-13), Skärmar och ljud on this
 // screen (TKL33), and the PIN. The hub is found on the meet's network; over the internet the
 // dispatcher gives a code. The key from the approval stays in TKL's server.
-import { useState, type FormEvent } from "react";
-import type { Connection, FoundHub, Question, State } from "./api";
+import { useEffect, useState, type FormEvent } from "react";
+import { api, type Connection, type FoundHub, type IdState, type Question, type Saved, type State } from "./api";
 import { SOUND_NAMES, type Sounds } from "./ljud";
 import { SIDE } from "./niva0";
 
-export type Part = "anslutning" | "ljud" | "pin";
+export type Part = "anslutning" | "molnet" | "ljud" | "pin";
 const PARTS: [Part, string][] = [
   ["anslutning", "Anslutning"],
+  ["molnet", "TrainMeet ID och molnet"],
   ["ljud", "Skärmar och ljud"],
   ["pin", "PIN"],
 ];
@@ -49,6 +50,7 @@ export function Installningar(props: Props) {
       </nav>
       <div className="innehall">
         {part === "anslutning" ? <Anslutning {...props} /> : null}
+        {part === "molnet" ? <Molnet /> : null}
         {part === "ljud" ? <Ljud sounds={props.sounds} onSounds={props.onSounds} /> : null}
         {part === "pin" ? <Pin onPin={props.onPin} /> : null}
       </div>
@@ -187,6 +189,86 @@ export function Anslutning({ state, connection, hubs, questions, version, onFind
         </p>
       ) : null}
     </>
+  );
+}
+
+/** TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78): log in with ID, and Spara i molnet
+ * saves the latest version of the outside as the station package in the cloud hub. A save on
+ * top of an older version is refused, and the owner chooses (H71). */
+export function Molnet({ initial }: { initial?: IdState }) {
+  const [state, setState] = useState<IdState | null>(initial ?? null);
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [message, setMessage] = useState("");
+  const [working, setWorking] = useState(false);
+  useEffect(() => {
+    if (initial) return;
+    void api.idState().then(setState, (error: unknown) => setMessage(error instanceof Error ? error.message : ""));
+  }, [initial]);
+  const save = async (onTop: number | null) => {
+    setWorking(true);
+    setMessage("");
+    try {
+      setSaved(await api.saveInCloud(onTop));
+      setState(await api.idState());
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Det gick inte att spara i molnet.");
+    } finally {
+      setWorking(false);
+    }
+  };
+  if (!state) return <p className="liten">Hämtar …</p>;
+  if (!state.available) {
+    return (
+      <section className="ruta">
+        <h2>TrainMeet ID och molnet</h2>
+        <p className="liten">Den här TKL har ingen inloggning med TrainMeet ID. Stationen stannar på datorn.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="ruta" id="molnet">
+      <h2>TrainMeet ID och molnet</h2>
+      {state.person ? (
+        <>
+          <p>
+            Inloggad som <b>{state.person}</b>.
+          </p>
+          <p className="liten">
+            {`Utsidan på datorn: ${state.local ? `version ${state.local}` : "ingen version än"}. I molnet: ${state.saved ? `version ${state.saved}` : "inget sparat än"}.`}
+            {state.cloud ? ` Molnhubben: ${state.cloud}.` : ""}
+          </p>
+          <div className="knappar">
+            <button id="spara-i-molnet" type="button" className="primar" disabled={working || !state.cloud} onClick={() => void save(null)}>
+              Spara i molnet
+            </button>
+            <button type="button" onClick={() => void api.idLogOut().then(setState)}>
+              Logga ut från ID
+            </button>
+          </div>
+          {saved?.version ? <p id="sparad">{`Sparad som version ${saved.version} i molnet.`}</p> : null}
+          {saved?.behind ? (
+            <div className="varning" role="alert">
+              <p>{saved.message}</p>
+              <button id="spara-ovanpa" type="button" disabled={working} onClick={() => void save(saved.behind ?? null)}>
+                {`Spara ovanpå version ${saved.behind}`}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <p className="liten">Logga in med TrainMeet ID för att spara stationen i molnet och hämta den på en annan dator.</p>
+          <a id="id-login" className="knapp primar" href="/api/tkl/1/id/login">
+            Logga in med TrainMeet ID
+          </a>
+        </>
+      )}
+      {message ? (
+        <p className="fel" role="alert">
+          {message}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

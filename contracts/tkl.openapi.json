@@ -369,6 +369,67 @@
           }
         ]
       }
+    },
+    "/api/tkl/1/id": {
+      "get": {
+        "operationId": "tklId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.id-state"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tkl/1/id/logout": {
+      "post": {
+        "operationId": "tklIdLogOut",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.id-state"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tkl/1/id/save": {
+      "post": {
+        "operationId": "tklSaveInCloud",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.saved"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.save"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3431,6 +3492,146 @@
         ],
         "title": "RevisionScope",
         "type": "string"
+      },
+      "trainmeet.tkl-1.id-state": {
+        "additionalProperties": true,
+        "description": "TrainMeet ID i TKL (TKL18, #78) och stationspaketet i molnet (SYNK-30).",
+        "properties": {
+          "available": {
+            "description": "Har TKL inloggning med TrainMeet ID?",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den som är inloggad: namnet.",
+            "title": "Person"
+          },
+          "cloud": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Molnhubben där stationspaketen sparas.",
+            "title": "Cloud"
+          },
+          "saved": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den senaste versionen i molnet som TKL har sparat eller sett.",
+            "title": "Saved"
+          },
+          "local": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Utsidans senaste version på datorn.",
+            "title": "Local"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "TklIdState",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.save": {
+        "additionalProperties": true,
+        "description": "Spara i molnet: utsidans senaste version som ett nytt stationspaket (SYNK-06). on_top:\nspara ovanpå den versionen när molnet har en nyare än TKL känner (H71). Utelämnat: ovanpå\nden TKL känner, och en nyare i molnet nekar.",
+        "properties": {
+          "on_top": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On Top"
+          }
+        },
+        "title": "TklSave",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.saved": {
+        "additionalProperties": true,
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sparad som den versionen i molnet.",
+            "title": "Version"
+          },
+          "behind": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Molnet har en nyare version, sparad från en annan dator.",
+            "title": "Behind"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message"
+          }
+        },
+        "title": "TklSaved",
+        "type": "object"
       }
     },
     "securitySchemes": {
