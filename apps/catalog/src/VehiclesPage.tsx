@@ -61,9 +61,19 @@ export function VehiclesView(props: VehiclesViewProps) {
               {t("places")}
             </a>
           ) : null}
-          {mayEdit(ctx) ? (
+          {isOwner(ctx) ? (
+            // Lägg till med foto is the owner's own (CAT-46), and the phone's main button (CAT-134).
+            <>
+              <a className="tm-knapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
+                {t("addByHand")}
+              </a>
+              <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newPhoto} onClick={linkClick(navigate, PATHS.newPhoto)}>
+                {t("addWithPhoto")}
+              </a>
+            </>
+          ) : mayEdit(ctx) ? (
             <a className="tm-knapp primar cat-huvudknapp" href={PATHS.newVehicle} onClick={linkClick(navigate, PATHS.newVehicle)}>
-              {t("addVehicle")}
+              {t("addByHand")}
             </a>
           ) : null}
         </div>

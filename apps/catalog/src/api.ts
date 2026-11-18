@@ -38,6 +38,15 @@ export type TripStep = Trip["step"];
 export type Tick = TripRow["ticks"][number];
 export type NewTrip = Schemas["trainmeet.catalog-1.new-trip"];
 export type TripTapped = Schemas["trainmeet.catalog-1.trip-tapped"];
+export type Reading = Schemas["trainmeet.catalog-1.reading"];
+export type ReadingAsk = Schemas["trainmeet.catalog-1.reading-ask"];
+export type ReadingConsent = Schemas["trainmeet.catalog-1.reading-consent"];
+export type ReadingQuestion = Schemas["trainmeet.catalog-1.reading.ReadingQuestion"];
+export type Suggestion = Schemas["trainmeet.catalog-1.reading.Suggestion"];
+/** The core fields the AI suggests from a photo (CAT-137, CAT-139): SuggestedField in
+ * contracts/catalog.py. The generated type keys Reading.suggestions by any string, so the names
+ * are written here, as KINDS and STATES are. */
+export type SuggestedField = "kind" | "litt" | "number" | "operator" | "maker" | "article_number";
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
@@ -51,26 +60,49 @@ export const PICTURE_KINDS = ["image/jpeg", "image/png", "image/webp"] as const;
 /** As in catalog/pictures.py: 10 pictures per vehicle (CAT-17), at most 15 MB each (CAT-123). */
 export const PICTURES_PER_VEHICLE = 10;
 export const PICTURE_MAX_BYTES = 15 * 1024 * 1024;
+/** The fields a reading may suggest, in the form's order (CAT-137). */
+export const SUGGESTED_FIELDS: SuggestedField[] = ["kind", "litt", "number", "operator", "maker", "article_number"];
+/** As in catalog/reading.py: 1–4 photos in one reading, the whole vehicle and close-ups (CAT-135). */
+export const READING_PICTURES = 4;
 
-/** Catalog said no, with a code the web app has a text for, or something else went wrong. */
+/** Catalog said no, with a code the web app has a text for, or something else went wrong.
+ * retryAfter is Catalog's Retry-After in seconds, when it said when to try again (CAT-146). */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: ProblemCode | null,
+    readonly retryAfter: number | null = null,
   ) {
     super(`Catalog svarade ${status}${code ? ` (${code})` : ""}`);
   }
 }
 
+/** A form, such as a reading's photos, goes as the browser builds it; anything else as JSON. */
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, credentials: "same-origin", headers: { Accept: "application/json" } };
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    init.body = body;
+  } else if (body !== undefined) {
     init.headers = { ...init.headers, "Content-Type": "application/json" };
     init.body = JSON.stringify(body);
   }
   const response = await fetch(path, init);
-  if (!response.ok) throw new ApiError(response.status, codeOf(await response.text().catch(() => "")));
+  if (!response.ok) throw new ApiError(response.status, codeOf(await response.text().catch(() => "")), secondsOf(response.headers.get("Retry-After")));
   return (await response.json()) as T;
+}
+
+/** Retry-After in seconds; a date or anything else is no answer. */
+function secondsOf(value: string | null): number | null {
+  return value && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
+}
+
+/** A reading's form (catalog/reading_api.py): the part data is the ReadingAsk as JSON, and the
+ * parts images are the 1–4 photos, in order. */
+export function readingForm(ask: ReadingAsk, photos: Blob[]): FormData {
+  const form = new FormData();
+  form.append("data", JSON.stringify(ask));
+  photos.forEach((photo, index) => form.append("images", photo, photo instanceof File && photo.name ? photo.name : `foto-${index + 1}`));
+  return form;
 }
 
 /** The code in Catalog's answer when it said no, if it is one. */
@@ -120,6 +152,7 @@ function query(filters: Filters): string {
 const V = "/api/catalog/1/vehicles";
 const P = "/api/catalog/1/places";
 const M = "/api/catalog/1/meets";
+const R = "/api/catalog/1/readings";
 
 /** The fleet the person works in: null for their own, otherwise the owner's id (CAT-50, #49). */
 let working: string | null = null;
@@ -200,6 +233,11 @@ export const api = {
   /** A tag tapped in the step; with add, the vehicle goes on the list first (CAT-181). */
   tapInTrip: (id: string, uid: string, step: TripStep, add = false) => call<TripTapped>("POST", inFleet(`${M}/${id}/tap`), { uid, step, add }),
   archiveTrip: (id: string) => call<Trip>("POST", inFleet(`${M}/${id}/archive`)),
+  /** What a reading sends and to whom, the price and the balance (CAT-142, CAT-19). */
+  readingConsent: () => call<ReadingConsent>("GET", inFleet(`${R}/consent`)),
+  /** The AI's suggestions from the photos. The same id and photos again give the same reading,
+   * without reading or drawing again (CAT-144). Nothing is saved in a vehicle (CAT-143). */
+  read: (ask: ReadingAsk, photos: Blob[]) => call<Reading>("POST", inFleet(R), readingForm(ask, photos)),
 };
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);

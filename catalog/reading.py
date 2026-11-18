@@ -742,4 +742,4 @@ def _payer(owner: UUID, club: bool) -> TokenOwner:
 
 
 def _sent(to: str) -> str:
-    return f"Fotot, utan platsuppgifter och annan metadata, skickas till {to}."
+    return f"Fotona, utan platsuppgifter och annan metadata, skickas till {to}."
