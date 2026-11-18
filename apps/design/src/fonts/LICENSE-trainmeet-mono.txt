@@ -1,3 +1,6 @@
+TrainMeet Mono is JetBrains Mono 2.211 with the dot taken out of the zero (TrainMeet, 18 November 2026;
+apps/design/typsnitt/trainmeet_mono.py). Like the original it is under the SIL Open Font License 1.1 below.
+
 Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) JetBrainsMono-Italic[wght].ttf: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

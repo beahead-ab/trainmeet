@@ -7,8 +7,8 @@
   font-display: swap;
 }
 @font-face {
-  font-family: "JetBrains Mono";
-  src: url("../fonts/jetbrains-mono.woff2") format("woff2");
+  font-family: "TrainMeet Mono";
+  src: url("../fonts/trainmeet-mono.woff2") format("woff2");
   font-weight: 100 800;
   font-display: swap;
 }
@@ -91,7 +91,7 @@ body {
   background: #2a2f37;
 }
 .id-plats {
-  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-family: "TrainMeet Mono", ui-monospace, Menlo, monospace;
   font-size: 14px;
   color: #a3a9b4;
 }
@@ -164,7 +164,7 @@ body {
   font-size: 18px;
 }
 .id-kod {
-  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-family: "TrainMeet Mono", ui-monospace, Menlo, monospace;
   font-size: 28px !important;
   letter-spacing: 0.2em;
 }

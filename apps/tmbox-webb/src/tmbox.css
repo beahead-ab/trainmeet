@@ -202,7 +202,7 @@ body {
   background: var(--tm-panel);
 }
 .key-hints b {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "TrainMeet Mono", ui-monospace, monospace;
   color: var(--tm-text);
 }
 .tips {
