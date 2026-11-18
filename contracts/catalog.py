@@ -79,6 +79,16 @@ class Session(Contract):
         default=None,
         description="The app switcher's apps, as ID says (ID11); null when ID does not answer.",
     )
+    tokens: int | None = Field(
+        default=None,
+        description=(
+            "Saldot i kontomenyn (TOKEN-01): the tokens left on the person's own account in "
+            "TrainMeet ID; null without ID, or when ID does not answer."
+        ),
+    )
+    tokens_url: str | None = Field(
+        default=None, description="Tokens in TrainMeet ID, where one sees the balance and buys."
+    )
     logout_url: str | None = Field(
         default=None,
         description=(

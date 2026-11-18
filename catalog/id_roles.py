@@ -97,6 +97,12 @@ class IdRoles:
         apps = body.get("apps", []) if isinstance(body, dict) else []
         return [str(app) for app in apps]
 
+    def tokens(self, person: UUID) -> int | None:
+        """Saldot i kontomenyn (TOKEN-01): the tokens left on the person's own account."""
+        body = self._get("tokens", {"person": str(person), "owner": f"person:{person}"})
+        available = body.get("available") if isinstance(body, dict) else None
+        return available if isinstance(available, int) else None
+
     def shared_fleets(self, person: UUID) -> list[SharedFleet]:
         body = self._get("fleets", {"person": str(person)})
         found: list[SharedFleet] = []

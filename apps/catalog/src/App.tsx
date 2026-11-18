@@ -140,6 +140,12 @@ export function Shell(props: ShellProps) {
           >
             {(close) => (
               <>
+                {session?.tokens_url && session.tokens != null ? (
+                  // Saldot i kontomenyn (TOKEN-01): Tokens in TrainMeet ID, where one buys more.
+                  <a id="tokens" href={session.tokens_url}>
+                    {t("tokens", { n: session.tokens.toLocaleString(language === "en" ? "en-GB" : "sv-SE") })}
+                  </a>
+                ) : null}
                 {session?.help_url ? (
                   <a href={helpHref(session.help_url, props.path ?? PATHS.vehicles, props.version)}>{t("help")}</a>
                 ) : (

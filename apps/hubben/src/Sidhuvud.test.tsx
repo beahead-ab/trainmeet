@@ -44,6 +44,10 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(person).toContain("Provare Ett · </span>Logga ut");
     expect(person).not.toContain('id="connect"');
     expect(person).not.toContain('href="/">Logga in</a>');
+    expect(person).not.toContain('id="tokens"');
+    const paying = header({ admin: false, owner: false, loggedIn: true, person: "Provare Ett", tokens: 1176, tokensUrl: "https://id.example/tokens" });
+    // Saldot (TOKEN-01), with the way to Tokens in ID.
+    expect(paying).toMatch(/<a id="tokens" class="hknapp" href="https:\/\/id.example\/tokens"[^>]*>1.176 tokens<\/a>/);
   });
 
   it("gives someone let in with a one-time code the meet that runs, but not Byt träff (H56)", () => {

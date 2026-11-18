@@ -35,6 +35,7 @@ class PretendId:
     roles: dict[tuple[str, str], str] = field(default_factory=dict)
     titles: dict[str, str] = field(default_factory=dict)
     apps: dict[str, list[str]] = field(default_factory=dict)
+    balances: dict[str, int] = field(default_factory=dict)
     down: bool = False
     tokens: int = 0
     asked: int = 0
@@ -59,6 +60,9 @@ class PretendId:
             return httpx.Response(200, json={"roles": [role] if role else []})
         if request.url.path.endswith("/apps/switcher"):
             return httpx.Response(200, json={"apps": self.apps.get(person, ["catalog", "id"])})
+        if request.url.path.endswith("/apps/tokens"):
+            assert request.url.params["owner"] == f"person:{person}"
+            return httpx.Response(200, json={"available": self.balances.get(person, 100)})
         if request.url.path.endswith("/apps/fleets"):
             shared = [
                 {
@@ -312,3 +316,15 @@ def test_the_session_has_the_apps_from_id_and_the_way_to_help(world: World) -> N
     assert session["help_url"] == "https://id.example.test/hjalp"
     world.id.down = True
     assert world.a.get(f"{API}/session").json()["apps"] is None
+
+
+def test_the_account_menu_shows_the_balance_from_id(world: World) -> None:
+    """TOKEN-01: Se saldot i kontomenyn, with the way to Tokens in ID. Without an answer from
+    ID the menu leaves it out."""
+    world.id.balances[A] = 76
+    session = world.a.get(f"{API}/session").json()
+    assert (session["tokens"], session["tokens_url"]) == (76, "https://id.example.test/tokens")
+    assert world.b.get(f"{API}/session").json()["tokens"] == 100
+    world.id.down = True
+    session = world.a.get(f"{API}/session").json()
+    assert (session["tokens"], session["tokens_url"]) == (None, None)

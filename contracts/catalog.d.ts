@@ -557,6 +557,18 @@ export interface components {
              */
             apps: components["schemas"]["trainmeet.catalog-1.session.AppKey"][] | null;
             /**
+             * Tokens
+             * @description Saldot i kontomenyn (TOKEN-01): the tokens left on the person's own account in TrainMeet ID; null without ID, or when ID does not answer.
+             * @default null
+             */
+            tokens: number | null;
+            /**
+             * Tokens Url
+             * @description Tokens in TrainMeet ID, where one sees the balance and buys.
+             * @default null
+             */
+            tokens_url: string | null;
+            /**
              * Logout Url
              * @description Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too and sends it back (KONTO-01).
              * @default null

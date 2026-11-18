@@ -175,9 +175,19 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         except Refused:
             return None
 
+    def tokens_of(account: Account) -> int | None:
+        """Saldot i kontomenyn (TOKEN-01). Without an answer from ID the menu leaves it out."""
+        if access.roles is None:
+            return None
+        try:
+            return access.roles.tokens(account.id)
+        except Refused:
+            return None
+
     def session_of(key: str | None) -> Session:
         account = sessions.account(key)
         share = share_address(account.id) if account is not None else None
+        tokens = tokens_of(account) if account is not None else None
         return Session(
             account=account,
             login=login_kind,
@@ -185,6 +195,12 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
             share_url=share,
             help_url=f"{settings.id.id_public}/hjalp" if settings.id is not None else None,
             apps=apps_of(account) if account is not None else None,
+            tokens=tokens,
+            tokens_url=(
+                f"{settings.id.id_public}/tokens"
+                if settings.id is not None and tokens is not None
+                else None
+            ),
         )
 
     def set_cookie(response: Response, request: Request, key: str) -> None:
