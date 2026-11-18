@@ -24,7 +24,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Leknummer | `place.phone`, `PlacePhone` | Driftplatsens telefonnummer i trafikspelet. Inga personuppgifter. Trafikledningen kan ändra det under träffen (drifthändelsen `place.phone`). |
 | Station | `station` | Det som skapas i TKL Studio och kopplas till en driftplats, i förväg eller när den ansluter. |
 | Utsida | `trainmeet.station-outside/1` | Det träffen vet om en station: id, namn, stationsspår, utfarter och sidor. |
-| Insida | – | Spårplan, signaler och adresser. Stannar alltid hos TKL. |
+| Insida | `trainmeet.station-model/1` | Stationsmodellen: spåren, växlarna, signalerna och adresserna. Stannar alltid hos TKL. |
 | Utfart | `exit` | Där ett spår lämnar stationen, med fast id och sida. Kopplas till en sträcka per träff. |
 | Utfartsfråga | `station.ExitQuestion`, `station.ExitAnswer`, `drift.CoupleExit` | När en TKL ansluter kopplar Hubben stationens utfarter till sträckorna: på grannens namn, sidan och förra träffens svar. Är den osäker frågar den, i TKL och i Klienter, och det första svaret gäller hela träffen (H26, TRAFIK-05). Svaret minns till nästa träff med samma granne. En station som kopplats i förväg i Planering har sin tabell, `station.exit_map`. |
 | Sida | `side` | `left` eller `right`, som boxen visar en sträcka eller utfart. En box kan tilldelas en sida (`both` är förval) och ser då bara tågen på sträckorna åt det hållet. |
@@ -100,7 +100,7 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | TMBox över MQTT | `hub/tmbox_mqtt.py`, `tmbox/terminal/device/<id>/…` | En fysisk box mot Mosquitto på Pi:n (DRIFT-22), utan nyckel som i dag (BOX-10). Livstecknet besvaras direkt, och varje box har en egen kö (H73). |
 | Drifthändelse | `drift.DriftEvent` | Allt som händer i en körande träff, i ordning. Det som läses tillbaka vid omstart och skickas till molnet. |
 | Epok | `epoch` | Ledarskapets nummer. *Ta över* höjer det, och en hubb som ser en högre epok slutar fatta beslut. |
-| Nivå | – | Bara i TKL: hur mycket av ställverket en station har (0–3). |
+| Nivå | `TklStation.level`, `StationModel.level` | Bara i TKL: hur mycket av ställverket en station har (0–3). Stationsmodellen finns från nivå 1; nivå 3 lägger till adresserna. |
 | Underlagsnivå | `source.level` | Bara i importen: hur bra underlaget är (1–4). |
 | Underlag | `source` | En fil som lagts till träffen, till exempel Tellurians planeringsfil. Sparas som den kom. |
 | Utkast | `trainmeet.planning/1`, `Draft` | Det Planering arbetar med tills det publiceras som en version. |
@@ -130,6 +130,29 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Bekräfta | `ConfirmChange` | Planeraren godkänner det ett underlag gav, som det är: en osäker eller trolig uppgift blir bekräftad (IMPORT-04). |
 | Dom | `ListVerdict`, `ImportReport.verdicts`, `ImportResult.checks_only` | En stationslistas prövning mot planen: hur många tågbesök som stämmer och var det skiljer. |
 | Program | `about.program` | Träffens program, som fasta tider. |
+
+## TKL: stationsmodellen
+
+Standardställverket (#83): varje station är data, och samma motor räknar fram vägarna för alla (TKL23, TKL40).
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| Stationsmodell | `trainmeet.station-model/1`, `StationModel`, `<station>.tkl.json` | En fil per station: spårbitar, noder, växlar, spakar, signaler, spårledningar, stationsspår, linjeutfarter, vändskivor, panelfunktioner, ursprung per uppgift och spårplanen (STD-06). Studio skriver den och ställverket läser den (TKL92). Det som räknas fram lagras aldrig i den (STD-07). |
+| Spårbit | `TrackPiece`, `pieces` | En bit spår från en nod till en annan, med spårnummer och verklig form ur ritningen för den mjuka vyn (TKL42). |
+| Nod | `Node`, `NodeType` | Där spårbitar möts eller tar slut: växel, korsning, signalpunkt, blockgräns, modulskarv, skarv, stoppunkt, stoppbock, linjeutfart eller vändskiva. |
+| Stoppunkt | `NodeType.stop_point` | En plats på ett spår där vägar börjar och slutar utan signal: mitt på plattformen på nivå 1, lastspår och stall där det inte finns signaler. |
+| Växel | `Switch`, `SwitchType` | Ägarens nummer, som det står (STD-17), med stam, rakt ben (+) och avvikande ben (−). Typerna är vanlig, Y, enkel och dubbel korsningsväxel och korsning utan växel (RS1). En korsningsväxel har delar med egna nummer, som Träkvistas 22a och 23. En manuell, planerad eller oinkopplad växel läggs inte av TKL, och ingen väg går över den (TKL26, RS5). |
+| Spak | `Lever` | Vilket läge varje växel får i + och −: två eller flera delar på samma spak (RS2), omvända växlar som ligger åt andra hållet, och växlar som en spak drar med i bara ett läge (STD-29, TKL104). En väg som behöver samma spak åt båda hållen finns inte. |
+| Signal | `Signal`, `SignalType` | Namn, typ ur signalkatalogen (huvudsignal, huvuddvärgsignal, dvärgsignal, försignal och slutpunktsstopplykta), nod och riktning, och adress på nivå 3. Slutpunktsstopplyktan är bara slutpunkt (RS3). |
+| Spårledning | `TrackCircuit` | Namn, spårbitarna och givaren, eller utan. Vägen löses ut sektionsvis per spårledning. |
+| Stationsspår | `StationTrack` | Spåret där tåg står vid stationen, med det korta namnet som id, etiketten och spårbitarna. Det är det utsidan visar (TKL92). |
+| Linjeutfart | `LineExit` | Där ett spår lämnar stationen mot linjen: id, grannstationen, stationsspåren och signalerna vid gränsen. |
+| Vändskiva | `Turntable` | Noden, spåren och deras vinklar (RS4). Bryggan förbinder två spår som står mitt emot varandra. |
+| Panelfunktion | `PanelFunction`, `PanelFunctionType` | En knapp på panelen ur den fasta katalogen: signalstopp, lokal frigivning (TKL44), körström, spår ur drift, nödutlösning, vändskiva och programmeringsspår (STV-53). Nya funktioner läggs i katalogen för alla (STD-19). |
+| Ursprung | `Origin`, `Source` | Varifrån en uppgift i modellen kommer: ritad, uppmätt ur foto, signalplan, AnyRail, JMRI eller antagen, och om ägaren har bekräftat den. Det antagna syns gult i Studio. |
+| Spårplan | `PanelPlan`, `StationModel.panel` | Den schematiska panelens spårplan på rutnätet, när ägaren har ritat om motorns förslag: noderna på rutorna, spåren med skarvarna, signalernas och spårnamnens platser, perronger, hus och avvikelsen från ritningen (STD-25–STD-28). Panelen byggs alltid ur den. |
+| Tågväg | `tkl.standard.Route`, `RouteKind.train` | Räknas fram, lagras aldrig. Från en huvudsignal i dess riktning till nästa huvudsignal i samma riktning, en slutpunktsstopplykta eller en stoppbock; dvärgsignaler och motriktade signaler passeras (§2, TKL28). På nivå 1 går vägarna spår till spår. |
+| Växlingsväg | `tkl.standard.Route`, `RouteKind.shunting` | Räknas fram, lagras aldrig. Från en dvärgsignal eller kombinerad signal till nästa signal i samma riktning eller en stoppbock, och mot belagt spår (TKL28). |
 
 ## TrainMeet Catalog
 

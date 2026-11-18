@@ -1,0 +1,783 @@
+{
+ "station": "trakvista",
+ "about": "Träkvista, nivå 2: 27 huvudtågvägar och 30 växeltågvägar ur referenssidan ref/trakvista/stallverk.html (JMRI-filens vägar).",
+ "counts": {
+  "train": 27,
+  "shunting": 30
+ },
+ "routes": [
+  {
+   "start": "1/4",
+   "end": "2/6",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-"
+   }
+  },
+  {
+   "start": "1/4",
+   "end": "3/8",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "-"
+   }
+  },
+  {
+   "start": "1/7",
+   "end": "1/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/7",
+   "end": "2/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/7",
+   "end": "S4s",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/8",
+   "end": "2/10",
+   "kind": "shunting",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "-"
+   }
+  },
+  {
+   "start": "2/3",
+   "end": "2/5",
+   "kind": "shunting",
+   "switches": {
+    "21a": "+",
+    "21b": "+"
+   }
+  },
+  {
+   "start": "2/3",
+   "end": "3/7",
+   "kind": "shunting",
+   "switches": {
+    "21a": "-",
+    "21b": "-"
+   }
+  },
+  {
+   "start": "2/4",
+   "end": "2/6",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+"
+   }
+  },
+  {
+   "start": "2/4",
+   "end": "3/8",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "+"
+   }
+  },
+  {
+   "start": "2/5",
+   "end": "1/7",
+   "kind": "shunting",
+   "switches": {
+    "31": "-"
+   }
+  },
+  {
+   "start": "2/5",
+   "end": "2/7",
+   "kind": "shunting",
+   "switches": {
+    "31": "+"
+   }
+  },
+  {
+   "start": "2/6",
+   "end": "1/8",
+   "kind": "shunting",
+   "switches": {
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "2/6",
+   "end": "2/8",
+   "kind": "shunting",
+   "switches": {
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/6",
+   "end": "S4v",
+   "kind": "shunting",
+   "switches": {
+    "32": "-",
+    "34": "+"
+   }
+  },
+  {
+   "start": "2/7",
+   "end": "1/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/7",
+   "end": "2/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/7",
+   "end": "S4s",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/8",
+   "end": "2/10",
+   "kind": "shunting",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "+"
+   }
+  },
+  {
+   "start": "3/4",
+   "end": "3/8",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+"
+   }
+  },
+  {
+   "start": "3/5",
+   "end": "3/7",
+   "kind": "shunting",
+   "switches": {
+    "21a": "+",
+    "21b": "+"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "1/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "-"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "2/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "+"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "S3ö",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+"
+   }
+  },
+  {
+   "start": "3/8",
+   "end": "2/10",
+   "kind": "shunting",
+   "switches": {
+    "21a": "-",
+    "21b": "-"
+   }
+  },
+  {
+   "start": "3/8",
+   "end": "S3v",
+   "kind": "shunting",
+   "switches": {
+    "21a": "+",
+    "21b": "+"
+   }
+  },
+  {
+   "start": "4/4",
+   "end": "2/6",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-"
+   }
+  },
+  {
+   "start": "4/7",
+   "end": "1/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "-",
+    "34": "+"
+   }
+  },
+  {
+   "start": "4/7",
+   "end": "2/9",
+   "kind": "shunting",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "-",
+    "34": "+"
+   }
+  },
+  {
+   "start": "4/7",
+   "end": "S4s",
+   "kind": "shunting",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "32": "-",
+    "34": "+"
+   }
+  },
+  {
+   "start": "1/2",
+   "end": "1/8",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/2",
+   "end": "2/10",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "31": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "1/2",
+   "end": "2/8",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "+"
+   }
+  },
+  {
+   "start": "1/2",
+   "end": "3/8",
+   "kind": "train",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "-"
+   }
+  },
+  {
+   "start": "1/2",
+   "end": "S3v",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "-"
+   }
+  },
+  {
+   "start": "1/7",
+   "end": "1/9",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/7",
+   "end": "2/9",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "1/8",
+   "end": "2/10",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "-"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "1/7",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "-"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "1/9",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "31": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "2/7",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "+"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "2/9",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "31": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "3/7",
+   "kind": "train",
+   "switches": {
+    "21a": "-",
+    "21b": "-"
+   }
+  },
+  {
+   "start": "2/1",
+   "end": "S3ö",
+   "kind": "train",
+   "switches": {
+    "21a": "-",
+    "21b": "-",
+    "22a": "+",
+    "22b": "+",
+    "22c": "+"
+   }
+  },
+  {
+   "start": "2/2",
+   "end": "1/8",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "-",
+    "34": "-"
+   }
+  },
+  {
+   "start": "2/2",
+   "end": "2/10",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "31": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/2",
+   "end": "2/8",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/2",
+   "end": "3/8",
+   "kind": "train",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "+"
+   }
+  },
+  {
+   "start": "2/2",
+   "end": "S3v",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "+"
+   }
+  },
+  {
+   "start": "2/7",
+   "end": "1/9",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/7",
+   "end": "2/9",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "+"
+   }
+  },
+  {
+   "start": "2/8",
+   "end": "2/10",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+",
+    "31": "+"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "1/9",
+   "kind": "train",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "-"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "2/9",
+   "kind": "train",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "23": "+"
+   }
+  },
+  {
+   "start": "3/7",
+   "end": "S3ö",
+   "kind": "train",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+"
+   }
+  },
+  {
+   "start": "3/8",
+   "end": "2/10",
+   "kind": "train",
+   "switches": {
+    "21a": "-",
+    "21b": "-"
+   }
+  },
+  {
+   "start": "3/8",
+   "end": "S3v",
+   "kind": "train",
+   "switches": {
+    "21a": "+",
+    "21b": "+"
+   }
+  }
+ ],
+ "exceptions": [
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "1/2",
+   "end": "2/10",
+   "category": "kedja",
+   "chain": [
+    "2/8"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 2/8 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 1/2 → 2/8 → 2/10, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "1/2",
+   "end": "S3v",
+   "category": "kedja",
+   "chain": [
+    "3/8"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 3/8 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 1/2 → 3/8 → S3v, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "2/1",
+   "end": "1/9",
+   "category": "kedja",
+   "chain": [
+    "2/7"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 2/7 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 2/1 → 2/7 → 1/9, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "2/1",
+   "end": "2/9",
+   "category": "kedja",
+   "chain": [
+    "2/7"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 2/7 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 2/1 → 2/7 → 2/9, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "2/1",
+   "end": "S3ö",
+   "category": "kedja",
+   "chain": [
+    "3/7"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 3/7 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 2/1 → 3/7 → S3ö, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "2/2",
+   "end": "2/10",
+   "category": "kedja",
+   "chain": [
+    "2/8"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 2/8 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 2/2 → 2/8 → 2/10, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "reference",
+   "kind": "train",
+   "start": "2/2",
+   "end": "S3v",
+   "category": "kedja",
+   "chain": [
+    "3/8"
+   ],
+   "reason": "Referensens väg (ägarens JMRI-tabell) går förbi 3/8 i samma riktning, där vägen slutar enligt §2. Motorn ger delarna 2/2 → 3/8 → S3v, och ställverket lägger dem i ett svep (TKL53)."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "1/2",
+   "end": "S4v",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "-",
+    "32": "-",
+    "34": "+"
+   },
+   "category": "tågväg utan motsvarighet",
+   "reason": "Tågvägen går förbi dvärgsignalerna 1/4 och 2/6 och slutar vid S4v (stop_lamp), som en tågväg gör enligt §2. Referensen (ägarens JMRI-tabell) har ingen tågväg här, bara växlingsvägar."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "1/7",
+   "end": "S4s",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "32": "-",
+    "34": "-"
+   },
+   "category": "tågväg utan motsvarighet",
+   "reason": "Tågvägen slutar vid S4s (stop_lamp), som en tågväg gör enligt §2. Referensen (ägarens JMRI-tabell) har ingen tågväg här, bara växlingsvägar."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "2/2",
+   "end": "S4v",
+   "switches": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+",
+    "23": "+",
+    "32": "-",
+    "34": "+"
+   },
+   "category": "tågväg utan motsvarighet",
+   "reason": "Tågvägen går förbi dvärgsignalerna 2/4 och 2/6 och slutar vid S4v (stop_lamp), som en tågväg gör enligt §2. Referensen (ägarens JMRI-tabell) har ingen tågväg här, bara växlingsvägar."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "2/7",
+   "end": "S4s",
+   "switches": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-",
+    "32": "+"
+   },
+   "category": "tågväg utan motsvarighet",
+   "reason": "Tågvägen slutar vid S4s (stop_lamp), som en tågväg gör enligt §2. Referensen (ägarens JMRI-tabell) har ingen tågväg här, bara växlingsvägar."
+  }
+ ]
+}

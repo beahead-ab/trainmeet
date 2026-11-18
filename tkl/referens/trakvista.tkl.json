@@ -1,0 +1,1791 @@
+{
+ "format": "trainmeet.station-model/1",
+ "station_id": "trakvista",
+ "name": "Träkvista",
+ "level": 2,
+ "origin": {
+  "source": "jmri"
+ },
+ "basis": ["JMRI-filen (JMRI 5.10.0, 27 oktober 2026): sektioner, växlar, signaler, spårledningar och tågvägar. Mått och foton saknas; formen är JMRI-panelens."],
+ "nodes": [
+  {
+   "id": "T2|TO1.a",
+   "type": "joint"
+  },
+  {
+   "id": "T1|T2",
+   "type": "signal_point"
+  },
+  {
+   "id": "B",
+   "type": "line_exit"
+  },
+  {
+   "id": "T3|T44",
+   "type": "joint"
+  },
+  {
+   "id": "Stopp T7",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T7|T8",
+   "type": "joint"
+  },
+  {
+   "id": "T8|TO1.c",
+   "type": "signal_point"
+  },
+  {
+   "id": "T5|T9",
+   "type": "joint"
+  },
+  {
+   "id": "T15|T9",
+   "type": "signal_point"
+  },
+  {
+   "id": "Stopp T10",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T10|T58",
+   "type": "joint"
+  },
+  {
+   "id": "T11|TO2.a",
+   "type": "signal_point"
+  },
+  {
+   "id": "T11|T37",
+   "type": "joint"
+  },
+  {
+   "id": "T13|TO3.b",
+   "type": "signal_point"
+  },
+  {
+   "id": "T13|T39",
+   "type": "joint"
+  },
+  {
+   "id": "T14|TO5.a",
+   "type": "joint"
+  },
+  {
+   "id": "T14|T35",
+   "type": "signal_point"
+  },
+  {
+   "id": "T16|T40",
+   "type": "signal_point"
+  },
+  {
+   "id": "T16|TO5.c",
+   "type": "joint"
+  },
+  {
+   "id": "T17|TO7.a",
+   "type": "signal_point"
+  },
+  {
+   "id": "T17|T4",
+   "type": "signal_point"
+  },
+  {
+   "id": "T18|TO6.b",
+   "type": "signal_point"
+  },
+  {
+   "id": "T18|T57",
+   "type": "joint"
+  },
+  {
+   "id": "T19|TO3.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T19|TO8.a",
+   "type": "joint"
+  },
+  {
+   "id": "T20|TO8.c",
+   "type": "signal_point"
+  },
+  {
+   "id": "T20|T41",
+   "type": "joint"
+  },
+  {
+   "id": "T21|TO8.b",
+   "type": "joint"
+  },
+  {
+   "id": "T21|T32",
+   "type": "signal_point"
+  },
+  {
+   "id": "T22|TO9.a",
+   "type": "block_boundary"
+  },
+  {
+   "id": "Stopp T22",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T24|TO12.b",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T24|TO11.a",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T25|TO10.b",
+   "type": "block_boundary"
+  },
+  {
+   "id": "Stopp T25",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T26|TO12.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "Stopp T26",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T27|TO11.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T27|T34",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T28|TO11.b",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T28|T33",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T29|TO10.a",
+   "type": "joint"
+  },
+  {
+   "id": "T29|TO9.b",
+   "type": "block_boundary"
+  },
+  {
+   "id": "T1|TO3.a",
+   "type": "joint"
+  },
+  {
+   "id": "T4|T43",
+   "type": "joint"
+  },
+  {
+   "id": "T15|T46",
+   "type": "joint"
+  },
+  {
+   "id": "T32|TO9.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "Stopp T33",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "Stopp T34",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "SL.A|T5",
+   "type": "signal_point"
+  },
+  {
+   "id": "T6|TO1.b",
+   "type": "joint"
+  },
+  {
+   "id": "SL.D|T6",
+   "type": "block_boundary"
+  },
+  {
+   "id": "SL.B|T31",
+   "type": "signal_point"
+  },
+  {
+   "id": "T31|T45",
+   "type": "signal_point"
+  },
+  {
+   "id": "T35|TO7.b",
+   "type": "joint"
+  },
+  {
+   "id": "T36|T37",
+   "type": "joint"
+  },
+  {
+   "id": "T36|TO6.a",
+   "type": "signal_point"
+  },
+  {
+   "id": "T38|T39",
+   "type": "joint"
+  },
+  {
+   "id": "T38|TO5.b",
+   "type": "signal_point"
+  },
+  {
+   "id": "T40|T41",
+   "type": "joint"
+  },
+  {
+   "id": "T42|T43",
+   "type": "joint"
+  },
+  {
+   "id": "A",
+   "type": "line_exit"
+  },
+  {
+   "id": "T44|T45",
+   "type": "joint"
+  },
+  {
+   "id": "T46|T47",
+   "type": "joint"
+  },
+  {
+   "id": "C",
+   "type": "line_exit"
+  },
+  {
+   "id": "T56|T57",
+   "type": "joint"
+  },
+  {
+   "id": "Stopp T56",
+   "type": "buffer_stop"
+  },
+  {
+   "id": "T58|T59",
+   "type": "joint"
+  },
+  {
+   "id": "T59|TO2.b",
+   "type": "signal_point"
+  },
+  {
+   "id": "22c",
+   "type": "switch"
+  },
+  {
+   "id": "22b",
+   "type": "switch"
+  },
+  {
+   "id": "SL.C|TO2.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "32",
+   "type": "switch"
+  },
+  {
+   "id": "31",
+   "type": "switch"
+  },
+  {
+   "id": "21b",
+   "type": "switch"
+  },
+  {
+   "id": "TO6.c|TO7.c",
+   "type": "block_boundary"
+  },
+  {
+   "id": "21a",
+   "type": "switch"
+  },
+  {
+   "id": "34",
+   "type": "switch"
+  },
+  {
+   "id": "13",
+   "type": "switch"
+  },
+  {
+   "id": "12",
+   "type": "switch"
+  },
+  {
+   "id": "TO10.c|TO12.a",
+   "type": "block_boundary"
+  },
+  {
+   "id": "10",
+   "type": "switch"
+  },
+  {
+   "id": "11",
+   "type": "switch"
+  },
+  {
+   "id": "22a/23",
+   "type": "switch"
+  }
+ ],
+ "pieces": [
+  {
+   "id": "T2",
+   "start": "T2|TO1.a",
+   "end": "T1|T2",
+   "geometry": [
+    [2080.0, 455.0],
+    [1933.8, 455.0]
+   ]
+  },
+  {
+   "id": "T3",
+   "start": "B",
+   "end": "T3|T44",
+   "geometry": [
+    [3103.8, 455.0],
+    [3038.8, 455.0]
+   ]
+  },
+  {
+   "id": "T7",
+   "start": "Stopp T7",
+   "end": "T7|T8",
+   "track": "IV",
+   "geometry": [
+    [2437.5, 975.0],
+    [2437.5, 731.2]
+   ]
+  },
+  {
+   "id": "T8",
+   "start": "T7|T8",
+   "end": "T8|TO1.c",
+   "track": "IV",
+   "geometry": [
+    [2437.5, 731.2],
+    [2210.0, 520.0]
+   ]
+  },
+  {
+   "id": "T9",
+   "start": "T5|T9",
+   "end": "T15|T9",
+   "geometry": [
+    [2600.0, 715.0],
+    [2600.0, 828.8]
+   ]
+  },
+  {
+   "id": "T10",
+   "start": "Stopp T10",
+   "end": "T10|T58",
+   "track": "IIIa",
+   "geometry": [
+    [2730.0, 325.0],
+    [2561.0, 325.0]
+   ]
+  },
+  {
+   "id": "T11",
+   "start": "T11|TO2.a",
+   "end": "T11|T37",
+   "track": "III",
+   "geometry": [
+    [2128.8, 325.0],
+    [1306.5, 325.0]
+   ]
+  },
+  {
+   "id": "T13",
+   "start": "T13|TO3.b",
+   "end": "T13|T39",
+   "track": "II",
+   "geometry": [
+    [1706.2, 455.0],
+    [1306.5, 455.0]
+   ]
+  },
+  {
+   "id": "T14",
+   "start": "T14|TO5.a",
+   "end": "T14|T35",
+   "geometry": [
+    [763.8, 455.0],
+    [747.5, 455.0]
+   ]
+  },
+  {
+   "id": "T16",
+   "start": "T16|T40",
+   "end": "T16|TO5.c",
+   "geometry": [
+    [1007.5, 617.5],
+    [910.0, 520.0]
+   ]
+  },
+  {
+   "id": "T17",
+   "start": "T17|TO7.a",
+   "end": "T17|T4",
+   "geometry": [
+    [552.5, 455.0],
+    [373.8, 455.0]
+   ]
+  },
+  {
+   "id": "T18",
+   "start": "T18|TO6.b",
+   "end": "T18|T57",
+   "track": "IIIc",
+   "geometry": [
+    [666.2, 325.0],
+    [578.5, 325.0]
+   ]
+  },
+  {
+   "id": "T19",
+   "start": "T19|TO3.c",
+   "end": "T19|TO8.a",
+   "geometry": [
+    [1722.5, 520.0],
+    [1673.8, 568.8]
+   ]
+  },
+  {
+   "id": "T20",
+   "start": "T20|TO8.c",
+   "end": "T20|T41",
+   "track": "I",
+   "geometry": [
+    [1543.8, 617.5],
+    [1306.5, 617.5]
+   ]
+  },
+  {
+   "id": "T21",
+   "start": "T21|TO8.b",
+   "end": "T21|T32",
+   "geometry": [
+    [1576.2, 666.2],
+    [1543.8, 698.8]
+   ]
+  },
+  {
+   "id": "T22",
+   "start": "T22|TO9.a",
+   "end": "Stopp T22",
+   "geometry": [
+    [1072.5, 1105.0],
+    [292.5, 1105.0]
+   ]
+  },
+  {
+   "id": "T24",
+   "start": "T24|TO12.b",
+   "end": "T24|TO11.a",
+   "geometry": [
+    [1576.2, 958.8],
+    [1560.0, 975.0]
+   ]
+  },
+  {
+   "id": "T25",
+   "start": "T25|TO10.b",
+   "end": "Stopp T25",
+   "geometry": [
+    [1495.0, 1105.0],
+    [1738.8, 1105.0]
+   ]
+  },
+  {
+   "id": "T26",
+   "start": "T26|TO12.c",
+   "end": "Stopp T26",
+   "geometry": [
+    [1592.5, 1007.5],
+    [1885.0, 1007.5]
+   ]
+  },
+  {
+   "id": "T27",
+   "start": "T27|TO11.c",
+   "end": "T27|T34",
+   "geometry": [
+    [1690.0, 910.0],
+    [1932.1, 910.0]
+   ]
+  },
+  {
+   "id": "T28",
+   "start": "T28|TO11.b",
+   "end": "T28|T33",
+   "geometry": [
+    [1690.0, 845.0],
+    [1932.1, 845.0]
+   ]
+  },
+  {
+   "id": "T29",
+   "start": "T29|TO10.a",
+   "end": "T29|TO9.b",
+   "geometry": [
+    [1365.0, 1105.0],
+    [1202.5, 1105.0]
+   ]
+  },
+  {
+   "id": "T1",
+   "start": "T1|T2",
+   "end": "T1|TO3.a",
+   "geometry": [
+    [1933.8, 455.0],
+    [1868.8, 455.0]
+   ]
+  },
+  {
+   "id": "T4",
+   "start": "T17|T4",
+   "end": "T4|T43",
+   "geometry": [
+    [373.8, 455.0],
+    [227.5, 455.0]
+   ]
+  },
+  {
+   "id": "T15",
+   "start": "T15|T9",
+   "end": "T15|T46",
+   "geometry": [
+    [2600.0, 828.8],
+    [2600.0, 1072.5]
+   ]
+  },
+  {
+   "id": "T32",
+   "start": "T21|T32",
+   "end": "T32|TO9.c",
+   "geometry": [
+    [1543.8, 698.8],
+    [1186.2, 1056.2]
+   ]
+  },
+  {
+   "id": "T33",
+   "start": "T28|T33",
+   "end": "Stopp T33",
+   "geometry": [
+    [1932.1, 845.0],
+    [2096.2, 845.0]
+   ]
+  },
+  {
+   "id": "T34",
+   "start": "T27|T34",
+   "end": "Stopp T34",
+   "geometry": [
+    [1932.1, 910.0],
+    [2096.2, 910.0]
+   ]
+  },
+  {
+   "id": "T5",
+   "start": "T5|T9",
+   "end": "SL.A|T5",
+   "geometry": [
+    [2600.0, 715.0],
+    [2405.0, 520.0]
+   ]
+  },
+  {
+   "id": "T6",
+   "start": "T6|TO1.b",
+   "end": "SL.D|T6",
+   "geometry": [
+    [2210.0, 455.0],
+    [2242.5, 455.0]
+   ]
+  },
+  {
+   "id": "T31",
+   "start": "SL.B|T31",
+   "end": "T31|T45",
+   "geometry": [
+    [2437.5, 455.0],
+    [2713.8, 455.0]
+   ]
+  },
+  {
+   "id": "T35",
+   "start": "T14|T35",
+   "end": "T35|TO7.b",
+   "geometry": [
+    [747.5, 455.0],
+    [682.5, 455.0]
+   ]
+  },
+  {
+   "id": "T36",
+   "start": "T36|T37",
+   "end": "T36|TO6.a",
+   "track": "III",
+   "geometry": [
+    [1212.2, 325.0],
+    [828.8, 325.0]
+   ]
+  },
+  {
+   "id": "T37",
+   "start": "T11|T37",
+   "end": "T36|T37",
+   "track": "III",
+   "geometry": [
+    [1306.5, 325.0],
+    [1212.2, 325.0]
+   ]
+  },
+  {
+   "id": "T38",
+   "start": "T38|T39",
+   "end": "T38|TO5.b",
+   "track": "II",
+   "geometry": [
+    [1212.2, 455.0],
+    [926.2, 455.0]
+   ]
+  },
+  {
+   "id": "T39",
+   "start": "T13|T39",
+   "end": "T38|T39",
+   "track": "II",
+   "geometry": [
+    [1306.5, 455.0],
+    [1212.2, 455.0]
+   ]
+  },
+  {
+   "id": "T40",
+   "start": "T40|T41",
+   "end": "T16|T40",
+   "track": "I",
+   "geometry": [
+    [1212.2, 617.5],
+    [1007.5, 617.5]
+   ]
+  },
+  {
+   "id": "T41",
+   "start": "T20|T41",
+   "end": "T40|T41",
+   "track": "I",
+   "geometry": [
+    [1306.5, 617.5],
+    [1212.2, 617.5]
+   ]
+  },
+  {
+   "id": "T42",
+   "start": "T42|T43",
+   "end": "A",
+   "geometry": [
+    [130.0, 455.0],
+    [65.0, 455.0]
+   ]
+  },
+  {
+   "id": "T43",
+   "start": "T4|T43",
+   "end": "T42|T43",
+   "geometry": [
+    [227.5, 455.0],
+    [130.0, 455.0]
+   ]
+  },
+  {
+   "id": "T44",
+   "start": "T3|T44",
+   "end": "T44|T45",
+   "geometry": [
+    [3038.8, 455.0],
+    [2941.2, 455.0]
+   ]
+  },
+  {
+   "id": "T45",
+   "start": "T44|T45",
+   "end": "T31|T45",
+   "geometry": [
+    [2941.2, 455.0],
+    [2713.8, 455.0]
+   ]
+  },
+  {
+   "id": "T46",
+   "start": "T15|T46",
+   "end": "T46|T47",
+   "geometry": [
+    [2600.0, 1072.5],
+    [2600.0, 1170.0]
+   ]
+  },
+  {
+   "id": "T47",
+   "start": "T46|T47",
+   "end": "C",
+   "geometry": [
+    [2600.0, 1170.0],
+    [2600.0, 1251.2]
+   ]
+  },
+  {
+   "id": "T56",
+   "start": "T56|T57",
+   "end": "Stopp T56",
+   "track": "IIIc",
+   "geometry": [
+    [481.0, 325.0],
+    [360.8, 325.0]
+   ]
+  },
+  {
+   "id": "T57",
+   "start": "T18|T57",
+   "end": "T56|T57",
+   "track": "IIIc",
+   "geometry": [
+    [578.5, 325.0],
+    [481.0, 325.0]
+   ]
+  },
+  {
+   "id": "T58",
+   "start": "T10|T58",
+   "end": "T58|T59",
+   "track": "IIIa",
+   "geometry": [
+    [2561.0, 325.0],
+    [2461.9, 325.0]
+   ]
+  },
+  {
+   "id": "T59",
+   "start": "T58|T59",
+   "end": "T59|TO2.b",
+   "track": "IIIa",
+   "geometry": [
+    [2461.9, 325.0],
+    [2291.2, 325.0]
+   ]
+  },
+  {
+   "id": "TO1.a",
+   "start": "T2|TO1.a",
+   "end": "22c",
+   "geometry": [
+    [2080.0, 455.0],
+    [2145.0, 455.0]
+   ]
+  },
+  {
+   "id": "TO1.b",
+   "start": "22c",
+   "end": "T6|TO1.b",
+   "geometry": [
+    [2145.0, 455.0],
+    [2210.0, 455.0]
+   ]
+  },
+  {
+   "id": "TO1.c",
+   "start": "22c",
+   "end": "T8|TO1.c",
+   "geometry": [
+    [2145.0, 455.0],
+    [2210.0, 520.0]
+   ]
+  },
+  {
+   "id": "TO2.a",
+   "start": "T11|TO2.a",
+   "end": "22b",
+   "geometry": [
+    [2128.8, 325.0],
+    [2210.0, 325.0]
+   ]
+  },
+  {
+   "id": "TO2.b",
+   "start": "22b",
+   "end": "T59|TO2.b",
+   "geometry": [
+    [2210.0, 325.0],
+    [2291.2, 325.0]
+   ]
+  },
+  {
+   "id": "TO2.c",
+   "start": "22b",
+   "end": "SL.C|TO2.c",
+   "geometry": [
+    [2210.0, 325.0],
+    [2275.0, 390.0]
+   ]
+  },
+  {
+   "id": "TO3.a",
+   "start": "T1|TO3.a",
+   "end": "32",
+   "geometry": [
+    [1868.8, 455.0],
+    [1787.5, 455.0]
+   ]
+  },
+  {
+   "id": "TO3.b",
+   "start": "32",
+   "end": "T13|TO3.b",
+   "geometry": [
+    [1787.5, 455.0],
+    [1706.2, 455.0]
+   ]
+  },
+  {
+   "id": "TO3.c",
+   "start": "32",
+   "end": "T19|TO3.c",
+   "geometry": [
+    [1787.5, 455.0],
+    [1722.5, 520.0]
+   ]
+  },
+  {
+   "id": "TO5.a",
+   "start": "T14|TO5.a",
+   "end": "31",
+   "geometry": [
+    [763.8, 455.0],
+    [845.0, 455.0]
+   ]
+  },
+  {
+   "id": "TO5.b",
+   "start": "31",
+   "end": "T38|TO5.b",
+   "geometry": [
+    [845.0, 455.0],
+    [926.2, 455.0]
+   ]
+  },
+  {
+   "id": "TO5.c",
+   "start": "31",
+   "end": "T16|TO5.c",
+   "geometry": [
+    [845.0, 455.0],
+    [910.0, 520.0]
+   ]
+  },
+  {
+   "id": "TO6.a",
+   "start": "T36|TO6.a",
+   "end": "21b",
+   "geometry": [
+    [828.8, 325.0],
+    [747.5, 325.0]
+   ]
+  },
+  {
+   "id": "TO6.b",
+   "start": "21b",
+   "end": "T18|TO6.b",
+   "geometry": [
+    [747.5, 325.0],
+    [666.2, 325.0]
+   ]
+  },
+  {
+   "id": "TO6.c",
+   "start": "21b",
+   "end": "TO6.c|TO7.c",
+   "geometry": [
+    [747.5, 325.0],
+    [682.5, 390.0]
+   ]
+  },
+  {
+   "id": "TO7.a",
+   "start": "T17|TO7.a",
+   "end": "21a",
+   "geometry": [
+    [552.5, 455.0],
+    [617.5, 455.0]
+   ]
+  },
+  {
+   "id": "TO7.b",
+   "start": "21a",
+   "end": "T35|TO7.b",
+   "geometry": [
+    [617.5, 455.0],
+    [682.5, 455.0]
+   ]
+  },
+  {
+   "id": "TO7.c",
+   "start": "21a",
+   "end": "TO6.c|TO7.c",
+   "geometry": [
+    [617.5, 455.0],
+    [682.5, 390.0]
+   ]
+  },
+  {
+   "id": "TO8.a",
+   "start": "T19|TO8.a",
+   "end": "34",
+   "geometry": [
+    [1673.8, 568.8],
+    [1625.0, 617.5]
+   ]
+  },
+  {
+   "id": "TO8.b",
+   "start": "34",
+   "end": "T21|TO8.b",
+   "geometry": [
+    [1625.0, 617.5],
+    [1576.2, 666.2]
+   ]
+  },
+  {
+   "id": "TO8.c",
+   "start": "34",
+   "end": "T20|TO8.c",
+   "geometry": [
+    [1625.0, 617.5],
+    [1543.8, 617.5]
+   ]
+  },
+  {
+   "id": "TO9.a",
+   "start": "T22|TO9.a",
+   "end": "13",
+   "geometry": [
+    [1072.5, 1105.0],
+    [1137.5, 1105.0]
+   ]
+  },
+  {
+   "id": "TO9.b",
+   "start": "13",
+   "end": "T29|TO9.b",
+   "geometry": [
+    [1137.5, 1105.0],
+    [1202.5, 1105.0]
+   ]
+  },
+  {
+   "id": "TO9.c",
+   "start": "13",
+   "end": "T32|TO9.c",
+   "geometry": [
+    [1137.5, 1105.0],
+    [1186.2, 1056.2]
+   ]
+  },
+  {
+   "id": "TO10.a",
+   "start": "T29|TO10.a",
+   "end": "12",
+   "geometry": [
+    [1365.0, 1105.0],
+    [1430.0, 1105.0]
+   ]
+  },
+  {
+   "id": "TO10.b",
+   "start": "12",
+   "end": "T25|TO10.b",
+   "geometry": [
+    [1430.0, 1105.0],
+    [1495.0, 1105.0]
+   ]
+  },
+  {
+   "id": "TO10.c",
+   "start": "12",
+   "end": "TO10.c|TO12.a",
+   "geometry": [
+    [1430.0, 1105.0],
+    [1478.8, 1056.2]
+   ]
+  },
+  {
+   "id": "TO11.a",
+   "start": "T24|TO11.a",
+   "end": "10",
+   "geometry": [
+    [1560.0, 975.0],
+    [1625.0, 910.0]
+   ]
+  },
+  {
+   "id": "TO11.b",
+   "start": "10",
+   "end": "T28|TO11.b",
+   "geometry": [
+    [1625.0, 910.0],
+    [1690.0, 845.0]
+   ]
+  },
+  {
+   "id": "TO11.c",
+   "start": "10",
+   "end": "T27|TO11.c",
+   "geometry": [
+    [1625.0, 910.0],
+    [1690.0, 910.0]
+   ]
+  },
+  {
+   "id": "TO12.a",
+   "start": "TO10.c|TO12.a",
+   "end": "11",
+   "geometry": [
+    [1478.8, 1056.2],
+    [1527.5, 1007.5]
+   ]
+  },
+  {
+   "id": "TO12.b",
+   "start": "11",
+   "end": "T24|TO12.b",
+   "geometry": [
+    [1527.5, 1007.5],
+    [1576.2, 958.8]
+   ]
+  },
+  {
+   "id": "TO12.c",
+   "start": "11",
+   "end": "T26|TO12.c",
+   "geometry": [
+    [1527.5, 1007.5],
+    [1592.5, 1007.5]
+   ]
+  },
+  {
+   "id": "SL.A",
+   "start": "22a/23",
+   "end": "SL.A|T5",
+   "geometry": [
+    [2340.0, 455.0],
+    [2405.0, 520.0]
+   ]
+  },
+  {
+   "id": "SL.B",
+   "start": "22a/23",
+   "end": "SL.B|T31",
+   "geometry": [
+    [2340.0, 455.0],
+    [2437.5, 455.0]
+   ]
+  },
+  {
+   "id": "SL.C",
+   "start": "22a/23",
+   "end": "SL.C|TO2.c",
+   "geometry": [
+    [2340.0, 455.0],
+    [2275.0, 390.0]
+   ]
+  },
+  {
+   "id": "SL.D",
+   "start": "22a/23",
+   "end": "SL.D|T6",
+   "geometry": [
+    [2340.0, 455.0],
+    [2242.5, 455.0]
+   ]
+  }
+ ],
+ "switches": [
+  {
+   "number": "22c",
+   "type": "ordinary",
+   "node": "22c",
+   "trunk": "TO1.a",
+   "straight": "TO1.b",
+   "diverging": "TO1.c",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx22c"
+   }
+  },
+  {
+   "number": "22b",
+   "type": "ordinary",
+   "node": "22b",
+   "trunk": "TO2.a",
+   "straight": "TO2.b",
+   "diverging": "TO2.c",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx22b"
+   }
+  },
+  {
+   "number": "32",
+   "type": "ordinary",
+   "node": "32",
+   "trunk": "TO3.a",
+   "straight": "TO3.b",
+   "diverging": "TO3.c",
+   "design": "vänster",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx32"
+   }
+  },
+  {
+   "number": "31",
+   "type": "ordinary",
+   "node": "31",
+   "trunk": "TO5.a",
+   "straight": "TO5.b",
+   "diverging": "TO5.c",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx31"
+   }
+  },
+  {
+   "number": "21b",
+   "type": "ordinary",
+   "node": "21b",
+   "trunk": "TO6.a",
+   "straight": "TO6.b",
+   "diverging": "TO6.c",
+   "design": "vänster",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx21b"
+   }
+  },
+  {
+   "number": "21a",
+   "type": "ordinary",
+   "node": "21a",
+   "trunk": "TO7.a",
+   "straight": "TO7.b",
+   "diverging": "TO7.c",
+   "design": "vänster",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx21a"
+   }
+  },
+  {
+   "number": "34",
+   "type": "ordinary",
+   "node": "34",
+   "trunk": "TO8.a",
+   "straight": "TO8.b",
+   "diverging": "TO8.c",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx34"
+   }
+  },
+  {
+   "number": "13",
+   "type": "ordinary",
+   "node": "13",
+   "trunk": "TO9.a",
+   "straight": "TO9.b",
+   "diverging": "TO9.c",
+   "control": "manual",
+   "note": "Manuell IT-växel, utan adress. TKL lägger den aldrig.",
+   "design": "vänster",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx13"
+   }
+  },
+  {
+   "number": "12",
+   "type": "ordinary",
+   "node": "12",
+   "trunk": "TO10.a",
+   "straight": "TO10.b",
+   "diverging": "TO10.c",
+   "control": "manual",
+   "note": "Manuell IT-växel, utan adress. TKL lägger den aldrig.",
+   "design": "vänster",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx12"
+   }
+  },
+  {
+   "number": "10",
+   "type": "ordinary",
+   "node": "10",
+   "trunk": "TO11.a",
+   "straight": "TO11.b",
+   "diverging": "TO11.c",
+   "control": "manual",
+   "note": "Manuell IT-växel, utan adress. TKL lägger den aldrig.",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx10"
+   }
+  },
+  {
+   "number": "11",
+   "type": "ordinary",
+   "node": "11",
+   "trunk": "TO12.a",
+   "straight": "TO12.b",
+   "diverging": "TO12.c",
+   "control": "manual",
+   "note": "Manuell IT-växel, utan adress. TKL lägger den aldrig.",
+   "design": "höger",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx11"
+   }
+  },
+  {
+   "number": "22a/23",
+   "type": "double_slip",
+   "node": "22a/23",
+   "parts": [
+    {
+     "number": "22a"
+    },
+    {
+     "number": "23"
+    }
+   ],
+   "paths": [
+    {
+     "between": ["SL.A", "SL.C"],
+     "positions": {
+      "22a": "-",
+      "23": "-"
+     }
+    },
+    {
+     "between": ["SL.A", "SL.D"],
+     "positions": {
+      "22a": "+",
+      "23": "-"
+     }
+    },
+    {
+     "between": ["SL.B", "SL.D"],
+     "positions": {
+      "22a": "+",
+      "23": "+"
+     }
+    },
+    {
+     "between": ["SL.B", "SL.C"],
+     "positions": {
+      "22a": "-",
+      "23": "+"
+     }
+    }
+   ],
+   "design": "korsningsväxel",
+   "origin": {
+    "source": "jmri",
+    "ref": "Vx22a, Vx23"
+   }
+  }
+ ],
+ "levers": [
+  {
+   "id": "21",
+   "plus": {
+    "21a": "+",
+    "21b": "+"
+   },
+   "minus": {
+    "21a": "-",
+    "21b": "-"
+   }
+  },
+  {
+   "id": "22",
+   "plus": {
+    "22a": "+",
+    "22b": "+",
+    "22c": "+"
+   },
+   "minus": {
+    "22a": "-",
+    "22b": "-",
+    "22c": "-"
+   }
+  }
+ ],
+ "signals": [
+  {
+   "name": "S4s",
+   "type": "stop_lamp",
+   "node": "Stopp T7",
+   "approach": "T7",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "S3ö",
+   "type": "stop_lamp",
+   "node": "Stopp T10",
+   "approach": "T10",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "1/8",
+   "type": "hdvsi",
+   "lamps": 3,
+   "node": "T16|T40",
+   "approach": "T40",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "S3v",
+   "type": "stop_lamp",
+   "node": "Stopp T56",
+   "approach": "T56",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/6",
+   "type": "dvsi",
+   "node": "T1|T2",
+   "approach": "T2",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/1",
+   "type": "hsi",
+   "lamps": 7,
+   "node": "T17|T4",
+   "approach": "T4",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/10",
+   "type": "hsi",
+   "lamps": 2,
+   "node": "T17|T4",
+   "approach": "T17",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/9",
+   "type": "hsi",
+   "lamps": 2,
+   "node": "T31|T45",
+   "approach": "T31",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/2",
+   "type": "hsi",
+   "lamps": 5,
+   "node": "T31|T45",
+   "approach": "T45",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "1/9",
+   "type": "hsi",
+   "lamps": 2,
+   "node": "T15|T9",
+   "approach": "T9",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "1/2",
+   "type": "hsi",
+   "lamps": 3,
+   "node": "T15|T9",
+   "approach": "T15",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "4/7",
+   "type": "dvsi",
+   "node": "T21|T32",
+   "approach": "T32",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "S4v",
+   "type": "stop_lamp",
+   "node": "T21|T32",
+   "approach": "T21",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/5",
+   "type": "dvsi",
+   "node": "T14|T35",
+   "approach": "T35",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "4/4",
+   "type": "dvsi",
+   "node": "T8|TO1.c",
+   "approach": "T8",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "3/7",
+   "type": "hdvsi",
+   "node": "T11|TO2.a",
+   "approach": "T11",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "3/4",
+   "type": "dvsi",
+   "node": "T59|TO2.b",
+   "approach": "T59",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/7",
+   "type": "hdvsi",
+   "node": "T13|TO3.b",
+   "approach": "T13",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/8",
+   "type": "hdvsi",
+   "node": "T38|TO5.b",
+   "approach": "T38",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "3/8",
+   "type": "hdvsi",
+   "node": "T36|TO6.a",
+   "approach": "T36",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "3/5",
+   "type": "dvsi",
+   "node": "T18|TO6.b",
+   "approach": "T18",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/3",
+   "type": "dvsi",
+   "node": "T17|TO7.a",
+   "approach": "T17",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "1/7",
+   "type": "hdvsi",
+   "node": "T20|TO8.c",
+   "approach": "T20",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "1/4",
+   "type": "dvsi",
+   "node": "SL.A|T5",
+   "approach": "T5",
+   "origin": {
+    "source": "jmri"
+   }
+  },
+  {
+   "name": "2/4",
+   "type": "dvsi",
+   "node": "SL.B|T31",
+   "approach": "T31",
+   "origin": {
+    "source": "jmri"
+   }
+  }
+ ],
+ "track_circuits": [
+  {
+   "name": "S22c",
+   "pieces": ["T2", "T6", "TO1.a", "TO1.b", "TO1.c"]
+  },
+  {
+   "name": "SB2",
+   "pieces": ["T3", "T44", "T45"]
+  },
+  {
+   "name": "SIV",
+   "pieces": ["T7", "T8"]
+  },
+  {
+   "name": "SC1",
+   "pieces": ["T9", "T5"]
+  },
+  {
+   "name": "SIIIa",
+   "pieces": ["T10", "T58", "T59"]
+  },
+  {
+   "name": "SIII",
+   "pieces": ["T11", "T36", "T37"]
+  },
+  {
+   "name": "SII",
+   "pieces": ["T13", "T38", "T39"]
+  },
+  {
+   "name": "S31",
+   "pieces": ["T14", "T16", "TO5.a", "TO5.b", "TO5.c"]
+  },
+  {
+   "name": "SA1",
+   "pieces": ["T17"]
+  },
+  {
+   "name": "SIIIc",
+   "pieces": ["T18", "T56", "T57"]
+  },
+  {
+   "name": "S34",
+   "pieces": ["T19", "T21", "TO8.a", "TO8.b", "TO8.c"]
+  },
+  {
+   "name": "SI",
+   "pieces": ["T20", "T40", "T41"]
+  },
+  {
+   "name": "L2",
+   "pieces": ["T22"]
+  },
+  {
+   "name": "T24",
+   "pieces": ["T24"]
+  },
+  {
+   "name": "L3",
+   "pieces": ["T25"]
+  },
+  {
+   "name": "TP",
+   "pieces": ["T26"]
+  },
+  {
+   "name": "SSII",
+   "pieces": ["T27"]
+  },
+  {
+   "name": "SSI",
+   "pieces": ["T28"]
+  },
+  {
+   "name": "S12",
+   "pieces": ["T29", "TO10.a", "TO10.b", "TO10.c"]
+  },
+  {
+   "name": "S32",
+   "pieces": ["T1", "TO3.a", "TO3.b", "TO3.c"]
+  },
+  {
+   "name": "SA2",
+   "pieces": ["T4", "T42", "T43"]
+  },
+  {
+   "name": "SC2",
+   "pieces": ["T15", "T46", "T47"]
+  },
+  {
+   "name": "S4/7",
+   "pieces": ["T32"]
+  },
+  {
+   "name": "LS1",
+   "pieces": ["T33"]
+  },
+  {
+   "name": "LS2",
+   "pieces": ["T34"]
+  },
+  {
+   "name": "SB1",
+   "pieces": ["T31"]
+  },
+  {
+   "name": "S21a",
+   "pieces": ["T35", "TO7.a", "TO7.b", "TO7.c"]
+  },
+  {
+   "name": "S22b",
+   "pieces": ["TO2.a", "TO2.b", "TO2.c"]
+  },
+  {
+   "name": "S21b",
+   "pieces": ["TO6.a", "TO6.b", "TO6.c"]
+  },
+  {
+   "name": "S13",
+   "pieces": ["TO9.a", "TO9.b", "TO9.c"]
+  },
+  {
+   "name": "S10",
+   "pieces": ["TO11.a", "TO11.b", "TO11.c"]
+  },
+  {
+   "name": "S11",
+   "pieces": ["TO12.a", "TO12.b", "TO12.c"]
+  },
+  {
+   "name": "S22a",
+   "pieces": ["SL.A", "SL.B", "SL.C", "SL.D"]
+  }
+ ],
+ "station_tracks": [
+  {
+   "id": "I",
+   "label": "Spår I",
+   "pieces": ["T20", "T40", "T41"]
+  },
+  {
+   "id": "II",
+   "label": "Spår II",
+   "pieces": ["T13", "T38", "T39"]
+  },
+  {
+   "id": "III",
+   "label": "Spår III",
+   "pieces": ["T11", "T36", "T37"]
+  },
+  {
+   "id": "IIIa",
+   "label": "Spår IIIa",
+   "pieces": ["T10", "T58", "T59"]
+  },
+  {
+   "id": "IIIc",
+   "label": "Spår IIIc",
+   "pieces": ["T18", "T56", "T57"]
+  },
+  {
+   "id": "IV",
+   "label": "Spår IV",
+   "pieces": ["T7", "T8"]
+  }
+ ],
+ "line_exits": [
+  {
+   "id": "A",
+   "node": "A",
+   "neighbour": "Bilbo",
+   "signals": ["2/1", "2/10"]
+  },
+  {
+   "id": "B",
+   "node": "B",
+   "neighbour": "Charlottendal",
+   "signals": ["2/9", "2/2"]
+  },
+  {
+   "id": "C",
+   "node": "C",
+   "signals": ["1/9", "1/2"]
+  }
+ ],
+ "functions": [
+  {
+   "type": "local_release",
+   "name": "Lokalfrigivningsautomat",
+   "switches": ["22c", "22b", "32", "31", "21b", "21a", "34", "22a", "23"],
+   "signals": ["S4s", "S3ö", "1/8", "S3v", "2/6", "4/7", "S4v", "2/5", "4/4", "3/7", "3/4", "2/7", "2/8", "3/8", "3/5", "2/3", "1/7", "1/4", "2/4"],
+   "codes": {
+    "85": "L1",
+    "95": "L01"
+   },
+   "note": "Området är spåren I, II och III med växlarna 21–23, 31, 32 och 34. Inkopplad visar dvärgsignalerna rörelse tillåten och växlarna är fria att lägga om; inga tågvägar går till, från eller genom området."
+  }
+ ]
+}
