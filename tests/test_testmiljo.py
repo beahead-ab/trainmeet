@@ -410,7 +410,8 @@ def test_keycloak_is_given_every_address_the_realm_file_names() -> None:
     compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
     keycloak = compose.split("\n  id:\n")[1].split("\n  id-api:\n")[0]
     workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
-    check = workflow.split("\n  id:\n")[1].split("trainmeet-id:prov\n")[0]
+    job = workflow.split("\n  id:\n")[1]
+    check = job.split("- name: Starta ID med databas")[1].split("trainmeet-id:prov\n")[0]
     assert named, "the realm names no addresses?"
     for name in sorted(named):
         assert f"{name}:" in keycloak, f"{name} is not given to Keycloak in the test environment"
