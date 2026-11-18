@@ -26,6 +26,10 @@ export type RemovalPlan = Schemas["trainmeet.id-1.removal-plan"];
 export type ClubRole = Schemas["trainmeet.id-1.club-role-change"]["role"];
 /** A balance of TrainMeet tokens, the person's or a club's (#79, TOKEN-01). */
 export type TokenBalance = Schemas["trainmeet.id-1.token-balance"];
+/** The packages, and whether buying is open: only Stripe's test mode yet (TOKEN-02, MOMS). */
+export type TokenShop = Schemas["trainmeet.id-1.token-shop"];
+export type TokenPurchase = Schemas["trainmeet.id-1.token-purchase"];
+export type TokenCheckout = Schemas["trainmeet.id-1.token-checkout"];
 
 /** The person's file, from ID and Catalog (KONTO-31). The browser fetches it itself. */
 export const EXPORT_HREF = "/api/id/1/account/export";
@@ -98,4 +102,6 @@ export const api = {
   removeMeet: (id: string) => call<{ id: string }>("DELETE", `${A}/meets/${id}`),
   giveAtMeet: (id: string, person: string, role: MeetRole) => call<MeetPage>("POST", `${A}/meets/${id}/grants`, { person, role }),
   tokens: () => call<TokenBalance[]>("GET", `${A}/tokens`),
+  shop: () => call<TokenShop>("GET", `${A}/tokens/shop`),
+  buy: (purchase: TokenPurchase) => call<TokenCheckout>("POST", `${A}/tokens/purchases`, purchase),
 };

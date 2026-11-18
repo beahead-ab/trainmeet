@@ -1915,6 +1915,155 @@
         }
       }
     },
+    "/api/id/1/tokens/shop": {
+      "get": {
+        "operationId": "tokenShop",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-shop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/tokens/purchases": {
+      "post": {
+        "operationId": "buyTokens",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-checkout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.token-purchase"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/stripe/webhook": {
+      "post": {
+        "operationId": "stripeWebhook",
+        "summary": "Stripe säger att en betalning är klar. Signerad av Stripe.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mottagen."
+          },
+          "400": {
+            "description": "Signaturen stämmer inte."
+          }
+        }
+      }
+    },
     "/api/id/1/apps/tokens": {
       "get": {
         "operationId": "appTokens",
@@ -4255,6 +4404,150 @@
         ],
         "title": "TokenReservationState",
         "type": "string"
+      },
+      "trainmeet.id-1.token-package": {
+        "additionalProperties": true,
+        "properties": {
+          "tokens": {
+            "enum": [
+              500,
+              1500,
+              5000
+            ],
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "price_sek": {
+            "description": "Priset i kronor, med moms (TK10).",
+            "title": "Price Sek",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens",
+          "price_sek"
+        ],
+        "title": "TokenPackage",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-shop": {
+        "additionalProperties": true,
+        "properties": {
+          "mode": {
+            "description": "Av: inga köp. Test: Stripes testläge, inga riktiga pengar dras.",
+            "enum": [
+              "off",
+              "test"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.token-shop.TokenPackage"
+            },
+            "title": "Packages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "packages"
+        ],
+        "title": "TokenShop",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-shop.TokenPackage": {
+        "additionalProperties": true,
+        "properties": {
+          "tokens": {
+            "enum": [
+              500,
+              1500,
+              5000
+            ],
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "price_sek": {
+            "description": "Priset i kronor, med moms (TK10).",
+            "title": "Price Sek",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens",
+          "price_sek"
+        ],
+        "title": "TokenPackage",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-purchase": {
+        "additionalProperties": true,
+        "description": "Köp ett paket till sitt eget saldo, eller till klubbens som dess administratör.",
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-purchase.TokenOwner"
+          },
+          "tokens": {
+            "enum": [
+              500,
+              1500,
+              5000
+            ],
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "owner",
+          "tokens"
+        ],
+        "title": "TokenPurchase",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-purchase.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-purchase.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-purchase.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.token-checkout": {
+        "additionalProperties": true,
+        "properties": {
+          "url": {
+            "description": "Stripes betalsida, dit webbläsaren går för att betala.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "TokenCheckout",
+        "type": "object"
       },
       "trainmeet.id-1.access": {
         "additionalProperties": true,

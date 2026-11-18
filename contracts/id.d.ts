@@ -468,6 +468,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/tokens/shop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tokenShop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/tokens/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["buyTokens"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/stripe/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stripe säger att en betalning är klar. Signerad av Stripe. */
+        post: operations["stripeWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/apps/tokens": {
         parameters: {
             query?: never;
@@ -1678,6 +1727,91 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.meter-answer.TokenReservationState": "held" | "drawn" | "returned";
+        /** TokenPackage */
+        "trainmeet.id-1.token-package": {
+            /**
+             * Tokens
+             * @enum {integer}
+             */
+            tokens: 500 | 1500 | 5000;
+            /**
+             * Price Sek
+             * @description Priset i kronor, med moms (TK10).
+             */
+            price_sek: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenShop */
+        "trainmeet.id-1.token-shop": {
+            /**
+             * Mode
+             * @description Av: inga köp. Test: Stripes testläge, inga riktiga pengar dras.
+             * @enum {string}
+             */
+            mode: "off" | "test";
+            /** Packages */
+            packages: components["schemas"]["trainmeet.id-1.token-shop.TokenPackage"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenPackage */
+        "trainmeet.id-1.token-shop.TokenPackage": {
+            /**
+             * Tokens
+             * @enum {integer}
+             */
+            tokens: 500 | 1500 | 5000;
+            /**
+             * Price Sek
+             * @description Priset i kronor, med moms (TK10).
+             */
+            price_sek: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenPurchase
+         * @description Köp ett paket till sitt eget saldo, eller till klubbens som dess administratör.
+         */
+        "trainmeet.id-1.token-purchase": {
+            owner: components["schemas"]["trainmeet.id-1.token-purchase.TokenOwner"];
+            /**
+             * Tokens
+             * @enum {integer}
+             */
+            tokens: 500 | 1500 | 5000;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenOwner */
+        "trainmeet.id-1.token-purchase.TokenOwner": {
+            kind: components["schemas"]["trainmeet.id-1.token-purchase.TokenOwnerKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenOwnerKind
+         * @description Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för
+         *     träffarnas import (TK16).
+         * @enum {string}
+         */
+        "trainmeet.id-1.token-purchase.TokenOwnerKind": "person" | "club";
+        /** TokenCheckout */
+        "trainmeet.id-1.token-checkout": {
+            /**
+             * Url
+             * @description Stripes betalsida, dit webbläsaren går för att betala.
+             */
+            url: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Access
          * @description What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.
@@ -4420,6 +4554,144 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.id-1.problem"];
                 };
+            };
+        };
+    };
+    tokenShop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.token-shop"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    buyTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.token-purchase"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.token-checkout"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    stripeWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "Stripe-Signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Mottagen. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Signaturen stämmer inte. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

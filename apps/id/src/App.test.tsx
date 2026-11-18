@@ -69,6 +69,27 @@ describe("TrainMeet ID's web app", () => {
     expect(html.match(/reserverade/g)?.length).toBe(1);
   });
 
+  it("sells the packages in Stripe's test mode, for one's own balance and as the club's admin (TOKEN-02)", () => {
+    const member = { id: "2f2e2d2c-3333-4444-8555-966677778888", name: "Grannklubben", role: "member" as const };
+    const tokens: TokenBalance[] = [
+      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 100, free_monthly: 100, bought: 0, reserved: 0, available: 100, month: "2026-11" },
+      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
+      { owner: { kind: "club", id: member.id }, title: "Grannklubben", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
+    ];
+    const shop = { mode: "test" as const, packages: [{ tokens: 500 as const, price_sek: 49 }, { tokens: 1500 as const, price_sek: 129 }, { tokens: 5000 as const, price_sek: 399 }] };
+    const html = render({ route: { page: "tokens" }, data: { tokens, shop, clubs: [club, member] }, actions: { buy: async () => null }, search: "?kop=klart" });
+    expect(html).toContain("Köp 500 för 49 kr");
+    expect(html).toContain("Köp 1\u00a0500 för 129 kr");
+    expect(html).toContain("Köp 5\u00a0000 för 399 kr");
+    // Kim's own and Västby MJK, where Kim is admin; not the club where Kim is a member.
+    expect(html.match(/Köp 500 för 49 kr/g)?.length).toBe(2);
+    expect(html).toContain("Testläge: inga riktiga pengar dras.");
+    expect(html).toContain("Tack! De köpta tokens kommer så snart betalningen är klar.");
+    const closed = render({ route: { page: "tokens" }, data: { tokens, shop: { ...shop, mode: "off" }, clubs: [club] }, actions: { buy: async () => null } });
+    expect(closed).not.toContain("Köp 500");
+    expect(closed).toContain("Att köpa fler kommer snart.");
+  });
+
   it("shows the club's members, and only the admin may invite and remove", () => {
     const page: ClubPage = {
       club,

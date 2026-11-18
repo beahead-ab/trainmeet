@@ -228,6 +228,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.meter-image": tokens.MeterImage,
     "trainmeet.id-1.meter-read": tokens.MeterRead,
     "trainmeet.id-1.meter-answer": tokens.MeterAnswer,
+    "trainmeet.id-1.token-package": tokens.TokenPackage,
+    "trainmeet.id-1.token-shop": tokens.TokenShop,
+    "trainmeet.id-1.token-purchase": tokens.TokenPurchase,
+    "trainmeet.id-1.token-checkout": tokens.TokenCheckout,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -1095,6 +1099,39 @@ def id_openapi() -> str:
     )
     # TrainMeet tokens (#79, TOKEN-08): the person's balances, and the apps' reservations.
     route("get", a + "/tokens", "tokens", "token-balance", many=True, problems=(401,))
+    # Köpen (TOKEN-02, TOKEN-11): Stripe Checkout, in test mode until MOMS is decided.
+    route("get", a + "/tokens/shop", "tokenShop", "token-shop", problems=(401,))
+    route(
+        "post",
+        a + "/tokens/purchases",
+        "buyTokens",
+        "token-checkout",
+        "token-purchase",
+        problems=(401, 403, 404, 422, 502, 503),
+    )
+    paths[a + "/stripe/webhook"] = {
+        "post": {
+            "operationId": "stripeWebhook",
+            "summary": "Stripe säger att en betalning är klar. Signerad av Stripe.",
+            "security": [],
+            "parameters": [
+                {
+                    "name": "Stripe-Signature",
+                    "in": "header",
+                    "required": True,
+                    "schema": {"type": "string"},
+                }
+            ],
+            "requestBody": {
+                "required": True,
+                "content": {"application/json": {"schema": {"type": "object"}}},
+            },
+            "responses": {
+                "200": {"description": "Mottagen."},
+                "400": {"description": "Signaturen stämmer inte."},
+            },
+        }
+    }
     route(
         "get",
         a + "/apps/tokens",

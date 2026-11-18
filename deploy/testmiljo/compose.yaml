@@ -200,6 +200,9 @@ services:
       # Mätaren (#79, TOKEN-28): TrainMeets AI through Claude in Amazon Bedrock in Stockholm.
       # Without the key in id-vault the meter is off and says so.
       ID_METER_KEY_FILE: /vault/trainmeet_bedrock-key
+      # Köpen (#79, TOKEN-02): Stripe's test keys in id-vault. Without them buying is closed, and
+      # a key that is not a test key is never used before MOMS is decided.
+      ID_STRIPE_KEY_FILE: /vault/trainmeet_stripe-key
       FORWARDED_ALLOW_IPS: "*"
     volumes:
       - ./id-vault:/vault:ro

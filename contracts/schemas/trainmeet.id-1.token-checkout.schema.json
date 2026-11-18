@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.token-checkout.schema.json",
+  "title": "trainmeet.id-1.token-checkout",
+  "additionalProperties": true,
+  "properties": {
+    "url": {
+      "description": "Stripes betalsida, dit webbläsaren går för att betala.",
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "type": "object"
+}

@@ -196,6 +196,11 @@ class Tokens:
             row = self._return(conn, account, row)
             return self._out(conn, self._account_by_id(conn, account["id"]), row)
 
+    def account_id(self, conn: Connection[DictRow], owner: TokenOwner) -> UUID:
+        """The owner's account in a transaction of the caller's, made the first time."""
+        found: UUID = self._account(conn, owner)["id"]
+        return found
+
     # --- Inside -----------------------------------------------------------------------------
 
     def _may_use(self, conn: Connection[DictRow], person: UUID, owner: TokenOwner) -> None:
