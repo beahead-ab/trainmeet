@@ -338,6 +338,7 @@ def test_the_real_model_finds_a_wagon() -> None:
     segmenter = U2NetP(Path(MODEL))
     assert segmenter.available()
     assert segmenter._load() is segmenter._load()  # loaded once
+    assert os.environ["ORT_DISABLE_TELEMETRY"] == "1"  # nothing to Microsoft either
     mask = segmenter.segment(photo)
     assert (mask.mode, mask.size) == ("L", photo.size)
     seen = np.asarray(mask, dtype=np.float32)

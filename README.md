@@ -62,6 +62,8 @@ Med `CATALOG_ID_ISSUER`, `CATALOG_ID_SECRET` och `CATALOG_PUBLIC_URL` loggar Cat
 
 Fordonens bilder sparas på egen dator i `.catalog/pictures` (`CATALOG_PICTURES_DIR`) och hämtas genom Catalog med signerade länkar. Med `CATALOG_PICTURES_S3_ENDPOINT`, `CATALOG_PICTURES_S3_BUCKET`, `CATALOG_PICTURES_S3_REGION` och `CATALOG_PICTURES_S3_KEY_FILE` ligger de i stället privat i Object Storage (CAT-130); se `catalog/settings.py`. I bilden behövs Object Storage eller en skrivbar `CATALOG_PICTURES_DIR`.
 
+Friläggningen (CAT-127–CAT-129) körs i Catalog med modellen U2NetP, som `catalog/Dockerfile` hämtar och kontrollerar med SHA-256 när bilden byggs. På egen dator saknas modellen, och då går bara bakgrunden Original att välja. För att prova den: hämta `https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx` utanför repot och peka ut den med `CATALOG_BACKGROUND_MODEL`; samma variabel låter testerna prova den riktiga modellen.
+
 ### TKL på egen dator
 
 TrainMeet TKL är stationens eget program (KLAR-22). På nivå 0 är det bara klarering: spår och utfarter som en lista i Studio, och ställverket med Tåg · Klarering · Händelser mot hubbens stationsprotokoll. TKL har en egen liten server som håller stationen, PIN-koden och nyckeln från godkännandet, och en webbapp i `apps/tkl`. Servern använder bara `contracts/`.

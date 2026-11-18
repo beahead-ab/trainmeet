@@ -496,7 +496,7 @@ class _PresignedAt(S3SigV4QueryAuth):  # type: ignore[misc]
 
 class S3Store:
     """Object Storage, S3 compatible, such as Scaleway's in any of its regions (CAT-130). The
-    bucket is private. PUT and DELETE are signed with AWS's own SigV4 (botocore) and sent with
+    bucket is private. PUT, GET, HEAD and DELETE are signed with AWS's SigV4 (botocore), sent with
     httpx, as id/meter.py does; the browser fetches with a presigned address. The addresses are
     path-style, so the browser fetches from the endpoint's own origin, which is what the
     Content-Security-Policy allows. The keys are never written to the log."""
@@ -841,6 +841,7 @@ class Pictures:
             raise _store_down() from error
         photo = _opened(photo_data, "RGB")
         new: list[_File] = []
+        made_mask: _File | None = None
         files: tuple[bytes | None, ...]
         if background is PictureBackground.ORIGINAL:
             # The kept photo is the display picture again; only its thumbnail is new.
@@ -850,10 +851,11 @@ class Pictures:
             shown_size = photo.size
             files = (photo_data, mask_data, thumb.data)
         else:
-            if mask_data is None:
+            if mask_data is None:  # shown as it was uploaded: the mask is made now
                 mask = _same_size(self.segmenter.segment(photo), photo)
                 mask_data = _png(mask)
-                new.append(_file(owner, mask_data, "image/png"))
+                made_mask = _file(owner, mask_data, "image/png")
+                new.append(made_mask)
             else:
                 mask = _same_size(_opened(mask_data, "L"), photo)
             shown = render(photo, mask, background, limit=_DISPLAY[0])
@@ -863,7 +865,7 @@ class Pictures:
             keys = {"display": display.key, "thumb": thumb.key, "source": photo_key}
             shown_size = shown.size
             files = (photo_data, mask_data, display.data, thumb.data)
-        mask_key = row["mask_key"] or next((f.key for f in new if f.kind == "image/png"), None)
+        mask_key = row["mask_key"] or (made_mask.key if made_mask is not None else None)
         size = original + sum(len(data) for data in files if data is not None)
         with self.db.transaction() as conn:
             self._room(conn, owner, row["bytes"], size, club)
@@ -901,8 +903,9 @@ class Pictures:
         return self._picture(self._keep(owner, new, save), time.time())
 
     def _discard(self, keys: list[str]) -> None:
-        """An upload that failed: its files go now. What cannot go now stays marked in
-        picture_trash, and the sweep deletes it when it is due."""
+        """New files that were never saved, from an upload or a change of background that
+        failed: they go now. What cannot go now stays marked in picture_trash, and the sweep
+        deletes it when it is due."""
         gone: list[str] = []
         for key in keys:
             try:

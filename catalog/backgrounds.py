@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import threading
 from pathlib import Path
 from typing import Any, Final, Protocol
@@ -162,6 +163,9 @@ class U2NetP:
             LOGGER.warning("Friläggningsmodellen har fel SHA-256 och används inte.")
             return None
         try:
+            # onnxruntime's own telemetry to Microsoft is off before it is loaded, also its
+            # store under ~/.cache: nothing about Catalog or the photos leaves the server.
+            os.environ["ORT_DISABLE_TELEMETRY"] = "1"
             import onnxruntime
 
             onnxruntime.disable_telemetry_events()
