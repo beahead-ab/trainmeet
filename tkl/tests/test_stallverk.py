@@ -710,6 +710,15 @@ def test_where_the_numbers_stand_for_the_panel() -> None:
     )
 
 
+def test_the_panel_knows_where_a_train_can_be_put_on_a_track() -> None:
+    """The panel offers the station tracks' sections for a typed train number."""
+    it = made(provby())
+    assert state(it).tracks == {"Spår 1": "1", "Spår 2": "2"}
+    for section, track in state(it).tracks.items():
+        yes(it.put_train(f"4{track}", section=section))
+    assert {n.track for n in state(it).numbers} == {"1", "2"}
+
+
 # --- goals from a start ----------------------------------------------------------------------
 
 

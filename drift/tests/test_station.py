@@ -134,6 +134,52 @@ def test_detection_waits_for_tkl_level_3(drift: Drift) -> None:
     )
 
 
+def test_the_exit_signal_is_taken_at_any_level_and_kept(drift: Drift) -> None:
+    """DRIFT-10, STV-10: signal.exit comes from TKL at level 1–2 too; only section.occupancy
+    waits for level 3. The latest aspect per place and exit is a Drift event, so a restart
+    reads it back (LOK-08 reads it later)."""
+    outcome = send(
+        drift, "asn", Action.SIGNAL_EXIT, exit="v", section="s-nby-asn", aspect="proceed"
+    )
+    assert outcome.revision is not None and outcome.revision.scope == station.RevisionScope.PLACE
+    assert kinds(drift)[-1] == "signal.exit"
+    assert drift.history[-1].place == "asn"
+    shown = drift.exit_signal("asn", "v")
+    assert shown is not None and shown.aspect == station.ExitSignalAspect.PROCEED
+    before = len(drift.history)
+    send(drift, "asn", Action.SIGNAL_EXIT, exit="v", section="s-nby-asn", aspect="proceed")
+    assert len(drift.history) == before, "the same aspect again is no new event"
+    send(
+        drift,
+        "asn",
+        Action.SIGNAL_EXIT,
+        exit="v",
+        section="s-nby-asn",
+        aspect="stop",
+        call="t101-asn",
+    )
+    assert drift.history[-1].call == "t101-asn"
+    again = Drift(drift.package, list(drift.history), now=NOW)
+    kept = again.exit_signal("asn", "v")
+    assert kept is not None and (kept.aspect, kept.call) == (
+        station.ExitSignalAspect.STOP,
+        "t101-asn",
+    )
+    assert again.exit_signal("asn", "o") is None
+    assert refused(drift, "asn", Action.SECTION_OCCUPANCY, section="s-nby-asn", occupied=True) == (
+        Reason.NOT_LEVEL_3
+    ), "occupancy is still level 3 only"
+
+
+def test_an_exit_signal_must_be_on_a_section_from_the_place(drift: Drift) -> None:
+    def said(**payload: Any) -> Reason:
+        return refused(drift, "asn", Action.SIGNAL_EXIT, exit="v", aspect="stop", **payload)
+
+    assert said(section="s-nope") == Reason.UNKNOWN_SECTION
+    assert said(section="s-mla-sjv") == Reason.WRONG_PLACE
+    assert said(section="s-nby-asn", call="t999-asn") == Reason.UNKNOWN_CALL
+
+
 def test_a_command_for_another_place_is_refused(drift: Drift) -> None:
     assert refused(drift, "asn", Action.TRAIN_POSITION_SET, call="t101-nby", value=True) == (
         Reason.WRONG_PLACE

@@ -13081,6 +13081,21 @@
           {
             "properties": {
               "kind": {
+                "const": "signal.exit",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ExitSignalSet"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "place.manned",
                 "type": "string"
               },
@@ -13324,6 +13339,7 @@
                     "clearance.invalidated",
                     "line.available",
                     "line.acknowledged",
+                    "signal.exit",
                     "place.manned",
                     "place.left",
                     "place.taken_back",
@@ -14727,6 +14743,54 @@
           "message_id"
         ],
         "title": "LineAcknowledged",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ExitSignalAspect": {
+        "enum": [
+          "stop",
+          "proceed",
+          "unknown"
+        ],
+        "title": "ExitSignalAspect",
+        "type": "string"
+      },
+      "trainmeet.drift-1.event.ExitSignalSet": {
+        "additionalProperties": true,
+        "description": "Utfartssignalens besked från TKL (signal.exit, DRIFT-10, STV-10), from a station at any\nlevel: the event names the place, and Drift keeps the latest per place and exit, for\nLokföraren's körplan and the neighbour (LOK-08). Only section.occupancy waits for level 3.",
+        "properties": {
+          "exit": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Exit",
+            "type": "string"
+          },
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "aspect": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.event.ExitSignalAspect"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Call"
+          }
+        },
+        "required": [
+          "exit",
+          "section",
+          "aspect"
+        ],
+        "title": "ExitSignalSet",
         "type": "object"
       },
       "trainmeet.drift-1.event.PlaceManned": {

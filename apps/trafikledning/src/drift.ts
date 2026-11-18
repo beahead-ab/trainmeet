@@ -56,6 +56,7 @@ export const EVENTS: Record<string, string> = {
   "train.crew_ready": "Föraren på plats",
   "line.available": "Ledig linje",
   "line.acknowledged": "Ledig linje kvitterad",
+  "signal.exit": "Utfartssignalen",
   "place.manned": "Platsen bemannad",
   "place.left": "Lämnad till automatiken",
   "place.taken_back": "Tagen tillbaka från automatiken",

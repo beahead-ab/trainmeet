@@ -539,3 +539,150 @@ svg.panel .signal.planerad {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Ställverket at level 1–2 (#84): the panel in its skin (85: black ground, STV-42), the choice of
+   a route and the set routes under it, and the screen's own settings (STV-05). */
+.stv-skarm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.stv-skarm .spar-val button {
+  padding: 2px 7px;
+  font-size: 12px;
+}
+.stv-skarm .spar-val button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.stv-skarm .kommer {
+  font-size: 10px;
+}
+.stv-skarm label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+.stv-skarm select {
+  width: auto;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.stv-skarm input[type="range"] {
+  width: 120px;
+  padding: 0;
+}
+.stv-ruta {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 8px 10px 10px;
+  margin-bottom: 12px;
+}
+.stv-ram {
+  border-radius: 8px;
+  overflow: auto;
+}
+svg.stv-panel {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 160px;
+  user-select: none;
+}
+svg.stv-panel .tagnummer g {
+  transition: transform 0.6s ease-in-out;
+}
+svg.stv-panel .mal {
+  animation: stv-puls 1.2s ease-in-out infinite;
+}
+@keyframes stv-puls {
+  50% {
+    opacity: 0.35;
+  }
+}
+svg.stv-panel [role="button"]:focus {
+  outline: none;
+}
+svg.stv-panel [role="button"]:focus-visible circle {
+  stroke: #ffffff;
+  stroke-width: 2px;
+}
+.stv-forklaring {
+  margin: 6px 0 2px;
+}
+.stv-forklaring .farg {
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 4px 0 10px;
+}
+.stv-forklaring .farg:first-child {
+  margin-left: 0;
+}
+.stv-valet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  align-items: baseline;
+}
+.stv-hjalp,
+.stv-svar {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.stv-svar.nej,
+.stv-handelser li.nej {
+  color: #b42318;
+}
+.stv-svar.ja {
+  color: #1f7a3a;
+}
+.stv-vagar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.stv-vagar button.vag {
+  font-family: var(--tm-mono);
+  font-size: 13px;
+  padding: 3px 8px;
+}
+.stv-vagar button.vag.train[aria-pressed="true"] {
+  background: #98cc00;
+  border-color: #6e9300;
+  color: #000000;
+}
+.stv-vagar button.vag.shunting[aria-pressed="true"] {
+  background: #feff00;
+  border-color: #b8b800;
+  color: #000000;
+}
+.stv-knappar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 8px;
+}
+.stv-satt-ut {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stv-satt-ut input {
+  width: 8em;
+  font-family: var(--tm-mono);
+}
+.stv-satt-ut select {
+  width: auto;
+  flex: 1;
+  min-width: 10em;
+}

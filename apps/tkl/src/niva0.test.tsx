@@ -6,6 +6,7 @@ import { happenings } from "./handelser";
 import { Molnet } from "./Installningar";
 import { readSounds } from "./ljud";
 import { blocks, clockAt, revisionOf, trains } from "./niva0";
+import { StallverketSida } from "./Stallverk12";
 import { Stallverket } from "./Stallverket";
 import { FROM_MODEL, problems, Studio, withTrack } from "./Studio";
 
@@ -112,13 +113,16 @@ describe("Tåg (KLAR-03, H22, H32)", () => {
     expect(html).toContain("Inget har hänt sedan sidan öppnades.");
   });
 
-  it("stays at level 0 when the station has a track plan, and says the rest comes next (#83)", () => {
+  it("is level 0's page as before for a station without a model, never the panel (#84)", () => {
     const view = { snapshot: base, stale: false, heard: null, message: null };
-    const plain = renderToStaticMarkup(<Stallverket view={view} outside={outside} journal={[]} sounds={readSounds(null)} busy={false} onSend={() => undefined} onExit={() => undefined} />);
+    const props = { view, outside, journal: [], sounds: readSounds(null), busy: false, onSend: () => undefined, onExit: () => undefined };
+    const plain = renderToStaticMarkup(<Stallverket {...props} />);
+    expect(plain).toContain("Klarering utan spårplan.");
     expect(plain).not.toContain("Stationen har en spårplan");
-    const html = renderToStaticMarkup(<Stallverket view={view} level={2} outside={outside} journal={[]} sounds={readSounds(null)} busy={false} onSend={() => undefined} onExit={() => undefined} />);
-    expect(html).toContain("Stationen har en spårplan; ställverket på nivå 1–2 kommer med nästa steg.");
-    expect(html).toContain("Klarering utan spårplan.");
+    expect(renderToStaticMarkup(<StallverketSida level={0} {...props} />)).toBe(plain);
+    const noModel = renderToStaticMarkup(<StallverketSida level={2} {...props} initial={{ plan: null, state: null }} />);
+    expect(noModel).toBe(plain);
+    expect(noModel).not.toContain("stv-panel");
   });
 
   it("asks for the line for the train at the station, when it may", () => {

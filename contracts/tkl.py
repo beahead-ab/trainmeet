@@ -578,6 +578,10 @@ class TklInterlocking(Contract):
     )
     numbers: list[TklNumber] = Field(default_factory=list)
     exits: list[TklExitShown] = Field(default_factory=list)
+    tracks: dict[Name, Name] = Field(
+        default_factory=dict,
+        description="Sektionerna på stationsspåren, med spårets namn: där ett tåg kan sättas ut.",
+    )
     events: list[TklHappening] = Field(default_factory=list, description="Senaste först.")
     last_id: int = Field(default=0, ge=0, description="Det senaste id:t för en väg eller ett tåg.")
 
