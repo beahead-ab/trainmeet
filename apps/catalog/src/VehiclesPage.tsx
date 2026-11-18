@@ -40,6 +40,8 @@ export function VehiclesView(props: VehiclesViewProps) {
   const { t, navigate } = ctx;
   const total = list?.total ?? 0;
   const searching = q.trim() !== "" || group !== "all" || state !== null;
+  // The thumbnails get a column only when some vehicle in the list has a picture (CAT-125).
+  const pictured = list?.vehicles.some((vehicle) => vehicle.picture) ?? false;
   return (
     <>
       <div className="cat-rubrikrad">
@@ -117,6 +119,7 @@ export function VehiclesView(props: VehiclesViewProps) {
                 <th className="cat-val">
                   <span className="cat-dold">{t("move")}</span>
                 </th>
+                {pictured ? <th className="cat-bildcell">{t("colPicture")}</th> : null}
                 <th>{t("colVehicle")}</th>
                 <th className="cat-evn">{t("colEvn")}</th>
                 <th>{t("colWhere")}</th>
@@ -135,6 +138,16 @@ export function VehiclesView(props: VehiclesViewProps) {
                       />
                     ) : null}
                   </td>
+                  {pictured ? (
+                    <td className="cat-bildcell">
+                      {vehicle.picture ? (
+                        // The name beside it is the link and says what it is: this one is for the finger and the mouse.
+                        <a href={vehiclePath(vehicle.id)} onClick={linkClick(navigate, vehiclePath(vehicle.id))} tabIndex={-1} aria-hidden="true">
+                          <img className="cat-listbild" src={vehicle.picture.thumb_url} alt="" width={72} height={48} loading="lazy" decoding="async" />
+                        </a>
+                      ) : null}
+                    </td>
+                  ) : null}
                   <td>
                     <a className="cat-fordon" href={vehiclePath(vehicle.id)} onClick={linkClick(navigate, vehiclePath(vehicle.id))}>
                       <b>{title(t, vehicle)}</b>
