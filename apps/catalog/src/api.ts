@@ -27,10 +27,21 @@ export type PendingState = Schemas["trainmeet.catalog-1.pending"];
 export type TagLink = Schemas["trainmeet.catalog-1.tag-link"];
 export type FleetChoice = Schemas["trainmeet.catalog-1.fleet-choice"];
 export type FleetRight = FleetChoice["right"];
+export type Picture = Schemas["trainmeet.catalog-1.picture"];
+export type PictureBackground = Schemas["trainmeet.catalog-1.picture.PictureBackground"];
+export type BackgroundChange = Schemas["trainmeet.catalog-1.background-change"];
+export type StorageUse = Schemas["trainmeet.catalog-1.storage-use"];
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
 export const ENGINES: VehicleKind[] = ["locomotive", "multiple_unit"];
+/** The backgrounds a picture can have, original first (CAT-128). */
+export const BACKGROUNDS: PictureBackground[] = ["original", "white", "grey", "transparent", "rails"];
+/** What an upload may be (CAT-123). HEIC from an iPhone is sent as JPEG by the browser. */
+export const PICTURE_KINDS = ["image/jpeg", "image/png", "image/webp"] as const;
+/** As in catalog/pictures.py: 10 pictures per vehicle (CAT-17), at most 15 MB each (CAT-123). */
+export const PICTURES_PER_VEHICLE = 10;
+export const PICTURE_MAX_BYTES = 15 * 1024 * 1024;
 
 /** Catalog said no, with a code the web app has a text for, or something else went wrong. */
 export class ApiError extends Error {
@@ -49,17 +60,40 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     init.body = JSON.stringify(body);
   }
   const response = await fetch(path, init);
-  if (!response.ok) {
-    let code: ProblemCode | null = null;
-    try {
-      const problem = (await response.json()) as Partial<Problem>;
-      code = typeof problem.code === "string" ? problem.code : null;
-    } catch {
-      code = null;
-    }
-    throw new ApiError(response.status, code);
-  }
+  if (!response.ok) throw new ApiError(response.status, codeOf(await response.text().catch(() => "")));
   return (await response.json()) as T;
+}
+
+/** The code in Catalog's answer when it said no, if it is one. */
+function codeOf(body: string): ProblemCode | null {
+  try {
+    const problem = JSON.parse(body) as Partial<Problem> | null;
+    return typeof problem?.code === "string" ? problem.code : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The picture as the request's body, with its own type (CAT-123). XMLHttpRequest rather than
+ * fetch, since only it tells how much of the picture has been sent: `onSent` gets 0–1. */
+function send<T>(path: string, file: Blob, onSent?: (part: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", path);
+    request.setRequestHeader("Accept", "application/json");
+    request.setRequestHeader("Content-Type", file.type);
+    if (onSent) request.upload.onprogress = (event) => event.lengthComputable && onSent(event.loaded / event.total);
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) return reject(new ApiError(request.status, codeOf(request.responseText)));
+      try {
+        resolve(JSON.parse(request.responseText) as T);
+      } catch {
+        reject(new ApiError(request.status, null));
+      }
+    };
+    request.onerror = () => reject(new TypeError("Catalog svarade inte"));
+    request.send(file);
+  });
 }
 
 export type Filters = { q?: string; kinds?: VehicleKind[]; state?: VehicleState | null; place?: string };
@@ -89,6 +123,12 @@ function inFleet(path: string, fleet: string | null = working): string {
 }
 const T = "/api/catalog/1/tags";
 const tagPath = (uid: string) => `${T}/${encodeURIComponent(uid)}`;
+const picturesPath = (vehicle: string) => `${V}/${vehicle}/pictures`;
+
+/** Where a new picture is sent, with Spara original and the background chosen (CAT-17, CAT-128). */
+export function uploadAddress(vehicle: string, keepOriginal: boolean, background: PictureBackground): string {
+  return inFleet(`${picturesPath(vehicle)}?${new URLSearchParams({ keep_original: String(keepOriginal), background })}`);
+}
 
 /** TrainMeet ID's login: the browser goes there itself, and comes back to `next` (#66). */
 export function idLoginHref(next: string, language: string): string {
@@ -129,6 +169,16 @@ export const api = {
   clearNotice: (vehicle: string, notice: string) => call<{ id: string }>("DELETE", inFleet(`${V}/${vehicle}/notices/${notice}`)),
   settings: () => call<{ show_name: boolean }>("GET", "/api/catalog/1/settings"),
   changeSettings: (show_name: boolean) => call<{ show_name: boolean }>("PUT", "/api/catalog/1/settings", { show_name }),
+  /** The vehicle's pictures in order (CAT-05). The addresses expire (CAT-130): read them again after a change. */
+  pictures: (vehicle: string) => call<Picture[]>("GET", inFleet(picturesPath(vehicle))),
+  addPicture: (vehicle: string, file: Blob, keepOriginal: boolean, background: PictureBackground, onSent?: (part: number) => void) =>
+    send<Picture>(uploadAddress(vehicle, keepOriginal, background), file, onSent),
+  mainPicture: (vehicle: string, picture: string) => call<Picture[]>("POST", inFleet(`${picturesPath(vehicle)}/${picture}/main`)),
+  pictureBackground: (vehicle: string, picture: string, background: PictureBackground) =>
+    call<Picture>("POST", inFleet(`${picturesPath(vehicle)}/${picture}/background`), { background } satisfies BackgroundChange),
+  removePicture: (vehicle: string, picture: string) => call<{ id: string }>("DELETE", inFleet(`${picturesPath(vehicle)}/${picture}`)),
+  /** The fleet owner's storage, also in someone else's fleet (CAT-131, CAT-133). */
+  storage: () => call<StorageUse>("GET", inFleet("/api/catalog/1/storage")),
 };
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);

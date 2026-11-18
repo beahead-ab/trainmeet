@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
 import { Crumbs, dateText, Dialog, ErrorLine, isOwner, kindText, mayEdit, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
 import { nfcSupported, writeAddress } from "./nfc";
+import { PicturesSection } from "./Pictures";
 import { editPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
 
@@ -176,6 +177,8 @@ export type CardViewProps = {
   onClearNotice?: (id: string) => void;
   writing?: { address: string; state: "ready" | "done" | "failed" } | null;
   onWrite?: () => void;
+  /** Bilderna, above the card: PicturesSection, or PicturesView in the tests (CAT-05). */
+  pictures?: ReactNode;
 };
 
 export function CardView(props: CardViewProps) {
@@ -198,40 +201,43 @@ export function CardView(props: CardViewProps) {
       <ErrorLine text={error} />
       {props.writing ? <WritePanel t={t} address={props.writing.address} state={props.writing.state} onWrite={props.onWrite} /> : null}
       <div className="cat-kortet">
-        <section className="tm-kort" aria-labelledby="kortet-rubrik">
-          <div className="cat-kortrubrik">
-            <h2 id="kortet-rubrik">{t("card")}</h2>
-            {mayEdit(ctx) ? (
-              <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
-                {t("edit")}
-              </a>
-            ) : null}
-          </div>
-          <table className="cat-falttabell">
-            <tbody>
-              <Row label={t("fKind")} value={kindText(t, vehicle.kind) || missing} />
-              <Row label={t("fLittNumber")} value={`${vehicle.litt ?? ""} ${vehicle.number ?? ""}`.trim() || missing} />
-              <Row
-                label={t("fEvn")}
-                value={evn.value}
-                mono
-                extra={
-                  <span className={EVN_CLASS[evn.kind]}>
-                    {evn.kind === "ok" ? "✓ " : ""}
-                    {evn.note}
-                  </span>
-                }
-              />
-              <Row label={t("fOperator")} value={vehicle.operator || missing} />
-              <Row label={t("fEpoch")} value={vehicle.epoch || missing} />
-              <Row label={t("fScale")} value={vehicle.scale || missing} />
-              <Row label={t("fModel")} value={model || missing} />
-              {engine ? <Row label={t("fDcc")} value={vehicle.dcc_address || missing} mono /> : null}
-              {engine ? <Row label={t("fFunctions")} value={functions || missing} /> : null}
-              <Row label={t("fNote")} value={vehicle.note || missing} />
-            </tbody>
-          </table>
-        </section>
+        <div className="cat-huvudkolumn">
+          {props.pictures}
+          <section className="tm-kort" aria-labelledby="kortet-rubrik">
+            <div className="cat-kortrubrik">
+              <h2 id="kortet-rubrik">{t("card")}</h2>
+              {mayEdit(ctx) ? (
+                <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
+                  {t("edit")}
+                </a>
+              ) : null}
+            </div>
+            <table className="cat-falttabell">
+              <tbody>
+                <Row label={t("fKind")} value={kindText(t, vehicle.kind) || missing} />
+                <Row label={t("fLittNumber")} value={`${vehicle.litt ?? ""} ${vehicle.number ?? ""}`.trim() || missing} />
+                <Row
+                  label={t("fEvn")}
+                  value={evn.value}
+                  mono
+                  extra={
+                    <span className={EVN_CLASS[evn.kind]}>
+                      {evn.kind === "ok" ? "✓ " : ""}
+                      {evn.note}
+                    </span>
+                  }
+                />
+                <Row label={t("fOperator")} value={vehicle.operator || missing} />
+                <Row label={t("fEpoch")} value={vehicle.epoch || missing} />
+                <Row label={t("fScale")} value={vehicle.scale || missing} />
+                <Row label={t("fModel")} value={model || missing} />
+                {engine ? <Row label={t("fDcc")} value={vehicle.dcc_address || missing} mono /> : null}
+                {engine ? <Row label={t("fFunctions")} value={functions || missing} /> : null}
+                <Row label={t("fNote")} value={vehicle.note || missing} />
+              </tbody>
+            </table>
+          </section>
+        </div>
 
         <div className="cat-sidokolumn">
           <Notices ctx={ctx} vehicle={vehicle} onClear={props.onClearNotice} />
@@ -370,6 +376,7 @@ export function VehicleCardPage({ ctx, id }: { ctx: Ctx; id: string }) {
         onUnlink={setUnlinking}
         onNewLabel={(replace) => act(() => api.newLabel(vehicle.id, replace?.assignment ?? null))}
         onClearNotice={(notice) => act(() => api.clearNotice(vehicle.id, notice))}
+        pictures={<PicturesSection ctx={ctx} vehicle={vehicle} />}
         writing={(() => {
           const tag = writeUid ? (vehicle.tags ?? []).find((each) => each.uid === writeUid.toLowerCase().replace(/[:-]/g, "")) : undefined;
           return tag ? { address: tag.address, state: written } : null;
