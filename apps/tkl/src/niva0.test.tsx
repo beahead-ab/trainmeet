@@ -7,7 +7,7 @@ import { Molnet } from "./Installningar";
 import { readSounds } from "./ljud";
 import { blocks, clockAt, revisionOf, trains } from "./niva0";
 import { Stallverket } from "./Stallverket";
-import { problems } from "./Studio";
+import { FROM_MODEL, problems, Studio, withTrack } from "./Studio";
 
 // Åsen in Provbanan, as the hub's snapshot has it: Norrby to the west, Mellanå to the east.
 const call = (given: Partial<CallHere> & Pick<CallHere, "call" | "train_number">): CallHere => ({
@@ -209,6 +209,62 @@ describe("Första start and Studio (KLAR-01, TKL18, TKL21)", () => {
     expect(problems({ ...outside, tracks: [] })).toEqual(["Stationen behöver minst ett spår."]);
     expect(problems({ ...outside, exits: [...outside.exits, { id: "v", side: "right", name: null, tracks: [], signals: [] }] })).toEqual(["Två utfarter har samma id."]);
     expect(problems({ ...outside, tracks: [{ id: "spår 3", label: "Spår 3" }] })).toEqual(['"spår 3" går inte som id: bokstäver, siffror, punkt, kolon eller bindestreck.']);
+  });
+});
+
+describe("Studio with a station model (STD-08, TKL92)", () => {
+  // The outside as TKL derives it from a model: ids folded from the owner's text, the text kept
+  // as the exit's name, and the tracks that reach each exit.
+  const derived: Outside = {
+    ...outside,
+    tracks: [
+      { id: "1", label: "Spår 1" },
+      { id: "2", label: "Spår 2" },
+    ],
+    exits: [
+      { id: "Vast-1", side: "left", name: "Väst 1", tracks: ["1", "2"], signals: ["51", "42"] },
+      { id: "Ost-1", side: "right", name: "Öst 1 mot Mellanå", tracks: ["2"], signals: [] },
+    ],
+  };
+  const studio = { draft: derived, versions: [], changed: true };
+  const draw = (stationModel: boolean) =>
+    renderToStaticMarkup(<Studio studio={{ ...studio, station_model: stationModel }} onSave={async () => undefined} onVersion={async () => undefined} />);
+
+  it("shows the outside derived from the model, read-only, with the line saying where it comes from", () => {
+    const html = draw(true);
+    expect(html).toContain("Åsen – utsidan ur spårplanen");
+    expect(html).toContain(FROM_MODEL);
+    expect(html).not.toContain("<input");
+    expect(html).not.toContain("<select");
+    expect(html).not.toContain("+ Lägg till");
+    expect(html).not.toContain("Spara på datorn");
+    expect(html).toContain('<td class="tm-mono">Vast-1</td><td>Väster</td><td>Väst 1</td><td>1, 2</td><td>51, 42</td>');
+    expect(html).toContain('<td class="tm-mono">Ost-1</td><td>Öster</td><td>Öst 1 mot Mellanå</td><td>2</td><td>–</td>');
+    expect(html).toContain("stationsmodellen följer med versionen");
+    expect(html).toContain(">Ny version av utsidan<");
+  });
+
+  it("is an editable list again without the model", () => {
+    const html = draw(false);
+    expect(html).not.toContain(FROM_MODEL);
+    expect(html).toContain("Åsen på nivå 0 – bara klarering");
+    expect(html).toContain('aria-label="Spår 1, id"');
+    expect(html).toContain('aria-label="Utfart 1, id"');
+    expect(html).toContain('value="Vast-1"');
+    expect(html).toContain('value="Väst 1"');
+    expect(html).toContain(">+ Lägg till spår<");
+    expect(html).toContain(">Spara på datorn<");
+  });
+
+  it("keeps the exits' tracks in step when a track is renamed or removed", () => {
+    const renamed = withTrack(derived, 1, "2a");
+    expect(renamed.tracks.map((t) => t.id)).toEqual(["1", "2a"]);
+    expect(renamed.exits.map((e) => e.tracks)).toEqual([["1", "2a"], ["2a"]]);
+    expect(problems(renamed)).toEqual([]);
+    const removed = withTrack(derived, 0, null);
+    expect(removed.tracks.map((t) => t.id)).toEqual(["2"]);
+    expect(removed.exits.map((e) => e.tracks)).toEqual([["2"], ["2"]]);
+    expect(problems({ ...derived, tracks: [{ id: "1", label: "Spår 1" }] })).toEqual(["Utfarten Vast-1 pekar på spår som inte finns: 2.", "Utfarten Ost-1 pekar på spår som inte finns: 2."]);
   });
 });
 

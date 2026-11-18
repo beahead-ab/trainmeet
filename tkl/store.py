@@ -3,7 +3,9 @@ that locks it, and the connection to a meet with the key from the approval.
 
 From level 1 the station also has its model (contracts/station_model.py, #83). It is kept with
 the station and versioned with the outside: a new version of the outside holds the model as it
-was, and both go to the cloud together as the station package (SYNK-30).
+was, and both go to the cloud together as the station package (SYNK-30). While the station has
+a model, its outside is derived from the model's station tracks and line exits (STD-08, TKL92)
+and the list cannot be written by hand; without the model, the last outside is the list again.
 
 The PIN is never stored, only an scrypt hash with its own salt, and wrong attempts are counted
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
@@ -35,6 +37,7 @@ from contracts.common import Side
 from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.tkl import OutsideVersion, TklStation, TklStudio
+from tkl.standard import outside_of
 
 LOCAL: Final = "lokal"
 SESSION_LIFETIME: Final = timedelta(hours=12)
@@ -108,6 +111,10 @@ class WrongPin(Exception):
 
 class TooManyAttempts(Exception):
     """Too many wrong PINs lately; TKL waits before it tries again."""
+
+
+class HasModel(Exception):
+    """The station has a model: its outside is derived from it, not written as a list."""
 
 
 class Full(Exception):
@@ -342,8 +349,10 @@ class TklStore:
         return None if body is None else StationModel.model_validate_json(body)
 
     def save_model(self, slot: str, model: StationModel) -> StationModel:
-        """The station's model, with the station's own id and name. The station's level
-        follows it: 1 or 2; level 3 needs the addresses on the bus, which come later."""
+        """The station's model, with the station's own id and name, and the outside derived
+        from it as the draft (STD-08). The station's level follows the model: 1 or 2; level 3
+        needs the addresses on the bus, which come later. The model must give an outside
+        (tkl.standard.checks), else OutsideError."""
         with self._transaction() as db:
             row = db.execute(
                 "SELECT station_id, name FROM station WHERE slot=?", (slot,)
@@ -351,24 +360,31 @@ class TklStore:
             if row is None:
                 raise NotSetUp()
             kept = model.model_copy(update={"station_id": row[0], "name": row[1]})
+            draft = outside_of(kept, row[0], row[1])
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
-            db.execute("UPDATE station SET level=? WHERE slot=?", (min(kept.level, 2), slot))
+            db.execute(
+                "UPDATE station SET level=?, draft=? WHERE slot=?",
+                (min(kept.level, 2), draft.model_dump_json(), slot),
+            )
         return kept
 
     def forget_model(self, slot: str) -> None:
-        """Back to level 0: the list without a model."""
+        """Back to level 0: the last outside, derived from the model, is the list again."""
         with self._transaction() as db:
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     def save_draft(self, slot: str, outside: StationOutside) -> TklStudio:
-        """The list as it stands, saved on the computer. Its id and name are the station's."""
+        """The list as it stands, saved on the computer. Its id and name are the station's.
+        A station with a model has no list to write: HasModel."""
         with self._transaction() as db:
             row = db.execute(
                 "SELECT station_id, name FROM station WHERE slot=?", (slot,)
             ).fetchone()
             if row is None:
                 raise NotSetUp()
+            if self._model(db, slot) is not None:
+                raise HasModel()
             kept = outside.model_copy(update={"station_id": row[0], "name": row[1]})
             db.execute("UPDATE station SET draft=? WHERE slot=?", (kept.model_dump_json(), slot))
             return self._studio(db, slot)

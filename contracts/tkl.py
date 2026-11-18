@@ -10,9 +10,10 @@ Level 0 (TKL21, KLAR-15): the tracks and exits are written as a list, without a 
 list is the station's outside; a new version of it is made with a button (TKL25).
 
 Level 1–2 (#83): the station's model (contracts/station_model.py) is imported in Studio and kept
-with the station, versioned with the outside. The web app draws the station as a panel: the
-layout engine's proposal on the grid, or the panel built from the station's own track plan
-(STD-09, STD-25). The four reference stations can be looked at and used as one's own.
+with the station, versioned with the outside, which is then derived from it (STD-08, TKL92).
+The web app draws the station as a panel: the layout engine's proposal on the grid, or the
+panel built from the station's own track plan (STD-09, STD-25). The four reference stations
+can be looked at and used as one's own.
 """
 
 from __future__ import annotations
@@ -93,7 +94,11 @@ class OutsideVersion(Contract):
 
 
 class TklStudio(Contract):
-    """Studio at level 0: the list as it is on the computer, and the versions made of it."""
+    """Studio's outside: the list as it is on the computer, and the versions made of it.
+
+    While the station has a model, the draft is derived from it (STD-08, TKL92) and is not
+    written as a list; without the model, the last outside is the list again.
+    """
 
     draft: StationOutside
     versions: list[OutsideVersion] = Field(default_factory=list, description="Senaste först.")
@@ -101,7 +106,9 @@ class TklStudio(Contract):
         description="Listan eller stationsmodellen skiljer sig från den senaste versionen."
     )
     station_model: bool = Field(
-        default=False, description="Stationen har en stationsmodell (nivå 1–2, #83)."
+        default=False,
+        description="Stationen har en stationsmodell (nivå 1–2, #83). Utsidan räknas då fram "
+        "ur den, och listan går inte att skriva (TKL92).",
     )
 
 

@@ -1,0 +1,76 @@
+{
+ "format": "trainmeet.station-outside/1",
+ "station_id": "trakvista",
+ "name": "Träkvista",
+ "tracks": [
+  {
+   "id": "I",
+   "label": "Spår I"
+  },
+  {
+   "id": "II",
+   "label": "Spår II"
+  },
+  {
+   "id": "III",
+   "label": "Spår III"
+  },
+  {
+   "id": "IIIa",
+   "label": "Spår IIIa"
+  },
+  {
+   "id": "IIIc",
+   "label": "Spår IIIc"
+  },
+  {
+   "id": "IV",
+   "label": "Spår IV"
+  }
+ ],
+ "exits": [
+  {
+   "id": "A",
+   "side": "left",
+   "name": "A mot Bilbo",
+   "tracks": [
+    "I",
+    "II",
+    "III"
+   ],
+   "signals": [
+    "2/1",
+    "2/10"
+   ]
+  },
+  {
+   "id": "B",
+   "side": "right",
+   "name": "B mot Charlottendal",
+   "tracks": [
+    "I",
+    "II",
+    "III"
+   ],
+   "signals": [
+    "2/9",
+    "2/2"
+   ]
+  },
+  {
+   "id": "C",
+   "side": "right",
+   "name": "C",
+   "tracks": [
+    "I",
+    "II",
+    "III"
+   ],
+   "signals": [
+    "1/9",
+    "1/2"
+   ]
+  }
+ ],
+ "sides": []
+}

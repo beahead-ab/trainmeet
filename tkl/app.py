@@ -5,11 +5,11 @@
     POST /api/tkl/1/unlock | /lock        TklUnlock -> TklState
     POST /api/tkl/1/pin                   TklPinChange
     GET  /api/tkl/1/studio                TklStudio
-    PUT  /api/tkl/1/studio                StationOutside -> TklStudio (sparad på datorn)
+    PUT  /api/tkl/1/studio                StationOutside -> TklStudio (sparad; 409 med modell)
     POST /api/tkl/1/studio/version        TklStudio (Ny version av utsidan, med stationsmodellen)
     GET  /api/tkl/1/studio/model          TklTrackPlan: stationens modell som Spårplan visar den
     PUT  /api/tkl/1/studio/model          StationModel -> TklTrackPlan (importera, nivå 1–2)
-    DELETE /api/tkl/1/studio/model        TklStudio (tillbaka till nivå 0)
+    DELETE /api/tkl/1/studio/model        TklStudio (tillbaka till nivå 0, med listan)
     GET  /api/tkl/1/referens              [TklReference] (referensstationerna, TKL40)
     GET  /api/tkl/1/referens/{id}         TklTrackPlan (att titta på)
     POST /api/tkl/1/referens/{id}/use     TklTrackPlan (Använd som min station)
@@ -21,6 +21,9 @@
     POST /api/tkl/1/commands              TklCommand -> station.Reply
     POST /api/tkl/1/places/{place}/exits  station.ExitAnswer -> TklView
     GET  /api/tkl/1/places/{place}/events the hub's hints, passed on (text/event-stream)
+
+While the station has a model, Studio's list is its outside derived from the model (STD-08,
+TKL92): it is shown but not written, and a new version is made as before (TKL25).
 
 Everything but the state, first start and unlocking needs the PIN: a session in an HttpOnly
 cookie (TKL18). TKL in the cloud also keeps which station is the browser's in a cookie, and
@@ -76,6 +79,7 @@ from tkl.store import (
     AlreadySetUp,
     Connection,
     Full,
+    HasModel,
     NotSetUp,
     TklStore,
     TooManyAttempts,
@@ -269,7 +273,14 @@ def create_app(
     ) -> dict[str, Any]:
         same_site(request)
         no_store(response)
-        return store.save_draft(unlocked(slot, session), outside).model_dump(mode="json")
+        try:
+            return store.save_draft(unlocked(slot, session), outside).model_dump(mode="json")
+        except HasModel as error:
+            raise HTTPException(
+                409,
+                "Utsidan räknas fram ur stationens spårplan. Ta bort stationsmodellen i Spårplan "
+                "för att skriva listan själv.",
+            ) from error
 
     @routes.post("/studio/version")
     def new_version(
@@ -288,7 +299,8 @@ def create_app(
         raise HTTPException(422, {"message": message, "problems": found})
 
     def keep_model(found: str, model: StationModel) -> dict[str, Any]:
-        """Kept with the station only when it may run: no problems, notes are fine."""
+        """Kept with the station only when it may run: no problems, notes are fine. The
+        checks include that the outside can be derived, which the station then gets."""
         wrong = problems(model)
         if wrong:
             refuse_model("Stationsmodellen kan inte köras. Rätta den och importera igen.", wrong)

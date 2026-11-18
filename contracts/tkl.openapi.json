@@ -942,7 +942,7 @@
       },
       "trainmeet.station-model-1.LineExit": {
         "additionalProperties": true,
-        "description": "Linjeutfart: where a track leaves the station for the line.",
+        "description": "Linjeutfart: where a track leaves the station for the line.\n\nIts id is the owner's free text, such as \"Väst 1\"; the outside's exit gets an id derived\nfrom it, or `outside_id` when the model gives one (tkl/standard/outside.py).",
         "properties": {
           "id": {
             "description": "Bokstav eller id, till exempel A1.",
@@ -991,6 +991,20 @@
             },
             "title": "Signals",
             "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.",
+            "title": "Outside Id"
           },
           "origin": {
             "anyOf": [
@@ -1920,7 +1934,7 @@
       },
       "trainmeet.station-model-1.StationTrack": {
         "additionalProperties": true,
-        "description": "Stationsspår: what the station's outside is made of (TKL92).",
+        "description": "Stationsspår: what the station's outside is made of (TKL92).\n\nIts id in the outside is its short name, or `outside_id` when the model gives one, so that\nthe owner can rename the track and keep the id the meets know (tkl/standard/outside.py).",
         "properties": {
           "id": {
             "description": "Det korta namnet, till exempel 1a.",
@@ -1943,6 +1957,20 @@
             },
             "title": "Pieces",
             "type": "array"
+          },
+          "outside_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. Behåller id:t när spåret byter namn.",
+            "title": "Outside Id"
           }
         },
         "required": [
@@ -3926,7 +3954,7 @@
       },
       "trainmeet.tkl-1.studio": {
         "additionalProperties": true,
-        "description": "Studio at level 0: the list as it is on the computer, and the versions made of it.",
+        "description": "Studio's outside: the list as it is on the computer, and the versions made of it.\n\nWhile the station has a model, the draft is derived from it (STD-08, TKL92) and is not\nwritten as a list; without the model, the last outside is the list again.",
         "properties": {
           "draft": {
             "$ref": "#/components/schemas/trainmeet.tkl-1.studio.StationOutside"
@@ -3946,7 +3974,7 @@
           },
           "station_model": {
             "default": false,
-            "description": "Stationen har en stationsmodell (nivå 1–2, #83).",
+            "description": "Stationen har en stationsmodell (nivå 1–2, #83). Utsidan räknas då fram ur den, och listan går inte att skriva (TKL92).",
             "title": "Station Model",
             "type": "boolean"
           }

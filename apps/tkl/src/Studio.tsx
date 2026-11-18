@@ -1,9 +1,14 @@
 // Studio på nivå 0 (TKL21, KLAR-01): tracks and exits as a list, without a drawing. The list is
 // the station's outside; it is saved on the computer, and Ny version av utsidan makes the version
 // that goes with the next connection (TKL25). The telephone number is in the hub, not here (H24).
+// A station with a model has its outside derived from the model's station tracks and line exits
+// (STD-08, TKL92): the list is shown but not written, and a new version is made as before.
+// Without the model the last outside is the list again.
 import { useState } from "react";
 import type { Exit, Outside, Studio as StudioData, Track } from "./api";
 import { SIDE } from "./niva0";
+
+export const FROM_MODEL = "Utsidan räknas fram ur stationens spårplan: stationsspåren och linjeutfarterna i stationsmodellen. Ändra dem i modellen, eller ta bort modellen i Spårplan för att skriva listan själv.";
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/;
 
@@ -20,15 +25,126 @@ export function problems(outside: Outside): string[] {
   if (new Set(trackIds).size !== trackIds.length) found.push("Två spår har samma id.");
   if (new Set(exitIds).size !== exitIds.length) found.push("Två utfarter har samma id.");
   if (outside.tracks.some((t) => !t.label.trim())) found.push("Varje spår behöver en etikett.");
+  for (const exit of outside.exits) {
+    const unknown = (exit.tracks ?? []).filter((t) => !trackIds.includes(t));
+    if (unknown.length) found.push(`Utfarten ${exit.id} pekar på spår som inte finns: ${unknown.join(", ")}.`);
+  }
   return found;
 }
 
+/** The list with one track's id changed or the track removed (to: null), and the exits' tracks
+ * kept in step: an outside derived from a model names the tracks that reach each exit. */
+export function withTrack(outside: Outside, index: number, to: string | null): Outside {
+  const from = outside.tracks[index]?.id;
+  const tracks = to === null ? outside.tracks.filter((_, i) => i !== index) : outside.tracks.map((t, i) => (i === index ? { ...t, id: to } : t));
+  const exits = outside.exits.map((e) => {
+    const reaching = e.tracks ?? [];
+    if (from === undefined || !reaching.includes(from)) return e;
+    return { ...e, tracks: to === null ? reaching.filter((t) => t !== from) : reaching.map((t) => (t === from ? to : t)) };
+  });
+  return { ...outside, tracks, exits };
+}
+
 export function Studio({ studio, onSave, onVersion }: { studio: StudioData; onSave: (outside: Outside) => Promise<void>; onVersion: () => Promise<void> }) {
+  if (studio.station_model) return <Derived studio={studio} onVersion={onVersion} />;
+  return <List studio={studio} onSave={onSave} onVersion={onVersion} />;
+}
+
+function Versions({ studio, dirty = false }: { studio: StudioData; dirty?: boolean }) {
+  const latest = studio.versions?.[0];
+  return (
+    <span className="liten">
+      {latest ? `Version ${latest.number} · ${new Date(latest.saved).toLocaleString("sv-SE")}` : "Ingen version än"}
+      {studio.changed || dirty ? (studio.station_model ? " · utsidan har ändrats sedan dess" : " · listan har ändrats sedan dess") : ""}
+      {studio.station_model ? " · stationsmodellen följer med versionen" : ""}
+    </span>
+  );
+}
+
+/** The outside derived from the station's model: shown, not written (STD-08, TKL92). */
+function Derived({ studio, onVersion }: { studio: StudioData; onVersion: () => Promise<void> }) {
+  const outside = studio.draft;
+  const [message, setMessage] = useState("");
+  const version = async () => {
+    setMessage("");
+    try {
+      await onVersion();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Det gick inte att göra en ny version.");
+    }
+  };
+  return (
+    <div className="studio">
+      <div className="sidrubrik">
+        <h1>{outside.name} – utsidan ur spårplanen</h1>
+        <p className="liten">{FROM_MODEL}</p>
+      </div>
+      <section className="ruta">
+        <h2>Spår</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Spår</th>
+              <th>Etikett</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outside.tracks.map((track) => (
+              <tr key={track.id}>
+                <td className="tm-mono">{track.id}</td>
+                <td>{track.label}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <section className="ruta">
+        <h2>Utfarter</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Utfart</th>
+              <th>Sida</th>
+              <th>Namn</th>
+              <th>Spår dit</th>
+              <th>Signaler</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outside.exits.map((exit) => (
+              <tr key={exit.id}>
+                <td className="tm-mono">{exit.id}</td>
+                <td>{SIDE[exit.side] ?? exit.side}</td>
+                <td>{exit.name ?? ""}</td>
+                <td>{(exit.tracks ?? []).join(", ") || "–"}</td>
+                <td>{(exit.signals ?? []).join(", ") || "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      {message ? (
+        <p className="fel" role="alert">
+          {message}
+        </p>
+      ) : null}
+      <div className="fot rad">
+        <Versions studio={studio} />
+        <span className="tm-fyll" />
+        <button type="button" className="primar" disabled={!studio.changed} onClick={() => void version()}>
+          Ny version av utsidan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Level 0: the list, written by hand (TKL21). */
+function List({ studio, onSave, onVersion }: { studio: StudioData; onSave: (outside: Outside) => Promise<void>; onVersion: () => Promise<void> }) {
   const [draft, setDraft] = useState<Outside>(studio.draft);
   const [message, setMessage] = useState("");
   const wrong = problems(draft);
   const dirty = JSON.stringify(draft) !== JSON.stringify(studio.draft);
-  const latest = studio.versions?.[0];
   const setTrack = (index: number, change: Partial<Track>) =>
     setDraft({ ...draft, tracks: draft.tracks.map((t, i) => (i === index ? { ...t, ...change } : t)) });
   const setExit = (index: number, change: Partial<Exit>) =>
@@ -63,13 +179,13 @@ export function Studio({ studio, onSave, onVersion }: { studio: StudioData; onSa
             {draft.tracks.map((track, index) => (
               <tr key={index}>
                 <td>
-                  <input aria-label={`Spår ${index + 1}, id`} className="tm-mono kort-falt" value={track.id} onChange={(e) => setTrack(index, { id: e.target.value.trim() })} />
+                  <input aria-label={`Spår ${index + 1}, id`} className="tm-mono kort-falt" value={track.id} onChange={(e) => setDraft(withTrack(draft, index, e.target.value.trim()))} />
                 </td>
                 <td>
                   <input aria-label={`Spår ${index + 1}, etikett`} value={track.label} onChange={(e) => setTrack(index, { label: e.target.value })} />
                 </td>
                 <td>
-                  <button type="button" className="lank" onClick={() => setDraft({ ...draft, tracks: draft.tracks.filter((_, i) => i !== index) })}>
+                  <button type="button" className="lank" onClick={() => setDraft(withTrack(draft, index, null))}>
                     Ta bort
                   </button>
                 </td>
@@ -146,11 +262,7 @@ export function Studio({ studio, onSave, onVersion }: { studio: StudioData; onSa
         </p>
       ) : null}
       <div className="fot rad">
-        <span className="liten">
-          {latest ? `Version ${latest.number} · ${new Date(latest.saved).toLocaleString("sv-SE")}` : "Ingen version än"}
-          {studio.changed || dirty ? " · listan har ändrats sedan dess" : ""}
-          {studio.station_model ? " · stationsmodellen följer med versionen" : ""}
-        </span>
+        <Versions studio={studio} dirty={dirty} />
         <span className="tm-fyll" />
         <button type="button" disabled={!dirty || wrong.length > 0} onClick={() => void save()}>
           Spara på datorn
