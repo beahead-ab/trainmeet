@@ -25,9 +25,11 @@ from hub import (
     drift_api,
     hubben,
     id_login,
+    id_roles,
     network_api,
     planering_api,
     provbanan,
+    rights,
     screen_web,
     station_api,
     synk_api,
@@ -215,10 +217,19 @@ def create_app(
 
     # Logga in med TrainMeet ID (#78), when the hub is set up for it (hub/id_login.py).
     id_settings = id_settings if id_settings is not None else id_login.settings_from()
-    with_id = (
-        id_login.IdLogin(login, id_settings, http=id_http) if id_settings is not None else None
-    )
-    app.include_router(hubben.router(login, current_run, with_id))
+    with_id = roles_from_id = None
+    if id_settings is not None:
+        id_client = id_http if id_http is not None else httpx.Client(timeout=10.0)
+        with_id = id_login.IdLogin(login, id_settings, http=id_client)
+        # The roles at a meet, asked of ID's API at every call (ID10, KONTO-34).
+        if id_settings.api is not None:
+            roles_from_id = id_roles.IdRoles(id_settings, id_client)
+    may = rights.Rights(login, roles_from_id)
+
+    def may_run(token: str | None, run: str | None) -> bool:
+        return may.may_run(token, run, running.store.package.meet.id_meet)
+
+    app.include_router(hubben.router(login, current_run, with_id, may_run))
 
     def meet_link() -> str | None:
         """The meet over the internet: the cloud hub this hub is linked to for the meet."""
@@ -233,9 +244,11 @@ def create_app(
     app.state.latest = latest = update_api.Latest()
     app.include_router(update_api.router(login, running, current, latest=latest))
     app.include_router(provbanan.router(preview))
-    app.include_router(drift_api.router(running, login))
+    app.include_router(drift_api.router(running, login, may))
     app.include_router(
-        planering_api.router(plans, versions, links, homes, me, login, published=follower.nudge)
+        planering_api.router(
+            plans, versions, links, homes, me, login, published=follower.nudge, rights=may
+        )
     )
     app.include_router(
         synk_api.router(

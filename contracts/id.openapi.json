@@ -1686,6 +1686,61 @@
         ]
       }
     },
+    "/api/id/1/apps/meets": {
+      "get": {
+        "operationId": "appMeets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.meet"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
     "/api/id/1/apps/fleets": {
       "get": {
         "operationId": "appFleets",
@@ -2158,6 +2213,12 @@
             },
             "title": "Roles",
             "type": "array"
+          },
+          "club_admin": {
+            "default": false,
+            "description": "The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+            "title": "Club Admin",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3638,6 +3699,12 @@
             },
             "title": "Roles",
             "type": "array"
+          },
+          "club_admin": {
+            "default": false,
+            "description": "The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+            "title": "Club Admin",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4349,6 +4416,12 @@
             },
             "title": "Roles",
             "type": "array"
+          },
+          "club_admin": {
+            "default": false,
+            "description": "The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+            "title": "Club Admin",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4501,6 +4574,12 @@
             },
             "title": "Roles",
             "type": "array"
+          },
+          "club_admin": {
+            "default": false,
+            "description": "The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+            "title": "Club Admin",
+            "type": "boolean"
           }
         },
         "required": [

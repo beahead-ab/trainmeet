@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Final, Literal
+from uuid import UUID
 
 from pydantic import Discriminator, Field, Tag
 
@@ -184,12 +185,28 @@ class ImportResult(Contract):
 
 
 class NewMeet(Contract):
-    """Ny träff: a name, the dates and the country."""
+    """Ny träff: a name, the dates and the country. Someone logged in with TrainMeet ID makes it
+    from a meet in ID, where they are the club's admin or the organizer (ID10, #78)."""
 
     name: Text
     first_date: date | None = None
     last_date: date | None = None
     country: Literal["se", "dk", "no", "de"] = "se"
+    id_meet: UUID | None = Field(
+        default=None, description="Träffen i TrainMeet ID som träffen hör till (ID10)."
+    )
+
+
+class IdMeetChoice(Contract):
+    """A meet in TrainMeet ID that the one logged in with ID may plan (ID10, PLAN-19): the
+    club's admin or the organizer. hub_meet is the hub's meet already made from it, if any."""
+
+    id: UUID
+    name: Text
+    club_name: Text
+    starts_on: date
+    ends_on: date
+    hub_meet: Id | None = None
 
 
 class Version(Contract):
@@ -220,6 +237,11 @@ class MeetSummary(Contract):
     home: Text | None = Field(
         default=None,
         description="Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
+    )
+    may_plan: bool = Field(
+        default=False,
+        description="Får den som frågar planera träffen och publicera den? Hubbens PIN, eller "
+        "Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
     )
 
 

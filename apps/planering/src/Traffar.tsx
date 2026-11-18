@@ -1,18 +1,22 @@
 import { useState, type FormEvent } from "react";
-import type { MeetSummary, NewMeet } from "./api";
+import type { IdMeetChoice, MeetSummary, NewMeet } from "./api";
 import { COUNTRIES, dates, levelText, number, when } from "./text";
 
 // Träffar (S6): the meets planned here and run in Drift, Provbanan last; and Ny träff for the
 // administrator. Everyone sees the list (S1).
 
 export type TraffarProps = {
+  /** The one with the hub's PIN: Ny träff with a name and dates. */
   admin: boolean;
+  /** Logged in with TrainMeet ID: Ny träff from a meet in ID (ID10, #78). */
+  person?: boolean;
+  idMeets?: IdMeetChoice[] | null;
   meets: MeetSummary[] | null;
   navigate: (href: string) => void;
   onCreate?: (fresh: NewMeet) => void;
 };
 
-export function TraffarPage({ admin, meets, onCreate }: TraffarProps) {
+export function TraffarPage({ admin, person = false, idMeets = null, meets, onCreate }: TraffarProps) {
   return (
     <>
       <div className="sidrubrik">
@@ -88,8 +92,45 @@ export function TraffarPage({ admin, meets, onCreate }: TraffarProps) {
           </tbody>
         </table>
       </section>
-      {admin ? <NewMeetCard onCreate={onCreate} /> : <p className="liten">Logga in för att skapa en träff.</p>}
+      {admin ? <NewMeetCard onCreate={onCreate} /> : person ? <FromIdCard choices={idMeets} onCreate={onCreate} /> : <p className="liten">Logga in för att skapa en träff.</p>}
     </>
+  );
+}
+
+/** Ny träff for someone logged in with TrainMeet ID (ID10, PLAN-19): the hub's meet is made
+ * from a meet in ID where they are the club's admin or the organizer, and linked to it. The roles
+ * there decide who plans it and who runs it. */
+export function FromIdCard({ choices, onCreate }: { choices: IdMeetChoice[] | null; onCreate?: (fresh: NewMeet) => void }) {
+  return (
+    <section className="kort" id="ny" aria-labelledby="ny-rubrik">
+      <h2 id="ny-rubrik">Ny träff ur TrainMeet ID</h2>
+      <p className="liten">Träffarna i TrainMeet ID där du är arrangör eller klubbens administratör. Rollerna där bestämmer vem som planerar träffen och vem som kör den.</p>
+      <ul id="id-meets" className="lista">
+        {choices === null ? (
+          <li className="tom">Hämtar träffarna i ID …</li>
+        ) : choices.length === 0 ? (
+          <li className="tom">Du är inte arrangör för någon träff i TrainMeet ID. Arrangören eller klubbens administratör delar ut rollen där.</li>
+        ) : (
+          choices.map((choice) => (
+            <li key={choice.id}>
+              <div className="vem">
+                <b>{choice.name}</b>
+                <span className="liten">{`${choice.club_name} · ${choice.starts_on} – ${choice.ends_on}`}</span>
+              </div>
+              <div className="kontroller">
+                {choice.hub_meet ? (
+                  <a href={`/planering/${encodeURIComponent(choice.hub_meet)}`}>Öppna</a>
+                ) : (
+                  <button type="button" className="primar" onClick={() => onCreate?.({ name: choice.name, country: "se", first_date: choice.starts_on, last_date: choice.ends_on, id_meet: choice.id })}>
+                    Skapa träffen i hubben
+                  </button>
+                )}
+              </div>
+            </li>
+          ))
+        )}
+      </ul>
+    </section>
   );
 }
 
@@ -100,7 +141,7 @@ function NewMeetCard({ onCreate }: { onCreate?: (fresh: NewMeet) => void }) {
   const [country, setCountry] = useState<NewMeet["country"]>("se");
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onCreate?.({ name, country, first_date: first || null, last_date: last || null });
+    onCreate?.({ name, country, first_date: first || null, last_date: last || null, id_meet: null });
   };
   return (
     <section className="kort" id="ny" aria-labelledby="ny-rubrik">

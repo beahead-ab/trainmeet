@@ -1825,6 +1825,12 @@ export interface components {
             /** @default requested */
             clearance_mode: components["schemas"]["trainmeet.meet-1.ClearanceMode"];
             /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.
+             * @default null
+             */
+            id_meet: string | null;
+            /**
              * Settings
              * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
              */
@@ -8181,6 +8187,12 @@ export interface components {
              */
             meet_role: components["schemas"]["trainmeet.hub-1.info.MeetRole"] | null;
             /**
+             * May Run
+             * @description Får köra träffen som kör i Drift: hubbens PIN, insläppt som trafikledare (H56), eller Administratör eller Trafikledare på träffen i TrainMeet ID (#78).
+             * @default false
+             */
+            may_run: boolean;
+            /**
              * Person
              * @description Inloggad med TrainMeet ID (#78): namnet för sidhuvudet (S1), aldrig adressen.
              * @default null
@@ -9366,6 +9378,12 @@ export interface components {
             traffic_week?: components["schemas"]["trainmeet.planning-1.import.TrafficWeek"];
             /** @default requested */
             clearance_mode: components["schemas"]["trainmeet.planning-1.import.ClearanceMode"];
+            /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.
+             * @default null
+             */
+            id_meet: string | null;
             /**
              * Settings
              * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
@@ -10620,6 +10638,12 @@ export interface components {
             /** @default requested */
             clearance_mode: components["schemas"]["trainmeet.planning-1.draft.ClearanceMode"];
             /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.
+             * @default null
+             */
+            id_meet: string | null;
+            /**
              * Settings
              * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
              */
@@ -11246,7 +11270,8 @@ export interface components {
         "trainmeet.planning-1.draft.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
          * NewMeet
-         * @description Ny träff: a name, the dates and the country.
+         * @description Ny träff: a name, the dates and the country. Someone logged in with TrainMeet ID makes it
+         *     from a meet in ID, where they are the club's admin or the organizer (ID10, #78).
          */
         "trainmeet.planning-1.new-meet": {
             /** Name */
@@ -11267,6 +11292,45 @@ export interface components {
              * @enum {string}
              */
             country: "se" | "dk" | "no" | "de";
+            /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10).
+             * @default null
+             */
+            id_meet: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * IdMeetChoice
+         * @description A meet in TrainMeet ID that the one logged in with ID may plan (ID10, PLAN-19): the
+         *     club's admin or the organizer. hub_meet is the hub's meet already made from it, if any.
+         */
+        "trainmeet.planning-1.id-meet-choice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Club Name */
+            club_name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /**
+             * Hub Meet
+             * @default null
+             */
+            hub_meet: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -11309,6 +11373,12 @@ export interface components {
              * @default null
              */
             home: string | null;
+            /**
+             * May Plan
+             * @description Får den som frågar planera träffen och publicera den? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).
+             * @default false
+             */
+            may_plan: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -11349,6 +11419,12 @@ export interface components {
             traffic_week?: components["schemas"]["trainmeet.planning-1.meet-summary.TrafficWeek"];
             /** @default requested */
             clearance_mode: components["schemas"]["trainmeet.planning-1.meet-summary.ClearanceMode"];
+            /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.
+             * @default null
+             */
+            id_meet: string | null;
             /**
              * Settings
              * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.
@@ -13773,6 +13849,12 @@ export interface components {
             traffic_week?: components["schemas"]["trainmeet.sync-1.home-bundle.TrafficWeek"];
             /** @default requested */
             clearance_mode: components["schemas"]["trainmeet.sync-1.home-bundle.ClearanceMode"];
+            /**
+             * Id Meet
+             * @description Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.
+             * @default null
+             */
+            id_meet: string | null;
             /**
              * Settings
              * @description Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.

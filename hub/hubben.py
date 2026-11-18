@@ -68,19 +68,33 @@ def _set_cookie(
 
 
 def info_of(
-    login: LocalLogin, token: str | None, run: str | None, *, id_login_on: bool = False
+    login: LocalLogin,
+    token: str | None,
+    run: str | None,
+    *,
+    id_login_on: bool = False,
+    may_run: Callable[[str | None, str | None], bool] | None = None,
 ) -> hub.HubInfo:
     """Who the session is here: the administrator with the PIN, someone let in with a code in
-    the meet that runs (H56), someone logged in with TrainMeet ID (#78), or no one."""
+    the meet that runs (H56), someone logged in with TrainMeet ID (#78), or no one. may_run
+    asks whether the session may run the meet that runs; without it only the PIN and a let-in
+    dispatcher do."""
     state = login.state()
     role = login.role(token, run)
     person = login.person(token) if role == PERSON else None
+    runs = role in (ADMIN, DISPATCHER)
+    if role == PERSON and may_run is not None and run is not None:
+        try:
+            runs = may_run(token, run)
+        except HTTPException:
+            runs = False  # ID does not answer: no buttons, and the page says nothing worse
     return hub.HubInfo(
         name=state.name,
         set_up=state.set_up,
         logged_in=role is not None,
         admin=role == ADMIN,
-        meet_role=MeetRole(role) if role in (DISPATCHER,) else None,
+        meet_role=MeetRole(role) if role == DISPATCHER else None,
+        may_run=runs,
         person=person.name if person is not None else None,
         id_login=id_login_on,
     )
@@ -90,19 +104,22 @@ def router(
     login: LocalLogin,
     current_run: Callable[[], str | None] = lambda: None,
     with_id: id_login.IdLogin | None = None,
+    may_run: Callable[[str | None, str | None], bool] | None = None,
 ) -> APIRouter:
     """current_run: the meet that runs, or None; a let-in role holds only there (H56).
-    with_id: the login with TrainMeet ID, if the hub is set up for it (#78)."""
+    with_id: the login with TrainMeet ID, if the hub is set up for it (#78). may_run: whether
+    a session may run the meet that runs, with the roles from ID."""
     routes = APIRouter(prefix="/api/hub")
+
+    def info_now(token: str | None) -> hub.HubInfo:
+        return info_of(login, token, current_run(), id_login_on=bool(with_id), may_run=may_run)
 
     @routes.get("")
     def info(
         response: Response, session: SessionCookie = None, authorization: Authorization = None
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        return info_of(
-            login, session_of(session, authorization), current_run(), id_login_on=bool(with_id)
-        ).model_dump(mode="json")
+        return info_now(session_of(session, authorization)).model_dump(mode="json")
 
     @routes.post("/setup", status_code=201)
     def set_up(setup: hub.SetUp, request: Request, response: Response) -> dict[str, Any]:
@@ -166,9 +183,7 @@ def router(
             login.rename(change.name)
         except InvalidSetup as error:
             raise HTTPException(422, str(error)) from error
-        return info_of(
-            login, session_of(session, authorization), current_run(), id_login_on=bool(with_id)
-        ).model_dump(mode="json")
+        return info_now(session_of(session, authorization)).model_dump(mode="json")
 
     @routes.post("/pin", status_code=204)
     def change_pin(
@@ -306,14 +321,3 @@ def require_admin(login: LocalLogin, cookie: str | None, authorization: str | No
     logging in one looks). Only the one with the hub's PIN (H18)."""
     if not login.valid(session_of(cookie, authorization)):
         raise HTTPException(401, "Logga in med hubbens PIN-kod.")
-
-
-def require_dispatcher(
-    login: LocalLogin, cookie: str | None, authorization: str | None, run: str
-) -> None:
-    """Drift in the meet that runs: the administrator, or someone the dispatcher let in with a
-    one-time code (H56). The code gives at most the dispatcher's own role."""
-    if login.role(session_of(cookie, authorization), run) not in (ADMIN, DISPATCHER):
-        raise HTTPException(
-            401, "Logga in med hubbens PIN-kod, eller med en engångskod från trafikledningen."
-        )

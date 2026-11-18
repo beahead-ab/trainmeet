@@ -388,6 +388,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/apps/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appMeets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/apps/fleets": {
         parameters: {
             query?: never;
@@ -648,6 +664,12 @@ export interface components {
              * @description The person's own roles at the meet.
              */
             roles: components["schemas"]["trainmeet.id-1.club-page.MeetRole"][];
+            /**
+             * Club Admin
+             * @description The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).
+             * @default false
+             */
+            club_admin: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1462,6 +1484,12 @@ export interface components {
              * @description The person's own roles at the meet.
              */
             roles: components["schemas"]["trainmeet.id-1.account-export.MeetRole"][];
+            /**
+             * Club Admin
+             * @description The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).
+             * @default false
+             */
+            club_admin: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1903,6 +1931,12 @@ export interface components {
              * @description The person's own roles at the meet.
              */
             roles: components["schemas"]["trainmeet.id-1.meet.MeetRole"][];
+            /**
+             * Club Admin
+             * @description The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).
+             * @default false
+             */
+            club_admin: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1996,6 +2030,12 @@ export interface components {
              * @description The person's own roles at the meet.
              */
             roles: components["schemas"]["trainmeet.id-1.meet-page.MeetRole"][];
+            /**
+             * Club Admin
+             * @description The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).
+             * @default false
+             */
+            club_admin: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3506,6 +3546,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.id-1.switcher"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appMeets: {
+        parameters: {
+            query: {
+                person: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meet"][];
                 };
             };
             /** @description ID säger nej */

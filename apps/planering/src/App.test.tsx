@@ -156,3 +156,22 @@ describe("the addresses", () => {
     expect(isOwn("/provbanan")).toBe(false);
   });
 });
+
+describe("Ny träff ur TrainMeet ID (ID10, #78)", () => {
+  const choice = { id: "cccccccc-6666-4777-8888-999900001111", name: "Höstträffen", club_name: "Västby MJK", starts_on: "2026-11-20", ends_on: "2026-11-22", hub_meet: null };
+
+  it("lets someone logged in with ID make the hub's meet from a meet they plan in ID", () => {
+    const html = renderToStaticMarkup(<TraffarPage admin={false} person idMeets={[choice, { ...choice, id: "x", name: "Vårträffen", hub_meet: "vartraffen" }]} meets={[]} navigate={go} />);
+    expect(html).toContain("Ny träff ur TrainMeet ID");
+    expect(html).toContain("<b>Höstträffen</b>");
+    expect(html).toContain("Västby MJK · 2026-11-20 – 2026-11-22");
+    expect(html).toContain(">Skapa träffen i hubben<");
+    expect(html).toContain('href="/planering/vartraffen">Öppna<');
+    expect(html).not.toContain('id="new-meet"');
+  });
+
+  it("says where the role is given when they plan nothing", () => {
+    const html = renderToStaticMarkup(<TraffarPage admin={false} person idMeets={[]} meets={[]} navigate={go} />);
+    expect(html).toContain("Du är inte arrangör för någon träff i TrainMeet ID.");
+  });
+});

@@ -31,6 +31,11 @@ class HubInfo(Contract):
         default=None,
         description="Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där.",
     )
+    may_run: bool = Field(
+        default=False,
+        description="Får köra träffen som kör i Drift: hubbens PIN, insläppt som trafikledare "
+        "(H56), eller Administratör eller Trafikledare på träffen i TrainMeet ID (#78).",
+    )
     person: Text | None = Field(
         default=None,
         description="Inloggad med TrainMeet ID (#78): namnet för sidhuvudet (S1), aldrig adressen.",

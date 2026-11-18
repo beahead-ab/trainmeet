@@ -77,6 +77,20 @@
           "$ref": "#/$defs/ClearanceMode",
           "default": "requested"
         },
+        "id_meet": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+          "title": "Id Meet"
+        },
         "settings": {
           "additionalProperties": true,
           "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
@@ -252,6 +266,12 @@
       "default": null,
       "description": "Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
       "title": "Home"
+    },
+    "may_plan": {
+      "default": false,
+      "description": "Får den som frågar planera träffen och publicera den? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
+      "title": "May Plan",
+      "type": "boolean"
     }
   },
   "required": [

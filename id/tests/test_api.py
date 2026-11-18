@@ -600,6 +600,12 @@ def test_the_organizer_hands_out_dispatcher_and_loco_lead_and_the_admin_every_ro
 
     resource = f"meet:{meet}"
     assert apps(world, "access", person=jon.id, resource=resource).json()["roles"] == ["loco_lead"]
+    # The Hub asks for the person's meets, to link its own meet to one (ID10, #78).
+    seen = {m["id"]: m for m in apps(world, "meets", person=jon.id).json()}
+    assert (seen[meet]["roles"], seen[meet]["club_admin"]) == (["loco_lead"], False)
+    seen = {m["id"]: m for m in apps(world, "meets", person=kim.id).json()}
+    assert (seen[meet]["roles"], seen[meet]["club_admin"]) == (["organizer"], True)
+    assert apps(world, "meets", token="inte-en-token", person=kim.id).status_code == 401
     assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == [
         "admin",
         "organizer",

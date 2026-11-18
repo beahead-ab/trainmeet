@@ -3703,6 +3703,20 @@
             "$ref": "#/components/schemas/trainmeet.meet-1.ClearanceMode",
             "default": "requested"
           },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+            "title": "Id Meet"
+          },
           "settings": {
             "additionalProperties": true,
             "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
@@ -17083,6 +17097,12 @@
             "default": null,
             "description": "Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där."
           },
+          "may_run": {
+            "default": false,
+            "description": "Får köra träffen som kör i Drift: hubbens PIN, insläppt som trafikledare (H56), eller Administratör eller Trafikledare på träffen i TrainMeet ID (#78).",
+            "title": "May Run",
+            "type": "boolean"
+          },
           "person": {
             "anyOf": [
               {
@@ -19310,6 +19330,20 @@
           "clearance_mode": {
             "$ref": "#/components/schemas/trainmeet.planning-1.import.ClearanceMode",
             "default": "requested"
+          },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+            "title": "Id Meet"
           },
           "settings": {
             "additionalProperties": true,
@@ -21792,6 +21826,20 @@
             "$ref": "#/components/schemas/trainmeet.planning-1.draft.ClearanceMode",
             "default": "requested"
           },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+            "title": "Id Meet"
+          },
           "settings": {
             "additionalProperties": true,
             "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
@@ -23091,7 +23139,7 @@
       },
       "trainmeet.planning-1.new-meet": {
         "additionalProperties": true,
-        "description": "Ny träff: a name, the dates and the country.",
+        "description": "Ny träff: a name, the dates and the country. Someone logged in with TrainMeet ID makes it\nfrom a meet in ID, where they are the club's admin or the organizer (ID10, #78).",
         "properties": {
           "name": {
             "maxLength": 500,
@@ -23135,12 +23183,81 @@
             ],
             "title": "Country",
             "type": "string"
+          },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10).",
+            "title": "Id Meet"
           }
         },
         "required": [
           "name"
         ],
         "title": "NewMeet",
+        "type": "object"
+      },
+      "trainmeet.planning-1.id-meet-choice": {
+        "additionalProperties": true,
+        "description": "A meet in TrainMeet ID that the one logged in with ID may plan (ID10, PLAN-19): the\nclub's admin or the organizer. hub_meet is the hub's meet already made from it, if any.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "club_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Club Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "hub_meet": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hub Meet"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "club_name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "IdMeetChoice",
         "type": "object"
       },
       "trainmeet.planning-1.meet-summary": {
@@ -23205,6 +23322,12 @@
             "default": null,
             "description": "Molnhubben träffen följs från (SYNK-02): utkastet finns där, versionerna här.",
             "title": "Home"
+          },
+          "may_plan": {
+            "default": false,
+            "description": "Får den som frågar planera träffen och publicera den? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
+            "title": "May Plan",
+            "type": "boolean"
           }
         },
         "required": [
@@ -23286,6 +23409,20 @@
           "clearance_mode": {
             "$ref": "#/components/schemas/trainmeet.planning-1.meet-summary.ClearanceMode",
             "default": "requested"
+          },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+            "title": "Id Meet"
           },
           "settings": {
             "additionalProperties": true,
@@ -27942,6 +28079,20 @@
           "clearance_mode": {
             "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.ClearanceMode",
             "default": "requested"
+          },
+          "id_meet": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+            "title": "Id Meet"
           },
           "settings": {
             "additionalProperties": true,

@@ -390,6 +390,12 @@
           },
           "title": "Roles",
           "type": "array"
+        },
+        "club_admin": {
+          "default": false,
+          "description": "The person is the club's admin, with the admin's say at its meets (KONTO-36). The Hub plans the meet then, as it does for the organizer (#78).",
+          "title": "Club Admin",
+          "type": "boolean"
         }
       },
       "required": [

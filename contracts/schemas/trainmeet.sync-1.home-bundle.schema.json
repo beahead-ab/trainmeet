@@ -1592,6 +1592,20 @@
           "$ref": "#/$defs/ClearanceMode",
           "default": "requested"
         },
+        "id_meet": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Träffen i TrainMeet ID som träffen hör till (ID10, #78). Rollerna på träffen, Arrangör och Trafikledare, kommer därifrån.",
+          "title": "Id Meet"
+        },
         "settings": {
           "additionalProperties": true,
           "description": "Inställningarna i paketet (en av tre högar, T3). Fylls på när de byggs.",
