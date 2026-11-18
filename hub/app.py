@@ -10,6 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from threading import Event, Thread
 from typing import Any, Final
+from uuid import UUID
 
 import httpx
 from fastapi import FastAPI, Request, Response
@@ -27,6 +28,7 @@ from hub import (
     id_login,
     id_roles,
     network_api,
+    pi_login,
     planering_api,
     provbanan,
     rights,
@@ -43,7 +45,7 @@ from hub.pin import take_pin_file
 from hub.push import Pusher, Senders
 from hub.running import Running
 from hub.stores import AnyRun
-from planering.store import Planning
+from planering.store import Planning, PlanningError
 from synk.follower import Call, Follower, urllib_call
 from synk.home import Homes
 from synk.link import Links
@@ -229,7 +231,33 @@ def create_app(
     def may_run(token: str | None, run: str | None) -> bool:
         return may.may_run(token, run, running.store.package.meet.id_meet)
 
-    app.include_router(hubben.router(login, current_run, with_id, may_run))
+    # Biljetten för Pi:n (KONTO-11, KONTO-37, hub/pi_login.py): in the cloud, attempts from the
+    # Pis that follow it; on a meet's Pi, the login through the cloud and again without internet.
+    pi_finish = None
+    if with_id is not None and roles_from_id is not None:
+
+        def id_meet_of(meet: str) -> UUID | None:
+            try:
+                return plans.draft(meet).meet.id_meet
+            except PlanningError:
+                return None
+
+        pi_tickets = pi_login.PiTickets(login, roles_from_id, id_meet_of)
+        pi_finish = pi_tickets.finish
+        app.include_router(pi_login.cloud_router(login, links, with_id, pi_tickets))
+    if with_id is None:
+        app.include_router(pi_login.pi_router(login, links, lambda: running.meet, sync_call))
+    app.include_router(
+        hubben.router(
+            login,
+            current_run,
+            with_id,
+            may_run,
+            pi_offers=lambda: with_id is None and bool(links.reaches()),
+            pi_finish=pi_finish,
+            ticket_name=pi_login.ticket_name(login, links),
+        )
+    )
 
     def meet_link() -> str | None:
         """The meet over the internet: the cloud hub this hub is linked to for the meet."""

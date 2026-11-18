@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.ticket-keys.schema.json",
+  "title": "trainmeet.id-1.ticket-keys",
+  "additionalProperties": true,
+  "description": "ID's public keys for the tickets, open to anyone, as a JWK set (KONTO-11). The Pi gets\nthem through its cloud hub while it has internet.",
+  "properties": {
+    "keys": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Keys",
+      "type": "array"
+    }
+  },
+  "required": [
+    "keys"
+  ],
+  "type": "object"
+}

@@ -27,6 +27,7 @@ from hub.local import (
     InvalidSetup,
     LocalLogin,
     NotSetUp,
+    Person,
     TooManyAttempts,
     WrongPin,
 )
@@ -37,6 +38,9 @@ LOGGER = logging.getLogger("hub.id")
 COOKIE = "trainmeet_session"
 SessionCookie = Annotated[str | None, Cookie(alias=COOKIE, max_length=120)]
 IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE, max_length=200)]
+TICKET_COOKIE = "trainmeet_ticket"
+"""On the meet's Pi: the ticket from ID, for logging in again without internet (KONTO-11)."""
+TicketCookie = Annotated[str | None, Cookie(alias=TICKET_COOKIE, max_length=4000)]
 Authorization = Annotated[str | None, Header(max_length=200)]
 
 
@@ -74,6 +78,7 @@ def info_of(
     *,
     id_login_on: bool = False,
     may_run: Callable[[str | None, str | None], bool] | None = None,
+    ticket_name: str | None = None,
 ) -> hub.HubInfo:
     """Who the session is here: the administrator with the PIN, someone let in with a code in
     the meet that runs (H56), someone logged in with TrainMeet ID (#78), or no one. may_run
@@ -97,6 +102,7 @@ def info_of(
         may_run=runs,
         person=person.name if person is not None else None,
         id_login=id_login_on,
+        ticket_name=ticket_name if role is None else None,
     )
 
 
@@ -105,21 +111,37 @@ def router(
     current_run: Callable[[], str | None] = lambda: None,
     with_id: id_login.IdLogin | None = None,
     may_run: Callable[[str | None, str | None], bool] | None = None,
+    *,
+    pi_offers: Callable[[], bool] = lambda: False,
+    pi_finish: Callable[[str, Person], str] | None = None,
+    ticket_name: Callable[[str | None], str | None] = lambda ticket: None,
 ) -> APIRouter:
     """current_run: the meet that runs, or None; a let-in role holds only there (H56).
     with_id: the login with TrainMeet ID, if the hub is set up for it (#78). may_run: whether
-    a session may run the meet that runs, with the roles from ID."""
+    a session may run the meet that runs, with the roles from ID. On a meet's Pi, pi_offers
+    says that it logs in through its cloud hub and ticket_name whose ticket the browser has; in
+    the cloud, pi_finish gives a Pi its ticket (hub/pi_login.py)."""
     routes = APIRouter(prefix="/api/hub")
 
-    def info_now(token: str | None) -> hub.HubInfo:
-        return info_of(login, token, current_run(), id_login_on=bool(with_id), may_run=may_run)
+    def info_now(token: str | None, ticket: str | None = None) -> hub.HubInfo:
+        return info_of(
+            login,
+            token,
+            current_run(),
+            id_login_on=bool(with_id) or pi_offers(),
+            may_run=may_run,
+            ticket_name=ticket_name(ticket),
+        )
 
     @routes.get("")
     def info(
-        response: Response, session: SessionCookie = None, authorization: Authorization = None
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+        ticket: TicketCookie = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        return info_now(session_of(session, authorization)).model_dump(mode="json")
+        return info_now(session_of(session, authorization), ticket).model_dump(mode="json")
 
     @routes.post("/setup", status_code=201)
     def set_up(setup: hub.SetUp, request: Request, response: Response) -> dict[str, Any]:
@@ -252,17 +274,23 @@ def router(
         response.headers["Cache-Control"] = "no-store"
         id_token = login.log_out(session_of(session, authorization))
         response.delete_cookie(COOKIE, path="/")
+        response.delete_cookie(TICKET_COOKIE, path="/api/hub")  # on the Pi: this browser forgets
         address = with_id.logout_address(id_token) if with_id and id_token else None
         return hub.LoggedOut(logout_url=address).model_dump(mode="json")
 
     # --- TrainMeet ID (#78, KONTO-27) -------------------------------------------------------
 
     @routes.get("/id/login", response_class=RedirectResponse, status_code=303)
-    def id_log_in(request: Request, next: str | None = None, lang: str | None = None) -> Response:
-        """To ID's login page, and back to the page asked for."""
+    def id_log_in(
+        request: Request, next: str | None = None, lang: str | None = None, pi: str | None = None
+    ) -> Response:
+        """To ID's login page, and back to the page asked for. pi: a meet's Pi sent the browser
+        here, and gets a ticket instead (hub/pi_login.py)."""
         if with_id is None:
             raise HTTPException(404, "Hubben har ingen inloggning med TrainMeet ID.")
-        started = with_id.start(id_login.safe_next(next), lang)
+        if pi is not None and (pi_finish is None or login.pi_attempt(pi) is None):
+            raise HTTPException(410, "Inloggningen för Pi:n har gått ut. Börja om på Pi:n.")
+        started = with_id.start(id_login.safe_next(next), lang, pi)
         response = RedirectResponse(started.address, status_code=303)
         response.set_cookie(
             id_login.COOKIE,
@@ -292,6 +320,11 @@ def router(
             LOGGER.warning("Inloggningen med ID gick inte: %s", failed)
             response = RedirectResponse(failed.back, status_code=303)
         else:
+            if done.pi_attempt is not None and pi_finish is not None:
+                # For a meet's Pi: no session here, the ticket waits for the Pi (KONTO-11).
+                response = RedirectResponse(pi_finish(done.pi_attempt, done.person), 303)
+                response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
+                return response
             response = RedirectResponse(done.next_path, status_code=303)
             _set_cookie(request, response, login.log_in_with_id(done.person, done.id_token))
         response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)

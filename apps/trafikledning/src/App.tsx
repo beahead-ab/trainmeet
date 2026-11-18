@@ -267,6 +267,8 @@ export function App() {
             onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))}
             onLogInWithCode={(code) => void act(() => hub.logInWithCode(code)).then((done) => (done ? readInfo() : undefined))}
             idLogin={info?.id_login ?? false}
+            ticketName={info?.ticket_name ?? null}
+            onLogInAgain={() => void act(() => hub.logInAgain()).then((done) => (done ? readInfo() : undefined))}
           />
         )}
         {page === "start" && !(info?.set_up && !info.logged_in) && (
@@ -278,6 +280,7 @@ export function App() {
             onSetUp={(name, pin) => void act(() => hub.setUp(name, pin)).then((done) => (done ? readInfo() : undefined))}
             onLogIn={(pin) => void act(() => hub.logIn(pin)).then((done) => (done ? readInfo() : undefined))}
             onLogInWithCode={(code) => void act(() => hub.logInWithCode(code)).then((done) => (done ? readInfo() : undefined))}
+            onLogInAgain={() => void act(() => hub.logInAgain()).then((done) => (done ? readInfo() : undefined))}
             onLogOut={() => void onLogOut()}
             onMessage={say}
           />

@@ -2038,6 +2038,105 @@
         ]
       }
     },
+    "/api/sync/1/meets/{meet}/id-login": {
+      "post": {
+        "operationId": "piLoginStart",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.pi-login-started"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.sync-1.pi-login-start"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/sync/1/meets/{meet}/id-login/{attempt}": {
+      "get": {
+        "operationId": "piTicket",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.pi-ticket"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "meet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attempt",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/hub/id/again": {
+      "post": {
+        "operationId": "hubLogInAgain",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.session"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sync/1/stations/{station}/versions": {
       "post": {
         "operationId": "saveStation",
@@ -17123,6 +17222,21 @@
             "description": "Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?",
             "title": "Id Login",
             "type": "boolean"
+          },
+          "ticket_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "På träffens Pi: vems biljett från ID webbläsaren har, för Logga in igen utan internet (KONTO-11, KONTO-37).",
+            "title": "Ticket Name"
           }
         },
         "required": [
@@ -33018,6 +33132,72 @@
           "name"
         ],
         "title": "StationVersionInfo",
+        "type": "object"
+      },
+      "trainmeet.sync-1.pi-login-start": {
+        "additionalProperties": true,
+        "description": "Logga in med TrainMeet ID på träffens Pi (KONTO-11, #78): the Pi asks its cloud hub,\nwith its key, to log someone in, and says where the browser comes back.",
+        "properties": {
+          "back": {
+            "description": "Pi:ns /api/hub/id/back, som webbläsaren ser den.",
+            "maxLength": 300,
+            "title": "Back",
+            "type": "string"
+          }
+        },
+        "required": [
+          "back"
+        ],
+        "title": "PiLoginStart",
+        "type": "object"
+      },
+      "trainmeet.sync-1.pi-login-started": {
+        "additionalProperties": true,
+        "properties": {
+          "attempt": {
+            "description": "Försöket, som Pi:n hämtar biljetten med.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Attempt",
+            "type": "string"
+          },
+          "address": {
+            "description": "Molnhubbens inloggning med ID, för webbläsaren.",
+            "title": "Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt",
+          "address"
+        ],
+        "title": "PiLoginStarted",
+        "type": "object"
+      },
+      "trainmeet.sync-1.pi-ticket": {
+        "additionalProperties": true,
+        "description": "Biljetten för Pi:n, en gång, och ID:s publika nycklar att kontrollera den med\n(KONTO-11, KONTO-37). Skrivs aldrig i loggen.",
+        "properties": {
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": true,
+            "title": "Keys",
+            "type": "object"
+          }
+        },
+        "required": [
+          "ticket",
+          "issuer",
+          "keys"
+        ],
+        "title": "PiTicket",
         "type": "object"
       }
     },

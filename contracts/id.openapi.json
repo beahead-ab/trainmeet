@@ -1686,6 +1686,95 @@
         ]
       }
     },
+    "/api/id/1/keys": {
+      "get": {
+        "operationId": "ticketKeys",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.ticket-keys"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/apps/tickets": {
+      "post": {
+        "operationId": "appTicket",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.ticket"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.ticket-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
     "/api/id/1/apps/meets": {
       "get": {
         "operationId": "appMeets",
@@ -2987,6 +3076,78 @@
           "id"
         ],
         "title": "Removed",
+        "type": "object"
+      },
+      "trainmeet.id-1.ticket-request": {
+        "additionalProperties": true,
+        "description": "The Hub asks for a ticket for someone who logged in on a meet's Pi with internet\n(KONTO-11, KONTO-37, #78): for which Pi, and the meets in ID whose roles go in it.",
+        "properties": {
+          "person": {
+            "format": "uuid",
+            "title": "Person",
+            "type": "string"
+          },
+          "hub": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub",
+            "type": "string"
+          },
+          "meets": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Meets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "person",
+          "hub"
+        ],
+        "title": "TicketRequest",
+        "type": "object"
+      },
+      "trainmeet.id-1.ticket": {
+        "additionalProperties": true,
+        "description": "Biljetten: signed by ID, checked by the Pi against ID's public keys, fetched before\n(KONTO-11). It lasts 30 days and holds the roles as they were (KONTO-37).",
+        "properties": {
+          "ticket": {
+            "description": "A signed JWT (ES256). Never written to a log.",
+            "title": "Ticket",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "expires"
+        ],
+        "title": "Ticket",
+        "type": "object"
+      },
+      "trainmeet.id-1.ticket-keys": {
+        "additionalProperties": true,
+        "description": "ID's public keys for the tickets, open to anyone, as a JWK set (KONTO-11). The Pi gets\nthem through its cloud hub while it has internet.",
+        "properties": {
+          "keys": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "title": "TicketKeys",
         "type": "object"
       },
       "trainmeet.id-1.access": {

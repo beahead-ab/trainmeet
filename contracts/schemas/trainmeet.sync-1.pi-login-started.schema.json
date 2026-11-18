@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.pi-login-started.schema.json",
+  "title": "trainmeet.sync-1.pi-login-started",
+  "additionalProperties": true,
+  "properties": {
+    "attempt": {
+      "description": "Försöket, som Pi:n hämtar biljetten med.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Attempt",
+      "type": "string"
+    },
+    "address": {
+      "description": "Molnhubbens inloggning med ID, för webbläsaren.",
+      "title": "Address",
+      "type": "string"
+    }
+  },
+  "required": [
+    "attempt",
+    "address"
+  ],
+  "type": "object"
+}

@@ -17,6 +17,8 @@ export type StartProps = {
   onLogIn?: (pin: string) => void;
   /** Engångskoden från trafikledningen (H56). */
   onLogInWithCode?: (code: string) => void;
+  /** Logga in igen with the ticket from ID, without internet (KONTO-11). */
+  onLogInAgain?: () => void;
   onLogOut?: () => void;
   onMessage?: (text: string) => void;
 };
@@ -94,7 +96,7 @@ export function builtText(iso: string): string {
   return `${when.getUTCFullYear()}-${pad(when.getUTCMonth() + 1)}-${pad(when.getUTCDate())} ${pad(when.getUTCHours())}:${pad(when.getUTCMinutes())} UTC`;
 }
 
-function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, onLogOut, onMessage }: StartProps & { info: HubInfo }) {
+function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, onLogInAgain, onLogOut, onMessage }: StartProps & { info: HubInfo }) {
   const [name, setName] = useState(info.name);
   const [pin, setPin] = useState("");
   const [again, setAgain] = useState("");
@@ -162,7 +164,7 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, o
             </button>
           )}
         </form>
-        {info.id_login && <IdLogIn />}
+        {info.id_login && <IdLogIn ticketName={info.ticket_name} onAgain={onLogInAgain} />}
         <p id="hub-message" className="meddelande" role="alert">
           {message}
         </p>
@@ -200,12 +202,35 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, o
 
 /** Logga in med TrainMeet ID (#78, KONTO-27): to ID and back to the page one came from. A
  * login that did not go through comes back with ?inloggning=fel. */
-export function IdLogIn({ label = "Logga in med TrainMeet ID", failedText = "Inloggningen med TrainMeet ID gick inte. Försök igen." }: { label?: string; failedText?: string }) {
+export function IdLogIn({
+  label = "Logga in med TrainMeet ID",
+  failedText = "Inloggningen med TrainMeet ID gick inte. Försök igen.",
+  ticketName = null,
+  againLabel = (name: string) => `Logga in igen som ${name}`,
+  againNote = "Utan internet: biljetten från TrainMeet ID gäller i 30 dagar på den här Pi:n.",
+  onAgain,
+}: {
+  label?: string;
+  failedText?: string;
+  /** On the meet's Pi: whose ticket from ID this browser has (KONTO-11, KONTO-37). */
+  ticketName?: string | null;
+  againLabel?: (name: string) => string;
+  againNote?: string;
+  onAgain?: () => void;
+}) {
   const failed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("inloggning") === "fel";
   const back = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") ?? window.location.pathname : "/";
   return (
     <div className="idinloggning">
-      <a id="id-login" className="tm-knapp primar" href={idLoginAddress(back)}>
+      {ticketName && onAgain && (
+        <>
+          <button id="id-again" type="button" className="tm-knapp primar" onClick={onAgain}>
+            {againLabel(ticketName)}
+          </button>
+          <p className="liten">{againNote}</p>
+        </>
+      )}
+      <a id="id-login" className={ticketName ? "tm-knapp" : "tm-knapp primar"} href={idLoginAddress(back)}>
         {label}
       </a>
       {failed && (

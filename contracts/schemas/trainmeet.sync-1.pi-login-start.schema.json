@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.pi-login-start.schema.json",
+  "title": "trainmeet.sync-1.pi-login-start",
+  "additionalProperties": true,
+  "description": "Logga in med TrainMeet ID på träffens Pi (KONTO-11, #78): the Pi asks its cloud hub,\nwith its key, to log someone in, and says where the browser comes back.",
+  "properties": {
+    "back": {
+      "description": "Pi:ns /api/hub/id/back, som webbläsaren ser den.",
+      "maxLength": 300,
+      "title": "Back",
+      "type": "string"
+    }
+  },
+  "required": [
+    "back"
+  ],
+  "type": "object"
+}

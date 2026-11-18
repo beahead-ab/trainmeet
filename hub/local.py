@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import re
 import sqlite3
 from collections.abc import Iterator
@@ -60,6 +61,19 @@ CREATE TABLE IF NOT EXISTS one_time_code (
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS login_failure (at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS pi_login (
+    attempt_hash TEXT PRIMARY KEY,
+    meet TEXT NOT NULL,
+    pi TEXT NOT NULL,
+    back TEXT NOT NULL,
+    ticket TEXT,
+    expires REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS id_keys (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    jwks TEXT NOT NULL,
+    fetched REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS id_login (
     key_hash TEXT PRIMARY KEY,
     state TEXT NOT NULL,
@@ -134,7 +148,10 @@ _SESSION_COLUMNS: Final = (
     ("name", "TEXT"),
     ("person", "TEXT"),
     ("id_token", "TEXT"),
+    ("ticket_roles", "TEXT"),
 )
+# Columns the login with ID got after its first version (#78).
+_ID_LOGIN_COLUMNS: Final = (("pi_attempt", "TEXT"),)
 
 
 @dataclass(frozen=True)
@@ -145,6 +162,17 @@ class IdAttempt:
     nonce: str
     verifier: str
     next_path: str
+    pi_attempt: str | None = None
+    """For a meet's Pi: the Pi's attempt, which gets a ticket instead of a session here."""
+
+
+@dataclass(frozen=True)
+class PiAttempt:
+    """In the cloud: a Pi that sent someone here to log in with ID (KONTO-11)."""
+
+    meet: str
+    pi: str
+    back: str
 
 
 @dataclass(frozen=True)
@@ -204,6 +232,10 @@ class LocalLogin:
                     for column, kind in _SESSION_COLUMNS:
                         if column not in columns:
                             db.execute(f"ALTER TABLE session ADD COLUMN {column} {kind}")
+                    columns = {row[1] for row in db.execute("PRAGMA table_info(id_login)")}
+                    for column, kind in _ID_LOGIN_COLUMNS:
+                        if column not in columns:
+                            db.execute(f"ALTER TABLE id_login ADD COLUMN {column} {kind}")
                     db.commit()
                 self._ready = True
             with closing(sqlite3.connect(self.path)) as db, db:
@@ -472,14 +504,22 @@ class LocalLogin:
 
     # --- TrainMeet ID (#78, KONTO-27) -----------------------------------------------------
 
-    def begin_id_login(self, state: str, nonce: str, verifier: str, next_path: str) -> str:
+    def begin_id_login(
+        self,
+        state: str,
+        nonce: str,
+        verifier: str,
+        next_path: str,
+        pi_attempt: str | None = None,
+    ) -> str:
         """Keeps a login with ID while the browser is at ID. Returns the browser's key to it."""
         key = token_urlsafe(32)
         now = _now()
         with self._transaction() as db:
             db.execute("DELETE FROM id_login WHERE expires<=?", (now.timestamp(),))
             db.execute(
-                "INSERT INTO id_login VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO id_login (key_hash, state, nonce, verifier, next_path, expires, "
+                "pi_attempt) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     _token_hash(key),
                     state,
@@ -487,6 +527,7 @@ class LocalLogin:
                     verifier,
                     next_path,
                     (now + ID_LOGIN_LIFETIME).timestamp(),
+                    pi_attempt,
                 ),
             )
         return key
@@ -497,13 +538,97 @@ class LocalLogin:
             return None
         with self._transaction() as db:
             row = db.execute(
-                "SELECT state, nonce, verifier, next_path, expires FROM id_login WHERE key_hash=?",
+                "SELECT state, nonce, verifier, next_path, expires, pi_attempt FROM id_login "
+                "WHERE key_hash=?",
                 (_token_hash(key),),
             ).fetchone()
             db.execute("DELETE FROM id_login WHERE key_hash=?", (_token_hash(key),))
         if row is None or row[4] <= _now().timestamp():
             return None
-        return IdAttempt(str(row[0]), str(row[1]), str(row[2]), str(row[3]))
+        return IdAttempt(str(row[0]), str(row[1]), str(row[2]), str(row[3]), row[5])
+
+    # --- Biljetten för Pi:n (KONTO-11, KONTO-37) ----------------------------------------------
+
+    def begin_pi_login(self, meet: str, pi: str, back: str) -> str:
+        """In the cloud: a linked Pi sends someone here to log in with ID. Returns the attempt,
+        which the Pi fetches the ticket with once the person is back."""
+        attempt = token_urlsafe(24)
+        now = _now()
+        with self._transaction() as db:
+            db.execute("DELETE FROM pi_login WHERE expires<=?", (now.timestamp(),))
+            db.execute(
+                "INSERT INTO pi_login (attempt_hash, meet, pi, back, expires) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (_token_hash(attempt), meet, pi, back, (now + ID_LOGIN_LIFETIME).timestamp()),
+            )
+        return attempt
+
+    def pi_attempt(self, attempt: str | None) -> PiAttempt | None:
+        if not attempt or len(attempt) > 100:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT meet, pi, back FROM pi_login WHERE attempt_hash=? AND expires>?",
+                (_token_hash(attempt), _now().timestamp()),
+            ).fetchone()
+        return PiAttempt(str(row[0]), str(row[1]), str(row[2])) if row is not None else None
+
+    def keep_pi_ticket(self, attempt: str, ticket: str) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "UPDATE pi_login SET ticket=? WHERE attempt_hash=?", (ticket, _token_hash(attempt))
+            )
+
+    def take_pi_ticket(self, attempt: str, meet: str, pi: str) -> str | None:
+        """The ticket for the Pi's attempt, once; only for the Pi that started it."""
+        if not attempt or len(attempt) > 100:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT ticket FROM pi_login WHERE attempt_hash=? AND meet=? AND pi=? "
+                "AND expires>? AND ticket IS NOT NULL",
+                (_token_hash(attempt), meet, pi, _now().timestamp()),
+            ).fetchone()
+            if row is None:
+                return None
+            db.execute("DELETE FROM pi_login WHERE attempt_hash=?", (_token_hash(attempt),))
+        return str(row[0])
+
+    def log_in_with_ticket(self, person: Person, roles: dict[str, list[str]]) -> str:
+        """On the Pi: a session for someone with a ticket from ID, with its roles (KONTO-37)."""
+        with self._transaction() as db:
+            token = self._new_session(db, PERSON, name=person.name)
+            db.execute(
+                "UPDATE session SET person=?, ticket_roles=? WHERE token_hash=?",
+                (person.id, json.dumps(roles), _token_hash(token)),
+            )
+        return token
+
+    def ticket_roles(self, token: str | None) -> dict[str, set[str]] | None:
+        """The roles from the ticket the session was started with, or None for no ticket."""
+        if not token or len(token) > 120:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT ticket_roles FROM session WHERE token_hash=? AND expires>?",
+                (_token_hash(token), _now().timestamp()),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        data = json.loads(row[0])
+        return {str(meet): {str(r) for r in held} for meet, held in data.items()}
+
+    def keep_id_keys(self, jwks: str) -> None:
+        """ID's public keys, fetched while there is internet, for the tickets (KONTO-11)."""
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO id_keys VALUES (1, ?, ?)", (jwks, _now().timestamp())
+            )
+
+    def id_keys(self) -> str | None:
+        with self._transaction() as db:
+            row = db.execute("SELECT jwks FROM id_keys WHERE id=1").fetchone()
+        return str(row[0]) if row is not None else None
 
     def log_in_with_id(self, person: Person, id_token: str) -> str:
         """A session for someone ID vouched for. The hub keeps ID's token only to log out of ID

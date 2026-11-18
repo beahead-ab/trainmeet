@@ -51,7 +51,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import Field, StringConstraints, model_validator
@@ -359,6 +359,30 @@ class Answer(Contract):
 
 class Removed(Contract):
     id: UUID
+
+
+class TicketRequest(Contract):
+    """The Hub asks for a ticket for someone who logged in on a meet's Pi with internet
+    (KONTO-11, KONTO-37, #78): for which Pi, and the meets in ID whose roles go in it."""
+
+    person: UUID
+    hub: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")]
+    meets: list[UUID] = Field(default_factory=list, max_length=10)
+
+
+class Ticket(Contract):
+    """Biljetten: signed by ID, checked by the Pi against ID's public keys, fetched before
+    (KONTO-11). It lasts 30 days and holds the roles as they were (KONTO-37)."""
+
+    ticket: str = Field(description="A signed JWT (ES256). Never written to a log.")
+    expires: datetime
+
+
+class TicketKeys(Contract):
+    """ID's public keys for the tickets, open to anyone, as a JWK set (KONTO-11). The Pi gets
+    them through its cloud hub while it has internet."""
+
+    keys: list[dict[str, Any]]
 
 
 class Access(Contract):

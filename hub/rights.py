@@ -3,7 +3,8 @@
 - Hubbens PIN (H18): the hub's own administrator, who may do everything.
 - Insläppt med engångskod (H56): Trafikledare in the meet that runs, and only there.
 - Inloggad med TrainMeet ID: the roles at the meet come from ID, asked at every call (C35,
-  hub/id_roles.py). The hub's meet is linked to ID's meet (Meet.id_meet, ID10). Administratör
+  hub/id_roles.py). On a meet's Pi they come from ID's signed ticket (KONTO-11, KONTO-37,
+  hub/pi_login.py). The hub's meet is linked to ID's meet (Meet.id_meet, ID10). Administratör
   and Arrangör plan the meet and publish it (PLAN-19); Administratör and Trafikledare run it in
   Drift (ID3). A meet that is not linked to ID has no roles from ID: only the PIN plans it.
 """
@@ -27,12 +28,17 @@ class Rights:
         self.roles = roles
 
     def id_roles(self, token: str | None, id_meet: UUID | None) -> set[str]:
-        """The roles ID gives the one logged in with ID at the meet, as ID says now."""
-        if self.roles is None or id_meet is None:
+        """The roles ID gives the one logged in with ID at the meet, as ID says now. On a
+        meet's Pi, with no ID to ask, the roles in the ticket the session began with: a role
+        taken back in ID holds until the ticket runs out (KONTO-37)."""
+        if id_meet is None:
             return set()
         person = self.login.person(token)
         if person is None:
             return set()
+        if self.roles is None:
+            from_ticket = self.login.ticket_roles(token) or {}
+            return set(from_ticket.get(str(id_meet), set()))
         return self.roles.at_meet(person.id, id_meet)
 
     def may_plan(self, token: str | None, id_meet: UUID | None) -> bool:

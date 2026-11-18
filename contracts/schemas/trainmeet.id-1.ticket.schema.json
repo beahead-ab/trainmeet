@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.ticket.schema.json",
+  "title": "trainmeet.id-1.ticket",
+  "additionalProperties": true,
+  "description": "Biljetten: signed by ID, checked by the Pi against ID's public keys, fetched before\n(KONTO-11). It lasts 30 days and holds the roles as they were (KONTO-37).",
+  "properties": {
+    "ticket": {
+      "description": "A signed JWT (ES256). Never written to a log.",
+      "title": "Ticket",
+      "type": "string"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    }
+  },
+  "required": [
+    "ticket",
+    "expires"
+  ],
+  "type": "object"
+}

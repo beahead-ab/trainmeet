@@ -34,7 +34,7 @@ WORKDIR /src
 COPY pyproject.toml uv.lock README.md LICENSE ./
 RUN uv sync --locked --no-default-groups --group id --no-install-project
 COPY contracts ./contracts
-COPY id/__init__.py id/accounts.py id/app.py id/db.py id/help.py id/login.py id/mail.py id/migrate.py id/roles.py id/settings.py ./id/
+COPY id/__init__.py id/accounts.py id/app.py id/db.py id/help.py id/login.py id/mail.py id/migrate.py id/roles.py id/settings.py id/tickets.py ./id/
 COPY id/migrations ./id/migrations
 RUN uv sync --locked --no-default-groups --group id --no-editable
 
