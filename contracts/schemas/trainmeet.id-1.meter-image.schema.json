@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meter-image.schema.json",
+  "title": "trainmeet.id-1.meter-image",
+  "additionalProperties": true,
+  "properties": {
+    "media_type": {
+      "enum": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif"
+      ],
+      "title": "Media Type",
+      "type": "string"
+    },
+    "data": {
+      "description": "Bilden i base64, högst cirka 10 MB.",
+      "maxLength": 14000000,
+      "minLength": 1,
+      "title": "Data",
+      "type": "string"
+    }
+  },
+  "required": [
+    "media_type",
+    "data"
+  ],
+  "type": "object"
+}

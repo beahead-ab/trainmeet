@@ -17,6 +17,7 @@ För apparna, med en token från Keycloaks client credentials (KONTO-34):
     POST   /api/id/1/apps/tokens/reservations             TokenReserve -> TokenReservation
     POST   /api/id/1/apps/tokens/reservations/{id}/draw   TokenDraw -> TokenReservation
     POST   /api/id/1/apps/tokens/reservations/{id}/return TokenReservation
+    POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer (TOKEN-28)
 
 Att köra en träff, publicera, synka och importera utan AI kostar aldrig något (TOKEN-17), så de
 delarna frågar aldrig saldot.
@@ -26,7 +27,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, StringConstraints
@@ -114,3 +115,36 @@ class TokenReservation(Contract):
     at: datetime
     expires: datetime = Field(description="När en reservation som ingen drar går tillbaka.")
     balance: TokenBalance = Field(description="Saldot efter det här.")
+
+
+# --- Mätaren (TOKEN-28, TK17) ----------------------------------------------------------------
+#
+#     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer
+#
+# TrainMeets AI (TK12, TK14): an app sends the page or the picture with its reservation and gets
+# the transcription and what it cost. The meter holds TrainMeet's key to Claude through Amazon
+# Bedrock in the EU; the apps never see it (TK7). The same reservation twice gives the same
+# answer and draws nothing twice.
+
+
+class MeterImage(Contract):
+    media_type: Literal["image/png", "image/jpeg", "image/webp", "image/gif"]
+    data: str = Field(
+        min_length=1, max_length=14_000_000, description="Bilden i base64, högst cirka 10 MB."
+    )
+
+
+class MeterRead(Contract):
+    """Läs bilderna med TrainMeets AI. Reservationen ska räcka till 12 tokens per bild."""
+
+    reservation: UUID
+    prompt: str = Field(min_length=1, max_length=20_000, description="Vad AI:n ska göra.")
+    images: list[MeterImage] = Field(min_length=1, max_length=4)
+    max_tokens: int = Field(default=8192, ge=16, le=16_000)
+
+
+class MeterAnswer(Contract):
+    text: str = Field(description="Avskriften, som AI:n skrev den.")
+    cost: int = Field(description="Det som drogs: 12 tokens per bild (TOKEN-14).")
+    model: Text
+    reservation: TokenReservation

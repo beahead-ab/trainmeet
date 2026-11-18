@@ -585,6 +585,21 @@ def run_tokens(base: str, mails: Path, secret: str, id_app: str) -> None:
     back = as_app.post(f"/tokens/reservations/{reservation}/return")
     check(back.status_code == 409, f"En dragen reservation lämnades tillbaka: {back.status_code}")
     print("Tokens i ID: saldot, reservera, dra och samma nyckel igen: ok")
+    # Mätaren (TOKEN-28) is off without its key in the vault, and says so; nothing is drawn.
+    page = {**asked, "amount": 12, "key": f"prov-{secrets.token_hex(4)}"}
+    held = as_app.post("/tokens/reservations", json=page).json()["id"]
+    picture = base64.b64encode(b"\x89PNG").decode()
+    off = as_app.post(
+        "/meter",
+        json={
+            "reservation": held,
+            "prompt": "Skriv av.",
+            "images": [{"media_type": "image/png", "data": picture}],
+        },
+    )
+    check(off.status_code == 503, f"Mätaren utan nyckel svarade {off.status_code}: {off.text}")
+    check(as_app.post(f"/tokens/reservations/{held}/return").status_code == 200, "Tillbaka.")
+    print("Mätaren utan nyckel säger att TrainMeets AI inte är inkopplad: ok")
 
 
 def run_tkl(base: str, mails: Path, tkl: str) -> None:

@@ -2230,6 +2230,98 @@
           }
         ]
       }
+    },
+    "/api/id/1/apps/meter": {
+      "post": {
+        "operationId": "appReadWithMeter",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.meter-answer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.meter-read"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3866,6 +3958,296 @@
         "type": "string"
       },
       "trainmeet.id-1.token-reservation.TokenReservationState": {
+        "enum": [
+          "held",
+          "drawn",
+          "returned"
+        ],
+        "title": "TokenReservationState",
+        "type": "string"
+      },
+      "trainmeet.id-1.meter-image": {
+        "additionalProperties": true,
+        "properties": {
+          "media_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/webp",
+              "image/gif"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "data": {
+            "description": "Bilden i base64, högst cirka 10 MB.",
+            "maxLength": 14000000,
+            "minLength": 1,
+            "title": "Data",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_type",
+          "data"
+        ],
+        "title": "MeterImage",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-read": {
+        "additionalProperties": true,
+        "description": "Läs bilderna med TrainMeets AI. Reservationen ska räcka till 12 tokens per bild.",
+        "properties": {
+          "reservation": {
+            "format": "uuid",
+            "title": "Reservation",
+            "type": "string"
+          },
+          "prompt": {
+            "description": "Vad AI:n ska göra.",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.id-1.meter-read.MeterImage"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Images",
+            "type": "array"
+          },
+          "max_tokens": {
+            "default": 8192,
+            "maximum": 16000,
+            "minimum": 16,
+            "title": "Max Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reservation",
+          "prompt",
+          "images"
+        ],
+        "title": "MeterRead",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-read.MeterImage": {
+        "additionalProperties": true,
+        "properties": {
+          "media_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/webp",
+              "image/gif"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "data": {
+            "description": "Bilden i base64, högst cirka 10 MB.",
+            "maxLength": 14000000,
+            "minLength": 1,
+            "title": "Data",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_type",
+          "data"
+        ],
+        "title": "MeterImage",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-answer": {
+        "additionalProperties": true,
+        "properties": {
+          "text": {
+            "description": "Avskriften, som AI:n skrev den.",
+            "title": "Text",
+            "type": "string"
+          },
+          "cost": {
+            "description": "Det som drogs: 12 tokens per bild (TOKEN-14).",
+            "title": "Cost",
+            "type": "integer"
+          },
+          "model": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "reservation": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenReservation"
+          }
+        },
+        "required": [
+          "text",
+          "cost",
+          "model",
+          "reservation"
+        ],
+        "title": "MeterAnswer",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-answer.TokenBalance": {
+        "additionalProperties": true,
+        "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenOwner"
+          },
+          "title": {
+            "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "free_left": {
+            "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+            "minimum": 0,
+            "title": "Free Left",
+            "type": "integer"
+          },
+          "free_monthly": {
+            "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+            "minimum": 0,
+            "title": "Free Monthly",
+            "type": "integer"
+          },
+          "bought": {
+            "description": "Köpta tokens som är kvar. De förfaller inte.",
+            "minimum": 0,
+            "title": "Bought",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+            "minimum": 0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "available": {
+            "description": "Det som går att använda nu: gratis och köpt.",
+            "minimum": 0,
+            "title": "Available",
+            "type": "integer"
+          },
+          "month": {
+            "description": "Månaden gratiskvoten gäller, i svensk tid.",
+            "pattern": "^[0-9]{4}-[0-9]{2}$",
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "title",
+          "free_left",
+          "free_monthly",
+          "bought",
+          "reserved",
+          "available",
+          "month"
+        ],
+        "title": "TokenBalance",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-answer.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-answer.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.meter-answer.TokenReservation": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenOwner"
+          },
+          "amount": {
+            "description": "Det reserverade.",
+            "title": "Amount",
+            "type": "integer"
+          },
+          "drawn": {
+            "default": 0,
+            "description": "Det dragna, när reservationen är dragen.",
+            "title": "Drawn",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenReservationState"
+          },
+          "what": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "What",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "expires": {
+            "description": "När en reservation som ingen drar går tillbaka.",
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/trainmeet.id-1.meter-answer.TokenBalance",
+            "description": "Saldot efter det här."
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "amount",
+          "state",
+          "what",
+          "at",
+          "expires",
+          "balance"
+        ],
+        "title": "TokenReservation",
+        "type": "object"
+      },
+      "trainmeet.id-1.meter-answer.TokenReservationState": {
         "enum": [
           "held",
           "drawn",
