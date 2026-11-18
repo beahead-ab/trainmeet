@@ -22,6 +22,17 @@ export type PanelSignal = Schemas["trainmeet.tkl-1.track-plan.PanelSignal"];
 export type Route = Schemas["trainmeet.tkl-1.track-plan.TklRoute"];
 export type Checks = Schemas["trainmeet.tkl-1.track-plan.TklChecks"];
 export type Saved = Schemas["trainmeet.tkl-1.saved"];
+// Ställverket at level 1–2 (#84): the interlocking's state and the answer to every operation.
+export type Interlocking = Schemas["trainmeet.tkl-1.interlocking"];
+export type SetRoute = Schemas["trainmeet.tkl-1.interlocking.TklSetRoute"];
+export type InterlockingTrain = Schemas["trainmeet.tkl-1.interlocking.TklTrain"];
+export type TrainNumberShown = Schemas["trainmeet.tkl-1.interlocking.TklNumber"];
+export type Aspect = Schemas["trainmeet.tkl-1.interlocking.TklAspect"];
+export type InterlockingAnswer = Schemas["trainmeet.tkl-1.interlocking-answer"];
+export type InterlockingWait = Schemas["trainmeet.tkl-1.interlocking-wait"];
+export type Targets = Schemas["trainmeet.tkl-1.interlocking-targets"];
+export type RouteKind = Schemas["trainmeet.tkl-1.route-ask.RouteKind"];
+export type TrainPut = Schemas["trainmeet.tkl-1.train-put"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -129,4 +140,23 @@ export const api = {
   useReference: (id: string) => call<TrackPlan>(`${TKL}/referens/${encodeURIComponent(id)}/use`, "POST"),
   answerExit: async (place: string, section: string, exit: string) =>
     viewed(await call<RawView>(`${TKL}/places/${encodeURIComponent(place)}/exits`, "POST", { section, exit })),
+  // Ställverket (#84): every operation answers yes, or no with the reason, and the state.
+  interlocking: () => call<Interlocking>(`${TKL}/stallverk`),
+  interlockingWait: (after: number, seconds = 25) =>
+    call<InterlockingWait>(`${TKL}/stallverk/wait?after=${after}&seconds=${seconds}`),
+  targets: (start: string) => call<Targets>(`${TKL}/stallverk/targets?start=${encodeURIComponent(start)}`),
+  setRoute: (start: string, end: string, kind: RouteKind | null = null) =>
+    call<InterlockingAnswer>(`${TKL}/stallverk/route`, "POST", { start, end, kind }),
+  release: (route: number) => call<InterlockingAnswer>(`${TKL}/stallverk/release`, "POST", { route }),
+  emergencyRelease: (route: number, confirm: boolean) =>
+    call<InterlockingAnswer>(`${TKL}/stallverk/emergency-release`, "POST", { route, confirm }),
+  layLever: (sw: string, position: "+" | "-" | null = null) =>
+    call<InterlockingAnswer>(`${TKL}/stallverk/lever`, "POST", { switch: sw, position }),
+  step: (route: number) => call<InterlockingAnswer>(`${TKL}/stallverk/step`, "POST", { route }),
+  arrive: (route: number) => call<InterlockingAnswer>(`${TKL}/stallverk/arrive`, "POST", { route }),
+  depart: (route: number) => call<InterlockingAnswer>(`${TKL}/stallverk/depart`, "POST", { route }),
+  putTrain: (put: TrainPut) => call<InterlockingAnswer>(`${TKL}/stallverk/train`, "POST", put),
+  removeTrain: (train: number) => call<InterlockingAnswer>(`${TKL}/stallverk/train/remove`, "POST", { train }),
+  resetInterlocking: (confirm: boolean, trains = false) =>
+    call<InterlockingAnswer>(`${TKL}/stallverk/reset`, "POST", { confirm, trains }),
 };

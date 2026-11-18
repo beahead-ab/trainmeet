@@ -107,6 +107,18 @@ def _ids(items: Sequence[tuple[str, str | None]]) -> list[str]:
     return found
 
 
+def track_ids(model: StationModel) -> dict[str, str]:
+    """Each station track's id in the outside, by its name in the model."""
+    found = _ids([(t.id, t.outside_id) for t in model.station_tracks])
+    return dict(zip((t.id for t in model.station_tracks), found, strict=True))
+
+
+def exit_ids(model: StationModel) -> dict[str, str]:
+    """Each line exit's id in the outside, by its name in the model."""
+    found = _ids([(e.id, e.outside_id) for e in model.line_exits])
+    return dict(zip((e.id for e in model.line_exits), found, strict=True))
+
+
 def _repeated(names: Iterable[str]) -> list[str]:
     return [name for name, count in Counter(names).items() if count > 1]
 
@@ -152,12 +164,13 @@ def outside_of(
     if panel is None:
         panel = _panel(model)
     graph = Graph(model)
-    track_ids = _ids([(t.id, t.outside_id) for t in model.station_tracks])
-    exit_ids = _ids([(e.id, e.outside_id) for e in model.line_exits])
-    outside_of_track = dict(zip((t.id for t in model.station_tracks), track_ids, strict=True))
+    tracks = _ids([(t.id, t.outside_id) for t in model.station_tracks])
+    outside_of_track = dict(zip((t.id for t in model.station_tracks), tracks, strict=True))
     exits: list[Exit] = []
     trouble: list[str] = []
-    for line, exit_id in zip(model.line_exits, exit_ids, strict=True):
+    for line, exit_id in zip(
+        model.line_exits, _ids([(e.id, e.outside_id) for e in model.line_exits]), strict=True
+    ):
         try:
             side = _side(line, graph, panel)
         except OutsideError as error:
@@ -179,7 +192,7 @@ def outside_of(
         name=name,
         tracks=[
             StationTrack(id=track_id, label=track.label)
-            for track, track_id in zip(model.station_tracks, track_ids, strict=True)
+            for track, track_id in zip(model.station_tracks, tracks, strict=True)
         ],
         exits=exits,
     )

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.reset.schema.json",
+  "title": "trainmeet.tkl-1.reset",
+  "additionalProperties": true,
+  "description": "Nollställ ställverket: every route released, the switches where they are. With trains,\nthe train numbers go too. Confirmed and logged.",
+  "properties": {
+    "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+    },
+    "trains": {
+      "default": false,
+      "title": "Trains",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

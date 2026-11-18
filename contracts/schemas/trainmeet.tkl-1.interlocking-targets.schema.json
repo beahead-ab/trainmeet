@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.interlocking-targets.schema.json",
+  "title": "trainmeet.tkl-1.interlocking-targets",
+  "$defs": {
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    },
+    "TklTarget": {
+      "additionalProperties": true,
+      "description": "A goal from a start, for choosing and for showing the way before it is set.",
+      "properties": {
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        },
+        "via": {
+          "description": "Signalerna emellan (TKL53).",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Via",
+          "type": "array"
+        },
+        "pieces": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "possible": {
+          "title": "Possible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vägen, när den redan är lagd.",
+          "title": "Route"
+        }
+      },
+      "required": [
+        "end",
+        "kind",
+        "possible"
+      ],
+      "title": "TklTarget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "start": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Start",
+      "type": "string"
+    },
+    "kinds": {
+      "description": "Vägslagen från starten, tågväg först: ett klick till byter till växlingsväg (STV-24).",
+      "items": {
+        "$ref": "#/$defs/RouteKind"
+      },
+      "title": "Kinds",
+      "type": "array"
+    },
+    "targets": {
+      "items": {
+        "$ref": "#/$defs/TklTarget"
+      },
+      "title": "Targets",
+      "type": "array"
+    }
+  },
+  "required": [
+    "start"
+  ],
+  "type": "object"
+}

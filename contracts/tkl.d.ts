@@ -324,6 +324,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/stallverk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklInterlocking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/wait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklInterlockingWait"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklTargets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklSetRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/emergency-release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklEmergencyRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/lever": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklLayLever"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/arrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklArrive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/depart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDepart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/train": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPutTrain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/train/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklRemoveTrain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3278,6 +3486,1040 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklInterlocking
+         * @description Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
+         *     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09).
+         */
+        "trainmeet.tkl-1.interlocking": {
+            /** Station Id */
+            station_id: string;
+            /** Level */
+            level: number;
+            /**
+             * Model
+             * @description Stationsmodellens fingeravtryck: läget gäller den.
+             */
+            model: string;
+            /**
+             * Revision
+             * @description Räknar upp vid varje ändring; väntan följer den.
+             */
+            revision: number;
+            /**
+             * Problem
+             * @description Läget gäller inte stationsmodellen: allt utom nollställning nekas.
+             * @default null
+             */
+            problem: string | null;
+            /** Switches */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklSwitchShown"];
+            };
+            /**
+             * Levers
+             * @description Spakarnas lägen; inget när spakens växlar ligger i kors.
+             */
+            levers?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"] | null;
+            };
+            /**
+             * Turntables
+             * @description Spåret vändskivans brygga står mot.
+             */
+            turntables?: {
+                [key: string]: string | null;
+            };
+            /** Routes */
+            routes?: components["schemas"]["trainmeet.tkl-1.interlocking.TklSetRoute"][];
+            /** Trains */
+            trains?: components["schemas"]["trainmeet.tkl-1.interlocking.TklTrain"][];
+            /** Signals */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklSignalShown"];
+            };
+            /**
+             * Pieces
+             * @description Spårbitar som inte är lediga.
+             */
+            pieces?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklPieceShown"];
+            };
+            /** Numbers */
+            numbers?: components["schemas"]["trainmeet.tkl-1.interlocking.TklNumber"][];
+            /** Exits */
+            exits?: components["schemas"]["trainmeet.tkl-1.interlocking.TklExitShown"][];
+            /**
+             * Events
+             * @description Senaste först.
+             */
+            events?: components["schemas"]["trainmeet.tkl-1.interlocking.TklHappening"][];
+            /**
+             * Last Id
+             * @description Det senaste id:t för en väg eller ett tåg.
+             * @default 0
+             */
+            last_id: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExitSignalAspect
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.ExitSignalAspect": "stop" | "proceed" | "unknown";
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.Position": "+" | "-";
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.RouteKind": "train" | "shunting";
+        /**
+         * SwitchControl
+         * @description Who lays the switch. Only TKL's switches have a lever, and no route crosses another.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * TklAspect
+         * @description What a signal shows. A combined signal shows SHUNT with the dwarf part (STV-24).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.TklAspect": "stop" | "proceed" | "shunt";
+        /**
+         * TklExitShown
+         * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
+         *     never turn green with a route (STV-54), and what goes up to Hubben as signal.exit.
+         */
+        "trainmeet.tkl-1.interlocking.TklExitShown": {
+            /** Exit */
+            exit: string;
+            /**
+             * Outside
+             * @description Utfartens id i utsidan.
+             */
+            outside: string;
+            /** Pieces */
+            pieces?: string[];
+            /** @default stop */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking.ExitSignalAspect"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklHappening */
+        "trainmeet.tkl-1.interlocking.TklHappening": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklNumber
+         * @description Var ett tågnummer står (STV-06, STV-21): the section or the exit, its pieces, and the
+         *     station track when the section is on one, where the track's name is hidden (STV-57).
+         */
+        "trainmeet.tkl-1.interlocking.TklNumber": {
+            /**
+             * Number
+             * @default null
+             */
+            number: string | null;
+            /** Train */
+            train: number;
+            colour: components["schemas"]["trainmeet.tkl-1.interlocking.TklNumberColour"];
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Exit
+             * @default null
+             */
+            exit: string | null;
+            /** Pieces */
+            pieces?: string[];
+            /**
+             * Track
+             * @description Stationsspåret, med modellens namn.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Route
+             * @default null
+             */
+            route: number | null;
+            /**
+             * Estimated
+             * @description Numret följer knapparna, inte detekteringen: en uppskattad position.
+             * @default true
+             */
+            estimated: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklNumberColour
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.TklNumberColour": "red" | "green";
+        /** TklPieceShown */
+        "trainmeet.tkl-1.interlocking.TklPieceShown": {
+            state: components["schemas"]["trainmeet.tkl-1.interlocking.TklPieceState"];
+            /**
+             * Route
+             * @default null
+             */
+            route: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPieceState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.TklPieceState": "train" | "shunting" | "occupied";
+        /**
+         * TklSectionPart
+         * @description A section of a set route, in the order the route runs through it: a track circuit, or
+         *     where the model has none, the pieces between two switches, signals or ends (spårdel). It
+         *     is released behind the train, one at a time (STV-29).
+         */
+        "trainmeet.tkl-1.interlocking.TklSectionPart": {
+            /** Section */
+            section: string;
+            /**
+             * Pieces
+             * @description Vägens spårbitar i delen, i färdriktningen.
+             */
+            pieces: string[];
+            /**
+             * Released
+             * @default false
+             */
+            released: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklSetRoute
+         * @description Lagd väg: a train route or shunting route the interlocking has set and locked.
+         */
+        "trainmeet.tkl-1.interlocking.TklSetRoute": {
+            /** Id */
+            id: number;
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Chain
+             * @description Den sammansatta vägens första del, när vägen är en del av en (TKL53).
+             * @default null
+             */
+            chain: number | null;
+            /** Sections */
+            sections: components["schemas"]["trainmeet.tkl-1.interlocking.TklSectionPart"][];
+            /**
+             * Positions
+             * @description Växlarna vägen lägger: sina egna, de kopplade och de som dras med (TKL104).
+             */
+            positions: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"];
+            };
+            /**
+             * Locked
+             * @description Växlarna vägen fortfarande låser.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"];
+            };
+            /**
+             * Protection
+             * @description Växlar vägen låser utan att gå över dem, som spakens andra halva (skyddsväxlar, STV-20).
+             */
+            protection?: string[];
+            /**
+             * Crossings
+             * @description Korsningar och korsningsväxlar vägen håller.
+             */
+            crossings?: string[];
+            /**
+             * Turntable
+             * @description Vändskivans spår som bryggan står mot, medan vägen håller.
+             * @default null
+             */
+            turntable: string | null;
+            /**
+             * Train
+             * @description Tåget som tar vägen, när det är känt.
+             * @default null
+             */
+            train: number | null;
+            /**
+             * At
+             * @description Delen där tågets front är: -1 innan tåget har passerat starten.
+             * @default -1
+             */
+            at: number;
+            /** @description Vad startsignalen visar för vägen just nu. */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
+            /**
+             * Passed
+             * @description Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).
+             */
+            passed?: string[];
+            /**
+             * Leaves
+             * @description Linjeutfarten vägen leder ut till: förbi målet är linjen.
+             * @default null
+             */
+            leaves: string | null;
+            /**
+             * Enters
+             * @description Linjeutfarten vägen kommer in från.
+             * @default null
+             */
+            enters: string | null;
+            /**
+             * Set At
+             * Format: date-time
+             */
+            set_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklSignalShown */
+        "trainmeet.tkl-1.interlocking.TklSignalShown": {
+            /** @default stop */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
+            /**
+             * End
+             * @description Slutpunkt för en lagd väg: röd i 85 och 95.
+             * @default false
+             */
+            end: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklSwitchShown
+         * @description A switch part as the panel shows it.
+         */
+        "trainmeet.tkl-1.interlocking.TklSwitchShown": {
+            /** @description Okänt för en växel TKL inte lägger. */
+            position: components["schemas"]["trainmeet.tkl-1.interlocking.Position"] | null;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.interlocking.SwitchControl"];
+            /**
+             * Routes
+             * @description Vägarna som låser växeln.
+             */
+            routes?: number[];
+            /**
+             * Protection
+             * @description Låst av en väg som inte går över den: kort gult vid knuten (STV-20).
+             * @default false
+             */
+            protection: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklTrain
+         * @description Ett tåg i ställverket: its number, if any, and where its front is. Without detection
+         *     (level 1–2) the number follows the buttons (STV-15). On a section, or on the line outside
+         *     an exit, on its way in.
+         */
+        "trainmeet.tkl-1.interlocking.TklTrain": {
+            /** Id */
+            id: number;
+            /**
+             * Number
+             * @description Utan nummer: en växling.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Call
+             * @description Tågbesöket i hubbens bild, när det är känt.
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Exit
+             * @description På linjen utanför linjeutfarten.
+             * @default null
+             */
+            exit: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklAnswer
+         * @description Ja, eller nej med skälet: the interlocking's answer to every operation (STV-43).
+         */
+        "trainmeet.tkl-1.interlocking-answer": {
+            /** Accepted */
+            accepted: boolean;
+            /** Message */
+            message: string;
+            /**
+             * Route
+             * @description Den första vägen som lades.
+             * @default null
+             */
+            route: number | null;
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklInterlocking"];
+            /** Reports */
+            reports?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklReport"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Action
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back";
+        /**
+         * ExitSignalAspect
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.ExitSignalAspect": "stop" | "proceed" | "unknown";
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.Position": "+" | "-";
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.RouteKind": "train" | "shunting";
+        /**
+         * SwitchControl
+         * @description Who lays the switch. Only TKL's switches have a lever, and no route crosses another.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * TklAspect
+         * @description What a signal shows. A combined signal shows SHUNT with the dwarf part (STV-24).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklAspect": "stop" | "proceed" | "shunt";
+        /**
+         * TklExitShown
+         * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
+         *     never turn green with a route (STV-54), and what goes up to Hubben as signal.exit.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklExitShown": {
+            /** Exit */
+            exit: string;
+            /**
+             * Outside
+             * @description Utfartens id i utsidan.
+             */
+            outside: string;
+            /** Pieces */
+            pieces?: string[];
+            /** @default stop */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.ExitSignalAspect"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklHappening */
+        "trainmeet.tkl-1.interlocking-answer.TklHappening": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklInterlocking
+         * @description Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
+         *     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09).
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklInterlocking": {
+            /** Station Id */
+            station_id: string;
+            /** Level */
+            level: number;
+            /**
+             * Model
+             * @description Stationsmodellens fingeravtryck: läget gäller den.
+             */
+            model: string;
+            /**
+             * Revision
+             * @description Räknar upp vid varje ändring; väntan följer den.
+             */
+            revision: number;
+            /**
+             * Problem
+             * @description Läget gäller inte stationsmodellen: allt utom nollställning nekas.
+             * @default null
+             */
+            problem: string | null;
+            /** Switches */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklSwitchShown"];
+            };
+            /**
+             * Levers
+             * @description Spakarnas lägen; inget när spakens växlar ligger i kors.
+             */
+            levers?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"] | null;
+            };
+            /**
+             * Turntables
+             * @description Spåret vändskivans brygga står mot.
+             */
+            turntables?: {
+                [key: string]: string | null;
+            };
+            /** Routes */
+            routes?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklSetRoute"][];
+            /** Trains */
+            trains?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklTrain"][];
+            /** Signals */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklSignalShown"];
+            };
+            /**
+             * Pieces
+             * @description Spårbitar som inte är lediga.
+             */
+            pieces?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPieceShown"];
+            };
+            /** Numbers */
+            numbers?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklNumber"][];
+            /** Exits */
+            exits?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklExitShown"][];
+            /**
+             * Events
+             * @description Senaste först.
+             */
+            events?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklHappening"][];
+            /**
+             * Last Id
+             * @description Det senaste id:t för en väg eller ett tåg.
+             * @default 0
+             */
+            last_id: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklNumber
+         * @description Var ett tågnummer står (STV-06, STV-21): the section or the exit, its pieces, and the
+         *     station track when the section is on one, where the track's name is hidden (STV-57).
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklNumber": {
+            /**
+             * Number
+             * @default null
+             */
+            number: string | null;
+            /** Train */
+            train: number;
+            colour: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklNumberColour"];
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Exit
+             * @default null
+             */
+            exit: string | null;
+            /** Pieces */
+            pieces?: string[];
+            /**
+             * Track
+             * @description Stationsspåret, med modellens namn.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Route
+             * @default null
+             */
+            route: number | null;
+            /**
+             * Estimated
+             * @description Numret följer knapparna, inte detekteringen: en uppskattad position.
+             * @default true
+             */
+            estimated: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklNumberColour
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklNumberColour": "red" | "green";
+        /** TklPieceShown */
+        "trainmeet.tkl-1.interlocking-answer.TklPieceShown": {
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPieceState"];
+            /**
+             * Route
+             * @default null
+             */
+            route: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPieceState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPieceState": "train" | "shunting" | "occupied";
+        /**
+         * TklReport
+         * @description Vad ställverket rapporterar upp till Hubben (STV-10), and how it went.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklReport": {
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklReportKind"];
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Exit
+             * @description Utfartens id i utsidan.
+             * @default null
+             */
+            exit: string | null;
+            /**
+             * Track
+             * @description Stationsspårets id i utsidan.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.ExitSignalAspect"] | null;
+            /**
+             * @description Kommandot som skickades.
+             * @default null
+             */
+            action: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Action"] | null;
+            /**
+             * Sent
+             * @default false
+             */
+            sent: boolean;
+            /**
+             * Accepted
+             * @default null
+             */
+            accepted: boolean | null;
+            /**
+             * Message
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklReportKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklReportKind": "departed" | "arrived" | "exit_signal";
+        /**
+         * TklSectionPart
+         * @description A section of a set route, in the order the route runs through it: a track circuit, or
+         *     where the model has none, the pieces between two switches, signals or ends (spårdel). It
+         *     is released behind the train, one at a time (STV-29).
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklSectionPart": {
+            /** Section */
+            section: string;
+            /**
+             * Pieces
+             * @description Vägens spårbitar i delen, i färdriktningen.
+             */
+            pieces: string[];
+            /**
+             * Released
+             * @default false
+             */
+            released: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklSetRoute
+         * @description Lagd väg: a train route or shunting route the interlocking has set and locked.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklSetRoute": {
+            /** Id */
+            id: number;
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking-answer.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Chain
+             * @description Den sammansatta vägens första del, när vägen är en del av en (TKL53).
+             * @default null
+             */
+            chain: number | null;
+            /** Sections */
+            sections: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklSectionPart"][];
+            /**
+             * Positions
+             * @description Växlarna vägen lägger: sina egna, de kopplade och de som dras med (TKL104).
+             */
+            positions: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"];
+            };
+            /**
+             * Locked
+             * @description Växlarna vägen fortfarande låser.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"];
+            };
+            /**
+             * Protection
+             * @description Växlar vägen låser utan att gå över dem, som spakens andra halva (skyddsväxlar, STV-20).
+             */
+            protection?: string[];
+            /**
+             * Crossings
+             * @description Korsningar och korsningsväxlar vägen håller.
+             */
+            crossings?: string[];
+            /**
+             * Turntable
+             * @description Vändskivans spår som bryggan står mot, medan vägen håller.
+             * @default null
+             */
+            turntable: string | null;
+            /**
+             * Train
+             * @description Tåget som tar vägen, när det är känt.
+             * @default null
+             */
+            train: number | null;
+            /**
+             * At
+             * @description Delen där tågets front är: -1 innan tåget har passerat starten.
+             * @default -1
+             */
+            at: number;
+            /** @description Vad startsignalen visar för vägen just nu. */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
+            /**
+             * Passed
+             * @description Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).
+             */
+            passed?: string[];
+            /**
+             * Leaves
+             * @description Linjeutfarten vägen leder ut till: förbi målet är linjen.
+             * @default null
+             */
+            leaves: string | null;
+            /**
+             * Enters
+             * @description Linjeutfarten vägen kommer in från.
+             * @default null
+             */
+            enters: string | null;
+            /**
+             * Set At
+             * Format: date-time
+             */
+            set_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklSignalShown */
+        "trainmeet.tkl-1.interlocking-answer.TklSignalShown": {
+            /** @default stop */
+            aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
+            /**
+             * End
+             * @description Slutpunkt för en lagd väg: röd i 85 och 95.
+             * @default false
+             */
+            end: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklSwitchShown
+         * @description A switch part as the panel shows it.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklSwitchShown": {
+            /** @description Okänt för en växel TKL inte lägger. */
+            position: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"] | null;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.interlocking-answer.SwitchControl"];
+            /**
+             * Routes
+             * @description Vägarna som låser växeln.
+             */
+            routes?: number[];
+            /**
+             * Protection
+             * @description Låst av en väg som inte går över den: kort gult vid knuten (STV-20).
+             * @default false
+             */
+            protection: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklTrain
+         * @description Ett tåg i ställverket: its number, if any, and where its front is. Without detection
+         *     (level 1–2) the number follows the buttons (STV-15). On a section, or on the line outside
+         *     an exit, on its way in.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklTrain": {
+            /** Id */
+            id: number;
+            /**
+             * Number
+             * @description Utan nummer: en växling.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Call
+             * @description Tågbesöket i hubbens bild, när det är känt.
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Exit
+             * @description På linjen utanför linjeutfarten.
+             * @default null
+             */
+            exit: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklWait
+         * @description Svaret på väntan: ställverket har ändrats efter after, eller tiden gick ut.
+         */
+        "trainmeet.tkl-1.interlocking-wait": {
+            /** Revision */
+            revision: number;
+            /** Changed */
+            changed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklTargets */
+        "trainmeet.tkl-1.interlocking-targets": {
+            /** Start */
+            start: string;
+            /**
+             * Kinds
+             * @description Vägslagen från starten, tågväg först: ett klick till byter till växlingsväg (STV-24).
+             */
+            kinds?: components["schemas"]["trainmeet.tkl-1.interlocking-targets.RouteKind"][];
+            /** Targets */
+            targets?: components["schemas"]["trainmeet.tkl-1.interlocking-targets.TklTarget"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-targets.RouteKind": "train" | "shunting";
+        /**
+         * TklTarget
+         * @description A goal from a start, for choosing and for showing the way before it is set.
+         */
+        "trainmeet.tkl-1.interlocking-targets.TklTarget": {
+            /** End */
+            end: string;
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking-targets.RouteKind"];
+            /**
+             * Via
+             * @description Signalerna emellan (TKL53).
+             */
+            via?: string[];
+            /** Pieces */
+            pieces?: string[];
+            /** Possible */
+            possible: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Route
+             * @description Vägen, när den redan är lagd.
+             * @default null
+             */
+            route: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklRouteAsk
+         * @description Lägg en väg: start och mål (STV-01). The goal may be several signals away (TKL53).
+         *     Without a kind it is a train route where there is one, else a shunting route (STV-24).
+         */
+        "trainmeet.tkl-1.route-ask": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** @default null */
+            kind: components["schemas"]["trainmeet.tkl-1.route-ask.RouteKind"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.route-ask.RouteKind": "train" | "shunting";
+        /** TklRouteRef */
+        "trainmeet.tkl-1.route-ref": {
+            /** Route */
+            route: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklEmergencyRelease
+         * @description Nödutlösning: releases the route even with a train in it, when confirmed. Logged.
+         */
+        "trainmeet.tkl-1.emergency-release": {
+            /** Route */
+            route: number;
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklLeverAsk
+         * @description Klicka på en växel: lägg hela spaken (STV-01, STV-52). Without a position it is laid
+         *     over to the other one.
+         */
+        "trainmeet.tkl-1.lever-ask": {
+            /** Switch */
+            switch: string;
+            /** @default null */
+            position: components["schemas"]["trainmeet.tkl-1.lever-ask.Position"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.lever-ask.Position": "+" | "-";
+        /**
+         * TklTrainPut
+         * @description Sätt ut ett tågnummer på ett spår eller på linjen vid en utfart. A train on its way here
+         *     is put by its call; TKL finds its exit in Hubben's snapshot (STV-10).
+         */
+        "trainmeet.tkl-1.train-put": {
+            /**
+             * Number
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Section
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Exit
+             * @default null
+             */
+            exit: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklTrainRef */
+        "trainmeet.tkl-1.train-ref": {
+            /** Train */
+            train: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklReset
+         * @description Nollställ ställverket: every route released, the switches where they are. With trains,
+         *     the train numbers go too. Confirmed and logged.
+         */
+        "trainmeet.tkl-1.reset": {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+            /**
+             * Trains
+             * @default false
+             */
+            trains: boolean;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -3827,6 +5069,311 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.track-plan"];
+                };
+            };
+        };
+    };
+    tklInterlocking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking"];
+                };
+            };
+        };
+    };
+    tklInterlockingWait: {
+        parameters: {
+            query: {
+                after: number;
+                seconds?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-wait"];
+                };
+            };
+        };
+    };
+    tklTargets: {
+        parameters: {
+            query: {
+                start: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-targets"];
+                };
+            };
+        };
+    };
+    tklSetRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklEmergencyRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.emergency-release"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklLayLever: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.lever-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklArrive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklDepart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPutTrain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.train-put"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklRemoveTrain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.train-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.reset"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
                 };
             };
         };

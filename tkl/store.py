@@ -7,6 +7,11 @@ was, and both go to the cloud together as the station package (SYNK-30). While t
 a model, its outside is derived from the model's station tracks and line exits (STD-08, TKL92)
 and the list cannot be written by hand; without the model, the last outside is the list again.
 
+At level 1–2 the station also has its interlocking's state of the moment (#84): the set routes,
+the locks, the switch positions and the train numbers, so that a restart keeps them. It belongs
+to one model: while routes are set or train numbers stand on the panel, the model cannot be
+replaced or taken away, and a state that does not belong to the model fails closed.
+
 The PIN is never stored, only an scrypt hash with its own salt, and wrong attempts are counted
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
 or a log (H31).
@@ -23,20 +28,21 @@ import hmac
 import json
 import re
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from secrets import token_bytes, token_urlsafe
 from threading import Lock
-from typing import Final
+from typing import Final, TypeVar
 
 from contracts import station
 from contracts.common import Side
 from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
-from contracts.tkl import OutsideVersion, TklStation, TklStudio
+from contracts.tkl import OutsideVersion, TklInterlocking, TklStation, TklStudio
+from tkl.stallverk import Interlocking, fingerprint, plant_of
 from tkl.standard import outside_of
 
 LOCAL: Final = "lokal"
@@ -47,6 +53,7 @@ MAX_FAILURES: Final = 10
 MAX_SLOTS: Final = 500
 MAX_VERSIONS: Final = 200
 PIN_PATTERN: Final = re.compile(r"[0-9]{4,12}")
+T = TypeVar("T")
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -89,6 +96,10 @@ CREATE TABLE IF NOT EXISTS model_version (
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS interlocking (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
+    revision INTEGER NOT NULL, body TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS seen (
     slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
     place TEXT NOT NULL, body TEXT NOT NULL, heard REAL NOT NULL,
@@ -115,6 +126,10 @@ class TooManyAttempts(Exception):
 
 class HasModel(Exception):
     """The station has a model: its outside is derived from it, not written as a list."""
+
+
+class InterlockingBusy(Exception):
+    """Routes are set or train numbers stand in the interlocking: the model stays as it is."""
 
 
 class Full(Exception):
@@ -361,6 +376,7 @@ class TklStore:
                 raise NotSetUp()
             kept = model.model_copy(update={"station_id": row[0], "name": row[1]})
             draft = outside_of(kept, row[0], row[1])
+            self._new_interlocking(db, slot, kept)
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
             db.execute(
                 "UPDATE station SET level=?, draft=? WHERE slot=?",
@@ -371,8 +387,77 @@ class TklStore:
     def forget_model(self, slot: str) -> None:
         """Back to level 0: the last outside, derived from the model, is the list again."""
         with self._transaction() as db:
+            self._new_interlocking(db, slot, None)
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
+
+    # --- The interlocking's state (#84) -----------------------------------------------------
+
+    @staticmethod
+    def _interlocking(db: sqlite3.Connection, slot: str) -> tuple[int, str | None]:
+        row = db.execute("SELECT revision, body FROM interlocking WHERE slot=?", (slot,)).fetchone()
+        return (0, None) if row is None else (int(row[0]), str(row[1]))
+
+    def _new_interlocking(
+        self, db: sqlite3.Connection, slot: str, model: StationModel | None
+    ) -> None:
+        """A new model, or none: the interlocking starts over, but never under set routes or
+        train numbers (InterlockingBusy). The same model again changes nothing."""
+        revision, body = self._interlocking(db, slot)
+        if body is None:
+            return
+        try:
+            saved: TklInterlocking | None = TklInterlocking.model_validate_json(body)
+        except ValueError:
+            saved = None
+        if saved is not None and model is not None and saved.model == fingerprint(model):
+            return
+        if saved is None or saved.routes or saved.trains:
+            raise InterlockingBusy()
+        if model is None:
+            db.execute("DELETE FROM interlocking WHERE slot=?", (slot,))
+            return
+        fresh = Interlocking(plant_of(model))
+        fresh.revision = revision + 1
+        db.execute(
+            "UPDATE interlocking SET revision=?, body=? WHERE slot=?",
+            (fresh.revision, fresh.view().model_dump_json(), slot),
+        )
+
+    def interlocking(self, slot: str) -> tuple[StationModel | None, int, str | None]:
+        """The station's model, and the interlocking's revision and saved state, if any."""
+        with self._transaction() as db:
+            body = self._model(db, slot)
+            revision, state = self._interlocking(db, slot)
+        model = None if body is None else StationModel.model_validate_json(body)
+        return model, revision, state
+
+    def interlocking_revision(self, slot: str) -> int | None:
+        """The interlocking's revision, cheaply, for waiting; None without a model."""
+        with self._transaction() as db:
+            if self._model(db, slot) is None:
+                return None
+            return self._interlocking(db, slot)[0]
+
+    def change_interlocking(
+        self,
+        slot: str,
+        change: Callable[[StationModel | None, int, str | None], tuple[TklInterlocking | None, T]],
+    ) -> T:
+        """One change to the interlocking, in one transaction: `change` gets the model, the
+        revision and the saved state, and gives the new state to keep, or None to keep it as
+        it was, and what to answer."""
+        with self._transaction() as db:
+            body = self._model(db, slot)
+            model = None if body is None else StationModel.model_validate_json(body)
+            revision, state = self._interlocking(db, slot)
+            kept, answer = change(model, revision, state)
+            if kept is not None:
+                db.execute(
+                    "INSERT OR REPLACE INTO interlocking VALUES (?, ?, ?)",
+                    (slot, kept.revision, kept.model_dump_json()),
+                )
+        return answer
 
     def save_draft(self, slot: str, outside: StationOutside) -> TklStudio:
         """The list as it stands, saved on the computer. Its id and name are the station's.

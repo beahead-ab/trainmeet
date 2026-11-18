@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.train-ref.schema.json",
+  "title": "trainmeet.tkl-1.train-ref",
+  "additionalProperties": true,
+  "properties": {
+    "train": {
+      "minimum": 1,
+      "title": "Train",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "train"
+  ],
+  "type": "object"
+}
