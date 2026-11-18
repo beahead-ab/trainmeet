@@ -1490,6 +1490,7 @@
   gap: 8px;
   justify-items: start;
   margin: 0 0 16px;
+}
 /* Lägg till flera (#52 del d, CAT-147–CAT-153): the photos to send, the queue with each draft,
    the cost and Godkänn alla. */
 .cat-omgang {
@@ -1637,4 +1638,165 @@
     grid-column: 2;
     justify-self: start;
   }
+}
+
+/* Skriv ut QR-etiketter (#56, CAT-184): the A4 sheet, shown as it is printed. The sizes are on
+   paper, in millimetres, as in labels.ts: the QR code's side, and the litt and the number in
+   plain text under it. */
+.cat-etikettval {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.cat-etikettval label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cat-val-lista {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.cat-val-lista label,
+.cat-val-rad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cat-utskriftsval .tm-knapp.primar {
+  margin-top: 16px;
+}
+.cat-arkrubrik {
+  margin: 32px 0 12px;
+  font-size: 22px;
+}
+.cat-ark {
+  --etikett: 30mm;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--etikett));
+  gap: 4mm;
+  width: 190mm;
+  max-width: 100%;
+  min-height: 60mm;
+  padding: 10mm;
+  box-sizing: content-box;
+  background: #fff;
+  color: #111317;
+  border: 1px solid var(--tm-line);
+  border-radius: 4px;
+}
+.cat-ark-large {
+  --etikett: 50mm;
+}
+.cat-qretikett {
+  margin: 0;
+  width: var(--etikett);
+  break-inside: avoid;
+}
+.cat-qretikett img,
+.cat-qretikett-ny {
+  display: block;
+  width: var(--etikett);
+  height: var(--etikett);
+}
+.cat-qretikett-ny {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px dashed #8a8f98;
+  font-size: 3mm;
+  text-align: center;
+}
+/* The litt and the number in full, on two lines when they need it: never cut short. */
+.cat-qretikett figcaption {
+  min-height: 8mm;
+  font: 600 2.9mm/3.6mm Inter, system-ui, sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.cat-ark-large .cat-qretikett figcaption {
+  font-size: 4mm;
+  line-height: 4.8mm;
+}
+.cat-ark-tomt {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+/* The sheet is A4 with 10 mm margins: @page applies only when printing. */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+@media print {
+  /* Only the sheet: the app's header, menus and the page's choices stay on the screen. */
+  body:has(.cat-etikettsida) {
+    background: #fff;
+  }
+  body:has(.cat-etikettsida) .tm-hoppa,
+  body:has(.cat-etikettsida) .tm-sidhuvud,
+  body:has(.cat-etikettsida) .tm-bottenmeny,
+  body:has(.cat-etikettsida) .cat-fot,
+  body:has(.cat-etikettsida) .cat-annans,
+  .cat-etikettsida > *:not(.cat-ark) {
+    display: none !important;
+  }
+  body:has(.cat-etikettsida) .cat-sida {
+    padding: 0;
+    max-width: none;
+  }
+  .cat-ark {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+  }
+  .cat-qretikett-ny {
+    visibility: hidden;
+  }
+}
+
+/* Importera från Tellurian (#56, CAT-186): the files chosen, and how each went. */
+.cat-import,
+.cat-importen {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 760px;
+  margin-bottom: 24px;
+}
+.cat-fillista,
+.cat-importlista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.cat-fillista li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.cat-importlista > li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cat-importlista p,
+.cat-importlista ul {
+  margin: 4px 0 0;
+}
+.cat-pill-fel {
+  color: #b42318;
+}
+.cat-filnamn {
+  font-size: 14px;
 }

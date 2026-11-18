@@ -16,10 +16,19 @@
       ],
       "title": "BatchCardStatus",
       "type": "string"
+    },
+    "BatchSource": {
+      "description": "What a batch's drafts come from (#56).",
+      "enum": [
+        "photo",
+        "file"
+      ],
+      "title": "BatchSource",
+      "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "A batch in the list: one with photos still to approve.",
+  "description": "A batch in the list: one with photos, or files, still to approve.",
   "properties": {
     "id": {
       "format": "uuid",
@@ -29,6 +38,10 @@
     "ai": {
       "title": "Ai",
       "type": "boolean"
+    },
+    "source": {
+      "$ref": "#/$defs/BatchSource",
+      "default": "photo"
     },
     "mine": {
       "title": "Mine",

@@ -1,10 +1,12 @@
 import { AccountMenu, AppSwitcher, BottomNav, Header, linkClick, type App as SwitcherApp, type Navigate } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { api, idLoginHref, workIn, type Account, type AppKey, type CatalogVersion, type FleetChoice, type Session } from "./api";
+import { api, EXPORT_HREF, idLoginHref, workIn, type Account, type AppKey, type CatalogVersion, type FleetChoice, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
 import { BatchPage } from "./BatchPage";
 import { isOwner, type Ctx } from "./common";
+import { ImportPage } from "./ImportPage";
+import { LabelsPage } from "./LabelsPage";
 import { LendPage } from "./LendPage";
 import { PhotoFlowPage } from "./PhotoFlow";
 import { PlacesPage } from "./PlacesPage";
@@ -55,6 +57,8 @@ const TITLES: Record<Page, TextKey> = {
   newPhoto: "photoTitle",
   newBatch: "batchTitle",
   batch: "batchTitle",
+  labels: "labelsTitle",
+  importFiles: "importTitle",
   vehicle: "cardEyebrow",
   editVehicle: "edit",
   lend: "lendTitle",
@@ -158,6 +162,10 @@ export function Shell(props: ShellProps) {
                     {t("tokens", { n: session.tokens.toLocaleString(language === "en" ? "en-GB" : "sv-SE") })}
                   </a>
                 ) : null}
+                {/* Kontoexport (CAT-188): everything in the person's own fleet, as one ZIP. */}
+                <a id="hamta-allt" href={EXPORT_HREF} download onClick={() => close()}>
+                  {t("exportAll")}
+                </a>
                 {session?.help_url ? (
                   <a href={helpHref(session.help_url, props.path ?? PATHS.vehicles, props.version)}>{t("help")}</a>
                 ) : (
@@ -288,7 +296,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     fleets: props.fleets,
     tokensUrl: props.session?.tokens_url ?? null,
   };
-  const fleetPages: Page[] = ["newVehicle", "newPhoto", "newBatch", "batch", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
+  const fleetPages: Page[] = ["newVehicle", "newPhoto", "newBatch", "batch", "labels", "importFiles", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
   if (fleetPages.includes(page) && !account) {
     return (
       <section className="tm-kort cat-tomt">
@@ -314,6 +322,12 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       // A new batch gets the address of its own once its photos are sent, and opens from there
       // (CAT-147): with ?fanns= when some of them were drafts already (CAT-149).
       return <BatchPage key={`${props.working ?? "egen"}-${id ?? "ny"}`} ctx={ctx} id={id} />;
+    case "labels":
+      // Skriv ut QR-etiketter (CAT-184): the tags are the owner's (CAT-46).
+      return <LabelsPage key={props.working ?? "egen"} ctx={ctx} />;
+    case "importFiles":
+      // Importera från Tellurian (CAT-186): each file a draft that the owner approves.
+      return <ImportPage key={props.working ?? "egen"} ctx={ctx} />;
     case "vehicle":
       return <VehicleCardPage key={id} ctx={ctx} id={id ?? ""} />;
     case "editVehicle":

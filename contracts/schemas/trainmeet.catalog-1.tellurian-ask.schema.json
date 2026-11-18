@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tellurian-ask.schema.json",
+  "title": "trainmeet.catalog-1.tellurian-ask",
+  "additionalProperties": true,
+  "description": "The part data of the import's form, as JSON. The files are the parts files.",
+  "properties": {
+    "id": {
+      "description": "Made by the client: the batch the drafts go in. The same files sent again give the same drafts (CAT-149).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

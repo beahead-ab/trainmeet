@@ -37,7 +37,8 @@
         "reading_busy",
         "reading_failed",
         "bad_type_data",
-        "bad_form"
+        "bad_form",
+        "files_too_large"
       ],
       "title": "ProblemCode",
       "type": "string"

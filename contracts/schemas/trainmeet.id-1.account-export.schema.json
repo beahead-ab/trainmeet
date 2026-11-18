@@ -44,7 +44,7 @@
     },
     "CatalogExport": {
       "additionalProperties": true,
-      "description": "Everything Catalog holds for one owner, for the file the person fetches before removing the\naccount (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.",
+      "description": "Everything Catalog holds for one owner: for the file the person fetches in TrainMeet ID\nbefore removing the account (KONTO-31, ID7), which only ID asks for, with a token of its\nown; and as catalog.json in the owner's account export, a ZIP with the pictures' files\nbeside it (CAT-188, GET /api/catalog/1/export). In the ZIP the vehicles' picture addresses\nare left out, since they expire (CAT-130): the pictures are files in the ZIP instead.",
       "properties": {
         "owner": {
           "format": "uuid",
@@ -52,6 +52,7 @@
           "type": "string"
         },
         "vehicles": {
+          "description": "With their tags and their link to a prototype, its type data included.",
           "items": {
             "$ref": "#/$defs/Vehicle"
           },
@@ -81,6 +82,22 @@
             "$ref": "#/$defs/Trip"
           },
           "title": "Trips",
+          "type": "array"
+        },
+        "tags": {
+          "description": "The owner's tags with their links and the owner's own events (CAT-93).",
+          "items": {
+            "$ref": "#/$defs/TagHistory"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "pictures": {
+          "description": "Only in the account export: the pictures, whose files are in the same ZIP (CAT-188). Empty in the file for TrainMeet ID.",
+          "items": {
+            "$ref": "#/$defs/ExportPicture"
+          },
+          "title": "Pictures",
           "type": "array"
         }
       },
@@ -212,6 +229,74 @@
         "valid"
       ],
       "title": "EvnParts",
+      "type": "object"
+    },
+    "ExportPicture": {
+      "additionalProperties": true,
+      "description": "A picture in the account export (CAT-188). Its files are in the same ZIP.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "vehicle": {
+          "format": "uuid",
+          "title": "Vehicle",
+          "type": "string"
+        },
+        "main": {
+          "title": "Main",
+          "type": "boolean"
+        },
+        "position": {
+          "minimum": 0,
+          "title": "Position",
+          "type": "integer"
+        },
+        "width": {
+          "description": "The display picture's width in pixels.",
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "description": "The display picture's height in pixels.",
+          "title": "Height",
+          "type": "integer"
+        },
+        "background": {
+          "$ref": "#/$defs/PictureBackground"
+        },
+        "display": {
+          "description": "The display picture's file in the ZIP (CAT-126).",
+          "title": "Display",
+          "type": "string"
+        },
+        "original": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The original's file in the ZIP, only with Spara original.",
+          "title": "Original"
+        }
+      },
+      "required": [
+        "id",
+        "vehicle",
+        "main",
+        "position",
+        "width",
+        "height",
+        "background",
+        "display"
+      ],
+      "title": "ExportPicture",
       "type": "object"
     },
     "FieldProfile": {
@@ -511,6 +596,18 @@
       "title": "Person",
       "type": "object"
     },
+    "PictureBackground": {
+      "description": "The picture's background (CAT-128). All but the original need the background removal.",
+      "enum": [
+        "original",
+        "white",
+        "grey",
+        "transparent",
+        "rails"
+      ],
+      "title": "PictureBackground",
+      "type": "string"
+    },
     "PictureLinks": {
       "additionalProperties": true,
       "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
@@ -619,6 +716,143 @@
       ],
       "title": "Role",
       "type": "string"
+    },
+    "TagAssignment": {
+      "additionalProperties": true,
+      "description": "A link between a tag and one of the owner's vehicles, from start to end (CAT-81).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "vehicle": {
+          "format": "uuid",
+          "title": "Vehicle",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null while it is linked.",
+          "title": "Ended At"
+        }
+      },
+      "required": [
+        "id",
+        "vehicle",
+        "started_at"
+      ],
+      "title": "TagAssignment",
+      "type": "object"
+    },
+    "TagEvent": {
+      "additionalProperties": true,
+      "description": "A link or unlink the asker made (CAT-93).",
+      "properties": {
+        "event": {
+          "$ref": "#/$defs/TagEventKind"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "vehicle_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Vehicle Id"
+        }
+      },
+      "required": [
+        "event",
+        "at",
+        "vehicle_id"
+      ],
+      "title": "TagEvent",
+      "type": "object"
+    },
+    "TagEventKind": {
+      "enum": [
+        "linked",
+        "unlinked"
+      ],
+      "title": "TagEventKind",
+      "type": "string"
+    },
+    "TagHistory": {
+      "additionalProperties": true,
+      "description": "One of the owner's tags in the owner's file (CAT-188, KONTO-31): its links to the owner's\nvehicles, and the events the owner made (CAT-93). Never another owner's links or events.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "uid": {
+          "description": "What stands after /t/ in the address.",
+          "title": "Uid",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/TagKind"
+        },
+        "address": {
+          "title": "Address",
+          "type": "string"
+        },
+        "assignments": {
+          "description": "Oldest first.",
+          "items": {
+            "$ref": "#/$defs/TagAssignment"
+          },
+          "title": "Assignments",
+          "type": "array"
+        },
+        "events": {
+          "description": "Oldest first.",
+          "items": {
+            "$ref": "#/$defs/TagEvent"
+          },
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "uid",
+        "name",
+        "kind",
+        "address",
+        "assignments",
+        "events"
+      ],
+      "title": "TagHistory",
+      "type": "object"
     },
     "TagKind": {
       "description": "An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).",

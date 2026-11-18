@@ -8,7 +8,7 @@ import pytest
 from catalog import evn
 
 
-def test_check_digits_from_stefans_examples() -> None:
+def test_check_digits_from_tellurians_examples() -> None:
     assert evn.check_digit("31763933013") == 1
     assert evn.check_digit("21760429045") == 2
 

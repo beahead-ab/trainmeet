@@ -2386,8 +2386,11 @@ export interface components {
         };
         /**
          * CatalogExport
-         * @description Everything Catalog holds for one owner, for the file the person fetches before removing the
-         *     account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.
+         * @description Everything Catalog holds for one owner: for the file the person fetches in TrainMeet ID
+         *     before removing the account (KONTO-31, ID7), which only ID asks for, with a token of its
+         *     own; and as catalog.json in the owner's account export, a ZIP with the pictures' files
+         *     beside it (CAT-188, GET /api/catalog/1/export). In the ZIP the vehicles' picture addresses
+         *     are left out, since they expire (CAT-130): the pictures are files in the ZIP instead.
          */
         "trainmeet.id-1.account-export.CatalogExport": {
             /**
@@ -2395,7 +2398,10 @@ export interface components {
              * Format: uuid
              */
             owner: string;
-            /** Vehicles */
+            /**
+             * Vehicles
+             * @description With their tags and their link to a prototype, its type data included.
+             */
             vehicles: components["schemas"]["trainmeet.id-1.account-export.Vehicle"][];
             /** History */
             history: components["schemas"]["trainmeet.id-1.account-export.VehicleHistory"][];
@@ -2407,6 +2413,16 @@ export interface components {
              * @description The meets with their pack lists and ticks (#55).
              */
             trips?: components["schemas"]["trainmeet.id-1.account-export.Trip"][];
+            /**
+             * Tags
+             * @description The owner's tags with their links and the owner's own events (CAT-93).
+             */
+            tags?: components["schemas"]["trainmeet.id-1.account-export.TagHistory"][];
+            /**
+             * Pictures
+             * @description Only in the account export: the pictures, whose files are in the same ZIP (CAT-188). Empty in the file for TrainMeet ID.
+             */
+            pictures?: components["schemas"]["trainmeet.id-1.account-export.ExportPicture"][];
         } & {
             [key: string]: unknown;
         };
@@ -2475,6 +2491,50 @@ export interface components {
              * @description False only when the painted check digit is wrong (CAT-59).
              */
             valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExportPicture
+         * @description A picture in the account export (CAT-188). Its files are in the same ZIP.
+         */
+        "trainmeet.id-1.account-export.ExportPicture": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /** Main */
+            main: boolean;
+            /** Position */
+            position: number;
+            /**
+             * Width
+             * @description The display picture's width in pixels.
+             */
+            width: number;
+            /**
+             * Height
+             * @description The display picture's height in pixels.
+             */
+            height: number;
+            background: components["schemas"]["trainmeet.id-1.account-export.PictureBackground"];
+            /**
+             * Display
+             * @description The display picture's file in the ZIP (CAT-126).
+             */
+            display: string;
+            /**
+             * Original
+             * @description The original's file in the ZIP, only with Spara original.
+             * @default null
+             */
+            original: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -2666,6 +2726,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PictureBackground
+         * @description The picture's background (CAT-128). All but the original need the background removal.
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.PictureBackground": "original" | "white" | "grey" | "transparent" | "rails";
+        /**
          * PictureLinks
          * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
          *     expire (CAT-130): read the vehicle again for new ones.
@@ -2732,6 +2798,90 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.account-export.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        /**
+         * TagAssignment
+         * @description A link between a tag and one of the owner's vehicles, from start to end (CAT-81).
+         */
+        "trainmeet.id-1.account-export.TagAssignment": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Ended At
+             * @description Null while it is linked.
+             * @default null
+             */
+            ended_at: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEvent
+         * @description A link or unlink the asker made (CAT-93).
+         */
+        "trainmeet.id-1.account-export.TagEvent": {
+            event: components["schemas"]["trainmeet.id-1.account-export.TagEventKind"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Vehicle Id */
+            vehicle_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEventKind
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.TagEventKind": "linked" | "unlinked";
+        /**
+         * TagHistory
+         * @description One of the owner's tags in the owner's file (CAT-188, KONTO-31): its links to the owner's
+         *     vehicles, and the events the owner made (CAT-93). Never another owner's links or events.
+         */
+        "trainmeet.id-1.account-export.TagHistory": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.id-1.account-export.TagKind"];
+            /** Address */
+            address: string;
+            /**
+             * Assignments
+             * @description Oldest first.
+             */
+            assignments: components["schemas"]["trainmeet.id-1.account-export.TagAssignment"][];
+            /**
+             * Events
+             * @description Oldest first.
+             */
+            events: components["schemas"]["trainmeet.id-1.account-export.TagEvent"][];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TagKind
          * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).

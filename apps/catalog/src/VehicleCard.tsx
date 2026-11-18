@@ -2,12 +2,12 @@
 // (CAT-53, CAT-57–CAT-60, CAT-68, CAT-72, CAT-76, CAT-77).
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, qrAddress, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
+import { api, ApiError, qrAddress, tellurianHref, type PendingState, type Place, type Vehicle, type VehicleEvent, type VehicleTag } from "./api";
 import { Crumbs, dateText, Dialog, ErrorLine, isOwner, kindText, mayEdit, problemText, StatePill, subtitle, timeText, title, type Ctx, type T } from "./common";
 import { nfcSupported, writeAddress } from "./nfc";
 import { PicturesSection } from "./Pictures";
 import { PrototypeSection } from "./PrototypeBlock";
-import { editPath, lendPath, PATHS } from "./routes";
+import { editPath, labelsPath, lendPath, PATHS } from "./routes";
 import { MoveDialog } from "./VehiclesPage";
 
 function Row({ label, value, extra, mono }: { label: string; value: string; extra?: ReactNode; mono?: boolean }) {
@@ -80,9 +80,14 @@ export function TagSection({
           {tag.kind === "qr" ? <img className="cat-qr" src={qrAddress(tag.uid)} alt={t("qrAlt", { address: tag.address })} width={132} height={132} /> : null}
           <div className="cat-knappar">
             {tag.kind === "qr" ? (
-              <button type="button" className="tm-knapp" onClick={() => onNewLabel?.(tag)}>
-                {t("replaceLabel")}
-              </button>
+              <>
+                <a className="tm-knapp" href={labelsPath([vehicle.id])} onClick={linkClick(ctx.navigate, labelsPath([vehicle.id]))}>
+                  {t("labelsPrintThis")}
+                </a>
+                <button type="button" className="tm-knapp" onClick={() => onNewLabel?.(tag)}>
+                  {t("replaceLabel")}
+                </button>
+              </>
             ) : (
               <button type="button" className="tm-knapp" onClick={() => onWait?.(tag)}>
                 {t("replaceTag")}
@@ -214,11 +219,19 @@ export function CardView(props: CardViewProps) {
           <section className="tm-kort" aria-labelledby="kortet-rubrik">
             <div className="cat-kortrubrik">
               <h2 id="kortet-rubrik">{t("card")}</h2>
-              {mayEdit(ctx) ? (
-                <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
-                  {t("edit")}
-                </a>
-              ) : null}
+              <div className="cat-knappar">
+                {isOwner(ctx) ? (
+                  // A file for Tellurian's card app, with the EVN split (CAT-185): the owner's.
+                  <a className="tm-knapp" href={tellurianHref(vehicle.id)} download>
+                    {t("tellurianExport")}
+                  </a>
+                ) : null}
+                {mayEdit(ctx) ? (
+                  <a className="tm-knapp" href={editPath(vehicle.id)} onClick={linkClick(navigate, editPath(vehicle.id))}>
+                    {t("edit")}
+                  </a>
+                ) : null}
+              </div>
             </div>
             <table className="cat-falttabell">
               <tbody>

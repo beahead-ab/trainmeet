@@ -55,6 +55,8 @@ function draft(n: number, change: Partial<BatchCard> = {}): BatchCard {
     id: card(n),
     batch: BATCH,
     position: n - 1,
+    source: "photo",
+    file_name: null,
     status: "waiting",
     version: 1,
     values: EMPTY_VALUES,
@@ -98,7 +100,7 @@ const TOKENS_OUT = "Tokens tog slut. Fyll i resten för hand eller köp tokens i
 const left = (n: number, change: Partial<BatchCard> = {}) => draft(n, { status: "manual", message: TOKENS_OUT, ...change });
 
 function batch(cards: BatchCard[], change: Partial<Batch> = {}): Batch {
-  return { id: BATCH, ai: true, mine: true, created_at: NOW, cards, waiting_until: null, message: null, already: [], ...change };
+  return { id: BATCH, ai: true, source: "photo", mine: true, created_at: NOW, cards, waiting_until: null, message: null, already: [], ...change };
 }
 
 const view = (props: Partial<Parameters<typeof BatchView>[0]> = {}) =>
@@ -153,7 +155,7 @@ describe("Lägg till flera on the vehicles page (CAT-147, CAT-153)", () => {
   });
 
   it("lists the batches still to approve under the vehicles, with what is left", () => {
-    const summary: BatchSummary = { id: BATCH, ai: true, mine: true, created_at: NOW, cards: 8, open: 8, counts: { waiting: 3, reading: 1, ready: 3, review: 1, failed: 0, manual: 0, approved: 0 } };
+    const summary: BatchSummary = { id: BATCH, ai: true, source: "photo", mine: true, created_at: NOW, cards: 8, open: 8, counts: { waiting: 3, reading: 1, ready: 3, review: 1, failed: 0, manual: 0, approved: 0 } };
     const html = vehicles(ctx(), [summary, { ...summary, id: card(9), mine: false, cards: 2, open: 1, counts: { manual: 1, approved: 1 } }]);
     expect(html).toContain("<h2");
     expect(html).toContain("Omgångar att gå igenom");

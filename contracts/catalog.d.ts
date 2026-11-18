@@ -742,6 +742,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/vehicles/{vehicle}/tellurian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fordonet som en fil i Tellurians format, med EVN delat (CAT-185). */
+        get: operations["tellurianFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/batches/tellurian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importTellurian"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Kontoexport: allt ägaren har, som en ZIP med catalog.json och bilderna (CAT-188). */
+        get: operations["accountExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/prototypes/fields": {
         parameters: {
             query?: never;
@@ -2264,7 +2314,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back" | "consent_required" | "reading_busy" | "reading_failed" | "bad_type_data" | "bad_form";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back" | "consent_required" | "reading_busy" | "reading_failed" | "bad_type_data" | "bad_form" | "files_too_large";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -2642,8 +2692,11 @@ export interface components {
         "trainmeet.catalog-1.vehicle-history.VehicleState": "home" | "packed" | "at_meet" | "lent";
         /**
          * CatalogExport
-         * @description Everything Catalog holds for one owner, for the file the person fetches before removing the
-         *     account (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.
+         * @description Everything Catalog holds for one owner: for the file the person fetches in TrainMeet ID
+         *     before removing the account (KONTO-31, ID7), which only ID asks for, with a token of its
+         *     own; and as catalog.json in the owner's account export, a ZIP with the pictures' files
+         *     beside it (CAT-188, GET /api/catalog/1/export). In the ZIP the vehicles' picture addresses
+         *     are left out, since they expire (CAT-130): the pictures are files in the ZIP instead.
          */
         "trainmeet.catalog-1.catalog-export": {
             /**
@@ -2651,7 +2704,10 @@ export interface components {
              * Format: uuid
              */
             owner: string;
-            /** Vehicles */
+            /**
+             * Vehicles
+             * @description With their tags and their link to a prototype, its type data included.
+             */
             vehicles: components["schemas"]["trainmeet.catalog-1.catalog-export.Vehicle"][];
             /** History */
             history: components["schemas"]["trainmeet.catalog-1.catalog-export.VehicleHistory"][];
@@ -2663,6 +2719,16 @@ export interface components {
              * @description The meets with their pack lists and ticks (#55).
              */
             trips?: components["schemas"]["trainmeet.catalog-1.catalog-export.Trip"][];
+            /**
+             * Tags
+             * @description The owner's tags with their links and the owner's own events (CAT-93).
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.catalog-export.TagHistory"][];
+            /**
+             * Pictures
+             * @description Only in the account export: the pictures, whose files are in the same ZIP (CAT-188). Empty in the file for TrainMeet ID.
+             */
+            pictures?: components["schemas"]["trainmeet.catalog-1.catalog-export.ExportPicture"][];
         } & {
             [key: string]: unknown;
         };
@@ -2711,6 +2777,50 @@ export interface components {
              * @description False only when the painted check digit is wrong (CAT-59).
              */
             valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExportPicture
+         * @description A picture in the account export (CAT-188). Its files are in the same ZIP.
+         */
+        "trainmeet.catalog-1.catalog-export.ExportPicture": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /** Main */
+            main: boolean;
+            /** Position */
+            position: number;
+            /**
+             * Width
+             * @description The display picture's width in pixels.
+             */
+            width: number;
+            /**
+             * Height
+             * @description The display picture's height in pixels.
+             */
+            height: number;
+            background: components["schemas"]["trainmeet.catalog-1.catalog-export.PictureBackground"];
+            /**
+             * Display
+             * @description The display picture's file in the ZIP (CAT-126).
+             */
+            display: string;
+            /**
+             * Original
+             * @description The original's file in the ZIP, only with Spara original.
+             * @default null
+             */
+            original: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -2780,6 +2890,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PictureBackground
+         * @description The picture's background (CAT-128). All but the original need the background removal.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.PictureBackground": "original" | "white" | "grey" | "transparent" | "rails";
+        /**
          * PictureLinks
          * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
          *     expire (CAT-130): read the vehicle again for new ones.
@@ -2820,6 +2936,90 @@ export interface components {
              * @description How many vehicles live here, wherever they are now.
              */
             vehicles: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagAssignment
+         * @description A link between a tag and one of the owner's vehicles, from start to end (CAT-81).
+         */
+        "trainmeet.catalog-1.catalog-export.TagAssignment": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Ended At
+             * @description Null while it is linked.
+             * @default null
+             */
+            ended_at: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEvent
+         * @description A link or unlink the asker made (CAT-93).
+         */
+        "trainmeet.catalog-1.catalog-export.TagEvent": {
+            event: components["schemas"]["trainmeet.catalog-1.catalog-export.TagEventKind"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Vehicle Id */
+            vehicle_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagEventKind
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.TagEventKind": "linked" | "unlinked";
+        /**
+         * TagHistory
+         * @description One of the owner's tags in the owner's file (CAT-188, KONTO-31): its links to the owner's
+         *     vehicles, and the events the owner made (CAT-93). Never another owner's links or events.
+         */
+        "trainmeet.catalog-1.catalog-export.TagHistory": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.catalog-export.TagKind"];
+            /** Address */
+            address: string;
+            /**
+             * Assignments
+             * @description Oldest first.
+             */
+            assignments: components["schemas"]["trainmeet.catalog-1.catalog-export.TagAssignment"][];
+            /**
+             * Events
+             * @description Oldest first.
+             */
+            events: components["schemas"]["trainmeet.catalog-1.catalog-export.TagEvent"][];
         } & {
             [key: string]: unknown;
         };
@@ -4743,7 +4943,7 @@ export interface components {
         };
         /**
          * Batch
-         * @description A batch of photos and its cards (CAT-147).
+         * @description A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186).
          */
         "trainmeet.catalog-1.batch": {
             /**
@@ -4757,6 +4957,11 @@ export interface components {
              * @description The photos are read with AI; else they are filled in by hand.
              */
             ai: boolean;
+            /**
+             * @description What the cards come from: photos, or files in Tellurian's format.
+             * @default photo
+             */
+            source: components["schemas"]["trainmeet.catalog-1.batch.BatchSource"];
             /**
              * Mine
              * @description The person asking made the batch.
@@ -4794,7 +4999,8 @@ export interface components {
         };
         /**
          * BatchCard
-         * @description One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).
+         * @description One photo of a batch, or one file of an import in Tellurian's format: a draft of one
+         *     vehicle, not a vehicle (CAT-147, CAT-148, CAT-186).
          */
         "trainmeet.catalog-1.batch.BatchCard": {
             /**
@@ -4812,6 +5018,17 @@ export interface components {
              * @description The order the photos came in, and are read in.
              */
             position: number;
+            /**
+             * @description A photo, or a file in Tellurian's format.
+             * @default photo
+             */
+            source: components["schemas"]["trainmeet.catalog-1.batch.BatchSource"];
+            /**
+             * File Name
+             * @description The file the draft came from, as it was named when sent.
+             * @default null
+             */
+            file_name: string | null;
             status: components["schemas"]["trainmeet.catalog-1.batch.BatchCardStatus"];
             /**
              * Version
@@ -4870,6 +5087,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.batch.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * BatchSource
+         * @description What a batch's drafts come from (#56).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch.BatchSource": "photo" | "file";
         /**
          * Confidence
          * @description The AI's own judgement, not a probability.
@@ -5057,7 +5280,8 @@ export interface components {
         "trainmeet.catalog-1.batch.VehicleStatus": "draft" | "ready";
         /**
          * BatchCard
-         * @description One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).
+         * @description One photo of a batch, or one file of an import in Tellurian's format: a draft of one
+         *     vehicle, not a vehicle (CAT-147, CAT-148, CAT-186).
          */
         "trainmeet.catalog-1.batch-card": {
             /**
@@ -5075,6 +5299,17 @@ export interface components {
              * @description The order the photos came in, and are read in.
              */
             position: number;
+            /**
+             * @description A photo, or a file in Tellurian's format.
+             * @default photo
+             */
+            source: components["schemas"]["trainmeet.catalog-1.batch-card.BatchSource"];
+            /**
+             * File Name
+             * @description The file the draft came from, as it was named when sent.
+             * @default null
+             */
+            file_name: string | null;
             status: components["schemas"]["trainmeet.catalog-1.batch-card.BatchCardStatus"];
             /**
              * Version
@@ -5133,6 +5368,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.batch-card.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * BatchSource
+         * @description What a batch's drafts come from (#56).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-card.BatchSource": "photo" | "file";
         /**
          * Confidence
          * @description The AI's own judgement, not a probability.
@@ -5320,7 +5561,7 @@ export interface components {
         "trainmeet.catalog-1.batch-card.VehicleStatus": "draft" | "ready";
         /**
          * BatchSummary
-         * @description A batch in the list: one with photos still to approve.
+         * @description A batch in the list: one with photos, or files, still to approve.
          */
         "trainmeet.catalog-1.batch-summary": {
             /**
@@ -5330,6 +5571,8 @@ export interface components {
             id: string;
             /** Ai */
             ai: boolean;
+            /** @default photo */
+            source: components["schemas"]["trainmeet.catalog-1.batch-summary.BatchSource"];
             /** Mine */
             mine: boolean;
             /**
@@ -5363,6 +5606,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.batch-summary.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * BatchSource
+         * @description What a batch's drafts come from (#56).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.batch-summary.BatchSource": "photo" | "file";
         /**
          * BatchAsk
          * @description The part data of the batch's form, as JSON. The photos are the parts images.
@@ -5520,6 +5769,416 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TellurianAsk
+         * @description The part data of the import's form, as JSON. The files are the parts files.
+         */
+        "trainmeet.catalog-1.tellurian-ask": {
+            /**
+             * Id
+             * Format: uuid
+             * @description Made by the client: the batch the drafts go in. The same files sent again give the same drafts (CAT-149).
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianImport
+         * @description The answer to an import: the batch with the new drafts, and how each file went.
+         */
+        "trainmeet.catalog-1.tellurian-import": {
+            /** @description The batch the drafts are in, to review and approve; null when no file made a draft in it. */
+            batch: components["schemas"]["trainmeet.catalog-1.tellurian-import.Batch"] | null;
+            /**
+             * Files
+             * @description In the order they were sent.
+             */
+            files: components["schemas"]["trainmeet.catalog-1.tellurian-import.TellurianFile"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Batch
+         * @description A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186).
+         */
+        "trainmeet.catalog-1.tellurian-import.Batch": {
+            /**
+             * Id
+             * Format: uuid
+             * @description Made by the client (CAT-149).
+             */
+            id: string;
+            /**
+             * Ai
+             * @description The photos are read with AI; else they are filled in by hand.
+             */
+            ai: boolean;
+            /**
+             * @description What the cards come from: photos, or files in Tellurian's format.
+             * @default photo
+             */
+            source: components["schemas"]["trainmeet.catalog-1.tellurian-import.BatchSource"];
+            /**
+             * Mine
+             * @description The person asking made the batch.
+             */
+            mine: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Cards
+             * @description In order. Someone who edits the fleet sees only the cards not approved.
+             */
+            cards: components["schemas"]["trainmeet.catalog-1.tellurian-import.BatchCard"][];
+            /**
+             * Waiting Until
+             * @description The queue waits for the hour's limit or the day's cap, and goes on by itself then (CAT-146).
+             * @default null
+             */
+            waiting_until: string | null;
+            /**
+             * Message
+             * @description Why the queue waits, in Swedish.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Already
+             * @description Only in the answer to POST: the cards that photos sent this time already were, in this batch or another, since the same file is never two drafts (CAT-149).
+             */
+            already?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCard
+         * @description One photo of a batch, or one file of an import in Tellurian's format: a draft of one
+         *     vehicle, not a vehicle (CAT-147, CAT-148, CAT-186).
+         */
+        "trainmeet.catalog-1.tellurian-import.BatchCard": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Batch
+             * Format: uuid
+             */
+            batch: string;
+            /**
+             * Position
+             * @description The order the photos came in, and are read in.
+             */
+            position: number;
+            /**
+             * @description A photo, or a file in Tellurian's format.
+             * @default photo
+             */
+            source: components["schemas"]["trainmeet.catalog-1.tellurian-import.BatchSource"];
+            /**
+             * File Name
+             * @description The file the draft came from, as it was named when sent.
+             * @default null
+             */
+            file_name: string | null;
+            status: components["schemas"]["trainmeet.catalog-1.tellurian-import.BatchCardStatus"];
+            /**
+             * Version
+             * @description Raised by every change of the values, also by the AI's. A change and Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).
+             */
+            version: number;
+            /** @description What the vehicle becomes when it is approved: the AI's suggestions, and then what the owner writes. */
+            values: components["schemas"]["trainmeet.catalog-1.tellurian-import.VehicleFields"];
+            /**
+             * Suggestions
+             * @description What the AI suggested, as for one reading.
+             */
+            suggestions?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.tellurian-import.Suggestion"];
+            };
+            /** @default null */
+            question: components["schemas"]["trainmeet.catalog-1.tellurian-import.ReadingQuestion"] | null;
+            /**
+             * Warnings
+             * @description What the owner should check.
+             */
+            warnings?: string[];
+            /**
+             * Message
+             * @description Why the card is as it is, in Swedish: such as why the reading failed, or that the tokens ran out (CAT-152).
+             * @default
+             */
+            message: string;
+            /**
+             * @description The photo, without metadata, at most 1800 pixels: signed addresses that expire (CAT-130). Null once approved: the vehicle has it then.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.tellurian-import.PictureLinks"] | null;
+            /**
+             * Vehicle
+             * @description The vehicle, once approved.
+             * @default null
+             */
+            vehicle: string | null;
+            /**
+             * Attempts
+             * @description How many times the AI has been asked to read it.
+             */
+            attempts: number;
+            /**
+             * @description A reviewed prototype whose litt and operator match the card's values (CAT-141), looked up when the card is read. Linked only when the owner says so, once the card is a vehicle (CAT-136).
+             * @default null
+             */
+            prototype: components["schemas"]["trainmeet.catalog-1.tellurian-import.PrototypeSummary"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BatchCardStatus
+         * @description Where a photo of a batch is (CAT-147–CAT-153).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.BatchCardStatus": "waiting" | "reading" | "ready" | "review" | "failed" | "manual" | "approved";
+        /**
+         * BatchSource
+         * @description What a batch's drafts come from (#56).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.BatchSource": "photo" | "file";
+        /**
+         * Confidence
+         * @description The AI's own judgement, not a probability.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.Confidence": "high" | "medium" | "low";
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.tellurian-import.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.tellurian-import.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PrototypeSummary
+         * @description A prototype in short: what a suggestion names (CAT-141).
+         */
+        "trainmeet.catalog-1.tellurian-import.PrototypeSummary": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Revision
+             * @description The reviewed revision, the version a link would get.
+             */
+            revision: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadingQuestion
+         * @description An uncertain digit, asked of the owner (CAT-140).
+         */
+        "trainmeet.catalog-1.tellurian-import.ReadingQuestion": {
+            /**
+             * Field
+             * @constant
+             */
+            field: "number";
+            /**
+             * Options
+             * @description The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.
+             */
+            options: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Suggestion
+         * @description A value the AI suggests for a core field. Never saved before the owner has seen it.
+         */
+        "trainmeet.catalog-1.tellurian-import.Suggestion": {
+            /**
+             * Value
+             * @description As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).
+             */
+            value: string;
+            confidence: components["schemas"]["trainmeet.catalog-1.tellurian-import.Confidence"];
+            basis: components["schemas"]["trainmeet.catalog-1.tellurian-import.SuggestionBasis"];
+            /**
+             * Evidence
+             * @description Where in the photo it stands, in the AI's words.
+             * @default
+             */
+            evidence: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SuggestionBasis
+         * @description What a suggestion rests on.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.SuggestionBasis": "visible_text" | "visual_inference" | "unknown";
+        /**
+         * TellurianFile
+         * @description One file of an import (CAT-186): the draft it became, or why it was not read.
+         */
+        "trainmeet.catalog-1.tellurian-import.TellurianFile": {
+            /**
+             * Name
+             * @description The file's name, as it was sent.
+             */
+            name: string;
+            /** Ok */
+            ok: boolean;
+            /**
+             * Card
+             * @description The draft the file is: new, or the one it already was (CAT-149).
+             * @default null
+             */
+            card: string | null;
+            /**
+             * Batch
+             * @description The batch that draft is in.
+             * @default null
+             */
+            batch: string | null;
+            /**
+             * Already
+             * @description The same file was a draft already, and was not added again.
+             * @default false
+             */
+            already: boolean;
+            /**
+             * Error
+             * @description Why the file was not read, in Swedish. Null when ok.
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Notes
+             * @description What the file had that was left out, in Swedish, such as the type data.
+             */
+            notes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleFields
+         * @description The core fields the owner writes (CAT-53). The pictures and the tag have addresses of
+         *     their own; the prototype comes later.
+         */
+        "trainmeet.catalog-1.tellurian-import.VehicleFields": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.tellurian-import.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.tellurian-import.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.tellurian-import.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tellurian-import.VehicleStatus": "draft" | "ready";
         /**
          * FieldRegister
          * @description The field register and the profiles, published so that others read the type data the
@@ -10040,6 +10699,220 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tellurianFile: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                vehicle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file, named after the litt and the number, to download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    importTellurian: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The ask as JSON in the part data, and 1–50 files in Tellurian's format in the parts files, each with its name, at most 20 MB each and 60 MB together (CAT-186). */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data: components["schemas"]["trainmeet.catalog-1.tellurian-ask"];
+                    files: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.tellurian-import"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    accountExport: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ZIP: catalog.json (catalog-export) and the pictures' files */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

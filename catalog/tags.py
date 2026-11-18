@@ -42,7 +42,9 @@ from contracts.catalog import (
     PendingState,
     ProblemCode,
     Tag,
+    TagAssignment,
     TagEvent,
+    TagHistory,
     TagKind,
     TagLink,
     TagUnlink,
@@ -483,6 +485,56 @@ class Tags:
                 (found.namespace, found.value, owner),
             ).fetchall()
         return [TagEvent.model_validate(dict(r)) for r in rows]
+
+    def export(self, owner: UUID) -> list[TagHistory]:
+        """The owner's tags for the owner's file (CAT-188, KONTO-31): the tags the owner has
+        now or had, with the owner's own links and the events the owner made (CAT-93). Another
+        owner's links and events with the same tag are never in it."""
+        with self.db.transaction() as conn:
+            links = conn.execute(
+                "SELECT id, tag_id, vehicle_id, started_at, ended_at FROM tag_assignment "
+                "WHERE owner_id = %s ORDER BY started_at, id",
+                (owner,),
+            ).fetchall()
+            events = conn.execute(
+                "SELECT tag_id, event, at, vehicle_id FROM tag_event WHERE by_owner = %s "
+                "ORDER BY at, id",
+                (owner,),
+            ).fetchall()
+            used = {row["tag_id"] for row in links} | {row["tag_id"] for row in events}
+            tags = conn.execute(
+                "SELECT DISTINCT ON (t.id) t.id, t.name, t.kind, i.value, t.created_at "
+                "FROM tag t JOIN tag_identifier i ON i.tag_id = t.id "
+                "WHERE t.owner_id = %s OR t.id = ANY(%s) ORDER BY t.id, i.namespace",
+                (owner, list(used)),
+            ).fetchall()
+        assignments: dict[UUID, list[TagAssignment]] = {}
+        for row in links:
+            assignments.setdefault(row["tag_id"], []).append(
+                TagAssignment(
+                    id=row["id"],
+                    vehicle=row["vehicle_id"],
+                    started_at=row["started_at"],
+                    ended_at=row["ended_at"],
+                )
+            )
+        made: dict[UUID, list[TagEvent]] = {}
+        for row in events:
+            made.setdefault(row["tag_id"], []).append(
+                TagEvent(event=row["event"], at=row["at"], vehicle_id=row["vehicle_id"])
+            )
+        return [
+            TagHistory(
+                id=row["id"],
+                uid=row["value"],
+                name=row["name"],
+                kind=row["kind"],
+                address=self.address(row["value"]),
+                assignments=assignments.get(row["id"], []),
+                events=made.get(row["id"], []),
+            )
+            for row in sorted(tags, key=lambda found: (found["created_at"], found["id"]))
+        ]
 
     def qr_svg(self, owner: UUID, uid: str) -> bytes:
         """The QR code with the tag's address, for the tag's owner only."""

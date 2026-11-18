@@ -4746,6 +4746,288 @@
         ]
       }
     },
+    "/api/catalog/1/vehicles/{vehicle}/tellurian": {
+      "get": {
+        "operationId": "tellurianFile",
+        "summary": "Fordonet som en fil i Tellurians format, med EVN delat (CAT-185).",
+        "parameters": [
+          {
+            "name": "vehicle",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, named after the litt and the number, to download",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/batches/tellurian": {
+      "post": {
+        "operationId": "importTellurian",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The ask as JSON in the part data, and 1–50 files in Tellurian's format in the parts files, each with its name, at most 20 MB each and 60 MB together (CAT-186).",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-ask"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": [
+                  "data",
+                  "files"
+                ]
+              },
+              "encoding": {
+                "data": {
+                  "contentType": "application/json"
+                },
+                "files": {
+                  "contentType": "application/json"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/export": {
+      "get": {
+        "operationId": "accountExport",
+        "summary": "Kontoexport: allt ägaren har, som en ZIP med catalog.json och bilderna (CAT-188).",
+        "responses": {
+          "200": {
+            "description": "The ZIP: catalog.json (catalog-export) and the pictures' files",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/catalog/1/prototypes/fields": {
       "get": {
         "operationId": "fieldRegister",
@@ -7779,7 +8061,8 @@
           "reading_busy",
           "reading_failed",
           "bad_type_data",
-          "bad_form"
+          "bad_form",
+          "files_too_large"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -8420,7 +8703,7 @@
       },
       "trainmeet.catalog-1.catalog-export": {
         "additionalProperties": true,
-        "description": "Everything Catalog holds for one owner, for the file the person fetches before removing the\naccount (KONTO-31, ID7). Only TrainMeet ID asks, with a token of its own.",
+        "description": "Everything Catalog holds for one owner: for the file the person fetches in TrainMeet ID\nbefore removing the account (KONTO-31, ID7), which only ID asks for, with a token of its\nown; and as catalog.json in the owner's account export, a ZIP with the pictures' files\nbeside it (CAT-188, GET /api/catalog/1/export). In the ZIP the vehicles' picture addresses\nare left out, since they expire (CAT-130): the pictures are files in the ZIP instead.",
         "properties": {
           "owner": {
             "format": "uuid",
@@ -8428,6 +8711,7 @@
             "type": "string"
           },
           "vehicles": {
+            "description": "With their tags and their link to a prototype, its type data included.",
             "items": {
               "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Vehicle"
             },
@@ -8457,6 +8741,22 @@
               "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.Trip"
             },
             "title": "Trips",
+            "type": "array"
+          },
+          "tags": {
+            "description": "The owner's tags with their links and the owner's own events (CAT-93).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagHistory"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "pictures": {
+            "description": "Only in the account export: the pictures, whose files are in the same ZIP (CAT-188). Empty in the file for TrainMeet ID.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.ExportPicture"
+            },
+            "title": "Pictures",
             "type": "array"
           }
         },
@@ -8552,6 +8852,74 @@
           "valid"
         ],
         "title": "EvnParts",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.ExportPicture": {
+        "additionalProperties": true,
+        "description": "A picture in the account export (CAT-188). Its files are in the same ZIP.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "main": {
+            "title": "Main",
+            "type": "boolean"
+          },
+          "position": {
+            "minimum": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "width": {
+            "description": "The display picture's width in pixels.",
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "description": "The display picture's height in pixels.",
+            "title": "Height",
+            "type": "integer"
+          },
+          "background": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.PictureBackground"
+          },
+          "display": {
+            "description": "The display picture's file in the ZIP (CAT-126).",
+            "title": "Display",
+            "type": "string"
+          },
+          "original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The original's file in the ZIP, only with Spara original.",
+            "title": "Original"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle",
+          "main",
+          "position",
+          "width",
+          "height",
+          "background",
+          "display"
+        ],
+        "title": "ExportPicture",
         "type": "object"
       },
       "trainmeet.catalog-1.catalog-export.FieldProfile": {
@@ -8651,6 +9019,18 @@
         "title": "OwnerSettings",
         "type": "object"
       },
+      "trainmeet.catalog-1.catalog-export.PictureBackground": {
+        "description": "The picture's background (CAT-128). All but the original need the background removal.",
+        "enum": [
+          "original",
+          "white",
+          "grey",
+          "transparent",
+          "rails"
+        ],
+        "title": "PictureBackground",
+        "type": "string"
+      },
       "trainmeet.catalog-1.catalog-export.PictureLinks": {
         "additionalProperties": true,
         "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
@@ -8706,6 +9086,143 @@
           "vehicles"
         ],
         "title": "Place",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.TagAssignment": {
+        "additionalProperties": true,
+        "description": "A link between a tag and one of the owner's vehicles, from start to end (CAT-81).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "vehicle": {
+            "format": "uuid",
+            "title": "Vehicle",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null while it is linked.",
+            "title": "Ended At"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle",
+          "started_at"
+        ],
+        "title": "TagAssignment",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.TagEvent": {
+        "additionalProperties": true,
+        "description": "A link or unlink the asker made (CAT-93).",
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagEventKind"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "event",
+          "at",
+          "vehicle_id"
+        ],
+        "title": "TagEvent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.catalog-export.TagEventKind": {
+        "enum": [
+          "linked",
+          "unlinked"
+        ],
+        "title": "TagEventKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.catalog-export.TagHistory": {
+        "additionalProperties": true,
+        "description": "One of the owner's tags in the owner's file (CAT-188, KONTO-31): its links to the owner's\nvehicles, and the events the owner made (CAT-93). Never another owner's links or events.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "uid": {
+            "description": "What stands after /t/ in the address.",
+            "title": "Uid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagKind"
+          },
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "assignments": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagAssignment"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "events": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.catalog-export.TagEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "uid",
+          "name",
+          "kind",
+          "address",
+          "assignments",
+          "events"
+        ],
+        "title": "TagHistory",
         "type": "object"
       },
       "trainmeet.catalog-1.catalog-export.TagKind": {
@@ -11839,7 +12356,7 @@
       },
       "trainmeet.catalog-1.batch": {
         "additionalProperties": true,
-        "description": "A batch of photos and its cards (CAT-147).",
+        "description": "A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186).",
         "properties": {
           "id": {
             "description": "Made by the client (CAT-149).",
@@ -11851,6 +12368,11 @@
             "description": "The photos are read with AI; else they are filled in by hand.",
             "title": "Ai",
             "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.batch.BatchSource",
+            "default": "photo",
+            "description": "What the cards come from: photos, or files in Tellurian's format."
           },
           "mine": {
             "description": "The person asking made the batch.",
@@ -11919,7 +12441,7 @@
       },
       "trainmeet.catalog-1.batch.BatchCard": {
         "additionalProperties": true,
-        "description": "One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).",
+        "description": "One photo of a batch, or one file of an import in Tellurian's format: a draft of one\nvehicle, not a vehicle (CAT-147, CAT-148, CAT-186).",
         "properties": {
           "id": {
             "format": "uuid",
@@ -11936,6 +12458,24 @@
             "minimum": 0,
             "title": "Position",
             "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.batch.BatchSource",
+            "default": "photo",
+            "description": "A photo, or a file in Tellurian's format."
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The file the draft came from, as it was named when sent.",
+            "title": "File Name"
           },
           "status": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.batch.BatchCardStatus"
@@ -12064,6 +12604,15 @@
           "approved"
         ],
         "title": "BatchCardStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.batch.BatchSource": {
+        "description": "What a batch's drafts come from (#56).",
+        "enum": [
+          "photo",
+          "file"
+        ],
+        "title": "BatchSource",
         "type": "string"
       },
       "trainmeet.catalog-1.batch.Confidence": {
@@ -12345,7 +12894,7 @@
       },
       "trainmeet.catalog-1.batch-card": {
         "additionalProperties": true,
-        "description": "One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).",
+        "description": "One photo of a batch, or one file of an import in Tellurian's format: a draft of one\nvehicle, not a vehicle (CAT-147, CAT-148, CAT-186).",
         "properties": {
           "id": {
             "format": "uuid",
@@ -12362,6 +12911,24 @@
             "minimum": 0,
             "title": "Position",
             "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.batch-card.BatchSource",
+            "default": "photo",
+            "description": "A photo, or a file in Tellurian's format."
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The file the draft came from, as it was named when sent.",
+            "title": "File Name"
           },
           "status": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.batch-card.BatchCardStatus"
@@ -12490,6 +13057,15 @@
           "approved"
         ],
         "title": "BatchCardStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.batch-card.BatchSource": {
+        "description": "What a batch's drafts come from (#56).",
+        "enum": [
+          "photo",
+          "file"
+        ],
+        "title": "BatchSource",
         "type": "string"
       },
       "trainmeet.catalog-1.batch-card.Confidence": {
@@ -12771,7 +13347,7 @@
       },
       "trainmeet.catalog-1.batch-summary": {
         "additionalProperties": true,
-        "description": "A batch in the list: one with photos still to approve.",
+        "description": "A batch in the list: one with photos, or files, still to approve.",
         "properties": {
           "id": {
             "format": "uuid",
@@ -12781,6 +13357,10 @@
           "ai": {
             "title": "Ai",
             "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.batch-summary.BatchSource",
+            "default": "photo"
           },
           "mine": {
             "title": "Mine",
@@ -12837,6 +13417,15 @@
           "approved"
         ],
         "title": "BatchCardStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.batch-summary.BatchSource": {
+        "description": "What a batch's drafts come from (#56).",
+        "enum": [
+          "photo",
+          "file"
+        ],
+        "title": "BatchSource",
         "type": "string"
       },
       "trainmeet.catalog-1.batch-ask": {
@@ -13077,6 +13666,668 @@
         ],
         "title": "BatchCardSeen",
         "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-ask": {
+        "additionalProperties": true,
+        "description": "The part data of the import's form, as JSON. The files are the parts files.",
+        "properties": {
+          "id": {
+            "description": "Made by the client: the batch the drafts go in. The same files sent again give the same drafts (CAT-149).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "TellurianAsk",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import": {
+        "additionalProperties": true,
+        "description": "The answer to an import: the batch with the new drafts, and how each file went.",
+        "properties": {
+          "batch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.Batch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The batch the drafts are in, to review and approve; null when no file made a draft in it."
+          },
+          "files": {
+            "description": "In the order they were sent.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.TellurianFile"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch",
+          "files"
+        ],
+        "title": "TellurianImport",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.Batch": {
+        "additionalProperties": true,
+        "description": "A batch of photos and its cards (CAT-147), or of files in Tellurian's format (CAT-186).",
+        "properties": {
+          "id": {
+            "description": "Made by the client (CAT-149).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ai": {
+            "description": "The photos are read with AI; else they are filled in by hand.",
+            "title": "Ai",
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.BatchSource",
+            "default": "photo",
+            "description": "What the cards come from: photos, or files in Tellurian's format."
+          },
+          "mine": {
+            "description": "The person asking made the batch.",
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "cards": {
+            "description": "In order. Someone who edits the fleet sees only the cards not approved.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.BatchCard"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "waiting_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The queue waits for the hour's limit or the day's cap, and goes on by itself then (CAT-146).",
+            "title": "Waiting Until"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why the queue waits, in Swedish.",
+            "title": "Message"
+          },
+          "already": {
+            "description": "Only in the answer to POST: the cards that photos sent this time already were, in this batch or another, since the same file is never two drafts (CAT-149).",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Already",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "ai",
+          "mine",
+          "created_at",
+          "cards"
+        ],
+        "title": "Batch",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.BatchCard": {
+        "additionalProperties": true,
+        "description": "One photo of a batch, or one file of an import in Tellurian's format: a draft of one\nvehicle, not a vehicle (CAT-147, CAT-148, CAT-186).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "batch": {
+            "format": "uuid",
+            "title": "Batch",
+            "type": "string"
+          },
+          "position": {
+            "description": "The order the photos came in, and are read in.",
+            "minimum": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.BatchSource",
+            "default": "photo",
+            "description": "A photo, or a file in Tellurian's format."
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The file the draft came from, as it was named when sent.",
+            "title": "File Name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.BatchCardStatus"
+          },
+          "version": {
+            "description": "Raised by every change of the values, also by the AI's. A change and Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).",
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "values": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.VehicleFields",
+            "description": "What the vehicle becomes when it is approved: the AI's suggestions, and then what the owner writes."
+          },
+          "suggestions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.Suggestion"
+            },
+            "description": "What the AI suggested, as for one reading.",
+            "propertyNames": {
+              "enum": [
+                "kind",
+                "litt",
+                "number",
+                "operator",
+                "maker",
+                "article_number"
+              ]
+            },
+            "title": "Suggestions",
+            "type": "object"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.ReadingQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "warnings": {
+            "description": "What the owner should check.",
+            "items": {
+              "maxLength": 400,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Warnings",
+            "type": "array"
+          },
+          "message": {
+            "default": "",
+            "description": "Why the card is as it is, in Swedish: such as why the reading failed, or that the tokens ran out (CAT-152).",
+            "title": "Message",
+            "type": "string"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.PictureLinks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The photo, without metadata, at most 1800 pixels: signed addresses that expire (CAT-130). Null once approved: the vehicle has it then."
+          },
+          "vehicle": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The vehicle, once approved.",
+            "title": "Vehicle"
+          },
+          "attempts": {
+            "description": "How many times the AI has been asked to read it.",
+            "minimum": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "prototype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.PrototypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A reviewed prototype whose litt and operator match the card's values (CAT-141), looked up when the card is read. Linked only when the owner says so, once the card is a vehicle (CAT-136)."
+          }
+        },
+        "required": [
+          "id",
+          "batch",
+          "position",
+          "status",
+          "version",
+          "values",
+          "attempts"
+        ],
+        "title": "BatchCard",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.BatchCardStatus": {
+        "description": "Where a photo of a batch is (CAT-147–CAT-153).",
+        "enum": [
+          "waiting",
+          "reading",
+          "ready",
+          "review",
+          "failed",
+          "manual",
+          "approved"
+        ],
+        "title": "BatchCardStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tellurian-import.BatchSource": {
+        "description": "What a batch's drafts come from (#56).",
+        "enum": [
+          "photo",
+          "file"
+        ],
+        "title": "BatchSource",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tellurian-import.Confidence": {
+        "description": "The AI's own judgement, not a probability.",
+        "enum": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "title": "Confidence",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tellurian-import.DccFunction": {
+        "additionalProperties": true,
+        "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+        "properties": {
+          "number": {
+            "maximum": 68,
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "name"
+        ],
+        "title": "DccFunction",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.PictureLinks": {
+        "additionalProperties": true,
+        "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+        "properties": {
+          "thumb_url": {
+            "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+            "title": "Thumb Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The display picture, at most 1800 pixels (CAT-126).",
+            "title": "Display Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thumb_url",
+          "display_url"
+        ],
+        "title": "PictureLinks",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.PrototypeSummary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.ReadingQuestion": {
+        "additionalProperties": true,
+        "description": "An uncertain digit, asked of the owner (CAT-140).",
+        "properties": {
+          "field": {
+            "const": "number",
+            "title": "Field",
+            "type": "string"
+          },
+          "options": {
+            "description": "The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "field",
+          "options"
+        ],
+        "title": "ReadingQuestion",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.Suggestion": {
+        "additionalProperties": true,
+        "description": "A value the AI suggests for a core field. Never saved before the owner has seen it.",
+        "properties": {
+          "value": {
+            "description": "As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.Confidence"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.SuggestionBasis"
+          },
+          "evidence": {
+            "default": "",
+            "description": "Where in the photo it stands, in the AI's words.",
+            "maxLength": 400,
+            "title": "Evidence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "confidence",
+          "basis"
+        ],
+        "title": "Suggestion",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.SuggestionBasis": {
+        "description": "What a suggestion rests on.",
+        "enum": [
+          "visible_text",
+          "visual_inference",
+          "unknown"
+        ],
+        "title": "SuggestionBasis",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tellurian-import.TellurianFile": {
+        "additionalProperties": true,
+        "description": "One file of an import (CAT-186): the draft it became, or why it was not read.",
+        "properties": {
+          "name": {
+            "description": "The file's name, as it was sent.",
+            "title": "Name",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The draft the file is: new, or the one it already was (CAT-149).",
+            "title": "Card"
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The batch that draft is in.",
+            "title": "Batch"
+          },
+          "already": {
+            "default": false,
+            "description": "The same file was a draft already, and was not added again.",
+            "title": "Already",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why the file was not read, in Swedish. Null when ok.",
+            "title": "Error"
+          },
+          "notes": {
+            "description": "What the file had that was left out, in Swedish, such as the type data.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "ok"
+        ],
+        "title": "TellurianFile",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.VehicleFields": {
+        "additionalProperties": true,
+        "description": "The core fields the owner writes (CAT-53). The pictures and the tag have addresses of\ntheir own; the prototype comes later.",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.VehicleStatus",
+            "default": "draft"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "litt": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Litt",
+            "type": "string"
+          },
+          "number": {
+            "default": "",
+            "description": "As painted: leading zeros, spaces, dashes kept.",
+            "maxLength": 80,
+            "title": "Number",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "The operator as text. No logos (CAT-61).",
+            "maxLength": 80,
+            "title": "Operator",
+            "type": "string"
+          },
+          "epoch": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Epoch",
+            "type": "string"
+          },
+          "scale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Scale",
+            "type": "string"
+          },
+          "maker": {
+            "default": "",
+            "description": "The model's maker.",
+            "maxLength": 80,
+            "title": "Maker",
+            "type": "string"
+          },
+          "article_number": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Article Number",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "description": "Private. Never in a mini card or an export to others (CAT-191).",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "dcc_address": {
+            "default": "",
+            "description": "Locomotives and multiple units: the DCC address as text.",
+            "maxLength": 8,
+            "title": "Dcc Address",
+            "type": "string"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.tellurian-import.DccFunction"
+            },
+            "maxItems": 69,
+            "title": "Functions",
+            "type": "array"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The place at home.",
+            "title": "Place"
+          }
+        },
+        "title": "VehicleFields",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.tellurian-import.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.tellurian-import.VehicleStatus": {
+        "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+        "enum": [
+          "draft",
+          "ready"
+        ],
+        "title": "VehicleStatus",
+        "type": "string"
       },
       "trainmeet.catalog-1.field-register": {
         "additionalProperties": true,

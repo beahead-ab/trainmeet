@@ -28,6 +28,11 @@ A batch, in order:
    (CAT-136), through the fleet's own checks, and its photo as its main picture. A photo left
    to fill in by hand, manual or failed, stops it while it has no kind, litt or number.
 
+An import of files in Tellurian's format (#56, CAT-186, add_files()) is a batch too, whose source
+is file and which no AI reads: each file that can be read is a card, with the values the file gave
+and its model picture, and is approved with Godkänn alla as the photos' cards are. A value approved
+as the file had it gets the source import (CAT-64). The file's SHA-256 is the card's.
+
 Only the owner reads with AI, and a club's administrators in the club's fleet (CAT-46).
 Someone who edits a shared fleet leaves photos for the owner without AI (CAT-153): their cards
 are manual from the start and cost no tokens, and they see only the batches they left, and
@@ -43,6 +48,7 @@ import logging
 import threading
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any, Final
 from uuid import UUID
 
@@ -50,24 +56,30 @@ from psycopg import Connection
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
+from catalog import tellurian
 from catalog.access import Work
 from catalog.db import Database
-from catalog.fleet import Fleet, Refused, ai_sources
+from catalog.fleet import Fleet, Refused, ai_sources, imported_sources
 from catalog.pictures import Kept, Pictures, Prepared, prepare
 from catalog.prototypes import suggest
 from catalog.reading import Readings, without_id
 from contracts.catalog import (
     MAX_BATCH_PHOTOS,
+    MAX_TELLURIAN_FILES,
     Batch,
     BatchApproval,
     BatchAsk,
     BatchCard,
     BatchCardChange,
     BatchCardStatus,
+    BatchSource,
     BatchSummary,
     Confidence,
     ProblemCode,
     Reading,
+    TellurianAsk,
+    TellurianFile,
+    TellurianImport,
     VehicleFields,
     VehicleStatus,
 )
@@ -98,7 +110,8 @@ UNFILLED: Final = (
 _OPEN: Final = "status <> 'approved'"
 _CARD: Final = (
     "id, batch_id, position, status, version, fields, suggestions, question, warnings, message, "
-    "reading_id, attempts, width, height, bytes, display_key, thumb_key, vehicle_id"
+    "reading_id, attempts, width, height, bytes, display_key, thumb_key, vehicle_id, source, "
+    "file_name, imported"
 )
 _BY_HAND: Final = frozenset({BatchCardStatus.FAILED, BatchCardStatus.MANUAL})
 """A photo the AI did not read: filled in by hand before it is approved (CAT-152, CAT-153)."""
@@ -121,6 +134,49 @@ def _changed(message: str) -> Refused:
 
 def _empty() -> dict[str, Any]:
     return VehicleFields().model_dump(mode="json")
+
+
+@dataclass
+class _File:
+    """A file of an import in Tellurian's format (CAT-186): read, or why not."""
+
+    name: str
+    sha: str
+    read: tellurian.Read | None
+    error: str | None
+    notes: list[str] = field(default_factory=list)
+
+    def prepare(self) -> Prepared | None:
+        """The model picture, checked and made anew without metadata as a photo is (CAT-123,
+        CAT-124). One that cannot be used leaves the draft without a picture, with a note."""
+        if self.read is None or self.read.picture is None:
+            return None
+        try:
+            return prepare(self.read.picture)
+        except Refused as refused:
+            self.notes.append(f"Modellbilden kom inte med: {refused.message}")
+            return None
+
+
+def _read_file(name: str, data: bytes) -> _File:
+    """The hash is of the file as it came: the same file is the same draft (CAT-149)."""
+    sha = hashlib.sha256(data).hexdigest()
+    try:
+        read = tellurian.read(data)
+    except tellurian.Unreadable as unreadable:
+        return _File(name, sha, None, str(unreadable))
+    return _File(name, sha, read, None, list(read.notes))
+
+
+def _known_cards(
+    conn: Connection[DictRow], owner: UUID, hashes: list[str]
+) -> dict[str, tuple[UUID, UUID]]:
+    """The owner's cards that are these files already, and their batches (CAT-149)."""
+    rows = conn.execute(
+        "SELECT sha256, id, batch_id FROM batch_card WHERE owner_id = %s AND sha256 = ANY(%s)",
+        (owner, hashes),
+    ).fetchall()
+    return {row["sha256"]: (row["id"], row["batch_id"]) for row in rows}
 
 
 class Batches:
@@ -148,7 +204,7 @@ class Batches:
         """The batch, as the right lets it be seen: the owner's every batch, someone else's only
         the ones they left (CAT-153)."""
         row = conn.execute(
-            "SELECT id, owner_id, created_by, ai, club, created_at, "
+            "SELECT id, owner_id, created_by, ai, source, club, created_at, "
             "CASE WHEN wait_until > now() THEN wait_until END AS wait_until, "
             "CASE WHEN wait_until > now() THEN wait_message END AS wait_message "
             "FROM batch WHERE id = %s AND owner_id = %s" + (" FOR UPDATE" if lock else ""),
@@ -171,6 +227,8 @@ class Batches:
                 "id": row["id"],
                 "batch": row["batch_id"],
                 "position": row["position"],
+                "source": row["source"],
+                "file_name": row["file_name"],
                 "status": row["status"],
                 "version": row["version"],
                 "values": row["fields"],
@@ -210,6 +268,7 @@ class Batches:
         return Batch(
             id=row["id"],
             ai=row["ai"],
+            source=row["source"],
             mine=row["created_by"] == work.person,
             created_at=row["created_at"],
             cards=[self._card(card, conn) for card in cards],
@@ -227,7 +286,7 @@ class Batches:
         mine_only = "" if work.own else " AND b.created_by = %(person)s"
         with self.db.transaction() as conn:
             rows = conn.execute(
-                "SELECT b.id, b.ai, b.created_by, b.created_at, c.status FROM batch b "
+                "SELECT b.id, b.ai, b.source, b.created_by, b.created_at, c.status FROM batch b "
                 "JOIN batch_card c ON c.batch_id = b.id WHERE b.owner_id = %(owner)s"
                 + mine_only
                 + ("" if work.own else f" AND c.{_OPEN}")
@@ -242,6 +301,7 @@ class Batches:
             BatchSummary(
                 id=row["id"],
                 ai=row["ai"],
+                source=row["source"],
                 mine=row["created_by"] == work.person,
                 created_at=row["created_at"],
                 cards=sum(counts.values()),
@@ -292,14 +352,14 @@ class Batches:
                 ) from None
         # A first look without a lock, so that a refused batch stores nothing.
         with self.db.transaction() as conn:
-            self._same_batch(conn, work, ask)
+            self._same_batch(conn, work, ask.id, ask.ai)
             known = self._known(conn, work.owner, list(prepared))
             self._room(conn, work.owner, ask.id, sum(1 for sha in prepared if sha not in known))
         new = [sha for sha in prepared if sha not in known]
 
         def save(conn: Connection[DictRow], kept: list[Kept]) -> tuple[dict[str, UUID], set[str]]:
             # The decisive look, under the owner's lock (CAT-40).
-            self._open_batch(conn, work, ask, club)
+            self._open_batch(conn, work, ask.id, ask.ai, club)
             found = self._known(conn, work.owner, list(prepared))
             fresh = [(sha, files) for sha, files in zip(new, kept, strict=True) if sha not in found]
             self._room(conn, work.owner, ask.id, len(fresh))
@@ -341,26 +401,159 @@ class Batches:
         already = list(dict.fromkeys(before[sha] for sha in order if sha in before))
         return self.get(work, ask.id).model_copy(update={"already": already})
 
-    def _same_batch(self, conn: Connection[DictRow], work: Work, ask: BatchAsk) -> DictRow | None:
+    # --- Files in Tellurian's format (#56, CAT-186) --------------------------------------------
+
+    def add_files(
+        self, work: Work, ask: TellurianAsk, files: Sequence[tuple[str, bytes]]
+    ) -> TellurianImport:
+        """The files, as the cards of a batch of files, read by no AI: one draft per file that
+        can be read (CAT-186). A file that cannot be read is reported by itself and the others go
+        on. The same file as a card the owner has already, in this import or before, gives that
+        card (CAT-149). The model picture is checked and made anew without metadata as a photo is
+        (CAT-123, CAT-124); one that cannot be used leaves the draft without it, with a note. The
+        right is checked before: to edit at least (catalog/access.py)."""
+        if not 1 <= len(files) <= MAX_TELLURIAN_FILES:
+            raise Refused(
+                422,
+                ProblemCode.BAD_FORM,
+                f"Välj 1–{MAX_TELLURIAN_FILES} filer i Tellurians format.",
+            )
+        entries = [_read_file(name, data) for name, data in files]
+        readable = list(dict.fromkeys(entry.sha for entry in entries if entry.read is not None))
+        # A first look without a lock, so that a refused import stores nothing.
+        with self.db.transaction() as conn:
+            self._same_batch(conn, work, ask.id, False, BatchSource.FILE)
+            before = _known_cards(conn, work.owner, readable)
+            new = [sha for sha in readable if sha not in before]
+            self._room(conn, work.owner, ask.id, len(new), BatchSource.FILE)
+        first = {entry.sha: entry for entry in reversed(entries) if entry.read is not None}
+        pictures: list[tuple[str, Prepared]] = []
+        for sha in new:
+            prepared = first[sha].prepare()
+            if prepared is not None:
+                pictures.append((sha, prepared))
+
+        def save(
+            conn: Connection[DictRow], kept: list[Kept]
+        ) -> tuple[tuple[dict[str, tuple[UUID, UUID]], set[str]], set[str]]:
+            # The decisive look, under the owner's lock (CAT-40).
+            self._open_batch(conn, work, ask.id, False, False, BatchSource.FILE)
+            found = _known_cards(conn, work.owner, new)
+            files_of = dict(zip((sha for sha, _ in pictures), kept, strict=True))
+            fresh = [sha for sha in new if sha not in found]
+            self._room(conn, work.owner, ask.id, len(fresh), BatchSource.FILE)
+            row = conn.execute(
+                "SELECT coalesce(max(position) + 1, 0) AS next FROM batch_card WHERE batch_id = %s",
+                (ask.id,),
+            ).fetchone()
+            assert row is not None
+            for position, sha in enumerate(fresh, start=row["next"]):
+                entry, picture, card = first[sha], files_of.get(sha), uuid.uuid4()
+                assert entry.read is not None
+                values = entry.read.values.model_dump(mode="json")
+                complete = entry.read.values.status is VehicleStatus.READY
+                conn.execute(
+                    "INSERT INTO batch_card (id, batch_id, owner_id, position, status, sha256, "
+                    "fields, warnings, width, height, bytes, display_key, thumb_key, source, "
+                    "file_name, imported) VALUES "
+                    "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'file', %s, %s)",
+                    (
+                        card,
+                        ask.id,
+                        work.owner,
+                        position,
+                        (BatchCardStatus.READY if complete else BatchCardStatus.REVIEW).value,
+                        sha,
+                        Jsonb(values),
+                        Jsonb(entry.notes[:12]),
+                        picture.width if picture else None,
+                        picture.height if picture else None,
+                        picture.bytes if picture else None,
+                        picture.display_key if picture else None,
+                        picture.thumb_key if picture else None,
+                        entry.name,
+                        Jsonb(values),
+                    ),
+                )
+                found[sha] = (card, ask.id)
+            held = {
+                key
+                for sha in fresh
+                if (files := files_of.get(sha)) is not None
+                for key in (files.display_key, files.thumb_key)
+            }
+            return (found, set(fresh)), held
+
+        made: dict[str, tuple[UUID, UUID]] = dict(before)
+        fresh: set[str] = set()
+        if new:
+            found, fresh = self.pictures.keep_drafts(
+                work.owner, [prepared for _, prepared in pictures], save
+            )
+            made.update(found)
+        answered: list[TellurianFile] = []
+        seen: set[str] = set()
+        for entry in entries:
+            if entry.read is None:
+                answered.append(TellurianFile(name=entry.name, ok=False, error=entry.error))
+                continue
+            card, batch = made[entry.sha]
+            again = entry.sha in seen or entry.sha not in fresh
+            seen.add(entry.sha)
+            answered.append(
+                TellurianFile(
+                    name=entry.name,
+                    ok=True,
+                    card=card,
+                    batch=batch,
+                    already=again,
+                    notes=[] if again else entry.notes,
+                )
+            )
+        try:
+            shown: Batch | None = self.get(work, ask.id)
+        except Refused:  # no file made a draft, and the batch was never made
+            shown = None
+        return TellurianImport(batch=shown, files=answered)
+
+    def _same_batch(
+        self,
+        conn: Connection[DictRow],
+        work: Work,
+        batch: UUID,
+        ai: bool,
+        source: BatchSource = BatchSource.PHOTO,
+    ) -> DictRow | None:
         """The batch with the id, if it is there: the same person's in the same fleet, read
-        the same way. Another's id is not taken over."""
+        the same way and of the same source. Another's id is not taken over."""
         row = conn.execute(
-            "SELECT owner_id, created_by, ai FROM batch WHERE id = %s", (ask.id,)
+            "SELECT owner_id, created_by, ai, source FROM batch WHERE id = %s", (batch,)
         ).fetchone()
         if row is not None and (
-            row["owner_id"] != work.owner or row["created_by"] != work.person or row["ai"] != ask.ai
+            row["owner_id"] != work.owner
+            or row["created_by"] != work.person
+            or row["ai"] != ai
+            or row["source"] != source
         ):
             raise _changed("Omgångens id används redan för något annat. Starta en ny omgång.")
         return row
 
-    def _open_batch(self, conn: Connection[DictRow], work: Work, ask: BatchAsk, club: bool) -> None:
+    def _open_batch(
+        self,
+        conn: Connection[DictRow],
+        work: Work,
+        batch: UUID,
+        ai: bool,
+        club: bool,
+        source: BatchSource = BatchSource.PHOTO,
+    ) -> None:
         conn.execute(
-            "INSERT INTO batch (id, owner_id, created_by, ai, club) VALUES (%s, %s, %s, %s, %s) "
-            "ON CONFLICT (id) DO NOTHING",
-            (ask.id, work.owner, work.person, ask.ai, club),
+            "INSERT INTO batch (id, owner_id, created_by, ai, club, source) "
+            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+            (batch, work.owner, work.person, ai, club, source.value),
         )
-        conn.execute("SELECT 1 FROM batch WHERE id = %s FOR UPDATE", (ask.id,))
-        self._same_batch(conn, work, ask)
+        conn.execute("SELECT 1 FROM batch WHERE id = %s FOR UPDATE", (batch,))
+        self._same_batch(conn, work, batch, ai, source)
 
     @staticmethod
     def _known(conn: Connection[DictRow], owner: UUID, hashes: list[str]) -> dict[str, UUID]:
@@ -371,9 +564,16 @@ class Batches:
         ).fetchall()
         return {row["sha256"]: row["id"] for row in rows}
 
-    def _room(self, conn: Connection[DictRow], owner: UUID, batch: UUID, more: int) -> None:
-        """At most 30 photos in a batch (CAT-147), and at most MAX_OPEN drafts waiting for the
-        owner's approval."""
+    def _room(
+        self,
+        conn: Connection[DictRow],
+        owner: UUID,
+        batch: UUID,
+        more: int,
+        source: BatchSource = BatchSource.PHOTO,
+    ) -> None:
+        """At most 30 photos in a batch (CAT-147), or 50 files (CAT-186), and at most MAX_OPEN
+        drafts waiting for the owner's approval."""
         if more == 0:
             return
         row = conn.execute(
@@ -382,7 +582,13 @@ class Batches:
             (batch, owner),
         ).fetchone()
         assert row is not None
-        if row["here"] + more > MAX_BATCH_PHOTOS:
+        if source is BatchSource.FILE and row["here"] + more > MAX_TELLURIAN_FILES:
+            raise Refused(
+                422,
+                ProblemCode.BAD_FORM,
+                f"Högst {MAX_TELLURIAN_FILES} filer i en import. Importera resten för sig.",
+            )
+        if source is BatchSource.PHOTO and row["here"] + more > MAX_BATCH_PHOTOS:
             raise Refused(
                 422,
                 ProblemCode.TOO_MANY_PICTURES,
@@ -500,7 +706,7 @@ class Batches:
             self._batch(conn, work, batch)
             rows = self._open_cards(conn, batch)
             self._judge(conn, work.owner, rows, seen)
-        grow = sum(int(row["bytes"]) for row in rows)
+        grow = sum(int(row["bytes"]) for row in rows if row["display_key"] is not None)
 
         def save(conn: Connection[DictRow]) -> None:
             found = self._batch(conn, work, batch, lock=True)
@@ -508,13 +714,21 @@ class Batches:
             self._judge(conn, work.owner, rows, seen)
             for row in rows:
                 values = VehicleFields.model_validate(row["fields"])
-                vehicle = Fleet.insert(
-                    conn, work.owner, values, ai_sources(values, row["suggestions"])
+                sources = (
+                    imported_sources(values, row["imported"])
+                    if row["source"] == BatchSource.FILE
+                    else ai_sources(values, row["suggestions"])
                 )
-                kept = Kept(
-                    row["display_key"], row["thumb_key"], row["width"], row["height"], row["bytes"]
-                )
-                Pictures.adopt(conn, work.owner, vehicle, kept, found["created_by"])
+                vehicle = Fleet.insert(conn, work.owner, values, sources)
+                if row["display_key"] is not None:  # a file may come without a picture
+                    kept = Kept(
+                        row["display_key"],
+                        row["thumb_key"],
+                        row["width"],
+                        row["height"],
+                        row["bytes"],
+                    )
+                    Pictures.adopt(conn, work.owner, vehicle, kept, found["created_by"])
                 conn.execute(
                     "UPDATE batch_card SET status = 'approved', vehicle_id = %s, approved_at = "
                     "now(), display_key = NULL, thumb_key = NULL, message = '', "
