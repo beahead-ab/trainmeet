@@ -636,6 +636,52 @@ def test_the_organizer_hands_out_dispatcher_and_loco_lead_and_the_admin_every_ro
     assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == []
 
 
+def test_the_clubs_admin_lets_the_organizer_publish_and_gives_readers(world: World) -> None:
+    """PLAN-19, PLAN-24, H16 (#78): publishing is a choice per meet, given to the meet's
+    Arrangör by the club's admin, as in the old Cloud; Läsare looks at the plan. The Arrangör
+    hands out neither."""
+    kim, club, people = club_with(
+        world, ("Sara Holm", "sara@example.com"), ("Jon Eriksson", "jon@example.com")
+    )
+    sara, jon = people["Sara Holm"], people["Jon Eriksson"]
+    meet = kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN).json()["id"]
+    grants = f"{API}/meets/{meet}/grants"
+    assert kim.client.get(f"{API}/meets/{meet}").json()["may_give"] == [
+        "organizer",
+        "publisher",
+        "reader",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer",
+    ]
+
+    # Får publicera goes only to the meet's Arrangör.
+    early = kim.client.post(grants, json={"person": sara.id, "role": "publisher"})
+    assert early.status_code == 422
+    assert early.json()["message"] == "Får publicera ges till träffens arrangör."
+    assert kim.client.post(grants, json={"person": sara.id, "role": "organizer"}).status_code == 200
+    assert kim.client.post(grants, json={"person": sara.id, "role": "publisher"}).status_code == 200
+    seen = {m["id"]: m for m in apps(world, "meets", person=sara.id).json()}
+    assert seen[meet]["roles"] == ["organizer", "publisher"]
+
+    # The Arrangör hands out neither Får publicera nor Läsare (KONTO-36).
+    for role in ("publisher", "reader"):
+        refused = sara.client.post(grants, json={"person": jon.id, "role": role})
+        assert refused.status_code == 403, role
+    assert kim.client.post(grants, json={"person": jon.id, "role": "reader"}).status_code == 200
+    seen = {m["id"]: m for m in apps(world, "meets", person=jon.id).json()}
+    assert seen[meet]["roles"] == ["reader"]
+
+    # Taking Arrangör back takes Får publicera with it.
+    page = kim.client.get(f"{API}/meets/{meet}").json()
+    organizer = next(
+        g["id"] for g in page["grants"] if (g["person"]["id"], g["role"]) == (sara.id, "organizer")
+    )
+    assert kim.client.delete(f"{API}/grants/{organizer}").status_code == 200
+    resource = f"meet:{meet}"
+    assert apps(world, "access", person=sara.id, resource=resource).json()["roles"] == []
+
+
 def test_the_hub_gets_a_signed_ticket_the_pi_checks_without_internet(world: World) -> None:
     """KONTO-11, KONTO-37 (#78): ID signs a ticket for the person on a Pi, with the roles at
     the meet as they are now, for 30 days. The Pi checks it with ID's open keys."""

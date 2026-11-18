@@ -328,7 +328,7 @@ function AccountCard({ session, t }: ShellProps & { t: T }) {
   );
 }
 
-const ROLE_TEXTS = ["admin", "member", "viewer", "editor", "organizer", "dispatcher", "loco_lead", "remote_clearer"];
+const ROLE_TEXTS = ["admin", "member", "viewer", "editor", "organizer", "publisher", "reader", "dispatcher", "loco_lead", "remote_clearer"];
 
 function RoleChip({ t, role }: { t: T; role: string }) {
   const key = (ROLE_TEXTS.includes(role) ? role : "member") as TextKey;

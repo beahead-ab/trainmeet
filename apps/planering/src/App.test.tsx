@@ -108,6 +108,22 @@ describe("Versioner (S6)", () => {
     expect(looking).not.toContain("Dra tillbaka</button>");
   });
 
+  it("lets the organizer publish only with the right to, and only the administrator withdraw (PLAN-24)", () => {
+    const two = [...versions, { ...versions[0]!, number: 2 }] as Version[];
+    const planning = renderToStaticMarkup(<VersionerPage admin mayPublish={false} mayWithdraw={false} meet="varnamo" draft={draft} check={check} versions={two} />);
+    expect(planning).not.toContain("Publicera version 3");
+    expect(planning).toContain("Klubbens administratör ger rätten att publicera i TrainMeet ID.");
+    expect(planning).not.toContain("Dra tillbaka</button>");
+    const publishing = renderToStaticMarkup(<VersionerPage admin mayPublish mayWithdraw={false} meet="varnamo" draft={draft} check={check} versions={two} />);
+    expect(publishing).toContain(">Publicera version 3<");
+    expect(publishing).not.toContain("ger rätten att publicera");
+    expect(publishing).not.toContain("Dra tillbaka</button>");
+    // Läsare (H16): the plan, with no buttons.
+    const reading = renderToStaticMarkup(<VersionerPage admin={false} mayPublish={false} mayWithdraw={false} meet="varnamo" draft={draft} check={check} versions={two} />);
+    expect(reading).toContain("Kör i Drift");
+    expect(reading).not.toContain("<button");
+  });
+
   it("lets the administrator publish the next version, once there is a plan", () => {
     const html = renderToStaticMarkup(<VersionerPage admin meet="varnamo" draft={draft} check={check} versions={versions} />);
     expect(html).toContain(">Publicera version 2<");

@@ -8266,7 +8266,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.hub-1.info.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.hub-1.info.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * SetUp
          * @description First start: only possible while the hub has no PIN.
@@ -8862,7 +8862,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.hub-1.one-time-code.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.hub-1.one-time-code.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * LetIn
          * @description Insläppt med engångskod: vem och tills när, aldrig koden eller nyckeln. Rollen gäller
@@ -8898,7 +8898,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.hub-1.let-in.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.hub-1.let-in.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * ImportResult
          * @description What an import gives Planering: the package, its facts, rules, questions and report.
@@ -11429,10 +11429,22 @@ export interface components {
             home: string | null;
             /**
              * May Plan
-             * @description Får den som frågar planera träffen och publicera den? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).
+             * @description Får den som frågar planera träffen? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).
              * @default false
              */
             may_plan: boolean;
+            /**
+             * May Publish
+             * @description Får den som frågar publicera träffens versioner? Hubbens PIN, Administratör, eller Arrangör med Får publicera på träffen i TrainMeet ID (PLAN-19, PLAN-24).
+             * @default false
+             */
+            may_publish: boolean;
+            /**
+             * May Withdraw
+             * @description Får den som frågar dra tillbaka en version? Hubbens PIN eller Administratör i TrainMeet ID, som i gamla Cloud (PLAN-24).
+             * @default false
+             */
+            may_withdraw: boolean;
         } & {
             [key: string]: unknown;
         };

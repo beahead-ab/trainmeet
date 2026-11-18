@@ -12,6 +12,10 @@ import { when } from "./text";
 
 export type VersionerProps = {
   admin: boolean;
+  /** Publicera (PLAN-24): the Arrangör only with Får publicera at the meet. Default: admin. */
+  mayPublish?: boolean;
+  /** Dra tillbaka (PLAN-24): only Administratör. Default: admin. */
+  mayWithdraw?: boolean;
   meet: string;
   draft: Draft | null;
   check: Check | null;
@@ -30,7 +34,7 @@ export type VersionerProps = {
   onTakeBack?: (deviation: Deviation) => void;
 };
 
-export function VersionerPage({ admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw, onDoubleTrack, onLetStand, onTakeBack }: VersionerProps) {
+export function VersionerPage({ admin, mayPublish = admin, mayWithdraw = admin, meet, draft, check, versions, busy = false, onPublish, proposals = null, onTake, onReject, onWithdraw, onDoubleTrack, onLetStand, onTakeBack }: VersionerProps) {
   const [asking, setAsking] = useState<number | null>(null);
   const next = (versions?.at(-1)?.number ?? 0) + 1;
   const planned = Boolean(draft?.package);
@@ -95,7 +99,12 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
             <li className="tom">Inga fynd.</li>
           )}
         </ul>
-        {admin && (
+        {admin && !mayPublish && (
+          <p className="liten" id="publish-right">
+            Du planerar träffen men publicerar den inte. Klubbens administratör ger rätten att publicera i TrainMeet ID.
+          </p>
+        )}
+        {mayPublish && (
           <div className="rad">
             <button id="publish" type="button" className="primar" disabled={!planned || busy || versions === null || blocking.length > 0} onClick={onPublish}>
               {`Publicera version ${next}`}
@@ -147,7 +156,7 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
                         ) : (
                           <span className="rad">
                             <a href={`/drift?traff=${encodeURIComponent(meet)}&version=${version.number}#ny-traff`}>Kör i Drift →</a>
-                            {admin && (
+                            {mayWithdraw && (
                               <button type="button" className="fara" aria-expanded={asking === version.number} aria-controls={`withdraw-${version.number}`} disabled={busy} onClick={() => setAsking(asking === version.number ? null : version.number)}>
                                 Dra tillbaka
                               </button>
@@ -156,7 +165,7 @@ export function VersionerPage({ admin, meet, draft, check, versions, busy = fals
                         )}
                       </td>
                     </tr>
-                    {admin && asking === version.number && !version.withdrawn && (
+                    {mayWithdraw && asking === version.number && !version.withdrawn && (
                       <tr id={`withdraw-${version.number}`} className="bekrafta">
                         <td colSpan={6}>
                           <p>{`Version ${version.number} kan sedan inte startas eller tas i drift. Den finns kvar, och en träff som redan kör den fortsätter, med en varning i Nu.`}</p>

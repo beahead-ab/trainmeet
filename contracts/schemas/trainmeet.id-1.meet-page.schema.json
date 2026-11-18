@@ -103,6 +103,8 @@
       "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
       "enum": [
         "organizer",
+        "publisher",
+        "reader",
         "dispatcher",
         "loco_lead",
         "remote_clearer"
@@ -180,6 +182,7 @@
         "admin",
         "member",
         "organizer",
+        "publisher",
         "reader",
         "dispatcher",
         "loco_lead",

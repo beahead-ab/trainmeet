@@ -349,6 +349,13 @@ class Roles:
                     if MeetRole(row["role"]) not in self._may_give(conn, asker, meet):
                         raise forbidden("Den här rollen delar du inte ut.")
             conn.execute("DELETE FROM role_grant WHERE id = %s", (grant,))
+            if row["resource_kind"] == "meet" and row["role"] == MeetRole.ORGANIZER.value:
+                # Får publicera only counts together with Arrangör (PLAN-19): it goes with it.
+                conn.execute(
+                    "DELETE FROM role_grant WHERE resource_kind = 'meet' AND resource_id = %s "
+                    "AND person_id = %s AND role = 'publisher'",
+                    (row["resource_id"], row["person_id"]),
+                )
         return Removed(id=grant)
 
     # --- Meets (ID10, KONTO-28, KONTO-36) -----------------------------------------------------
@@ -408,7 +415,9 @@ class Roles:
     def _may_give(
         self, conn: Connection[DictRow], asker: Asker, meet: dict[str, Any]
     ) -> list[MeetRole]:
-        """What the asker hands out at the meet, or 404 for whoever is not in the club."""
+        """What the asker hands out at the meet, or 404 for whoever is not in the club: the
+        club's admin every role, the Arrangör Trafikledare and Lokledare (KONTO-36). Får
+        publicera and Läsare come from the club's admin (PLAN-19)."""
         club_role = self._club_role(conn, asker, meet["club_id"])
         if club_role == Role.ADMIN:
             return list(MeetRole)
@@ -519,6 +528,16 @@ class Roles:
                 raise Refused(
                     422, ProblemCode.INVALID, "Roller på träffen går till klubbens medlemmar."
                 )
+            if given.role == MeetRole.PUBLISHER:
+                organizer = conn.execute(
+                    "SELECT 1 FROM role_grant WHERE resource_kind = 'meet' AND resource_id = %s "
+                    "AND person_id = %s AND role = 'organizer'",
+                    (str(meet), given.person),
+                ).fetchone()
+                if organizer is None:
+                    raise Refused(
+                        422, ProblemCode.INVALID, "Får publicera ges till träffens arrangör."
+                    )
             resource = Resource(kind=ResourceKind.MEET, id=str(meet))
             self._grant(conn, given.person, Role(given.role.value), resource, asker.id)
             return self._meet_page(conn, asker, row)

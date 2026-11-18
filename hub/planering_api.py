@@ -1,8 +1,11 @@
 """Planeringens API (steg 4a): meets, sources, the draft, the check and the versions.
 
-Everyone may look (S1); everything that changes something needs the local administrator's
-session. A source is sent as the file's bytes with its name in the address, so no form
-library is needed. The file is read by Integrationer and kept as it came.
+Everyone may look (S1, PLAN-37); everything that changes something needs the hub's PIN or a
+role at the meet in TrainMeet ID (PLAN-19, hub/rights.py): Arrangör plans, the Arrangör with Får
+publicera publishes, and only Administratör withdraws a version (PLAN-24).
+
+A source is sent as the file's bytes with its name in the address, so no form library is needed.
+The file is read by Integrationer and kept as it came.
 """
 
 from __future__ import annotations
@@ -14,15 +17,16 @@ from datetime import UTC, datetime
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Final, Literal, NoReturn
 from urllib.parse import quote
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from contracts import planning
-from contracts.meet import MapPoint
+from contracts.meet import MapPoint, Meet
 from contracts.station_outside import StationOutside
 from hub.hubben import Authorization, SessionCookie, service_of, session_of
-from hub.id_roles import PLANS, roles_of
+from hub.id_roles import PLANS, publishes, roles_of, withdraws
 from hub.local import PERSON, LocalLogin
 from hub.rights import NOT_LOGGED_IN, Rights
 from integrationer import (
@@ -83,45 +87,58 @@ def router(
 
     routes = APIRouter(prefix="/api/planering/1", dependencies=[Depends(at_home)])
 
+    def id_meet_of(meet: str) -> UUID | None:
+        try:
+            return store.draft(meet).meet.id_meet
+        except PlanningError:
+            return None
+
     def planner(meet: str, session: str | None, authorization: str | None) -> None:
         """The PIN, or Administratör or Arrangör at the meet in TrainMeet ID (PLAN-19)."""
-        try:
-            id_meet = store.draft(meet).meet.id_meet
-        except PlanningError:
-            id_meet = None
-        may.require_planner(session_of(session, authorization), id_meet)
+        may.require_planner(session_of(session, authorization), id_meet_of(meet))
 
-    def planned_by(token: str | None) -> set[str] | None:
-        """The ID meets the one logged in with ID plans, or None for the hub's PIN."""
+    def roles_by_meet(token: str | None) -> dict[str, set[str]] | None:
+        """The roles at each ID meet of the one logged in with ID, or None for the hub's PIN."""
         if login.valid(token):
             return None
         person = login.person(token) if login.role(token) == PERSON else None
         if person is None or may.roles is None:
-            return set()
+            return {}
         try:
             found = may.roles.meets(person.id)
         except HTTPException:
-            return set()
-        return {str(m.id) for m in found if roles_of(m) & PLANS}
+            return {}
+        return {str(m.id): roles_of(m) for m in found}
 
     @routes.get("/meets")
     def meets(
         response: Response, session: SessionCookie = None, authorization: Authorization = None
     ) -> list[dict[str, Any]]:
         """The meets with their versions, which Synk keeps (SYNK-08), and the meets this hub
-        follows in the cloud (SYNK-02): those are planned there, and run here. may_plan says
-        which the one asking may plan (PLAN-19)."""
+        follows in the cloud (SYNK-02): those are planned there, and run here. may_plan,
+        may_publish and may_withdraw say what the one asking may do at each (PLAN-19,
+        PLAN-24)."""
         response.headers["Cache-Control"] = "no-store"
         published = kept.meets()
         away = homes.elsewhere(me()[0])
-        plans = planned_by(session_of(session, authorization))
+        held = roles_by_meet(session_of(session, authorization))
+
+        def rights(meet: Meet) -> dict[str, bool]:
+            if held is None:
+                return {"may_plan": True, "may_publish": True, "may_withdraw": True}
+            roles = held.get(str(meet.id_meet), set()) if meet.id_meet else set()
+            return {
+                "may_plan": bool(roles & PLANS),
+                "may_publish": publishes(roles),
+                "may_withdraw": withdraws(roles),
+            }
+
         planned = [
             summary.model_copy(
                 update={
                     "versions": published.get(summary.meet.id, []),
                     "home": away.get(summary.meet.id),
-                    "may_plan": plans is None
-                    or (summary.meet.id_meet is not None and str(summary.meet.id_meet) in plans),
+                    **rights(summary.meet),
                 }
             )
             for summary in store.meets()
@@ -892,7 +909,7 @@ def router(
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        planner(meet, session, authorization)
+        may.require_publisher(session_of(session, authorization), id_meet_of(meet))
         try:
             package = store.freeze(meet)
             version = kept.publish(meet, package.model_dump_json().encode())
@@ -951,9 +968,9 @@ def router(
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
-        """Dra tillbaka en version (PLAN-18)."""
+        """Dra tillbaka en version (PLAN-18): only Administratör, as in the old Cloud (PLAN-24)."""
         response.headers["Cache-Control"] = "no-store"
-        planner(meet, session, authorization)
+        may.require_withdrawer(session_of(session, authorization), id_meet_of(meet))
         try:
             withdrawn = kept.withdraw(meet, number)
         except SyncError as error:

@@ -240,8 +240,19 @@ class MeetSummary(Contract):
     )
     may_plan: bool = Field(
         default=False,
-        description="Får den som frågar planera träffen och publicera den? Hubbens PIN, eller "
-        "Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
+        description="Får den som frågar planera träffen? Hubbens PIN, eller Administratör eller "
+        "Arrangör i TrainMeet ID (PLAN-19, #78).",
+    )
+    may_publish: bool = Field(
+        default=False,
+        description="Får den som frågar publicera träffens versioner? Hubbens PIN, "
+        "Administratör, eller Arrangör med Får publicera på träffen i TrainMeet ID (PLAN-19, "
+        "PLAN-24).",
+    )
+    may_withdraw: bool = Field(
+        default=False,
+        description="Får den som frågar dra tillbaka en version? Hubbens PIN eller "
+        "Administratör i TrainMeet ID, som i gamla Cloud (PLAN-24).",
     )
 
 

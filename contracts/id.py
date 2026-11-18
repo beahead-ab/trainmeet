@@ -109,6 +109,8 @@ class Role(StrEnum):
     """Medlem in a club."""
     ORGANIZER = "organizer"
     """Arrangör in Planering."""
+    PUBLISHER = "publisher"
+    """Får publicera: the Arrangör also publishes the meet's versions (PLAN-19, H16)."""
     READER = "reader"
     """Läsare in Planering."""
     DISPATCHER = "dispatcher"
@@ -238,7 +240,13 @@ class MeetRole(StrEnum):
     """The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28)."""
 
     ORGANIZER = "organizer"
-    """Arrangör: hands out Trafikledare and Lokledare for the meet (KONTO-36)."""
+    """Arrangör: plans the meet, and hands out Trafikledare and Lokledare for it (KONTO-36)."""
+    PUBLISHER = "publisher"
+    """Får publicera: the Arrangör also publishes the meet's versions, a choice per meet as in
+    the old Cloud (PLAN-19, PLAN-24, H16). Given only to the meet's Arrangör, by the club's
+    admin; only counts together with Arrangör."""
+    READER = "reader"
+    """Läsare: looks at the meet's plan in Planering and changes nothing (PLAN-19, H16)."""
     DISPATCHER = "dispatcher"
     """Trafikledare (ID3, KONTO-16)."""
     LOCO_LEAD = "loco_lead"
