@@ -26,6 +26,7 @@ from contracts import (
     planning,
     screen,
     station,
+    station_model,
     station_outside,
     sync,
     terminal,
@@ -42,12 +43,16 @@ ID_OPENAPI = SCHEMA_DIR.parent / "id.openapi.json"
 ID_PREFIX = "trainmeet.id-"
 TKL_OPENAPI = SCHEMA_DIR.parent / "tkl.openapi.json"
 TKL_PREFIX = "trainmeet.tkl-"
+# TKL's station file (<station>.tkl.json), read and written by TKL alone. It is a schema of its
+# own and not part of an HTTP API yet, so it is in none of the OpenAPI files.
+STATION_MODEL = "trainmeet.station-model-1"
 BASE_URL = "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/"
 
 # File stem -> model. The stem says the contract, its version and the message.
 CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.meet-1": meet.MeetPackage,
     "trainmeet.station-outside-1": station_outside.StationOutside,
+    STATION_MODEL: station_model.StationModel,
     "trainmeet.station-1.connect-request": station.ConnectRequest,
     "trainmeet.station-1.connect-reply": station.ConnectReply,
     "trainmeet.station-1.command": station.Command,
@@ -439,7 +444,11 @@ def components(stems: list[str]) -> dict[str, JsonSchemaValue]:
 def openapi() -> str:
     """The Hub's HTTP API."""
     hub_components = components(
-        [s for s in CONTRACTS if not s.startswith((CATALOG_PREFIX, ID_PREFIX, TKL_PREFIX))]
+        [
+            s
+            for s in CONTRACTS
+            if not s.startswith((CATALOG_PREFIX, ID_PREFIX, TKL_PREFIX)) and s != STATION_MODEL
+        ]
     )
     paths: dict[str, dict[str, JsonSchemaValue]] = {}
 

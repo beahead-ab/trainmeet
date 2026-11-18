@@ -1,0 +1,760 @@
+{
+ "station": "gardsjo",
+ "about": "Gårdsjö, nivå 2: 40 tågvägar och 20 växlingsvägar ur referenssidan ref/gardsjo/stallverk.html.",
+ "counts": {
+  "train": 40,
+  "shunting": 20
+ },
+ "routes": [
+  {
+   "start": "33",
+   "end": "41",
+   "kind": "shunting",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "33",
+   "end": "43",
+   "kind": "shunting",
+   "switches": {
+    "133": "-",
+    "136": "+"
+   }
+  },
+  {
+   "start": "33",
+   "end": "71",
+   "kind": "shunting",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "33",
+   "end": "Spår 32",
+   "kind": "shunting",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "+"
+   }
+  },
+  {
+   "start": "35",
+   "end": "41",
+   "kind": "shunting",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "35",
+   "end": "43",
+   "kind": "shunting",
+   "switches": {
+    "133": "-",
+    "136": "-"
+   }
+  },
+  {
+   "start": "35",
+   "end": "71",
+   "kind": "shunting",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "35",
+   "end": "Spår 32",
+   "kind": "shunting",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "-"
+   }
+  },
+  {
+   "start": "64",
+   "end": "42",
+   "kind": "shunting",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "+"
+   }
+  },
+  {
+   "start": "64",
+   "end": "44",
+   "kind": "shunting",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "-"
+   }
+  },
+  {
+   "start": "64",
+   "end": "72",
+   "kind": "shunting",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "-"
+   }
+  },
+  {
+   "start": "64",
+   "end": "Spår 31",
+   "kind": "shunting",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "-"
+   }
+  },
+  {
+   "start": "66",
+   "end": "42",
+   "kind": "shunting",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "+"
+   }
+  },
+  {
+   "start": "66",
+   "end": "44",
+   "kind": "shunting",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "-"
+   }
+  },
+  {
+   "start": "66",
+   "end": "72",
+   "kind": "shunting",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "+"
+   }
+  },
+  {
+   "start": "66",
+   "end": "Spår 31",
+   "kind": "shunting",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "+"
+   }
+  },
+  {
+   "start": "91",
+   "end": "33",
+   "kind": "shunting",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "-"
+   }
+  },
+  {
+   "start": "91",
+   "end": "35",
+   "kind": "shunting",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "+"
+   }
+  },
+  {
+   "start": "92",
+   "end": "64",
+   "kind": "shunting",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "+"
+   }
+  },
+  {
+   "start": "92",
+   "end": "66",
+   "kind": "shunting",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "-"
+   }
+  },
+  {
+   "start": "21",
+   "end": "31",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "+",
+    "112": "-"
+   }
+  },
+  {
+   "start": "21",
+   "end": "33",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "-"
+   }
+  },
+  {
+   "start": "21",
+   "end": "35",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "+"
+   }
+  },
+  {
+   "start": "22",
+   "end": "32",
+   "kind": "train",
+   "switches": {
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "22",
+   "end": "62",
+   "kind": "train",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "22",
+   "end": "64",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "22",
+   "end": "66",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "23",
+   "end": "31",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "+",
+    "112": "-",
+    "171": "-"
+   }
+  },
+  {
+   "start": "23",
+   "end": "33",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "-"
+   }
+  },
+  {
+   "start": "23",
+   "end": "35",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "-"
+   }
+  },
+  {
+   "start": "23",
+   "end": "61",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "171": "-"
+   }
+  },
+  {
+   "start": "24",
+   "end": "64",
+   "kind": "train",
+   "switches": {
+    "133": "-",
+    "136": "+"
+   }
+  },
+  {
+   "start": "24",
+   "end": "66",
+   "kind": "train",
+   "switches": {
+    "133": "-",
+    "136": "-"
+   }
+  },
+  {
+   "start": "31",
+   "end": "41",
+   "kind": "train",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "31",
+   "end": "71",
+   "kind": "train",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "32",
+   "end": "42",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "171": "+"
+   }
+  },
+  {
+   "start": "32",
+   "end": "44",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "171": "-"
+   }
+  },
+  {
+   "start": "33",
+   "end": "41",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "33",
+   "end": "43",
+   "kind": "train",
+   "switches": {
+    "133": "-",
+    "136": "+"
+   }
+  },
+  {
+   "start": "33",
+   "end": "71",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "35",
+   "end": "41",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "35",
+   "end": "43",
+   "kind": "train",
+   "switches": {
+    "133": "-",
+    "136": "-"
+   }
+  },
+  {
+   "start": "35",
+   "end": "71",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "-",
+    "152": "-"
+   }
+  },
+  {
+   "start": "51",
+   "end": "31",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "+",
+    "112": "-",
+    "171": "+"
+   }
+  },
+  {
+   "start": "51",
+   "end": "33",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "+"
+   }
+  },
+  {
+   "start": "51",
+   "end": "35",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "+"
+   }
+  },
+  {
+   "start": "51",
+   "end": "61",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "171": "+"
+   }
+  },
+  {
+   "start": "52",
+   "end": "62",
+   "kind": "train",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "52",
+   "end": "64",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "+",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "52",
+   "end": "66",
+   "kind": "train",
+   "switches": {
+    "131": "-",
+    "132": "-",
+    "133": "+",
+    "136": "-",
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "61",
+   "end": "71",
+   "kind": "train",
+   "switches": {
+    "151": "+",
+    "152": "+"
+   }
+  },
+  {
+   "start": "62",
+   "end": "42",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "+",
+    "112": "-",
+    "171": "+"
+   }
+  },
+  {
+   "start": "62",
+   "end": "44",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "+",
+    "112": "-",
+    "171": "-"
+   }
+  },
+  {
+   "start": "62",
+   "end": "72",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "+",
+    "112": "-"
+   }
+  },
+  {
+   "start": "64",
+   "end": "42",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "+"
+   }
+  },
+  {
+   "start": "64",
+   "end": "44",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "-",
+    "171": "-"
+   }
+  },
+  {
+   "start": "64",
+   "end": "72",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "-"
+   }
+  },
+  {
+   "start": "66",
+   "end": "42",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "+"
+   }
+  },
+  {
+   "start": "66",
+   "end": "44",
+   "kind": "train",
+   "switches": {
+    "101": "-",
+    "102": "-",
+    "111": "-",
+    "112": "+",
+    "113": "+",
+    "171": "-"
+   }
+  },
+  {
+   "start": "66",
+   "end": "72",
+   "kind": "train",
+   "switches": {
+    "101": "+",
+    "102": "+",
+    "111": "-",
+    "112": "+",
+    "113": "+"
+   }
+  }
+ ],
+ "exceptions": [
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "33",
+   "end": "Spår 32",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "+"
+   },
+   "category": "stoppbock",
+   "reason": "Enligt §2 och TKL28 slutar en tågväg vid nästa huvudsignal eller vid en stoppbock, och tågvägen från 33 når stoppbocken Spår 32 utan någon huvudsignal emellan. Referensen (sidans skript) har bara växlingsvägar hit."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "35",
+   "end": "Spår 32",
+   "switches": {
+    "131": "+",
+    "132": "+",
+    "133": "+",
+    "136": "-"
+   },
+   "category": "stoppbock",
+   "reason": "Enligt §2 och TKL28 slutar en tågväg vid nästa huvudsignal eller vid en stoppbock, och tågvägen från 35 når stoppbocken Spår 32 utan någon huvudsignal emellan. Referensen (sidans skript) har bara växlingsvägar hit."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "64",
+   "end": "Spår 31",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "-"
+   },
+   "category": "stoppbock",
+   "reason": "Enligt §2 och TKL28 slutar en tågväg vid nästa huvudsignal eller vid en stoppbock, och tågvägen från 64 når stoppbocken Spår 31 utan någon huvudsignal emellan. Referensen (sidans skript) har bara växlingsvägar hit."
+  },
+  {
+   "side": "engine",
+   "kind": "train",
+   "start": "66",
+   "end": "Spår 31",
+   "switches": {
+    "111": "+",
+    "112": "-",
+    "113": "+"
+   },
+   "category": "stoppbock",
+   "reason": "Enligt §2 och TKL28 slutar en tågväg vid nästa huvudsignal eller vid en stoppbock, och tågvägen från 66 når stoppbocken Spår 31 utan någon huvudsignal emellan. Referensen (sidans skript) har bara växlingsvägar hit."
+  }
+ ]
+}

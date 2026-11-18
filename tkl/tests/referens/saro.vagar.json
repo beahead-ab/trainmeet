@@ -1,0 +1,323 @@
+{
+ "station": "saro",
+ "about": "Särö, nivå 1: 36 vägar spår till spår ur referenssidan ref/saro/stallverk.html.",
+ "counts": {
+  "train": 36,
+  "shunting": 0
+ },
+ "routes": [
+  {
+   "start": "A1",
+   "end": "Spår 1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "+"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Spår 2",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "-"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Spår 3",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "-"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Spår 4",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "+",
+    "4": "-"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Stopp 1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "+",
+    "5": "+"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Stopp 2",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "-",
+    "6": "+"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Stopp 3",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "-"
+   }
+  },
+  {
+   "start": "A1",
+   "end": "Stopp 4",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "+",
+    "4": "-"
+   }
+  },
+  {
+   "start": "Spår 1",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "+"
+   }
+  },
+  {
+   "start": "Spår 1",
+   "end": "Stopp 1",
+   "kind": "train",
+   "switches": {
+    "5": "+"
+   }
+  },
+  {
+   "start": "Spår 1",
+   "end": "Stopp 2",
+   "kind": "train",
+   "switches": {
+    "5": "-",
+    "6": "-"
+   }
+  },
+  {
+   "start": "Spår 2",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "-"
+   }
+  },
+  {
+   "start": "Spår 2",
+   "end": "Stopp 2",
+   "kind": "train",
+   "switches": {
+    "6": "+"
+   }
+  },
+  {
+   "start": "Spår 3",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "-"
+   }
+  },
+  {
+   "start": "Spår 3",
+   "end": "Stopp 3",
+   "kind": "train",
+   "switches": {}
+  },
+  {
+   "start": "Spår 4",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "+",
+    "4": "-"
+   }
+  },
+  {
+   "start": "Spår 4",
+   "end": "Stall 1",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  },
+  {
+   "start": "Spår 4",
+   "end": "Stopp 4",
+   "kind": "train",
+   "switches": {}
+  },
+  {
+   "start": "Spår 4",
+   "end": "Vändskivan",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  },
+  {
+   "start": "Stall 1",
+   "end": "Spår 4",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p1"
+  },
+  {
+   "start": "Stall 1",
+   "end": "Stopp 4",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p1"
+  },
+  {
+   "start": "Stall 1",
+   "end": "Vändskivan",
+   "kind": "train",
+   "switches": {},
+   "turntable": "p1"
+  },
+  {
+   "start": "Stopp 1",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "+",
+    "5": "+"
+   }
+  },
+  {
+   "start": "Stopp 1",
+   "end": "Spår 1",
+   "kind": "train",
+   "switches": {
+    "5": "+"
+   }
+  },
+  {
+   "start": "Stopp 2",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "+",
+    "2": "-",
+    "6": "+"
+   }
+  },
+  {
+   "start": "Stopp 2",
+   "end": "Spår 1",
+   "kind": "train",
+   "switches": {
+    "5": "-",
+    "6": "-"
+   }
+  },
+  {
+   "start": "Stopp 2",
+   "end": "Spår 2",
+   "kind": "train",
+   "switches": {
+    "6": "+"
+   }
+  },
+  {
+   "start": "Stopp 3",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "-"
+   }
+  },
+  {
+   "start": "Stopp 3",
+   "end": "Spår 3",
+   "kind": "train",
+   "switches": {}
+  },
+  {
+   "start": "Stopp 4",
+   "end": "A1",
+   "kind": "train",
+   "switches": {
+    "1": "-",
+    "3": "+",
+    "4": "-"
+   }
+  },
+  {
+   "start": "Stopp 4",
+   "end": "Spår 4",
+   "kind": "train",
+   "switches": {}
+  },
+  {
+   "start": "Stopp 4",
+   "end": "Stall 1",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  },
+  {
+   "start": "Stopp 4",
+   "end": "Vändskivan",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  },
+  {
+   "start": "Vändskivan",
+   "end": "Spår 4",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  },
+  {
+   "start": "Vändskivan",
+   "end": "Stall 1",
+   "kind": "train",
+   "switches": {},
+   "turntable": "p1"
+  },
+  {
+   "start": "Vändskivan",
+   "end": "Stopp 4",
+   "kind": "train",
+   "switches": {
+    "4": "+"
+   },
+   "turntable": "p4"
+  }
+ ],
+ "exceptions": []
+}
