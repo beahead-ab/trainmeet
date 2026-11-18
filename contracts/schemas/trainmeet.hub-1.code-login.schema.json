@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.code-login.schema.json",
+  "title": "trainmeet.hub-1.code-login",
+  "additionalProperties": true,
+  "description": "Logga in med en engångskod från trafikledningen (H56, F18).",
+  "properties": {
+    "code": {
+      "description": "Sex siffror. Skrivs aldrig ut i loggen.",
+      "pattern": "^[0-9]{6}$",
+      "title": "Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "type": "object"
+}

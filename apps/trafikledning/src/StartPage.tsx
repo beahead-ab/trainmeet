@@ -15,6 +15,8 @@ export type StartProps = {
   navigate: (href: string) => void;
   onSetUp?: (name: string, pin: string) => void;
   onLogIn?: (pin: string) => void;
+  /** Engångskoden från trafikledningen (H56). */
+  onLogInWithCode?: (code: string) => void;
   onLogOut?: () => void;
   onMessage?: (text: string) => void;
 };
@@ -92,10 +94,12 @@ export function builtText(iso: string): string {
   return `${when.getUTCFullYear()}-${pad(when.getUTCMonth() + 1)}-${pad(when.getUTCDate())} ${pad(when.getUTCHours())}:${pad(when.getUTCMinutes())} UTC`;
 }
 
-function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogOut, onMessage }: StartProps & { info: HubInfo }) {
+function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogInWithCode, onLogOut, onMessage }: StartProps & { info: HubInfo }) {
   const [name, setName] = useState(info.name);
   const [pin, setPin] = useState("");
   const [again, setAgain] = useState("");
+  const [code, setCode] = useState("");
+  const [withCode, setWithCode] = useState(false);
   if (!info.set_up) {
     const submit = (event: FormEvent) => {
       event.preventDefault();
@@ -127,21 +131,36 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogOut, onMessag
     );
   }
   if (!info.logged_in) {
+    // The PIN, or a one-time code from the dispatchers (H56): one at a time, so a wrong guess
+    // never counts twice.
     const submit = (event: FormEvent) => {
       event.preventDefault();
-      onLogIn?.(pin);
+      if (withCode) onLogInWithCode?.(code);
+      else onLogIn?.(pin);
     };
     return (
       <section className="kort" id="hubben">
         <h1>Logga in</h1>
-        <p className="ingress">Utan inloggning kan du titta. Logga in med hubbens PIN-kod för att köra träffen.</p>
+        <p className="ingress">Utan inloggning kan du titta. Logga in med hubbens PIN-kod, eller med en engångskod från trafikledningen, för att köra träffen.</p>
         <form id="login-form" className="formular" onSubmit={submit}>
-          <label>
-            PIN-kod <PinField id="pin" value={pin} onChange={setPin} />
-          </label>
+          {withCode ? (
+            <label>
+              Engångskod, 6 siffror{" "}
+              <input id="code" type="text" inputMode="numeric" pattern="[0-9]{6}" minLength={6} maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />
+            </label>
+          ) : (
+            <label>
+              PIN-kod <PinField id="pin" value={pin} onChange={setPin} />
+            </label>
+          )}
           <button type="submit" className="tm-knapp primar">
             Logga in
           </button>
+          {onLogInWithCode && (
+            <button id="kodval" type="button" className="tm-knapp" onClick={() => setWithCode(!withCode)}>
+              {withCode ? "Jag har hubbens PIN-kod" : "Jag har en engångskod"}
+            </button>
+          )}
         </form>
         <p id="hub-message" className="meddelande" role="alert">
           {message}
@@ -152,9 +171,13 @@ function HubCard({ info, message, navigate, onSetUp, onLogIn, onLogOut, onMessag
   return (
     <section className="kort" id="hubben">
       <h1>Inloggad</h1>
-      <p className="ingress">Du är inloggad som hubbens lokala administratör.</p>
+      {info.admin ? (
+        <p className="ingress">Du är inloggad som hubbens lokala administratör.</p>
+      ) : (
+        <p className="ingress">Du är insläppt som trafikledare med en engångskod. Det gäller den här träffen, tills den slutar eller trafikledningen tar bort dig.</p>
+      )}
       <p className="lankar">
-        <a href="/planering">Planera en träff →</a>
+        {info.admin && <a href="/planering">Planera en träff →</a>}
         <a href="/drift" onClick={linkClick(navigate, "/drift")}>
           Kör träffen →
         </a>

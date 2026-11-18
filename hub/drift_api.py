@@ -18,8 +18,9 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
-from contracts import drift, screen
+from contracts import drift, hub, screen
 from contracts.common import Id
+from contracts.id import MeetRole
 from contracts.reasons import TEXT_SV, Reason
 from drift.engine import Refused, now_utc
 from drift.now import now
@@ -31,8 +32,8 @@ from drift.store import (
     UnknownClient,
     UnknownExit,
 )
-from hub.hubben import Authorization, SessionCookie, require_admin
-from hub.local import LocalLogin
+from hub.hubben import Authorization, SessionCookie, require_admin, require_dispatcher
+from hub.local import DISPATCHER, LocalLogin
 from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
 
 STREAM_SECONDS = 300
@@ -65,13 +66,15 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     routes = APIRouter(prefix="/api/drift/1")
     failures = (MissingRun, RunLimit, Refused, UnknownBox, UnknownClient, ExitAnswered, UnknownExit)
 
-    def admin(session: str | None, authorization: str | None) -> str:
-        """The meet that runs, for a logged-in administrator."""
-        require_admin(login, session, authorization)
+    def dispatching(session: str | None, authorization: str | None) -> str:
+        """The meet that runs, for the administrator or someone the dispatcher let in (H56)."""
         try:
-            return running.store.current()
+            run_id = running.store.current()
         except MissingRun as error:
+            require_admin(login, session, authorization)
             _error(error)
+        require_dispatcher(login, session, authorization, run_id)
+        return run_id
 
     @routes.post("/start", status_code=201)
     def start(
@@ -109,7 +112,8 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         """Ta över i molnet (TRAFIK-08, H8, H9): the run another hub led is led from here, with
         a higher epoch, and the clock stopped. Only by hand, with the meet's name written."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        require_admin(login, session, authorization)
+        run_id = dispatching(session, authorization)
         name = running.store.package.meet.name
         if request.confirm.strip().casefold() != name.casefold():
             raise HTTPException(422, f"Skriv träffens namn, {name}, för att ta över.")
@@ -127,7 +131,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             state = running.store.clock(run_id, control)
         except failures as error:
@@ -149,7 +153,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Starta ny dag (F7): the next game day with its traffic day."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             state = running.store.new_day(run_id, request)
         except failures as error:
@@ -165,7 +169,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Dygnsskiftet by hand (förval) or automatic, and its time (F7)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.set_day(run_id, settings).model_dump(mode="json")
         except failures as error:
@@ -180,7 +184,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Ny driftändring (TRAFIK-02, DRIFT-41): it applies at once, or waits for the train."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             state = running.store.make_change(run_id, request)
         except failures as error:
@@ -204,7 +208,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Släpp a driftändring."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             event = running.store.drop_change(run_id, change_id).history[-1]
         except failures as error:
@@ -222,7 +226,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Tvinga igenom a waiting driftändring, with Nu's warning (H38)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.force_change(run_id, change_id).history[-1].model_dump(mode="json")
         except failures as error:
@@ -245,7 +249,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         """What a switch to the version would do: the driftändringar that fall away and the
         trains it waits for (H4, H38)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         switchable(version)
         try:
             state = running.store.state(run_id)
@@ -272,7 +276,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Byt till en ny version (TRAFIK-03): made, or waiting for the trains that are out."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         switchable(request.version)
         try:
             state = running.store.switch(run_id, request, running.included(request.version))
@@ -287,7 +291,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Tvinga igenom the switch that waits (H38)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             state = running.store.force_switch(run_id)
         except failures as error:
@@ -300,7 +304,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Avbryt bytet that waits."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.call_off_switch(run_id).history[-1].model_dump(mode="json")
         except failures as error:
@@ -312,7 +316,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Lås upp Drift that started locked (DRIFT-47)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.unlock(run_id).history[-1].model_dump(mode="json")
         except failures as error:
@@ -334,7 +338,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> list[dict[str, Any]]:
         """Every place's game number (H30). Only for the dispatcher: Nu shows no numbers (B13)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return [phone.model_dump(mode="json") for phone in running.store.phones(run_id)]
         except failures as error:
@@ -349,7 +353,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> list[dict[str, Any]]:
         """A place's number changed during the meet (TRAFIK-06); TKL and the app read it."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return [
                 phone.model_dump(mode="json") for phone in running.store.set_phone(run_id, change)
@@ -392,7 +396,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         response: Response, session: SessionCookie = None, authorization: Authorization = None
     ) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
-        return running.store.clients(admin(session, authorization))
+        return running.store.clients(dispatching(session, authorization))
 
     def changed(listed: list[dict[str, Any]], client_id: str) -> dict[str, Any]:
         return next(client for client in listed if client["client_id"] == client_id)
@@ -405,7 +409,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return changed(running.store.assign(run_id, change), change.client_id)
         except failures as error:
@@ -419,7 +423,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return changed(running.store.approve(run_id, change), change.client_id)
         except failures as error:
@@ -434,7 +438,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Trafikledningen svarar på Hubbens fråga om en utfart (TRAFIK-05)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return changed(running.store.couple_exit(run_id, change), change.client_id)
         except failures as error:
@@ -448,7 +452,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return changed(running.store.revoke(run_id, change), change.client_id)
         except failures as error:
@@ -463,7 +467,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """A screen gets its view (S3); none sends it back to Väntar."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         view = change.view.value if change.view else None
         try:
             return changed(
@@ -479,7 +483,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         """Who works which place, the automation's settings and the trains it waits with
         (F14)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.automation(run_id).model_dump(mode="json")
         except failures as error:
@@ -493,7 +497,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.set_automation(run_id, settings).model_dump(mode="json")
         except failures as error:
@@ -508,7 +512,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Lämna en plats till automatiken, eller ge den tillbaka till en klient där."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         try:
             return running.store.automation_place(run_id, change).model_dump(mode="json")
         except failures as error:
@@ -523,7 +527,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         authorization: Authorization = None,
     ) -> list[dict[str, Any]]:
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         return [event.model_dump(mode="json") for event in running.store.log(run_id, place, train)]
 
     @routes.get("/refusals")
@@ -532,7 +536,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> list[dict[str, Any]]:
         """What clients were told no, newest first (B15)."""
         response.headers["Cache-Control"] = "no-store"
-        run_id = admin(session, authorization)
+        run_id = dispatching(session, authorization)
         return [refusal.model_dump(mode="json") for refusal in running.store.refusals(run_id)]
 
     @routes.get("/connect")
@@ -544,7 +548,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     ) -> dict[str, Any]:
         """Anslut (S2): the meet's code, and the address a box opens with it."""
         response.headers["Cache-Control"] = "no-store"
-        code = running.store.join_code(admin(session, authorization))
+        code = running.store.join_code(dispatching(session, authorization))
         url = f"{_origin(request)}/box#kod={code}"
         return drift.Joining(code=code, url=url).model_dump(mode="json")
 
@@ -552,7 +556,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
     def connect_qr(
         request: Request, session: SessionCookie = None, authorization: Authorization = None
     ) -> Response:
-        code = running.store.join_code(admin(session, authorization))
+        code = running.store.join_code(dispatching(session, authorization))
         picture = io.BytesIO()
         segno.make(f"{_origin(request)}/box#kod={code}", error="m").save(
             picture, kind="svg", scale=6, border=2, dark="#0e1114", light="#ffffff"
@@ -566,7 +570,7 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
         request: Request, session: SessionCookie = None, authorization: Authorization = None
     ) -> StreamingResponse:
         """The meet's Drift events as they happen, from now on."""
-        run_id = await run_in_threadpool(admin, session, authorization)
+        run_id = await run_in_threadpool(dispatching, session, authorization)
         store = running.store
         start = len((await run_in_threadpool(store.state, run_id)).history)
 
@@ -600,6 +604,51 @@ def router(running: Running, login: LocalLogin) -> APIRouter:
             media_type="text/event-stream",
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )
+
+    # --- Släpp in med engångskod (H56, KONTO-19, F18) --------------------------------------
+
+    @routes.post("/codes", status_code=201)
+    def give_code(
+        request: hub.OneTimeCodeRequest,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Six digits, once, for 15 minutes, for this meet. The administrator and a dispatcher
+        both give Trafikledare: at most the giver's own role on the meet."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = dispatching(session, authorization)
+        code, expires = login.issue_code(run_id, DISPATCHER, request.name)
+        return hub.OneTimeCode(code=code, role=MeetRole.DISPATCHER, expires=expires).model_dump(
+            mode="json"
+        )
+
+    @routes.get("/let-in")
+    def let_in(
+        response: Response, session: SessionCookie = None, authorization: Authorization = None
+    ) -> list[dict[str, Any]]:
+        """Vem som är inne med en engångskod, och tills när. Never the code or the key."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = dispatching(session, authorization)
+        return [
+            hub.LetIn(
+                person=found.person,
+                name=found.name,
+                role=MeetRole(found.role),
+                since=found.since,
+                until=found.until,
+            ).model_dump(mode="json")
+            for found in login.let_in(run_id)
+        ]
+
+    @routes.post("/let-in/{person}/remove", status_code=204)
+    def take_away(
+        person: str, session: SessionCookie = None, authorization: Authorization = None
+    ) -> None:
+        """Ta bort: the role ends at once (H56)."""
+        run_id = dispatching(session, authorization)
+        if not login.take_away(run_id, person):
+            raise HTTPException(404, "Den inloggningen finns inte i träffen.")
 
     return routes
 

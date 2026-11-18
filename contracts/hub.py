@@ -14,6 +14,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from contracts.common import Contract, Text
+from contracts.id import MeetRole
 
 PIN = Field(pattern=r"^[0-9]{6,12}$", description="6–12 siffror. Skrivs aldrig ut i loggen.")
 
@@ -22,6 +23,14 @@ class HubInfo(Contract):
     name: Text
     set_up: bool = Field(description="Har hubben fått namn och PIN vid första start?")
     logged_in: bool
+    admin: bool = Field(
+        default=False,
+        description="Inloggad med hubbens PIN (H18): får göra allt, också hubbens inställningar.",
+    )
+    meet_role: MeetRole | None = Field(
+        default=None,
+        description="Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där.",
+    )
 
 
 class SetUp(Contract):
@@ -33,6 +42,42 @@ class SetUp(Contract):
 
 class LogIn(Contract):
     pin: str = PIN
+
+
+class CodeLogIn(Contract):
+    """Logga in med en engångskod från trafikledningen (H56, F18)."""
+
+    code: str = Field(pattern=r"^[0-9]{6}$", description="Sex siffror. Skrivs aldrig ut i loggen.")
+
+
+class OneTimeCodeRequest(Contract):
+    """Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift."""
+
+    name: str | None = Field(
+        default=None,
+        max_length=40,
+        description="Vem koden är till, om trafikledaren vill skriva det. Syns i listan.",
+    )
+
+
+class OneTimeCode(Contract):
+    """Engångskoden (H56, KONTO-19): sex siffror, en gång, i 15 minuter, för träffen som kör.
+    Den ger högst trafikledarens egen roll."""
+
+    code: Text = Field(description="Visas en gång. Hubben sparar bara ett kontrollvärde.")
+    role: MeetRole
+    expires: datetime
+
+
+class LetIn(Contract):
+    """Insläppt med engångskod: vem och tills när, aldrig koden eller nyckeln. Rollen gäller
+    tills träffen slutar eller trafikledningen tar bort den (H56)."""
+
+    person: Text = Field(description="Ett kort id för inloggningen, för att kunna ta bort den.")
+    name: Text | None = None
+    role: MeetRole
+    since: datetime
+    until: datetime
 
 
 class Rename(Contract):
@@ -50,7 +95,8 @@ class PinChange(Contract):
 
 class Session(Contract):
     session_key: Text = Field(
-        description="Visas en gång. Gäller 12 timmar, eller tills utloggning."
+        description="Visas en gång. Gäller 12 timmar med PIN, med en engångskod tills träffen "
+        "slutar eller rollen tas bort (H56), eller tills utloggning."
     )
 
 

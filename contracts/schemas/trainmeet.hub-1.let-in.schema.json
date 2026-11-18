@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.let-in.schema.json",
+  "title": "trainmeet.hub-1.let-in",
+  "$defs": {
+    "MeetRole": {
+      "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+      "enum": [
+        "organizer",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer"
+      ],
+      "title": "MeetRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Insläppt med engångskod: vem och tills när, aldrig koden eller nyckeln. Rollen gäller\ntills träffen slutar eller trafikledningen tar bort den (H56).",
+  "properties": {
+    "person": {
+      "description": "Ett kort id för inloggningen, för att kunna ta bort den.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Person",
+      "type": "string"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "role": {
+      "$ref": "#/$defs/MeetRole"
+    },
+    "since": {
+      "format": "date-time",
+      "title": "Since",
+      "type": "string"
+    },
+    "until": {
+      "format": "date-time",
+      "title": "Until",
+      "type": "string"
+    }
+  },
+  "required": [
+    "person",
+    "role",
+    "since",
+    "until"
+  ],
+  "type": "object"
+}

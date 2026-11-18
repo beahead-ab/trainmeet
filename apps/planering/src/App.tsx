@@ -34,7 +34,9 @@ export function App() {
   const asked = Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)) as { block?: string; sok?: string };
   const meet = route.page === "traffar" ? null : route.meet;
   const hubState = useHub();
-  const { admin, act, say, fail } = hubState;
+  // Planering is the PIN holder's (H18): someone let in with a one-time code runs the traffic
+  // only (H56).
+  const { owner: admin, act, say, fail } = hubState;
   const [ok, setOk] = useState(false);
   const [meets, setMeets] = useState<MeetSummary[] | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);

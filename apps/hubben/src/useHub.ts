@@ -9,7 +9,10 @@ import { askedChoice, meetChoices, waitingCount, type MeetChoice } from "./traff
 
 export type Hub = {
   info: HubInfo | null;
+  /** May run the traffic: the one with the hub's PIN, or someone let in as Trafikledare (H56). */
   admin: boolean;
+  /** The one with the hub's PIN (H18): the hub's own settings, Planering and Byt träff too. */
+  owner: boolean;
   version: Version | null;
   now: Now | null;
   /** Milliseconds since Nu came, for a clock that runs on between the answers. */
@@ -44,7 +47,8 @@ export function useHub(): Hub {
   const [joinedAt, setJoinedAt] = useState(0);
   const [message, say] = useState("");
   const [, setTick] = useState(0);
-  const admin = info?.logged_in ?? false;
+  const owner = info?.admin ?? false;
+  const admin = owner || info?.meet_role === "dispatcher";
   const choices = meetChoices(meets);
   const asked = askedChoice(window.location.search, choices);
 
@@ -108,8 +112,8 @@ export function useHub(): Hub {
 
   // Kör i Drift in Planering comes with the meet asked for: Byt träff opens with it.
   useEffect(() => {
-    if (admin && window.location.hash === "#ny-traff") setMenu("byt");
-  }, [admin]);
+    if (owner && window.location.hash === "#ny-traff") setMenu("byt");
+  }, [owner]);
 
   useEffect(() => {
     document.title = `TrainMeet Hub · ${info?.name ?? "Hubben"}`;
@@ -159,6 +163,7 @@ export function useHub(): Hub {
   return {
     info,
     admin,
+    owner,
     version,
     now,
     elapsedMs: now ? performance.now() - nowAt.current : 0,
@@ -180,12 +185,13 @@ export function useHub(): Hub {
       bottom,
       hubName: info?.name ?? "Hubben",
       admin,
+      owner,
       now,
       elapsedMs: now ? performance.now() - nowAt.current : 0,
       waiting: waitingCount(clients),
       choices,
       asked,
-      menu: admin ? menu : null,
+      menu: admin && (menu !== "byt" || owner) ? menu : null,
       joining,
       joinedAt,
       navigate: (href: string) => {

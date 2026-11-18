@@ -84,9 +84,18 @@ def svg(text: str) -> Response:
     )
 
 
-def router(login: LocalLogin, link: Callable[[], str | None]) -> APIRouter:
-    """`link` is the meet's address over the internet: the cloud hub this Pi is linked to."""
+def router(
+    login: LocalLogin,
+    link: Callable[[], str | None],
+    current_run: Callable[[], str | None] = lambda: None,
+) -> APIRouter:
+    """`link` is the meet's address over the internet: the cloud hub this Pi is linked to.
+    `current_run` is the meet that runs, where someone let in with a one-time code is logged
+    in (H56)."""
     routes = APIRouter()
+
+    def logged_in(session: str | None, authorization: str | None) -> bool:
+        return login.role(session_of(session, authorization), current_run()) is not None
 
     def admin_view() -> dict[str, Any]:
         found = login.meet_wifi()
@@ -140,7 +149,7 @@ def router(login: LocalLogin, link: Callable[[], str | None]) -> APIRouter:
         return admin_view()
 
     def full(request: Request, session: str | None, authorization: str | None) -> bool:
-        return on_meet_network(request) or login.valid(session_of(session, authorization))
+        return on_meet_network(request) or logged_in(session, authorization)
 
     @routes.get("/api/deltagare")
     def participant(
@@ -151,15 +160,15 @@ def router(login: LocalLogin, link: Callable[[], str | None]) -> APIRouter:
     ) -> dict[str, Any]:
         """What the participant page may show the one who looks (S8)."""
         response.headers["Cache-Control"] = "no-store"
-        logged_in = login.valid(session_of(session, authorization))
-        shown = logged_in or on_meet_network(request)
+        inside = logged_in(session, authorization)
+        shown = inside or on_meet_network(request)
         found = login.meet_wifi() if shown else None
         wifi = (
             hub.SharedWifi(name=found.name, open=found.open, password=found.password)
             if found is not None and found.name
             else None
         )
-        return hub.Participant(full=shown, logged_in=logged_in, wifi=wifi, link=link()).model_dump(
+        return hub.Participant(full=shown, logged_in=inside, wifi=wifi, link=link()).model_dump(
             mode="json"
         )
 

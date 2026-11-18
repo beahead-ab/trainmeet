@@ -884,6 +884,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/login/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hubCodeLogIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["giveOneTimeCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/let-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["letIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/let-in/{person}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["takeAwayLetIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/name": {
         parameters: {
             query?: never;
@@ -8089,9 +8153,26 @@ export interface components {
             set_up: boolean;
             /** Logged In */
             logged_in: boolean;
+            /**
+             * Admin
+             * @description Inloggad med hubbens PIN (H18): får göra allt, också hubbens inställningar.
+             * @default false
+             */
+            admin: boolean;
+            /**
+             * @description Insläppt med en engångskod (H56): rollen på träffen som kör, och bara där.
+             * @default null
+             */
+            meet_role: components["schemas"]["trainmeet.hub-1.info.MeetRole"] | null;
         } & {
             [key: string]: unknown;
         };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.hub-1.info.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * SetUp
          * @description First start: only possible while the hub has no PIN.
@@ -8121,7 +8202,7 @@ export interface components {
         "trainmeet.hub-1.session": {
             /**
              * Session Key
-             * @description Visas en gång. Gäller 12 timmar, eller tills utloggning.
+             * @description Visas en gång. Gäller 12 timmar med PIN, med en engångskod tills träffen slutar eller rollen tas bort (H56), eller tills utloggning.
              */
             session_key: string;
         } & {
@@ -8621,6 +8702,95 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.hub-1.ai-service-change.AiFormat": "chat" | "claude";
+        /**
+         * CodeLogIn
+         * @description Logga in med en engångskod från trafikledningen (H56, F18).
+         */
+        "trainmeet.hub-1.code-login": {
+            /**
+             * Code
+             * @description Sex siffror. Skrivs aldrig ut i loggen.
+             */
+            code: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OneTimeCodeRequest
+         * @description Släpp in en person (H56): trafikledningen ger koden under Klienter i Drift.
+         */
+        "trainmeet.hub-1.one-time-code-request": {
+            /**
+             * Name
+             * @description Vem koden är till, om trafikledaren vill skriva det. Syns i listan.
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OneTimeCode
+         * @description Engångskoden (H56, KONTO-19): sex siffror, en gång, i 15 minuter, för träffen som kör.
+         *     Den ger högst trafikledarens egen roll.
+         */
+        "trainmeet.hub-1.one-time-code": {
+            /**
+             * Code
+             * @description Visas en gång. Hubben sparar bara ett kontrollvärde.
+             */
+            code: string;
+            role: components["schemas"]["trainmeet.hub-1.one-time-code.MeetRole"];
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.hub-1.one-time-code.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        /**
+         * LetIn
+         * @description Insläppt med engångskod: vem och tills när, aldrig koden eller nyckeln. Rollen gäller
+         *     tills träffen slutar eller trafikledningen tar bort den (H56).
+         */
+        "trainmeet.hub-1.let-in": {
+            /**
+             * Person
+             * @description Ett kort id för inloggningen, för att kunna ta bort den.
+             */
+            person: string;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            role: components["schemas"]["trainmeet.hub-1.let-in.MeetRole"];
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * Format: date-time
+             */
+            until: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetRole
+         * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
+         * @enum {string}
+         */
+        "trainmeet.hub-1.let-in.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * ImportResult
          * @description What an import gives Planering: the package, its facts, rules, questions and report.
@@ -17250,6 +17420,94 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.session"];
                 };
+            };
+        };
+    };
+    hubCodeLogIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.code-login"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.session"];
+                };
+            };
+        };
+    };
+    giveOneTimeCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.one-time-code-request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.one-time-code"];
+                };
+            };
+        };
+    };
+    letIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.let-in"][];
+                };
+            };
+        };
+    };
+    takeAwayLetIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

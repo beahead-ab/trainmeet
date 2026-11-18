@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.one-time-code.schema.json",
+  "title": "trainmeet.hub-1.one-time-code",
+  "$defs": {
+    "MeetRole": {
+      "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
+      "enum": [
+        "organizer",
+        "dispatcher",
+        "loco_lead",
+        "remote_clearer"
+      ],
+      "title": "MeetRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Engångskoden (H56, KONTO-19): sex siffror, en gång, i 15 minuter, för träffen som kör.\nDen ger högst trafikledarens egen roll.",
+  "properties": {
+    "code": {
+      "description": "Visas en gång. Hubben sparar bara ett kontrollvärde.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/MeetRole"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "role",
+    "expires"
+  ],
+  "type": "object"
+}

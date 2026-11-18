@@ -39,6 +39,9 @@ export const TEXT = {
     onlyTraffic: "Du ser trafiken. Namn, foton och träffens Wi-Fi visas på träffens nät eller när du är inloggad.",
     logIn: "Logga in",
     pin: "Hubbens PIN-kod",
+    code: "Engångskod från trafikledningen",
+    useCode: "Jag har en engångskod",
+    usePin: "Jag har hubbens PIN-kod",
     toDrift: "Till driften →",
     close: "Stäng",
     shareHint: "Visa koden för den som står bredvid.",
@@ -82,6 +85,9 @@ export const TEXT = {
     onlyTraffic: "You see the traffic. Names, photos and the meet's Wi-Fi are shown on the meet's network or when you are logged in.",
     logIn: "Log in",
     pin: "The hub's PIN",
+    code: "One-time code from the dispatchers",
+    useCode: "I have a one-time code",
+    usePin: "I have the hub's PIN",
     toDrift: "To operations →",
     close: "Close",
     shareHint: "Show the code to the one next to you.",
@@ -119,13 +125,15 @@ export type DeltagareProps = {
   /** Given in tests; the page reads it from the hub itself. */
   initial?: { participant: Participant; pkg: Package | null };
   onLogIn: (pin: string) => void;
+  /** Engångskoden från trafikledningen (H56). */
+  onLogInWithCode?: (code: string) => void;
 };
 
 /** The key that says when the package Drift goes by has changed: the version and the
  * driftändringar on top of it. */
 const packageKey = (now: Now) => `${now.meet_id}:${now.version}:${(now.changes ?? []).map((change) => `${change.change_id}:${change.status}`).join(",")}`;
 
-export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn }: DeltagareProps) {
+export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn, onLogInWithCode }: DeltagareProps) {
   const t = TEXT[language];
   const [participant, setParticipant] = useState<Participant | null>(initial?.participant ?? null);
   const [pkg, setPkg] = useState<Package | null>(initial?.pkg ?? null);
@@ -198,7 +206,7 @@ export function DeltagarePage({ now, elapsedMs, message, language = languageOf(t
             <a href="/drift">{t.toDrift}</a>
           </p>
         ) : loggingIn ? (
-          <LogIn t={t} message={message} onLogIn={onLogIn} />
+          <LogIn t={t} message={message} onLogIn={onLogIn} onLogInWithCode={onLogInWithCode} />
         ) : (
           <button id="deltagare-logga-in" type="button" className="tm-knapp" onClick={() => setLoggingIn(true)}>
             {t.logIn}
@@ -266,21 +274,38 @@ function Happenings({ now, pkg, t }: { now: Now; pkg: Package | null; t: Text })
   );
 }
 
-function LogIn({ t, message, onLogIn }: { t: Text; message: string; onLogIn: (pin: string) => void }) {
+function LogIn({ t, message, onLogIn, onLogInWithCode }: { t: Text; message: string; onLogIn: (pin: string) => void; onLogInWithCode?: (code: string) => void }) {
   const [pin, setPin] = useState("");
+  const [code, setCode] = useState("");
+  // The PIN, or the one-time code the dispatchers gave (H56): one at a time, so a wrong guess
+  // never counts twice.
+  const [withCode, setWithCode] = useState(false);
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onLogIn(pin);
+    if (withCode) onLogInWithCode?.(code);
+    else onLogIn(pin);
   };
   return (
     <form id="deltagare-login" className="formular" onSubmit={submit}>
-      <label>
-        {t.pin}
-        <input id="deltagare-pin" type="password" inputMode="numeric" pattern="[0-9]{6,12}" minLength={6} maxLength={12} required autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} />
-      </label>
+      {withCode ? (
+        <label>
+          {t.code}
+          <input id="deltagare-code" type="text" inputMode="numeric" pattern="[0-9]{6}" minLength={6} maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />
+        </label>
+      ) : (
+        <label>
+          {t.pin}
+          <input id="deltagare-pin" type="password" inputMode="numeric" pattern="[0-9]{6,12}" minLength={6} maxLength={12} required autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} />
+        </label>
+      )}
       <button type="submit" className="tm-knapp primar">
         {t.logIn}
       </button>
+      {onLogInWithCode && (
+        <button id="deltagare-kodval" type="button" className="tm-knapp" onClick={() => setWithCode(!withCode)}>
+          {withCode ? t.usePin : t.useCode}
+        </button>
+      )}
       <p className="meddelande" role="alert">
         {message}
       </p>
