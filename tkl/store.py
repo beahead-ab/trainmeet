@@ -19,6 +19,10 @@ with its panel plan, problems and all. Taking it into use saves it as the statio
 an import; a new model, imported or taken from a reference station, or none, leaves no draft
 behind.
 
+Studio's Prova keeps its results with the station for the model they tried (#85 del c): the
+model's fingerprint goes with them, and they no longer count once the model changes. The station
+is Klart (tried) when every route passed for the model as it is now.
+
 At level 1–2 the station also has its interlocking's state of the moment (#84): the set routes,
 the locks, the switch positions and the train numbers, so that a restart keeps them. It belongs
 to one model: while routes are set or train numbers stand on the panel, the model cannot be
@@ -133,6 +137,10 @@ CREATE TABLE IF NOT EXISTS interlocking (
 CREATE TABLE IF NOT EXISTS loconet (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS prova (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
+    model TEXT NOT NULL, tried INTEGER NOT NULL, body TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS seen (
     slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
     place TEXT NOT NULL, body TEXT NOT NULL, heard REAL NOT NULL,
@@ -181,6 +189,18 @@ def now_utc() -> datetime:
     return datetime.now(UTC)
 
 
+def body_fingerprint(body: str) -> str:
+    """The fingerprint of a model as it is kept: the same as tkl.stallverk.fingerprint."""
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _migrate(db: sqlite3.Connection) -> None:
+    """Columns that came after a table was first made."""
+    columns = {str(row[1]) for row in db.execute("PRAGMA table_info(connection)")}
+    if "preview" not in columns:
+        db.execute("ALTER TABLE connection ADD COLUMN preview INTEGER NOT NULL DEFAULT 0")
+
+
 def _hash_pin(pin: str, salt: bytes) -> bytes:
     return hashlib.scrypt(pin.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
 
@@ -222,6 +242,8 @@ class Connection:
     outside_version: int
     message: str | None
     key: str | None = field(default=None, repr=False)
+    preview: bool = False
+    """A preview run in Provbanan, never a real meet (STUDIO-12)."""
 
 
 class TklStore:
@@ -237,6 +259,7 @@ class TklStore:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with closing(sqlite3.connect(self.path)) as db:
                     db.executescript(_SCHEMA)
+                    _migrate(db)
                 self.path.chmod(0o600)
                 self._ready = True
             with closing(sqlite3.connect(self.path)) as db, db:
@@ -253,7 +276,10 @@ class TklStore:
             row = db.execute(
                 "SELECT station_id, name, level FROM station WHERE slot=?", (slot,)
             ).fetchone()
-        return None if row is None else TklStation(station_id=row[0], name=row[1], level=row[2])
+            tried = row is not None and self._tried(db, slot)
+        if row is None:
+            return None
+        return TklStation(station_id=row[0], name=row[1], level=row[2], tried=tried)
 
     def set_up(self, slot: str, station_id: str, name: str, pin: str) -> str:
         """Första start: the station and the PIN. Returns a session for the one who did it."""
@@ -471,6 +497,36 @@ class TklStore:
     def forget_drawing(self, slot: str) -> None:
         with self._transaction() as db:
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
+
+    def model_fingerprint(self, slot: str) -> str | None:
+        """The fingerprint of the station's model as it is kept: what Prova's results belong to."""
+        with self._transaction() as db:
+            body = self._model(db, slot)
+        return None if body is None else body_fingerprint(body)
+
+    # --- Studio's Prova (#85 del c): the results, for one model -----------------------------
+
+    def _tried(self, db: sqlite3.Connection, slot: str) -> bool:
+        body = self._model(db, slot)
+        row = db.execute("SELECT model, tried FROM prova WHERE slot=?", (slot,)).fetchone()
+        return (
+            body is not None
+            and row is not None
+            and bool(row[1])
+            and str(row[0]) == body_fingerprint(body)
+        )
+
+    def prova(self, slot: str) -> tuple[str, str] | None:
+        """Prova's kept results: the fingerprint of the model they tried, and their body."""
+        with self._transaction() as db:
+            row = db.execute("SELECT model, body FROM prova WHERE slot=?", (slot,)).fetchone()
+        return None if row is None else (str(row[0]), str(row[1]))
+
+    def save_prova(self, slot: str, model: str, tried: bool, body: str) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO prova VALUES (?, ?, ?, ?)", (slot, model, int(tried), body)
+            )
 
     # --- Manöver (STV-46): the owner's settings, with the model ------------------------------
 
@@ -732,7 +788,7 @@ class TklStore:
         with self._transaction() as db:
             row = db.execute(
                 "SELECT address, relay, hub_name, client_id, status, places, outside_version, "
-                "message, key FROM connection WHERE slot=?",
+                "message, key, preview FROM connection WHERE slot=?",
                 (slot,),
             ).fetchone()
         if row is None:
@@ -747,6 +803,7 @@ class TklStore:
             outside_version=row[6],
             message=row[7],
             key=row[8],
+            preview=bool(row[9]),
         )
 
     def connected(self, slot: str, made: Connection) -> None:
@@ -754,7 +811,9 @@ class TklStore:
         with self._transaction() as db:
             db.execute("DELETE FROM seen WHERE slot=?", (slot,))
             db.execute(
-                "INSERT OR REPLACE INTO connection VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO connection (slot, address, relay, hub_name, client_id, "
+                "status, places, key, outside_version, message, preview) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     slot,
                     made.address,
@@ -766,6 +825,7 @@ class TklStore:
                     made.key,
                     made.outside_version,
                     made.message,
+                    int(made.preview),
                 ),
             )
 

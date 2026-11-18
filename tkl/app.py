@@ -70,6 +70,22 @@ the cloud shows the objects and their addresses but never opens a port (TKLMOLN-
 
 At level 3 with LocoNet the interlocking's orders go out on the bus after every operation.
 
+Studio's Prova (#85 del c, STUDIO-05, STUDIO-12, STUDIO-21, STUDIO-27): the simulated test, a
+train through every route, in the background (tkl/prova.py), and Provkör on the real layout with
+LocoNet connected (tkl/provkor.py):
+
+    GET  /api/tkl/1/studio/prova                  TklProva: the progress, the results, Klart
+    POST /api/tkl/1/studio/prova/start            start the simulated test
+    POST /api/tkl/1/studio/prova/stop             stop it
+    POST /api/tkl/1/studio/prova/provkor/start    Provkör: each route on the layout
+    POST /api/tkl/1/studio/prova/provkor/answer   TklProvkorAnswer: right, wrong or skip
+    POST /api/tkl/1/studio/prova/provkor/stop
+
+Prova connects only to a preview run in the hub, never to a real meet (STUDIO-12): Anslut from
+Prova, or while the pretend LocoNet is connected, needs the run's code and a hub that says the
+run is Provbanan's; the pretend LocoNet is refused while TKL is connected to a real meet, and
+nothing it reports goes up to one.
+
 While the station has a model, Studio's list is its outside derived from the model (STD-08,
 TKL92): it is shown but not written, and a new version is made as before (TKL25).
 
@@ -91,6 +107,7 @@ import logging
 import os
 import re
 import secrets
+import threading
 import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -134,6 +151,8 @@ from contracts.tkl import (
     TklObjectChange,
     TklPinChange,
     TklPretendAsk,
+    TklProvkor,
+    TklProvkorAnswer,
     TklReport,
     TklReportKind,
     TklReset,
@@ -149,12 +168,13 @@ from contracts.tkl import (
     TklView,
     TklWait,
 )
-from tkl import VERSION, hub_reports, id_login, manover, track_plan
+from tkl import VERSION, hub_reports, id_login, manover, prova, track_plan
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
+from tkl.provkor import NoQuestion, Provkor, idle
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
-from tkl.stallverk.interlocking import Order
+from tkl.stallverk.interlocking import KOPPLA_IN, Order
 from tkl.standard import LayoutError, RouteKind, problems
 from tkl.store import (
     LOCAL,
@@ -196,6 +216,28 @@ BUSY = (
 )
 WAIT_SECONDS = 25.0
 WAIT_STEP = 0.2
+PROVA_CODE = (
+    "Prova ansluts bara till en provkörning i Provbanan, aldrig till en riktig träff "
+    "(STUDIO-12). Skriv provkörningens kod."
+)
+NOT_PREVIEW = (
+    "Hubben säger att det är en riktig träff. Prova ansluts bara till en provkörning i "
+    "Provbanan, aldrig till en riktig träff (STUDIO-12)."
+)
+NOT_TO_A_MEET = (
+    "Prova rapporterar aldrig till en riktig träff (STUDIO-12). Inget rapporterades till hubben."
+)
+PROVA_BUSY = "Prova provar så många stationer det hinner just nu. Försök igen om en stund."
+PROVKOR_LEVEL = f"Provkör kräver nivå 3. Slå på den i {KOPPLA_IN}."
+PROVKOR_LAYOUT = (
+    f"Provkör kräver LocoNet anslutet till banan i {KOPPLA_IN}. Låtsas-LocoNet provas med Prova."
+)
+PROVKOR_BUSY = (
+    "Ställverket har lagda vägar eller tågnummer. Lös ut vägarna och ta bort tågnumren innan "
+    "Provkör, så att inget läggs om under ett tåg."
+)
+PROVKOR_IDLE = "Provkör är inte igång."
+PROVKOR_WAITS = "Provkör väntar på återrapporten. Svara när vägen ligger, eller hoppa över den."
 
 
 def web_dir() -> Path:
@@ -223,9 +265,12 @@ def create_app(
     cloud = mode == TklMode.CLOUD
     services: list[loconet.Service] = []
 
+    runner = prova.Runner()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
+        runner.close()
         for running in services:
             running.close()
 
@@ -834,6 +879,7 @@ def create_app(
             places=made.places,
             outside_version=made.outside_version,
             message=made.message,
+            preview=made.preview,
         ).model_dump(mode="json")
 
     def follow(found: str, made: Connection) -> Connection:
@@ -883,13 +929,19 @@ def create_app(
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> dict[str, Any]:
-        """Anslut: TKL says which station it is and brings its outside (KLAR-02, KLAR-12)."""
+        """Anslut: TKL says which station it is, at which level, and brings its outside
+        (KLAR-02, KLAR-12). From Prova, or while the pretend LocoNet is connected, only a
+        preview run in Provbanan, never a real meet (STUDIO-12)."""
         same_site(request)
         no_store(response)
         found = unlocked(slot, session)
         address = checked(given.address)
         own = store.station_of(found)
         assert own is not None
+        code = (given.code or "").strip() or None
+        in_prova = given.prova or (service is not None and service.pretending)
+        if in_prova and code is None:
+            raise HTTPException(422, PROVA_CODE)
         number, outside = store.latest_outside(found)
         request_ = station.ConnectRequest(
             kind=station.ClientKind.TKL,
@@ -897,7 +949,9 @@ def create_app(
             software=f"TKL {VERSION}",
             station_id=own.station_id,
             outside=outside,
-            code=(given.code or "").strip() or None,
+            code=code,
+            level=own.level,
+            preview_only=in_prova,
         )
         reaching = HubClient(client, address)
         try:
@@ -908,6 +962,8 @@ def create_app(
             raise HTTPException(
                 error.status if error.status < 500 else 502, error.detail
             ) from error
+        if in_prova and not reply.preview:
+            raise HTTPException(409, NOT_PREVIEW)
         described = reaching.describe(nearby=address not in internet)
         store.connected(
             found,
@@ -921,6 +977,7 @@ def create_app(
                 outside_version=number,
                 message=reply.message,
                 key=reply.key,
+                preview=reply.preview,
             ),
         )
         return shown(store.connection(found))
@@ -1158,6 +1215,8 @@ def create_app(
             said = f"{reached} Inget rapporterades till hubben."
             return [r.model_copy(update={"message": said}) for r in reports]
         made, place = reached
+        if service is not None and service.pretending and not made.preview:
+            return [r.model_copy(update={"message": NOT_TO_A_MEET}) for r in reports]
         try:
             snapshot = hub(made).snapshot(place)
         except Unreachable:
@@ -1602,6 +1661,159 @@ def create_app(
         except loconet.Refused as error:
             raise said_no(error) from error
         return koppla(found)
+
+    # --- Studio's Prova (#85 del c): the simulated test and Provkör ------------------------
+
+    provkors: dict[str, Provkor] = {}
+    keeping = threading.Lock()
+
+    def kept_prova(found: str) -> tuple[str, prova.Saved | None] | None:
+        row = store.prova(found)
+        return None if row is None else (row[0], prova.read(row[1]))
+
+    def keep(found: str, model: str, change: Callable[[prova.Saved | None], prova.Saved]) -> None:
+        """Prova's results kept with the station for the model they tried; what was kept for
+        the same model is changed, anything older replaced."""
+        with keeping:
+            before = kept_prova(found)
+            saved = change(before[1] if before is not None and before[0] == model else None)
+            store.save_prova(found, model, saved.tried, saved.model_dump_json())
+
+    def provkor_reason(model: StationModel | None) -> str | None:
+        if service is None:
+            return loconet.CLOUD
+        if model is None or model.level < 3:
+            return PROVKOR_LEVEL
+        if not service.on_layout:
+            return PROVKOR_LAYOUT
+        return None
+
+    def prova_view(found: str) -> Any:
+        model = store.station_model(found)
+        current = store.model_fingerprint(found)
+        reason = provkor_reason(model)
+        running = provkors.get(found)
+        if running is not None and running.running:
+            if reason is not None:
+                running.stop()
+            else:
+                running.tick(interlocking_of(found).view())
+        saved = kept_prova(found)
+        if running is not None and running.running:
+            shown_provkor: TklProvkor = running.shown(reason is None, reason)
+        else:
+            kept = saved[1] if saved is not None and saved[0] == current else None
+            shown_provkor = idle(
+                reason is None,
+                reason,
+                kept.provkor if kept is not None else [],
+                kept.provkor_finished if kept is not None else None,
+            )
+        found_view = prova.view(model, current, saved, runner.job(found), shown_provkor)
+        return found_view.model_dump(mode="json")
+
+    @routes.get("/studio/prova")
+    def prova_state(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Prova: the progress while it runs, the results failures first, and Klart."""
+        no_store(response)
+        return prova_view(unlocked(slot, session))
+
+    @routes.post("/studio/prova/start")
+    def prova_start(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Starta Prova: every route, one at a time from a clean state, in the background
+        (STUDIO-05, STUDIO-27). One that already runs goes on."""
+        found = doing(request, response, slot, session)
+        model = store.station_model(found)
+        current = store.model_fingerprint(found)
+        if model is None or current is None:
+            raise HTTPException(404, NO_MODEL)
+
+        def finish(job: prova.Job, _complete: bool) -> None:
+            keep(found, job.model, lambda before: prova.saved_of(job, before))
+
+        try:
+            runner.start(found, model, current, finish)
+        except prova.Busy as error:
+            raise HTTPException(429, PROVA_BUSY) from error
+        return prova_view(found)
+
+    @routes.post("/studio/prova/stop")
+    def prova_stop(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        runner.stop(found)
+        job = runner.job(found)
+        if job is not None and job.thread is not None:
+            job.thread.join(timeout=10)
+        return prova_view(found)
+
+    @routes.post("/studio/prova/provkor/start")
+    def provkor_start(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Provkör: each route on the real layout, the switches ordered and their feedback
+        checked, and the owner asked (STUDIO-05, STUDIO-27)."""
+        found = doing(request, response, slot, session)
+        model = store.station_model(found)
+        reason = provkor_reason(model)
+        if reason is not None or model is None:
+            raise HTTPException(409, reason or NO_MODEL)
+        running = provkors.get(found)
+        if running is not None and running.running:
+            return prova_view(found)
+        state = interlocking_of(found).view()
+        if state.routes or state.trains:
+            raise HTTPException(409, PROVKOR_BUSY)
+        current = store.model_fingerprint(found) or ""
+
+        def changed(made: Provkor) -> None:
+            def update(before: prova.Saved | None) -> prova.Saved:
+                base = before or prova.Saved(simulator=prova.simulator(model.level))
+                return base.model_copy(
+                    update={"provkor": list(made.results), "provkor_finished": made.finished}
+                )
+
+            keep(found, current, update)
+
+        made = Provkor(prova.ways(model), local().operate, on_change=changed)
+        provkors[found] = made
+        made.begin()
+        return prova_view(found)
+
+    @routes.post("/studio/prova/provkor/answer")
+    def provkor_answer(
+        ask: TklProvkorAnswer,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The owner's answer: the signal and the path are right, wrong, or skip the route."""
+        found = doing(request, response, slot, session)
+        running = provkors.get(found)
+        if running is None or not running.running:
+            raise HTTPException(409, PROVKOR_IDLE)
+        running.tick(interlocking_of(found).view())
+        try:
+            running.answer(ask.answer)
+        except NoQuestion as error:
+            raise HTTPException(409, PROVKOR_WAITS) from error
+        return prova_view(found)
+
+    @routes.post("/studio/prova/provkor/stop")
+    def provkor_stop(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        running = provkors.get(found)
+        if running is not None:
+            running.stop()
+        return prova_view(found)
 
     app.include_router(routes)
 

@@ -115,6 +115,11 @@ ROUTES_SET: Final = (
     "Ställverket har lagda vägar. Lös ut dem innan du lär in, så att inget läggs om under ett tåg."
 )
 PRETEND_LABEL: Final = "Låtsas-LocoNet: LocoNet ej ansluten, som Prova använder"
+REAL_MEET: Final = (
+    "TKL är ansluten till en riktig träff. Låtsas-LocoNet är Prova, som aldrig kopplas till en "
+    "riktig träff (STUDIO-12): koppla från träffen i Inställningar först, eller anslut till en "
+    "provkörning."
+)
 
 
 class Refused(Exception):
@@ -218,6 +223,9 @@ class Service:
             model = self.store.station_model(self.slot)
             if model is None:
                 raise Refused(NO_MODEL, 404)
+            meet = self.store.connection(self.slot)
+            if kind == LoconetType.PRETEND and meet is not None and not meet.preview:
+                raise Refused(REAL_MEET)
             if kind == LoconetType.PRETEND:
                 self.pretend = PretendLoconet.from_model(
                     model, clock=self.settings.clock, movement=self.settings.movement
@@ -263,6 +271,18 @@ class Service:
     def disconnect(self) -> None:
         with self._lock:
             self._close(None)
+
+    @property
+    def pretending(self) -> bool:
+        """The pretend LocoNet is connected: TKL is in Prova (STUDIO-24)."""
+        with self._lock:
+            return self.link is not None and self.kind == LoconetType.PRETEND
+
+    @property
+    def on_layout(self) -> bool:
+        """LocoNet is connected to the real layout: Provkör can run (STUDIO-05)."""
+        with self._lock:
+            return self.link is not None and self.kind not in (None, LoconetType.PRETEND)
 
     def _close(self, error: str | None) -> None:
         self._stop.set()
@@ -374,6 +394,26 @@ class Service:
         reports, orders = self.store.change_interlocking(self.slot, change)
         self.send(orders)
         return reports
+
+    def operate(self, act: Callable[[Interlocking], Outcome]) -> tuple[Outcome, TklInterlocking]:
+        """One operation on the interlocking by TKL itself, as Provkör does it: in one
+        transaction, with its orders sent on the bus. What it reports does not go to Hubben: it
+        is a test of the layout."""
+
+        def change(
+            model: StationModel | None, revision: int, body: str | None
+        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking, list[Order]]]:
+            if model is None:
+                raise Refused(NO_MODEL, 404)
+            made = load(plant_of(model), revision, body)
+            outcome = act(made)
+            orders = made.take_orders()
+            state = made.view()
+            return (state if made.revision != revision else None), (outcome, state, orders)
+
+        outcome, state, orders = self.store.change_interlocking(self.slot, change)
+        self.send(orders)
+        return outcome, state
 
     def send(self, orders: list[Order]) -> None:
         """The interlocking's orders as LocoNet messages. A switch without feedback is taken

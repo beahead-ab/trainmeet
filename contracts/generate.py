@@ -104,6 +104,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.level-ask": tkl.TklLevelAsk,
     "trainmeet.tkl-1.listen": tkl.TklListen,
     "trainmeet.tkl-1.pretend-ask": tkl.TklPretendAsk,
+    # Studio's Prova (#85 del c): the simulated test, Klart and Provkör.
+    "trainmeet.tkl-1.prova": tkl.TklProva,
+    "trainmeet.tkl-1.provkor-answer": tkl.TklProvkorAnswer,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1962,6 +1965,15 @@ def tkl_openapi() -> str:
     route("post", k + "/level", "tklLevel", koppla, t + "level-ask")
     route("get", k + "/lyssna", "tklListen", t + "listen")
     route("post", k + "/latsas", "tklPretend", koppla, t + "pretend-ask")
+    # Studio's Prova (#85 del c).
+    pr = a + "/studio/prova"
+    shown_prova = t + "prova"
+    route("get", pr, "tklProva", shown_prova)
+    route("post", pr + "/start", "tklProvaStart", shown_prova)
+    route("post", pr + "/stop", "tklProvaStop", shown_prova)
+    route("post", pr + "/provkor/start", "tklProvkorStart", shown_prova)
+    route("post", pr + "/provkor/answer", "tklProvkorAnswer", shown_prova, t + "provkor-answer")
+    route("post", pr + "/provkor/stop", "tklProvkorStop", shown_prova)
     stems = [
         s
         for s in CONTRACTS

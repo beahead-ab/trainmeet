@@ -7,6 +7,11 @@ is automatic: it clears a request when the planned track is free, asks for and r
 departure of its own trains when they are ready, and reports an arrival once the timetable's
 running time has passed since the departure.
 
+Occupancy from a station at level 3 stops the automation on the section (DRIFT-16): it asks for
+no clearance onto it, clears no request over it and sends no train onto it while it is occupied.
+A train already on its way still arrives after its running time: occupancy never frees anything,
+nor holds a train on the line for ever.
+
 The first box or TKL that works a place makes it manned. A manned place whose operator loses
 contact waits for that operator, unless the dispatcher has chosen that the automation takes
 over after some minutes without contact. The dispatcher, and the place's own box or TKL, can
@@ -38,6 +43,8 @@ from drift.engine import AUTOMATION, Drift, Leg, Refused, leg_times
 
 # The automation asks at the earliest two model minutes before the departure (F14).
 REQUEST_LEAD_SECONDS: Final = 120
+# Why the automation waits while a station at level 3 says the section is occupied (DRIFT-16).
+OCCUPIED: Final = "Sträckan är belagd enligt detekteringen"
 # (share of the trains in percent, most extra minutes), as the old simulation's profiles (F15).
 PROFILES: Final = {
     events.Disturbance.OFF: (0, 0),
@@ -225,6 +232,7 @@ class Automatik:
             return ""
         ready = self._ready_at(drift, planned, legs)
         automatic_sender = drift.automatic(sender)
+        occupied = drift.detected(leg.section.id)
         if case is None and automatic_sender:
             if math.isinf(ready):
                 return "Väntar på föregående ankomst"
@@ -241,6 +249,8 @@ class Automatik:
                 for c in drift.cases.values()
             ):
                 return "Begäran nekad – kräver operatörsåtgärd"
+            if occupied:
+                return OCCUPIED
             clearance = f"auto-{uuid4().hex[:16]}"
             self._act(
                 drift,
@@ -262,6 +272,8 @@ class Automatik:
             track = drift.planned_track(leg)
             if track is None or drift.occupant(receiver, track, key) is not None:
                 return "Mottagningsspåret är upptaget"
+            if occupied:
+                return OCCUPIED
             if self.now() < answer_at:
                 return "Väntar på klartecken"
             self._act(
@@ -275,6 +287,8 @@ class Automatik:
             self.answer_at.pop(case.id, None)
             case = drift.cases[case.id]
         if automatic_sender and case is not None and case.status == Status.APPROVED:
+            if occupied:
+                return OCCUPIED
             if seconds >= ready:
                 self._act(drift, sender, Action.TRAIN_DEPARTED, now, call=key)
                 return ""

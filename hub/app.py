@@ -123,7 +123,11 @@ def create_app(
     # Provbanan's runs per browser: the automation starts off, since only the hub's meet
     # is ticked (F14).
     preview = PreviewStore(
-        preview_path, package, package_key=provbanan.package_key(), automation=False
+        preview_path,
+        package,
+        package_key=provbanan.package_key(),
+        automation=False,
+        preview=True,
     )
     plans = Planning(data_dir / "planering.sqlite3")
     # Synk keeps the versions, in Planering's file (SYNK-20).

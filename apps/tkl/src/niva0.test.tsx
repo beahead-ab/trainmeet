@@ -40,8 +40,8 @@ const base: Snapshot = {
   clock: { time: "06:10:00", seconds: 6 * 3600 + 600, running: true, speed: 4, game_day: 1 },
   place_revision: 3,
   sections: [
-    { section: "s-nby-asn", other_place: "nby", other_code: "Nby", tracks: "single", clearance_mode: "requested", side: "left", exit: "v", occupied: false },
-    { section: "s-asn-mla", other_place: "mla", other_code: "Mlå", tracks: "double", clearance_mode: "requested", side: "right", exit: "o", occupied: true },
+    { section: "s-nby-asn", other_place: "nby", other_code: "Nby", tracks: "single", clearance_mode: "requested", side: "left", exit: "v", occupied: false, detected: false },
+    { section: "s-asn-mla", other_place: "mla", other_code: "Mlå", tracks: "double", clearance_mode: "requested", side: "right", exit: "o", occupied: true, detected: false },
   ],
   calls: [
     call({ call: "t102-asn", train_number: "102", arrival: "06:24", departure: "06:26", planned_track: "2", from_place: "mla", to_place: "nby", arrival_state: "on_the_way", allowed_actions: ["train.arrived", "train.track.change"] }),

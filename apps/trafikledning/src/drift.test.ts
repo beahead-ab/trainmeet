@@ -32,6 +32,8 @@ group("Klienter and Logg (TRAFIK-04, TRAFIK-07)", () => {
     const event = (kind: string, data: Record<string, unknown> = {}) => ({ kind, data }) as unknown as DriftEvent;
     expect(describe(event("clearance.answered", { approved: false }))).toBe("Begäran nekad");
     expect(describe(event("clock.speed", { speed: 4 }))).toBe("Ny hastighet 4×");
+    expect(describe(event("section.occupancy", { section: "s-nby-asn", occupied: true }))).toBe("Sträckan s-nby-asn belagd enligt detekteringen");
+    expect(describe(event("section.occupancy", { section: "s-nby-asn", occupied: false }))).toBe("Sträckan s-nby-asn ledig enligt detekteringen");
     expect(describe(event("train.arrived", { track: "2" }))).toBe("Ankomst spår 2");
     expect(describe(event("train.arrived", { track: "2", forward: true }))).toBe("Ankomst spår 2, flyttat fram");
     expect(describe(event("clearance.answered", { approved: true, forward: true }))).toBe("Klart givet, flyttat fram");

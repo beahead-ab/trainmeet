@@ -74,6 +74,18 @@ class ConnectRequest(Contract):
         default=None,
         description="Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
     )
+    level: int = Field(
+        default=0,
+        ge=0,
+        le=3,
+        description="Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en "
+        "station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.",
+    )
+    preview_only: bool = Field(
+        default=False,
+        description="Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben "
+        "säger nej till en riktig träff (STUDIO-12).",
+    )
 
 
 class ApprovalStatus(StrEnum):
@@ -97,6 +109,10 @@ class ConnectReply(Contract):
         default=None,
         description="Adressen utanför träffens nät: molnhubbens relä till den här hubben, där "
         "samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
+    )
+    preview: bool = Field(
+        default=False,
+        description="Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
     )
 
 
@@ -218,7 +234,10 @@ class LineAcknowledge(Contract):
 
 
 class SectionOccupancy(Contract):
-    """Level 3 only: a section's detection. The section is free when every part is empty."""
+    """Level 3 only: a section's detection. The section is free when every part is empty.
+    Accepted from a client that connected at level 3, for a section from its place (DRIFT-10).
+    It stops direct clearance and the automation on the section, and never frees anything by
+    itself (DRIFT-16)."""
 
     section: Id
     occupied: bool
@@ -293,6 +312,11 @@ class SectionHere(Contract):
         "(H26).",
     )
     occupied: bool = False
+    detected: bool = Field(
+        default=False,
+        description="Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan "
+        "belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+    )
 
 
 class DepartureState(StrEnum):

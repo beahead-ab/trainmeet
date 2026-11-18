@@ -64,6 +64,16 @@ def now(drift: Drift, at: datetime) -> contract.Now:
         # Lokföraren (LOK-23, LOK-35): no names, only the trains and the services.
         driver_alarms=alarms(drift),
         driver_messages=now_messages(drift, at),
+        detected=[
+            contract.DetectedSection(
+                section=section.id,
+                place_a=section.place_a,
+                place_b=section.place_b,
+                by=drift.detected_by(section.id),
+            )
+            for section in drift.package.sections
+            if drift.detected(section.id)
+        ],
     )
 
 

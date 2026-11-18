@@ -299,7 +299,7 @@
     },
     "SectionOccupancy": {
       "additionalProperties": true,
-      "description": "Level 3 only: a section's detection. The section is free when every part is empty.",
+      "description": "Level 3 only: a section's detection. The section is free when every part is empty.\nAccepted from a client that connected at level 3, for a section from its place (DRIFT-10).\nIt stops direct clearance and the automation on the section, and never frees anything by\nitself (DRIFT-16).",
       "properties": {
         "section": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",

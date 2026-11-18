@@ -286,6 +286,7 @@ def level_3_with_hub(tmp_path: Path) -> tuple[TestClient, PretendHub]:
             outside_version=1,
             message=None,
             key="hemlig-nyckel",
+            preview=True,
         ),
     )
     return client, hub

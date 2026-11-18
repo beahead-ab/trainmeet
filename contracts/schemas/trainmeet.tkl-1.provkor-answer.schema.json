@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.provkor-answer.schema.json",
+  "title": "trainmeet.tkl-1.provkor-answer",
+  "additionalProperties": true,
+  "description": "The owner's answer in Provkör: the signal and the path are right, wrong, or the route is\nskipped.",
+  "properties": {
+    "answer": {
+      "enum": [
+        "right",
+        "wrong",
+        "skip"
+      ],
+      "title": "Answer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "answer"
+  ],
+  "type": "object"
+}

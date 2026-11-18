@@ -1414,6 +1414,36 @@
       "title": "ExitSignalSet",
       "type": "object"
     },
+    "SectionOccupied": {
+      "additionalProperties": true,
+      "description": "Beläggningen från detekteringen (section.occupancy, DRIFT-10): from a station that\nconnected at level 3, about a section from its place. The event names the place; Drift keeps\nthe latest per section and place, and the section is occupied while any of them says so. It\nstops direct clearance and the automation on the section, and never frees anything by itself\n(DRIFT-16).",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "occupied": {
+          "title": "Occupied",
+          "type": "boolean"
+        },
+        "parts": {
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "type": "boolean"
+            }
+          },
+          "title": "Parts",
+          "type": "object"
+        }
+      },
+      "required": [
+        "section",
+        "occupied"
+      ],
+      "title": "SectionOccupied",
+      "type": "object"
+    },
     "PlaceManned": {
       "additionalProperties": true,
       "description": "The first box or TKL that works a place mans it (F14).",
@@ -2812,6 +2842,21 @@
     {
       "properties": {
         "kind": {
+          "const": "section.occupancy",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/SectionOccupied"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "place.manned",
           "type": "string"
         },
@@ -3056,6 +3101,7 @@
               "line.available",
               "line.acknowledged",
               "signal.exit",
+              "section.occupancy",
               "place.manned",
               "place.left",
               "place.taken_back",

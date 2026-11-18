@@ -15,7 +15,8 @@
 // i stopp, och kopplar ur det (STV-04), trycker Kör en gång i Foto och ser tåget rulla (STV-06),
 // trycker Kör i 85 tills tågnumret har stegat in på spår 2 och trycker Ankommit. Hubben ska ha
 // tåg 102 framme på Åsen. En andra skärm visar bara Tåg · Klarering · Händelser och följer med
-// (STV-05).
+// (STV-05). Före anslutningen provas Gårdsjö i Studio › Prova (#85 del c): ett simulerat tåg
+// genom varje väg med Kör, Klart, och Ställverket utan noten om att stationen inte är provad.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -109,6 +110,30 @@ async function useGardsjo(page) {
   await page.getByRole("heading", { name: /Gårdsjö/ }).waitFor();
 }
 
+/** Studio › Prova (STUDIO-05, STUDIO-27): Ställverket says the station is not tried; Prova runs a
+ * train through every route in the background, every one passes, and the station is Klart. A
+ * click on a route lights it on the panel. Returns how many routes passed. */
+async function prova(page) {
+  await page.goto(`${TKL}/`);
+  await page.getByText("Stationen är inte provad i Studio › Prova.").waitFor();
+  await page.goto(`${TKL}/studio/prova`);
+  await page.getByRole("heading", { name: "Prova", exact: true, level: 1 }).waitFor();
+  await page.getByRole("button", { name: "Starta Prova" }).click();
+  await page.locator(".prova-klart", { hasText: "Klart" }).waitFor({ timeout: 30_000 });
+  const summary = (await page.locator(".prova-status").textContent()) ?? "";
+  const counted = /(\d+) gick igenom · 0 gick inte · (\d+) vägar/.exec(summary);
+  check(counted && counted[1] === counted[2] && Number(counted[1]) > 0, `Prova är inte klart: ${summary}`);
+  const first = page.locator(".prova-vag").first();
+  await first.click();
+  check((await first.getAttribute("aria-pressed")) === "true", "Vägen gick inte att välja.");
+  check((await page.locator("svg.panel g.vag-linje polyline").count()) > 0, "Vägen lyser inte på panelen.");
+  await screenshot(page, "prova-klart");
+  await page.goto(`${TKL}/`);
+  await panel(page).waitFor();
+  check(!(await page.getByText("Stationen är inte provad").count()), "Ställverket säger att stationen inte är provad fast den är klar.");
+  return Number(counted[1]);
+}
+
 async function connect(page, code) {
   await page.goto(`${TKL}/installningar`);
   await page.getByLabel("Hubbens adress").fill(HUB_FOR_TKL);
@@ -140,6 +165,7 @@ try {
   await firstStart(page);
   await useGardsjo(page);
   await screenshot(page, "sparplan-gardsjo");
+  const tried = await prova(page);
   await connect(page, code);
   await approve(hub, "tkl", "asn");
   await page.goto(`${TKL}/`);
@@ -286,6 +312,7 @@ try {
   await page.reload();
   await panel(page).waitFor();
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
+  console.log(`Prova i TKL: ${tried} vägar gick igenom, Klart.`);
   console.log(`Ställverket i TKL: 102 rullade i Foto från ${onTheLineInFoto} till ${rolledTo} mm, stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
 } catch (error) {
   if (error instanceof ProvFel) {

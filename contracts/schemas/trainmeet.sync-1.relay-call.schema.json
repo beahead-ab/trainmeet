@@ -198,6 +198,20 @@
           "default": null,
           "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
           "title": "Code"
+        },
+        "level": {
+          "default": 0,
+          "description": "Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.",
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Level",
+          "type": "integer"
+        },
+        "preview_only": {
+          "default": false,
+          "description": "Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).",
+          "title": "Preview Only",
+          "type": "boolean"
         }
       },
       "required": [

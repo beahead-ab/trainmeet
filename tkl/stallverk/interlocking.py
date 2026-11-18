@@ -1749,6 +1749,11 @@ class Interlocking:
             estimated=self.field is None,
         )
 
+    def shown_route(self, route_id: int) -> TklSetRoute | None:
+        """One set route as the panel shows it, or None when it is no longer set (Prova)."""
+        route = self._route(route_id)
+        return self._shown(route) if route is not None else None
+
     def view(self) -> TklInterlocking:
         """Ställverkets läge: everything the panel draws (STV-08)."""
         plant = self.plant

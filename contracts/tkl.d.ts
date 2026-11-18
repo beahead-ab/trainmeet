@@ -788,6 +788,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/prova": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklProva"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/prova/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklProvaStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/prova/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklProvaStop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/prova/provkor/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklProvkorStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/prova/provkor/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklProvkorAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/prova/provkor/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklProvkorStop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2115,6 +2211,12 @@ export interface components {
              * @default false
              */
             occupied: boolean;
+            /**
+             * Detected
+             * @description Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).
+             * @default false
+             */
+            detected: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2349,6 +2451,12 @@ export interface components {
              * @default 0
              */
             level: number;
+            /**
+             * Tried
+             * @description Klart i Prova i Studio: varje väg i stationsmodellen gick igenom, och modellen har inte ändrats sedan (STUDIO-05).
+             * @default false
+             */
+            tried: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2553,6 +2661,12 @@ export interface components {
              * @default null
              */
             code: string | null;
+            /**
+             * Prova
+             * @description Från Prova: bara en provkörning i Provbanan, med dess kod, aldrig en riktig träff (STUDIO-12). Gäller också när låtsas-LocoNet är ansluten.
+             * @default false
+             */
+            prova: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2588,6 +2702,12 @@ export interface components {
              * @default null
              */
             message: string | null;
+            /**
+             * Preview
+             * @description En provkörning i Provbanan, inte en riktig träff (STUDIO-12).
+             * @default false
+             */
+            preview: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2955,6 +3075,12 @@ export interface components {
              * @default false
              */
             occupied: boolean;
+            /**
+             * Detected
+             * @description Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).
+             * @default false
+             */
+            detected: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -7771,6 +7897,220 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklProva
+         * @description Studio's Prova: a simulated train through every route (STUDIO-05, STUDIO-27), run in the
+         *     background with its progress, and the results kept with the station until the model
+         *     changes. Klart (`tried`) when every route has passed: Ställverket then opens without the
+         *     note that the station is not tried.
+         */
+        "trainmeet.tkl-1.prova": {
+            /** Level */
+            level: number;
+            /**
+             * @description Hur tåget körs; inget utan stationsmodell.
+             * @default null
+             */
+            simulator: components["schemas"]["trainmeet.tkl-1.prova.TklProvaSimulator"] | null;
+            /**
+             * Running
+             * @default false
+             */
+            running: boolean;
+            /**
+             * Done
+             * @description Vägarna som är provade hittills.
+             * @default 0
+             */
+            done: number;
+            /**
+             * Total
+             * @description Vägarna i modellen.
+             * @default 0
+             */
+            total: number;
+            /**
+             * Routes
+             * @description Vägarnas resultat, de som inte gick först.
+             */
+            routes?: components["schemas"]["trainmeet.tkl-1.prova.TklProvaRoute"][];
+            /**
+             * Passed
+             * @default 0
+             */
+            passed: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Tried
+             * @description Klart: varje väg gick igenom (STUDIO-05).
+             * @default false
+             */
+            tried: boolean;
+            /**
+             * Started
+             * @default null
+             */
+            started: string | null;
+            /**
+             * Finished
+             * @default null
+             */
+            finished: string | null;
+            /**
+             * Invalidated
+             * @description Stationsmodellen har ändrats sedan Prova kördes: resultaten gäller inte.
+             * @default false
+             */
+            invalidated: boolean;
+            /**
+             * Message
+             * @default null
+             */
+            message: string | null;
+            provkor: components["schemas"]["trainmeet.tkl-1.prova.TklProvkor"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.prova.RouteKind": "train" | "shunting";
+        /**
+         * TklProvaResult
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.prova.TklProvaResult": "passed" | "failed" | "skipped";
+        /**
+         * TklProvaRoute
+         * @description A route's result in Prova or Provkör: passed, or failed with the reason in Swedish.
+         */
+        "trainmeet.tkl-1.prova.TklProvaRoute": {
+            kind: components["schemas"]["trainmeet.tkl-1.prova.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Pieces
+             * @description Vägens spårbitar, för panelen.
+             */
+            pieces?: string[];
+            result: components["schemas"]["trainmeet.tkl-1.prova.TklProvaResult"];
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklProvaSimulator
+         * @description How Prova runs the train: the interlocking at level 3 against the pretend LocoNet, or at
+         *     level 1–2 with Kör.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.prova.TklProvaSimulator": "pretend" | "kor";
+        /**
+         * TklProvaWay
+         * @description A route Prova runs: one of the engine's train routes or shunting routes.
+         */
+        "trainmeet.tkl-1.prova.TklProvaWay": {
+            kind: components["schemas"]["trainmeet.tkl-1.prova.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Pieces
+             * @description Vägens spårbitar, för panelen.
+             */
+            pieces?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklProvkor
+         * @description Provkör (STUDIO-05, STUDIO-27): with LocoNet connected to the layout, each route is set on
+         *     the real layout. TKL orders the switches and checks their feedback; the owner confirms the
+         *     signal and the train's path, says it is wrong, or skips the route.
+         */
+        "trainmeet.tkl-1.prova.TklProvkor": {
+            /**
+             * Available
+             * @description LocoNet är anslutet till banan, på nivå 3.
+             */
+            available: boolean;
+            /**
+             * Reason
+             * @description Varför Provkör inte går nu.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Running
+             * @default false
+             */
+            running: boolean;
+            /**
+             * Done
+             * @default 0
+             */
+            done: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * @description Vägen som provas nu.
+             * @default null
+             */
+            route: components["schemas"]["trainmeet.tkl-1.prova.TklProvaWay"] | null;
+            /**
+             * Waiting
+             * @description Vad TKL väntar på, till exempel återrapporten från en växel.
+             * @default null
+             */
+            waiting: string | null;
+            /**
+             * Question
+             * @description Frågan till ägaren, när vägen ligger.
+             * @default null
+             */
+            question: string | null;
+            /**
+             * Routes
+             * @description Vägarna som är provkörda, de som inte gick först.
+             */
+            routes?: components["schemas"]["trainmeet.tkl-1.prova.TklProvaRoute"][];
+            /**
+             * Finished
+             * @default null
+             */
+            finished: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklProvkorAnswer
+         * @description The owner's answer in Provkör: the signal and the path are right, wrong, or the route is
+         *     skipped.
+         */
+        "trainmeet.tkl-1.provkor-answer": {
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "right" | "wrong" | "skip";
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -9045,6 +9385,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.koppla-in"];
+                };
+            };
+        };
+    };
+    tklProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklProvaStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklProvaStop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklProvkorStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklProvkorAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.provkor-answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklProvkorStop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
                 };
             };
         };

@@ -94,6 +94,12 @@
       ],
       "default": null,
       "title": "Message"
+    },
+    "preview": {
+      "default": false,
+      "description": "En provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
+      "title": "Preview",
+      "type": "boolean"
     }
   },
   "required": [

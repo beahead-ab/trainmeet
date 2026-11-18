@@ -5817,6 +5817,20 @@
             "default": null,
             "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
             "title": "Code"
+          },
+          "level": {
+            "default": 0,
+            "description": "Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.",
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Level",
+            "type": "integer"
+          },
+          "preview_only": {
+            "default": false,
+            "description": "Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).",
+            "title": "Preview Only",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6067,6 +6081,12 @@
             "default": null,
             "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
             "title": "Relay"
+          },
+          "preview": {
+            "default": false,
+            "description": "Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
+            "title": "Preview",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6683,7 +6703,7 @@
       },
       "trainmeet.station-1.command.SectionOccupancy": {
         "additionalProperties": true,
-        "description": "Level 3 only: a section's detection. The section is free when every part is empty.",
+        "description": "Level 3 only: a section's detection. The section is free when every part is empty.\nAccepted from a client that connected at level 3, for a section from its place (DRIFT-10).\nIt stops direct clearance and the automation on the section, and never frees anything by\nitself (DRIFT-16).",
         "properties": {
           "section": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -7765,6 +7785,12 @@
           "occupied": {
             "default": false,
             "title": "Occupied",
+            "type": "boolean"
+          },
+          "detected": {
+            "default": false,
+            "description": "Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+            "title": "Detected",
             "type": "boolean"
           }
         },
@@ -8861,6 +8887,12 @@
           "occupied": {
             "default": false,
             "title": "Occupied",
+            "type": "boolean"
+          },
+          "detected": {
+            "default": false,
+            "description": "Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+            "title": "Detected",
             "type": "boolean"
           }
         },
@@ -13096,6 +13128,21 @@
           {
             "properties": {
               "kind": {
+                "const": "section.occupancy",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.SectionOccupied"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "const": "place.manned",
                 "type": "string"
               },
@@ -13340,6 +13387,7 @@
                     "line.available",
                     "line.acknowledged",
                     "signal.exit",
+                    "section.occupancy",
                     "place.manned",
                     "place.left",
                     "place.taken_back",
@@ -14793,6 +14841,36 @@
         "title": "ExitSignalSet",
         "type": "object"
       },
+      "trainmeet.drift-1.event.SectionOccupied": {
+        "additionalProperties": true,
+        "description": "Beläggningen från detekteringen (section.occupancy, DRIFT-10): from a station that\nconnected at level 3, about a section from its place. The event names the place; Drift keeps\nthe latest per section and place, and the section is occupied while any of them says so. It\nstops direct clearance and the automation on the section, and never frees anything by itself\n(DRIFT-16).",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "occupied": {
+            "title": "Occupied",
+            "type": "boolean"
+          },
+          "parts": {
+            "patternProperties": {
+              "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+                "type": "boolean"
+              }
+            },
+            "title": "Parts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "section",
+          "occupied"
+        ],
+        "title": "SectionOccupied",
+        "type": "object"
+      },
       "trainmeet.drift-1.event.PlaceManned": {
         "additionalProperties": true,
         "description": "The first box or TKL that works a place mans it (F14).",
@@ -15756,6 +15834,14 @@
             },
             "title": "Driver Messages",
             "type": "array"
+          },
+          "detected": {
+            "description": "Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 (section.occupancy, DRIFT-16).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.now.DetectedSection"
+            },
+            "title": "Detected",
+            "type": "array"
           }
         },
         "required": [
@@ -16425,6 +16511,43 @@
           "waiting"
         ],
         "title": "DayStatus",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.DetectedSection": {
+        "additionalProperties": true,
+        "description": "En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16).",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "place_a": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place A",
+            "type": "string"
+          },
+          "place_b": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place B",
+            "type": "string"
+          },
+          "by": {
+            "description": "Driftplatserna som säger belagd.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "By",
+            "type": "array"
+          }
+        },
+        "required": [
+          "section",
+          "place_a",
+          "place_b"
+        ],
+        "title": "DetectedSection",
         "type": "object"
       },
       "trainmeet.drift-1.now.DriverAlarm": {
@@ -24616,6 +24739,43 @@
         "title": "DayStatus",
         "type": "object"
       },
+      "trainmeet.screen-1.picture.DetectedSection": {
+        "additionalProperties": true,
+        "description": "En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16).",
+        "properties": {
+          "section": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Section",
+            "type": "string"
+          },
+          "place_a": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place A",
+            "type": "string"
+          },
+          "place_b": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place B",
+            "type": "string"
+          },
+          "by": {
+            "description": "Driftplatserna som säger belagd.",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "By",
+            "type": "array"
+          }
+        },
+        "required": [
+          "section",
+          "place_a",
+          "place_b"
+        ],
+        "title": "DetectedSection",
+        "type": "object"
+      },
       "trainmeet.screen-1.picture.DriverAlarm": {
         "additionalProperties": true,
         "description": "Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit\növer. Utan förarens namn (B13).",
@@ -25433,6 +25593,14 @@
               "$ref": "#/components/schemas/trainmeet.screen-1.picture.NowDriverMessage"
             },
             "title": "Driver Messages",
+            "type": "array"
+          },
+          "detected": {
+            "description": "Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 (section.occupancy, DRIFT-16).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.screen-1.picture.DetectedSection"
+            },
+            "title": "Detected",
             "type": "array"
           }
         },
@@ -39787,6 +39955,20 @@
             "default": null,
             "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
             "title": "Code"
+          },
+          "level": {
+            "default": 0,
+            "description": "Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.",
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Level",
+            "type": "integer"
+          },
+          "preview_only": {
+            "default": false,
+            "description": "Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).",
+            "title": "Preview Only",
+            "type": "boolean"
           }
         },
         "required": [
@@ -40338,6 +40520,20 @@
             "default": null,
             "description": "Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
             "title": "Code"
+          },
+          "level": {
+            "default": 0,
+            "description": "Stationens nivå i TKL (0–3). Hubben tar emot section.occupancy bara från en station på nivå 3 (DRIFT-10, KLAR-16); den gäller till nästa anslutning.",
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Level",
+            "type": "integer"
+          },
+          "preview_only": {
+            "default": false,
+            "description": "Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben säger nej till en riktig träff (STUDIO-12).",
+            "title": "Preview Only",
+            "type": "boolean"
           }
         },
         "required": [
@@ -41333,6 +41529,12 @@
             "default": null,
             "description": "Adressen utanför träffens nät: molnhubbens relä till den här hubben, där samma anrop görs med samma nyckel (SYNK-11). Tomt när hubben inte är kopplad till molnet.",
             "title": "Relay"
+          },
+          "preview": {
+            "default": false,
+            "description": "Körningen är en provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
+            "title": "Preview",
+            "type": "boolean"
           }
         },
         "required": [
@@ -41957,6 +42159,12 @@
           "occupied": {
             "default": false,
             "title": "Occupied",
+            "type": "boolean"
+          },
+          "detected": {
+            "default": false,
+            "description": "Belagd enligt detekteringen: en station på nivå 3 har rapporterat sträckan belagd (section.occupancy). Stoppar direktklarering och automatiken (DRIFT-16).",
+            "title": "Detected",
             "type": "boolean"
           }
         },

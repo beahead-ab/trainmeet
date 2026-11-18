@@ -98,6 +98,7 @@ def _section(
         clearance_mode=section.clearance_mode or drift.package.meet.clearance_mode,
         side=side,
         occupied=any(case.departed and case.leg.section.id == section.id for case in _cases(drift)),
+        detected=drift.detected(section.id),
     )
 
 

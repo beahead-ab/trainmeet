@@ -292,5 +292,6 @@ class Running:
                 package_key=package_key,
                 copy=EventCopy(self.usb, f"{meet}-v{version}") if self.usb else None,
                 exit_memory=self.exit_memory,
+                preview=meet == PROVBANAN,
             )
         return self._stores[key]

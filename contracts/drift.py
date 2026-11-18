@@ -691,6 +691,18 @@ class ExitSignalSet(Contract):
     call: Id | None = None
 
 
+class SectionOccupied(Contract):
+    """Beläggningen från detekteringen (section.occupancy, DRIFT-10): from a station that
+    connected at level 3, about a section from its place. The event names the place; Drift keeps
+    the latest per section and place, and the section is occupied while any of them says so. It
+    stops direct clearance and the automation on the section, and never frees anything by itself
+    (DRIFT-16)."""
+
+    section: Id
+    occupied: bool
+    parts: dict[Id, bool] = Field(default_factory=dict)
+
+
 # --- Lokföraren (LOK-01–LOK-41): what Drift owns of the drivers -------------------------------
 
 
@@ -1012,6 +1024,7 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.LINE_AVAILABLE: LineAvailableSent,
     EventKind.LINE_ACKNOWLEDGED: LineAcknowledged,
     EventKind.EXIT_SIGNAL: ExitSignalSet,
+    EventKind.SECTION_OCCUPANCY: SectionOccupied,
     EventKind.PLACE_MANNED: PlaceManned,
     EventKind.PLACE_LEFT: PlaceLeft,
     EventKind.PLACE_TAKEN_BACK: PlaceTakenBack,
@@ -1040,6 +1053,7 @@ _ON_A_PLACE: Final = frozenset(
         EventKind.PLACE_PHONE,
         EventKind.DRIVER_CHECKED_IN,
         EventKind.EXIT_SIGNAL,
+        EventKind.SECTION_OCCUPANCY,
     }
 )
 
@@ -1106,6 +1120,15 @@ class LegNow(Contract):
     paper: bool = Field(
         default=False, description="Efter pappret: tåget finns inte i planen (LOK-13)."
     )
+
+
+class DetectedSection(Contract):
+    """En sträcka som är belagd enligt detekteringen från en station på nivå 3 (DRIFT-16)."""
+
+    section: Id
+    place_a: Id
+    place_b: Id
+    by: list[Id] = Field(default_factory=list, description="Driftplatserna som säger belagd.")
 
 
 class LastJump(Contract):
@@ -1313,6 +1336,11 @@ class Now(Contract):
     driver_messages: list[NowDriverMessage] = Field(
         default_factory=list,
         description="Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).",
+    )
+    detected: list[DetectedSection] = Field(
+        default_factory=list,
+        description="Sträckorna som är belagda enligt detekteringen från stationer på nivå 3 "
+        "(section.occupancy, DRIFT-16).",
     )
 
 

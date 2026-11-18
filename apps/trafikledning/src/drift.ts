@@ -57,6 +57,7 @@ export const EVENTS: Record<string, string> = {
   "line.available": "Ledig linje",
   "line.acknowledged": "Ledig linje kvitterad",
   "signal.exit": "Utfartssignalen",
+  "section.occupancy": "Beläggning",
   "place.manned": "Platsen bemannad",
   "place.left": "Lämnad till automatiken",
   "place.taken_back": "Tagen tillbaka från automatiken",
@@ -204,6 +205,7 @@ export function describe(event: DriftEvent, pkg: Package | null = null): string 
   }
   if (event.kind === "clearance.answered") return (data["approved"] ? "Klart givet" : "Begäran nekad") + forward;
   if (event.kind === "clock.speed") return `Ny hastighet ${String(data["speed"])}×`;
+  if (event.kind === "section.occupancy" && typeof data["section"] === "string") return `Sträckan ${data["section"]} ${data["occupied"] ? "belagd" : "ledig"} enligt detekteringen`;
   if (event.kind === "clearance.reminded" && data["count"]) return `Påminnelse ${String(data["count"])}, obesvarad begäran`;
   if (event.kind === "train.arrived") return (data["track"] ? `Ankomst spår ${String(data["track"])}` : "Ankomst") + forward;
   if (event.kind === "driver.message" && typeof data["kind"] === "string") return `Föraren: ${DRIVER_MESSAGES[data["kind"]] ?? data["kind"]}`;
