@@ -3,6 +3,12 @@ once, as at a big meet, and how fast Drift answers them.
 
     uv run python -m deploy.belastning --hub http://localhost:8080 --pin 123456 --start
 
+Hemmaprovet (#77, SYNK-29, H36): 30 stationer, 40 boxar och 100 telefoner mot Pi:n i en timme,
+med ett läge var femte minut, från en dator på träffens nät:
+
+    uv run python -m deploy.belastning --hub http://trainmeet.local --pin 123456 \
+        --clients 30 --boxes 40 --phones 100 --seconds 3600 --report-every 300 --strict
+
 With --start it starts the hub's meet with Provbanan first. Never run it against a meet that is
 on: the clients it makes are approved under Klienter like real ones. Each station client
 fetches its snapshot every other second and looks up a train now and then; each box fetches
@@ -10,7 +16,9 @@ its frame every second. With --import FILE --meet MEET the file is imported into
 over and over at the same time, to see that an import never holds Drift up (DRIFT-20). At the
 end: the answers per kind, the median, p95, p99 and the slowest, and the errors.
 
-Only the standard library, so that it runs on a Pi as it is. No key is ever written out.
+A phone (the TMBox app) fetches its place's snapshot every fifth second, as the app does
+between the hub's hints. Only the standard library, so that it runs on a Pi as it is. No key is
+ever written out.
 """
 
 from __future__ import annotations
@@ -98,13 +106,21 @@ class Client:
     key: str
 
 
-def station_clients(hub: Hub, admin: str, code: str, places: list[str], count: int) -> list[Client]:
+def station_clients(
+    hub: Hub,
+    admin: str,
+    code: str,
+    places: list[str],
+    count: int,
+    kind: str = "tkl",
+    name: str = "Belastning",
+) -> list[Client]:
     made = []
     for n in range(count):
         place = places[n % len(places)]
         request = {
-            "kind": "tkl",
-            "name": f"Belastning {n + 1}",
+            "kind": kind,
+            "name": f"{name} {n + 1}",
             "software": "belastning 1",
             "wants": [place],
             "code": code,
@@ -119,15 +135,22 @@ def station_clients(hub: Hub, admin: str, code: str, places: list[str], count: i
     return made
 
 
-def run_client(hub: Hub, client: Client, stop: Event) -> None:
+def run_client(
+    hub: Hub,
+    client: Client,
+    stop: Event,
+    every: float = 2.0,
+    kind: str = "ögonblicksbild",
+    lookups: bool = True,
+) -> None:
     round_ = 0
-    stop.wait(random.uniform(0, 2))
+    stop.wait(random.uniform(0, every))
     while not stop.is_set():
         status, snapshot = hub.call(
-            "GET", f"/api/station/1/places/{client.place}", key=client.key, kind="ögonblicksbild"
+            "GET", f"/api/station/1/places/{client.place}", key=client.key, kind=kind
         )
         round_ += 1
-        if status == 200 and round_ % 5 == 0:
+        if lookups and status == 200 and round_ % 5 == 0:
             command = {
                 "message_id": f"belastning-{client.client_id}-{round_}",
                 "client_id": client.client_id,
@@ -137,7 +160,7 @@ def run_client(hub: Hub, client: Client, stop: Event) -> None:
                 "payload": {"train_number": str(random.randint(1, 300))},
             }
             hub.call("POST", "/api/station/1/commands", command, client.key, kind="kommando")
-        stop.wait(2.0)
+        stop.wait(every)
 
 
 def run_box(hub: Hub, key: str, stop: Event) -> None:
@@ -156,6 +179,18 @@ def run_import(hub: Hub, admin: str, meet: str, data: bytes, name: str, stop: Ev
         round_ += 1
         hub.call("POST", path, key=admin, kind="import", raw=data + f"\n%{round_}\n".encode())
         stop.wait(0.5)
+
+
+def run_reports(tally: Tally, began: float, every: float, stop: Event) -> None:
+    """Ett läge under provet, så att en timmes prov går att följa medan det pågår."""
+    while not stop.wait(every):
+        with tally.lock:
+            seen = Tally(
+                seconds=defaultdict(list, {k: list(v) for k, v in tally.seconds.items()}),
+                errors=Counter(tally.errors),
+            )
+        print(report(seen, time.monotonic() - began), flush=True)
+        print(flush=True)
 
 
 def report(tally: Tally, seconds: float) -> str:
@@ -186,7 +221,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--start", action="store_true", help="Starta träffen med Provbanan.")
     parser.add_argument("--boxes", type=int, default=40)
     parser.add_argument("--clients", type=int, default=30)
+    parser.add_argument("--phones", type=int, default=0, help="Telefoner med TMBox-appen.")
     parser.add_argument("--seconds", type=float, default=60.0)
+    parser.add_argument(
+        "--report-every", type=float, default=0.0, help="Ett läge med så många sekunders mellanrum."
+    )
     parser.add_argument("--import", dest="imported", help="En fil att importera under tiden.")
     parser.add_argument("--meet", help="Träffen i Planering som filen importeras till.")
     parser.add_argument(
@@ -204,6 +243,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     package = _must(hub.call("GET", "/api/drift/1/package"), "Träffpaketet")
     places = [p["id"] for p in package["places"] if p["kind"] != "halt"]
     clients = station_clients(hub, admin, code, places, args.clients)
+    phones = station_clients(hub, admin, code, places, args.phones, "tmbox_app", "Telefon")
     boxes = [
         _must(
             hub.call("POST", "/api/terminal/session", {"name": f"Box {n + 1}", "code": code}),
@@ -211,9 +251,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         )["session_key"]
         for n in range(args.boxes)
     ]
-    print(f"{len(clients)} stationsklienter och {len(boxes)} boxar mot {hub.base}.", flush=True)
+    print(
+        f"{len(clients)} stationsklienter, {len(boxes)} boxar och {len(phones)} telefoner "
+        f"mot {hub.base}.",
+        flush=True,
+    )
     stop = Event()
     threads = [Thread(target=run_client, args=(hub, c, stop), daemon=True) for c in clients]
+    threads += [
+        Thread(target=run_client, args=(hub, p, stop, 5.0, "telefonens bild", False), daemon=True)
+        for p in phones
+    ]
     threads += [Thread(target=run_box, args=(hub, key, stop), daemon=True) for key in boxes]
     if args.imported:
         if not args.meet:
@@ -225,6 +273,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             Thread(target=run_import, args=(hub, admin, args.meet, data, name, stop), daemon=True)
         )
     began = time.monotonic()
+    if args.report_every > 0:
+        threads.append(
+            Thread(target=run_reports, args=(tally, began, args.report_every, stop), daemon=True)
+        )
     for thread in threads:
         thread.start()
     stop.wait(args.seconds)

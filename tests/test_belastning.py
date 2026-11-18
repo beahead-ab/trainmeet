@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from threading import Event, Timer
+from time import monotonic
+from typing import Any
 
 from fastapi.testclient import TestClient
 
+from deploy import belastning
 from deploy.belastning import Tally, acceptable, report
 from hub.app import create_app
 from hub.build_info import BuildInfo
@@ -31,6 +35,47 @@ def test_the_report_and_what_is_acceptable() -> None:
     for _ in range(100):
         slow.took("kommando", 1.5, 200)
     assert not acceptable(slow)
+
+
+def test_phones_and_reports_run_against_a_hub(tmp_path: Path) -> None:
+    """Hemmaprovet (#77, SYNK-29): telefoner med TMBox-appen bredvid stationerna och boxarna,
+    och ett läge under provet. Here against the hub in this process, for a moment."""
+    hub = TestClient(create_app(BuildInfo(version="0.1.0"), preview_db=tmp_path / "p.db"))
+    assert hub.post("/api/hub/setup", json={"name": "Hubben", "pin": "482915"}).status_code == 201
+    assert hub.post("/api/drift/1/start", json={"version": 1}).status_code == 201
+
+    class InProcess(belastning.Hub):
+        def call(
+            self,
+            method: str,
+            path: str,
+            body: Any = None,
+            key: str | None = None,
+            kind: str | None = None,
+            raw: bytes | None = None,
+        ) -> tuple[int, Any]:
+            headers = {"Authorization": f"Bearer {key}"} if key else {}
+            began = monotonic()
+            answer = hub.request(method, path, json=body, headers=headers)
+            if kind is not None:
+                self.tally.took(kind, monotonic() - began, answer.status_code)
+            return answer.status_code, answer.json() if answer.content else None
+
+    tally = Tally()
+    near = InProcess("http://testserver", tally)
+    admin = hub.post("/api/hub/login", json={"pin": "482915"}).json()["session_key"]
+    code = hub.get("/api/drift/1/connect").json()["code"]
+    [phone] = belastning.station_clients(near, admin, code, ["asn"], 1, "tmbox_app", "Telefon")
+    listed = {c["client_id"]: c for c in hub.get("/api/drift/1/clients").json()}
+    assert (listed[phone.client_id]["kind"], listed[phone.client_id]["name"]) == (
+        "tmbox_app",
+        "Telefon 1",
+    )
+    stop = Event()
+    Timer(0.5, stop.set).start()
+    belastning.run_client(near, phone, stop, 0.05, "telefonens bild", False)
+    assert len(tally.seconds["telefonens bild"]) >= 2 and not tally.errors
+    assert "telefonens bild" in report(tally, 1)
 
 
 def test_the_hubs_meet_takes_more_boxes_than_provbanan(tmp_path: Path) -> None:
