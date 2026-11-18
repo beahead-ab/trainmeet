@@ -464,6 +464,17 @@
             }
           ],
           "default": null
+        },
+        "track_display": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackDisplayChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -481,7 +492,8 @@
         "command",
         "revision",
         "push",
-        "exit"
+        "exit",
+        "track_display"
       ],
       "title": "RelayKind",
       "type": "string"
@@ -607,6 +619,60 @@
         "label"
       ],
       "title": "StationTrack",
+      "type": "object"
+    },
+    "TrackDisplayChange": {
+      "additionalProperties": true,
+      "description": "PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly\nonce, in the new order; without tracks the meet's own order comes back (Återställ). A\nrevision other than the current one is refused, so no one's choice is overwritten.",
+      "properties": {
+        "revision": {
+          "description": "Revisionen klienten läste.",
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "tracks": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TrackShown"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tracks"
+        }
+      },
+      "required": [
+        "revision"
+      ],
+      "title": "TrackDisplayChange",
+      "type": "object"
+    },
+    "TrackShown": {
+      "additionalProperties": true,
+      "properties": {
+        "track": {
+          "description": "Spårets namn i planen, som tågbesöken använder.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "track"
+      ],
+      "title": "TrackShown",
       "type": "object"
     }
   },

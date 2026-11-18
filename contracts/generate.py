@@ -55,6 +55,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.station-1.push-token": station.PushToken,
     "trainmeet.station-1.notice": station.Notice,
     "trainmeet.station-1.exit-answer": station.ExitAnswer,
+    "trainmeet.station-1.track-display-change": station.TrackDisplayChange,
     "trainmeet.tkl-1.state": tkl.TklState,
     "trainmeet.tkl-1.setup": tkl.TklSetUp,
     "trainmeet.tkl-1.unlock": tkl.TklUnlock,
@@ -420,6 +421,14 @@ def openapi() -> str:
         "stationExit",
         s + "snapshot",
         s + "exit-answer",
+        bearer=True,
+    )
+    route(
+        "put",
+        "/api/station/1/places/{place}/track-display",
+        "stationTrackDisplay",
+        s + "snapshot",
+        s + "track-display-change",
         bearer=True,
     )
     route("put", "/api/station/1/push", "stationPush", None, s + "push-token", bearer=True)

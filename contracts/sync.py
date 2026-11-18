@@ -188,6 +188,7 @@ class RelayKind(StrEnum):
     REVISION = "revision"  # waits until the place changes, for the event stream
     PUSH = "push"  # the phone's address for push, or none to stop
     EXIT = "exit"  # TKL answers which exit a section has (H26)
+    TRACK_DISPLAY = "track_display"  # Spår-vyn for the place (BOXIOS-16)
 
 
 class RelayCall(Contract):
@@ -206,6 +207,7 @@ class RelayCall(Contract):
     wait: float = Field(default=0.0, ge=0.0, le=RELAY_WAIT)
     push: station.PushToken | None = None
     exit: station.ExitAnswer | None = None
+    track_display: station.TrackDisplayChange | None = None
 
 
 class RelayCalls(Contract):

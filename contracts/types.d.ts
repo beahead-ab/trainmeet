@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/station/1/places/{place}/track-display": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["stationTrackDisplay"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/station/1/push": {
         parameters: {
             query?: never;
@@ -3029,6 +3045,30 @@ export interface components {
              * @description Hubbens frågor om stationens utfarter (H26).
              */
             questions?: components["schemas"]["trainmeet.station-1.reply.ExitQuestion"][];
+            /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
+            track_display?: components["schemas"]["trainmeet.station-1.reply.TrackDisplay"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplay
+         * @description Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+         *     ones too. Set once per meet and place and shared by every app there; only presentation, it
+         *     changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).
+         */
+        "trainmeet.station-1.reply.TrackDisplay": {
+            /**
+             * Revision
+             * @description Räknar upp vid varje sparning och återställning.
+             */
+            revision: number;
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.station-1.reply.TrackShown"][];
         } & {
             [key: string]: unknown;
         };
@@ -3037,6 +3077,21 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.reply.TrackKind": "single" | "double";
+        /** TrackShown */
+        "trainmeet.station-1.reply.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrainOnSection
          * @description A train on its way here or that has left, from the departure to the arrival (H32).
@@ -3115,6 +3170,8 @@ export interface components {
              * @description Hubbens frågor om stationens utfarter (H26).
              */
             questions?: components["schemas"]["trainmeet.station-1.snapshot.ExitQuestion"][];
+            /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
+            track_display?: components["schemas"]["trainmeet.station-1.snapshot.TrackDisplay"];
         } & {
             [key: string]: unknown;
         };
@@ -3416,10 +3473,47 @@ export interface components {
          */
         "trainmeet.station-1.snapshot.Side": "left" | "right";
         /**
+         * TrackDisplay
+         * @description Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+         *     ones too. Set once per meet and place and shared by every app there; only presentation, it
+         *     changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).
+         */
+        "trainmeet.station-1.snapshot.TrackDisplay": {
+            /**
+             * Revision
+             * @description Räknar upp vid varje sparning och återställning.
+             */
+            revision: number;
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.station-1.snapshot.TrackShown"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TrackKind
          * @enum {string}
          */
         "trainmeet.station-1.snapshot.TrackKind": "single" | "double";
+        /** TrackShown */
+        "trainmeet.station-1.snapshot.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrainOnSection
          * @description A train on its way here or that has left, from the departure to the arrival (H32).
@@ -3597,6 +3691,41 @@ export interface components {
             section: string;
             /** Exit */
             exit: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplayChange
+         * @description PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly
+         *     once, in the new order; without tracks the meet's own order comes back (Återställ). A
+         *     revision other than the current one is refused, so no one's choice is overwritten.
+         */
+        "trainmeet.station-1.track-display-change": {
+            /**
+             * Revision
+             * @description Revisionen klienten läste.
+             */
+            revision: number;
+            /**
+             * Tracks
+             * @default null
+             */
+            tracks: components["schemas"]["trainmeet.station-1.track-display-change.TrackShown"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TrackShown */
+        "trainmeet.station-1.track-display-change.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -14216,6 +14345,8 @@ export interface components {
             push: components["schemas"]["trainmeet.sync-1.relay-call.PushToken"] | null;
             /** @default null */
             exit: components["schemas"]["trainmeet.sync-1.relay-call.ExitAnswer"] | null;
+            /** @default null */
+            track_display: components["schemas"]["trainmeet.sync-1.relay-call.TrackDisplayChange"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -14408,7 +14539,7 @@ export interface components {
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit";
+        "trainmeet.sync-1.relay-call.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit" | "track_display";
         /** Revision */
         "trainmeet.sync-1.relay-call.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-call.RevisionScope"];
@@ -14470,6 +14601,41 @@ export interface components {
              * @description Det som står på skärmen, till exempel Spår 1a.
              */
             label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplayChange
+         * @description PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly
+         *     once, in the new order; without tracks the meet's own order comes back (Återställ). A
+         *     revision other than the current one is refused, so no one's choice is overwritten.
+         */
+        "trainmeet.sync-1.relay-call.TrackDisplayChange": {
+            /**
+             * Revision
+             * @description Revisionen klienten läste.
+             */
+            revision: number;
+            /**
+             * Tracks
+             * @default null
+             */
+            tracks: components["schemas"]["trainmeet.sync-1.relay-call.TrackShown"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TrackShown */
+        "trainmeet.sync-1.relay-call.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -14710,6 +14876,8 @@ export interface components {
             push: components["schemas"]["trainmeet.sync-1.relay-calls.PushToken"] | null;
             /** @default null */
             exit: components["schemas"]["trainmeet.sync-1.relay-calls.ExitAnswer"] | null;
+            /** @default null */
+            track_display: components["schemas"]["trainmeet.sync-1.relay-calls.TrackDisplayChange"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -14717,7 +14885,7 @@ export interface components {
          * RelayKind
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit";
+        "trainmeet.sync-1.relay-calls.RelayKind": "connect" | "connection" | "snapshot" | "command" | "revision" | "push" | "exit" | "track_display";
         /** Revision */
         "trainmeet.sync-1.relay-calls.Revision": {
             scope: components["schemas"]["trainmeet.sync-1.relay-calls.RevisionScope"];
@@ -14779,6 +14947,41 @@ export interface components {
              * @description Det som står på skärmen, till exempel Spår 1a.
              */
             label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplayChange
+         * @description PUT /api/station/1/places/{place}/track-display med nyckeln. Every current track exactly
+         *     once, in the new order; without tracks the meet's own order comes back (Återställ). A
+         *     revision other than the current one is refused, so no one's choice is overwritten.
+         */
+        "trainmeet.sync-1.relay-calls.TrackDisplayChange": {
+            /**
+             * Revision
+             * @description Revisionen klienten läste.
+             */
+            revision: number;
+            /**
+             * Tracks
+             * @default null
+             */
+            tracks: components["schemas"]["trainmeet.sync-1.relay-calls.TrackShown"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TrackShown */
+        "trainmeet.sync-1.relay-calls.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -15287,6 +15490,30 @@ export interface components {
              * @description Hubbens frågor om stationens utfarter (H26).
              */
             questions?: components["schemas"]["trainmeet.sync-1.relay-answer.ExitQuestion"][];
+            /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
+            track_display?: components["schemas"]["trainmeet.sync-1.relay-answer.TrackDisplay"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplay
+         * @description Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+         *     ones too. Set once per meet and place and shared by every app there; only presentation, it
+         *     changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).
+         */
+        "trainmeet.sync-1.relay-answer.TrackDisplay": {
+            /**
+             * Revision
+             * @description Räknar upp vid varje sparning och återställning.
+             */
+            revision: number;
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.sync-1.relay-answer.TrackShown"][];
         } & {
             [key: string]: unknown;
         };
@@ -15295,6 +15522,21 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.relay-answer.TrackKind": "single" | "double";
+        /** TrackShown */
+        "trainmeet.sync-1.relay-answer.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrainOnSection
          * @description A train on its way here or that has left, from the departure to the arrival (H32).
@@ -15838,6 +16080,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["trainmeet.station-1.exit-answer"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.station-1.snapshot"];
+                };
+            };
+        };
+    };
+    stationTrackDisplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.station-1.track-display-change"];
             };
         };
         responses: {

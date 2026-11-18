@@ -743,6 +743,30 @@ export interface components {
              * @description Hubbens frågor om stationens utfarter (H26).
              */
             questions?: components["schemas"]["trainmeet.station-1.reply.ExitQuestion"][];
+            /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
+            track_display?: components["schemas"]["trainmeet.station-1.reply.TrackDisplay"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplay
+         * @description Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+         *     ones too. Set once per meet and place and shared by every app there; only presentation, it
+         *     changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).
+         */
+        "trainmeet.station-1.reply.TrackDisplay": {
+            /**
+             * Revision
+             * @description Räknar upp vid varje sparning och återställning.
+             */
+            revision: number;
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.station-1.reply.TrackShown"][];
         } & {
             [key: string]: unknown;
         };
@@ -751,6 +775,21 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.reply.TrackKind": "single" | "double";
+        /** TrackShown */
+        "trainmeet.station-1.reply.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrainOnSection
          * @description A train on its way here or that has left, from the departure to the arrival (H32).
@@ -1479,6 +1518,30 @@ export interface components {
              * @description Hubbens frågor om stationens utfarter (H26).
              */
             questions?: components["schemas"]["trainmeet.tkl-1.view.ExitQuestion"][];
+            /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
+            track_display?: components["schemas"]["trainmeet.tkl-1.view.TrackDisplay"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackDisplay
+         * @description Spår-vyn (BOXIOS-16, H65): every track of the place in the station's order, the hidden
+         *     ones too. Set once per meet and place and shared by every app there; only presentation, it
+         *     changes nothing in the traffic. Ported from the old Server (docs/tmbox-sparvisning.md).
+         */
+        "trainmeet.tkl-1.view.TrackDisplay": {
+            /**
+             * Revision
+             * @description Räknar upp vid varje sparning och återställning.
+             */
+            revision: number;
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.tkl-1.view.TrackShown"][];
         } & {
             [key: string]: unknown;
         };
@@ -1487,6 +1550,21 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.view.TrackKind": "single" | "double";
+        /** TrackShown */
+        "trainmeet.tkl-1.view.TrackShown": {
+            /**
+             * Track
+             * @description Spårets namn i planen, som tågbesöken använder.
+             */
+            track: string;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TrainOnSection
          * @description A train on its way here or that has left, from the departure to the arrival (H32).
