@@ -97,9 +97,11 @@ def world_with(
     limits: PictureLimits | None = None,
     segmenter: Segmenter | None = None,
     pretend: PretendIdWithClubs | None = None,
+    batch_queue: bool = True,
 ) -> Iterator[World]:
     """Catalog with a pretend ID. This one bills no storage, as for an owner ID does not know,
-    so Catalog refuses over the free level; test_storage_tokens.py gives one that does."""
+    so Catalog refuses over the free level; test_storage_tokens.py gives one that does.
+    batch_queue False leaves the batches' queue to the test (test_batches.py)."""
     pretend = pretend if pretend is not None else PretendIdWithClubs()
     settings = Settings(
         database_url=database_url,
@@ -123,6 +125,7 @@ def world_with(
         id_http=httpx.Client(transport=httpx.MockTransport(pretend.handle)),
         picture_limits=limits,
         segmenter=segmenter if segmenter is not None else NoSegmenter(),
+        batch_queue=batch_queue,
     )
     with TestClient(app) as a, TestClient(app) as b:
         for client, who in ((a, A), (b, B)):

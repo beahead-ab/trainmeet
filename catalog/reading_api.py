@@ -21,6 +21,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from catalog.access import Access, Right, Work
+from catalog.fleet import Refused
 from catalog.fleet_api import needs
 from catalog.pictures import MAX_BYTES, too_large
 from catalog.reading import MAX_PICTURES, Readings, without_id
@@ -38,17 +39,25 @@ def _bad_form(why: str = "Avläsningens formulär kunde inte läsas.") -> HTTPEx
     return HTTPException(status_code=422, detail=why)
 
 
-async def _body(request: Request) -> bytes:
+async def _body(request: Request, refused: Callable[[], Refused] = too_large) -> bytes:
     """The form, read until it is too large: never more than MAX_FORM and one byte."""
     declared = request.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > MAX_FORM:
-        raise too_large()
+        raise refused()
     data = bytearray()
     async for chunk in request.stream():
         data += chunk
         if len(data) > MAX_FORM:
-            raise too_large()
+            raise refused()
     return bytes(data)
+
+
+async def read_form(
+    request: Request, refused: Callable[[], Refused] = too_large
+) -> list[tuple[str, bytes]]:
+    """The form's parts, by name, read in memory and never more than MAX_FORM (#52 del b)."""
+    body = await _body(request, refused)
+    return parts(request.headers.get("content-type", ""), body)
 
 
 def parts(content_type: str, body: bytes) -> list[tuple[str, bytes]]:

@@ -409,7 +409,8 @@ class ProblemCode(StrEnum):
     PICTURE_TOO_LARGE = "picture_too_large"
     """Over 15 MB (413) or over 40 megapixels (422) (CAT-123)."""
     TOO_MANY_PICTURES = "too_many_pictures"
-    """The vehicle already has 10 pictures (CAT-17)."""
+    """The vehicle already has 10 pictures (CAT-17). For a batch: more than 30 photos in it
+    (CAT-147), or more than 60 drafts waiting for the owner's approval (#52)."""
     STORAGE_FULL = "storage_full"
     """The owner's free storage is full: 100 MB for a person, 2 GB for a club (CAT-17,
     TOKEN-29), and this Catalog cannot take tokens for more: it does not reach TrainMeet ID's
@@ -448,6 +449,11 @@ class Problem(Contract):
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
+    cards: list[UUID] | None = Field(
+        default=None,
+        description="Only for Godkänn alla: the cards whose values do not make a vehicle, so "
+        "that nothing was approved (CAT-150). Left out otherwise.",
+    )
 
 
 # --- The tags and the lookup (#54) ---------------------------------------------------------
@@ -967,7 +973,7 @@ class BackgroundChange(Contract):
 # - The id comes from the client (CAT-144): the same id and the same photos again give the same
 #   reading, without reading or drawing again. The same id with other photos is refused (409).
 # - One reading at a time per person (409 reading_busy), and at most 10 an hour (429 too_many
-#   with Retry-After) (CAT-146).
+#   with Retry-After) (CAT-146). A batch's photos have their own 30 an hour (see below).
 # - The first time, the person sees what is sent and to whom, and the consent is kept as a
 #   privacy event (CAT-142). Without it the reading answers 422 consent_required.
 # - Only the owner reads with AI, and a club's administrators in the club's fleet (CAT-46): 403
@@ -1103,3 +1109,181 @@ class ReadingConsent(Contract):
     payer: Text | None = Field(
         default=None, description="Whose balance pays: the person's, or the club's."
     )
+
+
+# --- Flera foton i en omgång (#52 del b, CAT-146–CAT-153) ---------------------------------------
+#
+#     GET    /api/catalog/1/batches                             [BatchSummary]: the open batches
+#     POST   /api/catalog/1/batches                             multipart: data (BatchAsk, JSON)
+#                                                               and 1–30 images -> Batch
+#     GET    /api/catalog/1/batches/{batch}                     Batch, with its cards
+#     DELETE /api/catalog/1/batches/{batch}                     Removed: its cards not approved
+#     POST   /api/catalog/1/batches/{batch}/cards/{card}        BatchCardChange -> BatchCard
+#     DELETE /api/catalog/1/batches/{batch}/cards/{card}        Removed
+#     POST   /api/catalog/1/batches/{batch}/cards/{card}/retry  BatchCard, in the queue again
+#     POST   /api/catalog/1/batches/{batch}/approve             BatchApproval -> Batch
+#
+# Rules:
+# - Up to 30 photos in a batch, one per vehicle (CAT-147). Each becomes a card: a draft of its
+#   own, kept apart from the vehicles. The drafts are not vehicles: they are not in the vehicle
+#   list, the sharing, the tags, the lookup, the trips or the export until the owner has
+#   approved them (CAT-148).
+# - The batch's id comes from the client. The photos may be sent in several requests with the
+#   same id, each at most 60 MB, and each photo at most 15 MB and 40 megapixel (CAT-123). Each
+#   photo is made anew without metadata when it comes (CAT-124), and only that picture is kept.
+# - The same original file, by its SHA-256, gives one card per owner: sent again, in a retry or
+#   in a new batch, it gives the card it already is, listed in Batch.already (CAT-149).
+# - The photos are read by the AI in a queue, one at a time and in the order they came, as
+#   readings of their own (CAT-143): 12 tokens a photo, 0 with own AI, reserved and drawn or
+#   given back as for one reading (CAT-19, CAT-20). The queue is in the database: after a
+#   restart, reservations that ran out are given back, and a photo that was cut off is failed
+#   and can be read again without anything being drawn twice (CAT-151).
+# - At most 30 readings an hour for a batch (CAT-146). Then, and when the day's cap in TrainMeet
+#   ID is reached, the queue waits and goes on by itself (Batch.waiting_until).
+# - When the tokens run out, the photos that are left become drafts to fill in by hand, with a
+#   message to say so (CAT-152).
+# - Only the owner reads with AI, and a club's administrators in the club's fleet (CAT-46); the
+#   first time with the consent, as for one reading (CAT-142). Someone who edits a shared fleet
+#   may leave photos for the owner without AI: their cards are manual, read by no AI and cost no
+#   tokens. They see only the batches they left, and those cards only until they are approved;
+#   never the owner's drafts (CAT-153). To look gives no batches at all.
+# - Godkänn alla is all or nothing (CAT-150): it carries every open card of the batch with the
+#   version the owner saw, and either all of them become vehicles, in one transaction, or none
+#   does. A card still waiting or being read stops it (409), and so do values that do not make a
+#   vehicle (422, Problem.cards names the cards). Each vehicle gets the values the owner saw and
+#   kept (CAT-136), with the source ai for a value the AI suggested and nobody changed, and the
+#   photo as its main picture, which counts in the owner's storage from then on (CAT-131).
+# - Removing a card or a batch removes its files; so does removing the account (CAT-193).
+#   Removing a batch removes its cards that are not approved; the vehicles stay.
+# - ?fleet=<owner> works in a shared fleet, as for the vehicles.
+
+MAX_BATCH_PHOTOS = 30
+"""Photos in one batch (CAT-147)."""
+
+
+class BatchCardStatus(StrEnum):
+    """Where a photo of a batch is (CAT-147–CAT-153)."""
+
+    WAITING = "waiting"
+    """In the queue: the AI reads the photos one at a time, in turn."""
+    READING = "reading"
+    """The AI reads it now."""
+    READY = "ready"
+    """Read: the suggestions are in the values, and nothing needs checking."""
+    REVIEW = "review"
+    """Read, but something to check: a warning, an uncertain field, a question about a digit,
+    or no kind, or no litt or number."""
+    FAILED = "failed"
+    """The reading failed, or was cut off. Nothing was drawn. Read it again, or fill it in."""
+    MANUAL = "manual"
+    """To fill in by hand, without AI: left by someone who edits the fleet, a batch without
+    AI, or the tokens ran out (CAT-152, CAT-153)."""
+    APPROVED = "approved"
+    """A vehicle now (CAT-150)."""
+
+
+class BatchCard(Contract):
+    """One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148)."""
+
+    id: UUID
+    batch: UUID
+    position: int = Field(ge=0, description="The order the photos came in, and are read in.")
+    status: BatchCardStatus
+    version: int = Field(
+        ge=1,
+        description="Raised by every change of the values, also by the AI's. A change and "
+        "Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).",
+    )
+    values: VehicleFields = Field(
+        description="What the vehicle becomes when it is approved: the AI's suggestions, and "
+        "then what the owner writes."
+    )
+    suggestions: dict[SuggestedField, Suggestion] = Field(
+        default_factory=dict, description="What the AI suggested, as for one reading."
+    )
+    question: ReadingQuestion | None = None
+    warnings: list[Annotated[str, StringConstraints(max_length=400)]] = Field(
+        default_factory=list, max_length=12, description="What the owner should check."
+    )
+    message: str = Field(
+        default="",
+        description="Why the card is as it is, in Swedish: such as why the reading failed, or "
+        "that the tokens ran out (CAT-152).",
+    )
+    picture: PictureLinks | None = Field(
+        default=None,
+        description="The photo, without metadata, at most 1800 pixels: signed addresses that "
+        "expire (CAT-130). Null once approved: the vehicle has it then.",
+    )
+    vehicle: UUID | None = Field(default=None, description="The vehicle, once approved.")
+    attempts: int = Field(ge=0, description="How many times the AI has been asked to read it.")
+
+
+class Batch(Contract):
+    """A batch of photos and its cards (CAT-147)."""
+
+    id: UUID = Field(description="Made by the client (CAT-149).")
+    ai: bool = Field(description="The photos are read with AI; else they are filled in by hand.")
+    mine: bool = Field(description="The person asking made the batch.")
+    created_at: datetime
+    cards: list[BatchCard] = Field(
+        description="In order. Someone who edits the fleet sees only the cards not approved."
+    )
+    waiting_until: datetime | None = Field(
+        default=None,
+        description="The queue waits for the hour's limit or the day's cap, and goes on by "
+        "itself then (CAT-146).",
+    )
+    message: str | None = Field(default=None, description="Why the queue waits, in Swedish.")
+    already: list[UUID] = Field(
+        default_factory=list,
+        description="Only in the answer to POST: the cards that photos sent this time already "
+        "were, in this batch or another, since the same file is never two drafts (CAT-149).",
+    )
+
+
+class BatchSummary(Contract):
+    """A batch in the list: one with photos still to approve."""
+
+    id: UUID
+    ai: bool
+    mine: bool
+    created_at: datetime
+    cards: int = Field(description="Its cards, approved ones included.")
+    open: int = Field(description="Its cards not yet approved.")
+    counts: dict[BatchCardStatus, int] = Field(description="Its cards per status.")
+
+
+class BatchAsk(Contract):
+    """The part data of the batch's form, as JSON. The photos are the parts images."""
+
+    id: UUID = Field(description="Made by the client. Sent again, the photos are added to it.")
+    ai: bool = Field(
+        default=True,
+        description="Read the photos with AI. Only the owner, or a club's administrator; "
+        "someone who edits the fleet sends false (CAT-153).",
+    )
+    consent: bool = Field(
+        default=False,
+        description="The person has seen what is sent and to whom, and says yes (CAT-142).",
+    )
+
+
+class BatchCardChange(Contract):
+    """The values of a card, as the owner writes them, and the version they were seen at."""
+
+    values: VehicleFields
+    version: int = Field(ge=1)
+
+
+class BatchCardSeen(Contract):
+    """A card as the owner saw it before Godkänn alla."""
+
+    id: UUID
+    version: int = Field(ge=1)
+
+
+class BatchApproval(Contract):
+    """Godkänn alla: every open card of the batch, as seen (CAT-150)."""
+
+    cards: list[BatchCardSeen] = Field(min_length=1, max_length=MAX_BATCH_PHOTOS)

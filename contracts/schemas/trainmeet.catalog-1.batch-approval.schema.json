@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.batch-approval.schema.json",
+  "title": "trainmeet.catalog-1.batch-approval",
+  "$defs": {
+    "BatchCardSeen": {
+      "additionalProperties": true,
+      "description": "A card as the owner saw it before Godkänn alla.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "title": "BatchCardSeen",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Godkänn alla: every open card of the batch, as seen (CAT-150).",
+  "properties": {
+    "cards": {
+      "items": {
+        "$ref": "#/$defs/BatchCardSeen"
+      },
+      "maxItems": 30,
+      "minItems": 1,
+      "title": "Cards",
+      "type": "array"
+    }
+  },
+  "required": [
+    "cards"
+  ],
+  "type": "object"
+}

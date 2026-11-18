@@ -12,7 +12,7 @@ or place that is not the asker's is answered as not found (CAT-50).
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 from uuid import UUID
 
@@ -79,16 +79,23 @@ MainPictures = Callable[[Connection[DictRow], list[UUID]], dict[UUID, PictureLin
 
 class Refused(Exception):
     """Catalog says no. The web app shows the text for the code. retry_after, in seconds, is
-    sent as Retry-After."""
+    sent as Retry-After. cards are the batch's cards that stop Godkänn alla (CAT-150)."""
 
     def __init__(
-        self, status: int, code: ProblemCode, message: str, retry_after: int | None = None
+        self,
+        status: int,
+        code: ProblemCode,
+        message: str,
+        retry_after: int | None = None,
+        *,
+        cards: list[UUID] | None = None,
     ) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
         self.retry_after = retry_after
+        self.cards = cards
 
 
 def not_found() -> Refused:
@@ -379,33 +386,59 @@ class Fleet:
 
     def create(self, owner: UUID, fields: VehicleFields) -> Vehicle:
         _check(fields)
+        with self.db.owner_transaction(owner) as conn:
+            vehicle = self.insert(conn, owner, fields)
+            return self._read(conn, owner, vehicle)
+
+    @staticmethod
+    def check(conn: Connection[DictRow], owner: UUID, fields: VehicleFields) -> None:
+        """Do the fields make a vehicle of the owner's (CAT-62, CAT-66, CAT-71)? Refused if not,
+        as create() would be."""
+        _check(fields)
+        _place_name(conn, owner, fields.place)
+
+    @staticmethod
+    def insert(
+        conn: Connection[DictRow],
+        owner: UUID,
+        fields: VehicleFields,
+        sources: Mapping[str, FieldSource] | None = None,
+    ) -> UUID:
+        """A new vehicle in the caller's transaction, after the owner's row is locked (CAT-40).
+        sources says where a field's value came from, such as the AI for a suggestion nobody
+        changed (CAT-64); the owner for the rest."""
+        _check(fields)
         vehicle = uuid.uuid4()
         values = _values(fields)
-        sources = {k: FieldSource.OWNER.value for k, v in values.items() if v not in ("", None, [])}
-        with self.db.owner_transaction(owner) as conn:
-            place_name = _place_name(conn, owner, fields.place)
-            conn.execute(
-                "INSERT INTO vehicle (id, owner_id, status, kind, litt, number, operator, epoch, "
-                "scale, maker, article_number, note, dcc_address, functions, place_id, "
-                "field_sources) VALUES (%(id)s, %(owner)s, %(status)s, %(kind)s, %(litt)s, "
-                "%(number)s, %(operator)s, %(epoch)s, %(scale)s, %(maker)s, %(article_number)s, "
-                "%(note)s, %(dcc_address)s, %(functions)s, %(place)s, %(sources)s)",
-                {
-                    **values,
-                    "functions": Jsonb(values["functions"]),
-                    "id": vehicle,
-                    "owner": owner,
-                    "status": fields.status.value,
-                    "place": fields.place,
-                    "sources": Jsonb(sources),
-                },
-            )
-            conn.execute(
-                "INSERT INTO vehicle_owner (vehicle_id, owner_id) VALUES (%s, %s)",
-                (vehicle, owner),
-            )
-            _event(conn, vehicle, VehicleState.HOME, place_name)
-            return self._read(conn, owner, vehicle)
+        given = sources or {}
+        stored = {
+            k: given.get(k, FieldSource.OWNER).value
+            for k, v in values.items()
+            if v not in ("", None, [])
+        }
+        place_name = _place_name(conn, owner, fields.place)
+        conn.execute(
+            "INSERT INTO vehicle (id, owner_id, status, kind, litt, number, operator, epoch, "
+            "scale, maker, article_number, note, dcc_address, functions, place_id, "
+            "field_sources) VALUES (%(id)s, %(owner)s, %(status)s, %(kind)s, %(litt)s, "
+            "%(number)s, %(operator)s, %(epoch)s, %(scale)s, %(maker)s, %(article_number)s, "
+            "%(note)s, %(dcc_address)s, %(functions)s, %(place)s, %(sources)s)",
+            {
+                **values,
+                "functions": Jsonb(values["functions"]),
+                "id": vehicle,
+                "owner": owner,
+                "status": fields.status.value,
+                "place": fields.place,
+                "sources": Jsonb(stored),
+            },
+        )
+        conn.execute(
+            "INSERT INTO vehicle_owner (vehicle_id, owner_id) VALUES (%s, %s)",
+            (vehicle, owner),
+        )
+        _event(conn, vehicle, VehicleState.HOME, place_name)
+        return vehicle
 
     def _lock(self, conn: Connection[DictRow], owner: UUID, vehicle: UUID, version: int) -> Vehicle:
         """The vehicle, locked after the owner's row, at the version the change was built on."""
@@ -615,8 +648,8 @@ class Fleet:
 
     def remove_owners(self, owners: list[UUID]) -> int:
         """The owners and everything that is theirs, in one transaction (CAT-193). Their id is
-        also taken out of other owners' tag history, vehicle history and pictures. The pictures'
-        files go to picture_trash, for the sweep."""
+        also taken out of other owners' tag history, vehicle history, pictures and batches. The
+        pictures' files, and their batches' too, go to picture_trash, for the sweep."""
         nobody = UUID(int=0)
         with self.db.transaction() as conn:
             conn.execute(
@@ -628,6 +661,18 @@ class Fleet:
             )
             conn.execute(
                 "UPDATE picture SET uploaded_by = %s WHERE uploaded_by = ANY(%s)", (nobody, owners)
+            )
+            # The photos they left in others' fleets stay with the owners, to fill in by hand:
+            # no one is left to read them with AI (#52, CAT-153).
+            conn.execute(
+                "UPDATE batch_card SET status = 'manual', message = %s WHERE status = 'waiting' "
+                "AND batch_id IN (SELECT id FROM batch WHERE created_by = ANY(%s))",
+                ("Utan AI: fyll i fälten för hand.", owners),
+            )
+            conn.execute(
+                "UPDATE batch SET created_by = %s, ai = false, wait_until = NULL, "
+                "wait_message = NULL WHERE created_by = ANY(%s)",
+                (nobody, owners),
             )
             removed = conn.execute("DELETE FROM owner WHERE id = ANY(%s)", (owners,))
             return removed.rowcount

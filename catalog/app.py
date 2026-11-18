@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import threading
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -41,6 +42,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from catalog import (
+    batches_api,
     fleet_api,
     id_login,
     login,
@@ -52,6 +54,7 @@ from catalog import (
 )
 from catalog.access import Access
 from catalog.backgrounds import Segmenter, U2NetP
+from catalog.batches import Batches
 from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
@@ -149,11 +152,13 @@ def create_app(
     id_http: httpx.Client | None = None,
     picture_limits: PictureLimits | None = None,
     segmenter: Segmenter | None = None,
+    batch_queue: bool = True,
 ) -> FastAPI:
     """The app. id_http is how Catalog reaches TrainMeet ID; the tests give a pretend ID.
     picture_limits are the free level for the pictures; the tests give tiny ones. segmenter
     finds the vehicle for the background removal: the U2NetP model in settings, loaded the
-    first time it is needed; the tests give a pretend one."""
+    first time it is needed; the tests give a pretend one. batch_queue runs the queue for
+    several photos in a worker thread; the tests may turn it off and run it themselves."""
     settings = settings if settings is not None else from_env()
     db = Database(settings.database_url)
     sessions = login.Sessions(db)
@@ -177,6 +182,8 @@ def create_app(
     # The reading of a photo with AI goes through ID's meter (CAT-26); without ID's API there is
     # none, and the web app says so (CAT-142).
     readings = Readings(db, IdMeter(roles) if roles is not None else None)
+    # Several photos in a batch (#52 del b): a queue in the database, read in a worker thread.
+    batches = Batches(db, readings, pictures)
 
     async def storage_rounds() -> None:
         """The storage over the free level, charged once a day for the owners who are still
@@ -219,9 +226,20 @@ def create_app(
         except Exception as error:
             LOGGER.warning("Bildfilerna kunde inte städas vid starten: %s", type(error).__name__)
         rounds = asyncio.create_task(storage_rounds()) if pictures.payer is not None else None
+        # The batches' queue goes on where it was (CAT-151): reservations that ran out go back,
+        # and photos that were cut off can be read again.
+        stop = threading.Event()
+        queue = threading.Thread(target=batches.run, args=(stop,), name="omgangar", daemon=True)
+        if batch_queue:
+            queue.start()
         try:
             yield
         finally:
+            stop.set()
+            batches.wake()
+            if queue.is_alive():
+                # A reading can take a while; it is given up and given back after a restart.
+                await run_in_threadpool(queue.join, 5.0)
             if rounds is not None:
                 rounds.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -249,18 +267,23 @@ def create_app(
     app.state.db = db
     app.state.pictures = pictures
     app.state.readings = readings
+    app.state.batches = batches
 
     @app.exception_handler(Refused)
     def refused(_: Request, error: Refused) -> JSONResponse:
-        problem = Problem(code=error.code, message=error.message)
+        problem = Problem(code=error.code, message=error.message, cards=error.cards)
         wait = {"Retry-After": str(error.retry_after)} if error.retry_after is not None else None
-        return JSONResponse(problem.model_dump(mode="json"), status_code=error.status, headers=wait)
+        return JSONResponse(
+            problem.model_dump(mode="json", exclude_none=True),
+            status_code=error.status,
+            headers=wait,
+        )
 
     @app.exception_handler(UnknownOwner)
     def unknown_owner(_: Request, __: UnknownOwner) -> JSONResponse:
         # A session whose owner is gone: log in again.
         problem = Problem(code=ProblemCode.LOGIN, message="Logga in igen.")
-        return JSONResponse(problem.model_dump(mode="json"), status_code=401)
+        return JSONResponse(problem.model_dump(mode="json", exclude_none=True), status_code=401)
 
     def logged_in(session: SessionCookie = None) -> Account | None:
         return sessions.account(session)
@@ -467,6 +490,7 @@ def create_app(
     app.include_router(pictures_api.router(pictures, logged_in, access))
     app.include_router(trips_api.router(trips, logged_in, access))
     app.include_router(reading_api.router(readings, logged_in, access))
+    app.include_router(batches_api.router(batches, logged_in, access, sweep=pictures.sweep))
 
     @app.api_route(
         "/api/{rest:path}",

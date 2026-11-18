@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.batch-summary.schema.json",
+  "title": "trainmeet.catalog-1.batch-summary",
+  "$defs": {
+    "BatchCardStatus": {
+      "description": "Where a photo of a batch is (CAT-147–CAT-153).",
+      "enum": [
+        "waiting",
+        "reading",
+        "ready",
+        "review",
+        "failed",
+        "manual",
+        "approved"
+      ],
+      "title": "BatchCardStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A batch in the list: one with photos still to approve.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "ai": {
+      "title": "Ai",
+      "type": "boolean"
+    },
+    "mine": {
+      "title": "Mine",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "cards": {
+      "description": "Its cards, approved ones included.",
+      "title": "Cards",
+      "type": "integer"
+    },
+    "open": {
+      "description": "Its cards not yet approved.",
+      "title": "Open",
+      "type": "integer"
+    },
+    "counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Its cards per status.",
+      "propertyNames": {
+        "$ref": "#/$defs/BatchCardStatus"
+      },
+      "title": "Counts",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "ai",
+    "mine",
+    "created_at",
+    "cards",
+    "open",
+    "counts"
+  ],
+  "type": "object"
+}

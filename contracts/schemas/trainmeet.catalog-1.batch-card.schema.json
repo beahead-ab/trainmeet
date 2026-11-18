@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.batch-card.schema.json",
+  "title": "trainmeet.catalog-1.batch-card",
+  "$defs": {
+    "BatchCardStatus": {
+      "description": "Where a photo of a batch is (CAT-147–CAT-153).",
+      "enum": [
+        "waiting",
+        "reading",
+        "ready",
+        "review",
+        "failed",
+        "manual",
+        "approved"
+      ],
+      "title": "BatchCardStatus",
+      "type": "string"
+    },
+    "Confidence": {
+      "description": "The AI's own judgement, not a probability.",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "DccFunction": {
+      "additionalProperties": true,
+      "description": "A locomotive's function: F0 light, F2 horn ... (CAT-66).",
+      "properties": {
+        "number": {
+          "maximum": 68,
+          "minimum": 0,
+          "title": "Number",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 80,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "number",
+        "name"
+      ],
+      "title": "DccFunction",
+      "type": "object"
+    },
+    "PictureLinks": {
+      "additionalProperties": true,
+      "description": "The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that\nexpire (CAT-130): read the vehicle again for new ones.",
+      "properties": {
+        "thumb_url": {
+          "description": "The thumbnail, at most 360×240 pixels (CAT-126).",
+          "title": "Thumb Url",
+          "type": "string"
+        },
+        "display_url": {
+          "description": "The display picture, at most 1800 pixels (CAT-126).",
+          "title": "Display Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "thumb_url",
+        "display_url"
+      ],
+      "title": "PictureLinks",
+      "type": "object"
+    },
+    "ReadingQuestion": {
+      "additionalProperties": true,
+      "description": "An uncertain digit, asked of the owner (CAT-140).",
+      "properties": {
+        "field": {
+          "const": "number",
+          "title": "Field",
+          "type": "string"
+        },
+        "options": {
+          "description": "The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "field",
+        "options"
+      ],
+      "title": "ReadingQuestion",
+      "type": "object"
+    },
+    "Suggestion": {
+      "additionalProperties": true,
+      "description": "A value the AI suggests for a core field. Never saved before the owner has seen it.",
+      "properties": {
+        "value": {
+          "description": "As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "basis": {
+          "$ref": "#/$defs/SuggestionBasis"
+        },
+        "evidence": {
+          "default": "",
+          "description": "Where in the photo it stands, in the AI's words.",
+          "maxLength": 400,
+          "title": "Evidence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "confidence",
+        "basis"
+      ],
+      "title": "Suggestion",
+      "type": "object"
+    },
+    "SuggestionBasis": {
+      "description": "What a suggestion rests on.",
+      "enum": [
+        "visible_text",
+        "visual_inference",
+        "unknown"
+      ],
+      "title": "SuggestionBasis",
+      "type": "string"
+    },
+    "VehicleFields": {
+      "additionalProperties": true,
+      "description": "The core fields the owner writes (CAT-53). The pictures and the tag have addresses of\ntheir own; the prototype comes later.",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/VehicleStatus",
+          "default": "draft"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "litt": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Litt",
+          "type": "string"
+        },
+        "number": {
+          "default": "",
+          "description": "As painted: leading zeros, spaces, dashes kept.",
+          "maxLength": 80,
+          "title": "Number",
+          "type": "string"
+        },
+        "operator": {
+          "default": "",
+          "description": "The operator as text. No logos (CAT-61).",
+          "maxLength": 80,
+          "title": "Operator",
+          "type": "string"
+        },
+        "epoch": {
+          "default": "",
+          "maxLength": 12,
+          "title": "Epoch",
+          "type": "string"
+        },
+        "scale": {
+          "default": "",
+          "maxLength": 12,
+          "title": "Scale",
+          "type": "string"
+        },
+        "maker": {
+          "default": "",
+          "description": "The model's maker.",
+          "maxLength": 80,
+          "title": "Maker",
+          "type": "string"
+        },
+        "article_number": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Article Number",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "description": "Private. Never in a mini card or an export to others (CAT-191).",
+          "maxLength": 2000,
+          "title": "Note",
+          "type": "string"
+        },
+        "dcc_address": {
+          "default": "",
+          "description": "Locomotives and multiple units: the DCC address as text.",
+          "maxLength": 8,
+          "title": "Dcc Address",
+          "type": "string"
+        },
+        "functions": {
+          "items": {
+            "$ref": "#/$defs/DccFunction"
+          },
+          "maxItems": 69,
+          "title": "Functions",
+          "type": "array"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The place at home.",
+          "title": "Place"
+        }
+      },
+      "title": "VehicleFields",
+      "type": "object"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    },
+    "VehicleStatus": {
+      "description": "A draft, or ready: ready needs a kind and a litt or number (CAT-62).",
+      "enum": [
+        "draft",
+        "ready"
+      ],
+      "title": "VehicleStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "One photo of a batch: a draft of one vehicle, not a vehicle (CAT-147, CAT-148).",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "batch": {
+      "format": "uuid",
+      "title": "Batch",
+      "type": "string"
+    },
+    "position": {
+      "description": "The order the photos came in, and are read in.",
+      "minimum": 0,
+      "title": "Position",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/BatchCardStatus"
+    },
+    "version": {
+      "description": "Raised by every change of the values, also by the AI's. A change and Godkänn alla carry the version seen, so nothing unseen is saved (CAT-136).",
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "values": {
+      "$ref": "#/$defs/VehicleFields",
+      "description": "What the vehicle becomes when it is approved: the AI's suggestions, and then what the owner writes."
+    },
+    "suggestions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Suggestion"
+      },
+      "description": "What the AI suggested, as for one reading.",
+      "propertyNames": {
+        "enum": [
+          "kind",
+          "litt",
+          "number",
+          "operator",
+          "maker",
+          "article_number"
+        ]
+      },
+      "title": "Suggestions",
+      "type": "object"
+    },
+    "question": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReadingQuestion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "warnings": {
+      "description": "What the owner should check.",
+      "items": {
+        "maxLength": 400,
+        "type": "string"
+      },
+      "maxItems": 12,
+      "title": "Warnings",
+      "type": "array"
+    },
+    "message": {
+      "default": "",
+      "description": "Why the card is as it is, in Swedish: such as why the reading failed, or that the tokens ran out (CAT-152).",
+      "title": "Message",
+      "type": "string"
+    },
+    "picture": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PictureLinks"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The photo, without metadata, at most 1800 pixels: signed addresses that expire (CAT-130). Null once approved: the vehicle has it then."
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The vehicle, once approved.",
+      "title": "Vehicle"
+    },
+    "attempts": {
+      "description": "How many times the AI has been asked to read it.",
+      "minimum": 0,
+      "title": "Attempts",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "batch",
+    "position",
+    "status",
+    "version",
+    "values",
+    "attempts"
+  ],
+  "type": "object"
+}
