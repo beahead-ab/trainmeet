@@ -562,7 +562,7 @@ def run_tokens(base: str, mails: Path, secret: str, id_app: str) -> None:
     )
     check(token.status_code == 200, f"Appens token från ID svarade {token.status_code}.")
     as_app = httpx.Client(
-        base_url=id_app.rstrip("/") + "/api/id/1/apps/tokens",
+        base_url=id_app.rstrip("/") + "/api/id/1/apps",
         headers={"Authorization": "Bearer " + token.json()["access_token"]},
         timeout=20,
     )
@@ -573,15 +573,17 @@ def run_tokens(base: str, mails: Path, secret: str, id_app: str) -> None:
         "key": f"prov-{secrets.token_hex(4)}",
         "what": "2 bilder i provet",
     }
-    held = as_app.post("/reservations", json=asked)
+    held = as_app.post("/tokens/reservations", json=asked)
     check(held.status_code == 201, f"Reservera svarade {held.status_code}: {held.text}")
     reservation = held.json()["id"]
-    check(as_app.post("/reservations", json=asked).json()["id"] == reservation, "Två gånger.")
-    drawn = as_app.post(f"/reservations/{reservation}/draw", json={"amount": 12})
+    again = as_app.post("/tokens/reservations", json=asked)
+    check(again.json().get("id") == reservation, f"Samma nyckel igen gav {again.text}")
+    drawn = as_app.post(f"/tokens/reservations/{reservation}/draw", json={"amount": 12})
     check(drawn.status_code == 200, f"Dra svarade {drawn.status_code}: {drawn.text}")
-    balance = as_app.get("", params={"person": who, "owner": f"person:{who}"}).json()
-    check(balance["available"] == 88, f"Saldot efter dragningen: {balance}")
-    check(as_app.post(f"/reservations/{reservation}/return").status_code == 409, "Tillbaka?")
+    balance = as_app.get("/tokens", params={"person": who, "owner": f"person:{who}"}).json()
+    check(balance.get("available") == 88, f"Saldot efter dragningen: {balance}")
+    back = as_app.post(f"/tokens/reservations/{reservation}/return")
+    check(back.status_code == 409, f"En dragen reservation lämnades tillbaka: {back.status_code}")
     print("Tokens i ID: saldot, reservera, dra och samma nyckel igen: ok")
 
 
