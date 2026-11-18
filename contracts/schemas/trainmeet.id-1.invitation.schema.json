@@ -82,6 +82,7 @@
         "admin",
         "member",
         "organizer",
+        "publisher",
         "reader",
         "dispatcher",
         "loco_lead",

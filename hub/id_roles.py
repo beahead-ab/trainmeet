@@ -7,8 +7,13 @@ with ID may do nothing that needs a role (503), while the hub's own PIN works as
 
 The hub's meet is linked to ID's meet (Meet.id_meet, ID10). The roles count as:
 
-- Administratör, the club's admin: everything at the club's meets (KONTO-36, PLAN-19).
-- Arrangör: plans the meet in Planering and publishes its versions (PLAN-19).
+- Administratör, the club's admin: everything at the club's meets (KONTO-36, PLAN-19), and the
+  only one who withdraws a published version, as in the old Cloud (PLAN-24).
+- Arrangör: plans the meet in Planering (PLAN-19).
+- Får publicera, given to the Arrangör per meet: publishes the meet's versions (PLAN-19,
+  PLAN-24, H16).
+- Läsare: looks at the meet's plan in Planering and changes nothing (PLAN-19, H16), as everyone
+  may (S1, PLAN-37). The role counts for nothing more in the hub.
 - Trafikledare: runs the meet in Drift (ID3).
 """
 
@@ -30,12 +35,25 @@ LOGGER = logging.getLogger("hub.id")
 
 ADMIN = "admin"
 ORGANIZER = "organizer"
+PUBLISHER = "publisher"
 DISPATCHER = "dispatcher"
 
 PLANS = frozenset({ADMIN, ORGANIZER})
-"""Who plans a meet and publishes its versions (PLAN-19)."""
+"""Who plans a meet (PLAN-19)."""
 RUNS = frozenset({ADMIN, DISPATCHER})
 """Who runs a meet in Drift (ID3)."""
+
+
+def publishes(roles: set[str]) -> bool:
+    """Who publishes a meet's versions: the club's admin, or the Arrangör who also has Får
+    publicera at the meet (PLAN-19, PLAN-24). Får publicera alone plans nothing."""
+    return ADMIN in roles or {ORGANIZER, PUBLISHER} <= roles
+
+
+def withdraws(roles: set[str]) -> bool:
+    """Who withdraws a published version: only the club's admin, as in the old Cloud, since a
+    published version may be the one a meet runs (PLAN-24)."""
+    return ADMIN in roles
 
 
 def unavailable() -> HTTPException:

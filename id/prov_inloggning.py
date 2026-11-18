@@ -500,6 +500,19 @@ def run_hub_roles(base: str, mails: Path, hub: str, id_app: str) -> None:
     made = kim.app.post(f"/api/id/1/clubs/{club}/meets", json=autumn)
     check(made.status_code == 201, f"Träffen i ID svarade {made.status_code}.")
     id_meet = made.json()["id"]
+    # Får publicera and Läsare (PLAN-19, PLAN-24, H16): ID's database takes both roles.
+    kim_id = kim.app.get("/api/id/1/session").json()["account"]["id"]
+    for role in ("publisher", "reader"):
+        given = kim.app.post(
+            f"/api/id/1/meets/{id_meet}/grants", json={"person": kim_id, "role": role}
+        )
+        check(given.status_code == 200, f"Rollen {role} i ID svarade {given.status_code}.")
+    held = {
+        g["role"]
+        for g in kim.app.get(f"/api/id/1/meets/{id_meet}").json()["grants"]
+        if g["person"]["id"] == kim_id
+    }
+    check(held == {"organizer", "publisher", "reader"}, f"Rollerna i ID: {sorted(held)}")
 
     # In i Hubben med samma inloggning i ID: ingen ny kod.
     in_hub = Browser(base, hub, "/api/hub")
@@ -521,10 +534,12 @@ def run_hub_roles(base: str, mails: Path, hub: str, id_app: str) -> None:
     check(created.json()["meet"]["id_meet"] == id_meet, "Hubbens träff är inte kopplad till ID.")
     listed = in_hub.app.get("/api/planering/1/meets").json()
     check(
-        [(m["meet"]["name"], m["may_plan"]) for m in listed] == [("Hubbträffen", True)],
-        f"Hubben säger inte att arrangören planerar träffen: {listed}",
+        [(m["meet"]["name"], m["may_plan"], m["may_publish"], m["may_withdraw"]) for m in listed]
+        == [("Hubbträffen", True, True, True)],
+        f"Hubben säger inte att klubbens administratör planerar och publicerar: {listed}",
     )
     print("Hubbens träff ur träffen i ID, och arrangören planerar den: ok")
+    print("Får publicera och Läsare i ID, och rätten att publicera i hubben: ok")
 
 
 def run_tkl(base: str, mails: Path, tkl: str) -> None:

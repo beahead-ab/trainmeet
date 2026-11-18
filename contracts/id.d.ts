@@ -710,7 +710,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.id-1.club-page.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.id-1.club-page.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /** Member */
         "trainmeet.id-1.club-page.Member": {
             person: components["schemas"]["trainmeet.id-1.club-page.Person"];
@@ -762,7 +762,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.club-page.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.club-page.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /** Member */
         "trainmeet.id-1.member": {
             person: components["schemas"]["trainmeet.id-1.member.Person"];
@@ -885,7 +885,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.invitation.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.invitation.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /** Answer */
         "trainmeet.id-1.answer": {
             /** Accept */
@@ -1022,7 +1022,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.fleet-page.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.fleet-page.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * Grant
          * @description A role someone has for a resource.
@@ -1083,7 +1083,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.grant.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.grant.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * Resource
          * @description One thing a role applies to: its kind and its id in the app that owns it.
@@ -1202,7 +1202,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.access.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.access.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * FleetAccess
          * @description A fleet the person may work in besides their own: shared with them, or their club's
@@ -1580,7 +1580,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.id-1.account-export.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.id-1.account-export.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * Notice
          * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
@@ -1678,7 +1678,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.account-export.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.account-export.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * TagKind
          * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
@@ -2027,7 +2027,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.id-1.meet.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.id-1.meet.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * MeetPage
          * @description A meet's roles, as the club's members see them (ID10). Whoever may hand out roles also
@@ -2126,7 +2126,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.id-1.meet-page.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.id-1.meet-page.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /**
          * Person
          * @description Someone else, as a member or someone with a role: never their address.
@@ -2166,7 +2166,7 @@ export interface components {
          * @description The roles ID holds on one place (KONTO-28, KONTO-30, CAT-44, KONTO-35).
          * @enum {string}
          */
-        "trainmeet.id-1.meet-page.Role": "admin" | "member" | "organizer" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
+        "trainmeet.id-1.meet-page.Role": "admin" | "member" | "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer" | "reviewer" | "viewer" | "editor";
         /**
          * MeetGrant
          * @description Hand out a role at the meet to one of the club's members.
@@ -2186,7 +2186,7 @@ export interface components {
          * @description The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).
          * @enum {string}
          */
-        "trainmeet.id-1.meet-grant.MeetRole": "organizer" | "dispatcher" | "loco_lead" | "remote_clearer";
+        "trainmeet.id-1.meet-grant.MeetRole": "organizer" | "publisher" | "reader" | "dispatcher" | "loco_lead" | "remote_clearer";
         /** Problem */
         "trainmeet.id-1.problem": {
             code: components["schemas"]["trainmeet.id-1.problem.ProblemCode"];

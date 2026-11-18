@@ -42,7 +42,12 @@ export function App() {
   const [ok, setOk] = useState(false);
   const [meets, setMeets] = useState<MeetSummary[] | null>(null);
   const [idMeets, setIdMeets] = useState<IdMeetChoice[] | null>(null);
-  const admin = owner || (meet !== null && (meets?.find((summary) => summary.meet.id === meet)?.may_plan ?? false));
+  // Publicera and Dra tillbaka have rights of their own (PLAN-19, PLAN-24): the Arrangör
+  // publishes only with Får publicera at the meet, and only Administratör withdraws.
+  const mine = meet === null ? undefined : meets?.find((summary) => summary.meet.id === meet);
+  const admin = owner || (mine?.may_plan ?? false);
+  const mayPublish = owner || (mine?.may_publish ?? false);
+  const mayWithdraw = owner || (mine?.may_withdraw ?? false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
   const [versions, setVersions] = useState<Version[] | null>(null);
@@ -239,6 +244,8 @@ export function App() {
         {route.page === "versioner" && (
           <VersionerPage
             admin={admin}
+            mayPublish={mayPublish}
+            mayWithdraw={mayWithdraw}
             meet={route.meet}
             draft={draft}
             check={check}

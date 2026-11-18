@@ -17251,6 +17251,8 @@
         "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
         "enum": [
           "organizer",
+          "publisher",
+          "reader",
           "dispatcher",
           "loco_lead",
           "remote_clearer"
@@ -18345,6 +18347,8 @@
         "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
         "enum": [
           "organizer",
+          "publisher",
+          "reader",
           "dispatcher",
           "loco_lead",
           "remote_clearer"
@@ -18404,6 +18408,8 @@
         "description": "The roles per meet that ID hands out until the Hub logs in with ID (ID10, KONTO-28).",
         "enum": [
           "organizer",
+          "publisher",
+          "reader",
           "dispatcher",
           "loco_lead",
           "remote_clearer"
@@ -23439,8 +23445,20 @@
           },
           "may_plan": {
             "default": false,
-            "description": "Får den som frågar planera träffen och publicera den? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
+            "description": "Får den som frågar planera träffen? Hubbens PIN, eller Administratör eller Arrangör i TrainMeet ID (PLAN-19, #78).",
             "title": "May Plan",
+            "type": "boolean"
+          },
+          "may_publish": {
+            "default": false,
+            "description": "Får den som frågar publicera träffens versioner? Hubbens PIN, Administratör, eller Arrangör med Får publicera på träffen i TrainMeet ID (PLAN-19, PLAN-24).",
+            "title": "May Publish",
+            "type": "boolean"
+          },
+          "may_withdraw": {
+            "default": false,
+            "description": "Får den som frågar dra tillbaka en version? Hubbens PIN eller Administratör i TrainMeet ID, som i gamla Cloud (PLAN-24).",
+            "title": "May Withdraw",
             "type": "boolean"
           }
         },

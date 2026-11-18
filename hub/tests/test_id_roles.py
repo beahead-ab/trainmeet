@@ -140,12 +140,71 @@ def test_the_organizer_makes_the_hubs_meet_from_the_meet_in_id_and_plans_it(
     assert listed == {"Höst": True, "Hubbens egen": False}
     assert all(s["may_plan"] for s in owner.get(f"{API}/meets").json())
     assert person.post(f"{API}/meets/hubbens-egen/versions").status_code == 403
-    publish = person.post(f"{API}/meets/{meet.id}/versions")
-    assert publish.status_code not in (401, 403), "the organizer publishes (PLAN-19)"
+    # Publishing is a choice per meet (PLAN-19, PLAN-24): the organizer without it plans, but
+    # does not publish.
+    refused = person.post(f"{API}/meets/{meet.id}/versions")
+    assert (refused.status_code, refused.json()["detail"]) == (
+        403,
+        "Du får inte publicera den här träffen. Klubbens administratör ger rätten i TrainMeet ID.",
+    )
+
+
+def test_the_organizer_publishes_with_the_right_to_and_only_the_admin_withdraws(
+    owner: TestClient, person: TestClient, pretend: PretendIdApi
+) -> None:
+    """PLAN-24, as in the old Cloud: Får publicera per meet, and only Administratör takes a
+    publication away, since it may be the one a meet runs."""
+    pretend.roles = {str(AUTUMN): ["organizer"]}
+    meet = planning.Draft.model_validate(make_meet(person).json()).meet.id
+    summary = planning.MeetSummary.model_validate(person.get(f"{API}/meets").json()[0])
+    assert (summary.may_plan, summary.may_publish, summary.may_withdraw) == (True, False, False)
+
+    pretend.roles = {str(AUTUMN): ["organizer", "publisher"]}
+    summary = planning.MeetSummary.model_validate(person.get(f"{API}/meets").json()[0])
+    assert (summary.may_plan, summary.may_publish, summary.may_withdraw) == (True, True, False)
+    published = person.post(f"{API}/meets/{meet}/versions")
+    assert published.status_code not in (401, 403), published.text
+    refused = person.post(f"{API}/meets/{meet}/versions/1/withdraw")
+    assert (refused.status_code, refused.json()["detail"]) == (
+        403,
+        "Bara klubbens administratör drar tillbaka en version.",
+    )
+
+    # Får publicera alone plans nothing.
+    pretend.roles = {str(AUTUMN): ["publisher"]}
+    assert person.post(f"{API}/meets/{meet}/versions").status_code == 403
+
+    pretend.roles, pretend.club_admin = {}, True
+    summary = planning.MeetSummary.model_validate(person.get(f"{API}/meets").json()[0])
+    assert (summary.may_plan, summary.may_publish, summary.may_withdraw) == (True, True, True)
+    assert person.post(f"{API}/meets/{meet}/versions/1/withdraw").status_code not in (401, 403)
+    assert all(s["may_withdraw"] for s in owner.get(f"{API}/meets").json()), "the hub's PIN"
+
+
+def test_a_reader_sees_the_plan_but_no_buttons(person: TestClient, pretend: PretendIdApi) -> None:
+    """Läsare (H16): looks at the plan and changes nothing. Looking is open to everyone in
+    Planering (S1, PLAN-37); the role gives no buttons."""
+    pretend.roles = {str(AUTUMN): ["organizer"]}
+    meet = planning.Draft.model_validate(make_meet(person).json()).meet.id
+    pretend.roles = {str(AUTUMN): ["reader"]}
+    assert person.get(f"{API}/id-meets").json() == [], "a reader makes no meet"
+    summary = planning.MeetSummary.model_validate(person.get(f"{API}/meets").json()[0])
+    assert (summary.may_plan, summary.may_publish, summary.may_withdraw) == (False, False, False)
+    assert person.get(f"{API}/meets/{meet}").status_code == 200
+    assert person.get(f"{API}/meets/{meet}/check").status_code == 200
+    for refused in (
+        person.post(f"{API}/meets/{meet}/versions"),
+        person.post(f"{API}/meets/{meet}/versions/1/withdraw"),
+        person.post(f"{API}/meets/{meet}/sources/okänd/apply", json={}),
+    ):
+        assert (refused.status_code, refused.json()["detail"]) == (
+            403,
+            "Din roll på träffen i TrainMeet ID ger inte rätt att ändra planen.",
+        )
 
 
 def test_a_role_taken_back_in_id_ends_at_once(person: TestClient, pretend: PretendIdApi) -> None:
-    pretend.roles = {str(AUTUMN): ["organizer"]}
+    pretend.roles = {str(AUTUMN): ["organizer", "publisher"]}
     meet = planning.Draft.model_validate(make_meet(person).json()).meet.id
     assert person.post(f"{API}/meets/{meet}/versions").status_code not in (401, 403)
     pretend.roles = {}
