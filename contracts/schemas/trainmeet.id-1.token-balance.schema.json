@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.token-balance.schema.json",
+  "title": "trainmeet.id-1.token-balance",
+  "$defs": {
+    "TokenOwner": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/TokenOwnerKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "TokenOwner",
+      "type": "object"
+    },
+    "TokenOwnerKind": {
+      "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+      "enum": [
+        "person",
+        "club"
+      ],
+      "title": "TokenOwnerKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+  "properties": {
+    "owner": {
+      "$ref": "#/$defs/TokenOwner"
+    },
+    "title": {
+      "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "free_left": {
+      "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+      "minimum": 0,
+      "title": "Free Left",
+      "type": "integer"
+    },
+    "free_monthly": {
+      "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+      "minimum": 0,
+      "title": "Free Monthly",
+      "type": "integer"
+    },
+    "bought": {
+      "description": "Köpta tokens som är kvar. De förfaller inte.",
+      "minimum": 0,
+      "title": "Bought",
+      "type": "integer"
+    },
+    "reserved": {
+      "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+      "minimum": 0,
+      "title": "Reserved",
+      "type": "integer"
+    },
+    "available": {
+      "description": "Det som går att använda nu: gratis och köpt.",
+      "minimum": 0,
+      "title": "Available",
+      "type": "integer"
+    },
+    "month": {
+      "description": "Månaden gratiskvoten gäller, i svensk tid.",
+      "pattern": "^[0-9]{4}-[0-9]{2}$",
+      "title": "Month",
+      "type": "string"
+    }
+  },
+  "required": [
+    "owner",
+    "title",
+    "free_left",
+    "free_monthly",
+    "bought",
+    "reserved",
+    "available",
+    "month"
+  ],
+  "type": "object"
+}

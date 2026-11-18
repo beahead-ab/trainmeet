@@ -175,3 +175,6 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Uppgifterna som fil | `AccountExport`, `CatalogExport` | Allt TrainMeet har om personen, från ID och Catalog, i en fil före borttagningen (KONTO-31). |
 | Ägare borttagna | `OwnersRemoved` | ID säger till Catalog vilka ägare som är borta, och Catalog tar bort deras vagnparker (CAT-193). Bara ID:s egen klient får anropa. |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |
+| Saldo | `TokenBalance`, `TokenOwner`, `GET /api/id/1/tokens` | TrainMeet tokens som går att använda nu, per person och per klubb (TK1, TOKEN-12). Det är månadens gratiskvot som är kvar och de köpta. |
+| Gratiskvot | `TokenBalance.free_left`, `free_monthly` | 100 tokens i månaden per person och 300 per klubb (TOKEN-14). Används först, och det som inte används sparas inte till nästa månad (TK2). |
+| Reservation | `TokenReserve`, `TokenReservation`, `TokenDraw`, `/api/id/1/apps/tokens/reservations` | En app reserverar före ett arbete som kostar, drar det som det kostade och lämnar tillbaka resten, eller allt om arbetet misslyckades (TOKEN-24). Samma nyckel två gånger ger samma reservation (TOKEN-28). En reservation som ingen drar går tillbaka efter 30 minuter. |

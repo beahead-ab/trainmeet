@@ -19,6 +19,7 @@ import {
   type HelpRequest,
   type RemovalPlan,
   type Session,
+  type TokenBalance,
 } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { AccountIcon, ClubsIcon, MeetsIcon, TokensIcon } from "./icons";
@@ -76,6 +77,8 @@ export type Data = {
   /** ID's own version, for Hjälp och fel from ID itself. */
   version?: string;
   removal?: RemovalPlan;
+  /** The person's balance first, then their clubs' (#79, TOKEN-01). */
+  tokens?: TokenBalance[];
 };
 
 export type Actions = {
@@ -241,7 +244,7 @@ function Content(props: ShellProps & { t: T }) {
             <ClubsCard t={t} clubs={data.clubs} navigate={navigate} />
           </div>
           <div className="id-kolumn">
-            <TokensCard t={t} />
+            <TokensCard t={t} tokens={data.tokens} language={language} />
           </div>
         </div>
       );
@@ -283,7 +286,7 @@ function Content(props: ShellProps & { t: T }) {
     case "meet":
       return data.meet ? <MeetView t={t} page={data.meet} me={props.session?.account?.id ?? ""} actions={actions} language={language} navigate={navigate} /> : null;
     case "tokens":
-      return <TokensCard t={t} heading={1} />;
+      return <TokensCard t={t} heading={1} tokens={data.tokens} language={language} />;
     case "remove":
       return <RemoveView t={t} plan={data.removal} navigate={navigate} remove={actions.removeAccount} />;
     case "help":
@@ -767,11 +770,30 @@ function InvitationsCard({ t, invitations, answer, heading = 2 }: { t: T; invita
   );
 }
 
-function TokensCard({ t, heading = 2 }: { t: T; heading?: 1 | 2 }) {
+/** The balances (TOKEN-01, TOKEN-12): what can be used now, this month's free quota, which is
+ * not saved, and the bought tokens, which never run out. */
+function TokensCard({ t, heading = 2, tokens, language }: { t: T; heading?: 1 | 2; tokens?: TokenBalance[]; language: Language }) {
+  const number = new Intl.NumberFormat(language === "sv" ? "sv-SE" : "en-GB");
   return (
     <section className="tm-kort">
       <Heading level={heading}>{t("tokensTitle")}</Heading>
-      <p className="id-detalj">{t("tokensLater")}</p>
+      <p className="id-detalj">{t("tokensIntro")}</p>
+      {tokens === undefined ? null : (
+        <ul className="id-lista id-saldon">
+          {tokens.map((balance) => (
+            <li key={`${balance.owner.kind}:${balance.owner.id}`}>
+              <div>
+                <strong>{balance.owner.kind === "person" ? t("tokensOwn") : t("tokensClub", { name: balance.title })}</strong>
+                <div className="id-detalj">{t("tokensFree", { left: number.format(balance.free_left), monthly: number.format(balance.free_monthly) })}</div>
+                <div className="id-detalj">{t("tokensBought", { n: number.format(balance.bought) })}</div>
+                {balance.reserved > 0 ? <div className="id-detalj">{t("tokensReserved", { n: number.format(balance.reserved) })}</div> : null}
+              </div>
+              <span className="id-saldo">{t("tokensAvailable", { n: number.format(balance.available) })}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="id-detalj">{t("tokensBuyLater")}</p>
     </section>
   );
 }
@@ -1000,10 +1022,13 @@ export function App({ initialLanguage }: { initialLanguage: Language }) {
       switch (route.page) {
         case "account":
         case "invitations": {
-          const [clubs, invitations] = await Promise.all([api.clubs(), api.invitations()]);
-          setData({ clubs, invitations });
+          const [clubs, invitations, tokens] = await Promise.all([api.clubs(), api.invitations(), api.tokens()]);
+          setData({ clubs, invitations, tokens });
           break;
         }
+        case "tokens":
+          setData({ tokens: await api.tokens() });
+          break;
         case "clubs":
           setData({ clubs: await api.clubs() });
           break;
