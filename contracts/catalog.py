@@ -394,13 +394,16 @@ class ProblemCode(StrEnum):
     TOO_MANY = "too_many"
     """More than 30 lookups in a minute: try again in a minute (CAT-111, CAT-112). For a picture:
     the owner's cap of tokens per day in TrainMeet ID is reached, so the storage over the free
-    level cannot be paid today (TK15, CAT-132)."""
+    level cannot be paid today (TK15, CAT-132). For a reading: more than 10 in an hour, with
+    Retry-After (CAT-146), or the day's cap in TrainMeet ID is reached (TK15)."""
     NOT_HERE = "not_here"
     """Simulated tags exist only in the test environment (CAT-96)."""
     FORBIDDEN = "forbidden"
     """The fleet is shared with the asker, but only the owner may do this (CAT-46, CAT-49)."""
     UNAVAILABLE = "unavailable"
-    """TrainMeet ID, or the pictures' storage, does not answer just now (#49, CAT-130)."""
+    """TrainMeet ID, or the pictures' storage, does not answer just now (#49, CAT-130). For a
+    reading: this Catalog has no TrainMeet ID, the account is not in ID, or TrainMeets AI cannot
+    be used just now (CAT-26)."""
     BAD_PICTURE = "bad_picture"
     """Not a picture Catalog can read: JPEG, PNG or WebP (CAT-123)."""
     PICTURE_TOO_LARGE = "picture_too_large"
@@ -414,7 +417,8 @@ class ProblemCode(StrEnum):
     NO_TOKENS = "no_tokens"
     """The owner's free storage is full and the owner's balance in TrainMeet ID does not cover
     the next started GB this month, 20 tokens (CAT-132): buy tokens in ID, or remove pictures.
-    Nothing was stored, and the pictures that are there stay."""
+    Nothing was stored, and the pictures that are there stay. For a reading: the balance does
+    not cover 12 tokens a picture (CAT-19); nothing was sent."""
     BACKGROUNDS_OFF = "backgrounds_off"
     """The background removal is not on at this Catalog just now: only the original background
     can be chosen (CAT-127). StorageUse.backgrounds says so before anyone tries."""
@@ -428,10 +432,19 @@ class ProblemCode(StrEnum):
     """The meet is archived and does not change any more (CAT-183)."""
     NOT_BACK = "not_back"
     """Something on the pack list is still away: tick it in Hem, or take it off the list."""
+    CONSENT_REQUIRED = "consent_required"
+    """The first reading needs the person's consent: show what is sent and to whom
+    (GET /readings/consent), and send the reading again with consent (CAT-142)."""
+    READING_BUSY = "reading_busy"
+    """A reading is already running for the person, or for this id: one at a time (CAT-146)."""
+    READING_FAILED = "reading_failed"
+    """The AI could not read the photos, or its answer could not be read. Nothing was changed
+    and nothing was drawn; try again with a new reading (CAT-20)."""
 
 
 class Problem(Contract):
-    """The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503."""
+    """The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or
+    503."""
 
     code: ProblemCode
     message: str = Field(description="The same in Swedish, for logs and other readers.")
@@ -932,3 +945,161 @@ class BackgroundChange(Contract):
     """A new background for a picture, made from what was kept at the upload (CAT-128)."""
 
     background: PictureBackground
+
+
+# --- The reading of a photo with AI (#52, CAT-19, CAT-20, CAT-26, CAT-135–CAT-146) -------------
+#
+#     GET    /api/catalog/1/readings/consent        ReadingConsent: what is sent, to whom, the price
+#     POST   /api/catalog/1/readings                multipart: data (ReadingAsk, JSON) and
+#                                                   1–4 images -> Reading
+#
+# Rules:
+# - The AI only suggests (CAT-136). A reading is a record of its own, apart from the vehicle: it
+#   makes no vehicle and stores no picture (CAT-143). The web app fills the form with the
+#   suggestions, and Spara saves them through the vehicle's own addresses.
+# - The photos are read in TrainMeet ID's meter: TrainMeets AI, Claude through Amazon Bedrock in
+#   the EU, or the account's own AI (CAT-26, TK4). Catalog never holds a key. Each photo is made
+#   anew without position, camera or other metadata before it is sent (CAT-124), and is never
+#   stored.
+# - 12 tokens a picture, 0 with own AI (CAT-19), from the owner's balance: the person's, or the
+#   club's for a club's fleet. They are reserved before the AI is asked and given back when it
+#   fails (CAT-20), or when the answer comes after the vehicle changed (CAT-145, 409 changed).
+# - The id comes from the client (CAT-144): the same id and the same photos again give the same
+#   reading, without reading or drawing again. The same id with other photos is refused (409).
+# - One reading at a time per person (409 reading_busy), and at most 10 an hour (429 too_many
+#   with Retry-After) (CAT-146).
+# - The first time, the person sees what is sent and to whom, and the consent is kept as a
+#   privacy event (CAT-142). Without it the reading answers 422 consent_required.
+# - Only the owner reads with AI, and a club's administrators in the club's fleet (CAT-46): 403
+#   for someone who may look or edit, 404 for someone who does not see the fleet. ?fleet=<owner>
+#   as for the vehicles.
+# - Without TrainMeet ID's API the reading is not available (503 unavailable).
+# - What the AI may suggest: kind, litt, number, operator, maker and article_number (CAT-137).
+#   An unreadable character is a ?, never a guess (CAT-138). Litt and number come only from
+#   legible text, never from how the vehicle looks; maker and article number only from a
+#   legible label or box (CAT-139). Anything else the AI says is dropped, and an answer that
+#   cannot be read fails closed: nothing is suggested and nothing is drawn.
+# - An uncertain digit in an EVN becomes a question, with the options whose check digit adds
+#   up (CAT-140).
+
+SuggestedField = Literal["kind", "litt", "number", "operator", "maker", "article_number"]
+"""The core fields the AI suggests from a photo (CAT-137, CAT-139)."""
+
+
+class ReadingStatus(StrEnum):
+    PENDING = "pending"
+    """The AI is reading."""
+    DONE = "done"
+    """Read: the suggestions are there."""
+    FAILED = "failed"
+    """The AI or its answer failed, or it took too long. Nothing was drawn."""
+    DISCARDED = "discarded"
+    """The answer came after the vehicle changed and was not used (CAT-145). Nothing was drawn."""
+
+
+class Confidence(StrEnum):
+    """The AI's own judgement, not a probability."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class SuggestionBasis(StrEnum):
+    """What a suggestion rests on."""
+
+    VISIBLE_TEXT = "visible_text"
+    """Legible text in the photo: a marking, a label or a box."""
+    VISUAL_INFERENCE = "visual_inference"
+    """What is seen of the shape or the colours. Never for litt, number, maker or article number
+    (CAT-138, CAT-139)."""
+    UNKNOWN = "unknown"
+
+
+class Suggestion(Contract):
+    """A value the AI suggests for a core field. Never saved before the owner has seen it."""
+
+    value: Annotated[str, StringConstraints(min_length=1, max_length=80)] = Field(
+        description="As for the field: kind is a VehicleKind; the number as painted, with ? for "
+        "a character that could not be read (CAT-138)."
+    )
+    confidence: Confidence
+    basis: SuggestionBasis
+    evidence: Annotated[str, StringConstraints(max_length=400)] = Field(
+        default="", description="Where in the photo it stands, in the AI's words."
+    )
+
+
+class ReadingQuestion(Contract):
+    """An uncertain digit, asked of the owner (CAT-140)."""
+
+    field: Literal["number"]
+    options: list[str] = Field(
+        min_length=1,
+        max_length=10,
+        description="The number as painted, with the digit that was uncertain filled in so that "
+        "the EVN's check digit adds up.",
+    )
+
+
+class Reading(Contract):
+    """What the AI suggests from the photos (CAT-136, CAT-137). Nothing of it is saved in a
+    vehicle until the owner saves the form."""
+
+    id: UUID = Field(description="The client's id for the reading (CAT-144).")
+    status: ReadingStatus
+    suggestions: dict[SuggestedField, Suggestion] = Field(
+        default_factory=dict, description="Only the fields the AI could read, by the rules."
+    )
+    question: ReadingQuestion | None = None
+    summary: Annotated[str, StringConstraints(max_length=1000)] = ""
+    warnings: list[Annotated[str, StringConstraints(max_length=400)]] = Field(
+        default_factory=list, max_length=12, description="What the owner should check."
+    )
+    suggested_next_photo: Annotated[str, StringConstraints(max_length=400)] = Field(
+        default="", description="Another photo the AI asks for, such as a close-up (CAT-135)."
+    )
+    cost: int = Field(ge=0, description="Tokens drawn: 12 a picture, 0 with own AI (CAT-19).")
+    model: Text = Field(description="The AI that read the photos.")
+
+
+class ReadingAsk(Contract):
+    """The part data of the reading's form, as JSON. The photos are the parts images."""
+
+    id: UUID = Field(description="Made by the client, new for each reading (CAT-144).")
+    consent: bool = Field(
+        default=False,
+        description="The person has seen what is sent and to whom, and says yes (CAT-142).",
+    )
+    vehicle: UUID | None = Field(
+        default=None, description="The vehicle the photos are of, when it is saved already."
+    )
+    version: int | None = Field(
+        default=None,
+        ge=1,
+        description="The vehicle's version, required with the vehicle: an answer after a change "
+        "of the vehicle is not used (CAT-145).",
+    )
+
+
+class ReadingConsent(Contract):
+    """What is sent and to whom, before the first reading (CAT-142), and the price."""
+
+    available: bool = Field(description="The reading can be used here now.")
+    message: str | None = Field(default=None, description="Why not, when it cannot be used.")
+    given: bool = Field(description="The person has said yes before.")
+    version: str = Field(description="The version of what the person says yes to.")
+    sent_to: Text = Field(
+        description="Who reads the photos: TrainMeets AI, or the account's own AI."
+    )
+    text: Text = Field(description="What is sent and to whom, as the person reads it.")
+    own_ai: Text | None = Field(
+        default=None, description="The model of the account's own AI, when it is connected."
+    )
+    price_per_picture: int = Field(ge=0, description="12 tokens, or 0 with own AI (CAT-19).")
+    balance: int | None = Field(
+        default=None, description="Tokens left on the balance that pays, when ID says."
+    )
+    payer: Text | None = Field(
+        default=None, description="Whose balance pays: the person's, or the club's."
+    )

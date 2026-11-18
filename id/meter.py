@@ -6,8 +6,16 @@ Bedrock in the EU (TK14, TOKEN-20); the apps never see it (TK7). Egen AI is the 
 TrainMeets AI an option (TK12): the app asks the person before the first time.
 
 The same reservation twice gives the same answer and draws nothing twice: the answer is kept for
-a day under the reservation. If Claude does not answer, the reservation goes back and nothing is
-drawn. The AI is asked outside the database transaction, so a slow answer holds no lock.
+a day under the reservation, with its price. If Claude does not answer, the reservation goes back
+and nothing is drawn. The AI is asked outside the database transaction, so a slow answer holds no
+lock.
+
+With hold (MeterRead.hold) the meter reads and keeps the answer but draws nothing: the reservation
+stays held, MeterAnswer.cost says what the app is to draw, and the app draws it, or gives it all
+back when the answer came too late to be used (Catalog's reading, CAT-145). A held reservation
+with a kept answer gives that answer again without asking the AI, so the app can ask again after
+a lost answer. A held reservation nobody draws goes back by itself (id/tokens.py), and a draw
+can never take more than was reserved.
 
 Settings, from the environment:
 
@@ -43,6 +51,7 @@ from contracts.tokens import (
     MeterRead,
     TokenDraw,
     TokenOwner,
+    TokenReservation,
     TokenReservationState,
 )
 from id.db import Database
@@ -64,6 +73,16 @@ class ClaudeRead:
     text: str
     input_tokens: int = 0
     output_tokens: int = 0
+
+
+@dataclass(frozen=True)
+class Kept:
+    """An answer kept under its reservation, with what it costs: 12 tokens a picture, or 0
+    with own AI. Older answers, kept before the price was, have none: theirs is what was drawn."""
+
+    text: str
+    model: str
+    cost: int | None
 
 
 class MeterFailed(Exception):
@@ -209,30 +228,39 @@ class Meter:
             raise Refused(
                 422, ProblemCode.INVALID, "Reservationen gäller lagring och läses inte med AI."
             )
-        own = self.own_ai(held.owner) if held.state == TokenReservationState.HELD else None
-        if own is not None:
-            return self._own(app, asked, own)
-        if self.claude is None and held.state == TokenReservationState.HELD:
-            raise Refused(503, ProblemCode.UNAVAILABLE, "TrainMeets AI är inte inkopplad här.")
-        cost = TOKENS_PER_PAGE * len(asked.images)
         if held.state == TokenReservationState.DRAWN:
-            kept = self._kept(asked.reservation)
-            if kept is None:
+            drawn = self._kept(asked.reservation)
+            if drawn is None:
                 raise Refused(409, ProblemCode.CONFLICT, "Reservationen är redan dragen.")
-            return MeterAnswer(text=kept[0], cost=held.drawn, model=kept[1], reservation=held)
+            return MeterAnswer(
+                text=drawn.text, cost=held.drawn, model=drawn.model, reservation=held
+            )
         if held.state == TokenReservationState.RETURNED:
             raise Refused(
                 409,
                 ProblemCode.CONFLICT,
                 "Reservationen är tillbakalämnad, eller har gått ut. Reservera igen.",
             )
+        kept = self._kept(asked.reservation)
+        if kept is None:
+            kept = self._ask(app, asked, held)
+        return self._answer(app, asked, kept)
+
+    def _ask(self, app: str, asked: MeterRead, held: TokenReservation) -> Kept:
+        """Read with the owner's own AI, or with TrainMeets AI, and keep the answer with its
+        price. If the AI does not answer, the reservation goes back and nothing is drawn."""
+        own = self.own_ai(held.owner)
+        if own is not None:
+            return self._own(app, asked, own)
+        if self.claude is None:
+            raise Refused(503, ProblemCode.UNAVAILABLE, "TrainMeets AI är inte inkopplad här.")
+        cost = TOKENS_PER_PAGE * len(asked.images)
         if held.amount < cost:
             raise Refused(
                 422,
                 ProblemCode.INVALID,
                 f"Reservationen räcker inte: {cost} tokens behövs för {len(asked.images)} bilder.",
             )
-        assert self.claude is not None
         if self.budget is not None:
             try:
                 self.budget.allow()
@@ -248,14 +276,12 @@ class Meter:
             raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
         if self.budget is not None:
             self.budget.record(len(asked.images), read.input_tokens, read.output_tokens)
-        text = read.text
-        drawn = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
-        text, model = self._keep(asked.reservation, text, self.claude.model)
-        return MeterAnswer(text=text, cost=cost, model=model, reservation=drawn)
+        return self._keep(asked.reservation, read.text, self.claude.model, cost)
 
-    def _own(self, app: str, asked: MeterRead, own: OwnAiUse) -> MeterAnswer:
-        """The owner's own AI (TK4): read with it, and draw nothing. The reservation is drawn
-        with nothing, so that the same reservation again gives the same answer."""
+    def _own(self, app: str, asked: MeterRead, own: OwnAiUse) -> Kept:
+        """The owner's own AI (TK4): read with it, and it costs nothing. Without hold the
+        reservation is drawn with nothing, so that the same reservation again gives the same
+        answer."""
         try:
             text = own.read(
                 asked.prompt, [(i.media_type, i.data) for i in asked.images], asked.max_tokens
@@ -263,30 +289,39 @@ class Meter:
         except MeterFailed as error:
             self.tokens.give_back(app, asked.reservation)
             raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
-        drawn = self.tokens.draw(app, asked.reservation, TokenDraw(amount=0))
-        text, model = self._keep(asked.reservation, text, own.model)
-        return MeterAnswer(text=text, cost=0, model=model, reservation=drawn)
+        return self._keep(asked.reservation, text, own.model, 0)
 
-    def _keep(self, reservation: UUID, text: str, model: str) -> tuple[str, str]:
+    def _answer(self, app: str, asked: MeterRead, kept: Kept) -> MeterAnswer:
+        """The kept answer for a held reservation. With hold the reservation stays held and the
+        app draws the cost itself; without, the cost is drawn now and the rest goes back."""
+        cost = kept.cost if kept.cost is not None else TOKENS_PER_PAGE * len(asked.images)
+        if asked.hold:
+            reservation = self.tokens.reservation(app, asked.reservation)
+        else:
+            reservation = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
+        return MeterAnswer(text=kept.text, cost=cost, model=kept.model, reservation=reservation)
+
+    def _keep(self, reservation: UUID, text: str, model: str, cost: int) -> Kept:
         """The first answer for the reservation is the one: two at once give the same."""
         now = datetime.now(UTC)
         with self.db.transaction() as conn:
             conn.execute("DELETE FROM meter_answer WHERE at < %s", (now - KEPT,))
             conn.execute(
-                "INSERT INTO meter_answer (reservation_id, text, model, at) "
-                "VALUES (%s, %s, %s, %s) ON CONFLICT (reservation_id) DO NOTHING",
-                (reservation, text, model, now),
+                "INSERT INTO meter_answer (reservation_id, text, model, cost, at) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (reservation_id) DO NOTHING",
+                (reservation, text, model, cost, now),
             )
             row = conn.execute(
-                "SELECT text, model FROM meter_answer WHERE reservation_id = %s", (reservation,)
+                "SELECT text, model, cost FROM meter_answer WHERE reservation_id = %s",
+                (reservation,),
             ).fetchone()
         assert row is not None
-        return str(row["text"]), str(row["model"])
+        return Kept(str(row["text"]), str(row["model"]), row["cost"])
 
-    def _kept(self, reservation: UUID) -> tuple[str, str] | None:
+    def _kept(self, reservation: UUID) -> Kept | None:
         with self.db.transaction() as conn:
             row = conn.execute(
-                "SELECT text, model FROM meter_answer WHERE reservation_id = %s AND at >= %s",
+                "SELECT text, model, cost FROM meter_answer WHERE reservation_id = %s AND at >= %s",
                 (reservation, datetime.now(UTC) - KEPT),
             ).fetchone()
-        return (str(row["text"]), str(row["model"])) if row else None
+        return Kept(str(row["text"]), str(row["model"]), row["cost"]) if row else None

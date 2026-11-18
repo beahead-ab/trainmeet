@@ -167,6 +167,29 @@ def test_the_meter_reads_with_the_owners_own_ai_and_draws_nothing(own: OwnWorld)
     assert free.status_code == 200 and free.json()["cost"] == 0
 
 
+def test_with_hold_and_own_ai_the_cost_is_nothing_even_when_it_is_disconnected(
+    own: OwnWorld,
+) -> None:
+    """CAT-145 with own AI: the held answer costs 0, and keeps that price when it is given
+    again, also after the own AI was disconnected in between."""
+    kim, me = logged_in(own)
+    mine = f"person:{kim.id}"
+    me.put("/api/id/1/tokens/own-ai", params={"owner": mine}, json={**CONNECT, "key": KEY})
+    held = reserve(own.world, kim.id, mine, 0, "egen-hold").json()["id"]
+    body = {
+        "reservation": held,
+        "prompt": "Läs av fordonet.",
+        "images": [{"media_type": "image/png", "data": PICTURE}],
+        "hold": True,
+    }
+    first = MeterAnswer.model_validate(own.app_post("meter", body).json())
+    assert (first.cost, first.reservation.state) == (0, "held")
+    me.delete("/api/id/1/tokens/own-ai", params={"owner": mine})
+    again = MeterAnswer.model_validate(own.app_post("meter", body).json())
+    assert (again.text, again.cost, again.model) == (first.text, 0, "en-modell (egen AI)")
+    assert own.claude.calls == []
+
+
 def test_only_the_clubs_admin_connects_the_clubs_own_ai(own: OwnWorld) -> None:
     kim, club, people = club_with(own.world, ("Sara Holm", "sara@example.com"))
     sara = own.as_(people["Sara Holm"])

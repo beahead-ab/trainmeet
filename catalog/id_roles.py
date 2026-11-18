@@ -4,7 +4,8 @@ Catalog asks ID's API with a token of its own, from Keycloak's client credential
 shortly before it runs out. The answer is never kept: a changed sharing applies at once. If ID
 does not answer, nothing shared is shown (503), while the owner's own fleet works as before.
 The same token reserves and draws the tokens for the storage over the free level (CAT-132,
-catalog/storage.py).
+catalog/storage.py), and for the reading of a photo with AI through ID's meter (CAT-19,
+catalog/reading.py).
 """
 
 from __future__ import annotations
@@ -74,9 +75,11 @@ class IdRoles:
         *,
         params: dict[str, str] | None = None,
         body: dict[str, object] | None = None,
+        timeout: float | None = None,
     ) -> httpx.Response:
         """ID's answer to the app's call, whatever it says; a refused token is made anew once.
-        Refused with 503 when ID does not answer."""
+        Refused with 503 when ID does not answer. timeout is for a call that waits on an AI,
+        longer than the client's own."""
         for attempt in (1, 2):
             try:
                 answer = self.http.request(
@@ -85,6 +88,7 @@ class IdRoles:
                     params=params,
                     json=body,
                     headers={"Authorization": f"Bearer {self._bearer()}"},
+                    timeout=httpx.USE_CLIENT_DEFAULT if timeout is None else timeout,
                 )
             except httpx.HTTPError as error:
                 LOGGER.warning("ID:s API: %s", type(error).__name__)

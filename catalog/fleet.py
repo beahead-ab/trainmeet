@@ -78,13 +78,17 @@ MainPictures = Callable[[Connection[DictRow], list[UUID]], dict[UUID, PictureLin
 
 
 class Refused(Exception):
-    """Catalog says no. The web app shows the text for the code."""
+    """Catalog says no. The web app shows the text for the code. retry_after, in seconds, is
+    sent as Retry-After."""
 
-    def __init__(self, status: int, code: ProblemCode, message: str) -> None:
+    def __init__(
+        self, status: int, code: ProblemCode, message: str, retry_after: int | None = None
+    ) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
+        self.retry_after = retry_after
 
 
 def not_found() -> Refused:

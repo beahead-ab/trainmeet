@@ -1661,6 +1661,12 @@ export interface components {
              * @default 8192
              */
             max_tokens: number;
+            /**
+             * Hold
+             * @description Håll reservationen: mätaren läser och behåller svaret, men drar inget. Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används (CAT-145).
+             * @default false
+             */
+            hold: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -1688,7 +1694,7 @@ export interface components {
             text: string;
             /**
              * Cost
-             * @description Det som drogs: 12 tokens per bild (TOKEN-14).
+             * @description Det som drogs: 12 tokens per bild (TOKEN-14), 0 med egen AI. Med hold är inget draget än: det är vad appen ska dra.
              */
             cost: number;
             /** Model */

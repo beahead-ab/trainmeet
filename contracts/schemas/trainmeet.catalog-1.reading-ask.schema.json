@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.reading-ask.schema.json",
+  "title": "trainmeet.catalog-1.reading-ask",
+  "additionalProperties": true,
+  "description": "The part data of the reading's form, as JSON. The photos are the parts images.",
+  "properties": {
+    "id": {
+      "description": "Made by the client, new for each reading (CAT-144).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "consent": {
+      "default": false,
+      "description": "The person has seen what is sent and to whom, and says yes (CAT-142).",
+      "title": "Consent",
+      "type": "boolean"
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The vehicle the photos are of, when it is saved already.",
+      "title": "Vehicle"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The vehicle's version, required with the vehicle: an answer after a change of the vehicle is not used (CAT-145).",
+      "title": "Version"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

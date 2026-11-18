@@ -3673,6 +3673,249 @@
         }
       }
     },
+    "/api/catalog/1/readings/consent": {
+      "get": {
+        "operationId": "readingConsent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.reading-consent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/catalog/1/readings": {
+      "post": {
+        "operationId": "readPhotos",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.reading"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The ask as JSON in the part data, and 1–4 photos in the parts images, each at most 15 MB and 40 megapixel (CAT-123).",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/trainmeet.catalog-1.reading-ask"
+                  },
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4
+                  }
+                },
+                "required": [
+                  "data",
+                  "images"
+                ]
+              },
+              "encoding": {
+                "data": {
+                  "contentType": "application/json"
+                },
+                "images": {
+                  "contentType": "image/jpeg, image/png, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fleet",
+            "in": "query",
+            "description": "The owner's id, to work in a fleet shared with the person.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/catalog/1/tags/{uid}/qr.svg": {
       "get": {
         "operationId": "tagQrCode",
@@ -5575,7 +5818,7 @@
       },
       "trainmeet.catalog-1.problem": {
         "additionalProperties": true,
-        "description": "The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429 or 503.",
+        "description": "The answer when Catalog says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or\n503.",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.problem.ProblemCode"
@@ -5622,7 +5865,10 @@
           "lent",
           "on_another_trip",
           "archived",
-          "not_back"
+          "not_back",
+          "consent_required",
+          "reading_busy",
+          "reading_failed"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -8967,6 +9213,342 @@
           "linked_at"
         ],
         "title": "VehicleTag",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.reading": {
+        "additionalProperties": true,
+        "description": "What the AI suggests from the photos (CAT-136, CAT-137). Nothing of it is saved in a\nvehicle until the owner saves the form.",
+        "properties": {
+          "id": {
+            "description": "The client's id for the reading (CAT-144).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.reading.ReadingStatus"
+          },
+          "suggestions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.reading.Suggestion"
+            },
+            "description": "Only the fields the AI could read, by the rules.",
+            "propertyNames": {
+              "enum": [
+                "kind",
+                "litt",
+                "number",
+                "operator",
+                "maker",
+                "article_number"
+              ]
+            },
+            "title": "Suggestions",
+            "type": "object"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.reading.ReadingQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Summary",
+            "type": "string"
+          },
+          "warnings": {
+            "description": "What the owner should check.",
+            "items": {
+              "maxLength": 400,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Warnings",
+            "type": "array"
+          },
+          "suggested_next_photo": {
+            "default": "",
+            "description": "Another photo the AI asks for, such as a close-up (CAT-135).",
+            "maxLength": 400,
+            "title": "Suggested Next Photo",
+            "type": "string"
+          },
+          "cost": {
+            "description": "Tokens drawn: 12 a picture, 0 with own AI (CAT-19).",
+            "minimum": 0,
+            "title": "Cost",
+            "type": "integer"
+          },
+          "model": {
+            "description": "The AI that read the photos.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "cost",
+          "model"
+        ],
+        "title": "Reading",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.reading.Confidence": {
+        "description": "The AI's own judgement, not a probability.",
+        "enum": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "title": "Confidence",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.reading.ReadingQuestion": {
+        "additionalProperties": true,
+        "description": "An uncertain digit, asked of the owner (CAT-140).",
+        "properties": {
+          "field": {
+            "const": "number",
+            "title": "Field",
+            "type": "string"
+          },
+          "options": {
+            "description": "The number as painted, with the digit that was uncertain filled in so that the EVN's check digit adds up.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "field",
+          "options"
+        ],
+        "title": "ReadingQuestion",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.reading.ReadingStatus": {
+        "enum": [
+          "pending",
+          "done",
+          "failed",
+          "discarded"
+        ],
+        "title": "ReadingStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.reading.Suggestion": {
+        "additionalProperties": true,
+        "description": "A value the AI suggests for a core field. Never saved before the owner has seen it.",
+        "properties": {
+          "value": {
+            "description": "As for the field: kind is a VehicleKind; the number as painted, with ? for a character that could not be read (CAT-138).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.reading.Confidence"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.reading.SuggestionBasis"
+          },
+          "evidence": {
+            "default": "",
+            "description": "Where in the photo it stands, in the AI's words.",
+            "maxLength": 400,
+            "title": "Evidence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "confidence",
+          "basis"
+        ],
+        "title": "Suggestion",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.reading.SuggestionBasis": {
+        "description": "What a suggestion rests on.",
+        "enum": [
+          "visible_text",
+          "visual_inference",
+          "unknown"
+        ],
+        "title": "SuggestionBasis",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.reading-ask": {
+        "additionalProperties": true,
+        "description": "The part data of the reading's form, as JSON. The photos are the parts images.",
+        "properties": {
+          "id": {
+            "description": "Made by the client, new for each reading (CAT-144).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "consent": {
+            "default": false,
+            "description": "The person has seen what is sent and to whom, and says yes (CAT-142).",
+            "title": "Consent",
+            "type": "boolean"
+          },
+          "vehicle": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The vehicle the photos are of, when it is saved already.",
+            "title": "Vehicle"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The vehicle's version, required with the vehicle: an answer after a change of the vehicle is not used (CAT-145).",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ReadingAsk",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.reading-consent": {
+        "additionalProperties": true,
+        "description": "What is sent and to whom, before the first reading (CAT-142), and the price.",
+        "properties": {
+          "available": {
+            "description": "The reading can be used here now.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why not, when it cannot be used.",
+            "title": "Message"
+          },
+          "given": {
+            "description": "The person has said yes before.",
+            "title": "Given",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The version of what the person says yes to.",
+            "title": "Version",
+            "type": "string"
+          },
+          "sent_to": {
+            "description": "Who reads the photos: TrainMeets AI, or the account's own AI.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Sent To",
+            "type": "string"
+          },
+          "text": {
+            "description": "What is sent and to whom, as the person reads it.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The model of the account's own AI, when it is connected.",
+            "title": "Own Ai"
+          },
+          "price_per_picture": {
+            "description": "12 tokens, or 0 with own AI (CAT-19).",
+            "minimum": 0,
+            "title": "Price Per Picture",
+            "type": "integer"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tokens left on the balance that pays, when ID says.",
+            "title": "Balance"
+          },
+          "payer": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whose balance pays: the person's, or the club's.",
+            "title": "Payer"
+          }
+        },
+        "required": [
+          "available",
+          "given",
+          "version",
+          "sent_to",
+          "text",
+          "price_per_picture"
+        ],
+        "title": "ReadingConsent",
         "type": "object"
       }
     },
