@@ -260,7 +260,15 @@ export function Skriv({ pages, writing, onWrite }: { pages: AiPages; writing: bo
         <b>Filen är skannad och behöver AI</b>
         <p id="ai-count">
           {`${plural(pages.pages, "sida", "sidor")} att skriva av`}
-          {pages.tokens ? ` · cirka ${thousands(pages.tokens)} tokens` : ""}
+          {/* The price before the AI starts (IMPORT-05): TrainMeets AI's tokens, 12 a page,
+              when it is chosen or the only way; else about what the own AI service counts. */}
+          {(by === "trainmeet" || !pages.model) && offer && left
+            ? offer.own_ai
+              ? " · inga tokens"
+              : ` · ${thousands(offer.price)} tokens`
+            : pages.tokens
+              ? ` · cirka ${thousands(pages.tokens)} tokens`
+              : ""}
           {pages.saved ? ` · ${plural(pages.saved, "redan avskriven", "redan avskrivna")}, kostar inget` : ""}
         </p>
         <p className="liten">AI:n skriver bara av vad som står, och koden läser det. Allt blir osäkert tills du bekräftar det. Välj vad filen är: en stationslista (det som står om fordonen i tåget skrivs inte av), en bild av banan, som blir bakgrunden i Bana, eller grafen, där linjernas stationer skrivs av.</p>

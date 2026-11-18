@@ -27,7 +27,7 @@ from contracts.tokens import (
     TokenReservation,
     TokenReservationState,
 )
-from hub.id_tokens import ShownBalance
+from hub.id_tokens import IdTokens, ShownBalance
 from hub.tests.test_id_login import ISSUER
 from hub.tests.test_id_roles import (
     API,
@@ -37,6 +37,7 @@ from hub.tests.test_id_roles import (
     make_meet,
 )
 from hub.tests.test_planering import varnamo_plan
+from integrationer import ai
 from integrationer.ai import drawn
 from integrationer.tests.test_scanned import transcript
 
@@ -262,3 +263,27 @@ def test_the_balance_is_asked_of_id_at_most_once_a_minute() -> None:
     tokens.down = True
     assert shown(me) is None and len(asked) == 2
     assert shown("inte-ett-id") is None
+
+
+def test_the_header_shows_what_was_drawn_at_once() -> None:
+    """When the person's own balance pays, the header shows it after the reading, not a
+    minute later."""
+    pretend = PretendIdMeter(text="Lekby 07.12")
+
+    class Roles:
+        def call(self, method: str, path: str, **asked: Any) -> httpx.Response:
+            request = httpx.Request(
+                method,
+                f"http://id-api:8080/api/id/1/apps/{path}",
+                params=asked.get("params"),
+                json=asked.get("body"),
+                headers={"Authorization": "Bearer app-token"},
+            )
+            return pretend.handle(request)
+
+    tokens = IdTokens(Roles())  # type: ignore[arg-type]
+    me = str(uuid.UUID(int=7))
+    mine = TokenOwner(kind=TokenOwnerKind.PERSON, id=uuid.UUID(me))
+    assert tokens.shown(me) == 100
+    tokens.read(me, mine, "Skriv av.", ai.Image("image/png", PHOTO), "En sida", 400)
+    assert tokens.shown(me) == 88

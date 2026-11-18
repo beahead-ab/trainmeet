@@ -48,6 +48,7 @@ def refused(answer_status: int, body: object) -> HTTPException:
 class IdTokens:
     def __init__(self, roles: IdRoles) -> None:
         self.roles = roles
+        self.shown = ShownBalance(self)
 
     def balance(self, person: str, owner: TokenOwner) -> TokenBalance:
         answer = self.roles.call(
@@ -95,6 +96,8 @@ class IdTokens:
             raise
         if read.status_code != 200:
             raise refused(read.status_code, _json(read))
+        # The header shows the balance after the reading, not a minute later.
+        self.shown.forget(person)
         return MeterAnswer.model_validate(read.json())
 
     def _give_back(self, reservation: UUID) -> None:
@@ -137,6 +140,10 @@ class ShownBalance:
                 self._seen.clear()
             self._seen[person] = (now, available)
         return available
+
+    def forget(self, person: str) -> None:
+        with self._lock:
+            self._seen.pop(person, None)
 
 
 def _json(answer: httpx.Response) -> object:

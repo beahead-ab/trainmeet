@@ -273,7 +273,7 @@ def create_app(
             pi_offers=lambda: with_id is None and bool(links.reaches()),
             pi_finish=pi_finish,
             ticket_name=pi_login.ticket_name(login, links),
-            tokens_of=id_tokens.ShownBalance(tokens) if tokens is not None else None,
+            tokens_of=tokens.shown if tokens is not None else None,
         )
     )
 
