@@ -1451,6 +1451,7 @@ push = [
 ]
 tkl = [
     { name = "httpx" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "zeroconf" },
 ]
 
@@ -1489,6 +1490,7 @@ push = [
 ]
 tkl = [
     { name = "httpx", specifier = ">=0.27" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
     { name = "zeroconf", specifier = ">=0.136" },
 ]
 

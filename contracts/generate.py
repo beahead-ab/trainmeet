@@ -66,6 +66,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.connection": tkl.TklConnection,
     "trainmeet.tkl-1.view": tkl.TklView,
     "trainmeet.tkl-1.command": tkl.TklCommand,
+    "trainmeet.tkl-1.id-state": tkl.TklIdState,
+    "trainmeet.tkl-1.save": tkl.TklSave,
+    "trainmeet.tkl-1.saved": tkl.TklSaved,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1161,6 +1164,9 @@ def tkl_openapi() -> str:
     route("post", a + "/commands", "tklCommand", st + "reply", t + "command")
     route("post", a + "/places/{place}/exits", "tklExit", t + "view", st + "exit-answer")
     route("get", a + "/places/{place}/events", "tklEvents", st + "event", stream=True)
+    route("get", a + "/id", "tklId", t + "id-state")
+    route("post", a + "/id/logout", "tklIdLogOut", t + "id-state")
+    route("post", a + "/id/save", "tklSaveInCloud", t + "saved", t + "save")
     stems = [
         s
         for s in CONTRACTS

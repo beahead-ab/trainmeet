@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.save.schema.json",
+  "title": "trainmeet.tkl-1.save",
+  "additionalProperties": true,
+  "description": "Spara i molnet: utsidans senaste version som ett nytt stationspaket (SYNK-06). on_top:\nspara ovanpå den versionen när molnet har en nyare än TKL känner (H71). Utelämnat: ovanpå\nden TKL känner, och en nyare i molnet nekar.",
+  "properties": {
+    "on_top": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "On Top"
+    }
+  },
+  "type": "object"
+}

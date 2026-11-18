@@ -371,6 +371,7 @@ jobs:
             -e ID_CATALOG_SECRET=prov-hemlighet -e ID_CATALOG_URL=http://localhost:8001 \
             -e ID_APP_SECRET=id-hemlighet -e ID_PUBLIC_URL=http://localhost:8002 \
             -e ID_HUB_SECRET=hub-hemlighet -e ID_HUB_URL=http://localhost:8003 \
+            -e ID_TKL_URL=https://tkl.example.test \
             trainmeet-id:prov
           for i in $(seq 1 120); do curl -fsS http://127.0.0.1:9000/health/ready >/dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:9000/health/ready
@@ -415,12 +416,25 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8003/api/hub >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://127.0.0.1:8003/api/hub | grep -q '"id_login":true'
 
+      # TKL med ID (#78, TKL18): the public client tkl, saving the station in the hub (SYNK-30).
+      # TKL runs at the station's own computer's address, http://localhost:8090, which the realm
+      # allows as is; ID_TKL_URL above is the test environment's TKL and is not used here.
+      - name: Starta TKL mot ID och Hubben
+        run: |
+          mkdir -p "$RUNNER_TEMP/tkl"
+          TKL_DATA_DIR="$RUNNER_TEMP/tkl" TKL_MODE=local \
+          TKL_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet TKL_PUBLIC_URL=http://localhost:8090 \
+          TKL_MOLNHUBB=http://127.0.0.1:8003 \
+            nohup uv run uvicorn tkl.app:from_environment --factory --port 8090 --no-access-log > "$RUNNER_TEMP/tkl.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8090/healthz
+
       # Från ID:s sida som Catalog, och sedan genom Catalog och Hubben som en webbläsare (KONTO-27).
       - name: Logga in med en kod till e-posten, också i Catalog och Hubben
         run: >
           uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt"
           prov-hemlighet http://localhost:8001 --catalog --id-app=http://localhost:8002
-          --hub=http://localhost:8003
+          --hub=http://localhost:8003 --tkl=http://localhost:8090
 
       - name: Visa loggen om något gick fel
         if: failure()
@@ -430,6 +444,7 @@ jobs:
           cat "$RUNNER_TEMP/postlada.log" || true
           cat "$RUNNER_TEMP/catalog.log" || true
           cat "$RUNNER_TEMP/hubb.log" || true
+          cat "$RUNNER_TEMP/tkl.log" || true
 
       # Mejlservern och Catalog körs genom uv och håller uv:s cache låst. De stängs av före
       # jobbets egen städning, som annars väntar på låset tills den ger upp.
@@ -439,7 +454,8 @@ jobs:
           pkill -f "id/postlada.py" || true
           pkill -f "uvicorn catalog.app" || true
           pkill -f "uvicorn hub.app" || true
-          for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app|uvicorn hub.app" >/dev/null || break; sleep 1; done
+          pkill -f "uvicorn tkl.app" || true
+          for i in $(seq 1 10); do pgrep -f "id/postlada.py|uvicorn catalog.app|uvicorn hub.app|uvicorn tkl.app" >/dev/null || break; sleep 1; done
 
   # Pi-paketet (steg 5, DRIFT-20): hubben för en Raspberry Pi, som tjänster i systemd utan
   # containrar. Samma sidor och samma låsta beroenden som bilden. Paketet installeras och startas

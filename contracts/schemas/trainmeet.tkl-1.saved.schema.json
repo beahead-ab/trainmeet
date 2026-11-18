@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.saved.schema.json",
+  "title": "trainmeet.tkl-1.saved",
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Sparad som den versionen i molnet.",
+      "title": "Version"
+    },
+    "behind": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Molnet har en nyare version, sparad från en annan dator.",
+      "title": "Behind"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "type": "object"
+}

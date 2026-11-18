@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.id-state.schema.json",
+  "title": "trainmeet.tkl-1.id-state",
+  "additionalProperties": true,
+  "description": "TrainMeet ID i TKL (TKL18, #78) och stationspaketet i molnet (SYNK-30).",
+  "properties": {
+    "available": {
+      "description": "Har TKL inloggning med TrainMeet ID?",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "person": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Den som är inloggad: namnet.",
+      "title": "Person"
+    },
+    "cloud": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Molnhubben där stationspaketen sparas.",
+      "title": "Cloud"
+    },
+    "saved": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Den senaste versionen i molnet som TKL har sparat eller sett.",
+      "title": "Saved"
+    },
+    "local": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Utsidans senaste version på datorn.",
+      "title": "Local"
+    }
+  },
+  "required": [
+    "available"
+  ],
+  "type": "object"
+}

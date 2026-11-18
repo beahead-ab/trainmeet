@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS session (
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS failure (slot TEXT NOT NULL, at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS id_login (
+    key_hash TEXT PRIMARY KEY, slot TEXT NOT NULL, state TEXT NOT NULL, nonce TEXT NOT NULL,
+    verifier TEXT NOT NULL, expires REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS id_account (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
+    person TEXT NOT NULL, name TEXT NOT NULL, access TEXT NOT NULL, refresh TEXT,
+    access_until REAL NOT NULL, saved INTEGER
+);
 CREATE TABLE IF NOT EXISTS connection (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
     address TEXT NOT NULL, relay TEXT, hub_name TEXT, client_id TEXT NOT NULL,
@@ -116,6 +125,18 @@ def first_outside(station_id: str, name: str) -> StationOutside:
         tracks=[StationTrack(id="1", label="Spår 1"), StationTrack(id="2", label="Spår 2")],
         exits=[Exit(id="A", side=Side.LEFT), Exit(id="B", side=Side.RIGHT)],
     )
+
+
+@dataclass(frozen=True)
+class IdAccount:
+    """Who is logged in with TrainMeet ID for the station, and ID's tokens. Never shown."""
+
+    person: str
+    name: str
+    access: str = field(repr=False)
+    refresh: str | None = field(repr=False)
+    access_until: float
+    saved: int | None
 
 
 @dataclass(frozen=True)
@@ -326,6 +347,80 @@ class TklStore:
                 "SELECT body FROM outside_version WHERE slot=? AND number=?", (slot, number)
             ).fetchone()[0]
         return number, StationOutside.model_validate_json(body)
+
+    # --- TrainMeet ID (TKL18, #78) and the cloud (SYNK-30) -------------------------------------
+
+    def begin_id_login(self, slot: str, state: str, nonce: str, verifier: str) -> str:
+        """Keeps a login with ID while the browser is at ID. Returns the browser's key to it."""
+        key = token_urlsafe(32)
+        now = now_utc().timestamp()
+        with self._transaction() as db:
+            db.execute("DELETE FROM id_login WHERE expires<=?", (now,))
+            db.execute(
+                "INSERT INTO id_login VALUES (?, ?, ?, ?, ?, ?)",
+                (token_hash(key), slot, state, nonce, verifier, now + 600),
+            )
+        return key
+
+    def take_id_login(self, key: str | None) -> tuple[str, str, str, str] | None:
+        """The slot, state, nonce and verifier of the login this browser started, once."""
+        if not key or len(key) > 120:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT slot, state, nonce, verifier FROM id_login WHERE key_hash=? AND expires>?",
+                (token_hash(key), now_utc().timestamp()),
+            ).fetchone()
+            db.execute("DELETE FROM id_login WHERE key_hash=?", (token_hash(key),))
+        return (str(row[0]), str(row[1]), str(row[2]), str(row[3])) if row else None
+
+    def keep_account(
+        self,
+        slot: str,
+        person: str,
+        name: str,
+        access: str,
+        refresh: str | None,
+        access_until: float,
+    ) -> None:
+        """The person from ID, with the station. A new person starts over in the cloud."""
+        with self._transaction() as db:
+            before = db.execute("SELECT person FROM id_account WHERE slot=?", (slot,)).fetchone()
+            saved = None
+            if before is not None and str(before[0]) == person:
+                saved = db.execute("SELECT saved FROM id_account WHERE slot=?", (slot,)).fetchone()[
+                    0
+                ]
+            db.execute(
+                "INSERT OR REPLACE INTO id_account VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (slot, person, name, access, refresh, access_until, saved),
+            )
+
+    def account(self, slot: str) -> IdAccount | None:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT person, name, access, refresh, access_until, saved FROM id_account "
+                "WHERE slot=?",
+                (slot,),
+            ).fetchone()
+        if row is None:
+            return None
+        return IdAccount(str(row[0]), str(row[1]), str(row[2]), row[3], float(row[4]), row[5])
+
+    def new_tokens(self, slot: str, access: str, refresh: str | None, until: float) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "UPDATE id_account SET access=?, refresh=?, access_until=? WHERE slot=?",
+                (access, refresh, until, slot),
+            )
+
+    def saved_in_cloud(self, slot: str, version: int) -> None:
+        with self._transaction() as db:
+            db.execute("UPDATE id_account SET saved=? WHERE slot=?", (version, slot))
+
+    def forget_account(self, slot: str) -> None:
+        with self._transaction() as db:
+            db.execute("DELETE FROM id_account WHERE slot=?", (slot,))
 
     # --- The connection to a meet ------------------------------------------------------------
 

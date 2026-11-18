@@ -37,6 +37,8 @@ push = [
 # meet's network with DNS-SD (KLAR-13). Not in the hub's image.
 tkl = [
     "httpx>=0.27",
+    # Checks the ID token when TKL logs in with TrainMeet ID (TKL18, #78).
+    "pyjwt[crypto]>=2.10",
     "zeroconf>=0.136",
 ]
 dev = [

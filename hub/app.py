@@ -85,6 +85,17 @@ def _ticker(running: Running, stop: Event, chores: list[tuple[str, Callable[[], 
                 LOGGER.exception("%s kunde inte göras", what)
 
 
+class IdOwners:
+    """Stationspaketen (SYNK-06, SYNK-30): the owner is the person TKL's token from TrainMeet ID
+    names (TKL18). Only tokens ID gave TKL count."""
+
+    def __init__(self, with_id: id_login.IdLogin) -> None:
+        self.with_id = with_id
+
+    def owner(self, authorization: str | None) -> str | None:
+        return self.with_id.app_subject(authorization, frozenset({"tkl"}))
+
+
 def create_app(
     info: build_info.BuildInfo | None = None,
     *,
@@ -223,6 +234,9 @@ def create_app(
     if id_settings is not None:
         id_client = id_http if id_http is not None else httpx.Client(timeout=10.0)
         with_id = id_login.IdLogin(login, id_settings, http=id_client)
+        # Stationspaketen (SYNK-30, TKL18): the owner is the one TKL's token from ID names.
+        owners = IdOwners(with_id)
+        app.state.owners = owners
         # The roles at a meet, asked of ID's API at every call (ID10, KONTO-34).
         if id_settings.api is not None:
             roles_from_id = id_roles.IdRoles(id_settings, id_client)

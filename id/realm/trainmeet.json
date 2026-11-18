@@ -180,10 +180,42 @@
         "profile",
         "email"
       ]
+    },
+    {
+      "clientId": "tkl",
+      "name": "TrainMeet TKL",
+      "description": "TKL loggar in med ID (#78, TKL18) och sparar stationspaketen i molnhubben med ägarens token (SYNK-30). En publik klient med PKCE: TKL körs också på stationens egen dator, som inte kan hålla en hemlighet.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${ID_TKL_URL}/api/tkl/1/id/callback",
+        "http://localhost:8090/api/tkl/1/id/callback",
+        "http://127.0.0.1:8090/api/tkl/1/id/callback"
+      ],
+      "webOrigins": [
+        "${ID_TKL_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ID_TKL_URL}/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "basic",
+        "profile",
+        "email"
+      ]
     }
   ],
   "attributes": {
-    "trainmeetVersion": "6"
+    "trainmeetVersion": "7"
   },
   "users": [
     {

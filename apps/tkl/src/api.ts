@@ -12,6 +12,8 @@ export type Track = Schemas["trainmeet.station-outside-1.StationTrack"];
 export type Exit = Schemas["trainmeet.station-outside-1.Exit"];
 export type FoundHub = Schemas["trainmeet.tkl-1.found-hub"];
 export type Connection = Schemas["trainmeet.tkl-1.connection"];
+export type IdState = Schemas["trainmeet.tkl-1.id-state"];
+export type Saved = Schemas["trainmeet.tkl-1.saved"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -92,6 +94,10 @@ export const api = {
   disconnect: () => call<Connection>(`${TKL}/connection`, "DELETE"),
   place: async (place: string) => viewed(await call<RawView>(`${TKL}/places/${encodeURIComponent(place)}`)),
   command: (command: Command) => call<Reply>(`${TKL}/commands`, "POST", command),
+  // TrainMeet ID och molnet (TKL18, SYNK-30): the login goes through TKL's server.
+  idState: () => call<IdState>(`${TKL}/id`),
+  idLogOut: () => call<IdState>(`${TKL}/id/logout`, "POST"),
+  saveInCloud: (onTop: number | null) => call<Saved>(`${TKL}/id/save`, "POST", onTop === null ? {} : { on_top: onTop }),
   answerExit: async (place: string, section: string, exit: string) =>
     viewed(await call<RawView>(`${TKL}/places/${encodeURIComponent(place)}/exits`, "POST", { section, exit })),
 };

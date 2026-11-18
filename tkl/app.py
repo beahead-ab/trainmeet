@@ -23,8 +23,11 @@ reaches only the hubs it is set up for, never an address someone types (TKL5).
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import secrets
+import time
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -34,24 +37,29 @@ from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
 from contracts import station
 from contracts.hub import Version
 from contracts.station_outside import StationOutside
+from contracts.sync import StationPackage
 from contracts.tkl import (
     TklCommand,
     TklConnect,
     TklConnection,
+    TklIdState,
     TklMode,
     TklPinChange,
+    TklSave,
+    TklSaved,
     TklSetUp,
     TklState,
     TklUnlock,
     TklView,
 )
-from tkl import VERSION
+from tkl import VERSION, id_login
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
+from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.store import (
     LOCAL,
     SESSION_LIFETIME,
@@ -71,6 +79,8 @@ SLOT = "tkl_station"
 REPO = Path(__file__).resolve().parent.parent
 SessionCookie = Annotated[str | None, Cookie(alias=SESSION, max_length=120)]
 SlotCookie = Annotated[str | None, Cookie(alias=SLOT, max_length=120)]
+IdLoginCookie = Annotated[str | None, Cookie(alias="tkl_id_login", max_length=120)]
+LOGGER = logging.getLogger("tkl")
 ADDRESS = re.compile(r"^https?://[A-Za-z0-9.\-\[\]:]{1,120}$")
 NOT_CONNECTED = "TKL är inte ansluten till en träff."
 NO_CONTACT = "Ingen kontakt med hubben."
@@ -89,9 +99,11 @@ def create_app(
     http: Callable[[], httpx.Client] = lambda: httpx.Client(timeout=TIMEOUT),
     stream: Callable[[], httpx.AsyncClient] = lambda: httpx.AsyncClient(timeout=None),
     discover: Callable[[], list[str]] = browse,
+    id_settings: TklIdSettings | None = None,
 ) -> FastAPI:
     """mode: one station on the station's computer, or one per browser in the cloud.
-    over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones."""
+    over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones.
+    id_settings: the login with TrainMeet ID and the cloud hub for the station packages (#78)."""
     store = TklStore(data_dir / "tkl.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
     cloud = mode == TklMode.CLOUD
@@ -258,6 +270,151 @@ def create_app(
         same_site(request)
         no_store(response)
         return store.new_version(unlocked(slot, session)).model_dump(mode="json")
+
+    # --- TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78) ------------------------------
+
+    with_id = TklIdLogin(id_settings, client) if id_settings is not None else None
+
+    @routes.get("/id")
+    def id_state(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Vem som är inloggad med ID, och stationspaketet i molnet."""
+        no_store(response)
+        found = unlocked(slot, session)
+        account = store.account(found) if with_id is not None else None
+        versions = store.studio(found).versions
+        return TklIdState(
+            available=with_id is not None,
+            person=account.name if account else None,
+            cloud=id_settings.cloud if id_settings else None,
+            saved=account.saved if account else None,
+            local=versions[0].number if versions else None,
+        ).model_dump(mode="json")
+
+    @routes.get("/id/login")
+    def id_log_in(
+        request: Request, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Response:
+        """To ID's login page, and back to TKL."""
+        found = unlocked(slot, session)
+        if with_id is None:
+            raise HTTPException(404, "TKL har ingen inloggning med TrainMeet ID.")
+        state, nonce = token_urlsafe(24), token_urlsafe(24)
+        verifier = token_urlsafe(48)
+        key = store.begin_id_login(found, state, nonce, verifier)
+        response = RedirectResponse(with_id.address(state, nonce, verifier), status_code=303)
+        response.set_cookie(
+            id_login.COOKIE,
+            key,
+            max_age=id_login.LIFETIME_SECONDS,
+            httponly=True,
+            samesite="lax",  # ID sends the browser back with a plain link
+            secure=secure(request),
+            path=id_login.COOKIE_PATH,
+        )
+        return response
+
+    @routes.get("/id/callback")
+    def id_callback(
+        attempt: IdLoginCookie = None,
+        code: str | None = None,
+        state: str | None = None,
+        error: str | None = None,
+    ) -> Response:
+        """Back from ID: the person and ID's tokens are kept with the station."""
+        if with_id is None:
+            raise HTTPException(404, "TKL har ingen inloggning med TrainMeet ID.")
+        taken = store.take_id_login(attempt)
+        response = RedirectResponse("/?id=fel", status_code=303)
+        response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
+        if taken is None or error or not code or not state:
+            LOGGER.warning("Inloggningen med ID i TKL gick inte: inget försök eller ett fel.")
+            return response
+        found, kept_state, nonce, verifier = taken
+        if not secrets.compare_digest(state, kept_state):
+            LOGGER.warning("Inloggningen med ID i TKL gick inte: fel state.")
+            return response
+        try:
+            tokens = with_id.finish(code, verifier, nonce)
+        except id_login.IdFailed as failed:
+            LOGGER.warning("Inloggningen med ID i TKL gick inte: %s", failed)
+            return response
+        store.keep_account(
+            found, tokens.person, tokens.name, tokens.access, tokens.refresh, tokens.access_until
+        )
+        response.headers["location"] = "/"
+        return response
+
+    @routes.post("/id/logout")
+    def id_log_out(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        same_site(request)
+        found = unlocked(slot, session)
+        store.forget_account(found)
+        return id_state(response, slot, session)
+
+    @routes.post("/id/save")
+    def save_in_cloud(
+        asked: TklSave,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Spara i molnet: the latest version of the outside as a new version of the station
+        package, on top of the one TKL knows, or the one the owner chose (H71)."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        account = store.account(found) if with_id is not None else None
+        if with_id is None or account is None:
+            raise HTTPException(401, "Logga in med TrainMeet ID först.")
+        if id_settings is None or not id_settings.cloud:
+            raise HTTPException(409, "Ingen molnhubb är inställd för stationspaketen.")
+        access = account.access
+        if time.time() > account.access_until - 30:
+            if account.refresh is None:
+                raise HTTPException(401, "Logga in med TrainMeet ID igen.")
+            try:
+                access, refresh, until = with_id.refreshed(account.refresh)
+            except id_login.IdFailed as failed:
+                LOGGER.warning("ID:s token förnyades inte: %s", failed)
+                raise HTTPException(401, "Logga in med TrainMeet ID igen.") from failed
+            store.new_tokens(found, access, refresh, until)
+        _, outside = store.latest_outside(found)
+        package = StationPackage(station_id=outside.station_id, outside=outside)
+        base = asked.on_top if asked.on_top is not None else (account.saved or 0)
+        address = f"{id_settings.cloud}/api/sync/1/stations/{outside.station_id}/versions"
+        try:
+            answer = client.post(
+                address,
+                params={"base": base},
+                content=package.model_dump_json(),
+                headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json"},
+            )
+        except httpx.HTTPError as error:
+            raise HTTPException(503, "Molnhubben svarar inte. Försök igen.") from error
+        if answer.status_code == 201:
+            version = int(answer.json()["version"])
+            store.saved_in_cloud(found, version)
+            return TklSaved(version=version).model_dump(mode="json")
+        if answer.status_code == 409 and answer.headers.get("TrainMeet-Latest", "").isdigit():
+            latest = int(answer.headers["TrainMeet-Latest"])
+            store.saved_in_cloud(found, latest)
+            return TklSaved(
+                behind=latest,
+                message=f"Molnet har version {latest}, sparad från en annan dator. Spara ovanpå "
+                "den om stationen på den här datorn är den som gäller.",
+            ).model_dump(mode="json")
+        if answer.status_code in (401, 403):
+            raise HTTPException(401, "Molnhubben godtog inte inloggningen. Logga in med ID igen.")
+        LOGGER.warning("Molnhubben svarade %s på stationspaketet.", answer.status_code)
+        raise HTTPException(502, "Molnhubben sparade inte stationspaketet.")
 
     # --- Connecting to the meet ----------------------------------------------------------------
 
@@ -555,8 +712,10 @@ def create_app(
 
 
 def from_environment() -> FastAPI:
-    """TKL_DATA_DIR, TKL_MODE (local or cloud) and TKL_HUBBAR, the hubs over the internet."""
+    """TKL_DATA_DIR, TKL_MODE (local or cloud) and TKL_HUBBAR, the hubs over the internet; and
+    the login with TrainMeet ID (tkl/id_login.py)."""
     data = Path(os.environ.get("TKL_DATA_DIR", "").strip() or Path.home() / ".trainmeet-tkl")
     mode = TklMode(os.environ.get("TKL_MODE", "local").strip() or "local")
     hubs = [h.strip() for h in os.environ.get("TKL_HUBBAR", "").split(",") if h.strip()]
-    return create_app(data, mode=mode, over_internet=hubs)
+    found = id_login.settings_from(hubs=hubs if mode == TklMode.CLOUD else None)
+    return create_app(data, mode=mode, over_internet=hubs, id_settings=found)

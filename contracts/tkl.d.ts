@@ -212,6 +212,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/id/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklIdLogOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/id/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklSaveInCloud"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1655,6 +1703,80 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.command.RevisionScope": "call" | "case" | "place";
+        /**
+         * TklIdState
+         * @description TrainMeet ID i TKL (TKL18, #78) och stationspaketet i molnet (SYNK-30).
+         */
+        "trainmeet.tkl-1.id-state": {
+            /**
+             * Available
+             * @description Har TKL inloggning med TrainMeet ID?
+             */
+            available: boolean;
+            /**
+             * Person
+             * @description Den som är inloggad: namnet.
+             * @default null
+             */
+            person: string | null;
+            /**
+             * Cloud
+             * @description Molnhubben där stationspaketen sparas.
+             * @default null
+             */
+            cloud: string | null;
+            /**
+             * Saved
+             * @description Den senaste versionen i molnet som TKL har sparat eller sett.
+             * @default null
+             */
+            saved: number | null;
+            /**
+             * Local
+             * @description Utsidans senaste version på datorn.
+             * @default null
+             */
+            local: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklSave
+         * @description Spara i molnet: utsidans senaste version som ett nytt stationspaket (SYNK-06). on_top:
+         *     spara ovanpå den versionen när molnet har en nyare än TKL känner (H71). Utelämnat: ovanpå
+         *     den TKL känner, och en nyare i molnet nekar.
+         */
+        "trainmeet.tkl-1.save": {
+            /**
+             * On Top
+             * @default null
+             */
+            on_top: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklSaved */
+        "trainmeet.tkl-1.saved": {
+            /**
+             * Version
+             * @description Sparad som den versionen i molnet.
+             * @default null
+             */
+            version: number | null;
+            /**
+             * Behind
+             * @description Molnet har en nyare version, sparad från en annan dator.
+             * @default null
+             */
+            behind: number | null;
+            /**
+             * Message
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -2012,6 +2134,70 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    tklId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.id-state"];
+                };
+            };
+        };
+    };
+    tklIdLogOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.id-state"];
+                };
+            };
+        };
+    };
+    tklSaveInCloud: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.save"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.saved"];
                 };
             };
         };

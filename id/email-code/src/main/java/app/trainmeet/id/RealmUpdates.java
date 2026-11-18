@@ -32,7 +32,7 @@ final class RealmUpdates {
     static final String REALM = "trainmeet";
     static final String VERSION = "trainmeetVersion";
     /** The latest update. The realm file says the same. */
-    static final int LATEST = 6;
+    static final int LATEST = 7;
 
     static final String PASSKEY_ACTION = "webauthn-register-passwordless";
 
@@ -49,7 +49,8 @@ final class RealmUpdates {
             (session, realm) -> idWebApp(realm),
             RealmUpdates::catalogAsks,
             RealmUpdates::idRemovesAccounts,
-            RealmUpdates::hubLogsIn);
+            RealmUpdates::hubLogsIn,
+            (session, realm) -> tklLogsIn(realm));
 
     /**
      * Every update runs in a transaction of its own, together with the new number. One that fails
@@ -223,6 +224,45 @@ final class RealmUpdates {
         client.setServiceAccountsEnabled(true);
         session.getContext().setRealm(realm);
         new ClientManager(new RealmManager(session)).enableServiceAccount(client);
+    }
+
+    static final String TKL_CLIENT = "tkl";
+    static final List<String> TKL_LOCAL = List.of("http://localhost:8090", "http://127.0.0.1:8090");
+
+    /**
+     * 7: TKL logs in with ID (#78, TKL18) as the public client "tkl", with PKCE and no secret:
+     * TKL also runs on the station's own computer, which cannot keep one. Its address in the
+     * cloud from the environment (ID_TKL_URL); the station's computer on port 8090.
+     */
+    static void tklLogsIn(RealmModel realm) {
+        if (realm.getClientByClientId(TKL_CLIENT) != null) {
+            return;
+        }
+        String address = System.getenv("ID_TKL_URL");
+        if (address == null || address.isBlank()) {
+            LOG.warn("ID_TKL_URL saknas, så TKL får ingen klient.");
+            return;
+        }
+        ClientModel client = realm.addClient(TKL_CLIENT);
+        client.setName("TrainMeet TKL");
+        client.setEnabled(true);
+        client.setProtocol("openid-connect");
+        client.setPublicClient(true);
+        client.setStandardFlowEnabled(true);
+        client.setImplicitFlowEnabled(false);
+        client.setDirectAccessGrantsEnabled(false);
+        client.setServiceAccountsEnabled(false);
+        client.setFrontchannelLogout(false);
+        Set<String> back = new java.util.HashSet<>();
+        back.add(address + "/api/tkl/1/id/callback");
+        TKL_LOCAL.forEach(local -> back.add(local + "/api/tkl/1/id/callback"));
+        client.setRedirectUris(back);
+        client.setWebOrigins(Set.of(address));
+        client.setAttribute("pkce.code.challenge.method", "S256");
+        client.setAttribute("post.logout.redirect.uris", address + "/*");
+        realm.getClientScopesStream()
+                .filter(scope -> SCOPES.contains(scope.getName()))
+                .forEach(scope -> client.addClientScope(scope, true));
     }
 
     private static int parse(String value) {

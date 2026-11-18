@@ -52,6 +52,11 @@ services:
     environment:
       TKL_MODE: cloud
       TKL_HUBBAR: https://${HUB_DOMAIN}
+      # TrainMeet ID i TKL (TKL18, #78): the public client "tkl", and the station packages saved
+      # in the test hub (SYNK-30), the first of TKL_HUBBAR.
+      TKL_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
+      TKL_ID_INTERNAL: http://id:8080/realms/trainmeet
+      TKL_PUBLIC_URL: https://${TKL_DOMAIN:-test.tkl.trainmeet.app}
       FORWARDED_ALLOW_IPS: "*"
     volumes:
       - tkl-data:/data
@@ -154,6 +159,8 @@ services:
       # The Hub logs in with ID (#78), a client of its own in the realm.
       ID_HUB_SECRET: ${ID_HUB_SECRET:?ID_HUB_SECRET saknas}
       ID_HUB_URL: https://${HUB_DOMAIN}
+      # TKL logs in with ID (#78, TKL18), a public client with PKCE.
+      ID_TKL_URL: https://${TKL_DOMAIN:-test.tkl.trainmeet.app}
     volumes:
       - ./id-vault:/opt/keycloak/vault:ro
     ports:

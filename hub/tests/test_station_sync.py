@@ -21,7 +21,7 @@ def cloud(tmp_path: Path) -> TestClient:
 
 
 def as_owner(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """What TrainMeet ID will say in #78: the Bearer token names the owner."""
+    """What TrainMeet ID says (hub/tests/test_id_owners.py): the Bearer token names the owner."""
     owners = client.app.state.owners  # type: ignore[attr-defined]
     monkeypatch.setattr(
         owners, "owner", lambda authorization: (authorization or "").removeprefix("Bearer ") or None
@@ -31,7 +31,7 @@ def as_owner(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_until_the_hub_logs_in_with_id_no_one_owns_a_station(cloud: TestClient) -> None:
     station = outside()["station_id"]
     refused = cloud.post(f"{ROUTE}/{station}/versions?base=0", content=package())
-    assert refused.status_code == 403 and "ärende 78" in refused.json()["detail"]
+    assert refused.status_code == 403 and "TrainMeet ID" in refused.json()["detail"]
     assert cloud.get(f"{ROUTE}/{station}/versions").status_code == 403
 
 
