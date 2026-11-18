@@ -44,6 +44,9 @@ export type DriverAlarm = Schemas["trainmeet.driver-1.overview.DriverAlarm"];
 export type DriverSettings = Schemas["trainmeet.drift-1.driver-settings"];
 export type ServiceRef = Schemas["trainmeet.drift-1.service"];
 export type NowDriverMessage = Schemas["trainmeet.drift-1.now.NowDriverMessage"];
+// Efter pappret (LOK-13, LOK-29): a service missing from the plan, which Trafikledningen decides.
+export type PaperService = Schemas["trainmeet.driver-1.paper"];
+export type PaperRow = Schemas["trainmeet.driver-1.paper.PaperRow"];
 
 export const api = {
   clock: (control: ClockControl) => call<DriftEvent>(`${DRIFT}/clock`, control),
@@ -85,6 +88,10 @@ export const api = {
   takeBack: (driver: string) => call<DriverOverview>(`${DRIFT}/drivers/take-back`, { driver }),
   driverSettings: (settings: DriverSettings) => call<DriverOverview>(`${DRIFT}/drivers/settings`, settings),
   clearAlarm: (service: ServiceRef) => call<DriverOverview>(`${DRIFT}/drivers/alarms/clear`, service),
+  /** Godkänn: the paper becomes an extra train the stations see, marked (LOK-13). */
+  approvePaper: (paper: string, trainNumber: string) => call<DriverOverview>(`${DRIFT}/drivers/paper/${encodeURIComponent(paper)}/approve`, { train_number: trainNumber.trim() || null }),
+  /** Avslå: the driver is told why. */
+  rejectPaper: (paper: string, reason: string) => call<DriverOverview>(`${DRIFT}/drivers/paper/${encodeURIComponent(paper)}/reject`, { reason }),
   driverJoining: () => call<Joining>(`${DRIFT}/drivers/connect`),
   /** Släpp in en lokledare (LOK-30): a one-time code with that role. */
   locoLeadCode: (name: string) => call<OneTimeCodeAnswer>(`${DRIFT}/codes`, { name: name.trim() || null, role: "loco_lead" }),

@@ -362,7 +362,13 @@
         "one_service",
         "no_service",
         "unknown_driver",
-        "not_in_service"
+        "not_in_service",
+        "unknown_paper",
+        "paper_decided",
+        "paper_no_places",
+        "paper_few_places",
+        "paper_no_times",
+        "paper_no_number"
       ],
       "title": "Reason",
       "type": "string"

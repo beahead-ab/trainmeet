@@ -22,6 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
+from contracts import driver as drivers
 from contracts import planning
 from contracts.meet import Attachment, AttachmentKind, MapPoint, Meet
 from contracts.station_outside import StationOutside
@@ -30,6 +31,7 @@ from hub.hubben import Authorization, SessionCookie, service_of, session_of
 from hub.id_roles import PLANS, publishes, roles_of, withdraws
 from hub.id_tokens import IdTokens
 from hub.local import PERSON, LocalLogin
+from hub.paper_reading import NoPayer, PaperReadings
 from hub.rights import NOT_LOGGED_IN, Rights
 from integrationer import (
     ai,
@@ -77,6 +79,7 @@ def router(
     meet in TrainMeet ID (PLAN-19, #78). tokens: TrainMeets AI through the meter in ID, in a
     cloud hub with ID's API (#79)."""
     may = rights if rights is not None else Rights(login)
+    readings = PaperReadings(login, tokens, may.roles)
 
     def at_home(request: Request) -> None:
         """Träffens hem (H35, SYNK-16): a meet is changed only where its home is. Elsewhere it
@@ -801,6 +804,45 @@ def router(
                 _fail(error)
 
         return await run_in_threadpool(keep)
+
+    # Förarna (PLAN-40, LOK-33): who pays when a driver's photos of a missing duty are read.
+
+    @routes.get("/meets/{meet}/paper-reading")
+    def paper_reading(
+        meet: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Träffens tokens or the driver's own, the driver's by default, and the price a page.
+        The meet's balance is shown to whoever may change the choice."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            id_meet = store.draft(meet).meet.id_meet
+        except PlanningError as error:
+            _fail(error)
+        may_change = may.may_plan(session_of(session, authorization), id_meet)
+        return readings.settings(meet, id_meet, may_change).model_dump(mode="json")
+
+    @routes.post("/meets/{meet}/paper-reading")
+    def choose_paper_reading(
+        meet: str,
+        given: drivers.PaperReadingChange,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """The planner's choice (LOK-33). Träffens tokens are chosen logged in with TrainMeet
+        ID: the club of the meet in ID pays, else the one who chose (TK16)."""
+        response.headers["Cache-Control"] = "no-store"
+        planner(meet, session, authorization)
+        token = session_of(session, authorization)
+        person = login.person(token) if login.role(token) == PERSON else None
+        try:
+            readings.choose(meet, given.payer, person.id if person else None)
+        except NoPayer as error:
+            raise HTTPException(error.status, error.message) from error
+        return readings.settings(meet, id_meet_of(meet), True).model_dump(mode="json")
 
     @routes.get("/meets/{meet}/attachments/{attachment}")
     def attachment_file(meet: str, attachment: str) -> Response:

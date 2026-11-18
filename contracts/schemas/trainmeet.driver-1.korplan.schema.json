@@ -335,6 +335,17 @@
       "title": "LateOncoming",
       "type": "object"
     },
+    "PaperStatus": {
+      "description": "Var en tjänst efter pappret står.",
+      "enum": [
+        "waiting",
+        "approved",
+        "rejected",
+        "withdrawn"
+      ],
+      "title": "PaperStatus",
+      "type": "string"
+    },
     "RowClearance": {
       "additionalProperties": true,
       "description": "Tågklareringens besked för avgången härifrån, när trafikspelet valt det (LOK-21): klart är\nen upplysning, avgång ger tågklareraren eller signalen (LOK-11).",
@@ -445,7 +456,8 @@
     "ServiceKind": {
       "enum": [
         "duty",
-        "train"
+        "train",
+        "paper"
       ],
       "title": "ServiceKind",
       "type": "string"
@@ -561,6 +573,12 @@
           "default": null,
           "description": "Minuter sent; tomt när det inte vet.",
           "title": "Delay"
+        },
+        "paper": {
+          "default": false,
+          "description": "Efter pappret: tåget finns inte i planen (LOK-13).",
+          "title": "Paper",
+          "type": "boolean"
         }
       },
       "required": [
@@ -626,6 +644,18 @@
       "minimum": 0,
       "title": "Revision",
       "type": "integer"
+    },
+    "paper": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Efter pappret: avläst ur förarens foton och inte i planen. Utan verklighet från Drift tills trafikledningen har godkänt den (LOK-13)."
     }
   },
   "required": [

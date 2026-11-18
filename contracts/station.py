@@ -330,6 +330,11 @@ class CallHere(Contract):
     crew_ready: bool = False
     revision: int = Field(ge=0)
     allowed_actions: list[Action] = Field(default_factory=list)
+    paper: bool = Field(
+        default=False,
+        description="Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt "
+        "det (LOK-13).",
+    )
 
 
 class TrainOnSection(Contract):
@@ -342,6 +347,11 @@ class TrainOnSection(Contract):
     other_place: Id
     planned_track: Text | None = Field(default=None, description="Spåret vid ankomsten.")
     departed_at: TimeOfDay
+    paper: bool = Field(
+        default=False,
+        description="Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt "
+        "det (LOK-13).",
+    )
 
 
 class ClearanceStatus(StrEnum):
@@ -364,6 +374,11 @@ class Clearance(Contract):
     requested_at: TimeOfDay
     reminders: int = Field(default=0, ge=0, description="Påminnelser hittills (H39).")
     revision: int = Field(ge=0)
+    paper: bool = Field(
+        default=False,
+        description="Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt "
+        "det (LOK-13).",
+    )
 
 
 class ExitChoice(Contract):

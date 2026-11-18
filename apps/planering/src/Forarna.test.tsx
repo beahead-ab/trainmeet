@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { Draft } from "./api";
+import type { Draft, PaperReadingSettings } from "./api";
 import { isOwn, routeOf } from "./App";
-import { byLevel, dutyFront, ForarnaPage } from "./Forarna";
+import { byLevel, dutyFront, ForarnaPage, PaperReading, TEXT } from "./Forarna";
 import type { Package } from "./data";
 
 const call = (id: string, place: string, arrival: string | null, departure: string | null) => ({ id, place, arrival, departure, track: null, day_offset: 0, stops: true, exchange: true, note: null });
@@ -76,5 +76,46 @@ describe("Förarna in Planering (PLAN-40)", () => {
     expect(html).toContain("The meet has no duties.");
     expect(html).toContain("No PDF is added.");
     expect(html).toContain("Add PDF");
+  });
+});
+
+describe("Who pays for reading a photographed duty (LOK-33, PLAN-40)", () => {
+  const settings = (given: Partial<PaperReadingSettings> = {}) => ({ payer: "driver", payer_title: null, available: null, per_page: 12, own_ai: null, trainmeet_ai: true, may_change: true, ...given }) as PaperReadingSettings;
+  const page = (reading: PaperReadingSettings) => renderToStaticMarkup(<ForarnaPage admin meet="grimslov" draft={draft} paperReading={reading} onDraft={nothing} onTell={nothing} onFail={nothing} />);
+
+  it("offers the meet's tokens or the driver's own, the driver's by default", () => {
+    const html = page(settings());
+    expect(html).toContain("När en förare fotar ett köruppdrag");
+    expect(html).toContain("AI-läsning av köruppdrag som saknas");
+    expect(html).toContain("Träffens tokens");
+    expect(html).toContain("Föraren behöver inget konto.");
+    expect(html).toContain("Förarens egna tokens");
+    expect(html).toContain("Kräver att föraren har TrainMeet ID.");
+    expect(html).toContain('checked="" value="driver"');
+    expect(html).not.toContain('checked="" value="meet"');
+    expect(html).toContain("En läsning kostar 12 tokens per sida, så fyra sidor kostar 48.");
+  });
+
+  it("shows the meet's balance when the meet pays", () => {
+    const html = page(settings({ payer: "meet", payer_title: "Västby MJK", available: 4200 }));
+    expect(html).toContain('checked="" value="meet"');
+    expect(html).toContain("Västby MJK har 4200 tokens kvar.");
+  });
+
+  it("says when the hub's own AI reads for nothing, or when nothing can read", () => {
+    expect(page(settings({ own_ai: "en-modell", trainmeet_ai: false }))).toContain("Hubben har egen AI (en-modell): den läser fotona utan tokens.");
+    expect(page(settings({ trainmeet_ai: false }))).toContain("Hubben har ingen egen AI och når inte TrainMeets AI.");
+  });
+
+  it("lets only the organiser choose", () => {
+    const html = page(settings({ may_change: false }));
+    expect(html).toContain("Bara arrangören ändrar valet.");
+    expect(html).toContain('disabled="" name="vem-betalar" checked="" value="driver"');
+  });
+
+  it("speaks English", () => {
+    const html = renderToStaticMarkup(<PaperReading reading={settings()} text={TEXT.en} onChoose={nothing} />);
+    expect(html).toContain("The meet&#x27;s tokens");
+    expect(html).toContain("The driver&#x27;s own tokens");
   });
 });

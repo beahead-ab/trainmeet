@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, Problem, type DriverAlarm, type DriverOverview, type DriverRow, type DriverSettings, type Joining, type Now, type OneTimeCodeAnswer, type ServiceOffer, type ServiceRef } from "./api";
+import { api, Problem, type DriverAlarm, type DriverOverview, type DriverRow, type DriverSettings, type Joining, type Now, type OneTimeCodeAnswer, type PaperRow, type PaperService, type ServiceOffer, type ServiceRef } from "./api";
 import { languageOf, type Language } from "./Deltagare";
 import { placeName } from "./drift";
 
 // Förare in Drift (TRAFIK-33, LOK-30): the drivers, their services, check-ins and latest
 // messages; hand out and take back a service; the game's two settings and Framme; the alarm
-// for a train left without a driver on the line (LOK-35); and the QR code the drivers come in
-// with (LOK-01). Trafikledningen does it all; the lokledare sees and hands out, and runs no
-// traffic. Swedish and English (ST10).
+// for a train left without a driver on the line (LOK-35); the services run after the paper,
+// which Trafikledningen approves or rejects before any station sees them (LOK-13, LF22); and the
+// QR code the drivers come in with (LOK-01). Trafikledningen does it all; the lokledare sees and
+// hands out, and runs no traffic. Swedish and English (ST10).
 
 export const TEXT = {
   sv: {
@@ -56,6 +57,36 @@ export const TEXT = {
     late: (minutes: number) => `${minutes} min sent`,
     train: (number: string) => `tåg ${number}`,
     serviceNumber: (number: string) => `tjänst ${number}`,
+    papers: "Efter pappret",
+    papersNote: "Tjänster som saknas i planen och körs efter förarens papper. Tågklarerarna ser tåget först när du har godkänt det.",
+    paperMark: "Efter pappret",
+    paperTitle: (name: string) => `${name} kör efter pappret`,
+    paperStates: { waiting: "Väntar på dig", approved: "Godkänd", rejected: "Avslagen", withdrawn: "Släppt" } as Record<string, string>,
+    front: (number: string | null | undefined) => `Tjänst ${number ?? "?"} på pappret`,
+    end: (time: string | null | undefined, place: string | null | undefined) => `${time ?? "?"} · ${place ?? "?"}`,
+    starts: "Startar",
+    ends: "Slutar",
+    operator: "Bolag",
+    trainOnPaper: "Tåg",
+    photos: (pages: number, time: string, paidBy: string) => `${pages === 1 ? "En sida" : `${pages} sidor`} fotade ${time}. ${paidBy}.`,
+    paidBy: { meet: "Lästa med träffens tokens", driver: "Lästa med förarens egna tokens", hub: "Lästa med hubbens egen AI" } as Record<string, string>,
+    photo: (page: number) => `Foto ${page}`,
+    timetable: "Avläst tidtabell",
+    arrives: (time: string) => `ank ${time}`,
+    leaves: (time: string) => `avg ${time}`,
+    track: (track: string) => `spår ${track}`,
+    unreadable: "tid gick inte att läsa",
+    notInMeet: "finns inte i träffen",
+    noStop: "ej uppehåll",
+    nearest: "Närmast i planen",
+    handInstead: "Dela ut den i stället",
+    approve: "Godkänn tjänsten",
+    reject: "Avslå",
+    trainNumber: "Tågnummer hos tågklarerarna",
+    reason: "Skäl till föraren",
+    approveNote: (train: string) => `Godkänner du syns ${train} hos tågklarerarna, märkt Efter pappret.`,
+    rejected: (reason: string) => `Avslagen: ${reason}`,
+    approvedAs: (train: string) => `Godkänd som tåg ${train}, märkt Efter pappret.`,
   },
   en: {
     title: "Drivers",
@@ -103,6 +134,36 @@ export const TEXT = {
     late: (minutes: number) => `${minutes} min late`,
     train: (number: string) => `train ${number}`,
     serviceNumber: (number: string) => `service ${number}`,
+    papers: "After the paper",
+    papersNote: "Services missing from the plan, run after the driver's paper. The stations see the train only once you have approved it.",
+    paperMark: "After the paper",
+    paperTitle: (name: string) => `${name} runs after the paper`,
+    paperStates: { waiting: "Waiting for you", approved: "Approved", rejected: "Rejected", withdrawn: "Released" } as Record<string, string>,
+    front: (number: string | null | undefined) => `Service ${number ?? "?"} on the paper`,
+    end: (time: string | null | undefined, place: string | null | undefined) => `${time ?? "?"} · ${place ?? "?"}`,
+    starts: "Starts",
+    ends: "Ends",
+    operator: "Operator",
+    trainOnPaper: "Train",
+    photos: (pages: number, time: string, paidBy: string) => `${pages === 1 ? "One page" : `${pages} pages`} photographed at ${time}. ${paidBy}.`,
+    paidBy: { meet: "Read with the meet's tokens", driver: "Read with the driver's own tokens", hub: "Read with the hub's own AI" } as Record<string, string>,
+    photo: (page: number) => `Photo ${page}`,
+    timetable: "The timetable as read",
+    arrives: (time: string) => `arr ${time}`,
+    leaves: (time: string) => `dep ${time}`,
+    track: (track: string) => `track ${track}`,
+    unreadable: "time could not be read",
+    notInMeet: "is not in the meet",
+    noStop: "no stop",
+    nearest: "Nearest in the plan",
+    handInstead: "Hand it out instead",
+    approve: "Approve the service",
+    reject: "Reject",
+    trainNumber: "Train number for the stations",
+    reason: "Reason for the driver",
+    approveNote: (train: string) => `Once approved, ${train} shows at the stations, marked After the paper.`,
+    rejected: (reason: string) => `Rejected: ${reason}`,
+    approvedAs: (train: string) => `Approved as train ${train}, marked After the paper.`,
   },
 };
 
@@ -142,6 +203,19 @@ export function serviceText(offer: ServiceOffer, text: Text): string {
   const level = offer.level ? ` · ${text.levels[offer.level] ?? offer.level}` : "";
   const operator = offer.operator ? ` · ${offer.operator}` : "";
   return `${start} – ${end}${operator}${level}`;
+}
+
+/** A row of the timetable as read, with what could not be read said plainly (LOK-29). */
+export function paperRowText(row: PaperRow, text: Text): string {
+  const times = [row.arrival ? text.arrives(row.arrival) : null, row.departure ? text.leaves(row.departure) : null].filter(Boolean).join(" · ");
+  const extra = [row.track ? text.track(row.track) : null, row.stops === false ? text.noStop : null, row.note ?? null, row.unreadable ? text.unreadable : null, row.place ? null : text.notInMeet].filter(Boolean);
+  return [row.place_name, times || null, ...extra].filter(Boolean).join(" · ");
+}
+
+/** A service's state in the drivers' list: Efter pappret and where it stands (LOK-13). */
+export function paperMark(offer: ServiceOffer | null | undefined, text: Text): string | null {
+  if (!offer?.paper) return null;
+  return `${text.paperMark} · ${text.paperStates[offer.paper] ?? offer.paper}`;
 }
 
 export function ForarePage({ loggedIn, now, navigate, onMessage, language = languageOf(typeof navigator === "undefined" ? ["sv"] : (navigator.languages ?? [navigator.language])), initial }: ForareProps) {
@@ -236,6 +310,25 @@ export function ForarePage({ loggedIn, now, navigate, onMessage, language = lang
           </ul>
         </section>
       )}
+      {(overview.papers ?? []).length > 0 && (
+        <section id="efter-pappret" className="kort" aria-labelledby="efter-pappret-rubrik">
+          <h2 id="efter-pappret-rubrik">
+            {text.papers} <span className="antal">{(overview.papers ?? []).filter((paper) => paper.status === "waiting").length}</span>
+          </h2>
+          <p className="liten">{text.papersNote}</p>
+          {(overview.papers ?? []).map((paper) => (
+            <Paper
+              key={paper.paper}
+              paper={paper}
+              text={text}
+              decides={overview.may_set ?? false}
+              onApprove={(number) => void act(() => api.approvePaper(paper.paper, number))}
+              onReject={(reason) => void act(() => api.rejectPaper(paper.paper, reason))}
+              onHandOut={(service) => void act(() => api.handOut(paper.driver, service))}
+            />
+          ))}
+        </section>
+      )}
       <Settings settings={overview.settings} disabled={!overview.may_set} text={text} onChange={(settings) => void act(() => api.driverSettings(settings))} />
       <h2>
         {text.drivers} <span className="antal">{(overview.drivers ?? []).length}</span>
@@ -310,7 +403,7 @@ function Settings({ settings, disabled, text, onChange }: { settings: DriverSett
 function DriverLine({ row, now, text, free, onHandOut, onTakeBack }: { row: DriverRow; now: Now; text: Text; free: ServiceOffer[]; onHandOut: (service: ServiceRef) => void; onTakeBack: () => void }) {
   const [chosen, setChosen] = useState(free[0] ? refKey(free[0].service) : "");
   const driver = row.driver;
-  const details = [text.levels[driver.level] ?? driver.level, driver.state ? (text.states[driver.state] ?? driver.state) : null, row.service ? text.service(row.service.number, (row.service.trains ?? []).join(", ")) : text.noService, whereText(row, now, text) || null, row.checkin ? text.checkin(row.checkin.place_name, row.checkin.model_time) : null].filter(Boolean);
+  const details = [text.levels[driver.level] ?? driver.level, driver.state ? (text.states[driver.state] ?? driver.state) : null, row.service ? text.service(row.service.number, (row.service.trains ?? []).join(", ")) : text.noService, paperMark(row.service, text), whereText(row, now, text) || null, row.checkin ? text.checkin(row.checkin.place_name, row.checkin.model_time) : null].filter(Boolean);
   const pick = free.find((offer) => refKey(offer.service) === chosen) ?? free[0];
   return (
     <li className={row.message ? "vantar" : undefined}>
@@ -341,6 +434,104 @@ function DriverLine({ row, now, text, free, onHandOut, onTakeBack }: { row: Driv
         )}
       </div>
     </li>
+  );
+}
+
+/** A service run after the paper (LOK-13, LOK-29): the front and the timetable as read, the
+ * photos, the planned services nearest its start, and Godkänn or Avslå while it waits. */
+function Paper({ paper, text, decides, onApprove, onReject, onHandOut }: { paper: PaperService; text: Text; decides: boolean; onApprove: (number: string) => void; onReject: (reason: string) => void; onHandOut: (service: ServiceRef) => void }) {
+  const [number, setNumber] = useState(paper.train_number ?? "");
+  const [reason, setReason] = useState("");
+  const waiting = paper.status === "waiting";
+  const train = number.trim() || paper.train_number || "?";
+  return (
+    <article className={`papper ${paper.status}`} aria-label={text.paperTitle(paper.driver_name ?? paper.driver)}>
+      <header className="rad">
+        <b>{text.paperTitle(paper.driver_name ?? paper.driver)}</b>
+        <span className="markt">{`${text.paperMark} · ${text.paperStates[paper.status] ?? paper.status}`}</span>
+      </header>
+      <p className="framsidans-nummer">
+        <b>{text.front(paper.number)}</b>
+      </p>
+      <dl className="framsida">
+        <dt>{text.starts}</dt>
+        <dd>{text.end(paper.start.time, paper.start.place_name)}</dd>
+        <dt>{text.ends}</dt>
+        <dd>{text.end(paper.end.time, paper.end.place_name)}</dd>
+        {paper.operator && (
+          <>
+            <dt>{text.operator}</dt>
+            <dd>{paper.operator}</dd>
+          </>
+        )}
+        {paper.train_number && (
+          <>
+            <dt>{text.trainOnPaper}</dt>
+            <dd>{paper.train_number}</dd>
+          </>
+        )}
+      </dl>
+      <p className="liten">{text.photos(paper.pages, paper.model_time, text.paidBy[paper.paid_by] ?? paper.paid_by)}</p>
+      {(paper.photos ?? []).length > 0 && (
+        <p className="rad">
+          {(paper.photos ?? []).map((photo, index) => (
+            <a key={photo} href={photo} target="_blank" rel="noreferrer">
+              {text.photo(index + 1)}
+            </a>
+          ))}
+        </p>
+      )}
+      <h3>{text.timetable}</h3>
+      <ol className="lista tidtabell">
+        {(paper.rows ?? []).map((row, index) => (
+          <li key={index} className={row.unreadable || !row.place ? "vantar" : undefined}>
+            {paperRowText(row, text)}
+          </li>
+        ))}
+      </ol>
+      <p className="liten">{paper.said}</p>
+      {(paper.candidates ?? []).length > 0 && (
+        <>
+          <h3>{text.nearest}</h3>
+          <ul className="lista">
+            {(paper.candidates ?? []).map((offer) => (
+              <li key={refKey(offer.service)}>
+                <div className="vem">
+                  <b>{`${offer.number} · ${(offer.trains ?? []).join(", ")}`}</b>
+                  <span className="liten">{serviceText(offer, text)}</span>
+                </div>
+                {waiting && !offer.taken && (
+                  <div className="kontroller">
+                    <button type="button" onClick={() => onHandOut(offer.service)}>
+                      {text.handInstead}
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {paper.status === "rejected" && paper.reason && <p className="liten">{text.rejected(paper.reason)}</p>}
+      {paper.status === "approved" && <p className="liten">{text.approvedAs(paper.train_number ?? "?")}</p>}
+      {waiting && decides && (
+        <div className="beslut">
+          <label>
+            {text.trainNumber} <input maxLength={20} value={number} onChange={(event) => setNumber(event.target.value)} />
+          </label>
+          <button type="button" className="tm-knapp primar" onClick={() => onApprove(number)}>
+            {text.approve}
+          </button>
+          <label>
+            {text.reason} <input maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} />
+          </label>
+          <button type="button" className="fara" disabled={!reason.trim()} onClick={() => onReject(reason.trim())}>
+            {text.reject}
+          </button>
+          <p className="liten">{text.approveNote(train)}</p>
+        </div>
+      )}
+    </article>
   );
 }
 

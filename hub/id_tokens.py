@@ -14,7 +14,7 @@ import logging
 import secrets
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from uuid import UUID
 
 import httpx
@@ -63,13 +63,19 @@ class IdTokens:
         person: str,
         owner: TokenOwner,
         prompt: str,
-        image: ai.Image,
+        image: ai.Image | Sequence[ai.Image],
         what: str,
         max_tokens: int,
         amount: int = 12,
+        *,
+        hold: bool = False,
     ) -> MeterAnswer:
-        """One page through the meter: reserved, read and drawn, or given back by ID when the
-        AI does not answer. With own AI on the account nothing is reserved (TK4)."""
+        """One page through the meter, or up to four read together (a driver's paper, LOK-29):
+        reserved, read and drawn, or given back by ID when the AI does not answer. With own AI
+        on the account nothing is reserved (TK4). With hold, the meter reads and draws nothing:
+        the hub draws the answer's cost when it could use it, and gives it all back when not
+        (TOKEN-24)."""
+        images = [image] if isinstance(image, ai.Image) else list(image)
         body = {
             "person": person,
             "owner": owner.model_dump(mode="json"),
@@ -85,22 +91,41 @@ class IdTokens:
             "reservation": str(reservation.id),
             "prompt": prompt,
             "images": [
-                {"media_type": image.media_type, "data": base64.b64encode(image.data).decode()}
+                {"media_type": found.media_type, "data": base64.b64encode(found.data).decode()}
+                for found in images
             ],
             "max_tokens": max_tokens,
+            "hold": hold,
         }
         try:
             read = self.roles.call("POST", "meter", body=asked, timeout=READ_TIMEOUT)
         except HTTPException:
-            self._give_back(reservation.id)
+            self.give_back(reservation.id)
             raise
         if read.status_code != 200:
+            if hold:
+                self.give_back(reservation.id)
             raise refused(read.status_code, _json(read))
         # The header shows the balance after the reading, not a minute later.
         self.shown.forget(person)
         return MeterAnswer.model_validate(read.json())
 
-    def _give_back(self, reservation: UUID) -> None:
+    def draw(self, person: str, reservation: UUID, amount: int) -> None:
+        """Draw what a held reading cost, now that it is used. If ID does not answer, the
+        reservation goes back by itself after a while, and the reading cost nothing."""
+        try:
+            drawn = self.roles.call(
+                "POST", f"tokens/reservations/{reservation}/draw", body={"amount": amount}
+            )
+        except HTTPException:
+            LOGGER.warning("Reservationen gick inte att dra; den går tillbaka av sig själv.")
+            return
+        if drawn.status_code != 200:
+            LOGGER.warning("ID drog inte reservationen: %s.", drawn.status_code)
+        self.shown.forget(person)
+
+    def give_back(self, reservation: UUID) -> None:
+        """Nothing is drawn: the reading failed, or was not used."""
         try:
             self.roles.call("POST", f"tokens/reservations/{reservation}/return")
         except HTTPException:

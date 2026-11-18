@@ -884,6 +884,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drift/1/drivers/paper/price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paperPrice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/paper": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["readPaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/drivers/overview": {
         parameters: {
             query?: never;
@@ -974,6 +1006,38 @@ export interface paths {
         get: operations["driverJoining"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/paper/{paper}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approvePaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/drift/1/drivers/paper/{paper}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rejectPaper"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1870,6 +1934,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["applySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/paper-reading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paperReading"];
+        put?: never;
+        post: operations["choosePaperReading"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3313,6 +3393,12 @@ export interface components {
             revision: number;
             /** Allowed Actions */
             allowed_actions?: components["schemas"]["trainmeet.station-1.reply.Action"][];
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3346,6 +3432,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3553,7 +3645,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number";
         /**
          * ReplyStatus
          * @enum {string}
@@ -3734,6 +3826,12 @@ export interface components {
             planned_track: string | null;
             /** Departed At */
             departed_at: string;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3887,6 +3985,12 @@ export interface components {
             revision: number;
             /** Allowed Actions */
             allowed_actions?: components["schemas"]["trainmeet.station-1.snapshot.Action"][];
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3920,6 +4024,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -4194,6 +4304,12 @@ export interface components {
             planned_track: string | null;
             /** Departed At */
             departed_at: string;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5460,9 +5576,47 @@ export interface components {
          */
         "trainmeet.drift-1.make-change.ClearanceMode": "requested" | "direct";
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.drift-1.make-change.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.drift-1.make-change.ExtraTrain": {
             /**
@@ -5499,6 +5653,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.drift-1.make-change.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.drift-1.make-change.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -6015,6 +6180,18 @@ export interface components {
             kind: "driver.settings";
             data: components["schemas"]["trainmeet.drift-1.event.DriverSettings"];
         } | {
+            /** @constant */
+            kind: "paper.created";
+            data: components["schemas"]["trainmeet.drift-1.event.PaperCreated"];
+        } | {
+            /** @constant */
+            kind: "paper.approved";
+            data: components["schemas"]["trainmeet.drift-1.event.PaperApproved"];
+        } | {
+            /** @constant */
+            kind: "paper.rejected";
+            data: components["schemas"]["trainmeet.drift-1.event.PaperRejected"];
+        } | {
             kind?: unknown;
         });
         /** Actor */
@@ -6037,7 +6214,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
+        "trainmeet.drift-1.event.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings" | "paper.created" | "paper.approved" | "paper.rejected";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -6427,9 +6604,47 @@ export interface components {
          */
         "trainmeet.drift-1.event.ClearanceMode": "requested" | "direct";
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.drift-1.event.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.drift-1.event.ExtraTrain": {
             /**
@@ -6466,6 +6681,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.drift-1.event.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.drift-1.event.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -6805,7 +7031,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.drift-1.event.ServiceKind": "duty" | "train";
+        "trainmeet.drift-1.event.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -6969,6 +7195,183 @@ export interface components {
              * @default false
              */
             arrival: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperEnd
+         * @description Där tjänsten startar eller slutar, som det står på papprets framsida.
+         */
+        "trainmeet.drift-1.event.PaperEnd": {
+            /**
+             * Time
+             * @description Tom när den inte gick att läsa.
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Unreadable
+             * @description Något stod där men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPayer
+         * @description Vem som stod för AI-läsningen (LOK-33).
+         * @enum {string}
+         */
+        "trainmeet.drift-1.event.PaperPayer": "meet" | "driver" | "hub";
+        /**
+         * PaperReading
+         * @description Det AI:n läste på förarens foton av köruppdraget (LOK-29): numret, starten, slutet och
+         *     bolaget som de står på framsidan, tåget och tidtabellen.
+         */
+        "trainmeet.drift-1.event.PaperReading": {
+            /**
+             * Number
+             * @description Tjänstens nummer på pappret.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Train Number
+             * @description Tågnumret på pappret.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            start?: components["schemas"]["trainmeet.drift-1.event.PaperEnd"];
+            end?: components["schemas"]["trainmeet.drift-1.event.PaperEnd"];
+            /** Rows */
+            rows?: components["schemas"]["trainmeet.drift-1.event.PaperRow"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperRow
+         * @description En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick
+         *     att läsa är tom och raden märkt, aldrig gissad (LOK-29).
+         */
+        "trainmeet.drift-1.event.PaperRow": {
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             */
+            place_name: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @description Falskt när det står Ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Unreadable
+             * @description En tid stod på raden men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperCreated
+         * @description Föraren kör efter pappret (LOK-29): tjänsten saknas i planen, och fotona är lästa. Föraren
+         *     har tjänsten från nu; trafikledningen får veta och godkänner eller avslår (LOK-13).
+         */
+        "trainmeet.drift-1.event.PaperCreated": {
+            /** Paper */
+            paper: string;
+            /** Driver */
+            driver: string;
+            reading: components["schemas"]["trainmeet.drift-1.event.PaperReading"];
+            /**
+             * Pages
+             * @description Sidorna föraren fotade.
+             */
+            pages: number;
+            paid_by: components["schemas"]["trainmeet.drift-1.event.PaperPayer"];
+            /**
+             * Cost
+             * @description Tokens som drogs för läsningen.
+             */
+            cost: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperApproved
+         * @description Trafikledningen har godkänt tjänsten (LOK-13): den är nu extratåget i händelsen, och
+         *     tågklarerarna ser det, märkt Efter pappret.
+         */
+        "trainmeet.drift-1.event.PaperApproved": {
+            /** Paper */
+            paper: string;
+            /**
+             * Change Id
+             * @description Driftändringen som satte in tåget.
+             */
+            change_id: string;
+            /** Train */
+            train: string;
+            /** Train Number */
+            train_number: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperRejected
+         * @description Trafikledningen har avslagit tjänsten. Föraren får skälet.
+         */
+        "trainmeet.drift-1.event.PaperRejected": {
+            /** Paper */
+            paper: string;
+            /** Reason */
+            reason: string;
         } & {
             [key: string]: unknown;
         };
@@ -7297,6 +7700,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -7497,9 +7906,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.drift-1.now.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.drift-1.now.ExtraTrain": {
             /**
@@ -7536,6 +7983,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.drift-1.now.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.drift-1.now.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -7651,6 +8109,12 @@ export interface components {
              * @default null
              */
             track: string | null;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -7723,7 +8187,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.drift-1.now.ServiceKind": "duty" | "train";
+        "trainmeet.drift-1.now.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -8378,7 +8842,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -8561,7 +9025,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.drift-1.service.ServiceKind": "duty" | "train";
+        "trainmeet.drift-1.service.ServiceKind": "duty" | "train" | "paper";
         /**
          * DriverJoin
          * @description Kom in (LOK-01, LOK-16): QR-koden på träffen, namnet och nivån. Koden behövs inte på
@@ -8682,6 +9146,11 @@ export interface components {
              * @description Senaste drifthändelsen, för väntan på nästa.
              */
             revision: number;
+            /**
+             * @description Förarens tjänst efter pappret: den föraren kör, eller den senast avslagna med skälet så länge föraren inte har tagit en annan (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.me.PaperService"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -8828,6 +9297,190 @@ export interface components {
          */
         "trainmeet.driver-1.me.DriverState": "pause" | "waiting_start";
         /**
+         * PaperEnd
+         * @description Där tjänsten startar eller slutar, som det står på papprets framsida.
+         */
+        "trainmeet.driver-1.me.PaperEnd": {
+            /**
+             * Time
+             * @description Tom när den inte gick att läsa.
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Unreadable
+             * @description Något stod där men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPayer
+         * @description Vem som stod för AI-läsningen (LOK-33).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.me.PaperPayer": "meet" | "driver" | "hub";
+        /**
+         * PaperRow
+         * @description En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick
+         *     att läsa är tom och raden märkt, aldrig gissad (LOK-29).
+         */
+        "trainmeet.driver-1.me.PaperRow": {
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             */
+            place_name: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @description Falskt när det står Ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Unreadable
+             * @description En tid stod på raden men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperService
+         * @description En tjänst efter pappret, som föraren och Förare ser den: framsidan och tidtabellen som
+         *     AI:n läste dem, var den står, och de tjänster i planen som startar närmast (LF16). Inga
+         *     stationer ser den förrän trafikledningen har godkänt den (LOK-13).
+         */
+        "trainmeet.driver-1.me.PaperService": {
+            /** Paper */
+            paper: string;
+            service: components["schemas"]["trainmeet.driver-1.me.ServiceRef"];
+            status: components["schemas"]["trainmeet.driver-1.me.PaperStatus"];
+            /** Driver */
+            driver: string;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Number
+             * @description Tjänstens nummer på pappret.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Train Number
+             * @description Tågnumret: på pappret, eller det trafikledningen gav.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            start: components["schemas"]["trainmeet.driver-1.me.PaperEnd"];
+            end: components["schemas"]["trainmeet.driver-1.me.PaperEnd"];
+            /** Rows */
+            rows?: components["schemas"]["trainmeet.driver-1.me.PaperRow"][];
+            /** Pages */
+            pages: number;
+            /**
+             * Photos
+             * @description Adresserna till fotona.
+             */
+            photos?: string[];
+            paid_by: components["schemas"]["trainmeet.driver-1.me.PaperPayer"];
+            /**
+             * Cost
+             * @description Tokens som drogs för läsningen.
+             */
+            cost: number;
+            /**
+             * Said
+             * @description Pappret jämfört med planen: ingen tjänst startar där och då, eller vilken som gör det.
+             */
+            said: string;
+            /**
+             * Candidates
+             * @description Tjänsterna i planen som startar närmast papprets start (LF16). Föraren kan ta en av dem i stället.
+             */
+            candidates?: components["schemas"]["trainmeet.driver-1.me.ServiceOffer"][];
+            /**
+             * Reason
+             * @description Avslagen: trafikledningens skäl.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Train
+             * @description Godkänd: tåget i Drift.
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Model Time
+             * @description När pappret lästes, på träffklockan.
+             */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperStatus
+         * @description Var en tjänst efter pappret står.
+         * @enum {string}
+         */
+        "trainmeet.driver-1.me.PaperStatus": "waiting" | "approved" | "rejected" | "withdrawn";
+        /**
          * ServiceEnd
          * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
          */
@@ -8848,7 +9501,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.me.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.me.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceOffer
          * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
@@ -8916,6 +9569,11 @@ export interface components {
              * @default false
              */
             done: boolean;
+            /**
+             * @description Efter pappret: tjänsten finns inte i planen (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.me.PaperStatus"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -9014,6 +9672,12 @@ export interface components {
          */
         "trainmeet.driver-1.services.DriverLevel": "easy" | "medium" | "experienced";
         /**
+         * PaperStatus
+         * @description Var en tjänst efter pappret står.
+         * @enum {string}
+         */
+        "trainmeet.driver-1.services.PaperStatus": "waiting" | "approved" | "rejected" | "withdrawn";
+        /**
          * ServiceEnd
          * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
          */
@@ -9034,7 +9698,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.services.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.services.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceOffer
          * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
@@ -9102,6 +9766,11 @@ export interface components {
              * @default false
              */
             done: boolean;
+            /**
+             * @description Efter pappret: tjänsten finns inte i planen (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.services.PaperStatus"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -9144,6 +9813,11 @@ export interface components {
              * @description Senaste drifthändelsen.
              */
             revision: number;
+            /**
+             * @description Efter pappret: avläst ur förarens foton och inte i planen. Utan verklighet från Drift tills trafikledningen har godkänt den (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.korplan.PaperStatus"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -9324,6 +9998,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PaperStatus
+         * @description Var en tjänst efter pappret står.
+         * @enum {string}
+         */
+        "trainmeet.driver-1.korplan.PaperStatus": "waiting" | "approved" | "rejected" | "withdrawn";
+        /**
          * RowClearance
          * @description Tågklareringens besked för avgången härifrån, när trafikspelet valt det (LOK-21): klart är
          *     en upplysning, avgång ger tågklareraren eller signalen (LOK-11).
@@ -9387,7 +10067,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.korplan.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.korplan.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -9442,6 +10122,12 @@ export interface components {
              * @default null
              */
             delay: number | null;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -9535,7 +10221,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.message.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.message.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -9634,6 +10320,12 @@ export interface components {
              * @default null
              */
             delay: number | null;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -9830,6 +10522,11 @@ export interface components {
              * @default true
              */
             names_shown: boolean;
+            /**
+             * Papers
+             * @description Tjänsterna efter pappret, de som väntar på godkännande först (LOK-13). Trafikledningen godkänner eller avslår.
+             */
+            papers?: components["schemas"]["trainmeet.driver-1.overview.PaperService"][];
         } & {
             [key: string]: unknown;
         };
@@ -10071,6 +10768,190 @@ export interface components {
          */
         "trainmeet.driver-1.overview.DriverState": "pause" | "waiting_start";
         /**
+         * PaperEnd
+         * @description Där tjänsten startar eller slutar, som det står på papprets framsida.
+         */
+        "trainmeet.driver-1.overview.PaperEnd": {
+            /**
+             * Time
+             * @description Tom när den inte gick att läsa.
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Unreadable
+             * @description Något stod där men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPayer
+         * @description Vem som stod för AI-läsningen (LOK-33).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.PaperPayer": "meet" | "driver" | "hub";
+        /**
+         * PaperRow
+         * @description En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick
+         *     att läsa är tom och raden märkt, aldrig gissad (LOK-29).
+         */
+        "trainmeet.driver-1.overview.PaperRow": {
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             */
+            place_name: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @description Falskt när det står Ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Unreadable
+             * @description En tid stod på raden men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperService
+         * @description En tjänst efter pappret, som föraren och Förare ser den: framsidan och tidtabellen som
+         *     AI:n läste dem, var den står, och de tjänster i planen som startar närmast (LF16). Inga
+         *     stationer ser den förrän trafikledningen har godkänt den (LOK-13).
+         */
+        "trainmeet.driver-1.overview.PaperService": {
+            /** Paper */
+            paper: string;
+            service: components["schemas"]["trainmeet.driver-1.overview.ServiceRef"];
+            status: components["schemas"]["trainmeet.driver-1.overview.PaperStatus"];
+            /** Driver */
+            driver: string;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Number
+             * @description Tjänstens nummer på pappret.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Train Number
+             * @description Tågnumret: på pappret, eller det trafikledningen gav.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            start: components["schemas"]["trainmeet.driver-1.overview.PaperEnd"];
+            end: components["schemas"]["trainmeet.driver-1.overview.PaperEnd"];
+            /** Rows */
+            rows?: components["schemas"]["trainmeet.driver-1.overview.PaperRow"][];
+            /** Pages */
+            pages: number;
+            /**
+             * Photos
+             * @description Adresserna till fotona.
+             */
+            photos?: string[];
+            paid_by: components["schemas"]["trainmeet.driver-1.overview.PaperPayer"];
+            /**
+             * Cost
+             * @description Tokens som drogs för läsningen.
+             */
+            cost: number;
+            /**
+             * Said
+             * @description Pappret jämfört med planen: ingen tjänst startar där och då, eller vilken som gör det.
+             */
+            said: string;
+            /**
+             * Candidates
+             * @description Tjänsterna i planen som startar närmast papprets start (LF16). Föraren kan ta en av dem i stället.
+             */
+            candidates?: components["schemas"]["trainmeet.driver-1.overview.ServiceOffer"][];
+            /**
+             * Reason
+             * @description Avslagen: trafikledningens skäl.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Train
+             * @description Godkänd: tåget i Drift.
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Model Time
+             * @description När pappret lästes, på träffklockan.
+             */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperStatus
+         * @description Var en tjänst efter pappret står.
+         * @enum {string}
+         */
+        "trainmeet.driver-1.overview.PaperStatus": "waiting" | "approved" | "rejected" | "withdrawn";
+        /**
          * ServiceEnd
          * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
          */
@@ -10091,7 +10972,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.overview.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.overview.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceList
          * @description Tjänsterna att välja bland: köruppdragen när träffen har sådana, annars tågen (LOK-17,
@@ -10171,6 +11052,11 @@ export interface components {
              * @default false
              */
             done: boolean;
+            /**
+             * @description Efter pappret: tjänsten finns inte i planen (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.overview.PaperStatus"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -10228,6 +11114,12 @@ export interface components {
              * @default null
              */
             delay: number | null;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -10247,7 +11139,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.driver-1.hand-out.ServiceKind": "duty" | "train";
+        "trainmeet.driver-1.hand-out.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -10266,6 +11158,442 @@ export interface components {
         "trainmeet.driver-1.take-back": {
             /** Driver */
             driver: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperService
+         * @description En tjänst efter pappret, som föraren och Förare ser den: framsidan och tidtabellen som
+         *     AI:n läste dem, var den står, och de tjänster i planen som startar närmast (LF16). Inga
+         *     stationer ser den förrän trafikledningen har godkänt den (LOK-13).
+         */
+        "trainmeet.driver-1.paper": {
+            /** Paper */
+            paper: string;
+            service: components["schemas"]["trainmeet.driver-1.paper.ServiceRef"];
+            status: components["schemas"]["trainmeet.driver-1.paper.PaperStatus"];
+            /** Driver */
+            driver: string;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Number
+             * @description Tjänstens nummer på pappret.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Train Number
+             * @description Tågnumret: på pappret, eller det trafikledningen gav.
+             * @default null
+             */
+            train_number: string | null;
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            start: components["schemas"]["trainmeet.driver-1.paper.PaperEnd"];
+            end: components["schemas"]["trainmeet.driver-1.paper.PaperEnd"];
+            /** Rows */
+            rows?: components["schemas"]["trainmeet.driver-1.paper.PaperRow"][];
+            /** Pages */
+            pages: number;
+            /**
+             * Photos
+             * @description Adresserna till fotona.
+             */
+            photos?: string[];
+            paid_by: components["schemas"]["trainmeet.driver-1.paper.PaperPayer"];
+            /**
+             * Cost
+             * @description Tokens som drogs för läsningen.
+             */
+            cost: number;
+            /**
+             * Said
+             * @description Pappret jämfört med planen: ingen tjänst startar där och då, eller vilken som gör det.
+             */
+            said: string;
+            /**
+             * Candidates
+             * @description Tjänsterna i planen som startar närmast papprets start (LF16). Föraren kan ta en av dem i stället.
+             */
+            candidates?: components["schemas"]["trainmeet.driver-1.paper.ServiceOffer"][];
+            /**
+             * Reason
+             * @description Avslagen: trafikledningens skäl.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Train
+             * @description Godkänd: tåget i Drift.
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Model Time
+             * @description När pappret lästes, på träffklockan.
+             */
+            model_time: string;
+            /**
+             * Wall Time
+             * Format: date-time
+             */
+            wall_time: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverLevel
+         * @description Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.paper.DriverLevel": "easy" | "medium" | "experienced";
+        /**
+         * PaperEnd
+         * @description Där tjänsten startar eller slutar, som det står på papprets framsida.
+         */
+        "trainmeet.driver-1.paper.PaperEnd": {
+            /**
+             * Time
+             * @description Tom när den inte gick att läsa.
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             * @default null
+             */
+            place_name: string | null;
+            /**
+             * Unreadable
+             * @description Något stod där men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPayer
+         * @description Vem som stod för AI-läsningen (LOK-33).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.paper.PaperPayer": "meet" | "driver" | "hub";
+        /**
+         * PaperRow
+         * @description En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick
+         *     att läsa är tom och raden märkt, aldrig gissad (LOK-29).
+         */
+        "trainmeet.driver-1.paper.PaperRow": {
+            /**
+             * Place
+             * @description Driftplatsen i träffen; tom när namnet inte finns där.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Place Name
+             * @description Platsen som den står på pappret.
+             */
+            place_name: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @description Falskt när det står Ej uppehåll.
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Unreadable
+             * @description En tid stod på raden men gick inte att läsa.
+             * @default false
+             */
+            unreadable: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperStatus
+         * @description Var en tjänst efter pappret står.
+         * @enum {string}
+         */
+        "trainmeet.driver-1.paper.PaperStatus": "waiting" | "approved" | "rejected" | "withdrawn";
+        /**
+         * ServiceEnd
+         * @description Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.
+         */
+        "trainmeet.driver-1.paper.ServiceEnd": {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /** Place */
+            place: string;
+            /** Place Name */
+            place_name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceKind
+         * @enum {string}
+         */
+        "trainmeet.driver-1.paper.ServiceKind": "duty" | "train" | "paper";
+        /**
+         * ServiceOffer
+         * @description En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,
+         *     slut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.
+         */
+        "trainmeet.driver-1.paper.ServiceOffer": {
+            service: components["schemas"]["trainmeet.driver-1.paper.ServiceRef"];
+            /**
+             * Number
+             * @description Papprets nummer, eller tågets nummer.
+             */
+            number: string;
+            start: components["schemas"]["trainmeet.driver-1.paper.ServiceEnd"];
+            end: components["schemas"]["trainmeet.driver-1.paper.ServiceEnd"];
+            /**
+             * Operator
+             * @default null
+             */
+            operator: string | null;
+            /** @default null */
+            level: components["schemas"]["trainmeet.driver-1.paper.DriverLevel"] | null;
+            /**
+             * Trains
+             * @description Tågnumren, i ordning.
+             */
+            trains?: string[];
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
+            /**
+             * Driver
+             * @description Föraren som har tjänsten.
+             * @default null
+             */
+            driver: string | null;
+            /**
+             * Driver Name
+             * @description Bara där namn får visas.
+             * @default null
+             */
+            driver_name: string | null;
+            /**
+             * Released On Line
+             * @description Släppt på linjen: står först i listan (LOK-40).
+             * @default false
+             */
+            released_on_line: boolean;
+            /**
+             * Matches Level
+             * @description Passar förarens nivå (LOK-32).
+             * @default false
+             */
+            matches_level: boolean;
+            /**
+             * Exact
+             * @description Numret är exakt det som söktes.
+             * @default false
+             */
+            exact: boolean;
+            /**
+             * Done
+             * @description Klar: Framme vid sista tågbesöket.
+             * @default false
+             */
+            done: boolean;
+            /**
+             * @description Efter pappret: tjänsten finns inte i planen (LOK-13).
+             * @default null
+             */
+            paper: components["schemas"]["trainmeet.driver-1.paper.PaperStatus"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServiceRef
+         * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
+         */
+        "trainmeet.driver-1.paper.ServiceRef": {
+            kind: components["schemas"]["trainmeet.driver-1.paper.ServiceKind"];
+            /** Id */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPrice
+         * @description Priset innan något läses (TOKEN-14): 12 tokens per sida, ur träffens saldo eller förarens
+         *     eget som träffen valt (LOK-33), eller inget med hubbens egen AI. ready säger om det går.
+         */
+        "trainmeet.driver-1.paper-price": {
+            /** Pages */
+            pages: number;
+            /**
+             * Price
+             * @description Tokens för sidorna.
+             */
+            price: number;
+            /** Per Page */
+            per_page: number;
+            /** @default null */
+            paid_by: components["schemas"]["trainmeet.driver-1.paper-price.PaperPayer"] | null;
+            /**
+             * Payer
+             * @description Vems saldo: klubbens, personens, eller hubbens egen AI.
+             * @default null
+             */
+            payer: string | null;
+            /**
+             * Available
+             * @description Saldot som är kvar.
+             * @default null
+             */
+            available: number | null;
+            /**
+             * Ready
+             * @description Går att läsa nu.
+             */
+            ready: boolean;
+            /**
+             * Message
+             * @description Varför inte, och vad föraren gör.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperPayer
+         * @description Vem som stod för AI-läsningen (LOK-33).
+         * @enum {string}
+         */
+        "trainmeet.driver-1.paper-price.PaperPayer": "meet" | "driver" | "hub";
+        /**
+         * PaperApprove
+         * @description Godkänn tjänsten efter pappret (LOK-13): den blir ett extratåg i Drift med papprets
+         *     tågbesök, och tågklarerarna ser det märkt Efter pappret.
+         */
+        "trainmeet.driver-1.paper-approve": {
+            /**
+             * Train Number
+             * @description Tågnumret hos tågklarerarna; tomt betyder det som står på pappret.
+             * @default null
+             */
+            train_number: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperReject
+         * @description Avslå tjänsten efter pappret: föraren får skälet.
+         */
+        "trainmeet.driver-1.paper-reject": {
+            /** Reason */
+            reason: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperReadingSettings
+         * @description Förarna i Planering (PLAN-40, LOK-33): vem som står för AI-läsningen när en förare fotar
+         *     ett köruppdrag som saknas i planen. Förarens egna tokens är förval.
+         */
+        "trainmeet.driver-1.paper-reading": {
+            /**
+             * Payer
+             * @default driver
+             * @enum {string}
+             */
+            payer: "meet" | "driver";
+            /**
+             * Payer Title
+             * @description Träffens saldo: klubbens namn, eller personens.
+             * @default null
+             */
+            payer_title: string | null;
+            /**
+             * Available
+             * @description Det som är kvar på träffens saldo.
+             * @default null
+             */
+            available: number | null;
+            /**
+             * Per Page
+             * @description Tokens per fotad sida (TOKEN-14).
+             */
+            per_page: number;
+            /**
+             * Own Ai
+             * @description Hubbens egen AI, när den finns: den läser då utan tokens (TOKEN-13).
+             * @default null
+             */
+            own_ai: string | null;
+            /**
+             * Trainmeet Ai
+             * @description Hubben når mätaren i TrainMeet ID (molnhubben).
+             * @default false
+             */
+            trainmeet_ai: boolean;
+            /**
+             * May Change
+             * @description Den som frågar får ändra valet.
+             * @default false
+             */
+            may_change: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaperReadingChange
+         * @description Träffens tokens eller förarens egna. Träffens tokens väljs inloggad med TrainMeet ID:
+         *     då betalar klubben för en träff i ID, annars den som valde (TK16).
+         */
+        "trainmeet.driver-1.paper-reading-change": {
+            /**
+             * Payer
+             * @enum {string}
+             */
+            payer: "meet" | "driver";
         } & {
             [key: string]: unknown;
         };
@@ -10581,6 +11909,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -10781,9 +12115,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.screen-1.picture.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.screen-1.picture.ExtraTrain": {
             /**
@@ -10820,6 +12192,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.screen-1.picture.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.screen-1.picture.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10935,6 +12318,12 @@ export interface components {
              * @default null
              */
             track: string | null;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -11116,7 +12505,7 @@ export interface components {
          * ServiceKind
          * @enum {string}
          */
-        "trainmeet.screen-1.picture.ServiceKind": "duty" | "train";
+        "trainmeet.screen-1.picture.ServiceKind": "duty" | "train" | "paper";
         /**
          * ServiceRef
          * @description En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.
@@ -13677,9 +15066,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.planning-1.draft.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.planning-1.draft.ExtraTrain": {
             /**
@@ -13716,6 +15143,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.planning-1.draft.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.planning-1.draft.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -15803,9 +17241,47 @@ export interface components {
          */
         "trainmeet.planning-1.proposal.ClearanceMode": "requested" | "direct";
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.planning-1.proposal.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.planning-1.proposal.ExtraTrain": {
             /**
@@ -15842,6 +17318,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.planning-1.proposal.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.planning-1.proposal.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -16306,7 +17793,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
+        "trainmeet.sync-1.run-events.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings" | "paper.created" | "paper.approved" | "paper.rejected";
         /**
          * RunAck
          * @description Molnets kvittens: den sista händelse det har, och Planerings svar på förslagen (4.4).
@@ -16423,7 +17910,7 @@ export interface components {
          * EventKind
          * @enum {string}
          */
-        "trainmeet.sync-1.run-feed.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings";
+        "trainmeet.sync-1.run-feed.EventKind": "meet.started" | "leader.taken" | "clock.started" | "clock.stopped" | "clock.speed" | "clock.jump" | "clock.jump_undone" | "day.changed" | "day.settings" | "client.approved" | "client.revoked" | "client.assigned" | "clearance.requested" | "clearance.answered" | "clearance.cancelled" | "clearance.reminded" | "clearance.invalidated" | "train.departed" | "train.arrived" | "train.moved_here" | "train.track_changed" | "train.set_aside" | "train.positioned" | "train.crew_ready" | "line.available" | "line.acknowledged" | "section.occupancy" | "signal.exit" | "place.manned" | "place.left" | "place.taken_back" | "automation.set" | "place.phone" | "transition.begun" | "transition.done" | "version.switched" | "version.waiting" | "version.called_off" | "change.made" | "change.applied" | "change.dropped" | "service.claimed" | "service.released" | "service.alarm_cleared" | "driver.checked_in" | "driver.message" | "driver.arrived" | "driver.settings" | "paper.created" | "paper.approved" | "paper.rejected";
         /**
          * Home
          * @description Träffens hem (H35, SYNK-16): hubben där träffen planeras och versionerna publiceras. Den
@@ -17044,9 +18531,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ExtraCall
+         * @description Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+         *     gick att läsa är tom.
+         */
+        "trainmeet.sync-1.home-bundle.ExtraCall": {
+            /** Place */
+            place: string;
+            /**
+             * Arrival
+             * @default null
+             */
+            arrival: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Stops
+             * @default true
+             */
+            stops: boolean;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExtraTrain
          * @description Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-         *     departure time, where Drift fills in the places between.
+         *     departure time, where Drift fills in the places between. A service run after the paper
+         *     becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+         *     paper it came from, which marks it Efter pappret wherever it shows.
          */
         "trainmeet.sync-1.home-bundle.ExtraTrain": {
             /**
@@ -17083,6 +18608,17 @@ export interface components {
              * @default null
              */
             days: components["schemas"]["trainmeet.sync-1.home-bundle.Weekday"][] | null;
+            /**
+             * Calls
+             * @description Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.
+             */
+            calls?: components["schemas"]["trainmeet.sync-1.home-bundle.ExtraCall"][];
+            /**
+             * Paper
+             * @description Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).
+             * @default null
+             */
+            paper: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -18896,6 +20432,12 @@ export interface components {
             revision: number;
             /** Allowed Actions */
             allowed_actions?: components["schemas"]["trainmeet.sync-1.relay-answer.Action"][];
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -18929,6 +20471,12 @@ export interface components {
             reminders: number;
             /** Revision */
             revision: number;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -19172,7 +20720,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
+        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number";
         /** Reply */
         "trainmeet.sync-1.relay-answer.Reply": {
             /**
@@ -19384,6 +20932,12 @@ export interface components {
             planned_track: string | null;
             /** Departed At */
             departed_at: string;
+            /**
+             * Paper
+             * @description Efter pappret: tåget finns inte i planen, och trafikledningen har godkänt det (LOK-13).
+             * @default false
+             */
+            paper: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -21129,6 +22683,56 @@ export interface operations {
             };
         };
     };
+    paperPrice: {
+        parameters: {
+            query: {
+                pages: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.paper-price"];
+                };
+            };
+        };
+    };
+    readPaper: {
+        parameters: {
+            query?: {
+                price?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    pages: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.paper"];
+                };
+            };
+        };
+    };
     driverOverview: {
         parameters: {
             query?: never;
@@ -21261,6 +22865,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.drift-1.joining"];
+                };
+            };
+        };
+    };
+    approvePaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paper: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.paper-approve"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
+                };
+            };
+        };
+    };
+    rejectPaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paper: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.paper-reject"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.overview"];
                 };
             };
         };
@@ -22716,6 +24372,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    paperReading: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.paper-reading"];
+                };
+            };
+        };
+    };
+    choosePaperReading: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.driver-1.paper-reading-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.driver-1.paper-reading"];
                 };
             };
         };

@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper.schema.json",
+  "title": "trainmeet.driver-1.paper",
+  "$defs": {
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
+    "PaperEnd": {
+      "additionalProperties": true,
+      "description": "Där tjänsten startar eller slutar, som det står på papprets framsida.",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tom när den inte gick att läsa.",
+          "title": "Time"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen i träffen; tom när namnet inte finns där.",
+          "title": "Place"
+        },
+        "place_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Platsen som den står på pappret.",
+          "title": "Place Name"
+        },
+        "unreadable": {
+          "default": false,
+          "description": "Något stod där men gick inte att läsa.",
+          "title": "Unreadable",
+          "type": "boolean"
+        }
+      },
+      "title": "PaperEnd",
+      "type": "object"
+    },
+    "PaperPayer": {
+      "description": "Vem som stod för AI-läsningen (LOK-33).",
+      "enum": [
+        "meet",
+        "driver",
+        "hub"
+      ],
+      "title": "PaperPayer",
+      "type": "string"
+    },
+    "PaperRow": {
+      "additionalProperties": true,
+      "description": "En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick\natt läsa är tom och raden märkt, aldrig gissad (LOK-29).",
+      "properties": {
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen i träffen; tom när namnet inte finns där.",
+          "title": "Place"
+        },
+        "place_name": {
+          "description": "Platsen som den står på pappret.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "stops": {
+          "default": true,
+          "description": "Falskt när det står Ej uppehåll.",
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "unreadable": {
+          "default": false,
+          "description": "En tid stod på raden men gick inte att läsa.",
+          "title": "Unreadable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "place_name"
+      ],
+      "title": "PaperRow",
+      "type": "object"
+    },
+    "PaperStatus": {
+      "description": "Var en tjänst efter pappret står.",
+      "enum": [
+        "waiting",
+        "approved",
+        "rejected",
+        "withdrawn"
+      ],
+      "title": "PaperStatus",
+      "type": "string"
+    },
+    "ServiceEnd": {
+      "additionalProperties": true,
+      "description": "Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place",
+        "place_name"
+      ],
+      "title": "ServiceEnd",
+      "type": "object"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train",
+        "paper"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceOffer": {
+      "additionalProperties": true,
+      "description": "En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,\nslut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.",
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "number": {
+          "description": "Papprets nummer, eller tågets nummer.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "end": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trains": {
+          "description": "Tågnumren, i ordning.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "taken": {
+          "default": false,
+          "title": "Taken",
+          "type": "boolean"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Föraren som har tjänsten.",
+          "title": "Driver"
+        },
+        "driver_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara där namn får visas.",
+          "title": "Driver Name"
+        },
+        "released_on_line": {
+          "default": false,
+          "description": "Släppt på linjen: står först i listan (LOK-40).",
+          "title": "Released On Line",
+          "type": "boolean"
+        },
+        "matches_level": {
+          "default": false,
+          "description": "Passar förarens nivå (LOK-32).",
+          "title": "Matches Level",
+          "type": "boolean"
+        },
+        "exact": {
+          "default": false,
+          "description": "Numret är exakt det som söktes.",
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "done": {
+          "default": false,
+          "description": "Klar: Framme vid sista tågbesöket.",
+          "title": "Done",
+          "type": "boolean"
+        },
+        "paper": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Efter pappret: tjänsten finns inte i planen (LOK-13)."
+        }
+      },
+      "required": [
+        "service",
+        "number",
+        "start",
+        "end"
+      ],
+      "title": "ServiceOffer",
+      "type": "object"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "En tjänst efter pappret, som föraren och Förare ser den: framsidan och tidtabellen som\nAI:n läste dem, var den står, och de tjänster i planen som startar närmast (LF16). Inga\nstationer ser den förrän trafikledningen har godkänt den (LOK-13).",
+  "properties": {
+    "paper": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Paper",
+      "type": "string"
+    },
+    "service": {
+      "$ref": "#/$defs/ServiceRef"
+    },
+    "status": {
+      "$ref": "#/$defs/PaperStatus"
+    },
+    "driver": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Driver",
+      "type": "string"
+    },
+    "driver_name": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bara där namn får visas.",
+      "title": "Driver Name"
+    },
+    "number": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tjänstens nummer på pappret.",
+      "title": "Number"
+    },
+    "train_number": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tågnumret: på pappret, eller det trafikledningen gav.",
+      "title": "Train Number"
+    },
+    "operator": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Operator"
+    },
+    "start": {
+      "$ref": "#/$defs/PaperEnd"
+    },
+    "end": {
+      "$ref": "#/$defs/PaperEnd"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/PaperRow"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "pages": {
+      "maximum": 4,
+      "minimum": 1,
+      "title": "Pages",
+      "type": "integer"
+    },
+    "photos": {
+      "description": "Adresserna till fotona.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Photos",
+      "type": "array"
+    },
+    "paid_by": {
+      "$ref": "#/$defs/PaperPayer"
+    },
+    "cost": {
+      "description": "Tokens som drogs för läsningen.",
+      "minimum": 0,
+      "title": "Cost",
+      "type": "integer"
+    },
+    "said": {
+      "description": "Pappret jämfört med planen: ingen tjänst startar där och då, eller vilken som gör det.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Said",
+      "type": "string"
+    },
+    "candidates": {
+      "description": "Tjänsterna i planen som startar närmast papprets start (LF16). Föraren kan ta en av dem i stället.",
+      "items": {
+        "$ref": "#/$defs/ServiceOffer"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Avslagen: trafikledningens skäl.",
+      "title": "Reason"
+    },
+    "train": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Godkänd: tåget i Drift.",
+      "title": "Train"
+    },
+    "model_time": {
+      "description": "När pappret lästes, på träffklockan.",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Model Time",
+      "type": "string"
+    },
+    "wall_time": {
+      "format": "date-time",
+      "title": "Wall Time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "paper",
+    "service",
+    "status",
+    "driver",
+    "start",
+    "end",
+    "pages",
+    "paid_by",
+    "cost",
+    "said",
+    "model_time",
+    "wall_time"
+  ],
+  "type": "object"
+}

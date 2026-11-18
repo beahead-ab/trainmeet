@@ -92,6 +92,12 @@
       "default": null,
       "description": "Minuter sent; tomt när det inte vet.",
       "title": "Delay"
+    },
+    "paper": {
+      "default": false,
+      "description": "Efter pappret: tåget finns inte i planen (LOK-13).",
+      "title": "Paper",
+      "type": "boolean"
     }
   },
   "required": [

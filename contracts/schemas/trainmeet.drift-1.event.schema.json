@@ -90,7 +90,10 @@
         "driver.checked_in",
         "driver.message",
         "driver.arrived",
-        "driver.settings"
+        "driver.settings",
+        "paper.created",
+        "paper.approved",
+        "paper.rejected"
       ],
       "title": "EventKind",
       "type": "string"
@@ -749,9 +752,84 @@
       "title": "ClearanceMode",
       "type": "string"
     },
+    "ExtraCall": {
+      "additionalProperties": true,
+      "description": "Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte\ngick att läsa är tom.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "stops": {
+          "default": true,
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "place"
+      ],
+      "title": "ExtraCall",
+      "type": "object"
+    },
     "ExtraTrain": {
       "additionalProperties": true,
-      "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
+      "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between. A service run after the paper\nbecomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the\npaper it came from, which marks it Efter pappret wherever it shows.",
       "properties": {
         "kind": {
           "const": "extra",
@@ -826,6 +904,29 @@
           "default": null,
           "description": "Trafikdagarna; tomt betyder kopians dagar, eller alla.",
           "title": "Days"
+        },
+        "calls": {
+          "description": "Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.",
+          "items": {
+            "$ref": "#/$defs/ExtraCall"
+          },
+          "maxItems": 200,
+          "title": "Calls",
+          "type": "array"
+        },
+        "paper": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).",
+          "title": "Paper"
         }
       },
       "required": [
@@ -1433,7 +1534,8 @@
     "ServiceKind": {
       "enum": [
         "duty",
-        "train"
+        "train",
+        "paper"
       ],
       "title": "ServiceKind",
       "type": "string"
@@ -1717,6 +1819,341 @@
         }
       },
       "title": "DriverSettings",
+      "type": "object"
+    },
+    "PaperEnd": {
+      "additionalProperties": true,
+      "description": "Där tjänsten startar eller slutar, som det står på papprets framsida.",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tom när den inte gick att läsa.",
+          "title": "Time"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen i träffen; tom när namnet inte finns där.",
+          "title": "Place"
+        },
+        "place_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Platsen som den står på pappret.",
+          "title": "Place Name"
+        },
+        "unreadable": {
+          "default": false,
+          "description": "Något stod där men gick inte att läsa.",
+          "title": "Unreadable",
+          "type": "boolean"
+        }
+      },
+      "title": "PaperEnd",
+      "type": "object"
+    },
+    "PaperPayer": {
+      "description": "Vem som stod för AI-läsningen (LOK-33).",
+      "enum": [
+        "meet",
+        "driver",
+        "hub"
+      ],
+      "title": "PaperPayer",
+      "type": "string"
+    },
+    "PaperReading": {
+      "additionalProperties": true,
+      "description": "Det AI:n läste på förarens foton av köruppdraget (LOK-29): numret, starten, slutet och\nbolaget som de står på framsidan, tåget och tidtabellen.",
+      "properties": {
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tjänstens nummer på pappret.",
+          "title": "Number"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tågnumret på pappret.",
+          "title": "Train Number"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "start": {
+          "$ref": "#/$defs/PaperEnd"
+        },
+        "end": {
+          "$ref": "#/$defs/PaperEnd"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/PaperRow"
+          },
+          "maxItems": 200,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "title": "PaperReading",
+      "type": "object"
+    },
+    "PaperRow": {
+      "additionalProperties": true,
+      "description": "En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick\natt läsa är tom och raden märkt, aldrig gissad (LOK-29).",
+      "properties": {
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen i träffen; tom när namnet inte finns där.",
+          "title": "Place"
+        },
+        "place_name": {
+          "description": "Platsen som den står på pappret.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "stops": {
+          "default": true,
+          "description": "Falskt när det står Ej uppehåll.",
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "unreadable": {
+          "default": false,
+          "description": "En tid stod på raden men gick inte att läsa.",
+          "title": "Unreadable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "place_name"
+      ],
+      "title": "PaperRow",
+      "type": "object"
+    },
+    "PaperCreated": {
+      "additionalProperties": true,
+      "description": "Föraren kör efter pappret (LOK-29): tjänsten saknas i planen, och fotona är lästa. Föraren\nhar tjänsten från nu; trafikledningen får veta och godkänner eller avslår (LOK-13).",
+      "properties": {
+        "paper": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Paper",
+          "type": "string"
+        },
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "reading": {
+          "$ref": "#/$defs/PaperReading"
+        },
+        "pages": {
+          "description": "Sidorna föraren fotade.",
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Pages",
+          "type": "integer"
+        },
+        "paid_by": {
+          "$ref": "#/$defs/PaperPayer"
+        },
+        "cost": {
+          "description": "Tokens som drogs för läsningen.",
+          "minimum": 0,
+          "title": "Cost",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "paper",
+        "driver",
+        "reading",
+        "pages",
+        "paid_by",
+        "cost"
+      ],
+      "title": "PaperCreated",
+      "type": "object"
+    },
+    "PaperApproved": {
+      "additionalProperties": true,
+      "description": "Trafikledningen har godkänt tjänsten (LOK-13): den är nu extratåget i händelsen, och\ntågklarerarna ser det, märkt Efter pappret.",
+      "properties": {
+        "paper": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Paper",
+          "type": "string"
+        },
+        "change_id": {
+          "description": "Driftändringen som satte in tåget.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Change Id",
+          "type": "string"
+        },
+        "train": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Train",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paper",
+        "change_id",
+        "train",
+        "train_number"
+      ],
+      "title": "PaperApproved",
+      "type": "object"
+    },
+    "PaperRejected": {
+      "additionalProperties": true,
+      "description": "Trafikledningen har avslagit tjänsten. Föraren får skälet.",
+      "properties": {
+        "paper": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Paper",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paper",
+        "reason"
+      ],
+      "title": "PaperRejected",
       "type": "object"
     }
   },
@@ -2477,6 +2914,51 @@
     {
       "properties": {
         "kind": {
+          "const": "paper.created",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PaperCreated"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "paper.approved",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PaperApproved"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "paper.rejected",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PaperRejected"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "not": {
             "enum": [
               "meet.started",
@@ -2520,7 +3002,10 @@
               "driver.checked_in",
               "driver.message",
               "driver.arrived",
-              "driver.settings"
+              "driver.settings",
+              "paper.created",
+              "paper.approved",
+              "paper.rejected"
             ]
           }
         }

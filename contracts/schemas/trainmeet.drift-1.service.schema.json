@@ -6,7 +6,8 @@
     "ServiceKind": {
       "enum": [
         "duty",
-        "train"
+        "train",
+        "paper"
       ],
       "title": "ServiceKind",
       "type": "string"

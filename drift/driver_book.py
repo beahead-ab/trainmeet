@@ -1,6 +1,6 @@
 """What Drift keeps of the drivers (LOK-07): who has which service, the alarms for trains left
-without a driver on the line, the check-ins, the messages, Framme, the game's settings and when
-a train or call last changed during the game.
+without a driver on the line, the check-ins, the messages, Framme, the game's settings, when
+a train or call last changed during the game, and the services run after the paper (LOK-13).
 
 Everything here is added up from the Drift events, like the rest of Drift's state, so a restart
 reads the same back. The drivers themselves (name, level, key) are kept beside the events, in
@@ -25,6 +25,9 @@ DRIVER_EVENTS: Final = frozenset(
         events.EventKind.DRIVER_MESSAGE,
         events.EventKind.DRIVER_ARRIVED,
         events.EventKind.DRIVER_SETTINGS,
+        events.EventKind.PAPER_CREATED,
+        events.EventKind.PAPER_APPROVED,
+        events.EventKind.PAPER_REJECTED,
     }
 )
 # The messages kept for Nu, the log of Förare and the stations: the latest ones.
@@ -33,6 +36,11 @@ MESSAGES_KEPT: Final = 200
 
 def key_of(service: events.ServiceRef) -> str:
     return f"{service.kind.value}:{service.id}"
+
+
+def paper_ref(paper: str) -> events.ServiceRef:
+    """The service a paper is (LOK-13)."""
+    return events.ServiceRef(kind=events.ServiceKind.PAPER, id=paper)
 
 
 @dataclass(frozen=True)
@@ -90,6 +98,26 @@ class Message:
 
 
 @dataclass
+class Paper:
+    """A service run after the paper (LOK-13, LOK-29): what was read, who pays, and where it
+    stands. Approved, it is the extra train Drift added for it."""
+
+    id: str
+    driver: str
+    reading: events.PaperReading
+    pages: int
+    paid_by: events.PaperPayer
+    cost: int
+    seq: int
+    at: Moment
+    status: events.PaperStatus = events.PaperStatus.WAITING
+    reason: str | None = None
+    train: str | None = None
+    train_number: str | None = None
+    change_id: str | None = None
+
+
+@dataclass
 class DriverBook:
     settings: events.DriverSettings = field(default_factory=events.DriverSettings)
     # Service key -> who has it, and driver -> the key of their service (LOK-40).
@@ -106,6 +134,17 @@ class DriverBook:
     messages: list[Message] = field(default_factory=list)
     # A train (driftändring) or a call (spårbyte) changed during the game: when (LOK-24).
     changed: dict[str, Moment] = field(default_factory=dict)
+    # The services run after the paper, by their id (LOK-13).
+    papers: dict[str, Paper] = field(default_factory=dict)
+
+    @property
+    def paper_trains(self) -> set[str]:
+        """The trains approved from the paper: marked Efter pappret wherever they show."""
+        return {
+            paper.train
+            for paper in self.papers.values()
+            if paper.train is not None and paper.status == events.PaperStatus.APPROVED
+        }
 
     def mark(self, ref: str | None, at: Moment) -> None:
         if ref:
@@ -129,6 +168,14 @@ class DriverBook:
                 released = events.ServiceReleased.model_validate(event.data)
                 key = key_of(released.service)
                 self._free(key)
+                withdrawn = self.papers.get(released.service.id)
+                if (
+                    released.service.kind == events.ServiceKind.PAPER
+                    and withdrawn is not None
+                    and withdrawn.status == events.PaperStatus.WAITING
+                ):
+                    # Released before Trafikledningen decided: it is gone (LF16).
+                    withdrawn.status = events.PaperStatus.WITHDRAWN
                 if released.done:
                     self.done.add(key)
                 if released.on_line:
@@ -169,6 +216,36 @@ class DriverBook:
                 arrived = events.DriverArrived.model_validate(event.data)
                 assert event.call is not None
                 self.framme.setdefault(key_of(arrived.service), set()).add(event.call)
+            case events.EventKind.PAPER_CREATED:
+                created = events.PaperCreated.model_validate(event.data)
+                self.papers[created.paper] = Paper(
+                    created.paper,
+                    created.driver,
+                    created.reading,
+                    created.pages,
+                    created.paid_by,
+                    created.cost,
+                    event.seq,
+                    at,
+                )
+                # The driver runs it from now: their one service (LOK-40).
+                ref = paper_ref(created.paper)
+                self._drop(created.driver)
+                self.holders[key_of(ref)] = Holding(created.driver, ref, "driver", event.seq)
+                self.by_driver[created.driver] = key_of(ref)
+            case events.EventKind.PAPER_APPROVED:
+                approved = events.PaperApproved.model_validate(event.data)
+                paper = self.papers[approved.paper]
+                paper.status = events.PaperStatus.APPROVED
+                paper.train, paper.train_number = approved.train, approved.train_number
+                paper.change_id = approved.change_id
+            case events.EventKind.PAPER_REJECTED:
+                rejected = events.PaperRejected.model_validate(event.data)
+                paper = self.papers[rejected.paper]
+                paper.status = events.PaperStatus.REJECTED
+                paper.reason = rejected.reason
+                # The driver no longer runs it, and is told why.
+                self._free(key_of(paper_ref(rejected.paper)))
 
     def _free(self, key: str) -> None:
         """Nobody has the service any more."""
@@ -185,3 +262,17 @@ class DriverBook:
     def service_of(self, driver: str) -> Holding | None:
         key = self.by_driver.get(driver)
         return None if key is None else self.holders.get(key)
+
+    def paper_of(self, driver: str) -> Paper | None:
+        """The driver's paper to show them: the one they run, or else the latest rejected one,
+        with the reason, while they have no other service (LOK-13)."""
+        held = self.service_of(driver)
+        if held is not None:
+            return (
+                self.papers.get(held.service.id)
+                if held.service.kind == events.ServiceKind.PAPER
+                else None
+            )
+        mine = [p for p in self.papers.values() if p.driver == driver]
+        latest = max(mine, key=lambda p: p.seq, default=None)
+        return latest if latest and latest.status == events.PaperStatus.REJECTED else None

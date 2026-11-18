@@ -775,3 +775,37 @@ tr.skiljer td {
   font-weight: 700;
   letter-spacing: 0.15em;
 }
+
+/* Efter pappret (LOK-13): the mark wherever a service or train run after the paper shows, and
+   the paper waiting for Trafikledningen's yes or no. */
+.markt {
+  color: var(--gul);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+#efter-pappret .papper {
+  border-top: 1px solid var(--linje, rgba(255, 255, 255, 0.12));
+  padding: 0.75rem 0;
+}
+#efter-pappret .papper.waiting {
+  border-left: 3px solid var(--gul);
+  padding-left: 0.75rem;
+}
+#efter-pappret .framsida {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  margin: 0.5rem 0;
+}
+#efter-pappret .framsida dd {
+  margin: 0;
+}
+#efter-pappret .beslut {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}

@@ -31,7 +31,9 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
 The drivers' API, under /api/drift/1/drivers, is described in contracts/driver.py
 (trainmeet.driver/1). What a driver does is a Drift event here: service.claimed,
 service.released, driver.checked_in, driver.message, driver.arrived and the game's
-driver.settings (LOK-07).
+driver.settings (LOK-07). A service run after the paper (efter pappret, LOK-13, LOK-29) is
+paper.created when the driver's photos are read, and paper.approved or paper.rejected when
+Trafikledningen has decided; approved, it is an extra train with the paper's calls.
 
 Still to come, each in the step that builds it: takeover (steps 4–5), screen data for
 Banöversikt and Tågdiagram.
@@ -154,9 +156,23 @@ class CancelTrain(Contract):
     train: Id
 
 
+class ExtraCall(Contract):
+    """Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte
+    gick att läsa är tom."""
+
+    place: Id
+    arrival: TimeOfDay | None = None
+    departure: TimeOfDay | None = None
+    track: Text | None = None
+    stops: bool = True
+    note: Text | None = None
+
+
 class ExtraTrain(Contract):
     """Extratåg (H12): a copy of a train with a new number and time, or from–to with a
-    departure time, where Drift fills in the places between."""
+    departure time, where Drift fills in the places between. A service run after the paper
+    becomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the
+    paper it came from, which marks it Efter pappret wherever it shows."""
 
     kind: Literal["extra"] = "extra"
     number: Text
@@ -167,9 +183,25 @@ class ExtraTrain(Contract):
     days: list[Weekday] | None = Field(
         default=None, description="Trafikdagarna; tomt betyder kopians dagar, eller alla."
     )
+    calls: list[ExtraCall] = Field(
+        default_factory=list,
+        max_length=200,
+        description="Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). "
+        "Drift fyller då inte i något; departure är den första tiden.",
+    )
+    paper: Id | None = Field(
+        default=None,
+        description="Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> ExtraTrain:
+        if self.calls:
+            if self.copy_of is not None or self.from_place is not None or self.to_place:
+                raise ValueError("Ett tåg efter pappret har sina egna tågbesök.")
+            if len(self.calls) < 2:
+                raise ValueError("Ett tåg behöver minst två tågbesök.")
+            return self
         if (self.copy_of is None) == (self.from_place is None or self.to_place is None):
             raise ValueError("Ange tåget att kopiera, eller från och till.")
         if self.from_place is not None and self.from_place == self.to_place:
@@ -453,6 +485,11 @@ class EventKind(StrEnum):
     DRIVER_MESSAGE = "driver.message"
     DRIVER_ARRIVED = "driver.arrived"  # Framme
     DRIVER_SETTINGS = "driver.settings"
+    # Efter pappret (LOK-13, LOK-29): the driver's photos read as a service missing from the
+    # plan, and Trafikledningen's yes or no. Until yes, no station sees it.
+    PAPER_CREATED = "paper.created"
+    PAPER_APPROVED = "paper.approved"
+    PAPER_REJECTED = "paper.rejected"
 
 
 class ActorKind(StrEnum):
@@ -648,6 +685,7 @@ class LineAcknowledged(Contract):
 class ServiceKind(StrEnum):
     DUTY = "duty"  # köruppdrag ur paketet
     TRAIN = "train"  # ett tåg, på en träff utan köruppdrag (LOK-17, LOK-31)
+    PAPER = "paper"  # efter pappret: tjänsten saknas i planen (LOK-13, LOK-29)
 
 
 class ServiceRef(Contract):
@@ -733,6 +771,96 @@ class DriverSettings(Contract):
         default=False,
         description="Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
     )
+
+
+# --- Efter pappret (LOK-13, LOK-29, LF16, LF22) ------------------------------------------------
+
+
+class PaperStatus(StrEnum):
+    """Var en tjänst efter pappret står."""
+
+    WAITING = "waiting"  # väntar på trafikledningen; ingen station ser den
+    APPROVED = "approved"  # godkänd: ett tåg i Drift, märkt Efter pappret
+    REJECTED = "rejected"  # avslagen, med skälet till föraren
+    WITHDRAWN = "withdrawn"  # släppt innan beslutet, till exempel för en tjänst i planen
+
+
+class PaperPayer(StrEnum):
+    """Vem som stod för AI-läsningen (LOK-33)."""
+
+    MEET = "meet"  # träffens tokens: klubbens, annars personens som valde det i Förarna
+    DRIVER = "driver"  # förarens egna, inloggad med TrainMeet ID
+    HUB = "hub"  # hubbens egen AI, utan tokens
+
+
+class PaperEnd(Contract):
+    """Där tjänsten startar eller slutar, som det står på papprets framsida."""
+
+    time: TimeOfDay | None = Field(default=None, description="Tom när den inte gick att läsa.")
+    place: Id | None = Field(
+        default=None, description="Driftplatsen i träffen; tom när namnet inte finns där."
+    )
+    place_name: Text | None = Field(default=None, description="Platsen som den står på pappret.")
+    unreadable: bool = Field(default=False, description="Något stod där men gick inte att läsa.")
+
+
+class PaperRow(Contract):
+    """En rad i papprets tidtabell, som AI:n läste den. AI föreslår bara: en tid som inte gick
+    att läsa är tom och raden märkt, aldrig gissad (LOK-29)."""
+
+    place: Id | None = Field(
+        default=None, description="Driftplatsen i träffen; tom när namnet inte finns där."
+    )
+    place_name: Text = Field(description="Platsen som den står på pappret.")
+    arrival: TimeOfDay | None = None
+    departure: TimeOfDay | None = None
+    track: Text | None = None
+    stops: bool = Field(default=True, description="Falskt när det står Ej uppehåll.")
+    note: Text | None = None
+    unreadable: bool = Field(
+        default=False, description="En tid stod på raden men gick inte att läsa."
+    )
+
+
+class PaperReading(Contract):
+    """Det AI:n läste på förarens foton av köruppdraget (LOK-29): numret, starten, slutet och
+    bolaget som de står på framsidan, tåget och tidtabellen."""
+
+    number: Text | None = Field(default=None, description="Tjänstens nummer på pappret.")
+    train_number: Text | None = Field(default=None, description="Tågnumret på pappret.")
+    operator: Text | None = None
+    start: PaperEnd = Field(default_factory=PaperEnd)
+    end: PaperEnd = Field(default_factory=PaperEnd)
+    rows: list[PaperRow] = Field(default_factory=list, max_length=200)
+
+
+class PaperCreated(Contract):
+    """Föraren kör efter pappret (LOK-29): tjänsten saknas i planen, och fotona är lästa. Föraren
+    har tjänsten från nu; trafikledningen får veta och godkänner eller avslår (LOK-13)."""
+
+    paper: Id
+    driver: Id
+    reading: PaperReading
+    pages: int = Field(ge=1, le=4, description="Sidorna föraren fotade.")
+    paid_by: PaperPayer
+    cost: int = Field(ge=0, description="Tokens som drogs för läsningen.")
+
+
+class PaperApproved(Contract):
+    """Trafikledningen har godkänt tjänsten (LOK-13): den är nu extratåget i händelsen, och
+    tågklarerarna ser det, märkt Efter pappret."""
+
+    paper: Id
+    change_id: Id = Field(description="Driftändringen som satte in tåget.")
+    train: Id
+    train_number: Text
+
+
+class PaperRejected(Contract):
+    """Trafikledningen har avslagit tjänsten. Föraren får skälet."""
+
+    paper: Id
+    reason: Text = Field(max_length=200)
 
 
 # --- Automatiken (F14, F15, H41, H42; gamla Servers automatic.py) ---------------------------
@@ -882,6 +1010,9 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.DRIVER_MESSAGE: DriverMessageSent,
     EventKind.DRIVER_ARRIVED: DriverArrived,
     EventKind.DRIVER_SETTINGS: DriverSettings,
+    EventKind.PAPER_CREATED: PaperCreated,
+    EventKind.PAPER_APPROVED: PaperApproved,
+    EventKind.PAPER_REJECTED: PaperRejected,
 }
 
 
@@ -958,6 +1089,9 @@ class LegNow(Contract):
     state: LegState
     clearance_id: Id | None = None
     track: Text | None = Field(default=None, description="Ankomstspåret, planerat eller faktiskt.")
+    paper: bool = Field(
+        default=False, description="Efter pappret: tåget finns inte i planen (LOK-13)."
+    )
 
 
 class LastJump(Contract):

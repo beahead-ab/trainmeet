@@ -21,6 +21,9 @@ export type DoubleTrackAnswer = Schemas["trainmeet.planning-1.double-track-answe
 export type LinkCode = Schemas["trainmeet.sync-1.link-code"];
 export type Follower = Schemas["trainmeet.sync-1.follower"];
 export type Home = Schemas["trainmeet.sync-1.home"];
+/** Förarna (PLAN-40, LOK-33): who pays when a driver's photos of a missing duty are read. */
+export type PaperReadingSettings = Schemas["trainmeet.driver-1.paper-reading"];
+export type PaperReadingPayer = PaperReadingSettings["payer"];
 export type DoubleTrackQuestion = NonNullable<Check["double_track"]>[number];
 export type Deviation = NonNullable<Check["deviations"]>[number];
 
@@ -49,6 +52,9 @@ export const planning = {
   home: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home`),
   reclaim: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home/reclaim`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
+  /** Förarna (LOK-33): the meet's tokens or the driver's own, for reading a missing duty. */
+  paperReading: (id: string) => call<PaperReadingSettings>(`${meet(id)}/paper-reading`),
+  choosePaperReading: (id: string, payer: PaperReadingPayer) => call<PaperReadingSettings>(`${meet(id)}/paper-reading`, { payer }),
   /** Förarna (PLAN-40): the general instructions as PDF, its bytes in the body. */
   instructionsPdf: async (id: string, file: File): Promise<Draft> => {
     const response = await fetch(`${meet(id)}/instructions.pdf?name=${encodeURIComponent(file.name)}`, {

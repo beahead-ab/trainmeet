@@ -150,7 +150,7 @@ describe("the sheets: the four messages and releasing on the line (LOK-23, LOK-2
   it("says that on the line the train stands and the dispatcher gets an alarm at once", () => {
     const onLine = korplan({
       settings: { reality: true, clearances: false, arrival: false },
-      position: { train: "t101", train_number: "101", state: "on_the_way", from_place: "nby", to_place: "asn", section: "s-nby-asn", place: null, delay: 0 },
+      position: { train: "t101", train_number: "101", state: "on_the_way", from_place: "nby", to_place: "asn", section: "s-nby-asn", place: null, delay: 0, paper: false },
     });
     const { html } = draw({ me: me(), korplan: onLine, route: "korplan", sheet: "release" });
     expect(html).toContain("Släpp tjänst 1");

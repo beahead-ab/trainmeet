@@ -311,7 +311,8 @@ def create_app(
     app.state.tellurian = shadowing = tellurian_shadow.Shadow(running, login, tellurian_client)
     app.include_router(drift_api.router(running, login, may, clock, shadowing))
     # Förarnas API (trainmeet.driver/1): Lokföraren, and Förare in Drift (LOK-08, TRAFIK-33).
-    app.include_router(driver_api.router(running, login, may))
+    # A driver's paper is read with the meter in ID where the hub has it (LOK-33).
+    app.include_router(driver_api.router(running, login, may, tokens))
     app.include_router(clock_source.router(clock, login, may))
     app.include_router(tellurian_shadow.router(shadowing, login, may))
     app.include_router(

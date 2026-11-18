@@ -100,10 +100,10 @@ export function buildChange(draft: Draft): DriftChange | string {
       if (!draft.number.trim()) return "Skriv tågnumret.";
       if (!TIME.test(draft.departure)) return "Skriv avgångstiden som TT:MM.";
       const days = draft.days.length ? draft.days : null;
-      if (draft.copy) return draft.copyOf ? { kind: "extra", number: draft.number.trim(), departure: draft.departure, copy_of: draft.copyOf, from_place: null, to_place: null, days } : "Välj tåget att kopiera.";
+      if (draft.copy) return draft.copyOf ? { kind: "extra", number: draft.number.trim(), departure: draft.departure, copy_of: draft.copyOf, from_place: null, to_place: null, days, calls: [], paper: null } : "Välj tåget att kopiera.";
       if (!draft.from || !draft.to) return "Välj från och till.";
       if (draft.from === draft.to) return "Från och till är samma driftplats.";
-      return { kind: "extra", number: draft.number.trim(), departure: draft.departure, copy_of: null, from_place: draft.from, to_place: draft.to, days };
+      return { kind: "extra", number: draft.number.trim(), departure: draft.departure, copy_of: null, from_place: draft.from, to_place: draft.to, days, calls: [], paper: null };
     }
     case "times": {
       const minutes = Number(draft.minutes);

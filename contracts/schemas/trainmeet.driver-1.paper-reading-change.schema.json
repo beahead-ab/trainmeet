@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper-reading-change.schema.json",
+  "title": "trainmeet.driver-1.paper-reading-change",
+  "additionalProperties": true,
+  "description": "Träffens tokens eller förarens egna. Träffens tokens väljs inloggad med TrainMeet ID:\ndå betalar klubben för en träff i ID, annars den som valde (TK16).",
+  "properties": {
+    "payer": {
+      "enum": [
+        "meet",
+        "driver"
+      ],
+      "title": "Payer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "payer"
+  ],
+  "type": "object"
+}

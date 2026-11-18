@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper-approve.schema.json",
+  "title": "trainmeet.driver-1.paper-approve",
+  "additionalProperties": true,
+  "description": "Godkänn tjänsten efter pappret (LOK-13): den blir ett extratåg i Drift med papprets\ntågbesök, och tågklarerarna ser det märkt Efter pappret.",
+  "properties": {
+    "train_number": {
+      "anyOf": [
+        {
+          "maxLength": 20,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tågnumret hos tågklarerarna; tomt betyder det som står på pappret.",
+      "title": "Train Number"
+    }
+  },
+  "type": "object"
+}

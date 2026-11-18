@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.paper-reject.schema.json",
+  "title": "trainmeet.driver-1.paper-reject",
+  "additionalProperties": true,
+  "description": "Avslå tjänsten efter pappret: föraren får skälet.",
+  "properties": {
+    "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reason"
+  ],
+  "type": "object"
+}

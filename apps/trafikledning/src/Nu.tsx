@@ -388,7 +388,10 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
           <tbody id="legs">
             {legs.map((leg) => (
               <tr key={leg.leg} className={leg.state === "arrived" ? "klar" : undefined}>
-                <td className="tag">{leg.train_number}</td>
+                <td className="tag">
+                  {leg.train_number}
+                  {leg.paper && <span className="markt"> efter pappret</span>}
+                </td>
                 <td>{`${placeName(now, leg.from_place)} → ${placeName(now, leg.to_place)}`}</td>
                 <td>{leg.departure ?? "–"}</td>
                 <td>{leg.arrival ?? "–"}</td>

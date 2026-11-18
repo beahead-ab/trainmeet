@@ -1114,9 +1114,84 @@
       "title": "Exit",
       "type": "object"
     },
+    "ExtraCall": {
+      "additionalProperties": true,
+      "description": "Ett tågbesök i ett tåg efter pappret, som det står på pappret (LOK-13). En tid som inte\ngick att läsa är tom.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "arrival": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "stops": {
+          "default": true,
+          "title": "Stops",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "place"
+      ],
+      "title": "ExtraCall",
+      "type": "object"
+    },
     "ExtraTrain": {
       "additionalProperties": true,
-      "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between.",
+      "description": "Extratåg (H12): a copy of a train with a new number and time, or from–to with a\ndeparture time, where Drift fills in the places between. A service run after the paper\nbecomes one when Trafikledningen approves it (LOK-13): with the paper's own calls, and the\npaper it came from, which marks it Efter pappret wherever it shows.",
       "properties": {
         "kind": {
           "const": "extra",
@@ -1191,6 +1266,29 @@
           "default": null,
           "description": "Trafikdagarna; tomt betyder kopians dagar, eller alla.",
           "title": "Days"
+        },
+        "calls": {
+          "description": "Tågbesöken som de står på pappret, för ett tåg efter pappret (LOK-13). Drift fyller då inte i något; departure är den första tiden.",
+          "items": {
+            "$ref": "#/$defs/ExtraCall"
+          },
+          "maxItems": 200,
+          "title": "Calls",
+          "type": "array"
+        },
+        "paper": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tjänsten efter pappret som tåget kommer från: märkt Efter pappret (LOK-13).",
+          "title": "Paper"
         }
       },
       "required": [
