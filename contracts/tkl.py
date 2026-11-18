@@ -14,20 +14,27 @@ with the station, versioned with the outside, which is then derived from it (STD
 The web app draws the station as a panel: the layout engine's proposal on the grid, or the
 panel built from the station's own track plan (STD-09, STD-25). The four reference stations
 can be looked at and used as one's own.
+
+Ställverket at level 1–2 (#84): TKL's server holds the interlocking's state of the moment, set
+routes, locks, switch positions, signal aspects and the train numbers (STV-08), under
+/api/tkl/1/stallverk. Every operation answers yes, or no with the reason in Swedish; the
+interlocking's functions are the one place where safety is checked (STV-43, STV-44). The
+clearance, the timetable and the train number on the line stay Hubben's (STV-09).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
-from pydantic import Field
+from pydantic import Field, StringConstraints, model_validator
 
 from contracts.common import Contract, Id, Text
 from contracts.station import (
     Action,
     ApprovalStatus,
+    ExitSignalAspect,
     MeetContext,
     MessageId,
     Revision,
@@ -41,6 +48,7 @@ from contracts.station_model import (
     Point,
     Position,
     SignalType,
+    SwitchControl,
     SwitchType,
 )
 from contracts.station_outside import StationOutside
@@ -385,3 +393,300 @@ class TklReference(Contract):
     name: Text
     level: int = Field(ge=1, le=3)
     plan: bool
+
+
+# --- Ställverket at level 1–2 (#84): the interlocking's state and its operations -----------
+
+TrainNumber = Annotated[str, StringConstraints(pattern=r"^[0-9A-Za-z]{1,8}$")]
+"""A train number in the interlocking: digits and letters, as Drift writes it (41, 9103)."""
+
+
+class TklAspect(StrEnum):
+    """What a signal shows. A combined signal shows SHUNT with the dwarf part (STV-24)."""
+
+    STOP = "stop"  # stopp
+    PROCEED = "proceed"  # kör, för en tågväg
+    SHUNT = "shunt"  # växling, för en växlingsväg
+
+
+class TklSectionPart(Contract):
+    """A section of a set route, in the order the route runs through it: a track circuit, or
+    where the model has none, the pieces between two switches, signals or ends (spårdel). It
+    is released behind the train, one at a time (STV-29)."""
+
+    section: Name
+    pieces: list[Name] = Field(description="Vägens spårbitar i delen, i färdriktningen.")
+    released: bool = False
+
+
+class TklSetRoute(Contract):
+    """Lagd väg: a train route or shunting route the interlocking has set and locked."""
+
+    id: int = Field(ge=1)
+    kind: RouteKind
+    start: Name
+    end: Name
+    chain: int | None = Field(
+        default=None,
+        description="Den sammansatta vägens första del, när vägen är en del av en (TKL53).",
+    )
+    sections: list[TklSectionPart] = Field(min_length=1)
+    positions: dict[Name, Position] = Field(
+        description="Växlarna vägen lägger: sina egna, de kopplade och de som dras med (TKL104)."
+    )
+    locked: dict[Name, Position] = Field(
+        default_factory=dict, description="Växlarna vägen fortfarande låser."
+    )
+    protection: list[Name] = Field(
+        default_factory=list,
+        description="Växlar vägen låser utan att gå över dem, som spakens andra halva "
+        "(skyddsväxlar, STV-20).",
+    )
+    crossings: list[Name] = Field(
+        default_factory=list, description="Korsningar och korsningsväxlar vägen håller."
+    )
+    turntable: Name | None = Field(
+        default=None, description="Vändskivans spår som bryggan står mot, medan vägen håller."
+    )
+    train: int | None = Field(default=None, description="Tåget som tar vägen, när det är känt.")
+    at: int = Field(
+        default=-1,
+        ge=-1,
+        description="Delen där tågets front är: -1 innan tåget har passerat starten.",
+    )
+    aspect: TklAspect = Field(description="Vad startsignalen visar för vägen just nu.")
+    passed: list[Name] = Field(
+        default_factory=list,
+        description="Signaler i färdriktningen som visar vägens besked tills tåget har "
+        "passerat dem (STV-19).",
+    )
+    leaves: Name | None = Field(
+        default=None, description="Linjeutfarten vägen leder ut till: förbi målet är linjen."
+    )
+    enters: Name | None = Field(default=None, description="Linjeutfarten vägen kommer in från.")
+    set_at: datetime
+
+
+class TklTrain(Contract):
+    """Ett tåg i ställverket: its number, if any, and where its front is. Without detection
+    (level 1–2) the number follows the buttons (STV-15). On a section, or on the line outside
+    an exit, on its way in."""
+
+    id: int = Field(ge=1)
+    number: TrainNumber | None = Field(default=None, description="Utan nummer: en växling.")
+    call: Id | None = Field(default=None, description="Tågbesöket i hubbens bild, när det är känt.")
+    section: Name | None = None
+    exit: Name | None = Field(default=None, description="På linjen utanför linjeutfarten.")
+
+    @model_validator(mode="after")
+    def _one_place(self) -> TklTrain:
+        if (self.section is None) == (self.exit is None):
+            raise ValueError("Ett tåg står på ett spår eller på linjen vid en utfart.")
+        return self
+
+
+class TklSwitchShown(Contract):
+    """A switch part as the panel shows it."""
+
+    position: Position | None = Field(description="Okänt för en växel TKL inte lägger.")
+    control: SwitchControl = SwitchControl.TKL
+    routes: list[int] = Field(default_factory=list, description="Vägarna som låser växeln.")
+    protection: bool = Field(
+        default=False,
+        description="Låst av en väg som inte går över den: kort gult vid knuten (STV-20).",
+    )
+
+
+class TklSignalShown(Contract):
+    aspect: TklAspect = TklAspect.STOP
+    end: bool = Field(default=False, description="Slutpunkt för en lagd väg: röd i 85 och 95.")
+
+
+class TklPieceState(StrEnum):
+    TRAIN = "train"  # låst i en tågväg: grönt
+    SHUNTING = "shunting"  # låst i en växlingsväg: gult
+    OCCUPIED = "occupied"  # tåget står här: rött, före vägens färg
+
+
+class TklPieceShown(Contract):
+    state: TklPieceState
+    route: int | None = None
+
+
+class TklNumberColour(StrEnum):
+    RED = "red"  # där tåget är
+    GREEN = "green"  # framför tåget, där tågvägen är lagd för det (STV-21)
+
+
+class TklNumber(Contract):
+    """Var ett tågnummer står (STV-06, STV-21): the section or the exit, its pieces, and the
+    station track when the section is on one, where the track's name is hidden (STV-57)."""
+
+    number: TrainNumber | None = None
+    train: int = Field(ge=1)
+    colour: TklNumberColour
+    section: Name | None = None
+    exit: Name | None = None
+    pieces: list[Name] = Field(default_factory=list)
+    track: Name | None = Field(default=None, description="Stationsspåret, med modellens namn.")
+    route: int | None = None
+    estimated: bool = Field(
+        default=True,
+        description="Numret följer knapparna, inte detekteringen: en uppskattad position.",
+    )
+
+
+class TklExitShown(Contract):
+    """A line exit: the line's pieces outside the entry signal, which belong to the line and
+    never turn green with a route (STV-54), and what goes up to Hubben as signal.exit."""
+
+    exit: Name
+    outside: Id = Field(description="Utfartens id i utsidan.")
+    pieces: list[Name] = Field(default_factory=list)
+    aspect: ExitSignalAspect = ExitSignalAspect.STOP
+
+
+class TklHappening(Contract):
+    at: datetime
+    text: Text
+
+
+class TklInterlocking(Contract):
+    """Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
+    so that a restart keeps it. Never the model, the clearance or the timetable (STV-09)."""
+
+    station_id: Id
+    level: int = Field(ge=1, le=3)
+    model: str = Field(description="Stationsmodellens fingeravtryck: läget gäller den.")
+    revision: int = Field(ge=0, description="Räknar upp vid varje ändring; väntan följer den.")
+    problem: Text | None = Field(
+        default=None,
+        description="Läget gäller inte stationsmodellen: allt utom nollställning nekas.",
+    )
+    switches: dict[Name, TklSwitchShown] = Field(default_factory=dict)
+    levers: dict[Name, Position | None] = Field(
+        default_factory=dict, description="Spakarnas lägen; inget när spakens växlar ligger i kors."
+    )
+    turntables: dict[Name, Name | None] = Field(
+        default_factory=dict, description="Spåret vändskivans brygga står mot."
+    )
+    routes: list[TklSetRoute] = Field(default_factory=list)
+    trains: list[TklTrain] = Field(default_factory=list)
+    signals: dict[Name, TklSignalShown] = Field(default_factory=dict)
+    pieces: dict[Name, TklPieceShown] = Field(
+        default_factory=dict, description="Spårbitar som inte är lediga."
+    )
+    numbers: list[TklNumber] = Field(default_factory=list)
+    exits: list[TklExitShown] = Field(default_factory=list)
+    events: list[TklHappening] = Field(default_factory=list, description="Senaste först.")
+    last_id: int = Field(default=0, ge=0, description="Det senaste id:t för en väg eller ett tåg.")
+
+
+class TklRouteAsk(Contract):
+    """Lägg en väg: start och mål (STV-01). The goal may be several signals away (TKL53).
+    Without a kind it is a train route where there is one, else a shunting route (STV-24)."""
+
+    start: Name
+    end: Name
+    kind: RouteKind | None = None
+
+
+class TklRouteRef(Contract):
+    route: int = Field(ge=1)
+
+
+class TklEmergencyRelease(Contract):
+    """Nödutlösning: releases the route even with a train in it, when confirmed. Logged."""
+
+    route: int = Field(ge=1)
+    confirm: bool = False
+
+
+class TklLeverAsk(Contract):
+    """Klicka på en växel: lägg hela spaken (STV-01, STV-52). Without a position it is laid
+    over to the other one."""
+
+    switch: Name
+    position: Position | None = None
+
+
+class TklTrainPut(Contract):
+    """Sätt ut ett tågnummer på ett spår eller på linjen vid en utfart. A train on its way here
+    is put by its call; TKL finds its exit in Hubben's snapshot (STV-10)."""
+
+    number: TrainNumber | None = None
+    call: Id | None = None
+    section: Name | None = None
+    exit: Name | None = None
+
+
+class TklTrainRef(Contract):
+    train: int = Field(ge=1)
+
+
+class TklReset(Contract):
+    """Nollställ ställverket: every route released, the switches where they are. With trains,
+    the train numbers go too. Confirmed and logged."""
+
+    confirm: bool = False
+    trains: bool = False
+
+
+class TklReportKind(StrEnum):
+    DEPARTED = "departed"  # avgång, train.departed
+    ARRIVED = "arrived"  # ankomst, train.arrived, eller spårbyte, train.track.change
+    EXIT_SIGNAL = "exit_signal"  # utfartssignalens besked, signal.exit
+
+
+class TklReport(Contract):
+    """Vad ställverket rapporterar upp till Hubben (STV-10), and how it went."""
+
+    kind: TklReportKind
+    train_number: TrainNumber | None = None
+    call: Id | None = None
+    exit: Id | None = Field(default=None, description="Utfartens id i utsidan.")
+    track: Id | None = Field(default=None, description="Stationsspårets id i utsidan.")
+    aspect: ExitSignalAspect | None = None
+    action: Action | None = Field(default=None, description="Kommandot som skickades.")
+    sent: bool = False
+    accepted: bool | None = None
+    message: Text | None = None
+
+
+class TklAnswer(Contract):
+    """Ja, eller nej med skälet: the interlocking's answer to every operation (STV-43)."""
+
+    accepted: bool
+    message: Text
+    route: int | None = Field(default=None, description="Den första vägen som lades.")
+    state: TklInterlocking
+    reports: list[TklReport] = Field(default_factory=list)
+
+
+class TklTarget(Contract):
+    """A goal from a start, for choosing and for showing the way before it is set."""
+
+    end: Name
+    kind: RouteKind
+    via: list[Name] = Field(default_factory=list, description="Signalerna emellan (TKL53).")
+    pieces: list[Name] = Field(default_factory=list)
+    possible: bool
+    reason: Text | None = None
+    route: int | None = Field(default=None, description="Vägen, när den redan är lagd.")
+
+
+class TklTargets(Contract):
+    start: Name
+    kinds: list[RouteKind] = Field(
+        default_factory=list,
+        description="Vägslagen från starten, tågväg först: ett klick till byter till "
+        "växlingsväg (STV-24).",
+    )
+    targets: list[TklTarget] = Field(default_factory=list)
+
+
+class TklWait(Contract):
+    """Svaret på väntan: ställverket har ändrats efter after, eller tiden gick ut."""
+
+    revision: int = Field(ge=0)
+    changed: bool

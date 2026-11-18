@@ -78,6 +78,17 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.saved": tkl.TklSaved,
     "trainmeet.tkl-1.track-plan": tkl.TklTrackPlan,
     "trainmeet.tkl-1.reference": tkl.TklReference,
+    "trainmeet.tkl-1.interlocking": tkl.TklInterlocking,
+    "trainmeet.tkl-1.interlocking-answer": tkl.TklAnswer,
+    "trainmeet.tkl-1.interlocking-wait": tkl.TklWait,
+    "trainmeet.tkl-1.interlocking-targets": tkl.TklTargets,
+    "trainmeet.tkl-1.route-ask": tkl.TklRouteAsk,
+    "trainmeet.tkl-1.route-ref": tkl.TklRouteRef,
+    "trainmeet.tkl-1.emergency-release": tkl.TklEmergencyRelease,
+    "trainmeet.tkl-1.lever-ask": tkl.TklLeverAsk,
+    "trainmeet.tkl-1.train-put": tkl.TklTrainPut,
+    "trainmeet.tkl-1.train-ref": tkl.TklTrainRef,
+    "trainmeet.tkl-1.reset": tkl.TklReset,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1834,6 +1845,7 @@ def tkl_openapi() -> str:
         *,
         many: bool = False,
         stream: bool = False,
+        query: dict[str, JsonSchemaValue] | None = None,
     ) -> None:
         responses: dict[str, JsonSchemaValue] = {"204": {"description": "No Content"}}
         if response is not None:
@@ -1855,6 +1867,9 @@ def tkl_openapi() -> str:
             for part in path.split("/")
             if part.startswith("{")
         ]
+        for name, schema in (query or {}).items():
+            required = "default" not in schema
+            params.append({"name": name, "in": "query", "required": required, "schema": schema})
         if params:
             entry["parameters"] = params
         paths.setdefault(path, {})[method] = entry
@@ -1885,6 +1900,29 @@ def tkl_openapi() -> str:
     route("get", a + "/referens", "tklReferences", t + "reference", many=True)
     route("get", a + "/referens/{station_id}", "tklReference", t + "track-plan")
     route("post", a + "/referens/{station_id}/use", "tklUseReference", t + "track-plan")
+    # Ställverket at level 1–2 (#84).
+    s = a + "/stallverk"
+    answer = t + "interlocking-answer"
+    route("get", s, "tklInterlocking", t + "interlocking")
+    wait_query: dict[str, JsonSchemaValue] = {
+        "after": {"type": "integer", "minimum": 0},
+        "seconds": {"type": "number", "minimum": 0, "maximum": 30, "default": 25},
+    }
+    route("get", s + "/wait", "tklInterlockingWait", t + "interlocking-wait", query=wait_query)
+    start_query: dict[str, JsonSchemaValue] = {
+        "start": {"type": "string", "minLength": 1, "maxLength": 80}
+    }
+    route("get", s + "/targets", "tklTargets", t + "interlocking-targets", query=start_query)
+    route("post", s + "/route", "tklSetRoute", answer, t + "route-ask")
+    route("post", s + "/release", "tklRelease", answer, t + "route-ref")
+    route("post", s + "/emergency-release", "tklEmergencyRelease", answer, t + "emergency-release")
+    route("post", s + "/lever", "tklLayLever", answer, t + "lever-ask")
+    route("post", s + "/step", "tklStep", answer, t + "route-ref")
+    route("post", s + "/arrive", "tklArrive", answer, t + "route-ref")
+    route("post", s + "/depart", "tklDepart", answer, t + "route-ref")
+    route("post", s + "/train", "tklPutTrain", answer, t + "train-put")
+    route("post", s + "/train/remove", "tklRemoveTrain", answer, t + "train-ref")
+    route("post", s + "/reset", "tklReset", answer, t + "reset")
     stems = [
         s
         for s in CONTRACTS

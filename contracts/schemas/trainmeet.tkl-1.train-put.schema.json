@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.train-put.schema.json",
+  "title": "trainmeet.tkl-1.train-put",
+  "additionalProperties": true,
+  "description": "Sätt ut ett tågnummer på ett spår eller på linjen vid en utfart. A train on its way here\nis put by its call; TKL finds its exit in Hubben's snapshot (STV-10).",
+  "properties": {
+    "number": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9A-Za-z]{1,8}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Number"
+    },
+    "call": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Call"
+    },
+    "section": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Section"
+    },
+    "exit": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exit"
+    }
+  },
+  "type": "object"
+}

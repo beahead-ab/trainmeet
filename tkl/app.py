@@ -22,6 +22,26 @@
     POST /api/tkl/1/places/{place}/exits  station.ExitAnswer -> TklView
     GET  /api/tkl/1/places/{place}/events the hub's hints, passed on (text/event-stream)
 
+Ställverket at level 1–2 (#84), for a station with a model; every answer is TklAnswer, yes or
+no with the reason, and the state:
+
+    GET  /api/tkl/1/stallverk                     TklInterlocking: the state, for the panel
+    GET  /api/tkl/1/stallverk/wait?after=&seconds= TklWait: a long poll for the next change
+    GET  /api/tkl/1/stallverk/targets?start=      TklTargets: the goals from a start
+    POST /api/tkl/1/stallverk/route               TklRouteAsk: lägg en väg (STV-01, STV-03)
+    POST /api/tkl/1/stallverk/release             TklRouteRef: lös ut
+    POST /api/tkl/1/stallverk/emergency-release   TklEmergencyRelease: nödutlös, bekräftat
+    POST /api/tkl/1/stallverk/lever               TklLeverAsk: lägg hela spaken (STV-52)
+    POST /api/tkl/1/stallverk/step                TklRouteRef: Kör, en sektion fram (STV-06)
+    POST /api/tkl/1/stallverk/arrive              TklRouteRef: Ankommit (STV-16)
+    POST /api/tkl/1/stallverk/depart              TklRouteRef: Avgått, ut på linjen
+    POST /api/tkl/1/stallverk/train               TklTrainPut: sätt ut ett tågnummer
+    POST /api/tkl/1/stallverk/train/remove        TklTrainRef: ta bort ett tågnummer
+    POST /api/tkl/1/stallverk/reset               TklReset: nollställ, bekräftat
+
+What the interlocking reports goes up to the hub as station commands when TKL is connected and
+approved for one place (tkl/hub_reports.py, STV-10).
+
 While the station has a model, Studio's list is its outside derived from the model (STD-08,
 TKL92): it is shown but not written, and a new version is made as before (TKL25).
 
@@ -32,6 +52,7 @@ reaches only the hubs it is set up for, never an address someone types (TKL5).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -45,7 +66,8 @@ from typing import Annotated, Any, NoReturn
 from urllib.parse import urlsplit
 
 import httpx
-from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Query, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import ValidationError
 
@@ -55,23 +77,36 @@ from contracts.station_model import StationModel, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
+    TklAnswer,
     TklCommand,
     TklConnect,
     TklConnection,
+    TklEmergencyRelease,
     TklIdState,
+    TklInterlocking,
+    TklLeverAsk,
     TklMode,
     TklPinChange,
+    TklReport,
+    TklReportKind,
+    TklReset,
+    TklRouteAsk,
+    TklRouteRef,
     TklSave,
     TklSaved,
     TklSetUp,
     TklState,
+    TklTrainPut,
+    TklTrainRef,
     TklUnlock,
     TklView,
+    TklWait,
 )
-from tkl import VERSION, id_login, track_plan
+from tkl import VERSION, hub_reports, id_login, track_plan
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
-from tkl.standard import problems
+from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
+from tkl.standard import RouteKind, problems
 from tkl.store import (
     LOCAL,
     SESSION_LIFETIME,
@@ -80,6 +115,7 @@ from tkl.store import (
     Connection,
     Full,
     HasModel,
+    InterlockingBusy,
     NotSetUp,
     TklStore,
     TooManyAttempts,
@@ -99,6 +135,16 @@ NOT_CONNECTED = "TKL är inte ansluten till en träff."
 NO_CONTACT = "Ingen kontakt med hubben."
 MODEL_LIMIT = 8 * 1024 * 1024
 """The largest model file TKL takes, in bytes."""
+NO_MODEL = (
+    "Stationen har ingen spårplan. Ställverket på nivå 1–2 behöver en stationsmodell "
+    "(Spårplan i Studio)."
+)
+BUSY = (
+    "Ställverket har lagda vägar eller tågnummer. Lös ut vägarna och ta bort tågnumren i "
+    "Ställverket, eller nollställ det med tågnumren, innan stationsmodellen byts."
+)
+WAIT_SECONDS = 25.0
+WAIT_STEP = 0.2
 
 
 def web_dir() -> Path:
@@ -304,7 +350,10 @@ def create_app(
         wrong = problems(model)
         if wrong:
             refuse_model("Stationsmodellen kan inte köras. Rätta den och importera igen.", wrong)
-        kept = store.save_model(found, model)
+        try:
+            kept = store.save_model(found, model)
+        except InterlockingBusy as error:
+            raise HTTPException(409, BUSY) from error
         return track_plan.view(kept).model_dump(mode="json")
 
     @routes.get("/studio/model")
@@ -352,7 +401,10 @@ def create_app(
         same_site(request)
         no_store(response)
         found = unlocked(slot, session)
-        store.forget_model(found)
+        try:
+            store.forget_model(found)
+        except InterlockingBusy as error:
+            raise HTTPException(409, BUSY) from error
         return store.studio(found).model_dump(mode="json")
 
     @routes.get("/referens")
@@ -796,6 +848,310 @@ def create_app(
             media_type="text/event-stream",
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )
+
+    # --- Ställverket at level 1–2 (#84) ---------------------------------------------------------
+
+    def interlocking_of(found: str) -> Interlocking:
+        model, revision, body = store.interlocking(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        return load(plant_of(model), revision, body)
+
+    def answered(outcome: Outcome, state: TklInterlocking, reports: list[TklReport]) -> Any:
+        return TklAnswer(
+            accepted=outcome.accepted,
+            message=outcome.message,
+            route=outcome.route,
+            state=state,
+            reports=reports,
+        ).model_dump(mode="json")
+
+    def operate(found: str, act: Callable[[Interlocking], Outcome]) -> Any:
+        """One operation in one transaction: kept when it changed the state. What it reports
+        goes up to the hub afterwards, and how that went is noted in the interlocking."""
+
+        def change(
+            model: StationModel | None, revision: int, body: str | None
+        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking]]:
+            if model is None:
+                raise HTTPException(404, NO_MODEL)
+            made = load(plant_of(model), revision, body)
+            outcome = act(made)
+            state = made.view()
+            return (state if made.revision != revision else None), (outcome, state)
+
+        outcome, state = store.change_interlocking(found, change)
+        if outcome.accepted and outcome.reports:
+            reports = report(found, list(outcome.reports))
+            noted = [hub_reports.said(r) for r in reports if r.kind != TklReportKind.EXIT_SIGNAL]
+            if noted:
+                state = note(found, noted) or state
+        else:
+            reports = list(outcome.reports)
+        if outcome.accepted and "Nödutlösning" in outcome.message:
+            LOGGER.warning("Ställverket: %s", outcome.message)
+        return answered(outcome, state, reports)
+
+    def note(found: str, lines: list[str]) -> TklInterlocking | None:
+        """How the reports went, in the interlocking's events, for every screen to see."""
+
+        def change(
+            model: StationModel | None, revision: int, body: str | None
+        ) -> tuple[TklInterlocking | None, TklInterlocking | None]:
+            if model is None:
+                return None, None
+            made = load(plant_of(model), revision, body)
+            if made.problem is not None:
+                return None, None
+            for line in lines:
+                made.note(line)
+            state = made.view()
+            return state, state
+
+        return store.change_interlocking(found, change)
+
+    def one_place(found: str) -> tuple[Connection, str] | str:
+        made = store.connection(found)
+        if made is not None and made.key is None:
+            made = follow(found, made)
+        if made is None or made.key is None:
+            return NOT_CONNECTED
+        if len(made.places) != 1:
+            return "TKL är godkänd för flera driftplatser."
+        return made, made.places[0]
+
+    def report(found: str, reports: list[TklReport]) -> list[TklReport]:
+        """Up to the hub (STV-10), with the place's own snapshot for the calls."""
+        reached = one_place(found)
+        if isinstance(reached, str):
+            said = f"{reached} Inget rapporterades till hubben."
+            return [r.model_copy(update={"message": said}) for r in reports]
+        made, place = reached
+        try:
+            snapshot = hub(made).snapshot(place)
+        except Unreachable:
+            return [r.model_copy(update={"message": NO_CONTACT}) for r in reports]
+        except HubError as error:
+            return [r.model_copy(update={"message": error.detail}) for r in reports]
+        done, last = hub_reports.send(hub(made), made.client_id, place, snapshot, reports)
+        store.remember(found, last)
+        return done
+
+    @routes.get("/stallverk")
+    def interlocking(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Ställverkets läge (STV-08): everything the panel draws."""
+        no_store(response)
+        return interlocking_of(unlocked(slot, session)).view().model_dump(mode="json")
+
+    @routes.get("/stallverk/wait")
+    async def interlocking_wait(
+        response: Response,
+        after: int = Query(ge=0),
+        seconds: float = Query(default=WAIT_SECONDS, ge=0, le=30),
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Vänta på nästa ändring efter after, högst seconds; then read again. A second
+        screen follows the first this way (STV-05)."""
+        no_store(response)
+        found = await run_in_threadpool(unlocked, slot, session)
+        waited = 0.0
+        while True:
+            revision = await run_in_threadpool(store.interlocking_revision, found)
+            if revision is None:
+                raise HTTPException(404, NO_MODEL)
+            if revision != after or waited >= seconds:
+                return TklWait(revision=revision, changed=revision != after).model_dump(mode="json")
+            await asyncio.sleep(WAIT_STEP)
+            waited += WAIT_STEP
+
+    @routes.get("/stallverk/targets")
+    def interlocking_targets(
+        response: Response,
+        start: str = Query(min_length=1, max_length=80),
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Målen från en start, per vägslag, och om de går att lägga nu (STV-01, STV-24)."""
+        no_store(response)
+        made = interlocking_of(unlocked(slot, session))
+        try:
+            return made.targets(start).model_dump(mode="json")
+        except UnknownStart as error:
+            raise HTTPException(404, str(error)) from error
+
+    @routes.post("/stallverk/route")
+    def set_route(
+        ask: TklRouteAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        kind = RouteKind(ask.kind.value) if ask.kind is not None else None
+        return operate(found, lambda made: made.set_route(ask.start, ask.end, kind))
+
+    @routes.post("/stallverk/release")
+    def release(
+        ask: TklRouteRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.release(ask.route))
+
+    @routes.post("/stallverk/emergency-release")
+    def emergency_release(
+        ask: TklEmergencyRelease,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        return operate(found, lambda made: made.emergency_release(ask.route, ask.confirm))
+
+    @routes.post("/stallverk/lever")
+    def lay_lever(
+        ask: TklLeverAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        return operate(found, lambda made: made.lay_lever(ask.switch, ask.position))
+
+    @routes.post("/stallverk/step")
+    def step(
+        ask: TklRouteRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.step(ask.route))
+
+    @routes.post("/stallverk/arrive")
+    def arrive(
+        ask: TklRouteRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.arrive(ask.route))
+
+    @routes.post("/stallverk/depart")
+    def depart(
+        ask: TklRouteRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.depart(ask.route))
+
+    def coming(found: str, put: TklTrainPut) -> TklTrainPut | str:
+        """A train on its way here, put by its call: its number and exit from the place's
+        snapshot (STV-10). Never a guess: a call the snapshot does not have is a no."""
+        reached = one_place(found)
+        if isinstance(reached, str):
+            return reached
+        made, place = reached
+        try:
+            snapshot = hub(made).snapshot(place)
+        except (Unreachable, HubError):
+            last = store.last_seen(found, place)
+            if last is None:
+                return NO_CONTACT
+            snapshot = last[0]
+        train = next((t for t in snapshot.on_the_way if t.call == put.call), None)
+        if train is None:
+            return f"Tågbesöket {put.call} är inte på väg hit i hubbens bild."
+        section = next((s for s in snapshot.sections if s.section == train.section), None)
+        if section is None or section.exit is None:
+            return (
+                f"Hubben vet inte vilken utfart tåg {train.train_number} kommer in vid. Svara på "
+                "hubbens fråga om utfarten, eller sätt ut tåget vid en utfart."
+            )
+        model, _, _ = store.interlocking(found)
+        exits = plant_of(model).exits if model is not None else {}
+        line = next((e.id for e in exits.values() if e.outside == section.exit), None)
+        if line is None:
+            return f"Utfarten {section.exit} finns inte i stationsmodellen."
+        number = put.number or train.train_number
+        if not re.fullmatch(r"[0-9A-Za-z]{1,8}", number):
+            return f"Tågnumret {number} går inte att visa i ställverket."
+        return put.model_copy(update={"number": number, "exit": line})
+
+    @routes.post("/stallverk/train")
+    def put_train(
+        put: TklTrainPut,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Sätt ut ett tågnummer på ett spår eller vid en utfart, eller ett tåg på väg hit."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        if put.call is not None and put.section is None and put.exit is None:
+            resolved = coming(found, put)
+            if isinstance(resolved, str):
+                made = interlocking_of(found)
+                return answered(Outcome(False, resolved), made.view(), [])
+            put = resolved
+        return operate(
+            found,
+            lambda made: made.put_train(
+                put.number, call=put.call, section=put.section, exit=put.exit
+            ),
+        )
+
+    @routes.post("/stallverk/train/remove")
+    def remove_train(
+        ask: TklTrainRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.remove_train(ask.train))
+
+    @routes.post("/stallverk/reset")
+    def reset(
+        ask: TklReset,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        return operate(found, lambda made: made.reset(ask.confirm, ask.trains))
 
     app.include_router(routes)
 

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.emergency-release.schema.json",
+  "title": "trainmeet.tkl-1.emergency-release",
+  "additionalProperties": true,
+  "description": "Nödutlösning: releases the route even with a train in it, when confirmed. Logged.",
+  "properties": {
+    "route": {
+      "minimum": 1,
+      "title": "Route",
+      "type": "integer"
+    },
+    "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "route"
+  ],
+  "type": "object"
+}

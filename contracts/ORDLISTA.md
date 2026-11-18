@@ -166,6 +166,25 @@ Standardställverket (#83): varje station är data, och samma motor räknar fram
 | Spårplan i Studio | `TklTrackPlan`, `/api/tkl/1/studio/model` | Stationens modell som Studio visar den: sammanfattningen, kontrollerna, vägarna per slag och panelen. Modellen importeras som fil, prövas och sparas med stationen, och stationens nivå följer den (1 eller 2). |
 | Referensstation | `TklReference`, `/api/tkl/1/referens` | Gårdsjö, Charlottendal, Särö och Träkvista som modellfiler (TKL40), att titta på. Använd som min station kopierar modellen till stationen. |
 
+## TKL: ställverket på nivå 1–2
+
+Ställverkslogiken (#84): en tillståndsmaskin över stationsmodellen, i `tkl/stallverk/`. Allt säkerhetsprov sker i dess funktioner, vem som än frågar: panelen, Stream Deck eller en fjärrbegäran (STV-43, STV-44).
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| Ställverkets läge | `TklInterlocking`, `GET /api/tkl/1/stallverk` | Läget i stunden (STV-08): växellägen och spakar, lagda vägar med lås, signalbesked, vändskivans brygga och tågnumren. Sparas med stationen och gäller en version av stationsmodellen; ett läge som inte stämmer med modellen nekar allt utom nollställning. Aldrig stationsmodellen, klareringen eller tidtabellen (STV-09). |
+| Svar | `TklAnswer` | Ja, eller nej med skälet på svenska, och läget efteråt. Ett nej ändrar ingenting. Ett okänt namn är ett nej, aldrig en gissning. |
+| Sektion | `TklSectionPart.section` | Det ställverket låser, löser ut och flyttar tågnumret mellan: en spårledning, eller där modellen saknar en, spårbitarna mellan två växlar, signaler, blockgränser eller ändar (spårdel). |
+| Lagd väg | `TklSetRoute`, `/api/tkl/1/stallverk/route` | En tågväg eller växlingsväg som ställverket har lagt och låst. Ett mål flera signaler bort blir en sammansatt väg, där varje del är en vanlig väg med samma `chain` (TKL53). Utan slag blir det tågväg där det finns en (STV-24). |
+| Lösa ut och nödutlösa | `/stallverk/release`, `/stallverk/emergency-release` | Lösa ut går när inget tåg är i vägen, eller när tåget står vid målet. Nödutlösning löser ut vägen också med ett tåg i den, efter en bekräftelse, och skrivs i händelserna. |
+| Lägga spaken | `/stallverk/lever` | Klick på en växel lägger hela spaken, med de kopplade, de omvända och de som dras med (STV-52, TKL104). Nekas när en växel som ska röra sig är låst eller står intill ett tåg. |
+| Kör | `/stallverk/step` | Tågnumret flyttar en sektion längs vägen och sektionen bakom löses ut (STV-06, STV-29). Förbi målet tar tåget nästa lagda väg, eller lämnar på linjen, och avgången går upp till Hubben. |
+| Ankommit och Avgått | `/stallverk/arrive`, `/stallverk/depart` | Knapparna på nivå 1–2 (STV-16). Ankommit vid vägens mål löser ut den och rapporterar ankomsten med spåret; Avgått rapporterar avgången för ett tåg på en väg ut. |
+| Tågnummer i ställverket | `TklTrain`, `TklNumber`, `/stallverk/train` | Ett tåg står på en sektion eller på linjen vid en utfart. Utan detektering följer numret knapparna (STV-15), och beläggning frigör aldrig något själv. Rött där tåget är, grönt i den lagda tågvägens sista sektion (STV-21). Ett tåg på väg hit sätts ut med sitt tågbesök. |
+| Utfartens ruta | `TklExitShown` | Linjen utanför infartssignalen: hör till linjen och blir aldrig grön med vägen (STV-54). Där står tåg på väg hit. |
+| Rapport till Hubben | `TklReport` | Det ställverket skickar upp med stationsprotokollet (STV-10): `train.departed`, `train.arrived` eller `train.track.change`, och `signal.exit`. Aldrig `section.occupancy` på nivå 1–2. Hubbens svar kommer tillbaka som det gavs. |
+| Väntan | `TklWait`, `/stallverk/wait` | En andra skärm väntar på nästa ändring och läser om (STV-05). |
+
 ## TrainMeet Catalog
 
 | Svenska | I kontrakten | Betyder |

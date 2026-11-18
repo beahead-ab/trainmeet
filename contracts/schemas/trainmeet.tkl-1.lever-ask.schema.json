@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.lever-ask.schema.json",
+  "title": "trainmeet.tkl-1.lever-ask",
+  "$defs": {
+    "Position": {
+      "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+      "enum": [
+        "+",
+        "-"
+      ],
+      "title": "Position",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Klicka på en växel: lägg hela spaken (STV-01, STV-52). Without a position it is laid\nover to the other one.",
+  "properties": {
+    "switch": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Switch",
+      "type": "string"
+    },
+    "position": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Position"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "switch"
+  ],
+  "type": "object"
+}

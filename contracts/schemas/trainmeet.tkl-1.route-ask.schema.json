@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.route-ask.schema.json",
+  "title": "trainmeet.tkl-1.route-ask",
+  "$defs": {
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lägg en väg: start och mål (STV-01). The goal may be several signals away (TKL53).\nWithout a kind it is a train route where there is one, else a shunting route (STV-24).",
+  "properties": {
+    "start": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Start",
+      "type": "string"
+    },
+    "end": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "End",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RouteKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "start",
+    "end"
+  ],
+  "type": "object"
+}
