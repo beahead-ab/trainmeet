@@ -40,7 +40,7 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from catalog import fleet_api, id_login, login, migrate, pictures_api, tags_api
+from catalog import fleet_api, id_login, login, migrate, pictures_api, tags_api, trips_api
 from catalog.access import Access
 from catalog.backgrounds import Segmenter, U2NetP
 from catalog.db import Database, UnknownOwner
@@ -50,6 +50,7 @@ from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store
 from catalog.settings import Settings, from_env
 from catalog.storage import IdPayer
 from catalog.tags import Tags
+from catalog.trips import Trips
 from contracts.catalog import (
     Account,
     CatalogExport,
@@ -394,6 +395,7 @@ def create_app(
         simulated=settings.simulated_tags,
         shared_with=access.shared_with,
     )
+    trips = Trips(db, fleet)
 
     # --- For TrainMeet ID itself (KONTO-31, CAT-193) -------------------------------------------
 
@@ -405,7 +407,7 @@ def create_app(
     @app.get(API + "/id/export")
     def export_for_id(person: UUID, _: None = Depends(from_id)) -> CatalogExport:
         """The person's data for the file they fetch in ID before removing the account."""
-        return fleet.export(person)
+        return fleet.export(person).model_copy(update={"trips": trips.export(person)})
 
     @app.post(API + "/id/removed")
     def removed_by_id(
@@ -448,6 +450,7 @@ def create_app(
     app.include_router(fleet_api.router(fleet, logged_in, access, sweep=pictures.sweep))
     app.include_router(tags_api.router(fleet, tags, logged_in, access))
     app.include_router(pictures_api.router(pictures, logged_in, access))
+    app.include_router(trips_api.router(trips, logged_in, access))
 
     @app.api_route(
         "/api/{rest:path}",

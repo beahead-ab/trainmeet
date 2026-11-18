@@ -31,10 +31,19 @@ export type Picture = Schemas["trainmeet.catalog-1.picture"];
 export type PictureBackground = Schemas["trainmeet.catalog-1.picture.PictureBackground"];
 export type BackgroundChange = Schemas["trainmeet.catalog-1.background-change"];
 export type StorageUse = Schemas["trainmeet.catalog-1.storage-use"];
+export type TripSummary = Schemas["trainmeet.catalog-1.trip-summary"];
+export type Trip = Schemas["trainmeet.catalog-1.trip"];
+export type TripRow = Trip["rows"][number];
+export type TripStep = Trip["step"];
+export type Tick = TripRow["ticks"][number];
+export type NewTrip = Schemas["trainmeet.catalog-1.new-trip"];
+export type TripTapped = Schemas["trainmeet.catalog-1.trip-tapped"];
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
 export const ENGINES: VehicleKind[] = ["locomotive", "multiple_unit"];
+/** The trip's three steps, in order (CAT-176). */
+export const STEPS: TripStep[] = ["pack", "arrive", "home"];
 /** The backgrounds a picture can have, original first (CAT-128). */
 export const BACKGROUNDS: PictureBackground[] = ["original", "white", "grey", "transparent", "rails"];
 /** What an upload may be (CAT-123). HEIC from an iPhone is sent as JPEG by the browser. */
@@ -110,6 +119,7 @@ function query(filters: Filters): string {
 
 const V = "/api/catalog/1/vehicles";
 const P = "/api/catalog/1/places";
+const M = "/api/catalog/1/meets";
 
 /** The fleet the person works in: null for their own, otherwise the owner's id (CAT-50, #49). */
 let working: string | null = null;
@@ -179,6 +189,17 @@ export const api = {
   removePicture: (vehicle: string, picture: string) => call<{ id: string }>("DELETE", inFleet(`${picturesPath(vehicle)}/${picture}`)),
   /** The fleet owner's storage, also in someone else's fleet (CAT-131, CAT-133). */
   storage: () => call<StorageUse>("GET", inFleet("/api/catalog/1/storage")),
+  /** The meets, the owner's own: the active ones first (CAT-174, CAT-183). */
+  trips: () => call<TripSummary[]>("GET", inFleet(M)),
+  trip: (id: string) => call<Trip>("GET", inFleet(`${M}/${id}`)),
+  newTrip: (body: NewTrip) => call<Trip>("POST", inFleet(M), body),
+  /** The whole pack list (CAT-175). */
+  packList: (id: string, vehicles: string[]) => call<Trip>("POST", inFleet(`${M}/${id}/vehicles`), { vehicles }),
+  /** A press on the row: tick, or take the tick away (CAT-176). */
+  tick: (id: string, vehicle: string, step: TripStep, ticked: boolean) => call<Trip>("POST", inFleet(`${M}/${id}/ticks`), { vehicle, step, ticked }),
+  /** A tag tapped in the step; with add, the vehicle goes on the list first (CAT-181). */
+  tapInTrip: (id: string, uid: string, step: TripStep, add = false) => call<TripTapped>("POST", inFleet(`${M}/${id}/tap`), { uid, step, add }),
+  archiveTrip: (id: string) => call<Trip>("POST", inFleet(`${M}/${id}/archive`)),
 };
 
 export const qrAddress = (uid: string) => inFleet(`${tagPath(uid)}/qr.svg`);

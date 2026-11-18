@@ -2364,6 +2364,11 @@ export interface components {
             /** Places */
             places: components["schemas"]["trainmeet.id-1.account-export.Place"][];
             settings: components["schemas"]["trainmeet.id-1.account-export.OwnerSettings"];
+            /**
+             * Trips
+             * @description The meets with their pack lists and ticks (#55).
+             */
+            trips?: components["schemas"]["trainmeet.id-1.account-export.Trip"][];
         } & {
             [key: string]: unknown;
         };
@@ -2690,6 +2695,27 @@ export interface components {
          */
         "trainmeet.id-1.account-export.TagKind": "nfc" | "qr" | "sim";
         /**
+         * Tick
+         * @description A bock: one per vehicle and step, with its time (CAT-176).
+         */
+        "trainmeet.id-1.account-export.Tick": {
+            step: components["schemas"]["trainmeet.id-1.account-export.TripStep"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["trainmeet.id-1.account-export.TickBy"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TickBy
+         * @description How a tick was set (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.TickBy": "tap" | "press";
+        /**
          * TokenBalance
          * @description Saldot som det ser ut nu (TOKEN-01, TOKEN-12).
          */
@@ -2757,6 +2783,98 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.account-export.TokenOwnerKind": "person" | "club";
+        /**
+         * Trip
+         * @description A meet with its pack list and its three steps (CAT-174–CAT-180).
+         */
+        "trainmeet.id-1.account-export.Trip": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Archived At
+             * @description When the pack list was archived (CAT-183). An archived meet does not change.
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Template Of
+             * @description The meet whose pack list this one started from (CAT-183).
+             * @default null
+             */
+            template_of: string | null;
+            /**
+             * Vehicles
+             * @description How many vehicles are on the pack list.
+             */
+            vehicles: number;
+            /**
+             * Done
+             * @description How many are ticked in each step, for 3 av 4 (CAT-178).
+             */
+            done: {
+                [key: string]: number;
+            };
+            /** @description The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it. */
+            step: components["schemas"]["trainmeet.id-1.account-export.TripStep"];
+            /**
+             * Rows
+             * @description In the pack list's order; when the trip is at Hem, Saknas first (CAT-179).
+             */
+            rows: components["schemas"]["trainmeet.id-1.account-export.TripRow"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripRow
+         * @description A vehicle on the pack list, with its ticks.
+         */
+        "trainmeet.id-1.account-export.TripRow": {
+            /** @description The vehicle as its owner sees it: its place, state and picture, and what someone who found it said (CAT-180). */
+            vehicle: components["schemas"]["trainmeet.id-1.account-export.Vehicle"];
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            /**
+             * Ticks
+             * @description At most one per step, in the steps' order.
+             */
+            ticks: components["schemas"]["trainmeet.id-1.account-export.Tick"][];
+            /**
+             * @description The latest tick: when, and in which step, the vehicle was last ticked. Saknas at Hem shows it (CAT-179).
+             * @default null
+             */
+            last: components["schemas"]["trainmeet.id-1.account-export.Tick"] | null;
+            /**
+             * Missing
+             * @description Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179).
+             */
+            missing: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.id-1.account-export.TripStep": "pack" | "arrive" | "home";
         /**
          * Vehicle
          * @description A vehicle as its owner sees it.
@@ -2901,6 +3019,12 @@ export interface components {
              * @default null
              */
             lent_to: string | null;
+            /**
+             * Meet Name
+             * @description The meet whose trip moved the vehicle, as it was named then (CAT-182).
+             * @default null
+             */
+            meet_name: string | null;
         } & {
             [key: string]: unknown;
         };

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.tick-change.schema.json",
+  "title": "trainmeet.catalog-1.tick-change",
+  "$defs": {
+    "TripStep": {
+      "description": "The trip's three steps (CAT-176).",
+      "enum": [
+        "pack",
+        "arrive",
+        "home"
+      ],
+      "title": "TripStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A press on the row: tick the vehicle in a step, or take the tick away (CAT-176).",
+  "properties": {
+    "vehicle": {
+      "format": "uuid",
+      "title": "Vehicle",
+      "type": "string"
+    },
+    "step": {
+      "$ref": "#/$defs/TripStep"
+    },
+    "ticked": {
+      "default": true,
+      "description": "False takes the tick away, and moves the vehicle back.",
+      "title": "Ticked",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "vehicle",
+    "step"
+  ],
+  "type": "object"
+}

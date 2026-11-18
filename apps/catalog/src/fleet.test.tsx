@@ -123,9 +123,14 @@ describe("the card", () => {
   });
 
   it("tells the history in words", () => {
-    expect(eventText(t, { at: NOW, state: "lent", place_name: "Låda 3", lent_to: "Olle" })).toBe("Utlånad till Olle");
-    expect(eventText(t, { at: NOW, state: "home", place_name: "Låda 3", lent_to: null })).toBe("Hemma i Låda 3");
-    expect(eventText(t, { at: NOW, state: "home", place_name: null, lent_to: null })).toBe("Hemma");
+    expect(eventText(t, { at: NOW, state: "lent", place_name: "Låda 3", lent_to: "Olle", meet_name: null })).toBe("Utlånad till Olle");
+    expect(eventText(t, { at: NOW, state: "home", place_name: "Låda 3", lent_to: null, meet_name: null })).toBe("Hemma i Låda 3");
+    expect(eventText(t, { at: NOW, state: "home", place_name: null, lent_to: null, meet_name: null })).toBe("Hemma");
+  });
+
+  it("names the meet when the trip moved the vehicle (CAT-182)", () => {
+    expect(eventText(t, { at: NOW, state: "packed", place_name: "Låda 3", lent_to: null, meet_name: "Höstträffen" })).toBe("Packad · Höstträffen");
+    expect(eventText(t, { at: NOW, state: "home", place_name: "Låda 3", lent_to: null, meet_name: "Höstträffen" })).toBe("Hemma i Låda 3 · Höstträffen");
   });
 });
 

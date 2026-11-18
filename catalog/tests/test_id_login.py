@@ -432,6 +432,8 @@ def test_only_ids_own_api_gets_a_persons_data_and_removes_it(
     car = {"status": "ready", "kind": "freight_wagon", "litt": "Hbis", "number": "1"}
     assert client.post(f"{API}/vehicles", json=car).status_code == 201
     assert client.post(f"{API}/places", json={"name": "Låda 3"}).status_code == 201
+    meet = {"name": "Höstträffen", "date": "2026-11-13"}
+    assert client.post(f"{API}/meets", json=meet).status_code == 201
 
     pretend_id.claims = {"azp": "id", "aud": "account"}
     from_id = {"Authorization": f"Bearer {pretend_id.token('service-account-id')}"}
@@ -440,6 +442,7 @@ def test_only_ids_own_api_gets_a_persons_data_and_removes_it(
     assert [v["litt"] for v in file.json()["vehicles"]] == ["Hbis"]
     assert [p["name"] for p in file.json()["places"]] == ["Låda 3"]
     assert len(file.json()["history"][0]["events"]) == 1
+    assert [t["name"] for t in file.json()["trips"]] == ["Höstträffen"]  # #55
 
     pretend_id.claims = {"azp": "catalog"}
     catalogs_own = {"Authorization": f"Bearer {pretend_id.token(subject)}"}
@@ -457,4 +460,4 @@ def test_only_ids_own_api_gets_a_persons_data_and_removes_it(
     assert removed.json() == {"removed": 1}
     assert client.get(f"{API}/session").json()["account"] is None  # the login went too
     left = client.get(f"{API}/id/export", params={"person": subject}, headers=from_id).json()
-    assert (left["vehicles"], left["places"]) == ([], [])
+    assert (left["vehicles"], left["places"], left["trips"]) == ([], [], [])

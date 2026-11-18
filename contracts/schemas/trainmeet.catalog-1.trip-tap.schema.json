@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.trip-tap.schema.json",
+  "title": "trainmeet.catalog-1.trip-tap",
+  "$defs": {
+    "TripStep": {
+      "description": "The trip's three steps (CAT-176).",
+      "enum": [
+        "pack",
+        "arrive",
+        "home"
+      ],
+      "title": "TripStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A tag tapped in a step (CAT-176): Web NFC's serial number, a QR label's id or a simulated\ntag, as after /t/ in the address.",
+  "properties": {
+    "uid": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Uid",
+      "type": "string"
+    },
+    "step": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TripStep"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The step shown; null ticks in the step the trip is at."
+    },
+    "add": {
+      "default": false,
+      "description": "Lägg till: put the vehicle on the pack list first when it is not (CAT-181).",
+      "title": "Add",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "uid"
+  ],
+  "type": "object"
+}

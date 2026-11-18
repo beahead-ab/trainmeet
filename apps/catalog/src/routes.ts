@@ -9,6 +9,7 @@ export type Page =
   | "lend"
   | "places"
   | "meets"
+  | "meet"
   | "prototypes"
   | "tap"
   | "login"
@@ -33,12 +34,14 @@ export const vehiclePath = (id: string) => `/fordon/${id}`;
 export const editPath = (id: string) => `/fordon/${id}/andra`;
 export const lendPath = (id: string) => `/fordon/${id}/lana-ut`;
 export const tagPagePath = (uid: string) => `/t/${encodeURIComponent(uid)}`;
+export const meetPath = (id: string) => `/traffar/${id}`;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATTERNS: [RegExp, Page][] = [
   [new RegExp(`^/fordon/(${UUID})$`), "vehicle"],
   [new RegExp(`^/fordon/(${UUID})/andra$`), "editVehicle"],
   [new RegExp(`^/fordon/(${UUID})/lana-ut$`), "lend"],
+  [new RegExp(`^/traffar/(${UUID})$`), "meet"],
   [/^\/t\/([^/]{1,80})$/, "tag"],
 ];
 
@@ -64,6 +67,7 @@ export function routeFor(address: string): Route {
 /** Which tab a page belongs to. */
 export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
+  if (page === "meet") return "meets";
   return ["newVehicle", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 

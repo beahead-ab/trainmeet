@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.trip-summary.schema.json",
+  "title": "trainmeet.catalog-1.trip-summary",
+  "$defs": {
+    "TripStep": {
+      "description": "The trip's three steps (CAT-176).",
+      "enum": [
+        "pack",
+        "arrive",
+        "home"
+      ],
+      "title": "TripStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A meet in the list of meets: the owner's own, with a name and a date (CAT-174).",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "archived_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the pack list was archived (CAT-183). An archived meet does not change.",
+      "title": "Archived At"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "template_of": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The meet whose pack list this one started from (CAT-183).",
+      "title": "Template Of"
+    },
+    "vehicles": {
+      "description": "How many vehicles are on the pack list.",
+      "title": "Vehicles",
+      "type": "integer"
+    },
+    "done": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "How many are ticked in each step, for 3 av 4 (CAT-178).",
+      "propertyNames": {
+        "$ref": "#/$defs/TripStep"
+      },
+      "title": "Done",
+      "type": "object"
+    },
+    "step": {
+      "$ref": "#/$defs/TripStep",
+      "description": "The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "date",
+    "created_at",
+    "vehicles",
+    "done",
+    "step"
+  ],
+  "type": "object"
+}

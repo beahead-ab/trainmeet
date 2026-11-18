@@ -210,6 +210,13 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.picture-links": catalog.PictureLinks,
     "trainmeet.catalog-1.storage-use": catalog.StorageUse,
     "trainmeet.catalog-1.background-change": catalog.BackgroundChange,
+    "trainmeet.catalog-1.trip-summary": catalog.TripSummary,
+    "trainmeet.catalog-1.trip": catalog.Trip,
+    "trainmeet.catalog-1.new-trip": catalog.NewTrip,
+    "trainmeet.catalog-1.pack-list": catalog.PackList,
+    "trainmeet.catalog-1.tick-change": catalog.TickChange,
+    "trainmeet.catalog-1.trip-tap": catalog.TripTap,
+    "trainmeet.catalog-1.trip-tapped": catalog.TripTapped,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -915,6 +922,16 @@ def catalog_openapi() -> str:
     )
     route("delete", pictures + "/{picture}", "removePicture", "removed", problems=write)
     route("get", "/api/catalog/1/storage", "storageUse", "storage-use", problems=(401,))
+    # The trip to the meet (#55, CAT-174–CAT-183): the owner's own, so 403 for a shared fleet.
+    m = "/api/catalog/1/meets"
+    trip_write = (401, 404, 409, 422)
+    route("get", m, "trips", "trip-summary", many=True, problems=(401,))
+    route("post", m, "newTrip", "trip", "new-trip", created=True, problems=(401, 404, 422))
+    route("get", m + "/{meet}", "trip", "trip", problems=(401, 404))
+    route("post", m + "/{meet}/vehicles", "packList", "trip", "pack-list", problems=trip_write)
+    route("post", m + "/{meet}/ticks", "tick", "trip", "tick-change", problems=trip_write)
+    route("post", m + "/{meet}/tap", "tapInTrip", "trip-tapped", "trip-tap", problems=trip_write)
+    route("post", m + "/{meet}/archive", "archiveTrip", "trip", problems=trip_write)
     # Only when Catalog keeps the pictures on its own disk: the signed address is the right.
     paths["/api/catalog/1/pictures/file/{key}"] = {
         "get": {
@@ -966,7 +983,12 @@ def catalog_openapi() -> str:
     }
     for path, methods in paths.items():
         if not path.startswith(
-            ("/api/catalog/1/vehicles", "/api/catalog/1/places", "/api/catalog/1/storage")
+            (
+                "/api/catalog/1/vehicles",
+                "/api/catalog/1/places",
+                "/api/catalog/1/storage",
+                "/api/catalog/1/meets",
+            )
         ):
             continue
         for entry in methods.values():
