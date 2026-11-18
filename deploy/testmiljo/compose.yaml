@@ -17,6 +17,9 @@ services:
       TRAINMEET_ID_INTERNAL: http://id:8080/realms/trainmeet
       TRAINMEET_ID_SECRET: ${ID_HUB_SECRET}
       TRAINMEET_ID_API: http://id-api:8080
+      # Tellurian Dispatch i skugga (IMPORT-36): the simulator on 127.0.0.1 inside the hub,
+      # fed from Drift's own clearances with one deliberate difference. Never in production.
+      TRAINMEET_TELLURIAN_SIMULATOR: "1"
     # Apple's push key (F20): TRAINMEET_APNS_KEY_ID, _TEAM_ID, _TOPIC and _KEY, written by the
     # deploy from GitHub's secrets. Without it the notices go to the pretend service.
     env_file:

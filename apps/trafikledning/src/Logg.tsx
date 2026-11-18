@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Problem, type Client, type DriftEvent, type Now, type Package, type Refusal } from "./api";
+import { api, hub, Problem, type Client, type DriftEvent, type Now, type Package, type Refusal, type TellurianLogEntry } from "./api";
 import { actorName, csv, describe, eventRows, logFile, placeName, refusalRows, shown as inLogg, trainId, trainNumber } from "./drift";
 import { Chip, Chips, LoginFirst } from "./ui";
 
@@ -31,9 +31,11 @@ export type LoggProps = {
   onMessage?: (text: string) => void;
   /** For tests: the rows to show, without asking the hub. */
   rows?: LogRows;
+  /** For tests: what Tellurian changed, without asking the hub. */
+  tellurian?: TellurianLogEntry[];
 };
 
-export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage, rows: given }: LoggProps) {
+export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage, rows: given, tellurian }: LoggProps) {
   const [kind, setKind] = useState<LogRows["kind"]>(given?.kind ?? "events");
   const [place, setPlace] = useState<string | null>(null);
   const [train, setTrain] = useState("");
@@ -156,7 +158,57 @@ export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage,
           </tbody>
         </table>
       </div>
+      {now?.tellurian && <TellurianLog entries={tellurian} />}
     </>
+  );
+}
+
+/** Tellurian Dispatch i skugga (IMPORT-34): what Tellurian changed, beside Drift's own log and
+ * never in it. Read again every five seconds. */
+export function TellurianLog({ entries: given }: { entries?: TellurianLogEntry[] }) {
+  const [entries, setEntries] = useState<TellurianLogEntry[]>(given ?? []);
+  useEffect(() => {
+    if (given) return;
+    let live = true;
+    const read = () => void hub.tellurianLog().then((found) => live && setEntries(found), () => undefined);
+    read();
+    const timer = window.setInterval(read, 5000);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+    };
+  }, [given]);
+  return (
+    <section id="tellurian-logg" aria-labelledby="tellurian-logg-rubrik">
+      <h2 id="tellurian-logg-rubrik">Tellurian i skugga</h2>
+      <p className="liten">Det Tellurian Dispatch ändrade, nyast först. Inget av det påverkar Drift.</p>
+      <div className="ram">
+        <table className="tabell">
+          <thead>
+            <tr>
+              <th>Tid</th>
+              <th>Hos Tellurian</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.length ? (
+              entries.map((entry, index) => (
+                <tr key={index} className={entry.differs ? "skiljer" : undefined}>
+                  <td>{entry.clock ?? new Date(entry.at).toLocaleTimeString("sv-SE")}</td>
+                  <td>{entry.text}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={2} className="liten">
+                  Inget har ändrats hos Tellurian än.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

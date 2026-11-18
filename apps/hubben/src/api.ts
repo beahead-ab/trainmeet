@@ -29,6 +29,9 @@ export type MeetWifi = Schemas["trainmeet.hub-1.meet-wifi"];
 export type MeetWifiChange = Schemas["trainmeet.hub-1.meet-wifi-change"];
 export type ClockSource = Schemas["trainmeet.hub-1.clock-source"];
 export type ClockSourceChange = Schemas["trainmeet.hub-1.clock-source-change"];
+export type TellurianSettings = Schemas["trainmeet.hub-1.tellurian"];
+export type TellurianChange = Schemas["trainmeet.hub-1.tellurian-change"];
+export type TellurianLogEntry = Schemas["trainmeet.drift-1.tellurian-log"];
 export type Participant = Schemas["trainmeet.hub-1.participant"];
 export type WifiVerb = "scan" | "delete" | "order" | "connect" | "confirm" | "rollback";
 const NETWORK = { "X-TrainMeet-Network": "1" };
@@ -93,6 +96,9 @@ export const hub = {
   saveMeetWifi: (change: Partial<MeetWifiChange>) => call<MeetWifi>("/api/hub/meet-wifi", change),
   clockSource: () => call<ClockSource>("/api/hub/clock-source"),
   saveClockSource: (change: ClockSourceChange) => call<ClockSource>("/api/hub/clock-source", change),
+  tellurian: () => call<TellurianSettings>("/api/hub/tellurian"),
+  saveTellurian: (change: TellurianChange) => call<TellurianSettings>("/api/hub/tellurian", change),
+  tellurianLog: () => call<TellurianLogEntry[]>("/api/hub/tellurian/log"),
   // Deltagarna (S8): what the participant page may show the one who looks.
   participant: () => call<Participant>("/api/deltagare"),
   // Egen AI under Den här hubben (H58): the key goes in and is never shown again.

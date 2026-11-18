@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.hub-1.tellurian-change.schema.json",
+  "title": "trainmeet.hub-1.tellurian-change",
+  "$defs": {
+    "TellurianMode": {
+      "description": "Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte\nän (T222).",
+      "enum": [
+        "off",
+        "shadow"
+      ],
+      "title": "TellurianMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Slå på skuggan: Tellurian is read once before it is saved.",
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/TellurianMode"
+    },
+    "address": {
+      "default": "",
+      "maxLength": 255,
+      "title": "Address",
+      "type": "string"
+    },
+    "test_instance": {
+      "default": false,
+      "title": "Test Instance",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "mode"
+  ],
+  "type": "object"
+}

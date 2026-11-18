@@ -96,6 +96,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.client": drift.Client,
     "trainmeet.drift-1.event": drift.DriftEvent,
     "trainmeet.drift-1.now": drift.Now,
+    "trainmeet.drift-1.tellurian-log": drift.TellurianLogEntry,
     "trainmeet.drift-1.joining": drift.Joining,
     "trainmeet.drift-1.refusal": drift.Refusal,
     "trainmeet.drift-1.automation-settings": drift.AutomationSettings,
@@ -121,6 +122,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.hub-1.meet-wifi-change": hub.MeetWifiChange,
     "trainmeet.hub-1.clock-source": hub.ClockSourceSettings,
     "trainmeet.hub-1.clock-source-change": hub.ClockSourceChange,
+    "trainmeet.hub-1.tellurian": hub.TellurianSettings,
+    "trainmeet.hub-1.tellurian-change": hub.TellurianChange,
     "trainmeet.hub-1.shared-wifi": hub.SharedWifi,
     "trainmeet.hub-1.participant": hub.Participant,
     "trainmeet.hub-1.version": hub.Version,
@@ -593,6 +596,16 @@ def openapi() -> str:
     route("get", "/api/hub/wifi", "piWifi", h + "wifi-status", bearer=True)
     route("get", "/api/hub/update", "hubUpdate", h + "update-status", bearer=True)
     route("post", "/api/hub/update", "startHubUpdate", h + "update-status", bearer=True)
+    route("get", "/api/hub/tellurian", "tellurian", h + "tellurian", bearer=True)
+    route(
+        "post",
+        "/api/hub/tellurian",
+        "setTellurian",
+        h + "tellurian",
+        h + "tellurian-change",
+        bearer=True,
+    )
+    route("get", "/api/hub/tellurian/log", "tellurianLog", d + "tellurian-log", many=True)
     route("get", "/api/hub/clock-source", "clockSource", h + "clock-source", bearer=True)
     route(
         "post",

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.tellurian-log.schema.json",
+  "title": "trainmeet.drift-1.tellurian-log",
+  "additionalProperties": true,
+  "description": "Vad Tellurian ändrade, för Logg (IMPORT-34): beside Drift's own log, never in it.",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "clock": {
+      "anyOf": [
+        {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffklockan när det lästes.",
+      "title": "Clock"
+    },
+    "text": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "differs": {
+      "default": false,
+      "description": "Tellurian och Drift säger olika efteråt.",
+      "title": "Differs",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "at",
+    "text"
+  ],
+  "type": "object"
+}

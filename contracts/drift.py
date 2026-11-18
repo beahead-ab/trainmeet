@@ -902,6 +902,71 @@ class ExternalClockNow(Contract):
     )
 
 
+class TellurianState(StrEnum):
+    """A section's state in Tellurian Dispatch, as Tellurian names it."""
+
+    NONE = "None"
+    REQUESTED = "Requested"
+    ACCEPTED = "Accepted"
+    REJECTED = "Rejected"
+    REVOKED = "Revoked"
+    DEPARTED = "Departed"
+    ARRIVED = "Arrived"
+    CANCELED = "Canceled"
+    UNKNOWN = "Unknown"
+
+
+class TellurianSection(Contract):
+    """One train on one section, as Tellurian Dispatch shows it, beside what Drift says about
+    the same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian."""
+
+    from_code: Text | None = Field(default=None, description="Tellurians signatur för från.")
+    to_code: Text | None = Field(default=None, description="Tellurians signatur för till.")
+    section: Id | None = Field(
+        default=None, description="Drifts sträcka med samma stationspar; tomt utan en."
+    )
+    train: Text = Field(description="Tåget som Tellurian skriver det, till exempel SJ IC 456.")
+    train_number: Text | None = Field(default=None, description="Tågnumret, om det går att läsa.")
+    state: TellurianState
+    drift: ClearanceStatus | None = Field(
+        default=None, description="Drifts klarering för samma tåg och sträcka; tomt utan en."
+    )
+    differs: bool = Field(description="Tellurian och Drift säger olika.")
+    note: Text | None = Field(default=None, description="Vad som skiljer, i klartext.")
+
+
+class TellurianContact(StrEnum):
+    WAITING = "waiting"  # inget svar än
+    OK = "ok"
+    LOST = "lost"  # inget svar på 15 sekunder
+
+
+class TellurianLogEntry(Contract):
+    """Vad Tellurian ändrade, för Logg (IMPORT-34): beside Drift's own log, never in it."""
+
+    at: datetime
+    clock: TimeOfDay | None = Field(default=None, description="Träffklockan när det lästes.")
+    text: Text
+    differs: bool = Field(default=False, description="Tellurian och Drift säger olika efteråt.")
+
+
+class TellurianShadow(Contract):
+    """Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar
+    och visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig."""
+
+    contact: TellurianContact
+    simulated: bool = Field(default=False, description="Simulatorn, inte Tellurian självt.")
+    heard: datetime | None = Field(default=None, description="När Tellurian senast svarade.")
+    problem: Text | None = Field(
+        default=None, description="Felet i klartext, aldrig Tellurians eget svar."
+    )
+    sections: list[TellurianSection] = Field(default_factory=list)
+    differences: int = Field(default=0, ge=0, description="Antal skillnader mot Drift.")
+    unmatched: list[Text] = Field(
+        default_factory=list, description="Drifts driftplatser som Tellurian inte har."
+    )
+
+
 class Leader(Contract):
     """Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14)."""
 
@@ -946,6 +1011,9 @@ class Now(Contract):
     )
     external_clock: ExternalClockNow | None = Field(
         default=None, description="FastClock är träffens klocka (F12, IMPORT-35)."
+    )
+    tellurian: TellurianShadow | None = Field(
+        default=None, description="Tellurian Dispatch läses i skugga (IMPORT-34)."
     )
 
 

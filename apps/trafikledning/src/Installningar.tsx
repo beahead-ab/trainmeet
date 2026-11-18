@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type ClockSource, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
+import { hub, type AiService, type AiServiceChange, type Automation, type ClockSource, type TellurianSettings, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -59,6 +59,7 @@ export function heaps(now: Now | null): Heap[] {
       note: "gäller medan den körs",
       items: [
         ["klockan", "Klockan"],
+        ["tellurian", "Tellurian Dispatch"],
         ["automatik", "Automatik"],
         ["dygnsskifte", "Dygnsskifte"],
         ["telefon", "Telefonnummer"],
@@ -98,6 +99,7 @@ export function SettingsPage(props: SettingsProps) {
         <div className="kortlista">
           {now && <Meet now={now} />}
           {now && <Klockan admin={props.admin} now={now} />}
+          {now && <TellurianDispatch admin={props.admin} now={now} />}
           {now && <Automatik {...props} now={now} />}
           {now && <Dygnsskifte {...props} now={now} />}
           {now && <Telefon {...props} now={now} />}
@@ -278,6 +280,95 @@ export function TraffensWifi({ admin, initial }: { admin: boolean; initial?: Mee
               {said || "Utan namn delas träffens Wi-Fi inte."}
             </span>
             <button type="submit" className="primar">
+              Spara
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+/** Tellurian Dispatch (IMPORT-06, IMPORT-34, T10): av, eller i skugga. I skugga läser Hubben
+ * Tellurians klareringar och visar dem bredvid Drifts; inget skickas dit. */
+export function TellurianDispatch({ admin, now, initial }: { admin: boolean; now: Now; initial?: TellurianSettings }) {
+  const [state, setState] = useState<TellurianSettings | null>(initial ?? null);
+  const [mode, setMode] = useState<"off" | "shadow">(initial?.mode ?? "off");
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [test, setTest] = useState(initial?.test_instance ?? false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
+  const take = (found: TellurianSettings) => {
+    setState(found);
+    setMode(found.mode);
+    setAddress(found.address);
+    setTest(found.test_instance);
+  };
+  useEffect(() => {
+    if (!admin || initial) return;
+    void hub.tellurian().then(take, () => undefined);
+  }, [admin, initial]);
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setSaid(mode === "shadow" ? "Läser Tellurian …" : "");
+    try {
+      const saved = await hub.saveTellurian({ mode, address, test_instance: test });
+      take(saved);
+      setSaid(saved.mode === "shadow" ? "Sparat. Tellurian läses i skugga, och Nu visar det bredvid Drift." : "Sparat. Tellurian läses inte.");
+    } catch (error) {
+      setSaid(error instanceof Error ? error.message : "Det gick inte.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const simulator = state?.simulator ?? null;
+  return (
+    <section id="tellurian" className="kort" aria-labelledby="tellurian-installning">
+      <h2 id="tellurian-installning">Tellurian Dispatch</h2>
+      <p className="liten">I skugga läser Hubben Tellurians klareringar och visar dem bredvid Drifts i Nu och Logg, med det som skiljer markerat. Inget skickas till Tellurian, och Drift påverkas aldrig. Av är förval. Gäller den här träffen.</p>
+      {now.tellurian && <p className="liten">{now.tellurian.contact === "ok" ? "Tellurian svarar." : now.tellurian.contact === "lost" ? "Ingen kontakt med Tellurian." : "Väntar på Tellurian."}</p>}
+      {!admin ? (
+        <p className="liten">Logga in som trafikledare för att ändra.</p>
+      ) : (
+        <form id="tellurian-form" className="formular" onSubmit={(event) => void save(event)}>
+          <fieldset className="val">
+            <legend>Läge</legend>
+            <label className="kryss">
+              <input type="radio" name="tellurian" value="off" checked={mode === "off"} onChange={() => setMode("off")} /> Av
+            </label>
+            <label className="kryss">
+              <input type="radio" name="tellurian" value="shadow" checked={mode === "shadow"} onChange={() => setMode("shadow")} /> Skugga
+            </label>
+          </fieldset>
+          {mode === "shadow" && (
+            <>
+              <label>
+                Tellurians adress på träffens nät <input id="tellurian-adress" className="tm-mono" maxLength={255} value={address} autoComplete="off" spellCheck={false} placeholder="http://192.168.1.20:5000" onChange={(event) => setAddress(event.target.value)} />
+              </label>
+              <label className="kryss">
+                <input id="tellurian-test" type="checkbox" checked={test} onChange={(event) => setTest(event.target.checked)} /> Testinstans: en publik adress eller den här datorn
+              </label>
+              {simulator && (
+                <button
+                  type="button"
+                  id="tellurian-simulator"
+                  className="lankknapp"
+                  onClick={() => {
+                    setAddress(simulator);
+                    setTest(true);
+                  }}
+                >
+                  Använd simulatorn i testmiljön
+                </button>
+              )}
+            </>
+          )}
+          <div className="installningsfot">
+            <span className="liten" role="status" id="tellurian-said">
+              {said}
+            </span>
+            <button type="submit" className="primar" disabled={busy || (mode === "shadow" && !address.trim())}>
               Spara
             </button>
           </div>

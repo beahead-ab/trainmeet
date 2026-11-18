@@ -174,6 +174,80 @@ function Dygnsskifte({ now, onNewDay }: { now: Now; onNewDay?: (request: NewDay)
   );
 }
 
+const TELLURIAN_STATES: Record<string, string> = {
+  None: "ingen klarering",
+  Requested: "begärd",
+  Accepted: "klar",
+  Rejected: "nekad",
+  Revoked: "återtagen",
+  Departed: "avgått",
+  Arrived: "framme",
+  Canceled: "inställd",
+  Unknown: "okänt läge",
+};
+
+const DRIFT_STATES: Record<string, string> = {
+  waiting: "begärd",
+  approved: "klar",
+  rejected: "nekad",
+  cancelled: "inställd",
+  invalidated: "ogiltig",
+};
+
+/** Tellurian Dispatch i skugga (H79, IMPORT-34): Tellurian's clearances beside Drift's, with
+ * what differs marked. Nothing is sent to Tellurian, and Drift is never touched. */
+export function Tellurian({ now }: { now: Now }) {
+  const shadow = now.tellurian;
+  if (!shadow) return null;
+  const sections = shadow.sections ?? [];
+  const unmatched = shadow.unmatched ?? [];
+  const differences = shadow.differences ?? 0;
+  const contact =
+    shadow.contact === "ok"
+      ? differences
+        ? `${differences} ${differences === 1 ? "skillnad" : "skillnader"} mot Drift`
+        : "inga skillnader mot Drift"
+      : shadow.contact === "lost"
+        ? `ingen kontakt${shadow.heard ? ` sedan ${new Date(shadow.heard).toLocaleTimeString("sv-SE")}` : ""}${shadow.problem ? ` · ${shadow.problem}` : ""}`
+        : "väntar på första svaret";
+  return (
+    <section id="tellurian" className={"kort tellurian" + (shadow.contact === "lost" ? " varning" : "")} aria-labelledby="tellurian-rubrik">
+      <h2 id="tellurian-rubrik">
+        Tellurian Dispatch i skugga{shadow.simulated ? " · simulerad" : ""}
+      </h2>
+      <p className="liten" role="status" id="tellurian-lage">
+        {`TrainMeet klarerar. Tellurian läses bredvid · ${contact}.`}
+      </p>
+      {sections.length > 0 && (
+        <table className="tabell" id="tellurian-sektioner">
+          <thead>
+            <tr>
+              <th>Tåg</th>
+              <th>Sträcka</th>
+              <th>Tellurian</th>
+              <th>Drift</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sections.map((section, index) => (
+              <tr key={index} className={section.differs ? "skiljer" : undefined}>
+                <td>{section.train_number ?? section.train}</td>
+                <td>{`${section.from_code ?? "?"}–${section.to_code ?? "?"}`}</td>
+                <td>{TELLURIAN_STATES[section.state] ?? section.state}</td>
+                <td>
+                  {section.drift ? DRIFT_STATES[section.drift] ?? section.drift : "–"}
+                  {section.differs && section.note ? <span className="liten">{` · ${section.note}`}</span> : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {unmatched.length > 0 && <p className="liten">{`Saknas hos Tellurian: ${unmatched.join(", ")}.`}</p>}
+    </section>
+  );
+}
+
 /** FastClock as the meet's clock (F12, IMPORT-35): Drift follows it, and the time and speed are
  * set there. Without an answer the last time stands, with a warning; no other clock takes over. */
 export function FastClock({ now }: { now: Now }) {
@@ -208,6 +282,7 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
         </p>
       </div>
       <FastClock now={now} />
+      <Tellurian now={now} />
       <Följer now={now} admin={props.leaderAdmin} onTakeOver={props.onTakeOver} />
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
       <Tillbakadragen now={now} />

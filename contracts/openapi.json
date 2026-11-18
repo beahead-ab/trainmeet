@@ -1843,6 +1843,94 @@
         ]
       }
     },
+    "/api/hub/tellurian": {
+      "get": {
+        "operationId": "tellurian",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.tellurian"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "setTellurian",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.hub-1.tellurian"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.hub-1.tellurian-change"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/hub/tellurian/log": {
+      "get": {
+        "operationId": "tellurianLog",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.drift-1.tellurian-log"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "train",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/hub/clock-source": {
       "get": {
         "operationId": "clockSource",
@@ -13399,6 +13487,18 @@
             ],
             "default": null,
             "description": "FastClock är träffens klocka (F12, IMPORT-35)."
+          },
+          "tellurian": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.TellurianShadow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurian Dispatch läses i skugga (IMPORT-34)."
           }
         },
         "required": [
@@ -14556,6 +14656,218 @@
         "title": "SwitchWaiting",
         "type": "object"
       },
+      "trainmeet.drift-1.now.TellurianContact": {
+        "enum": [
+          "waiting",
+          "ok",
+          "lost"
+        ],
+        "title": "TellurianContact",
+        "type": "string"
+      },
+      "trainmeet.drift-1.now.TellurianSection": {
+        "additionalProperties": true,
+        "description": "One train on one section, as Tellurian Dispatch shows it, beside what Drift says about\nthe same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian.",
+        "properties": {
+          "from_code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurians signatur för från.",
+            "title": "From Code"
+          },
+          "to_code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurians signatur för till.",
+            "title": "To Code"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Drifts sträcka med samma stationspar; tomt utan en.",
+            "title": "Section"
+          },
+          "train": {
+            "description": "Tåget som Tellurian skriver det, till exempel SJ IC 456.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågnumret, om det går att läsa.",
+            "title": "Train Number"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.now.TellurianState"
+          },
+          "drift": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.drift-1.now.ClearanceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Drifts klarering för samma tåg och sträcka; tomt utan en."
+          },
+          "differs": {
+            "description": "Tellurian och Drift säger olika.",
+            "title": "Differs",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vad som skiljer, i klartext.",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "train",
+          "state",
+          "differs"
+        ],
+        "title": "TellurianSection",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.TellurianShadow": {
+        "additionalProperties": true,
+        "description": "Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar\noch visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig.",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.now.TellurianContact"
+          },
+          "simulated": {
+            "default": false,
+            "description": "Simulatorn, inte Tellurian självt.",
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "heard": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När Tellurian senast svarade.",
+            "title": "Heard"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Felet i klartext, aldrig Tellurians eget svar.",
+            "title": "Problem"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.now.TellurianSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "differences": {
+            "default": 0,
+            "description": "Antal skillnader mot Drift.",
+            "minimum": 0,
+            "title": "Differences",
+            "type": "integer"
+          },
+          "unmatched": {
+            "description": "Drifts driftplatser som Tellurian inte har.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Unmatched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contact"
+        ],
+        "title": "TellurianShadow",
+        "type": "object"
+      },
+      "trainmeet.drift-1.now.TellurianState": {
+        "description": "A section's state in Tellurian Dispatch, as Tellurian names it.",
+        "enum": [
+          "None",
+          "Requested",
+          "Accepted",
+          "Rejected",
+          "Revoked",
+          "Departed",
+          "Arrived",
+          "Canceled",
+          "Unknown"
+        ],
+        "title": "TellurianState",
+        "type": "string"
+      },
       "trainmeet.drift-1.now.TrackKind": {
         "enum": [
           "single",
@@ -14626,6 +14938,49 @@
         ],
         "title": "Weekday",
         "type": "string"
+      },
+      "trainmeet.drift-1.tellurian-log": {
+        "additionalProperties": true,
+        "description": "Vad Tellurian ändrade, för Logg (IMPORT-34): beside Drift's own log, never in it.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "clock": {
+            "anyOf": [
+              {
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffklockan när det lästes.",
+            "title": "Clock"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "differs": {
+            "default": false,
+            "description": "Tellurian och Drift säger olika efteråt.",
+            "title": "Differs",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "at",
+          "text"
+        ],
+        "title": "TellurianLogEntry",
+        "type": "object"
       },
       "trainmeet.drift-1.joining": {
         "additionalProperties": true,
@@ -17237,6 +17592,18 @@
             ],
             "default": null,
             "description": "FastClock är träffens klocka (F12, IMPORT-35)."
+          },
+          "tellurian": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.TellurianShadow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurian Dispatch läses i skugga (IMPORT-34)."
           }
         },
         "required": [
@@ -17350,6 +17717,218 @@
         ],
         "title": "SwitchWaiting",
         "type": "object"
+      },
+      "trainmeet.screen-1.picture.TellurianContact": {
+        "enum": [
+          "waiting",
+          "ok",
+          "lost"
+        ],
+        "title": "TellurianContact",
+        "type": "string"
+      },
+      "trainmeet.screen-1.picture.TellurianSection": {
+        "additionalProperties": true,
+        "description": "One train on one section, as Tellurian Dispatch shows it, beside what Drift says about\nthe same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian.",
+        "properties": {
+          "from_code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurians signatur för från.",
+            "title": "From Code"
+          },
+          "to_code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tellurians signatur för till.",
+            "title": "To Code"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Drifts sträcka med samma stationspar; tomt utan en.",
+            "title": "Section"
+          },
+          "train": {
+            "description": "Tåget som Tellurian skriver det, till exempel SJ IC 456.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train",
+            "type": "string"
+          },
+          "train_number": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågnumret, om det går att läsa.",
+            "title": "Train Number"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.screen-1.picture.TellurianState"
+          },
+          "drift": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.screen-1.picture.ClearanceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Drifts klarering för samma tåg och sträcka; tomt utan en."
+          },
+          "differs": {
+            "description": "Tellurian och Drift säger olika.",
+            "title": "Differs",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vad som skiljer, i klartext.",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "train",
+          "state",
+          "differs"
+        ],
+        "title": "TellurianSection",
+        "type": "object"
+      },
+      "trainmeet.screen-1.picture.TellurianShadow": {
+        "additionalProperties": true,
+        "description": "Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar\noch visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig.",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/trainmeet.screen-1.picture.TellurianContact"
+          },
+          "simulated": {
+            "default": false,
+            "description": "Simulatorn, inte Tellurian självt.",
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "heard": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "När Tellurian senast svarade.",
+            "title": "Heard"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Felet i klartext, aldrig Tellurians eget svar.",
+            "title": "Problem"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.screen-1.picture.TellurianSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "differences": {
+            "default": 0,
+            "description": "Antal skillnader mot Drift.",
+            "minimum": 0,
+            "title": "Differences",
+            "type": "integer"
+          },
+          "unmatched": {
+            "description": "Drifts driftplatser som Tellurian inte har.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Unmatched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contact"
+        ],
+        "title": "TellurianShadow",
+        "type": "object"
+      },
+      "trainmeet.screen-1.picture.TellurianState": {
+        "description": "A section's state in Tellurian Dispatch, as Tellurian names it.",
+        "enum": [
+          "None",
+          "Requested",
+          "Accepted",
+          "Rejected",
+          "Revoked",
+          "Departed",
+          "Arrived",
+          "Canceled",
+          "Unknown"
+        ],
+        "title": "TellurianState",
+        "type": "string"
       },
       "trainmeet.screen-1.picture.TrackKind": {
         "enum": [
@@ -18330,6 +18909,96 @@
           "fastclock"
         ],
         "title": "ClockSource",
+        "type": "string"
+      },
+      "trainmeet.hub-1.tellurian": {
+        "additionalProperties": true,
+        "description": "Tellurian Dispatch for the meet that runs (IMPORT-06, IMPORT-34). Av är förval.",
+        "properties": {
+          "meet": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.tellurian.TellurianMode"
+          },
+          "address": {
+            "description": "Tellurians adress på träffens nät, bara schema, värd och port.",
+            "maxLength": 255,
+            "title": "Address",
+            "type": "string"
+          },
+          "test_instance": {
+            "description": "En testinstans: en publik adress eller den här datorn får användas.",
+            "title": "Test Instance",
+            "type": "boolean"
+          },
+          "simulator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Simulatorns adress, i testmiljön; tomt annars.",
+            "title": "Simulator"
+          }
+        },
+        "required": [
+          "meet",
+          "mode",
+          "address",
+          "test_instance"
+        ],
+        "title": "TellurianSettings",
+        "type": "object"
+      },
+      "trainmeet.hub-1.tellurian.TellurianMode": {
+        "description": "Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte\nän (T222).",
+        "enum": [
+          "off",
+          "shadow"
+        ],
+        "title": "TellurianMode",
+        "type": "string"
+      },
+      "trainmeet.hub-1.tellurian-change": {
+        "additionalProperties": true,
+        "description": "Slå på skuggan: Tellurian is read once before it is saved.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/trainmeet.hub-1.tellurian-change.TellurianMode"
+          },
+          "address": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Address",
+            "type": "string"
+          },
+          "test_instance": {
+            "default": false,
+            "title": "Test Instance",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "TellurianChange",
+        "type": "object"
+      },
+      "trainmeet.hub-1.tellurian-change.TellurianMode": {
+        "description": "Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte\nän (T222).",
+        "enum": [
+          "off",
+          "shadow"
+        ],
+        "title": "TellurianMode",
         "type": "string"
       },
       "trainmeet.hub-1.shared-wifi": {

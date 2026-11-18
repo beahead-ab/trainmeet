@@ -1028,6 +1028,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub/tellurian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tellurian"];
+        put?: never;
+        post: operations["setTellurian"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/tellurian/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tellurianLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hub/clock-source": {
         parameters: {
             query?: never;
@@ -6337,6 +6369,11 @@ export interface components {
              * @default null
              */
             external_clock: components["schemas"]["trainmeet.drift-1.now.ExternalClockNow"] | null;
+            /**
+             * @description Tellurian Dispatch läses i skugga (IMPORT-34).
+             * @default null
+             */
+            tellurian: components["schemas"]["trainmeet.drift-1.now.TellurianShadow"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6927,6 +6964,113 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TellurianContact
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.TellurianContact": "waiting" | "ok" | "lost";
+        /**
+         * TellurianSection
+         * @description One train on one section, as Tellurian Dispatch shows it, beside what Drift says about
+         *     the same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian.
+         */
+        "trainmeet.drift-1.now.TellurianSection": {
+            /**
+             * From Code
+             * @description Tellurians signatur för från.
+             * @default null
+             */
+            from_code: string | null;
+            /**
+             * To Code
+             * @description Tellurians signatur för till.
+             * @default null
+             */
+            to_code: string | null;
+            /**
+             * Section
+             * @description Drifts sträcka med samma stationspar; tomt utan en.
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Train
+             * @description Tåget som Tellurian skriver det, till exempel SJ IC 456.
+             */
+            train: string;
+            /**
+             * Train Number
+             * @description Tågnumret, om det går att läsa.
+             * @default null
+             */
+            train_number: string | null;
+            state: components["schemas"]["trainmeet.drift-1.now.TellurianState"];
+            /**
+             * @description Drifts klarering för samma tåg och sträcka; tomt utan en.
+             * @default null
+             */
+            drift: components["schemas"]["trainmeet.drift-1.now.ClearanceStatus"] | null;
+            /**
+             * Differs
+             * @description Tellurian och Drift säger olika.
+             */
+            differs: boolean;
+            /**
+             * Note
+             * @description Vad som skiljer, i klartext.
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianShadow
+         * @description Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar
+         *     och visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig.
+         */
+        "trainmeet.drift-1.now.TellurianShadow": {
+            contact: components["schemas"]["trainmeet.drift-1.now.TellurianContact"];
+            /**
+             * Simulated
+             * @description Simulatorn, inte Tellurian självt.
+             * @default false
+             */
+            simulated: boolean;
+            /**
+             * Heard
+             * @description När Tellurian senast svarade.
+             * @default null
+             */
+            heard: string | null;
+            /**
+             * Problem
+             * @description Felet i klartext, aldrig Tellurians eget svar.
+             * @default null
+             */
+            problem: string | null;
+            /** Sections */
+            sections?: components["schemas"]["trainmeet.drift-1.now.TellurianSection"][];
+            /**
+             * Differences
+             * @description Antal skillnader mot Drift.
+             * @default 0
+             */
+            differences: number;
+            /**
+             * Unmatched
+             * @description Drifts driftplatser som Tellurian inte har.
+             */
+            unmatched?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianState
+         * @description A section's state in Tellurian Dispatch, as Tellurian names it.
+         * @enum {string}
+         */
+        "trainmeet.drift-1.now.TellurianState": "None" | "Requested" | "Accepted" | "Rejected" | "Revoked" | "Departed" | "Arrived" | "Canceled" | "Unknown";
+        /**
          * TrackKind
          * @enum {string}
          */
@@ -6962,6 +7106,33 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.drift-1.now.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * TellurianLogEntry
+         * @description Vad Tellurian ändrade, för Logg (IMPORT-34): beside Drift's own log, never in it.
+         */
+        "trainmeet.drift-1.tellurian-log": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Clock
+             * @description Träffklockan när det lästes.
+             * @default null
+             */
+            clock: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Differs
+             * @description Tellurian och Drift säger olika efteråt.
+             * @default false
+             */
+            differs: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Joining
          * @description Anslut (S2): the meet's code and the address a box opens with it. Only for the
@@ -8268,6 +8439,11 @@ export interface components {
              * @default null
              */
             external_clock: components["schemas"]["trainmeet.screen-1.picture.ExternalClockNow"] | null;
+            /**
+             * @description Tellurian Dispatch läses i skugga (IMPORT-34).
+             * @default null
+             */
+            tellurian: components["schemas"]["trainmeet.screen-1.picture.TellurianShadow"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -8320,6 +8496,113 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TellurianContact
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.TellurianContact": "waiting" | "ok" | "lost";
+        /**
+         * TellurianSection
+         * @description One train on one section, as Tellurian Dispatch shows it, beside what Drift says about
+         *     the same train and section (H79, IMPORT-34). Read only: nothing is sent to Tellurian.
+         */
+        "trainmeet.screen-1.picture.TellurianSection": {
+            /**
+             * From Code
+             * @description Tellurians signatur för från.
+             * @default null
+             */
+            from_code: string | null;
+            /**
+             * To Code
+             * @description Tellurians signatur för till.
+             * @default null
+             */
+            to_code: string | null;
+            /**
+             * Section
+             * @description Drifts sträcka med samma stationspar; tomt utan en.
+             * @default null
+             */
+            section: string | null;
+            /**
+             * Train
+             * @description Tåget som Tellurian skriver det, till exempel SJ IC 456.
+             */
+            train: string;
+            /**
+             * Train Number
+             * @description Tågnumret, om det går att läsa.
+             * @default null
+             */
+            train_number: string | null;
+            state: components["schemas"]["trainmeet.screen-1.picture.TellurianState"];
+            /**
+             * @description Drifts klarering för samma tåg och sträcka; tomt utan en.
+             * @default null
+             */
+            drift: components["schemas"]["trainmeet.screen-1.picture.ClearanceStatus"] | null;
+            /**
+             * Differs
+             * @description Tellurian och Drift säger olika.
+             */
+            differs: boolean;
+            /**
+             * Note
+             * @description Vad som skiljer, i klartext.
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianShadow
+         * @description Tellurian Dispatch i skugga (H79, IMPORT-34, T10): Hubben läser Tellurians klareringar
+         *     och visar dem bredvid Drifts, med det som skiljer markerat. Drift påverkas aldrig.
+         */
+        "trainmeet.screen-1.picture.TellurianShadow": {
+            contact: components["schemas"]["trainmeet.screen-1.picture.TellurianContact"];
+            /**
+             * Simulated
+             * @description Simulatorn, inte Tellurian självt.
+             * @default false
+             */
+            simulated: boolean;
+            /**
+             * Heard
+             * @description När Tellurian senast svarade.
+             * @default null
+             */
+            heard: string | null;
+            /**
+             * Problem
+             * @description Felet i klartext, aldrig Tellurians eget svar.
+             * @default null
+             */
+            problem: string | null;
+            /** Sections */
+            sections?: components["schemas"]["trainmeet.screen-1.picture.TellurianSection"][];
+            /**
+             * Differences
+             * @description Antal skillnader mot Drift.
+             * @default 0
+             */
+            differences: number;
+            /**
+             * Unmatched
+             * @description Drifts driftplatser som Tellurian inte har.
+             */
+            unmatched?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianState
+         * @description A section's state in Tellurian Dispatch, as Tellurian names it.
+         * @enum {string}
+         */
+        "trainmeet.screen-1.picture.TellurianState": "None" | "Requested" | "Accepted" | "Rejected" | "Revoked" | "Departed" | "Arrived" | "Canceled" | "Unknown";
         /**
          * TrackKind
          * @enum {string}
@@ -8861,6 +9144,66 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.hub-1.clock-source-change.ClockSource": "drift" | "fastclock";
+        /**
+         * TellurianSettings
+         * @description Tellurian Dispatch for the meet that runs (IMPORT-06, IMPORT-34). Av är förval.
+         */
+        "trainmeet.hub-1.tellurian": {
+            /** Meet */
+            meet: string;
+            mode: components["schemas"]["trainmeet.hub-1.tellurian.TellurianMode"];
+            /**
+             * Address
+             * @description Tellurians adress på träffens nät, bara schema, värd och port.
+             */
+            address: string;
+            /**
+             * Test Instance
+             * @description En testinstans: en publik adress eller den här datorn får användas.
+             */
+            test_instance: boolean;
+            /**
+             * Simulator
+             * @description Simulatorns adress, i testmiljön; tomt annars.
+             * @default null
+             */
+            simulator: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianMode
+         * @description Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte
+         *     än (T222).
+         * @enum {string}
+         */
+        "trainmeet.hub-1.tellurian.TellurianMode": "off" | "shadow";
+        /**
+         * TellurianChange
+         * @description Slå på skuggan: Tellurian is read once before it is saved.
+         */
+        "trainmeet.hub-1.tellurian-change": {
+            mode: components["schemas"]["trainmeet.hub-1.tellurian-change.TellurianMode"];
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Test Instance
+             * @default false
+             */
+            test_instance: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TellurianMode
+         * @description Tellurian Dispatch (T10): av, eller i skugga. Läget där Tellurian bestämmer finns inte
+         *     än (T222).
+         * @enum {string}
+         */
+        "trainmeet.hub-1.tellurian-change.TellurianMode": "off" | "shadow";
         /**
          * SharedWifi
          * @description Träffens Wi-Fi som deltagarna ser det, på träffens nät eller inloggade (S8).
@@ -18145,6 +18488,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.update-status"];
+                };
+            };
+        };
+    };
+    tellurian: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.tellurian"];
+                };
+            };
+        };
+    };
+    setTellurian: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.hub-1.tellurian-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.tellurian"];
+                };
+            };
+        };
+    };
+    tellurianLog: {
+        parameters: {
+            query?: {
+                place?: string;
+                train?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.drift-1.tellurian-log"][];
                 };
             };
         };

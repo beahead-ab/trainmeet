@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, Klockan, Molnet, Natet, newSeed, SettingsPage, Uppdatering } from "./Installningar";
+import { heaps, Klockan, Molnet, Natet, newSeed, SettingsPage, TellurianDispatch, Uppdatering } from "./Installningar";
 import { KlienterPage } from "./Klienter";
-import { LoggPage } from "./Logg";
+import { LoggPage, TellurianLog } from "./Logg";
 import { NuPage } from "./Nu";
 import { builtText, StartPage } from "./StartPage";
 
@@ -308,6 +308,50 @@ describe("FastClock as the meet's clock (F12, IMPORT-35)", () => {
   });
 });
 
+describe("Tellurian Dispatch i skugga (IMPORT-06, IMPORT-34)", () => {
+  const shadow = {
+    contact: "ok",
+    simulated: true,
+    heard: "2026-11-18T05:00:00Z",
+    problem: null,
+    sections: [
+      { from_code: "Nby", to_code: "Ån", section: "nby-asn", train: "Pt 101", train_number: "101", state: "Accepted", drift: "approved", differs: false, note: null },
+      { from_code: "Ån", to_code: "Mlå", section: "asn-mla", train: "Pt 103", train_number: "103", state: "Requested", drift: "approved", differs: true, note: "Tellurian: begärd, Drift: klar." },
+    ],
+    differences: 1,
+    unmatched: ["Sjv"],
+  };
+  const shadowed = { ...now, tellurian: shadow } as Now;
+
+  it("shows Tellurian's clearances beside Drift's in Nu, with what differs marked", () => {
+    const html = renderToStaticMarkup(<NuPage admin={false} now={shadowed} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(html).toContain("Tellurian Dispatch i skugga · simulerad");
+    expect(html).toContain("TrainMeet klarerar. Tellurian läses bredvid · 1 skillnad mot Drift.");
+    expect(html).toMatch(/<tr class="skiljer"><td>103<\/td><td>Ån–Mlå<\/td><td>begärd<\/td><td>klar<span class="liten"> · Tellurian: begärd, Drift: klar.<\/span><\/td><\/tr>/);
+    expect(html).toContain("Saknas hos Tellurian: Sjv.");
+    const lost = renderToStaticMarkup(<NuPage admin={false} now={{ ...shadowed, tellurian: { ...shadow, contact: "lost", problem: "Tellurian svarar inte." } } as Now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />);
+    expect(lost).toContain("ingen kontakt sedan");
+    expect(lost).toContain("Tellurian svarar inte.");
+    expect(renderToStaticMarkup(<NuPage admin={false} now={now} clients={[]} choices={meetChoices([])} asked={null} automation={null} />)).not.toContain("Tellurian");
+  });
+
+  it("is off by default, and offers the simulator in the test environment", () => {
+    const settings = { meet: "provbanan", mode: "off", address: "", test_instance: false, simulator: "http://127.0.0.1:8765" } as const;
+    const html = renderToStaticMarkup(<TellurianDispatch admin now={now} initial={settings} />);
+    expect(html.match(/<input[^>]*value="off"[^>]*>/)?.[0]).toContain('checked=""');
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toContain("tellurian");
+    const on = renderToStaticMarkup(<TellurianDispatch admin now={now} initial={{ ...settings, mode: "shadow", address: "http://127.0.0.1:8765", test_instance: true }} />);
+    expect(on).toContain("Använd simulatorn i testmiljön");
+    expect(on).toContain('value="http://127.0.0.1:8765"');
+  });
+
+  it("lists what Tellurian changed in Logg, beside Drift's own log", () => {
+    const html = renderToStaticMarkup(<TellurianLog entries={[{ at: "2026-11-18T05:00:00Z", clock: "06:12", text: "103 Ån–Mlå: begärd", differs: true }]} />);
+    expect(html).toContain("Tellurian i skugga");
+    expect(html).toContain('<tr class="skiljer"><td>06:12</td><td>103 Ån–Mlå: begärd</td></tr>');
+  });
+});
+
 describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
   const automation = {
     settings: { enabled: true, lost_contact_minutes: 0, disturbance: "off", where: "both", seed: "", stabling: true, stabling_minutes: 5, late_stop_minutes: 2, answer_seconds: 3 },
@@ -382,7 +426,7 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
 
   it("lets the administrator choose the day change by hand or automatic, and its time (F7)", () => {
     const day = { mode: "automatic", time: "04:30", fixed: true, next_game_day: 2, next_traffic_day: "tue", suggested: "04:30", due: false, waiting: false };
-    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["klockan", "automatik", "dygnsskifte", "telefon", "traffens-wifi"]);
+    expect(heaps(now)[1]?.items.map(([id]) => id)).toEqual(["klockan", "tellurian", "automatik", "dygnsskifte", "telefon", "traffens-wifi"]);
     const html = settings(true, { ...now, day } as Now);
     expect(html).toContain('id="dygnsskifte"');
     expect(html).toContain('aria-pressed="true">Automatiskt</button>');
