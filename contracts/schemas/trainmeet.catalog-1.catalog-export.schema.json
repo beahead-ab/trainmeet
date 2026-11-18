@@ -241,6 +241,192 @@
       "title": "TagKind",
       "type": "string"
     },
+    "Tick": {
+      "additionalProperties": true,
+      "description": "A bock: one per vehicle and step, with its time (CAT-176).",
+      "properties": {
+        "step": {
+          "$ref": "#/$defs/TripStep"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "by": {
+          "$ref": "#/$defs/TickBy"
+        }
+      },
+      "required": [
+        "step",
+        "at",
+        "by"
+      ],
+      "title": "Tick",
+      "type": "object"
+    },
+    "TickBy": {
+      "description": "How a tick was set (CAT-176).",
+      "enum": [
+        "tap",
+        "press"
+      ],
+      "title": "TickBy",
+      "type": "string"
+    },
+    "Trip": {
+      "additionalProperties": true,
+      "description": "A meet with its pack list and its three steps (CAT-174–CAT-180).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "archived_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the pack list was archived (CAT-183). An archived meet does not change.",
+          "title": "Archived At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "template_of": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The meet whose pack list this one started from (CAT-183).",
+          "title": "Template Of"
+        },
+        "vehicles": {
+          "description": "How many vehicles are on the pack list.",
+          "title": "Vehicles",
+          "type": "integer"
+        },
+        "done": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "How many are ticked in each step, for 3 av 4 (CAT-178).",
+          "propertyNames": {
+            "$ref": "#/$defs/TripStep"
+          },
+          "title": "Done",
+          "type": "object"
+        },
+        "step": {
+          "$ref": "#/$defs/TripStep",
+          "description": "The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it."
+        },
+        "rows": {
+          "description": "In the pack list's order; when the trip is at Hem, Saknas first (CAT-179).",
+          "items": {
+            "$ref": "#/$defs/TripRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "date",
+        "created_at",
+        "vehicles",
+        "done",
+        "step",
+        "rows"
+      ],
+      "title": "Trip",
+      "type": "object"
+    },
+    "TripRow": {
+      "additionalProperties": true,
+      "description": "A vehicle on the pack list, with its ticks.",
+      "properties": {
+        "vehicle": {
+          "$ref": "#/$defs/Vehicle",
+          "description": "The vehicle as its owner sees it: its place, state and picture, and what someone who found it said (CAT-180)."
+        },
+        "added_at": {
+          "format": "date-time",
+          "title": "Added At",
+          "type": "string"
+        },
+        "ticks": {
+          "description": "At most one per step, in the steps' order.",
+          "items": {
+            "$ref": "#/$defs/Tick"
+          },
+          "title": "Ticks",
+          "type": "array"
+        },
+        "last": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Tick"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The latest tick: when, and in which step, the vehicle was last ticked. Saknas at Hem shows it (CAT-179)."
+        },
+        "missing": {
+          "description": "Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179).",
+          "title": "Missing",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "vehicle",
+        "added_at",
+        "ticks",
+        "missing"
+      ],
+      "title": "TripRow",
+      "type": "object"
+    },
+    "TripStep": {
+      "description": "The trip's three steps (CAT-176).",
+      "enum": [
+        "pack",
+        "arrive",
+        "home"
+      ],
+      "title": "TripStep",
+      "type": "string"
+    },
     "Vehicle": {
       "additionalProperties": true,
       "description": "A vehicle as its owner sees it.",
@@ -485,6 +671,19 @@
           ],
           "default": null,
           "title": "Lent To"
+        },
+        "meet_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The meet whose trip moved the vehicle, as it was named then (CAT-182).",
+          "title": "Meet Name"
         }
       },
       "required": [
@@ -632,6 +831,14 @@
     },
     "settings": {
       "$ref": "#/$defs/OwnerSettings"
+    },
+    "trips": {
+      "description": "The meets with their pack lists and ticks (#55).",
+      "items": {
+        "$ref": "#/$defs/Trip"
+      },
+      "title": "Trips",
+      "type": "array"
     }
   },
   "required": [

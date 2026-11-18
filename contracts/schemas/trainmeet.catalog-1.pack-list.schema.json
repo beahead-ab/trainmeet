@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.pack-list.schema.json",
+  "title": "trainmeet.catalog-1.pack-list",
+  "additionalProperties": true,
+  "description": "The pack list: all the vehicles that go to the meet (CAT-175). A vehicle taken off the\nlist while it is away on this trip comes home.",
+  "properties": {
+    "vehicles": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 500,
+      "title": "Vehicles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "vehicles"
+  ],
+  "type": "object"
+}

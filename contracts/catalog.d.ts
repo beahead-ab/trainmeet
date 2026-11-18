@@ -518,6 +518,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/1/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["trips"];
+        put?: never;
+        post: operations["newTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/meets/{meet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["trip"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/meets/{meet}/vehicles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["packList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/meets/{meet}/ticks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tick"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/meets/{meet}/tap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tapInTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/1/meets/{meet}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/1/pictures/file/{key}": {
         parameters: {
             query?: never;
@@ -1615,6 +1711,12 @@ export interface components {
              * @default null
              */
             lent_to: string | null;
+            /**
+             * Meet Name
+             * @description The meet whose trip moved the vehicle, as it was named then (CAT-182).
+             * @default null
+             */
+            meet_name: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1685,7 +1787,7 @@ export interface components {
          * @description Why Catalog said no. The web app has the text for each in Swedish and English.
          * @enum {string}
          */
-        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle";
+        "trainmeet.catalog-1.problem.ProblemCode": "not_found" | "changed" | "not_ready" | "dcc_only_engines" | "place_exists" | "not_home" | "not_lent" | "login" | "tag_taken" | "tag_on_other_vehicle" | "tag_changed" | "bad_tag" | "too_many" | "not_here" | "forbidden" | "unavailable" | "bad_picture" | "picture_too_large" | "too_many_pictures" | "storage_full" | "no_tokens" | "backgrounds_off" | "no_vehicle" | "lent" | "on_another_trip" | "archived" | "not_back";
         /**
          * Tag
          * @description A tag the owner has made: a simulated tag or a QR label.
@@ -2046,6 +2148,12 @@ export interface components {
              * @default null
              */
             lent_to: string | null;
+            /**
+             * Meet Name
+             * @description The meet whose trip moved the vehicle, as it was named then (CAT-182).
+             * @default null
+             */
+            meet_name: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -2073,6 +2181,11 @@ export interface components {
             /** Places */
             places: components["schemas"]["trainmeet.catalog-1.catalog-export.Place"][];
             settings: components["schemas"]["trainmeet.catalog-1.catalog-export.OwnerSettings"];
+            /**
+             * Trips
+             * @description The meets with their pack lists and ticks (#55).
+             */
+            trips?: components["schemas"]["trainmeet.catalog-1.catalog-export.Trip"][];
         } & {
             [key: string]: unknown;
         };
@@ -2234,6 +2347,119 @@ export interface components {
          */
         "trainmeet.catalog-1.catalog-export.TagKind": "nfc" | "qr" | "sim";
         /**
+         * Tick
+         * @description A bock: one per vehicle and step, with its time (CAT-176).
+         */
+        "trainmeet.catalog-1.catalog-export.Tick": {
+            step: components["schemas"]["trainmeet.catalog-1.catalog-export.TripStep"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["trainmeet.catalog-1.catalog-export.TickBy"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TickBy
+         * @description How a tick was set (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.TickBy": "tap" | "press";
+        /**
+         * Trip
+         * @description A meet with its pack list and its three steps (CAT-174–CAT-180).
+         */
+        "trainmeet.catalog-1.catalog-export.Trip": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Archived At
+             * @description When the pack list was archived (CAT-183). An archived meet does not change.
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Template Of
+             * @description The meet whose pack list this one started from (CAT-183).
+             * @default null
+             */
+            template_of: string | null;
+            /**
+             * Vehicles
+             * @description How many vehicles are on the pack list.
+             */
+            vehicles: number;
+            /**
+             * Done
+             * @description How many are ticked in each step, for 3 av 4 (CAT-178).
+             */
+            done: {
+                [key: string]: number;
+            };
+            /** @description The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it. */
+            step: components["schemas"]["trainmeet.catalog-1.catalog-export.TripStep"];
+            /**
+             * Rows
+             * @description In the pack list's order; when the trip is at Hem, Saknas first (CAT-179).
+             */
+            rows: components["schemas"]["trainmeet.catalog-1.catalog-export.TripRow"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripRow
+         * @description A vehicle on the pack list, with its ticks.
+         */
+        "trainmeet.catalog-1.catalog-export.TripRow": {
+            /** @description The vehicle as its owner sees it: its place, state and picture, and what someone who found it said (CAT-180). */
+            vehicle: components["schemas"]["trainmeet.catalog-1.catalog-export.Vehicle"];
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            /**
+             * Ticks
+             * @description At most one per step, in the steps' order.
+             */
+            ticks: components["schemas"]["trainmeet.catalog-1.catalog-export.Tick"][];
+            /**
+             * @description The latest tick: when, and in which step, the vehicle was last ticked. Saknas at Hem shows it (CAT-179).
+             * @default null
+             */
+            last: components["schemas"]["trainmeet.catalog-1.catalog-export.Tick"] | null;
+            /**
+             * Missing
+             * @description Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179).
+             */
+            missing: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.catalog-export.TripStep": "pack" | "arrive" | "home";
+        /**
          * Vehicle
          * @description A vehicle as its owner sees it.
          */
@@ -2377,6 +2603,12 @@ export interface components {
              * @default null
              */
             lent_to: string | null;
+            /**
+             * Meet Name
+             * @description The meet whose trip moved the vehicle, as it was named then (CAT-182).
+             * @default null
+             */
+            meet_name: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -2621,6 +2853,996 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.catalog-1.background-change.PictureBackground": "original" | "white" | "grey" | "transparent" | "rails";
+        /**
+         * TripSummary
+         * @description A meet in the list of meets: the owner's own, with a name and a date (CAT-174).
+         */
+        "trainmeet.catalog-1.trip-summary": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Archived At
+             * @description When the pack list was archived (CAT-183). An archived meet does not change.
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Template Of
+             * @description The meet whose pack list this one started from (CAT-183).
+             * @default null
+             */
+            template_of: string | null;
+            /**
+             * Vehicles
+             * @description How many vehicles are on the pack list.
+             */
+            vehicles: number;
+            /**
+             * Done
+             * @description How many are ticked in each step, for 3 av 4 (CAT-178).
+             */
+            done: {
+                [key: string]: number;
+            };
+            /** @description The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it. */
+            step: components["schemas"]["trainmeet.catalog-1.trip-summary.TripStep"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-summary.TripStep": "pack" | "arrive" | "home";
+        /**
+         * Trip
+         * @description A meet with its pack list and its three steps (CAT-174–CAT-180).
+         */
+        "trainmeet.catalog-1.trip": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Archived At
+             * @description When the pack list was archived (CAT-183). An archived meet does not change.
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Template Of
+             * @description The meet whose pack list this one started from (CAT-183).
+             * @default null
+             */
+            template_of: string | null;
+            /**
+             * Vehicles
+             * @description How many vehicles are on the pack list.
+             */
+            vehicles: number;
+            /**
+             * Done
+             * @description How many are ticked in each step, for 3 av 4 (CAT-178).
+             */
+            done: {
+                [key: string]: number;
+            };
+            /** @description The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it. */
+            step: components["schemas"]["trainmeet.catalog-1.trip.TripStep"];
+            /**
+             * Rows
+             * @description In the pack list's order; when the trip is at Hem, Saknas first (CAT-179).
+             */
+            rows: components["schemas"]["trainmeet.catalog-1.trip.TripRow"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.trip.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.catalog-1.trip.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.catalog-1.trip.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.catalog-1.trip.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.trip.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.TagKind": "nfc" | "qr" | "sim";
+        /**
+         * Tick
+         * @description A bock: one per vehicle and step, with its time (CAT-176).
+         */
+        "trainmeet.catalog-1.trip.Tick": {
+            step: components["schemas"]["trainmeet.catalog-1.trip.TripStep"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["trainmeet.catalog-1.trip.TickBy"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TickBy
+         * @description How a tick was set (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.TickBy": "tap" | "press";
+        /**
+         * TripRow
+         * @description A vehicle on the pack list, with its ticks.
+         */
+        "trainmeet.catalog-1.trip.TripRow": {
+            /** @description The vehicle as its owner sees it: its place, state and picture, and what someone who found it said (CAT-180). */
+            vehicle: components["schemas"]["trainmeet.catalog-1.trip.Vehicle"];
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            /**
+             * Ticks
+             * @description At most one per step, in the steps' order.
+             */
+            ticks: components["schemas"]["trainmeet.catalog-1.trip.Tick"][];
+            /**
+             * @description The latest tick: when, and in which step, the vehicle was last ticked. Saknas at Hem shows it (CAT-179).
+             * @default null
+             */
+            last: components["schemas"]["trainmeet.catalog-1.trip.Tick"] | null;
+            /**
+             * Missing
+             * @description Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179).
+             */
+            missing: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.TripStep": "pack" | "arrive" | "home";
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.catalog-1.trip.Vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.trip.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.trip.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.trip.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.catalog-1.trip.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.catalog-1.trip.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.catalog-1.trip.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.trip.FieldSource"];
+            };
+            /**
+             * Tags
+             * @description At most one NFC, one QR. Only the owner sees them.
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.trip.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
+            /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.catalog-1.trip.Notice"][];
+            /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.trip.PictureLinks"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.catalog-1.trip.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.trip.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NewTrip
+         * @description A new meet: a name and a date (CAT-174), and perhaps an earlier meet's pack list.
+         */
+        "trainmeet.catalog-1.new-trip": {
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Template
+             * @description Ny träff från den här: the pack list starts as this meet's (CAT-183).
+             * @default null
+             */
+            template: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PackList
+         * @description The pack list: all the vehicles that go to the meet (CAT-175). A vehicle taken off the
+         *     list while it is away on this trip comes home.
+         */
+        "trainmeet.catalog-1.pack-list": {
+            /** Vehicles */
+            vehicles: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TickChange
+         * @description A press on the row: tick the vehicle in a step, or take the tick away (CAT-176).
+         */
+        "trainmeet.catalog-1.tick-change": {
+            /**
+             * Vehicle
+             * Format: uuid
+             */
+            vehicle: string;
+            step: components["schemas"]["trainmeet.catalog-1.tick-change.TripStep"];
+            /**
+             * Ticked
+             * @description False takes the tick away, and moves the vehicle back.
+             * @default true
+             */
+            ticked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.tick-change.TripStep": "pack" | "arrive" | "home";
+        /**
+         * TripTap
+         * @description A tag tapped in a step (CAT-176): Web NFC's serial number, a QR label's id or a simulated
+         *     tag, as after /t/ in the address.
+         */
+        "trainmeet.catalog-1.trip-tap": {
+            /** Uid */
+            uid: string;
+            /**
+             * @description The step shown; null ticks in the step the trip is at.
+             * @default null
+             */
+            step: components["schemas"]["trainmeet.catalog-1.trip-tap.TripStep"] | null;
+            /**
+             * Add
+             * @description Lägg till: put the vehicle on the pack list first when it is not (CAT-181).
+             * @default false
+             */
+            add: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tap.TripStep": "pack" | "arrive" | "home";
+        /**
+         * TripTapped
+         * @description The answer to a tap in the trip (CAT-176, CAT-181).
+         */
+        "trainmeet.catalog-1.trip-tapped": {
+            outcome: components["schemas"]["trainmeet.catalog-1.trip-tapped.TapOutcome"];
+            /**
+             * Vehicle Id
+             * @default null
+             */
+            vehicle_id: string | null;
+            /**
+             * Title
+             * @description Litt and number, to ask: Lägg till Hbis 2253?
+             * @default null
+             */
+            title: string | null;
+            trip: components["schemas"]["trainmeet.catalog-1.trip-tapped.Trip"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DccFunction
+         * @description A locomotive's function: F0 light, F2 horn ... (CAT-66).
+         */
+        "trainmeet.catalog-1.trip-tapped.DccFunction": {
+            /** Number */
+            number: number;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EvnParts
+         * @description The EVN read from the number (CAT-57). Derived every time, never stored.
+         */
+        "trainmeet.catalog-1.trip-tapped.EvnParts": {
+            /**
+             * Text
+             * @description For example 21 74 245 2 253-0, with the computed check digit.
+             */
+            text: string;
+            /** Interop */
+            interop: string;
+            /** Country */
+            country: string;
+            /**
+             * Country Letters
+             * @description For example S for 74. Empty when unknown.
+             */
+            country_letters: string;
+            /** Serial */
+            serial: string;
+            /** Check */
+            check: number;
+            /**
+             * Given
+             * @description The painted check digit, or null when not painted.
+             */
+            given: number | null;
+            /**
+             * Valid
+             * @description False only when the painted check digit is wrong (CAT-59).
+             */
+            valid: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FieldSource
+         * @description Where a core field's value came from (CAT-64).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.FieldSource": "owner" | "ai" | "prototype" | "import";
+        /**
+         * Lending
+         * @description Who has the vehicle: the owner's own note (CAT-74, CAT-75).
+         */
+        "trainmeet.catalog-1.trip-tapped.Lending": {
+            /** To */
+            to: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Until
+             * @default null
+             */
+            until: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Notice
+         * @description Någon sa till: where someone saw the vehicle, without who said it (CAT-113).
+         */
+        "trainmeet.catalog-1.trip-tapped.Notice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PictureLinks
+         * @description The vehicle's main picture, for the lists and the card (CAT-125). Signed addresses that
+         *     expire (CAT-130): read the vehicle again for new ones.
+         */
+        "trainmeet.catalog-1.trip-tapped.PictureLinks": {
+            /**
+             * Thumb Url
+             * @description The thumbnail, at most 360×240 pixels (CAT-126).
+             */
+            thumb_url: string;
+            /**
+             * Display Url
+             * @description The display picture, at most 1800 pixels (CAT-126).
+             */
+            display_url: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TagKind
+         * @description An NFC tag, a QR label or a simulated tag (CAT-78, CAT-96, CAT-121).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.TagKind": "nfc" | "qr" | "sim";
+        /**
+         * TapOutcome
+         * @description What a tap in the trip did.
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.TapOutcome": "ticked" | "not_on_list" | "unknown";
+        /**
+         * Tick
+         * @description A bock: one per vehicle and step, with its time (CAT-176).
+         */
+        "trainmeet.catalog-1.trip-tapped.Tick": {
+            step: components["schemas"]["trainmeet.catalog-1.trip-tapped.TripStep"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["trainmeet.catalog-1.trip-tapped.TickBy"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TickBy
+         * @description How a tick was set (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.TickBy": "tap" | "press";
+        /**
+         * Trip
+         * @description A meet with its pack list and its three steps (CAT-174–CAT-180).
+         */
+        "trainmeet.catalog-1.trip-tapped.Trip": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Archived At
+             * @description When the pack list was archived (CAT-183). An archived meet does not change.
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Template Of
+             * @description The meet whose pack list this one started from (CAT-183).
+             * @default null
+             */
+            template_of: string | null;
+            /**
+             * Vehicles
+             * @description How many vehicles are on the pack list.
+             */
+            vehicles: number;
+            /**
+             * Done
+             * @description How many are ticked in each step, for 3 av 4 (CAT-178).
+             */
+            done: {
+                [key: string]: number;
+            };
+            /** @description The step the trip is at: the latest one ticked in, or the next when that one is done. The web app opens it, and a tap without a step ticks in it. */
+            step: components["schemas"]["trainmeet.catalog-1.trip-tapped.TripStep"];
+            /**
+             * Rows
+             * @description In the pack list's order; when the trip is at Hem, Saknas first (CAT-179).
+             */
+            rows: components["schemas"]["trainmeet.catalog-1.trip-tapped.TripRow"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripRow
+         * @description A vehicle on the pack list, with its ticks.
+         */
+        "trainmeet.catalog-1.trip-tapped.TripRow": {
+            /** @description The vehicle as its owner sees it: its place, state and picture, and what someone who found it said (CAT-180). */
+            vehicle: components["schemas"]["trainmeet.catalog-1.trip-tapped.Vehicle"];
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            /**
+             * Ticks
+             * @description At most one per step, in the steps' order.
+             */
+            ticks: components["schemas"]["trainmeet.catalog-1.trip-tapped.Tick"][];
+            /**
+             * @description The latest tick: when, and in which step, the vehicle was last ticked. Saknas at Hem shows it (CAT-179).
+             * @default null
+             */
+            last: components["schemas"]["trainmeet.catalog-1.trip-tapped.Tick"] | null;
+            /**
+             * Missing
+             * @description Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179).
+             */
+            missing: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TripStep
+         * @description The trip's three steps (CAT-176).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.TripStep": "pack" | "arrive" | "home";
+        /**
+         * Vehicle
+         * @description A vehicle as its owner sees it.
+         */
+        "trainmeet.catalog-1.trip-tapped.Vehicle": {
+            /** @default draft */
+            status: components["schemas"]["trainmeet.catalog-1.trip-tapped.VehicleStatus"];
+            /** @default null */
+            kind: components["schemas"]["trainmeet.catalog-1.trip-tapped.VehicleKind"] | null;
+            /**
+             * Litt
+             * @default
+             */
+            litt: string;
+            /**
+             * Number
+             * @description As painted: leading zeros, spaces, dashes kept.
+             * @default
+             */
+            number: string;
+            /**
+             * Operator
+             * @description The operator as text. No logos (CAT-61).
+             * @default
+             */
+            operator: string;
+            /**
+             * Epoch
+             * @default
+             */
+            epoch: string;
+            /**
+             * Scale
+             * @default
+             */
+            scale: string;
+            /**
+             * Maker
+             * @description The model's maker.
+             * @default
+             */
+            maker: string;
+            /**
+             * Article Number
+             * @default
+             */
+            article_number: string;
+            /**
+             * Note
+             * @description Private. Never in a mini card or an export to others (CAT-191).
+             * @default
+             */
+            note: string;
+            /**
+             * Dcc Address
+             * @description Locomotives and multiple units: the DCC address as text.
+             * @default
+             */
+            dcc_address: string;
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.catalog-1.trip-tapped.DccFunction"][];
+            /**
+             * Place
+             * @description The place at home.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Permanent, never reused, kept when the tag changes (CAT-52).
+             */
+            id: string;
+            /** Version */
+            version: number;
+            state: components["schemas"]["trainmeet.catalog-1.trip-tapped.VehicleState"];
+            /**
+             * Place Name
+             * @default null
+             */
+            place_name: string | null;
+            /** @default null */
+            lending: components["schemas"]["trainmeet.catalog-1.trip-tapped.Lending"] | null;
+            /** @default null */
+            evn: components["schemas"]["trainmeet.catalog-1.trip-tapped.EvnParts"] | null;
+            /** Field Sources */
+            field_sources?: {
+                [key: string]: components["schemas"]["trainmeet.catalog-1.trip-tapped.FieldSource"];
+            };
+            /**
+             * Tags
+             * @description At most one NFC, one QR. Only the owner sees them.
+             */
+            tags?: components["schemas"]["trainmeet.catalog-1.trip-tapped.VehicleTag"][];
+            /**
+             * Tagged
+             * @description The vehicle has a tag: what someone it is shared with sees (CAT-47).
+             * @default false
+             */
+            tagged: boolean;
+            /**
+             * Notices
+             * @description Newest first.
+             */
+            notices?: components["schemas"]["trainmeet.catalog-1.trip-tapped.Notice"][];
+            /**
+             * @description The main picture, or null without pictures. Seen with every right.
+             * @default null
+             */
+            picture: components["schemas"]["trainmeet.catalog-1.trip-tapped.PictureLinks"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * VehicleKind
+         * @description The kinds of vehicle (CAT-54).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.VehicleKind": "locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other";
+        /**
+         * VehicleState
+         * @description Where the vehicle is (CAT-70). Packed and at the meet are set by the trip (#55).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.VehicleState": "home" | "packed" | "at_meet" | "lent";
+        /**
+         * VehicleStatus
+         * @description A draft, or ready: ready needs a kind and a litt or number (CAT-62).
+         * @enum {string}
+         */
+        "trainmeet.catalog-1.trip-tapped.VehicleStatus": "draft" | "ready";
+        /**
+         * VehicleTag
+         * @description A tag on the vehicle, as the card shows it (CAT-97).
+         */
+        "trainmeet.catalog-1.trip-tapped.VehicleTag": {
+            /**
+             * Assignment
+             * Format: uuid
+             * @description The link. A change carries it (CAT-89).
+             */
+            assignment: string;
+            /**
+             * Tag
+             * Format: uuid
+             */
+            tag: string;
+            /**
+             * Uid
+             * @description What stands after /t/ in the address.
+             */
+            uid: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["trainmeet.catalog-1.trip-tapped.TagKind"];
+            /**
+             * Address
+             * @description For example https://trainmeet.app/t/04a1b2c3d4e5f6.
+             */
+            address: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -5023,6 +6245,517 @@ export interface operations {
             };
             /** @description Catalog säger nej */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    trips: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip-summary"][];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    newTrip: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.new-trip"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    trip: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    packList: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.pack-list"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tick: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.tick-change"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    tapInTrip: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.catalog-1.trip-tap"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip-tapped"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+        };
+    };
+    archiveTrip: {
+        parameters: {
+            query?: {
+                /** @description The owner's id, to work in a fleet shared with the person. */
+                fleet?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.trip"];
+                };
+            };
+            /** @description Catalog säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.catalog-1.problem"];
+                };
+            };
+            /** @description Catalog säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

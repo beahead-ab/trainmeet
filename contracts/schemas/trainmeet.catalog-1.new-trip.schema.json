@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.new-trip.schema.json",
+  "title": "trainmeet.catalog-1.new-trip",
+  "additionalProperties": true,
+  "description": "A new meet: a name and a date (CAT-174), and perhaps an earlier meet's pack list.",
+  "properties": {
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "template": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ny träff från den här: the pack list starts as this meet's (CAT-183).",
+      "title": "Template"
+    }
+  },
+  "required": [
+    "name",
+    "date"
+  ],
+  "type": "object"
+}

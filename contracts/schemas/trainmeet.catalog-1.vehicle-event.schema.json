@@ -49,6 +49,19 @@
       ],
       "default": null,
       "title": "Lent To"
+    },
+    "meet_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The meet whose trip moved the vehicle, as it was named then (CAT-182).",
+      "title": "Meet Name"
     }
   },
   "required": [

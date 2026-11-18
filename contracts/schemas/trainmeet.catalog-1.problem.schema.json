@@ -28,7 +28,11 @@
         "storage_full",
         "no_tokens",
         "backgrounds_off",
-        "no_vehicle"
+        "no_vehicle",
+        "lent",
+        "on_another_trip",
+        "archived",
+        "not_back"
       ],
       "title": "ProblemCode",
       "type": "string"

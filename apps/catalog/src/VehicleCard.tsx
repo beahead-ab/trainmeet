@@ -31,6 +31,11 @@ export function evnLine(t: T, vehicle: Vehicle): { value: string; note: string; 
 const EVN_CLASS: Record<EvnNote, string> = { none: "cat-under", ok: "cat-ok", wrong: "cat-varning" };
 
 export function eventText(t: T, event: VehicleEvent): string {
+  return [stateEventText(t, event), event.meet_name].filter(Boolean).join(" · ");
+}
+
+/** The state and the place; the meet's name follows when the trip moved it (CAT-182). */
+function stateEventText(t: T, event: VehicleEvent): string {
   if (event.state === "lent") return t("eventLent", { name: event.lent_to ?? "" });
   if (event.state === "home") return event.place_name ? t("eventHomeAt", { place: event.place_name }) : t("eventHome");
   return t(`state_${event.state}`);

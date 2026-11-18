@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editPath, lendPath, nextAfterLogin, PATHS, routeFor, tabOf, uidFrom, vehiclePath } from "./routes";
+import { editPath, lendPath, meetPath, nextAfterLogin, PATHS, routeFor, tabOf, uidFrom, vehiclePath } from "./routes";
 
 const ID = "8a3e1f0c-1111-4222-8333-944455556666";
 
@@ -38,6 +38,12 @@ describe("the addresses", () => {
     expect(tabOf("vehicle")).toBe("vehicles");
     expect(tabOf("places")).toBe("vehicles");
     expect(tabOf("meets")).toBe("meets");
+  });
+
+  it("reads a meet's page, in the Träffar tab (#55)", () => {
+    expect(routeFor(meetPath(ID))).toEqual({ page: "meet", id: ID });
+    expect(routeFor("/traffar/okand").page).toBe("missing");
+    expect(tabOf("meet")).toBe("meets");
   });
 
   it("returns to the tag after logging in, and nowhere outside Catalog", () => {

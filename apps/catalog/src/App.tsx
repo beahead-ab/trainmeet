@@ -3,11 +3,12 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 import { api, idLoginHref, workIn, type Account, type AppKey, type CatalogVersion, type FleetChoice, type Session } from "./api";
 import { storeLanguage, text, type Language, type TextKey } from "./i18n";
 import { MeetsIcon, TapIcon, VehiclesIcon } from "./icons";
-import type { Ctx } from "./common";
+import { isOwner, type Ctx } from "./common";
 import { LendPage } from "./LendPage";
 import { PlacesPage } from "./PlacesPage";
 import { TagPage } from "./TagPage";
 import { TapPage } from "./TapPage";
+import { MeetsPage, TripPage } from "./TripsPage";
 import { nextAfterLogin, PATHS, routeFor, tabOf, type Page, type Route } from "./routes";
 import { VehicleCardPage } from "./VehicleCard";
 import { VehicleFormPage } from "./VehicleForm";
@@ -53,6 +54,7 @@ const TITLES: Record<Page, TextKey> = {
   lend: "lendTitle",
   places: "places",
   meets: "meets",
+  meet: "meetTitle",
   prototypes: "prototypes",
   tap: "tapTitle",
   login: "logIn",
@@ -275,7 +277,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     workIn: props.onWorkIn,
     fleets: props.fleets,
   };
-  const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places"];
+  const fleetPages: Page[] = ["newVehicle", "vehicle", "editVehicle", "lend", "places", "meets", "meet"];
   if (fleetPages.includes(page) && !account) {
     return (
       <section className="tm-kort cat-tomt">
@@ -320,11 +322,19 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
         </>
       );
     case "meets":
-      return (
-        <>
-          <h1>{t("meets")}</h1>
-          <Empty title={t("meetsEmpty")} detail={t("meetsEmptyDetail")} />
-        </>
+    case "meet":
+      // The meets are the owner's own, and the trip moves the vehicles (CAT-174, CAT-182).
+      if (!isOwner(ctx))
+        return (
+          <>
+            <h1>{t("meets")}</h1>
+            <Empty title={t("meetsOwnerOnly")} />
+          </>
+        );
+      return page === "meets" ? (
+        <MeetsPage key={props.working ?? "egen"} ctx={ctx} />
+      ) : (
+        <TripPage key={id} ctx={ctx} id={id ?? ""} simulated={props.session?.simulated_tags ?? false} />
       );
     case "prototypes":
       return (

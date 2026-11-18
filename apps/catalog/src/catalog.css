@@ -918,3 +918,190 @@
     height: 48px;
   }
 }
+
+/* The trip to the meet (#55): the meets, the steps, the rows to tick and Saknas. */
+.cat-listrubrik {
+  margin: 0;
+  padding: 20px 24px 8px;
+  font-size: 20px;
+}
+.cat-traffar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cat-traffar li {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 16px 24px;
+  border-top: 1px solid var(--tm-line);
+}
+.cat-traffar li:first-child {
+  border-top: 0;
+}
+.cat-traffar .tm-knapp {
+  margin-top: 8px;
+}
+.cat-sidokolumn .cat-avsnitt {
+  margin-top: 0;
+}
+.cat-sidokolumn .cat-avsnitt p {
+  margin: 0;
+}
+.cat-steg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 720px;
+  margin: 0 0 20px;
+}
+.cat-steg button {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.cat-steg button[aria-pressed="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.cat-steg .cat-under {
+  font-size: 13px;
+  font-weight: 500;
+}
+.cat-framstegstext {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.cat-framsteg {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: 10px;
+  margin: 0 0 20px;
+  accent-color: #1a7f37;
+}
+.cat-blippsvar:empty {
+  display: none;
+}
+.cat-resrader {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cat-resrader li + li {
+  border-top: 1px solid var(--tm-line);
+}
+.cat-resrad {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 24px;
+  border: 0;
+  background: none;
+  color: var(--tm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cat-resrad:disabled {
+  cursor: default;
+}
+.cat-resrad:focus-visible {
+  outline: 3px solid var(--tm-focus);
+  outline-offset: -3px;
+}
+.cat-restext {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+.cat-restext b {
+  font-size: 18px;
+}
+.cat-besked-rad {
+  font-size: 15px;
+}
+.cat-bock {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--tm-line);
+  border-radius: 50%;
+}
+.cat-resrad[aria-pressed="true"] .cat-bock {
+  border-color: #1a7f37;
+  background: #1a7f37;
+}
+.cat-resrad[aria-pressed="true"] .cat-bock::after {
+  content: "✓";
+  color: #ffffff;
+  font-weight: 700;
+}
+.cat-saknas {
+  margin: 0 0 16px;
+  padding: 0;
+  overflow: hidden;
+  border-color: #d92d20;
+  background: #fdecea;
+}
+.cat-saknas h2 {
+  margin: 0;
+  padding: 16px 24px 0;
+  color: #b42318;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@media (prefers-color-scheme: dark) {
+  .cat-saknas {
+    border-color: #ff8a80;
+    background: #3a1714;
+  }
+  .cat-saknas h2 {
+    color: #ff8a80;
+  }
+}
+.cat-simulerade {
+  display: grid;
+  gap: 8px;
+}
+.cat-simulerade p {
+  margin: 0;
+}
+.cat-packval {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+}
+@media (max-width: 760px) {
+  .cat-traffar li,
+  .cat-listrubrik {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .cat-resrad {
+    padding: 12px 16px;
+  }
+  .cat-steg button {
+    padding: 8px;
+  }
+}

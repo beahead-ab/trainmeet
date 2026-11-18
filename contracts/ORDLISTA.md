@@ -142,14 +142,14 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Läge | `state` | `home` hemma, `packed` packat, `at_meet` på träffen, `lent` utlånat (CAT-70). |
 | Plats | `Place` | En namngiven plats hemma, till exempel Låda 1 eller Hyllan (CAT-71). |
 | Lån | `Lending`, `Lend` | Vem som har fordonet: ägarens egen anteckning (CAT-74, CAT-75). |
-| Händelse | `VehicleEvent` | Ett byte av läge eller plats, med tid (CAT-77). |
+| Händelse | `VehicleEvent` | Ett byte av läge eller plats, med tid (CAT-77), och träffens namn när resan flyttade fordonet (`meet_name`, CAT-182). |
 | Källa | `field_sources`, `FieldSource` | Var ett kärnfälts värde kom ifrån: ägaren, AI:n, förebilden eller en import (CAT-64). |
 | Besked | `Problem`, `ProblemCode` | Varför Catalog sa nej, med en kod som webbappen har text för. |
 | Ägare | – | Den som äger en vagnpark: en person, och senare en klubb. Varje skrivning låser ägarens rad först (CAT-40). |
 | Tagg | `Tag`, `TagKind` | En NFC-tagg under fordonet, en QR-etikett eller en simulerad tagg, med ägare och namn (CAT-78). |
 | Identifierare | `uid` | Det som står efter /t/ i adressen: NFC-taggens serienummer i hex, QR-etikettens id eller den simulerade taggens UUID. Unikt i hela Catalog. |
 | Koppling | `VehicleTag.assignment` | En tagg på ett fordon, med start och slut. Ett byte eller en bortkoppling bär den koppling man såg (CAT-89). |
-| Blippa | – | Att hålla telefonen mot taggen eller skanna QR-koden. Öppnar /t/<uid>. |
+| Blippa | – | Att hålla telefonen mot taggen eller skanna QR-koden. Öppnar /t/<uid>, och i resan till träffen bockar det av fordonet i steget. |
 | Uppslag | `Lookup` | Det /t/<uid> svarar: `mine`, `shared`, `private`, `fleet` eller `unknown`, vart och ett med en egen vitlista (CAT-98). |
 | Minikort | `MiniCard` | Det en annan än ägaren ser: littera och nummer, slag, bolag, skala och miniatyr (CAT-100). |
 | Väntande koppling | `PendingLink` | Koppla tagg på kortet: fordonet väntar på nästa tagg i 10 minuter (CAT-94). |
@@ -164,6 +164,11 @@ Ett namn per begrepp, i specen, i gränssnittet och i kontrakten. Kontrakten skr
 | Friläggning | `StorageUse.backgrounds`, `backgrounds_off` | Att ta fram fordonet ur fotot (CAT-127). Modellen U2NetP körs på Catalogs egen server och kostar inga tokens; fotot skickas aldrig till en AI-leverantör (CAT-18). Den ger en mask, fordonets kontur, som sparas med bilden och räknas i lagringen, så att bakgrunden kan bytas utan ny uppladdning. Fordonets färger kommer alltid ur fotot, aldrig ur ett genererat fordon. Utan modellen går bara bakgrunden Original att välja (`backgrounds_off`), och uppladdningarna fungerar ändå. |
 | Bakgrund | `PictureBackground`, `Picture.background`, `?background=`, `BackgroundChange`, `/pictures/{picture}/background` | Bildens bakgrund (CAT-128): original, vit, grå, genomskinlig eller räls. Väljs vid uppladdningen, Original om inget sägs, och kan bytas senare av den som får redigera. Genomskinlig sparas som WebP med alfakanal; rälsen ritar Catalog själv. Hittar friläggningen inget fordon säger Catalog `no_vehicle`. |
 | Beskärning | – | Med masken skärs visningsbilden och miniatyren runt fordonet, i formatet 3:2, så att fordonet står mitt i bilden och fyller den (CAT-129). Med bakgrunden Original skärs bara inom fotot, så att inget hittas på. |
+| Träff i Catalog | `Trip`, `TripSummary`, `NewTrip`, `/api/catalog/1/meets` | Ägarens egen lista med namn och datum, så länge kopplingen till Hubben väntar (CAT-174). Bara ägaren har vagnparkens träffar, och klubbens administratörer klubbens; den som vagnparken är delad med får 403. Inte samma sak som en träff i ID eller Hubbens träff. |
+| Packlista | `PackList`, `TripRow` | De fordon som ska med till träffen (CAT-175). Arkiveras av bocken som tar det sista fordonet hem när träffens datum har kommit, eller av ägaren när inget på den är borta. En arkiverad packlista ändras inte och kan bli mall för nästa träff (`NewTrip.template`, CAT-183). |
+| Steg | `TripStep` | Resans tre steg: `pack` Packa, `arrive` På plats och `home` Hem (CAT-176). |
+| Bock | `Tick`, `TickBy`, `TickChange`, `TripTap`, `TripTapped` | Ett fordon avbockat i ett steg, med tid, satt med en blipp (`tap`) eller ett tryck på raden (`press`) (CAT-176). En per fordon och steg, så två blipp ger en bock. Bocken flyttar fordonet med vagnparkens egen kod: Packa ger packat, På plats på träffen och Hem hemma på sin förra plats, och varje byte blir en händelse med träffens namn (CAT-177, CAT-182). Ett fordon är borta på en resa i taget, och ett utlånat packas inte. Ett blippat fordon som inte står på packlistan kan läggas till direkt (CAT-181); en tagg som inte sitter på ägarens fordon säger ingenting och sparas inte (CAT-110). |
+| Saknas | `TripRow.missing`, `TripRow.last` | Vid Hem: fordon utan bock i Hem. De står överst, med när och i vilket steg de senast bockades, och med beskedet om någon har sagt till (CAT-179, CAT-180). |
 
 ## TrainMeet ID
 

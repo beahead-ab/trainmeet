@@ -205,11 +205,12 @@ def _event(
     state: VehicleState | str,
     place_name: str | None,
     lent_to: str | None = None,
+    meet_name: str | None = None,
 ) -> None:
     conn.execute(
-        "INSERT INTO vehicle_event (vehicle_id, state, place_name, lent_to) "
-        "VALUES (%s, %s, %s, %s)",
-        (vehicle, str(state), place_name, lent_to),
+        "INSERT INTO vehicle_event (vehicle_id, state, place_name, lent_to, meet_name) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (vehicle, str(state), place_name, lent_to, meet_name),
     )
 
 
@@ -287,6 +288,18 @@ class Fleet:
         with self.db.transaction() as conn:
             return self._read(conn, owner, vehicle)
 
+    def read_many(
+        self, conn: Connection[DictRow], owner: UUID, vehicles: list[UUID]
+    ) -> dict[UUID, Vehicle]:
+        """The owner's vehicles by id, as the card shows them, in the caller's transaction."""
+        if not vehicles:
+            return {}
+        rows = conn.execute(
+            f"SELECT {_COLUMNS} FROM {_FROM} WHERE v.owner_id = %s AND v.id = ANY(%s)",
+            (owner, vehicles),
+        ).fetchall()
+        return {found.id: found for found in self._with_tags(conn, rows)}
+
     def search(
         self,
         owner: UUID,
@@ -352,7 +365,7 @@ class Fleet:
         with self.db.transaction() as conn:
             self._read(conn, owner, vehicle)
             rows = conn.execute(
-                "SELECT at, state, place_name, lent_to FROM vehicle_event "
+                "SELECT at, state, place_name, lent_to, meet_name FROM vehicle_event "
                 "WHERE vehicle_id = %s ORDER BY at DESC, id DESC",
                 (vehicle,),
             ).fetchall()
@@ -519,6 +532,31 @@ class Fleet:
             _event(conn, vehicle, VehicleState.HOME, current.place_name)
             return self._read(conn, owner, vehicle)
 
+    def trip_state(
+        self, conn: Connection[DictRow], vehicle: UUID, state: VehicleState, meet_name: str
+    ) -> None:
+        """The trip moves the vehicle (CAT-177, CAT-182): its state, and an event with the meet's
+        name, in the caller's transaction after the owner's row and the vehicle are locked.
+
+        The place is left as it is. A vehicle's place is its home place also while it is away,
+        so Hem puts it back where it was before the trip, as Tillbaka does after a loan
+        (CAT-76). A lent vehicle is never moved by a trip."""
+        if state is VehicleState.LENT:
+            raise ValueError("A trip never lends a vehicle.")
+        moved = conn.execute(
+            "UPDATE vehicle SET state = %s, version = version + 1, updated_at = now() "
+            "WHERE id = %s AND state <> 'lent' RETURNING place_id",
+            (state.value, vehicle),
+        ).fetchone()
+        if moved is None:
+            raise Refused(422, ProblemCode.LENT, "Fordonet är utlånat. Ta tillbaka det först.")
+        place = (
+            conn.execute("SELECT name FROM place WHERE id = %s", (moved["place_id"],)).fetchone()
+            if moved["place_id"] is not None
+            else None
+        )
+        _event(conn, vehicle, state, place["name"] if place else None, meet_name=meet_name)
+
     def clear_notice(self, owner: UUID, vehicle: UUID, notice: UUID) -> None:
         """The owner has read what someone said (CAT-113)."""
         with self.db.owner_transaction(owner) as conn:
@@ -554,13 +592,14 @@ class Fleet:
             ).fetchall()
             vehicles = self._with_tags(conn, rows)
             events = conn.execute(
-                "SELECT e.vehicle_id, e.at, e.state, e.place_name, e.lent_to FROM vehicle_event e "
-                "JOIN vehicle v ON v.id = e.vehicle_id WHERE v.owner_id = %s ORDER BY e.at, e.id",
+                "SELECT e.vehicle_id, e.at, e.state, e.place_name, e.lent_to, e.meet_name "
+                "FROM vehicle_event e JOIN vehicle v ON v.id = e.vehicle_id "
+                "WHERE v.owner_id = %s ORDER BY e.at, e.id",
                 (owner,),
             ).fetchall()
         history: dict[UUID, list[VehicleEvent]] = {}
         for row in events:
-            event = {k: row[k] for k in ("at", "state", "place_name", "lent_to")}
+            event = {k: row[k] for k in ("at", "state", "place_name", "lent_to", "meet_name")}
             history.setdefault(row["vehicle_id"], []).append(VehicleEvent.model_validate(event))
         return CatalogExport(
             owner=owner,

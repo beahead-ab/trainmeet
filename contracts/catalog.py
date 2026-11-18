@@ -3,8 +3,8 @@
 Catalog is its own service with its own database (C16, CAT-30). It never calls the Hub and
 the Hub never calls it (K7, CAT-37). Step 1 (#48) has the version, the session and the trial
 login, and #50 the vehicles and the places at home. The mini card, the tag, the lookup and the
-prototype come with their steps (#54 and #53), in this file. A meet's vehicles wait for the
-link to the Hub (CAT-189, VILAR).
+prototype come with their steps (#54 and #53), in this file. The trip to the meet (#55) is the
+owner's own list; the link to the Hub's meet waits (CAT-174, CAT-189, VILAR).
 
 Addresses:
     GET    /api/version                       CatalogVersion
@@ -341,6 +341,10 @@ class VehicleEvent(Contract):
     state: VehicleState
     place_name: str | None = None
     lent_to: str | None = None
+    meet_name: str | None = Field(
+        default=None,
+        description="The meet whose trip moved the vehicle, as it was named then (CAT-182).",
+    )
 
 
 class Place(Contract):
@@ -416,6 +420,14 @@ class ProblemCode(StrEnum):
     can be chosen (CAT-127). StorageUse.backgrounds says so before anyone tries."""
     NO_VEHICLE = "no_vehicle"
     """The background removal found no clear vehicle in the picture (CAT-129)."""
+    LENT = "lent"
+    """A lent vehicle cannot be packed, or ticked in the trip, before it is back (CAT-177)."""
+    ON_ANOTHER_TRIP = "on_another_trip"
+    """The vehicle is away on another meet's trip: tick it in Hem there first (#55)."""
+    ARCHIVED = "archived"
+    """The meet is archived and does not change any more (CAT-183)."""
+    NOT_BACK = "not_back"
+    """Something on the pack list is still away: tick it in Hem, or take it off the list."""
 
 
 class Problem(Contract):
@@ -602,6 +614,184 @@ class OwnerSettings(Contract):
     show_name: bool = False
 
 
+# --- The trip to the meet (#55, CAT-174–CAT-183) ---------------------------------------------
+#
+#     GET    /api/catalog/1/meets                   [TripSummary], the active ones first
+#     POST   /api/catalog/1/meets                   NewTrip -> Trip
+#     GET    /api/catalog/1/meets/{id}              Trip
+#     POST   /api/catalog/1/meets/{id}/vehicles     PackList -> Trip: the pack list (CAT-175)
+#     POST   /api/catalog/1/meets/{id}/ticks        TickChange -> Trip: a press on the row
+#     POST   /api/catalog/1/meets/{id}/tap          TripTap -> TripTapped: a tag tapped in a step
+#     POST   /api/catalog/1/meets/{id}/archive      Trip, archived (CAT-183)
+#
+# Rules:
+# - A meet in Catalog is the owner's own list with a name and a date, as long as the link to
+#   the Hub waits (CAT-174, K7). The trip moves the vehicles and is the owner's own history
+#   (CAT-77, CAT-182), so only the owner has the fleet's meets, and a club's administrators the
+#   club's (C39). Someone the fleet is shared with gets 403, anyone else 404 (CAT-49).
+#   ?fleet=<owner> works in a club's fleet, as for the vehicles.
+# - Three steps, pack, arrive and home, and a tick per vehicle and step with its time, set by a
+#   tap on the vehicle's tag or a press on its row (CAT-176). The same tick twice is one tick.
+# - A tick moves the vehicle (CAT-177): Packa gives packed, På plats at the meet, and Hem home.
+#   The vehicle's place stays its home place while it is away, so Hem puts it back where it was
+#   before the trip. The state follows the highest step ticked, and every change is an event
+#   with the meet's name (CAT-182). Taking a tick away moves the vehicle back.
+# - A vehicle is away on one trip at a time: ticked in Packa or På plats and not in Hem. Other
+#   meets leave it alone until then (on_another_trip). A lent vehicle cannot be packed (lent).
+# - A tag that is not on one of the owner's vehicles answers unknown, and nothing is kept
+#   (CAT-110). The owner's vehicle that is not on the list answers not_on_list; the same tap
+#   with add puts it on the list and ticks it (CAT-181).
+# - The tick that brings the last vehicle home archives the meet, once its date has come. The
+#   owner may archive it by hand when nothing on it is away (CAT-183). An archived meet does
+#   not change (archived), and its pack list starts the next one: NewTrip.template.
+
+
+class TripStep(StrEnum):
+    """The trip's three steps (CAT-176)."""
+
+    PACK = "pack"
+    """Packa: the vehicle is in the bag. A tick gives the state packed."""
+    ARRIVE = "arrive"
+    """På plats: the vehicle is on the layout. A tick gives the state at the meet."""
+    HOME = "home"
+    """Hem: the vehicle is back in its box. A tick puts it home, at its place."""
+
+
+class TickBy(StrEnum):
+    """How a tick was set (CAT-176)."""
+
+    TAP = "tap"
+    """Blippad: the vehicle's tag was tapped."""
+    PRESS = "press"
+    """A press on the vehicle's row."""
+
+
+class Tick(Contract):
+    """A bock: one per vehicle and step, with its time (CAT-176)."""
+
+    step: TripStep
+    at: datetime
+    by: TickBy
+
+
+class TripRow(Contract):
+    """A vehicle on the pack list, with its ticks."""
+
+    vehicle: Vehicle = Field(
+        description="The vehicle as its owner sees it: its place, state and picture, and what "
+        "someone who found it said (CAT-180)."
+    )
+    added_at: datetime
+    ticks: list[Tick] = Field(description="At most one per step, in the steps' order.")
+    last: Tick | None = Field(
+        default=None,
+        description="The latest tick: when, and in which step, the vehicle was last ticked. "
+        "Saknas at Hem shows it (CAT-179).",
+    )
+    missing: bool = Field(
+        description="Saknas: not ticked in Hem. When the trip is at Hem these come first (CAT-179)."
+    )
+
+
+class TripSummary(Contract):
+    """A meet in the list of meets: the owner's own, with a name and a date (CAT-174)."""
+
+    id: UUID
+    name: Text = Field(max_length=80)
+    date: date
+    archived_at: datetime | None = Field(
+        default=None,
+        description="When the pack list was archived (CAT-183). An archived meet does not change.",
+    )
+    created_at: datetime
+    template_of: UUID | None = Field(
+        default=None, description="The meet whose pack list this one started from (CAT-183)."
+    )
+    vehicles: int = Field(description="How many vehicles are on the pack list.")
+    done: dict[TripStep, int] = Field(
+        description="How many are ticked in each step, for 3 av 4 (CAT-178)."
+    )
+    step: TripStep = Field(
+        description="The step the trip is at: the latest one ticked in, or the next when that "
+        "one is done. The web app opens it, and a tap without a step ticks in it."
+    )
+
+
+class Trip(TripSummary):
+    """A meet with its pack list and its three steps (CAT-174–CAT-180)."""
+
+    rows: list[TripRow] = Field(
+        description="In the pack list's order; when the trip is at Hem, Saknas first (CAT-179)."
+    )
+
+
+class NewTrip(Contract):
+    """A new meet: a name and a date (CAT-174), and perhaps an earlier meet's pack list."""
+
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    date: date
+    template: UUID | None = Field(
+        default=None,
+        description="Ny träff från den här: the pack list starts as this meet's (CAT-183).",
+    )
+
+
+class PackList(Contract):
+    """The pack list: all the vehicles that go to the meet (CAT-175). A vehicle taken off the
+    list while it is away on this trip comes home."""
+
+    vehicles: list[UUID] = Field(max_length=500)
+
+
+class TickChange(Contract):
+    """A press on the row: tick the vehicle in a step, or take the tick away (CAT-176)."""
+
+    vehicle: UUID
+    step: TripStep
+    ticked: bool = Field(
+        default=True, description="False takes the tick away, and moves the vehicle back."
+    )
+
+
+class TripTap(Contract):
+    """A tag tapped in a step (CAT-176): Web NFC's serial number, a QR label's id or a simulated
+    tag, as after /t/ in the address."""
+
+    uid: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    step: TripStep | None = Field(
+        default=None, description="The step shown; null ticks in the step the trip is at."
+    )
+    add: bool = Field(
+        default=False,
+        description="Lägg till: put the vehicle on the pack list first when it is not (CAT-181).",
+    )
+
+
+class TapOutcome(StrEnum):
+    """What a tap in the trip did."""
+
+    TICKED = "ticked"
+    """The vehicle is ticked in the step."""
+    NOT_ON_LIST = "not_on_list"
+    """The owner's vehicle, not on the pack list: ask Lägg till, and tap again with add."""
+    UNKNOWN = "unknown"
+    """Not a tag on one of the owner's vehicles. Nothing more is said, and nothing is kept."""
+
+
+class TripTapped(Contract):
+    """The answer to a tap in the trip (CAT-176, CAT-181)."""
+
+    outcome: TapOutcome
+    vehicle_id: UUID | None = None
+    title: str | None = Field(
+        default=None, description="Litt and number, to ask: Lägg till Hbis 2253?"
+    )
+    trip: Trip
+
+
+# --- The person's data (KONTO-31, CAT-193) ----------------------------------------------------
+
+
 class VehicleHistory(Contract):
     """One vehicle's events, in the file with the person's data."""
 
@@ -618,6 +808,9 @@ class CatalogExport(Contract):
     history: list[VehicleHistory]
     places: list[Place]
     settings: OwnerSettings
+    trips: list[Trip] = Field(
+        default_factory=list, description="The meets with their pack lists and ticks (#55)."
+    )
 
 
 class OwnersRemoved(Contract):
