@@ -24,6 +24,11 @@ line exit without passing a switch or a signal in its own direction; past its en
 and the clearance (STV-33). A route comes in from an exit when the walk back from its start
 signal reaches one the same way.
 
+Functions. The panel functions from the catalogue (STV-04) as the interlocking uses them, made
+from the model's own parameters: the area's sections, the signals, the local switches and the
+protection switches' positions, the track a function applies to and its modes. A turntable in
+the model that no function names gets one of its own, so that its bridge can always be turned.
+
 Pure Python without I/O, using only the contracts and the engine. No code here names a station
 (RS13).
 """
@@ -32,15 +37,18 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import Lock
 from typing import Final, Literal
 
 from contracts.station_model import (
     Address,
     NodeType,
+    PanelFunction,
+    PanelFunctionType,
     Position,
     Signal,
+    SignalType,
     StationModel,
     SwitchControl,
     SwitchType,
@@ -147,6 +155,51 @@ class Way:
 
 Chain = tuple[Way, ...]
 
+DWARFS: Final = frozenset({SignalType.DVSI, SignalType.HDVSI})
+"""Signals with a dwarf part: they show shunting in a locally released area (FR41)."""
+MAINS: Final = frozenset({SignalType.HSI, SignalType.HDVSI})
+TRACTION_MODES: Final = ("2R", "3R")
+"""The catalogue's example modes, when a traction current function names none."""
+
+
+@dataclass(frozen=True)
+class Function:
+    """A panel function as the interlocking uses it (STV-04): the model's parameters, resolved
+    against the plant. Names the model has but the plant does not know are left out."""
+
+    name: str
+    type: PanelFunctionType
+    sections: frozenset[str]
+    """The area: the sections of its track circuits and pieces."""
+    pieces: tuple[str, ...]
+    """What the panel colours: the area's pieces, or the track the function applies to."""
+    signals: tuple[str, ...]
+    """Signal stop: the signals held at stop. Local release: those that show shunting."""
+    blocked: tuple[str, ...]
+    """Local release: the entry signals to the area, blocked at stop while it is on (FR41)."""
+    switches: tuple[str, ...]
+    """Local release: the local switch parts, laid with the modules' buttons (TKL44)."""
+    locked: Mapping[str, Position]
+    """Local release: the protection levers and the side they are locked in."""
+    locked_parts: Mapping[str, Position]
+    """The switch parts those levers lay, with their positions."""
+    modes: tuple[tuple[str, str], ...]
+    """Traction current: its modes. Turntable: its tracks, as (piece, label)."""
+    turntable: str | None
+    at: str | None
+    codes: Mapping[str, str]
+    note: str | None
+
+    def touches(self, way: Way) -> bool:
+        """A route touches a local release's area: it runs over it, starts or ends at one of
+        its signals, or lays one of its local switches (TKL44, FR41)."""
+        return (
+            any(name in self.sections for name, _ in way.sections)
+            or way.start in self.signals
+            or way.end in self.signals
+            or any(part in self.switches for part in way.route.positions)
+        )
+
 
 class Plant:
     """The station model's sections, ways, levers and exits, made once per model."""
@@ -195,6 +248,8 @@ class Plant:
         self._chains: dict[tuple[RouteKind, str, str], list[Chain]] = {}
         self._ends: dict[tuple[RouteKind, str], list[str]] = {}
         self._lock = Lock()
+        self.functions: dict[str, Function] = {}
+        self._make_functions()
 
     # --- sections ---------------------------------------------------------------------------
 
@@ -467,6 +522,115 @@ class Plant:
         with self._lock:
             self._ends[key] = made
         return made
+
+    # --- panel functions (STV-04) ------------------------------------------------------------
+
+    def _make_functions(self) -> None:
+        given = list(self.model.functions)
+        named = {f.at for f in given if f.type == PanelFunctionType.TURNTABLE and f.at}
+        for table in self.model.turntables:
+            if table.id not in named and table.node not in named:
+                own = table.id.lower().startswith("vändskiva")
+                name = table.id if own else f"Vändskivan {table.id}"
+                turntable = PanelFunction(type=PanelFunctionType.TURNTABLE, name=name, at=table.id)
+                given.append(turntable)
+        for spec in given:
+            name = spec.name
+            count = 2
+            while name in self.functions:
+                name = f"{spec.name} {count}"
+                count += 1
+            self.functions[name] = self._function(name, spec)
+
+    def _function(self, name: str, spec: PanelFunction) -> Function:
+        sections = {c for c in spec.track_circuits if c in self.sections}
+        sections |= {self.section_of[p] for p in spec.pieces if p in self.section_of}
+        area = frozenset(sections)
+        if spec.type in (PanelFunctionType.TRACTION_CURRENT, PanelFunctionType.PROGRAMMING_TRACK):
+            own = [p for p in spec.pieces if p in self.graph.pieces]
+            pieces = tuple(own) or tuple(p for s in sorted(area) for p in self.sections[s].pieces)
+        else:
+            pieces = tuple(p for s in sorted(area) for p in self.sections[s].pieces)
+        switches: list[str] = []
+        for number in spec.switches:
+            switch = self.switch_by_number.get(number)
+            for part in parts(switch) if switch is not None else [number]:
+                if part in self.control and part not in switches:
+                    switches.append(part)
+        locked: dict[str, Position] = {}
+        locked_parts: dict[str, Position] = {}
+        for key, position in spec.locked.items():
+            lever_id, _ = self.lever_of(key)
+            if lever_id is None:
+                continue
+            lever = self.levers.levers[lever_id]
+            laid = self.levers.lay(dict(lever.plus if position == Position.PLUS else lever.minus))
+            if laid is None:
+                continue
+            locked[lever_id] = position
+            for part, side in laid.positions.items():
+                if self.control.get(part) == SwitchControl.TKL:
+                    locked_parts[part] = side
+        signals = [s for s in spec.signals if s in self.signals]
+        if spec.type == PanelFunctionType.SIGNAL_STOP:
+            signals += [
+                s.name
+                for s in self.model.signals
+                if s.name not in signals and self.section_of.get(s.approach) in area
+            ]
+        modes: tuple[tuple[str, str], ...] = ()
+        turntable = None
+        if spec.type == PanelFunctionType.TRACTION_CURRENT:
+            modes = tuple((m, m) for m in (spec.modes or TRACTION_MODES))
+        if spec.type == PanelFunctionType.TURNTABLE:
+            for table in self.model.turntables:
+                if spec.at in (table.id, table.node):
+                    turntable = table.id
+                    modes = tuple(
+                        (t.piece, self._towards(t.piece, table.node)) for t in table.tracks
+                    )
+        made = Function(
+            name=name,
+            type=spec.type,
+            sections=area,
+            pieces=pieces,
+            signals=tuple(signals),
+            blocked=(),
+            switches=tuple(switches),
+            locked=locked,
+            locked_parts=locked_parts,
+            modes=modes,
+            turntable=turntable,
+            at=spec.at,
+            codes=dict(spec.codes),
+            note=spec.note,
+        )
+        if spec.type != PanelFunctionType.LOCAL_RELEASE:
+            return made
+        # The entry signals: main signals outside the area whose routes go into it (FR41).
+        blocked = sorted(
+            {
+                way.start
+                for way in self.preferred()
+                if way.start in self.signals
+                and way.start not in made.signals
+                and self.signals[way.start].type in MAINS
+                and made.touches(way)
+            }
+        )
+        return replace(made, blocked=tuple(blocked))
+
+    def _towards(self, piece: str, node: str) -> str:
+        """A turntable track as the panel names it: its track number, else where it leads."""
+        found = self.graph.pieces.get(piece)
+        if found is None:
+            return piece
+        if found.track:
+            return f"Spår {found.track}"
+        far = found.end if found.start == node else found.start
+        if self.graph.node_type.get(far) == NodeType.CROSSING:
+            return f"Korsning {far}"
+        return f"Växel {far}" if far in self.graph.switch_at else far
 
     # --- levers -----------------------------------------------------------------------------
 

@@ -39,6 +39,14 @@ const T = {
     sv: "Tågväg från {start}: klicka på målet. Esc avbryter.",
     en: "Train route from {start}: click the goal. Esc cancels.",
   },
+  chooseStart59: {
+    sv: "Fäll startsignalens ställare och sedan målets. Fäll tillbaka startens ställare för att lösa ut vägen. Klicka på en växel för att lägga spaken.",
+    en: "Flip the start signal's toggle, then the goal's. Flip the start's toggle back to release the route. Click a switch to lay its lever.",
+  },
+  chooseTrain59: {
+    sv: "Tågväg från {start}: fäll målets ställare. Fäll {start} igen för växlingsväg. Esc avbryter.",
+    en: "Train route from {start}: flip the goal's toggle. Flip {start} again for a shunting route. Esc cancels.",
+  },
   chooseShunting: {
     sv: "Växlingsväg från {start}: klicka på målet. Klicka på {start} igen för att avbryta.",
     en: "Shunting route from {start}: click the goal. Click {start} again to cancel.",
@@ -120,6 +128,31 @@ const T = {
     en: "Train number: red where the train is, green in the route's last section, frame = estimated position",
   },
   skinName85: { sv: "85 · efter Trafikverkets TDOK 2014:0693", en: "85 · after Trafikverket's TDOK 2014:0693" },
+  legendLocal: { sv: "Frigivet för växling", en: "Released for shunting" },
+  legendBlocked: { sv: "fylld röd = spärrad i stopp", en: "filled red = blocked at stop" },
+  legendSignals95: {
+    sv: "Huvudsignal triangel, dvärgsignal vinkel, rött = slutpunkt",
+    en: "Main signal triangle, dwarf signal angle, red = end point",
+  },
+  skinName95: { sv: "95 · efter Trafikverkets TDOK 2021:0552", en: "95 · after Trafikverket's TDOK 2021:0552" },
+  legendLamps59: { sv: "Vit lampa = spårledningen fri, släckt = belagd", en: "White lamp = track circuit free, dark = occupied" },
+  legendArrows59: { sv: "Gröna pilar = lagd tågväg, gula = växlingsväg", en: "Green arrows = set train route, yellow = shunting route" },
+  legendPosition59: { sv: "Blå lampa = benet växeln ligger åt", en: "Blue lamp = the leg the switch lies in" },
+  legendSignals59: { sv: "Signal: rött i stopp, grönt i kör", en: "Signal: red at stop, green at proceed" },
+  legendToggles59: {
+    sv: "Vippställare: fäll startens och sedan målets, tillbaka för att lösa ut",
+    en: "Toggles: flip the start's and then the goal's, back to release",
+  },
+  skinName59: { sv: "59 · efter SJ:s signalställverk modell 59", en: "59 · after SJ's signal interlocking model 59" },
+  // The panel functions (STV-04, STV-53)
+  functions: { sv: "Panelens knappar", en: "The panel's buttons" },
+  functionOn: { sv: "på", en: "on" },
+  functionOff: { sv: "av", en: "off" },
+  localSwitch: { sv: "lokalt frigiven", en: "released locally" },
+  moduleButton: { sv: "Knapp på modulen · {name}", en: "Button on the module · {name}" },
+  programmingButton: { sv: "Programmeringsspår {name}", en: "Programming track {name}" },
+  turnTo: { sv: "{name} mot", en: "{name} to" },
+  confirmFunction: { sv: "Bekräfta {name}", en: "Confirm {name}" },
 } satisfies Record<string, Record<Language, string>>;
 
 export type TextKey = keyof typeof T;

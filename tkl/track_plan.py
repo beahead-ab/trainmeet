@@ -12,13 +12,16 @@ The reference stations are the model files in tkl/referens/ (TKL40). They are re
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from functools import cache
 from pathlib import Path
 
 from contracts.station_model import StationModel
 from contracts.tkl import (
+    LabelSide,
     Panel,
+    PanelFunctionButton,
     RouteKind,
     TklChecks,
     TklModelSummary,
@@ -32,13 +35,59 @@ REFERENCES = Path(__file__).resolve().parent / "referens"
 SUFFIX = ".tkl.json"
 
 
+BUTTON_OFFSET = 0.8
+"""How far a function's button stands from the track, in the panel's smaller cell side."""
+
+
 def panel_of(model: StationModel) -> Panel | None:
     """The station's panel: from its track plan, else the engine's; None if neither can be
     made (the checks say why)."""
     try:
-        return build(model) if model.panel is not None else lay_out(model)
+        panel = build(model) if model.panel is not None else lay_out(model)
     except (PlanError, LayoutError):
         return None
+    return panel.model_copy(update={"functions": function_buttons(model, panel)})
+
+
+def function_buttons(model: StationModel, panel: Panel) -> list[PanelFunctionButton]:
+    """The buttons of the panel functions that belong to a node, such as the programming
+    track's on its stub (STV-53): beside the node, over or under the track as the plan's
+    `function_sides` says, else under it. The others are only in the row of buttons."""
+    sides = model.panel.function_sides if model.panel is not None else {}
+    nodes = {n.id: n.cell for n in panel.nodes}
+    nodes.update({t.id: t.cell for t in panel.tables})
+    dx, dy = panel.cell
+    u = min(dx, dy)
+    found = []
+    for function in model.functions:
+        at = function.at
+        if at is None or at not in nodes:
+            continue
+        cell = nodes[at]
+        side: LabelSide = sides.get(function.name) or sides.get(at) or "under"
+        # Across the track at the node, in pixels: the first line that touches it says how
+        # the track runs; a node no line touches gets its button straight over or under.
+        along = (1.0, 0.0)
+        for line in panel.lines:
+            for a, b in ((line.cells[0], line.cells[1]), (line.cells[-1], line.cells[-2])):
+                if math.isclose(a[0], cell[0]) and math.isclose(a[1], cell[1]):
+                    along = ((b[0] - a[0]) * dx, (b[1] - a[1]) * dy)
+                    break
+        length = math.hypot(*along) or 1.0
+        nx, ny = -along[1] / length, along[0] / length
+        if (ny > 0) == (side == "over") or (ny == 0 and (nx > 0) == (side == "over")):
+            nx, ny = -nx, -ny
+        offset = BUTTON_OFFSET * u
+        found.append(
+            PanelFunctionButton(
+                name=function.name,
+                type=function.type,
+                node=at,
+                cell=(round(cell[0] + nx * offset / dx, 3), round(cell[1] + ny * offset / dy, 3)),
+                side=side,
+            )
+        )
+    return found
 
 
 def view(model: StationModel) -> TklTrackPlan:

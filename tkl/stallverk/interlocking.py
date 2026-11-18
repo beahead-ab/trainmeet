@@ -22,6 +22,24 @@ request all call them (STV-43, STV-44). An unknown id is a no, never a guess.
   goes up to Hubben (STV-16). depart (Avgått): the train has left on a route out.
 - put_train and remove_train: a train number on a section or on the line at an exit.
 - reset: every route released, confirmed and logged; the switches stay where they are.
+- function: the panel functions from the catalogue (STV-04), each by its name in the model:
+  - signal stop (signalstopp): the area's signals show stop, blocked, and no route is set from
+    them. A route already set there keeps its locks but is held at stop (`held`) until it is
+    set again after the stop is off: a signal never clears by itself (ported from cda-tkl's
+    line barrier and all-stop, which never resumed a route).
+  - local release (lokal frigivning, TKL44, STD-14, FR41): the protection levers are laid and
+    locked, the local switches are laid with the modules' buttons (`lay`) and never by the
+    interlocking, the area's dwarf signals show shunting, its entry signals are blocked, and
+    no route touches the area. It is refused while a route touches the area. Taking it back
+    is always allowed, as in the prototype: the local switches stay where they lie.
+  - traction current (körström): the track's mode, 2R or 3R; it touches no route.
+  - out of service (spår ur drift): no route over the track; a route already there is held.
+  - emergency release (nödutlösning) of the function's track circuits, confirmed and logged:
+    every lock in them is released, whatever route holds it.
+  - turntable (vändskiva): the bridge turned to a track, refused while a route holds it
+    pointing elsewhere.
+  - programming track (programmeringsspår, STV-53, TKL106): the track switched over and back.
+    The interlocking blocks no route.
 
 Without detection the train number follows the buttons (STV-15): occupancy is where a train
 number is, and it never frees anything by itself (STV-16). Only step, arrive, depart and the
@@ -40,11 +58,14 @@ from datetime import UTC, datetime
 from typing import Final
 
 from contracts.station import ExitSignalAspect
-from contracts.station_model import Position, SwitchControl
+from contracts.station_model import PanelFunctionType, Position, SwitchControl
 from contracts.tkl import RouteKind as ShownKind
 from contracts.tkl import (
     TklAspect,
     TklExitShown,
+    TklFunctionAction,
+    TklFunctionMode,
+    TklFunctionShown,
     TklHappening,
     TklInterlocking,
     TklNumber,
@@ -61,7 +82,17 @@ from contracts.tkl import (
     TklTargets,
     TklTrain,
 )
-from tkl.stallverk.plant import MINUS_SIGN, Chain, Plant, Spot, Way, not_laid, sign
+from tkl.stallverk.plant import (
+    DWARFS,
+    MINUS_SIGN,
+    Chain,
+    Function,
+    Plant,
+    Spot,
+    Way,
+    not_laid,
+    sign,
+)
 from tkl.standard import PointKind, RouteKind
 
 KEPT_EVENTS: Final = 100
@@ -70,6 +101,17 @@ STALE: Final = (
     "Ställverkets sparade läge gäller en annan version av stationsmodellen. Nollställ ställverket."
 )
 BROKEN: Final = "Ställverkets sparade läge går inte att läsa. Nollställ ställverket."
+STOP, LOCAL, OUT, TRACTION, EMERGENCY, TURNTABLE, PROGRAMMING = (
+    PanelFunctionType.SIGNAL_STOP,
+    PanelFunctionType.LOCAL_RELEASE,
+    PanelFunctionType.OUT_OF_SERVICE,
+    PanelFunctionType.TRACTION_CURRENT,
+    PanelFunctionType.EMERGENCY_RELEASE,
+    PanelFunctionType.TURNTABLE,
+    PanelFunctionType.PROGRAMMING_TRACK,
+)
+SWITCHED: Final = frozenset({STOP, LOCAL, OUT, PROGRAMMING})
+"""The functions that are switched on and off."""
 
 
 @dataclass(frozen=True)
@@ -95,6 +137,8 @@ class _Route:
     set_at: datetime
     train: int | None = None
     at: int = -1
+    held: str | None = None
+    """Why the route's signals are held at stop: a signal stop or a track out of service."""
 
     @property
     def name(self) -> str:
@@ -128,8 +172,9 @@ class _Route:
         return None
 
     def aspect(self) -> TklAspect:
-        """The start signal: the route's aspect until the train has passed it."""
-        if self.at >= 0 or self.way.route.start.kind != PointKind.SIGNAL:
+        """The start signal: the route's aspect until the train has passed it, and stop while
+        the route is held."""
+        if self.at >= 0 or self.way.route.start.kind != PointKind.SIGNAL or self.held:
             return TklAspect.STOP
         return TklAspect.PROCEED if self.way.kind == RouteKind.TRAIN else TklAspect.SHUNT
 
@@ -139,7 +184,9 @@ class _Route:
         return [s for s, k in sorted(self.way.passed_at.items()) if self.at < k]
 
     def showing(self) -> dict[str, TklAspect]:
-        """The signals this route holds at proceed or shunt."""
+        """The signals this route holds at proceed or shunt: none while it is held."""
+        if self.held:
+            return {}
         kind = TklAspect.PROCEED if self.way.kind == RouteKind.TRAIN else TklAspect.SHUNT
         found = {s: kind for s in self.passed_showing()}
         if self.aspect() != TklAspect.STOP:
@@ -214,6 +261,12 @@ class Interlocking:
         self.trains: list[_Train] = []
         self.events: list[TklHappening] = []
         self.problem: str | None = None
+        self.on: dict[str, bool] = dict.fromkeys(plant.functions, False)
+        self.modes: dict[str, str] = {
+            name: f.modes[0][0]
+            for name, f in plant.functions.items()
+            if f.type == TRACTION and f.modes
+        }
         self._saved: TklInterlocking | None = None
         if saved is not None:
             self._restore(saved)
@@ -279,8 +332,12 @@ class Interlocking:
     def _hindrance(
         self, way: Way, locks: _Locks, occupied: dict[str, _Train], starting: set[str], last: bool
     ) -> str | None:
-        """Why the way cannot be set on top of what `locks` holds, or None."""
+        """Why the way cannot be set on top of what `locks` holds, or None. A panel function
+        that stops it is said first: it is the reason that stays when the rest is free."""
         plant = self.plant
+        stopped = self._function_hindrance(way)
+        if stopped is not None:
+            return stopped
         for i, (name, pieces) in enumerate(way.sections):
             for piece in pieces:
                 holder = locks.pieces.get(piece)
@@ -330,6 +387,42 @@ class Interlocking:
             holder = locks.showing.get(signal)
             if holder is not None and not (signal == way.end and holder.way.start == signal):
                 return f"Signalen {signal} visar kör för vägen {holder.name}."
+        return None
+
+    def _active(self, *kinds: PanelFunctionType) -> Iterator[Function]:
+        for name, function in self.plant.functions.items():
+            if function.type in kinds and self.on.get(name):
+                yield function
+
+    def _function_hindrance(self, way: Way) -> str | None:
+        """Why a panel function that is on stops the way (STV-04), or None."""
+        shown = [way.start] if way.route.start.kind == PointKind.SIGNAL else []
+        for function in self._active(STOP):
+            for signal in [*shown, *way.route.passed]:
+                if signal in function.signals:
+                    return f"Signalen {signal} är i signalstopp ({function.name})."
+        for function in self._active(OUT):
+            for name, _ in way.sections:
+                if name in function.sections:
+                    return f"{_cap(self.plant.said(name))} är ur drift ({function.name})."
+        for function in self._active(LOCAL):
+            if function.touches(way):
+                return f"Området för {function.name} är lokalt frigivet för växling."
+            for part, position in way.route.positions.items():
+                held = function.locked_parts.get(part)
+                if held is not None and held != position:
+                    return f"Växel {part} är låst i läget {sign(held)} av {function.name}."
+        return None
+
+    def _held_by(self, route: _Route) -> str | None:
+        """The function that holds a set route at stop now, if any."""
+        shown = [route.way.start] if route.way.route.start.kind == PointKind.SIGNAL else []
+        for function in self._active(STOP):
+            if any(s in function.signals for s in [*shown, *route.way.route.passed]):
+                return function.name
+        for function in self._active(OUT):
+            if any(name in function.sections for name in route.locked_sections()):
+                return function.name
         return None
 
     def _plan(self, chain: Chain) -> tuple[list[_Route], str | None]:
@@ -390,9 +483,7 @@ class Interlocking:
             return Outcome(False, f"{what} går från {start} till {end}.")
         already = self._already(chosen, start, end)
         if already is not None:
-            return Outcome(
-                True, f"{_cap(WORD[chosen])}en {start} → {end} ligger redan.", already.id
-            )
+            return self._again(chosen, already)
         reasons: list[str] = []
         for chain in found:
             planned, why = self._plan(chain)
@@ -400,6 +491,23 @@ class Interlocking:
                 return self._lay(chain, planned)
             reasons.append(why)
         return Outcome(False, reasons[0])
+
+    def _again(self, kind: RouteKind, already: _Route) -> Outcome:
+        """A route that is set already: held at stop, it is set again when nothing holds it
+        any more, and its signal clears. A signal never clears by itself."""
+        parts = [r for r in self.routes if r.chain == already.id] or [already]
+        said = f"{_cap(WORD[kind])}en {already.way.start} → {parts[-1].way.end}"
+        if not any(r.held for r in parts):
+            return Outcome(True, f"{said} ligger redan.", already.id)
+        for route in parts:
+            holder = self._held_by(route)
+            if holder is not None:
+                return Outcome(False, f"{said} står i stopp: {holder} är på.")
+        before = self.exit_aspects()
+        for route in parts:
+            route.held = None
+        outcome = self._done(f"{said} lagd på nytt: signalen visar kör.", route=already.id)
+        return Outcome(True, outcome.message, already.id, self._exit_reports(before))
 
     def _lay(self, chain: Chain, planned: list[_Route]) -> Outcome:
         before = self.exit_aspects()
@@ -522,6 +630,15 @@ class Interlocking:
             if held:
                 follow = "" if part in own else " och kan inte följa med"
                 return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}{follow}.")
+            for function in self._active(LOCAL):
+                if part in function.locked_parts:
+                    return Outcome(False, f"Växel {part} är låst av {function.name}.")
+                if part in function.switches:
+                    return Outcome(
+                        False,
+                        f"Växel {part} är lokalt frigiven ({function.name}) och läggs om med "
+                        "knappen på modulen.",
+                    )
             under = self._under_train(part, occupied)
             if under is not None:
                 return Outcome(
@@ -584,6 +701,8 @@ class Interlocking:
             return Outcome(False, "Vägen finns inte längre.")
         before = self.exit_aspects()
         reports: list[TklReport] = []
+        if route.at < 0 and route.held:
+            return Outcome(False, _held_said(route))
         if route.at < 0:
             train, why = self._train_for(route)
             if train is None:
@@ -681,6 +800,8 @@ class Interlocking:
             return Outcome(False, "Vägen finns inte längre.")
         if route.way.leaves is None:
             return Outcome(False, f"Vägen {route.name} går inte ut på linjen.")
+        if route.at < 0 and route.held:
+            return Outcome(False, _held_said(route))
         if route.at >= 0:
             train = self._train(route.train)
             if train is None:
@@ -786,6 +907,184 @@ class Interlocking:
         if removed or stale:
             said += ", tågnumren borttagna"
         outcome = self._done(said + ".")
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    # --- the panel functions (STV-04, STV-53) -------------------------------------------------
+
+    def function(
+        self,
+        name: str,
+        action: TklFunctionAction,
+        value: str | None = None,
+        *,
+        confirm: bool = False,
+    ) -> Outcome:
+        """Manövrera en panelfunktion ur katalogen, by its name in the model (STV-04)."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        function = self.plant.functions.get(name)
+        if function is None:
+            return Outcome(False, f"Panelfunktionen {name} finns inte i stationsmodellen.")
+        if function.type in SWITCHED and action in (TklFunctionAction.ON, TklFunctionAction.OFF):
+            return self._switch(function, action == TklFunctionAction.ON)
+        if function.type == LOCAL and action == TklFunctionAction.LAY:
+            return self._lay_local(function, value)
+        if function.type in (TRACTION, TURNTABLE) and action == TklFunctionAction.SET:
+            if function.type == TRACTION:
+                return self._traction(function, value)
+            return self._turn(function, value)
+        if function.type == EMERGENCY and action == TklFunctionAction.RELEASE:
+            return self._release_area(function, confirm)
+        return Outcome(False, f"{_cap(function.name)} går inte att manövrera så.")
+
+    def _switch(self, function: Function, on: bool) -> Outcome:
+        name = function.name
+        if self.on.get(name, False) == on:
+            return Outcome(True, f"{_cap(name)} är redan {'på' if on else 'av'}.")
+        if function.type == LOCAL:
+            return self._local(function, on)
+        before = self.exit_aspects()
+        self.on[name] = on
+        if function.type == PROGRAMMING:
+            said = "om till programmeringsspår" if on else "tillbaka till körström"
+            return self._done(f"{_cap(name)} kopplades {said}.")
+        if not on:
+            said = f"{_cap(name)} kopplades ur."
+            if any(r.held == name for r in self.routes):
+                said += " Vägarna som stoppades visar stopp tills de läggs på nytt."
+            outcome = self._done(said)
+            return Outcome(True, outcome.message, None, self._exit_reports(before))
+        stopped = []
+        for route in self.routes:
+            if route.held is None and self._held_by(route) == name:
+                route.held = name
+                stopped.append(route.name)
+        if function.type == STOP:
+            said = f"{_cap(name)} kopplades in: {_listed(function.signals)} visar stopp"
+        else:
+            said = f"{_cap(name)} kopplades in: inga vägar läggs över spåret"
+        if stopped:
+            routes = "Vägen" if len(stopped) == 1 else "Vägarna"
+            said += f". {routes} {_listed(stopped)} ligger kvar med signalen i stopp"
+        outcome = self._done(said + ".")
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    def _local(self, function: Function, on: bool) -> Outcome:
+        """Lokal frigivning in or out (TKL44, STD-14, FR41)."""
+        name = function.name
+        local = _listed(function.switches)
+        if not on:
+            self.on[name] = False
+            return self._done(f"{_cap(name)} kopplades ur: {local} läggs åter från ställverket.")
+        touching = [r.name for r in self.routes if function.touches(r.way)]
+        if touching:
+            return Outcome(False, f"Lös ut vägarna i området först: {_listed(touching)}.")
+        locks = self._locks()
+        occupied = self._occupied()
+        moving = {p: v for p, v in function.locked_parts.items() if self.positions.get(p) != v}
+        for part in sorted(moving):
+            held = locks.parts.get(part)
+            if held:
+                return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}.")
+            under = self._under_train(part, occupied)
+            if under is not None:
+                return Outcome(
+                    False,
+                    f"Växel {part} kan inte läggas om: {self.plant.said(under)} är belagd.",
+                )
+        before = self.exit_aspects()
+        self.positions.update(moving)
+        self.on[name] = True
+        said = f"{_cap(name)} kopplades in"
+        if function.locked:
+            levers = _listed(f"{lever} {sign(side)}" for lever, side in function.locked.items())
+            said += f": {levers} låsta"
+        if function.switches:
+            said += f"{',' if function.locked else ':'} {local} läggs om med knapparna på modulerna"
+        outcome = self._done(said + ".")
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    def _lay_local(self, function: Function, value: str | None) -> Outcome:
+        """A local switch laid with the module's button, while the area is released."""
+        name = function.name
+        if not self.on.get(name):
+            return Outcome(False, f"{_cap(name)} är av. Växeln läggs från ställverket.")
+        plant = self.plant
+        lever_id, why = plant.lever_of(value or "")
+        if lever_id is None:
+            return Outcome(False, why or "Ange växeln.")
+        lever = plant.levers.levers[lever_id]
+        own = set(lever.plus) & set(lever.minus)
+        if not own or not own <= set(function.switches):
+            return Outcome(False, f"Växel {value} är inte lokal i {name}.")
+        current = plant.lever_side(lever_id, self.positions)
+        side = Position.MINUS if current == Position.PLUS else Position.PLUS
+        laid = plant.levers.lay(dict(lever.plus if side == Position.PLUS else lever.minus))
+        if laid is None:
+            return Outcome(False, f"Växel {value} kan inte läggas i {sign(side)}.")
+        moving = {p: v for p, v in laid.positions.items() if self.positions.get(p) != v}
+        locks = self._locks()
+        for part in sorted(moving):
+            if plant.control.get(part) != SwitchControl.TKL:
+                return Outcome(False, not_laid(part, plant.control.get(part, SwitchControl.TKL)))
+            held = locks.parts.get(part)
+            if held:
+                return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}.")
+            if part in function.locked_parts:
+                return Outcome(False, f"Växel {part} är låst av {name}.")
+        self.positions.update(moving)
+        return self._done(f"Växel {lever_id} lagd i {sign(side)} med knappen på modulen.")
+
+    def _traction(self, function: Function, value: str | None) -> Outcome:
+        """Körström: the track's mode. It touches no route."""
+        name = function.name
+        modes = [m for m, _ in function.modes]
+        if value not in modes:
+            said = f"{_cap(name)} har inget läge {value}. Lägena är {_listed(modes)}."
+            return Outcome(False, said)
+        if self.modes.get(name) == value:
+            return Outcome(True, f"{_cap(name)} är redan {value}.")
+        self.modes[name] = value
+        return self._done(f"{_cap(name)}: {value}.")
+
+    def _turn(self, function: Function, value: str | None) -> Outcome:
+        """Vändskivan: the bridge turned to a track; refused while a route holds it elsewhere."""
+        table = function.turntable
+        labels = dict(function.modes)
+        named = {label: piece for piece, label in labels.items()}
+        piece = value if value in labels else named.get(value or "")
+        if table is None or piece is None:
+            return Outcome(False, f"{_cap(function.name)} har inget spår {value}.")
+        held = self._locks().turntables.get(table)
+        if held is not None and piece not in self.plant.alignment(table, held[0]):
+            return Outcome(False, f"{_cap(function.name)} är låst i vägen {held[1].name}.")
+        current = self.turntables.get(table)
+        if current is not None and piece in self.plant.alignment(table, current):
+            return Outcome(True, f"{_cap(function.name)} står redan mot {labels[piece]}.")
+        self.turntables[table] = piece
+        return self._done(f"{_cap(function.name)} vriden mot {labels[piece]}.")
+
+    def _release_area(self, function: Function, confirm: bool) -> Outcome:
+        """Nödutlösning per spårledning: every lock in the function's sections is released,
+        whatever route holds it, after a confirmation. Logged."""
+        names = _listed(sorted(function.sections))
+        if not confirm:
+            return Outcome(
+                False,
+                f"Bekräfta nödutlösningen av {names}. Låsen där släpps fast ett tåg kan stå där.",
+            )
+        before = self.exit_aspects()
+        released = 0
+        for route in list(self.routes):
+            for i, (name, _) in enumerate(route.way.sections):
+                if name in function.sections and not route.released[i]:
+                    route.released[i] = True
+                    released += 1
+            if all(route.released):
+                self._complete(route)
+        outcome = self._done(
+            f"Nödutlösning av {names} ({function.name}), bekräftad: {released} sektioner utlösta."
+        )
         return Outcome(True, outcome.message, None, self._exit_reports(before))
 
     def _complete(self, route: _Route) -> None:
@@ -928,6 +1227,8 @@ class Interlocking:
                 update={"problem": self.problem, "revision": self.revision, "events": self.events}
             )
         locks = self._locks()
+        local = {p: f.name for f in self._active(LOCAL) for p in f.switches}
+        guarded = {p: f.name for f in self._active(LOCAL) for p in f.locked_parts}
         switches = {}
         for part, control in plant.control.items():
             holders = [r for r, _ in locks.parts.get(part, [])]
@@ -935,14 +1236,21 @@ class Interlocking:
                 position=self.positions.get(part) if control == SwitchControl.TKL else None,
                 control=control,
                 routes=sorted(r.id for r in holders),
-                protection=any(part in r.way.protection for r in holders),
+                protection=any(part in r.way.protection for r in holders) or part in guarded,
+                local=part in local,
+                function=local.get(part) or guarded.get(part),
             )
         ends = {r.way.end for r in self.routes}
+        blocked = {s for f in self._active(STOP) for s in f.signals}
+        blocked |= {s for f in self._active(LOCAL) for s in f.blocked}
+        shunting = {s for f in self._active(LOCAL) for s in f.signals}
         signals = {}
-        for name in plant.signals:
+        for name, signal in plant.signals.items():
             holder = locks.showing.get(name)
             aspect = holder.showing()[name] if holder is not None else TklAspect.STOP
-            signals[name] = TklSignalShown(aspect=aspect, end=name in ends)
+            if aspect == TklAspect.STOP and name in shunting and signal.type in DWARFS:
+                aspect = TklAspect.LOCAL
+            signals[name] = TklSignalShown(aspect=aspect, end=name in ends, blocked=name in blocked)
         pieces: dict[str, TklPieceShown] = {}
         for route in self.routes:
             state = (
@@ -968,6 +1276,14 @@ class Interlocking:
             for piece in on:
                 route_id = pieces[piece].route if piece in pieces else None
                 pieces[piece] = TklPieceShown(state=TklPieceState.OCCUPIED, route=route_id)
+        shown_as = {
+            LOCAL: TklPieceState.LOCAL,
+            OUT: TklPieceState.OUT_OF_SERVICE,
+            PROGRAMMING: TklPieceState.PROGRAMMING,
+        }
+        for function in self._active(LOCAL, OUT, PROGRAMMING):
+            for piece in function.pieces:
+                pieces.setdefault(piece, TklPieceShown(state=shown_as[function.type]))
         aspects = self.exit_aspects()
         return TklInterlocking(
             station_id=plant.model.station_id,
@@ -998,8 +1314,31 @@ class Interlocking:
                 for place in plant.exits.values()
             ],
             tracks=dict(plant.track_of),
+            sections={name: list(section.pieces) for name, section in plant.sections.items()},
+            functions=[self._function_shown(f) for f in plant.functions.values()],
             events=list(self.events),
             last_id=self.last_id,
+        )
+
+    def _function_shown(self, function: Function) -> TklFunctionShown:
+        if function.type == TURNTABLE:
+            mode = self.turntables.get(function.turntable or "")
+        else:
+            mode = self.modes.get(function.name)
+        return TklFunctionShown(
+            name=function.name,
+            type=function.type,
+            on=self.on.get(function.name, False),
+            mode=mode,
+            modes=[TklFunctionMode(value=v, label=label) for v, label in function.modes],
+            pieces=list(function.pieces),
+            signals=list(function.signals),
+            blocked=list(function.blocked),
+            switches=list(function.switches),
+            locked=dict(function.locked),
+            at=function.turntable or function.at,
+            codes=dict(function.codes),
+            note=function.note,
         )
 
     def _shown(self, route: _Route) -> TklSetRoute:
@@ -1022,6 +1361,7 @@ class Interlocking:
             train=route.train,
             at=route.at,
             aspect=route.aspect(),
+            held=route.held,
             passed=route.passed_showing(),
             leaves=way.leaves,
             enters=way.enters,
@@ -1049,6 +1389,14 @@ class Interlocking:
         for table, piece in saved.turntables.items():
             if table in self.turntables:
                 self.turntables[table] = piece
+        for shown_function in saved.functions:
+            found = plant.functions.get(shown_function.name)
+            if found is None or found.type != shown_function.type:
+                self._stale(saved)
+                return
+            self.on[found.name] = shown_function.on and found.type in SWITCHED
+            if found.type == TRACTION and shown_function.mode in dict(found.modes):
+                self.modes[found.name] = shown_function.mode or ""
         trains: list[_Train] = []
         for train in saved.trains:
             if (train.section is not None and train.section not in plant.sections) or (
@@ -1075,6 +1423,7 @@ class Interlocking:
                     set_at=shown.set_at,
                     train=shown.train if shown.train in known else None,
                     at=min(shown.at, way.last),
+                    held=shown.held,
                 )
             )
         self.trains, self.routes = trains, routes
@@ -1109,6 +1458,20 @@ def load(
 
 def _cap(text: str) -> str:
     return text[:1].upper() + text[1:]
+
+
+def _listed(names: Iterable[str]) -> str:
+    """Names as Swedish lists them: 21, 23 och 31."""
+    found = list(names)
+    if len(found) < 2:
+        return "".join(found)
+    return f"{', '.join(found[:-1])} och {found[-1]}"
+
+
+def _held_said(route: _Route) -> str:
+    return (
+        f"Vägen {route.name} står i stopp ({route.held}). Lägg den på nytt när {route.held} är av."
+    )
 
 
 def _unknown_point(plant: Plant, name: str) -> str:

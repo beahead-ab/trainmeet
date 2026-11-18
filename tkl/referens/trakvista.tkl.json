@@ -1782,7 +1782,8 @@
    "switches": ["22c", "22b", "32", "31", "21b", "21a", "34", "22a", "23"],
    "signals": ["S4s", "S3ö", "1/8", "S3v", "2/6", "4/7", "S4v", "2/5", "4/4", "3/7", "3/4", "2/7", "2/8", "3/8", "3/5", "2/3", "1/7", "1/4", "2/4"],
    "codes": {
-    "85": "L1",
+    "59": "L1",
+    "85": "L01",
     "95": "L01"
    },
    "note": "Området är spåren I, II och III med växlarna 21–23, 31, 32 och 34. Inkopplad visar dvärgsignalerna rörelse tillåten och växlarna är fria att lägga om; inga tågvägar går till, från eller genom området."

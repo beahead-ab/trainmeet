@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/stallverk/function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPanelFunction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3039,6 +3055,11 @@ export interface components {
             /** @default null */
             building: components["schemas"]["trainmeet.tkl-1.track-plan.PanelBuilding"] | null;
             /**
+             * Functions
+             * @description Panelfunktionernas knappar i spårplanen, de som hör till en nod.
+             */
+            functions?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelFunctionButton"][];
+            /**
              * Real Box
              * @description Ritningens ram för den mjuka vyn: x, y, bredd, höjd i mm.
              * @default null
@@ -3086,6 +3107,39 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * PanelFunctionButton
+         * @description A panel function's button in the track plan, beside the node it belongs to: on the side
+         *     the plan's `function_sides` says, else under the track (STV-04, STV-53).
+         */
+        "trainmeet.tkl-1.track-plan.PanelFunctionButton": {
+            /** Name */
+            name: string;
+            type: components["schemas"]["trainmeet.tkl-1.track-plan.PanelFunctionType"];
+            /** Node */
+            node: string;
+            /**
+             * Cell
+             * @description Knappens mitt.
+             */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "over" | "under";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelFunctionType
+         * @description The panel functions' catalogue. New functions are added here for all (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.track-plan.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
         /**
          * PanelLabel
          * @description A text in a fixed place: an exit at its row's end, a stop point, a buffer stop.
@@ -3557,6 +3611,18 @@ export interface components {
                 [key: string]: string;
             };
             /**
+             * Sections
+             * @description Sektionerna med sina spårbitar: där 59 har sina lampor, en till fyra per spårledning, och avbrotten mellan spårledningarna.
+             */
+            sections?: {
+                [key: string]: string[];
+            };
+            /**
+             * Functions
+             * @description Panelfunktionerna ur katalogen, med sitt läge (STV-04, STV-53).
+             */
+            functions?: components["schemas"]["trainmeet.tkl-1.interlocking.TklFunctionShown"][];
+            /**
              * Events
              * @description Senaste först.
              */
@@ -3575,6 +3641,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.ExitSignalAspect": "stop" | "proceed" | "unknown";
+        /**
+         * PanelFunctionType
+         * @description The panel functions' catalogue. New functions are added here for all (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
         /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
@@ -3597,7 +3669,7 @@ export interface components {
          * @description What a signal shows. A combined signal shows SHUNT with the dwarf part (STV-24).
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking.TklAspect": "stop" | "proceed" | "shunt";
+        "trainmeet.tkl-1.interlocking.TklAspect": "stop" | "proceed" | "shunt" | "local";
         /**
          * TklExitShown
          * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
@@ -3615,6 +3687,95 @@ export interface components {
             pieces?: string[];
             /** @default stop */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking.ExitSignalAspect"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFunctionMode
+         * @description One of a function's positions: a traction current's mode, or a turntable's track.
+         */
+        "trainmeet.tkl-1.interlocking.TklFunctionMode": {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFunctionShown
+         * @description A panel function from the catalogue (STV-04) with its state of the moment: what the
+         *     panel draws and what is saved with the interlocking. The parameters are the model's.
+         */
+        "trainmeet.tkl-1.interlocking.TklFunctionShown": {
+            /**
+             * Name
+             * @description Funktionens namn, som i stationsmodellen. Unikt i stationen.
+             */
+            name: string;
+            type: components["schemas"]["trainmeet.tkl-1.interlocking.PanelFunctionType"];
+            /**
+             * On
+             * @description Inkopplad: signalstopp, lokal frigivning, ur drift eller programmeringsspår.
+             * @default false
+             */
+            on: boolean;
+            /**
+             * Mode
+             * @description Körströmmens läge, eller spåret vändskivans brygga står mot.
+             * @default null
+             */
+            mode: string | null;
+            /**
+             * Modes
+             * @description Lägena att välja.
+             */
+            modes?: components["schemas"]["trainmeet.tkl-1.interlocking.TklFunctionMode"][];
+            /**
+             * Pieces
+             * @description Spårbitarna funktionen gäller: området eller spåret.
+             */
+            pieces?: string[];
+            /**
+             * Signals
+             * @description Signalerna i stopp, eller som visar växling.
+             */
+            signals?: string[];
+            /**
+             * Blocked
+             * @description Infartssignalerna som spärras medan området är lokalt frigivet (FR41).
+             */
+            blocked?: string[];
+            /**
+             * Switches
+             * @description De lokala växlarna, som läggs med knappar på modulerna.
+             */
+            switches?: string[];
+            /**
+             * Locked
+             * @description Skyddsväxlarnas spakar och läget de låses i.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"];
+            };
+            /**
+             * At
+             * @description Noden knappen hör till i spårplanen.
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Codes
+             * @description Knappens kod per skal, till exempel L01 i 95.
+             */
+            codes?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -3696,7 +3857,7 @@ export interface components {
          * TklPieceState
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking.TklPieceState": "train" | "shunting" | "occupied";
+        "trainmeet.tkl-1.interlocking.TklPieceState": "train" | "shunting" | "occupied" | "local" | "out_of_service" | "programming";
         /**
          * TklSectionPart
          * @description A section of a set route, in the order the route runs through it: a track circuit, or
@@ -3784,6 +3945,12 @@ export interface components {
             /** @description Vad startsignalen visar för vägen just nu. */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
             /**
+             * Held
+             * @description Vägen ligger kvar med sina lås men signalerna visar stopp, med skälet: signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt.
+             * @default null
+             */
+            held: string | null;
+            /**
              * Passed
              * @description Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).
              */
@@ -3818,6 +3985,12 @@ export interface components {
              * @default false
              */
             end: boolean;
+            /**
+             * Blocked
+             * @description Spärrad i stopp: i signalstopp, eller infartssignal till ett lokalt frigivet område (FR41). Fylld röd i 85 och 95.
+             * @default false
+             */
+            blocked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3837,10 +4010,22 @@ export interface components {
             routes?: number[];
             /**
              * Protection
-             * @description Låst av en väg som inte går över den: kort gult vid knuten (STV-20).
+             * @description Låst som skydd, av en väg som inte går över den eller av en lokal frigivning: kort gult vid knuten (STV-20, TKL44).
              * @default false
              */
             protection: boolean;
+            /**
+             * Local
+             * @description Lokalt frigiven: läggs med knappen på modulen, inte av ställverket. Blått streck vid knuten (FR41, TKL44).
+             * @default false
+             */
+            local: boolean;
+            /**
+             * Function
+             * @description Panelfunktionen som låser växeln eller friger den.
+             * @default null
+             */
+            function: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -3911,6 +4096,12 @@ export interface components {
          */
         "trainmeet.tkl-1.interlocking-answer.ExitSignalAspect": "stop" | "proceed" | "unknown";
         /**
+         * PanelFunctionType
+         * @description The panel functions' catalogue. New functions are added here for all (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
+        /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
          * @enum {string}
@@ -3932,7 +4123,7 @@ export interface components {
          * @description What a signal shows. A combined signal shows SHUNT with the dwarf part (STV-24).
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking-answer.TklAspect": "stop" | "proceed" | "shunt";
+        "trainmeet.tkl-1.interlocking-answer.TklAspect": "stop" | "proceed" | "shunt" | "local";
         /**
          * TklExitShown
          * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
@@ -3950,6 +4141,95 @@ export interface components {
             pieces?: string[];
             /** @default stop */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.ExitSignalAspect"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFunctionMode
+         * @description One of a function's positions: a traction current's mode, or a turntable's track.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklFunctionMode": {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFunctionShown
+         * @description A panel function from the catalogue (STV-04) with its state of the moment: what the
+         *     panel draws and what is saved with the interlocking. The parameters are the model's.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklFunctionShown": {
+            /**
+             * Name
+             * @description Funktionens namn, som i stationsmodellen. Unikt i stationen.
+             */
+            name: string;
+            type: components["schemas"]["trainmeet.tkl-1.interlocking-answer.PanelFunctionType"];
+            /**
+             * On
+             * @description Inkopplad: signalstopp, lokal frigivning, ur drift eller programmeringsspår.
+             * @default false
+             */
+            on: boolean;
+            /**
+             * Mode
+             * @description Körströmmens läge, eller spåret vändskivans brygga står mot.
+             * @default null
+             */
+            mode: string | null;
+            /**
+             * Modes
+             * @description Lägena att välja.
+             */
+            modes?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklFunctionMode"][];
+            /**
+             * Pieces
+             * @description Spårbitarna funktionen gäller: området eller spåret.
+             */
+            pieces?: string[];
+            /**
+             * Signals
+             * @description Signalerna i stopp, eller som visar växling.
+             */
+            signals?: string[];
+            /**
+             * Blocked
+             * @description Infartssignalerna som spärras medan området är lokalt frigivet (FR41).
+             */
+            blocked?: string[];
+            /**
+             * Switches
+             * @description De lokala växlarna, som läggs med knappar på modulerna.
+             */
+            switches?: string[];
+            /**
+             * Locked
+             * @description Skyddsväxlarnas spakar och läget de låses i.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"];
+            };
+            /**
+             * At
+             * @description Noden knappen hör till i spårplanen.
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Codes
+             * @description Knappens kod per skal, till exempel L01 i 95.
+             */
+            codes?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4036,6 +4316,18 @@ export interface components {
                 [key: string]: string;
             };
             /**
+             * Sections
+             * @description Sektionerna med sina spårbitar: där 59 har sina lampor, en till fyra per spårledning, och avbrotten mellan spårledningarna.
+             */
+            sections?: {
+                [key: string]: string[];
+            };
+            /**
+             * Functions
+             * @description Panelfunktionerna ur katalogen, med sitt läge (STV-04, STV-53).
+             */
+            functions?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklFunctionShown"][];
+            /**
              * Events
              * @description Senaste först.
              */
@@ -4115,7 +4407,7 @@ export interface components {
          * TklPieceState
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking-answer.TklPieceState": "train" | "shunting" | "occupied";
+        "trainmeet.tkl-1.interlocking-answer.TklPieceState": "train" | "shunting" | "occupied" | "local" | "out_of_service" | "programming";
         /**
          * TklReport
          * @description Vad ställverket rapporterar upp till Hubben (STV-10), and how it went.
@@ -4261,6 +4553,12 @@ export interface components {
             /** @description Vad startsignalen visar för vägen just nu. */
             aspect: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
             /**
+             * Held
+             * @description Vägen ligger kvar med sina lås men signalerna visar stopp, med skälet: signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt.
+             * @default null
+             */
+            held: string | null;
+            /**
              * Passed
              * @description Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).
              */
@@ -4295,6 +4593,12 @@ export interface components {
              * @default false
              */
             end: boolean;
+            /**
+             * Blocked
+             * @description Spärrad i stopp: i signalstopp, eller infartssignal till ett lokalt frigivet område (FR41). Fylld röd i 85 och 95.
+             * @default false
+             */
+            blocked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -4314,10 +4618,22 @@ export interface components {
             routes?: number[];
             /**
              * Protection
-             * @description Låst av en väg som inte går över den: kort gult vid knuten (STV-20).
+             * @description Låst som skydd, av en väg som inte går över den eller av en lokal frigivning: kort gult vid knuten (STV-20, TKL44).
              * @default false
              */
             protection: boolean;
+            /**
+             * Local
+             * @description Lokalt frigiven: läggs med knappen på modulen, inte av ställverket. Blått streck vid knuten (FR41, TKL44).
+             * @default false
+             */
+            local: boolean;
+            /**
+             * Function
+             * @description Panelfunktionen som låser växeln eller friger den.
+             * @default null
+             */
+            function: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4534,6 +4850,38 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklFunctionAsk
+         * @description Manövrera en panelfunktion (STV-04): koppla in eller ur, välj läge, lägg en lokal växel
+         *     eller nödutlös. The interlocking says yes, or no with the reason.
+         */
+        "trainmeet.tkl-1.function-ask": {
+            /**
+             * Function
+             * @description Funktionens namn.
+             */
+            function: string;
+            action: components["schemas"]["trainmeet.tkl-1.function-ask.TklFunctionAction"];
+            /**
+             * Value
+             * @description Läget, spåret eller växeln.
+             * @default null
+             */
+            value: string | null;
+            /**
+             * Confirm
+             * @description Nödutlösningen är bekräftad.
+             * @default false
+             */
+            confirm: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFunctionAction
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.function-ask.TklFunctionAction": "on" | "off" | "set" | "lay" | "release";
     };
     responses: never;
     parameters: never;
@@ -5378,6 +5726,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["trainmeet.tkl-1.reset"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPanelFunction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.function-ask"];
             };
         };
         responses: {

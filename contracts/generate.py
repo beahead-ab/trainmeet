@@ -89,6 +89,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.train-put": tkl.TklTrainPut,
     "trainmeet.tkl-1.train-ref": tkl.TklTrainRef,
     "trainmeet.tkl-1.reset": tkl.TklReset,
+    "trainmeet.tkl-1.function-ask": tkl.TklFunctionAsk,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1923,6 +1924,7 @@ def tkl_openapi() -> str:
     route("post", s + "/train", "tklPutTrain", answer, t + "train-put")
     route("post", s + "/train/remove", "tklRemoveTrain", answer, t + "train-ref")
     route("post", s + "/reset", "tklReset", answer, t + "reset")
+    route("post", s + "/function", "tklPanelFunction", answer, t + "function-ask")
     stems = [
         s
         for s in CONTRACTS

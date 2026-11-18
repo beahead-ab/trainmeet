@@ -1,8 +1,10 @@
 // The interlocking's panel at level 1–2 (#84), drawn in SVG over the station's panel geometry
 // (#83). What is drawn comes from stallverk.ts in logical terms; the skin (skal.ts) gives every
-// colour, width and symbol, so another skin is another Skin over the same geometry. Clicks go
-// to the page, which asks the interlocking: the panel decides nothing (STV-43).
-import type { KeyboardEvent } from "react";
+// colour, width and symbol, so another skin is another Skin over the same geometry: 85 and 95
+// as a screen with the states in the track's colour, 59 as model 59's illuminated plan with
+// lamps, arrows and toggle switches (STV-36). Clicks go to the page, which asks the
+// interlocking: the panel decides nothing (STV-43).
+import type { KeyboardEvent, ReactNode } from "react";
 import type { Panel } from "./api";
 import type { Shape, Skin } from "./skal";
 import { cut, fromKnot, goals, type Cell, type Choice, type Drawing, type DrawnSignal } from "./stallverk";
@@ -14,14 +16,20 @@ type Props = {
   drawn: Drawing;
   skin: Skin;
   say: Say;
+  /** The station's name: model 59 has it above the plan. */
+  title?: string;
   choice?: Choice | null;
   /** The set route chosen for the buttons: its start gets a white ring. */
   chosen?: { id: number; start: string } | null;
   /** The panel's share of the screen (STV-05): at most this high, as wide as it may be. */
   height?: string;
   onPoint?: (name: string) => void;
+  /** Model 59: a signal's toggle, flipped (STV-36). */
+  onToggle?: (name: string) => void;
   onSwitch?: (part: string) => void;
   onRoute?: (route: number) => void;
+  /** A panel function's button in the plan, such as the programming track's (STV-53). */
+  onButton?: (name: string) => void;
 };
 
 const unit = (v: Cell): Cell => {
@@ -29,45 +37,94 @@ const unit = (v: Cell): Cell => {
   return [v[0] / n, v[1] / n];
 };
 
-export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null, height, onPoint, onSwitch, onRoute }: Props) {
+export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton }: Props) {
   const [dx, dy] = panel.cell;
   // The grid's view, with room at the ends for an exit's name and a train number beside it.
   const grid = viewBox(panel, "schematic", null);
-  const box = { ...grid, x: grid.x - 3.5 * dx, width: grid.width + 7 * dx };
+  const top = skin.style === "lamps" && title ? 1.6 * dy : 0;
+  const box = { x: grid.x - 3.5 * dx, y: grid.y - top, width: grid.width + 7 * dx, height: grid.height + top };
   const u = Math.min(dx, dy);
+  const lamps = skin.style === "lamps";
+  const p59 = skin.plan59;
   const px = (c: Cell): Cell => [c[0] * dx, c[1] * dy];
   const line = (cells: Cell[]) => cells.map((c) => px(c).map(round).join(",")).join(" ");
   const font = skin.text * u;
+  const said = (text: string) => (skin.upper ? text.toUpperCase() : text);
   const lit = goals(choice);
-  const start = choice ? (drawn.signals.find((s) => s.name === choice.start)?.symbol ?? drawn.points.find((p) => p.name === choice.start)?.cell) : undefined;
-  const chosenAt = chosen ? (drawn.signals.find((s) => s.name === chosen.start)?.symbol ?? drawn.points.find((p) => p.name === chosen.start)?.cell) : undefined;
+  const at = (name: string) => drawn.signals.find((s) => s.name === name)?.symbol ?? drawn.points.find((p) => p.name === name)?.cell;
+  const start = choice ? at(choice.start) : undefined;
+  const chosenAt = chosen ? at(chosen.start) : undefined;
   const press = (work: () => void) => (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       work();
     }
   };
-  /** A symbol's shapes, from its own frame (x along `toward`, y to the left of it) to the panel. */
-  const placed = (shapes: Shape[], at: Cell, toward: Cell, key: string) => {
+  /** A symbol's shapes, from its own frame (x along `toward`, y to the side `side` says) to the panel. */
+  const placed = (shapes: Shape[], where: Cell, toward: Cell, key: string, side = 1) => {
     const [tx, ty] = unit(toward);
-    const [nx, ny] = [ty, -tx];
-    const [x, y] = px(at);
+    const [nx, ny] = [ty * side, -tx * side];
+    const [x, y] = px(where);
     return shapes.map((shape, i) => {
       const points = shape.points.map(([a, h]) => `${round(x + (tx * a + nx * h) * u)},${round(y + (ty * a + ny * h) * u)}`).join(" ");
       const style = { fill: shape.fill ?? "none", stroke: shape.stroke ?? "none", strokeWidth: shape.width * u };
       return shape.closed ? <polygon key={`${key}${i}`} points={points} style={style} strokeLinejoin="miter" /> : <polyline key={`${key}${i}`} points={points} style={style} />;
     });
   };
+  /** Which way the frame's y goes for a signal: towards the side its id stands on. */
+  const sideOf = (s: DrawnSignal) => {
+    const [tx, ty] = unit(s.toward);
+    const [nx, ny] = [ty, -tx];
+    const away = (s.label[0] - s.symbol[0]) * dx * nx + (s.label[1] - s.symbol[1]) * dy * ny;
+    return away < 0 ? -1 : 1;
+  };
+  const look = (s: DrawnSignal) => skin.signal({ type: s.type, aspect: s.aspect, end: s.end, blocked: s.blocked });
   const gapOf = (s: DrawnSignal) => {
-    const { gap } = skin.signal({ type: s.type, aspect: s.aspect, end: s.end });
+    const { gap } = look(s);
     if (!gap) return null;
     const [tx, ty] = unit(s.toward);
     const a: Cell = [s.symbol[0] + tx * gap[0], s.symbol[1] + ty * gap[0]];
     const b: Cell = [s.symbol[0] + tx * gap[1], s.symbol[1] + ty * gap[1]];
-    return <polyline key={`g${s.name}`} points={line([a, b])} style={{ stroke: skin.ground, strokeWidth: (skin.width + 0.14) * u, fill: "none" }} />;
+    return <polyline key={`g${s.name}`} points={line([a, b])} style={{ stroke: skin.ground, strokeWidth: (skin.stateWidth + 0.14) * u, fill: "none" }} />;
+  };
+  /** Where a signal's id stands: as the layout says, or in 59 beyond the symbol at its mast. */
+  const labelOf = (s: DrawnSignal): Cell => {
+    if (!skin.beside || s.type === "stop_lamp") return s.label;
+    const [tx, ty] = unit(s.toward);
+    const side = sideOf(s);
+    const [nx, ny] = [ty * side, -tx * side];
+    const [x, y] = px(s.symbol);
+    return [(x + (tx * skin.beside.along + nx * skin.beside.label) * u) / dx, (y + (ty * skin.beside.along + ny * skin.beside.label) * u) / dy];
+  };
+  const trackWidth = (state: string) => (state === "free" || state === "out_of_service" ? skin.width : skin.stateWidth) * u;
+  const toggle = (where: Cell, toward: Cell | null, key: string): ReactNode => {
+    // Model 59's toggle switch: a short light lever in a light metal ring (SJH s. 152, 157),
+    // folded in the train's direction while its route is asked for or set.
+    const [x, y] = px(where);
+    const r = 0.26 * u;
+    const [tx, ty] = toward ? unit(toward) : [0, 0];
+    const tip: Cell = [x + tx * r * 0.95, y + ty * r * 0.95];
+    return (
+      <g key={key} className="vippa" data-folded={toward ? "ja" : undefined} pointerEvents="none">
+        <circle cx={round(x)} cy={round(y)} r={round(r)} fill="#c3c7c9" stroke="#6c7174" strokeWidth={0.03 * u} />
+        <circle cx={round(x)} cy={round(y)} r={round(r * 0.45)} fill="#1a1c1d" />
+        {toward ? <line x1={round(x)} y1={round(y)} x2={round(tip[0])} y2={round(tip[1])} stroke="#e9e8e2" strokeWidth={0.13 * u} strokeLinecap="round" /> : null}
+        <circle cx={round(tip[0])} cy={round(tip[1])} r={round(r * 0.5)} fill="#f3f2ec" stroke="#8d908e" strokeWidth={0.02 * u} />
+      </g>
+    );
+  };
+  const lamp = (where: Cell, colour: string, key: string, r = 0.16, glow = false): ReactNode => {
+    const [x, y] = px(where);
+    return (
+      <g key={key}>
+        {glow ? <circle cx={round(x)} cy={round(y)} r={round(r * 2.1 * u)} fill={colour} opacity={0.28} /> : null}
+        <circle cx={round(x)} cy={round(y)} r={round(r * 1.3 * u)} fill={p59?.rim ?? "#000"} />
+        <circle cx={round(x)} cy={round(y)} r={round(r * u)} fill={colour} />
+      </g>
+    );
   };
   return (
-    <div className="stv-ram" style={{ background: skin.ground }}>
+    <div className={`stv-ram skal-${skin.id}`} style={{ background: skin.ground, ...(p59 ? { borderImage: `${p59.frame} 1` } : {}) }}>
       <svg
         className={`stv-panel skal-${skin.id}`}
         viewBox={`${round(box.x)} ${round(box.y)} ${round(box.width)} ${round(box.height)}`}
@@ -77,33 +134,82 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
         style={{ fontFamily: skin.font, maxHeight: height }}
       >
         <rect x={box.x} y={box.y} width={box.width} height={box.height} fill={skin.ground} />
+        {lamps && title ? (
+          <text className="stationsnamn" x={round(box.x + box.width / 2)} y={round(grid.y - 0.55 * dy)} textAnchor="middle" fontSize={round(0.95 * u)} fontWeight={700} letterSpacing={round(0.2 * u)} fill={skin.label}>
+            {said(title)}
+          </text>
+        ) : null}
         {(panel.platforms ?? []).map(([x1, y1, x2, y2], i) => (
           <rect key={`p${i}`} x={x1 * dx} y={y1 * dy} width={(x2 - x1) * dx} height={(y2 - y1) * dy} fill={skin.platform} />
         ))}
-        <g className="spar" fill="none" strokeLinejoin="round" strokeWidth={skin.width * u}>
+        <g className="spar" fill="none" strokeLinejoin="round">
           {drawn.lines.map((l) => (
             <polyline
               key={l.piece}
               data-piece={l.piece}
               data-state={l.state}
-              points={line(cut(l.cells, l.cut.start ? skin.gap : 0, l.cut.end ? skin.gap : 0))}
+              points={line(lamps ? l.cells : cut(l.cells, l.cut.start ? skin.gap : 0, l.cut.end ? skin.gap : 0))}
               stroke={skin.tracks[l.state]}
+              strokeWidth={round(trackWidth(lamps ? "free" : l.state))}
+              strokeDasharray={!lamps && l.state === "out_of_service" ? `${round(0.3 * u)} ${round(0.22 * u)}` : undefined}
             />
           ))}
         </g>
-        <g className="skydd" fill="none" stroke={skin.protection} strokeWidth={skin.width * u}>
-          {drawn.switches
-            .filter((s) => s.protection && s.lies && s.trunk)
-            .flatMap((s) => [
-              <polyline key={`${s.number}l`} data-protection={s.number} points={line(fromKnot(s.lies ?? [], s.cell, 0.9))} />,
-              <polyline key={`${s.number}t`} points={line(fromKnot(s.trunk ?? [], s.cell, 0.3))} />,
-            ])}
-        </g>
+        {lamps && p59 ? (
+          <g className="lampor">
+            {/* Avbrott i spårlinjen där två spårledningar möts, 5 enheter (SJH s. 152). */}
+            {drawn.boundaries.map((b, i) => {
+              const [tx, ty] = unit(b.toward);
+              const half = 2.6 / 24;
+              return <polyline key={`b${i}`} points={line([[b.at[0] - tx * half, b.at[1] - ty * half], [b.at[0] + tx * half, b.at[1] + ty * half]])} stroke={skin.ground} strokeWidth={round(0.42 * u)} fill="none" />;
+            })}
+            {/* Vit lampa i spåret som lyser när spårledningen är fri, en till fyra per spårledning (SJH s. 152). */}
+            {drawn.lamps.map((l, i) => (
+              <g key={`l${i}`} data-lamp={l.section} data-free={l.free ? "ja" : "nej"}>
+                {lamp(l.at, l.free ? p59.lit : p59.lens, `l${i}`, 0.16, l.free)}
+              </g>
+            ))}
+            {/* Blått sken i benet växeln ligger åt (SJH s. 151–152); den andra öppningen mörk. */}
+            {drawn.switches.flatMap((s) => {
+              const out: ReactNode[] = [];
+              const opening = (cells: Cell[] | null, colour: string, key: string, glow: boolean) => {
+                if (!cells) return;
+                const leg = fromKnot(cells, s.cell, 0.55);
+                const end = leg[leg.length - 1];
+                if (end) out.push(lamp(end, colour, key, 0.13, glow));
+              };
+              opening(s.other, p59.lens, `${s.number}o`, false);
+              opening(s.lies, p59.position, `${s.number}l`, true);
+              return out;
+            })}
+            {/* Två pilar i spåret vid start och mål för en lagd väg (SJH s. 157); växlingsväg gul och mindre. */}
+            {drawn.arrows.map((a, i) => {
+              const k = a.kind === "shunting" ? 0.8 : 1;
+              const pts: [number, number][] = [[-0.25, 0.18], [0.08, 0.18], [0.08, 0.29], [0.33, 0], [0.08, -0.29], [0.08, -0.18], [-0.25, -0.18]];
+              const shapes: Shape[] = [{ points: pts.map(([x, y]) => [x * k, y * k]), closed: true, fill: a.kind === "shunting" ? p59.shunting : p59.train, stroke: "#0c0f0d", width: 0.03 }];
+              return (
+                <g key={`a${a.route}-${i}`} data-arrow={a.kind}>
+                  {placed(shapes, a.at, a.toward, `a${i}`)}
+                </g>
+              );
+            })}
+          </g>
+        ) : null}
+        {!lamps ? (
+          <g className="skydd" fill="none" strokeWidth={skin.stateWidth * u}>
+            {drawn.switches
+              .filter((s) => (s.protection || s.local) && s.lies && s.trunk)
+              .flatMap((s) => [
+                <polyline key={`${s.number}l`} data-protection={s.protection ? s.number : undefined} data-local={s.local ? s.number : undefined} stroke={s.local ? skin.local : skin.protection} points={line(fromKnot(s.lies ?? [], s.cell, 0.9))} />,
+                <polyline key={`${s.number}t`} stroke={s.local ? skin.local : skin.protection} points={line(fromKnot(s.trunk ?? [], s.cell, 0.3))} />,
+              ])}
+          </g>
+        ) : null}
         <g className="luckor">{drawn.signals.map(gapOf)}</g>
         <g className="signaler">
           {drawn.signals.map((s) => (
-            <g key={s.name} data-signal={s.name} data-aspect={s.aspect} data-end={s.end ? "ja" : undefined} opacity={s.planned ? 0.4 : 1}>
-              {placed(skin.signal({ type: s.type, aspect: s.aspect, end: s.end }).shapes, s.symbol, s.toward, s.name)}
+            <g key={s.name} data-signal={s.name} data-aspect={s.aspect} data-end={s.end ? "ja" : undefined} data-blocked={s.blocked ? "ja" : undefined} opacity={s.planned ? 0.4 : 1}>
+              {placed(look(s).shapes, s.symbol, s.toward, s.name, sideOf(s))}
             </g>
           ))}
         </g>
@@ -117,29 +223,34 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
         <g className="texter" fontSize={font} fontWeight={600} textAnchor="middle" style={{ paintOrder: "stroke" }} stroke={skin.ground} strokeWidth={0.12 * u}>
           {drawn.switches.map((s) => (
             <text key={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={s.laid ? 1 : 0.55} fontSize={font * 0.85}>
-              {s.number}
+              {said(s.number)}
             </text>
           ))}
           {drawn.labels.map((l) => (
             <text key={`${l.kind}${l.text}`} x={l.cell[0] * dx} y={l.cell[1] * dy + font * 0.35} textAnchor={l.anchor} fill={l.end ? skin.endLabel : skin.label}>
-              {l.text}
+              {said(l.text)}
             </text>
           ))}
           {drawn.names
             .filter((n) => !n.hidden)
             .map((n) => (
-              <text key={n.name} data-track-name={n.name} x={n.cell[0] * dx} y={n.cell[1] * dy} textAnchor="end" fill={skin.trackName}>
-                {n.name}
+              <text key={n.name} data-track-name={n.name} x={n.cell[0] * dx} y={n.cell[1] * dy} textAnchor="end" fill={skin.trackName} fontWeight={700}>
+                {said(n.name)}
               </text>
             ))}
-          {drawn.signals.map((s) => (
-            <text key={s.name} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : 1} fontWeight={700}>
-              {s.name}
-            </text>
-          ))}
+          {drawn.signals.map((s) => {
+            const [x, y] = labelOf(s);
+            return (
+              <text key={s.name} x={x * dx} y={y * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : 1} fontWeight={700}>
+                {said(s.name)}
+              </text>
+            );
+          })}
         </g>
-        <g className="tagnummer" fontSize={skin.numbers.size * u} fontWeight={700} textAnchor="middle">
+        <g className="tagnummer" fontSize={skin.numbers.size * u} fontWeight={skin.numbers.weight} textAnchor="middle" style={{ fontFamily: skin.numbers.font }}>
           {drawn.numbers.map((n) => {
+            const colour = n.colour === "red" ? skin.numbers.red : skin.numbers.green;
+            if (!colour) return null;
             const shown = n.number ? skin.numberText(n.number) : "-----";
             const w = (shown.length * 0.62 + 0.5) * skin.numbers.size * u;
             const h = skin.numbers.size * u * 1.3;
@@ -147,13 +258,71 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
             const aside = n.after * 0.6 * skin.text * u + 0.4 * u + w / 2;
             const [x0, y] = px(n.at);
             const x = n.anchor === "start" ? x0 + aside : n.anchor === "end" ? x0 - aside : x0;
+            // 59: a black window with a thin grey edge, a TKL addition. 85 and 95: a frame only
+            // for an estimated position.
+            const window = lamps && p59 ? <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={0.06 * u} fill={p59.window.ground} stroke={p59.window.edge} strokeWidth={0.04 * u} /> : null;
+            const frame = !lamps && n.estimated ? <rect x={-w / 2} y={-h / 2} width={w} height={h} fill="none" stroke={skin.numbers.frame} strokeWidth={0.05 * u} /> : null;
+            const edge = skin.numbers.edge ? { stroke: skin.numbers.edge, strokeWidth: 0.12 * u, paintOrder: "stroke" as const } : {};
             return (
               <g key={n.key} data-number={n.number ?? ""} data-colour={n.colour} style={{ transform: `translate(${round(x)}px, ${round(y)}px)` }}>
-                {n.estimated ? <rect x={-w / 2} y={-h / 2} width={w} height={h} fill={skin.ground} stroke={skin.numbers.frame} strokeWidth={0.05 * u} /> : null}
-                <text y={skin.numbers.size * u * 0.36} fill={n.colour === "red" ? skin.numbers.red : skin.numbers.green}>
+                {window ?? frame}
+                <text y={skin.numbers.size * u * 0.36} fill={colour} {...edge}>
                   {shown}
                   <title>{n.estimated ? `${shown} · ${say("estimated")}` : shown}</title>
                 </text>
+              </g>
+            );
+          })}
+        </g>
+        {lamps ? (
+          <g className="vippor">
+            {drawn.signals
+              .filter((s) => s.type !== "stop_lamp")
+              .map((s) => toggle(s.symbol, s.folded || choice?.start === s.name ? s.toward : null, `v${s.name}`))}
+            {drawn.switches
+              .filter((s) => s.laid && s.lies)
+              .map((s) => {
+                const leg = fromKnot(s.lies ?? [], s.cell, 0.5);
+                const end = leg[leg.length - 1] ?? s.cell;
+                return toggle(s.cell, [end[0] - s.cell[0], end[1] - s.cell[1]], `w${s.number}`);
+              })}
+          </g>
+        ) : null}
+        <g className="knappar" fontFamily={skin.font}>
+          {drawn.buttons.map((b) => {
+            const [x, y] = px(b.cell);
+            const w = 2.4 * u;
+            const h = 0.9 * u;
+            const on = b.on;
+            const colour = b.type === "programming_track" ? skin.local : b.type === "local_release" ? skin.lamps.local : b.type === "signal_stop" ? skin.lamps.stop : skin.lamps.on;
+            const name = b.type === "programming_track" ? say("programmingButton", { name: b.name }) : b.name;
+            return (
+              <g
+                key={`f${b.name}`}
+                role="button"
+                tabIndex={0}
+                aria-label={name}
+                aria-pressed={on}
+                data-function={b.name}
+                data-on={on ? "ja" : undefined}
+                onClick={() => onButton?.(b.name)}
+                onKeyDown={press(() => onButton?.(b.name))}
+                style={{ cursor: "pointer" }}
+              >
+                <title>{`${name} · ${on ? say("functionOn") : say("functionOff")}`}</title>
+                {lamps ? (
+                  <>
+                    {lamp([b.cell[0] - 0.75 * (u / dx), b.cell[1]], on ? colour : skin.lamps.off, `fl${b.name}`, 0.16, on)}
+                    {toggle([b.cell[0] + 0.25 * (u / dx), b.cell[1]], on ? [1, 0] : null, `ft${b.name}`)}
+                  </>
+                ) : (
+                  <>
+                    <rect x={round(x - w / 2)} y={round(y - h / 2)} width={round(w)} height={round(h)} rx={round(0.15 * u)} fill={on ? colour : skin.ground} stroke={on ? "#ffffff" : colour} strokeWidth={round(0.08 * u)} />
+                    <text x={round(x)} y={round(y + 0.22 * u)} textAnchor="middle" fontSize={round(0.6 * u)} fontWeight={800} fill={on ? "#000000" : "#ffffff"}>
+                      {b.type === "programming_track" ? "PROG" : said(b.name)}
+                    </text>
+                  </>
+                )}
               </g>
             );
           })}
@@ -169,7 +338,9 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
           {drawn.switches.map((s) => {
             const [x, y] = px(s.cell);
             const part = s.parts[0];
-            const state = [s.position ?? "?", s.routes.length ? say("locked", { routes: s.routes.join(", ") }) : null, s.protection ? say("protection") : null, s.laid ? null : say("notLaid")].filter(Boolean).join(" · ");
+            const state = [s.position ?? "?", s.routes.length ? say("locked", { routes: s.routes.join(", ") }) : null, s.protection ? say("protection") : null, s.local ? say("localSwitch") : null, s.laid ? null : say("notLaid")]
+              .filter(Boolean)
+              .join(" · ");
             return (
               <g
                 key={s.number}
@@ -186,10 +357,14 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
               </g>
             );
           })}
-          {[...drawn.signals.map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: s.name }) })), ...drawn.points.map((p) => ({ name: p.name, at: p.cell, label: say("point", { name: p.name }) }))].map((p) => {
+          {[
+            ...drawn.signals.map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: s.name }), toggle: lamps && s.type !== "stop_lamp" })),
+            ...drawn.points.map((p) => ({ name: p.name, at: p.cell, label: say("point", { name: p.name }), toggle: false })),
+          ].map((p) => {
             const [x, y] = px(p.at);
+            const click = () => (p.toggle && onToggle ? onToggle(p.name) : onPoint?.(p.name));
             return (
-              <g key={`k${p.name}`} role="button" tabIndex={0} aria-label={p.label} onClick={() => onPoint?.(p.name)} onKeyDown={press(() => onPoint?.(p.name))} style={{ cursor: "pointer" }}>
+              <g key={`k${p.name}`} role="button" tabIndex={0} aria-label={p.label} data-toggle={p.toggle ? "ja" : undefined} onClick={click} onKeyDown={press(click)} style={{ cursor: "pointer" }}>
                 <circle cx={x} cy={y} r={0.85 * u} fill="transparent" />
               </g>
             );
@@ -197,9 +372,9 @@ export function Panelen({ panel, drawn, skin, say, choice = null, chosen = null,
         </g>
         <g className="ringar" fill="none" pointerEvents="none">
           {lit.map((t) => {
-            const at = drawn.signals.find((s) => s.name === t.end)?.symbol ?? drawn.points.find((p) => p.name === t.end)?.cell;
-            if (!at) return null;
-            const [x, y] = px(at);
+            const where = at(t.end);
+            if (!where) return null;
+            const [x, y] = px(where);
             return (
               <circle
                 key={`m${t.end}`}

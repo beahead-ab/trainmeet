@@ -916,6 +916,33 @@
           }
         }
       }
+    },
+    "/api/tkl/1/stallverk/function": {
+      "post": {
+        "operationId": "tklPanelFunction",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.function-ask"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6220,6 +6247,14 @@
             ],
             "default": null
           },
+          "functions": {
+            "description": "Panelfunktionernas knappar i spårplanen, de som hör till en nod.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.track-plan.PanelFunctionButton"
+            },
+            "title": "Functions",
+            "type": "array"
+          },
           "real_box": {
             "anyOf": [
               {
@@ -6333,6 +6368,73 @@
         ],
         "title": "PanelField",
         "type": "object"
+      },
+      "trainmeet.tkl-1.track-plan.PanelFunctionButton": {
+        "additionalProperties": true,
+        "description": "A panel function's button in the track plan, beside the node it belongs to: on the side\nthe plan's `function_sides` says, else under the track (STV-04, STV-53).",
+        "properties": {
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.track-plan.PanelFunctionType"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "cell": {
+            "description": "Knappens mitt.",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Cell",
+            "type": "array"
+          },
+          "side": {
+            "enum": [
+              "over",
+              "under"
+            ],
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "node",
+          "cell",
+          "side"
+        ],
+        "title": "PanelFunctionButton",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.track-plan.PanelFunctionType": {
+        "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+        "enum": [
+          "signal_stop",
+          "local_release",
+          "traction_current",
+          "out_of_service",
+          "emergency_release",
+          "turntable",
+          "programming_track"
+        ],
+        "title": "PanelFunctionType",
+        "type": "string"
       },
       "trainmeet.tkl-1.track-plan.PanelLabel": {
         "additionalProperties": true,
@@ -7395,6 +7497,31 @@
             "title": "Tracks",
             "type": "object"
           },
+          "sections": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Sektionerna med sina spårbitar: där 59 har sina lampor, en till fyra per spårledning, och avbrotten mellan spårledningarna.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Sections",
+            "type": "object"
+          },
+          "functions": {
+            "description": "Panelfunktionerna ur katalogen, med sitt läge (STV-04, STV-53).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking.TklFunctionShown"
+            },
+            "title": "Functions",
+            "type": "array"
+          },
           "events": {
             "description": "Senaste först.",
             "items": {
@@ -7427,6 +7554,20 @@
           "unknown"
         ],
         "title": "ExitSignalAspect",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.interlocking.PanelFunctionType": {
+        "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+        "enum": [
+          "signal_stop",
+          "local_release",
+          "traction_current",
+          "out_of_service",
+          "emergency_release",
+          "turntable",
+          "programming_track"
+        ],
+        "title": "PanelFunctionType",
         "type": "string"
       },
       "trainmeet.tkl-1.interlocking.Position": {
@@ -7462,7 +7603,8 @@
         "enum": [
           "stop",
           "proceed",
-          "shunt"
+          "shunt",
+          "local"
         ],
         "title": "TklAspect",
         "type": "string"
@@ -7502,6 +7644,176 @@
           "outside"
         ],
         "title": "TklExitShown",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.interlocking.TklFunctionMode": {
+        "additionalProperties": true,
+        "description": "One of a function's positions: a traction current's mode, or a turntable's track.",
+        "properties": {
+          "value": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "TklFunctionMode",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.interlocking.TklFunctionShown": {
+        "additionalProperties": true,
+        "description": "A panel function from the catalogue (STV-04) with its state of the moment: what the\npanel draws and what is saved with the interlocking. The parameters are the model's.",
+        "properties": {
+          "name": {
+            "description": "Funktionens namn, som i stationsmodellen. Unikt i stationen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking.PanelFunctionType"
+          },
+          "on": {
+            "default": false,
+            "description": "Inkopplad: signalstopp, lokal frigivning, ur drift eller programmeringsspår.",
+            "title": "On",
+            "type": "boolean"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Körströmmens läge, eller spåret vändskivans brygga står mot.",
+            "title": "Mode"
+          },
+          "modes": {
+            "description": "Lägena att välja.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking.TklFunctionMode"
+            },
+            "title": "Modes",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Spårbitarna funktionen gäller: området eller spåret.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna i stopp, eller som visar växling.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "blocked": {
+            "description": "Infartssignalerna som spärras medan området är lokalt frigivet (FR41).",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Blocked",
+            "type": "array"
+          },
+          "switches": {
+            "description": "De lokala växlarna, som läggs med knappar på modulerna.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "locked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking.Position"
+            },
+            "description": "Skyddsväxlarnas spakar och läget de låses i.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Locked",
+            "type": "object"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Noden knappen hör till i spårplanen.",
+            "title": "At"
+          },
+          "codes": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Knappens kod per skal, till exempel L01 i 95.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Codes",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "TklFunctionShown",
         "type": "object"
       },
       "trainmeet.tkl-1.interlocking.TklHappening": {
@@ -7666,7 +7978,10 @@
         "enum": [
           "train",
           "shunting",
-          "occupied"
+          "occupied",
+          "local",
+          "out_of_service",
+          "programming"
         ],
         "title": "TklPieceState",
         "type": "string"
@@ -7832,6 +8147,21 @@
             "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking.TklAspect",
             "description": "Vad startsignalen visar för vägen just nu."
           },
+          "held": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen ligger kvar med sina lås men signalerna visar stopp, med skälet: signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt.",
+            "title": "Held"
+          },
           "passed": {
             "description": "Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).",
             "items": {
@@ -7903,6 +8233,12 @@
             "description": "Slutpunkt för en lagd väg: röd i 85 och 95.",
             "title": "End",
             "type": "boolean"
+          },
+          "blocked": {
+            "default": false,
+            "description": "Spärrad i stopp: i signalstopp, eller infartssignal till ett lokalt frigivet område (FR41). Fylld röd i 85 och 95.",
+            "title": "Blocked",
+            "type": "boolean"
           }
         },
         "title": "TklSignalShown",
@@ -7937,9 +8273,30 @@
           },
           "protection": {
             "default": false,
-            "description": "Låst av en väg som inte går över den: kort gult vid knuten (STV-20).",
+            "description": "Låst som skydd, av en väg som inte går över den eller av en lokal frigivning: kort gult vid knuten (STV-20, TKL44).",
             "title": "Protection",
             "type": "boolean"
+          },
+          "local": {
+            "default": false,
+            "description": "Lokalt frigiven: läggs med knappen på modulen, inte av ställverket. Blått streck vid knuten (FR41, TKL44).",
+            "title": "Local",
+            "type": "boolean"
+          },
+          "function": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Panelfunktionen som låser växeln eller friger den.",
+            "title": "Function"
           }
         },
         "required": [
@@ -8098,6 +8455,20 @@
         "title": "ExitSignalAspect",
         "type": "string"
       },
+      "trainmeet.tkl-1.interlocking-answer.PanelFunctionType": {
+        "description": "The panel functions' catalogue. New functions are added here for all (STD-19).",
+        "enum": [
+          "signal_stop",
+          "local_release",
+          "traction_current",
+          "out_of_service",
+          "emergency_release",
+          "turntable",
+          "programming_track"
+        ],
+        "title": "PanelFunctionType",
+        "type": "string"
+      },
       "trainmeet.tkl-1.interlocking-answer.Position": {
         "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
         "enum": [
@@ -8131,7 +8502,8 @@
         "enum": [
           "stop",
           "proceed",
-          "shunt"
+          "shunt",
+          "local"
         ],
         "title": "TklAspect",
         "type": "string"
@@ -8171,6 +8543,176 @@
           "outside"
         ],
         "title": "TklExitShown",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.interlocking-answer.TklFunctionMode": {
+        "additionalProperties": true,
+        "description": "One of a function's positions: a traction current's mode, or a turntable's track.",
+        "properties": {
+          "value": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "TklFunctionMode",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.interlocking-answer.TklFunctionShown": {
+        "additionalProperties": true,
+        "description": "A panel function from the catalogue (STV-04) with its state of the moment: what the\npanel draws and what is saved with the interlocking. The parameters are the model's.",
+        "properties": {
+          "name": {
+            "description": "Funktionens namn, som i stationsmodellen. Unikt i stationen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer.PanelFunctionType"
+          },
+          "on": {
+            "default": false,
+            "description": "Inkopplad: signalstopp, lokal frigivning, ur drift eller programmeringsspår.",
+            "title": "On",
+            "type": "boolean"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Körströmmens läge, eller spåret vändskivans brygga står mot.",
+            "title": "Mode"
+          },
+          "modes": {
+            "description": "Lägena att välja.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer.TklFunctionMode"
+            },
+            "title": "Modes",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Spårbitarna funktionen gäller: området eller spåret.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna i stopp, eller som visar växling.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "blocked": {
+            "description": "Infartssignalerna som spärras medan området är lokalt frigivet (FR41).",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Blocked",
+            "type": "array"
+          },
+          "switches": {
+            "description": "De lokala växlarna, som läggs med knappar på modulerna.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "locked": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer.Position"
+            },
+            "description": "Skyddsväxlarnas spakar och läget de låses i.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Locked",
+            "type": "object"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Noden knappen hör till i spårplanen.",
+            "title": "At"
+          },
+          "codes": {
+            "additionalProperties": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Knappens kod per skal, till exempel L01 i 95.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Codes",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "TklFunctionShown",
         "type": "object"
       },
       "trainmeet.tkl-1.interlocking-answer.TklHappening": {
@@ -8352,6 +8894,31 @@
             "title": "Tracks",
             "type": "object"
           },
+          "sections": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Sektionerna med sina spårbitar: där 59 har sina lampor, en till fyra per spårledning, och avbrotten mellan spårledningarna.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Sections",
+            "type": "object"
+          },
+          "functions": {
+            "description": "Panelfunktionerna ur katalogen, med sitt läge (STV-04, STV-53).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer.TklFunctionShown"
+            },
+            "title": "Functions",
+            "type": "array"
+          },
           "events": {
             "description": "Senaste först.",
             "items": {
@@ -8517,7 +9084,10 @@
         "enum": [
           "train",
           "shunting",
-          "occupied"
+          "occupied",
+          "local",
+          "out_of_service",
+          "programming"
         ],
         "title": "TklPieceState",
         "type": "string"
@@ -8814,6 +9384,21 @@
             "$ref": "#/components/schemas/trainmeet.tkl-1.interlocking-answer.TklAspect",
             "description": "Vad startsignalen visar för vägen just nu."
           },
+          "held": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen ligger kvar med sina lås men signalerna visar stopp, med skälet: signalstopp eller ett spår ur drift. Den visar kör igen först när den läggs på nytt.",
+            "title": "Held"
+          },
           "passed": {
             "description": "Signaler i färdriktningen som visar vägens besked tills tåget har passerat dem (STV-19).",
             "items": {
@@ -8885,6 +9470,12 @@
             "description": "Slutpunkt för en lagd väg: röd i 85 och 95.",
             "title": "End",
             "type": "boolean"
+          },
+          "blocked": {
+            "default": false,
+            "description": "Spärrad i stopp: i signalstopp, eller infartssignal till ett lokalt frigivet område (FR41). Fylld röd i 85 och 95.",
+            "title": "Blocked",
+            "type": "boolean"
           }
         },
         "title": "TklSignalShown",
@@ -8919,9 +9510,30 @@
           },
           "protection": {
             "default": false,
-            "description": "Låst av en väg som inte går över den: kort gult vid knuten (STV-20).",
+            "description": "Låst som skydd, av en väg som inte går över den eller av en lokal frigivning: kort gult vid knuten (STV-20, TKL44).",
             "title": "Protection",
             "type": "boolean"
+          },
+          "local": {
+            "default": false,
+            "description": "Lokalt frigiven: läggs med knappen på modulen, inte av ställverket. Blått streck vid knuten (FR41, TKL44).",
+            "title": "Local",
+            "type": "boolean"
+          },
+          "function": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Panelfunktionen som låser växeln eller friger den.",
+            "title": "Function"
           }
         },
         "required": [
@@ -9345,6 +9957,60 @@
         },
         "title": "TklReset",
         "type": "object"
+      },
+      "trainmeet.tkl-1.function-ask": {
+        "additionalProperties": true,
+        "description": "Manövrera en panelfunktion (STV-04): koppla in eller ur, välj läge, lägg en lokal växel\neller nödutlös. The interlocking says yes, or no with the reason.",
+        "properties": {
+          "function": {
+            "description": "Funktionens namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Function",
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.function-ask.TklFunctionAction"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Läget, spåret eller växeln.",
+            "title": "Value"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Nödutlösningen är bekräftad.",
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "function",
+          "action"
+        ],
+        "title": "TklFunctionAsk",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.function-ask.TklFunctionAction": {
+        "enum": [
+          "on",
+          "off",
+          "set",
+          "lay",
+          "release"
+        ],
+        "title": "TklFunctionAction",
+        "type": "string"
       }
     },
     "securitySchemes": {

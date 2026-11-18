@@ -587,6 +587,11 @@ svg.panel .signal.planerad {
   border-radius: 8px;
   overflow: auto;
 }
+/* 59: the light metal frame around the illuminated plan, as on Västra Torup's panel. */
+.stv-ram.skal-59 {
+  border: 6px solid;
+  border-radius: 4px;
+}
 svg.stv-panel {
   display: block;
   width: 100%;
@@ -685,4 +690,68 @@ svg.stv-panel [role="button"]:focus-visible circle {
   width: auto;
   flex: 1;
   min-width: 10em;
+}
+
+/* Panelens knappar (STV-04, STV-53): the station's panel functions, in the same place in every
+   skin; a lamp lit while the function is on. In 59 they are toggle switches with a lamp above. */
+.stv-funktioner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.stv-funktioner .funktion-grupp {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stv-funktioner .funktion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 3px 9px;
+  font-size: 13px;
+}
+.stv-funktioner .funktion select {
+  width: auto;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.stv-funktioner .funktion[aria-pressed="true"] {
+  border-color: #3664ff;
+}
+.stv-funktioner .funktion.modul {
+  font-size: 12px;
+  border-style: dashed;
+}
+.stv-funktioner .varde {
+  font-weight: 700;
+}
+.stv-funktioner .lampa {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+.stv-funktioner.skal-59 {
+  background: #0c0d0d;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.stv-funktioner.skal-59 > .liten,
+.stv-funktioner.skal-59 .funktion {
+  color: #e6e4dc;
+  background: transparent;
+  border-color: transparent;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.stv-funktioner.skal-59 .funktion select {
+  color: #e6e4dc;
+  background: #141616;
 }

@@ -10,8 +10,11 @@
 // som TKL når den, när TKL kör i en container (annars PROV_HUBB); PROV_BILDER en mapp för
 // skärmbilderna. Provet ger klart i Klarering som på nivå 0, sätter ut 102 på linjen vid Öst 2,
 // lägger tågvägen 52 → 62 och växlingsvägen 35 → Spår 32 (ett klick till på 35, ringen blir gul),
-// trycker Kör tills tågnumret har stegat in på spår 2 och trycker Ankommit. Hubben ska ha tåg 102
-// framme på Åsen. En andra skärm visar bara Tåg · Klarering · Händelser och följer med (STV-05).
+// byter till skalen 95 och 59 och tillbaka utan att ställverket ändras (STV-12, STV-18), kopplar in
+// Gårdsjös Signalstopp väster och får nej på en väg från 21, som står i stopp, och kopplar ur det
+// (STV-04), trycker Kör tills tågnumret har stegat in på spår 2 och trycker Ankommit. Hubben ska ha
+// tåg 102 framme på Åsen. En andra skärm visar bara Tåg · Klarering · Händelser och följer med
+// (STV-05).
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -201,6 +204,30 @@ try {
   await page.getByRole("button", { name: /^Växlingsväg 35 → Spår 32/ }).waitFor();
   check(await panel(page).locator('polyline[data-state="shunting"]').count(), "Växlingsvägen är inte gul på panelen.");
   await screenshot(page, "tvaa-vagar");
+
+  // Skalen 95 och 59 och tillbaka till 85 (STV-12): ett skalbyte skickar inga order (STV-18).
+  const revision = async () => (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).revision;
+  const before = await revision();
+  for (const skin of ["95", "59", "85"]) {
+    await page.getByRole("group", { name: "Skal" }).getByRole("button", { name: skin, exact: true }).click();
+    await page.locator(`svg.stv-panel.skal-${skin}`).waitFor();
+    await screenshot(page, `skal-${skin}`);
+  }
+  check((await revision()) === before, "Ett skalbyte ändrade ställverket.");
+
+  // Signalstopp väster, Gårdsjös egen panelfunktion (STV-04): 21 står i stopp, och en väg därifrån nekas.
+  const stopWest = page.getByRole("button", { name: /^Signalstopp väster/ });
+  await stopWest.click();
+  await page.locator(".stv-svar", { hasText: "Signalstopp väster kopplades in" }).waitFor();
+  check(await panel(page).locator('g[data-signal="21"][data-blocked="ja"]').count(), "21 visar inte spärrad i stopp.");
+  await signal(page, "21").click();
+  await panel(page).locator('circle[data-start="21"]').waitFor();
+  await signal(page, "31").click();
+  await page.locator(".stv-svar.nej", { hasText: "Signalen 21 är i signalstopp (Signalstopp väster)" }).waitFor();
+  await screenshot(page, "signalstopp-vaster");
+  await stopWest.click();
+  await page.locator(".stv-svar", { hasText: "Signalstopp väster kopplades ur" }).waitFor();
+  check(!(await panel(page).locator('g[data-signal="21"][data-blocked="ja"]').count()), "21 är spärrad fast signalstoppet är urkopplat.");
 
   // Kör: tågnumret stegar från fält till fält längs vägen, och det syns (STV-06).
   await page.getByRole("button", { name: /^Tågväg 52 → 62/ }).click();
