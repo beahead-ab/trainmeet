@@ -148,6 +148,8 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
     const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude i Amazon Bedrock i Stockholm", own_ai: null } };
     const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
     expect(html).toContain("TrainMeets AI");
+    // The price in TrainMeet's tokens before anything starts (IMPORT-05): 12 a page.
+    expect(html).toContain("3 sidor att skriva av · 24 tokens · 1 redan avskriven, kostar inget");
     expect(html).toContain("Sidorna läses av Claude i Amazon Bedrock i Stockholm. 24 tokens dras från Västby MJK, som har 1\u00a0500 kvar.");
     // Nothing is chosen for the planner: the buttons wait until TrainMeets AI is chosen.
     expect(html).not.toContain("checked");
@@ -155,12 +157,14 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
     const own = renderToStaticMarkup(<Skriv pages={{ ...pages, model: "en-modell" }} writing={false} onWrite={go} />);
     expect(radio(own, "own")).toContain('checked=""');
     expect(own).not.toMatch(/id="transcribe"[^>]*disabled=""/);
+    expect(own).toContain("3 sidor att skriva av · cirka 3\u00a0460 tokens");
     const poor = renderToStaticMarkup(<Skriv pages={{ ...pages, trainmeet_ai: { ...pages.trainmeet_ai, available: 10 } }} writing={false} onWrite={go} />);
     expect(poor).toContain("Saldot räcker inte. Köp fler tokens i TrainMeet ID, eller koppla in egen AI.");
     expect(radio(poor, "trainmeet")).toContain('disabled=""');
     // The club's own AI on its account in ID reads for nothing (TK4, TOKEN-03).
     const theirs = renderToStaticMarkup(<Skriv pages={{ ...pages, trainmeet_ai: { ...pages.trainmeet_ai, price: 0, available: 0, own_ai: "en-modell" } }} writing={false} onWrite={go} />);
     expect(theirs).toContain("Egen AI på kontot");
+    expect(theirs).toContain("3 sidor att skriva av · inga tokens");
     expect(theirs).toContain("Sidorna läses av den egna AI:n som Västby MJK har kopplat in i TrainMeet ID (en-modell). Inga tokens dras.");
     expect(radio(theirs, "trainmeet")).not.toContain('disabled=""');
   });
