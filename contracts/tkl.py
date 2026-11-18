@@ -411,6 +411,75 @@ class TklReference(Contract):
     plan: bool
 
 
+# --- Manöver: the owner's free panel (STV-46, TKL86) ---------------------------------------
+
+
+class ManoverSymbols(StrEnum):
+    """The standard skin Manöver takes its symbols and colours from, so that the same symbol
+    means the same thing on every station (STV-46)."""
+
+    SKIN_59 = "59"
+    SKIN_85 = "85"
+    SKIN_95 = "95"
+
+
+OwnerLabel = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=24, pattern=r"^[^\x00-\x1f]+$"
+    ),
+]
+"""The owner's own label for a track, a signal or a switch: one short line."""
+
+MAX_LABELS: Final = 1000
+"""The most labels of one kind a station keeps."""
+
+
+class TklManoverShown(Contract):
+    """What Manöver shows, each on or off. Everything is shown until the owner turns it off."""
+
+    track_names: bool = Field(default=True, description="Spårnamnen.")
+    switch_numbers: bool = Field(default=True, description="Växelnumren.")
+    signal_ids: bool = Field(default=True, description="Signalernas id.")
+    train_numbers: bool = Field(default=True, description="Tågnumren.")
+    functions: bool = Field(default=True, description="Raden Panelens knappar.")
+
+
+class TklManoverLabels(Contract):
+    """The owner's labels in Manöver: what is shown for a track, a signal or a switch. The ids
+    stay as they are, so a click still asks the interlocking with the id."""
+
+    tracks: dict[Text, OwnerLabel] = Field(
+        default_factory=dict,
+        max_length=MAX_LABELS,
+        description="Spårnamnet i panelen och ägarens etikett för det.",
+    )
+    signals: dict[Name, OwnerLabel] = Field(
+        default_factory=dict,
+        max_length=MAX_LABELS,
+        description="Signalens id och ägarens etikett för den.",
+    )
+    switches: dict[Name, OwnerLabel] = Field(
+        default_factory=dict,
+        max_length=MAX_LABELS,
+        description="Växelnumret i panelen och ägarens etikett för det.",
+    )
+
+
+class TklManover(Contract):
+    """Manöver, the owner's free panel (STV-46, TKL86): the station's own panel, from its track
+    plan when it has one, else the engine's layout, with the symbols and colours of one of the
+    standard skins 59, 85 or 95, the owner's labels and what is shown. The states and the logic
+    follow the chosen standard skin. Station settings, the same on every screen: kept with the
+    station and versioned with its model. Every label must name something on the panel."""
+
+    symbols: ManoverSymbols = Field(
+        default=ManoverSymbols.SKIN_85, description="Standardskalet som symbolerna hämtas ur."
+    )
+    shown: TklManoverShown = Field(default_factory=TklManoverShown)
+    labels: TklManoverLabels = Field(default_factory=TklManoverLabels)
+
+
 # --- Ställverket at level 1–2 (#84): the interlocking's state and its operations -----------
 
 TrainNumber = Annotated[str, StringConstraints(pattern=r"^[0-9A-Za-z]{1,8}$")]

@@ -10,9 +10,10 @@
 // som TKL når den, när TKL kör i en container (annars PROV_HUBB); PROV_BILDER en mapp för
 // skärmbilderna. Provet ger klart i Klarering som på nivå 0, sätter ut 102 på linjen vid Öst 2,
 // lägger tågvägen 52 → 62 och växlingsvägen 35 → Spår 32 (ett klick till på 35, ringen blir gul),
-// byter till skalen 95 och 59 och tillbaka utan att ställverket ändras (STV-12, STV-18), kopplar in
-// Gårdsjös Signalstopp väster och får nej på en väg från 21, som står i stopp, och kopplar ur det
-// (STV-04), trycker Kör tills tågnumret har stegat in på spår 2 och trycker Ankommit. Hubben ska ha
+// byter till skalen 95, 59, Manöver och Foto och tillbaka utan att ställverket ändras (STV-12,
+// STV-18, STV-46), kopplar in Gårdsjös Signalstopp väster och får nej på en väg från 21, som står
+// i stopp, och kopplar ur det (STV-04), trycker Kör en gång i Foto och ser tåget rulla (STV-06),
+// trycker Kör i 85 tills tågnumret har stegat in på spår 2 och trycker Ankommit. Hubben ska ha
 // tåg 102 framme på Åsen. En andra skärm visar bara Tåg · Klarering · Händelser och följer med
 // (STV-05).
 import { chromium } from "playwright-core";
@@ -205,11 +206,13 @@ try {
   check(await panel(page).locator('polyline[data-state="shunting"]').count(), "Växlingsvägen är inte gul på panelen.");
   await screenshot(page, "tvaa-vagar");
 
-  // Skalen 95 och 59 och tillbaka till 85 (STV-12): ett skalbyte skickar inga order (STV-18).
+  // Skalen 95, 59, Manöver och Foto och tillbaka till 85 (STV-12): ett skalbyte skickar inga
+  // order (STV-18). Manöver har symbolerna ur 85 tills ägaren väljer andra (STV-46).
   const revision = async () => (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).revision;
+  const skins = [["95", "95"], ["59", "59"], ["Manöver", "manover"], ["Foto", "foto"], ["85", "85"]];
   const before = await revision();
-  for (const skin of ["95", "59", "85"]) {
-    await page.getByRole("group", { name: "Skal" }).getByRole("button", { name: skin, exact: true }).click();
+  for (const [name, skin] of skins) {
+    await page.getByRole("group", { name: "Skal" }).getByRole("button", { name, exact: true }).click();
     await page.locator(`svg.stv-panel.skal-${skin}`).waitFor();
     await screenshot(page, `skal-${skin}`);
   }
@@ -229,9 +232,28 @@ try {
   await page.locator(".stv-svar", { hasText: "Signalstopp väster kopplades ur" }).waitFor();
   check(!(await panel(page).locator('g[data-signal="21"][data-blocked="ja"]').count()), "21 är spärrad fast signalstoppet är urkopplat.");
 
-  // Kör: tågnumret stegar från fält till fält längs vägen, och det syns (STV-06).
+  // Foto: tåget står på linjen vid Öst 2, och Kör rullar det in på vägen på ungefär en sekund
+  // (STV-06). Sedan tillbaka till 85.
+  const skin = (name) => page.getByRole("group", { name: "Skal" }).getByRole("button", { name, exact: true });
+  await skin("Foto").click();
+  const train = page.locator('svg.stv-panel.skal-foto g[data-train="102"]');
+  await train.waitFor();
+  const where = () => train.evaluate((g) => `${g.dataset.x},${g.dataset.y}`);
+  const onTheLineInFoto = await where();
   await page.getByRole("button", { name: /^Tågväg 52 → 62/ }).click();
-  const seen = [onTheLine];
+  const sayBefore = await page.locator(".stv-svar").textContent().catch(() => "");
+  await page.getByRole("button", { name: "Kör", exact: true }).click();
+  await page.waitForFunction((was) => (document.querySelector(".stv-svar")?.textContent ?? "") !== was, sayBefore);
+  await page.waitForFunction(() => !document.querySelector('svg.stv-panel.skal-foto g[data-rolling="ja"]'), null, { timeout: 5000 });
+  const rolledTo = await where();
+  check(rolledTo !== onTheLineInFoto, `Tåget rullade inte i Foto: ${onTheLineInFoto} → ${rolledTo}.`);
+  await screenshot(page, "foto-kor");
+  await skin("85").click();
+  await page.locator("svg.stv-panel.skal-85").waitFor();
+
+  // Kör: tågnumret stegar från fält till fält längs vägen, och det syns (STV-06).
+  const seen = [onTheLine, await numberAt(page, "102", "red")];
+  check(seen[1] && seen[1] !== onTheLine, "Tågnumret flyttade sig inte vid Kör i Foto.");
   for (let i = 0; i < 12; i++) {
     const before = await page.locator(".stv-svar").textContent().catch(() => "");
     await page.getByRole("button", { name: "Kör", exact: true }).click();
@@ -264,7 +286,7 @@ try {
   await page.reload();
   await panel(page).waitFor();
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
-  console.log(`Ställverket i TKL: 102 stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
+  console.log(`Ställverket i TKL: 102 rullade i Foto från ${onTheLineInFoto} till ${rolledTo} mm, stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
 } catch (error) {
   if (error instanceof ProvFel) {
     console.error(`Provet misslyckades: ${error.message}`);

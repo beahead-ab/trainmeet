@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FunctionShown, Interlocking, InterlockingAnswer, Panel, Snapshot, Targets, TrackPlan } from "./api";
 import { Panelen } from "./Panelen";
-import { changeScreen, readScreen, saveScreen, screenNumber, SKIN_ORDER, skinOf, SKINS, type Screen } from "./skal";
+import { changeScreen, readScreen, saveScreen, screenNumber, SKIN_ORDER, skinOf, STANDARD, type Screen, type SkinId } from "./skal";
 import { Stallverk12 } from "./Stallverk12";
 import { act, arrows, busyLines, clickPoint, clickSwitch, clickToggle, cut, drawing, emergency, escape, filled, fromKnot, functionCall, goals, guidance, NOTHING, routeEnds, type Calls, type Valet } from "./stallverk";
 import { readLanguage, text, TEXTS, type Say } from "./texter";
@@ -372,7 +372,7 @@ describe("Ställverket at level 1–2: the page and its screens", () => {
     expect(html).toContain('data-chosen="In"');
   });
 
-  it("keeps the skin, the proportion and the view per screen in the browser; 85, 95 and 59 can be chosen (STV-05, STV-41)", () => {
+  it("keeps the skin, the proportion and the view per screen in the browser; all five skins can be chosen (STV-05, STV-12)", () => {
     const kept = new Map<string, string>();
     const storage = { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v) };
     expect(screenNumber("?skarm=2")).toBe(2);
@@ -386,14 +386,19 @@ describe("Ställverket at level 1–2: the page and its screens", () => {
     kept.set("tkl.skarm.4", "{inte json");
     expect(readScreen(4, storage).skin).toBe("85");
     kept.set("tkl.skarm.5", JSON.stringify({ skin: "foto" }));
-    expect(readScreen(5, storage).skin).toBe("85");
-    expect(SKIN_ORDER.filter((id) => id in SKINS)).toEqual(["85", "95", "59"]);
+    expect(readScreen(5, storage).skin).toBe("foto");
+    kept.set("tkl.skarm.6", JSON.stringify({ skin: "68" }));
+    expect(readScreen(6, storage).skin).toBe("85");
+    expect(SKIN_ORDER).toEqual(["85", "95", "59", "manover", "foto"]);
+    expect(Object.keys(STANDARD).sort()).toEqual(["59", "85", "95"]);
     const html = renderToStaticMarkup(<Stallverk12 {...page} state={quiet} initial={{ plan, state: quiet, screen: { view: "all", skin: "85", proportion: 50 } }} />);
     expect(html).toContain('aria-pressed="true" title="85">85</button>');
     expect(html).toContain('aria-pressed="false" title="95">95</button>');
     expect(html).toContain('aria-pressed="false" title="59">59</button>');
-    expect(html).toMatch(/disabled=""[^>]*>Manöver<span class="kommer"> kommer<\/span>/);
-    expect(html).toContain("Foto<span class=\"kommer\"> kommer</span>");
+    expect(html).toContain('aria-pressed="false" title="Manöver · ägarens fria panel, symboler ur 85. Ändras i Studio › Spårplan.">Manöver</button>');
+    // Provby has no real shape: Foto is greyed, with the reason (STV-18).
+    expect(html).toContain('aria-pressed="false" class="gratt" title="Foto · Foto kräver stationens verkliga form (från CAD)">Foto</button>');
+    expect(html).not.toContain("disabled=\"\"");
     expect(html).toContain("max-height:50vh");
     const row = renderToStaticMarkup(<Stallverk12 {...page} state={quiet} initial={{ plan, state: quiet, screen: { view: "row", skin: "85", proportion: 50 } }} />);
     expect(row).not.toContain("stv-panel");
@@ -540,7 +545,7 @@ describe("Ställverket at level 1–2: skins 95 and 59 (STV-12, STV-13, STV-36, 
       expect(screen.skin).toBe(skin);
       expect(drawing(panel, filled(running), new Set(), ends)).toEqual(before);
     }
-    expect(changeScreen(1, screen, { skin: "foto" }, storage).skin).toBe("85");
+    expect(changeScreen(1, screen, { skin: "68" as SkinId }, storage).skin).toBe("85");
     expect(fetch).not.toHaveBeenCalled();
     expect(JSON.parse(kept.get("tkl.skarm.1") ?? "{}").skin).toBe("85");
   });

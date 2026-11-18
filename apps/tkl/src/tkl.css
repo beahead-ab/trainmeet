@@ -557,8 +557,10 @@ svg.panel .signal.planerad {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.stv-skarm .kommer {
-  font-size: 10px;
+/* Foto without the station's real shape: greyed, and a click shows the reason (STV-18). */
+.stv-skarm .spar-val button.gratt {
+  opacity: 0.55;
+  text-decoration: line-through;
 }
 .stv-skarm label {
   display: inline-flex;
@@ -591,6 +593,35 @@ svg.panel .signal.planerad {
 .stv-ram.skal-59 {
   border: 6px solid;
   border-radius: 4px;
+}
+/* Foto (STV-06): the station from above on grass, wider than the screen in Närbild, so the frame
+   scrolls; Kör rolls the train and the frame follows it. */
+.stv-foto-rad {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.stv-foto-rad button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.stv-ram.skal-foto {
+  border: 1px solid #7d8a55;
+}
+.stv-ram.skal-foto svg.stv-panel {
+  min-height: 0;
+}
+.stv-ram.skal-foto.gratt {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #4b4f4a;
+  background: repeating-linear-gradient(135deg, #e7e5df 0 14px, #dcd9d1 14px 28px) !important;
+  border-color: #c9c4b8;
 }
 svg.stv-panel {
   display: block;
@@ -754,4 +785,62 @@ svg.stv-panel [role="button"]:focus-visible circle {
 .stv-funktioner.skal-59 .funktion select {
   color: #e6e4dc;
   background: #141616;
+}
+
+/* Manöver in Studio › Spårplan (STV-46): the owner's choice of symbols, what is shown and the
+   labels, for the station. */
+.manover-ruta fieldset {
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 6px 10px 8px;
+  margin: 0;
+}
+.manover-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0;
+}
+.manover-ruta fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 14px;
+}
+.manover-ruta fieldset input {
+  width: auto;
+  margin: 0;
+}
+.manover-etiketter {
+  margin: 4px 0;
+}
+.manover-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 4px 12px;
+  margin: 6px 0;
+}
+.manover-lista label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.manover-lista .tm-mono {
+  min-width: 4.5em;
+  font-size: 13px;
+}
+.manover-lista input {
+  width: 100%;
+  padding: 2px 6px;
+}
+.manover-ruta .rad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.manover-ruta .fel-text {
+  color: #b42318;
 }

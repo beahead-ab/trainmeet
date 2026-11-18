@@ -562,6 +562,48 @@
         ]
       }
     },
+    "/api/tkl/1/studio/manover": {
+      "get": {
+        "operationId": "tklManover",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.manover"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "tklSaveManover",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.manover"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.manover"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tkl/1/stallverk": {
       "get": {
         "operationId": "tklInterlocking",
@@ -7338,6 +7380,129 @@
           "plan"
         ],
         "title": "TklReference",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.manover": {
+        "additionalProperties": true,
+        "description": "Manöver, the owner's free panel (STV-46, TKL86): the station's own panel, from its track\nplan when it has one, else the engine's layout, with the symbols and colours of one of the\nstandard skins 59, 85 or 95, the owner's labels and what is shown. The states and the logic\nfollow the chosen standard skin. Station settings, the same on every screen: kept with the\nstation and versioned with its model. Every label must name something on the panel.",
+        "properties": {
+          "symbols": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.manover.ManoverSymbols",
+            "default": "85",
+            "description": "Standardskalet som symbolerna hämtas ur."
+          },
+          "shown": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.manover.TklManoverShown"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.manover.TklManoverLabels"
+          }
+        },
+        "title": "TklManover",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.manover.ManoverSymbols": {
+        "description": "The standard skin Manöver takes its symbols and colours from, so that the same symbol\nmeans the same thing on every station (STV-46).",
+        "enum": [
+          "59",
+          "85",
+          "95"
+        ],
+        "title": "ManoverSymbols",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.manover.TklManoverLabels": {
+        "additionalProperties": true,
+        "description": "The owner's labels in Manöver: what is shown for a track, a signal or a switch. The ids\nstay as they are, so a click still asks the interlocking with the id.",
+        "properties": {
+          "tracks": {
+            "additionalProperties": {
+              "maxLength": 24,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            "description": "Spårnamnet i panelen och ägarens etikett för det.",
+            "maxProperties": 1000,
+            "propertyNames": {
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "title": "Tracks",
+            "type": "object"
+          },
+          "signals": {
+            "additionalProperties": {
+              "maxLength": 24,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            "description": "Signalens id och ägarens etikett för den.",
+            "maxProperties": 1000,
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Signals",
+            "type": "object"
+          },
+          "switches": {
+            "additionalProperties": {
+              "maxLength": 24,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            "description": "Växelnumret i panelen och ägarens etikett för det.",
+            "maxProperties": 1000,
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Switches",
+            "type": "object"
+          }
+        },
+        "title": "TklManoverLabels",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.manover.TklManoverShown": {
+        "additionalProperties": true,
+        "description": "What Manöver shows, each on or off. Everything is shown until the owner turns it off.",
+        "properties": {
+          "track_names": {
+            "default": true,
+            "description": "Spårnamnen.",
+            "title": "Track Names",
+            "type": "boolean"
+          },
+          "switch_numbers": {
+            "default": true,
+            "description": "Växelnumren.",
+            "title": "Switch Numbers",
+            "type": "boolean"
+          },
+          "signal_ids": {
+            "default": true,
+            "description": "Signalernas id.",
+            "title": "Signal Ids",
+            "type": "boolean"
+          },
+          "train_numbers": {
+            "default": true,
+            "description": "Tågnumren.",
+            "title": "Train Numbers",
+            "type": "boolean"
+          },
+          "functions": {
+            "default": true,
+            "description": "Raden Panelens knappar.",
+            "title": "Functions",
+            "type": "boolean"
+          }
+        },
+        "title": "TklManoverShown",
         "type": "object"
       },
       "trainmeet.tkl-1.interlocking": {

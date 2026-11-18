@@ -13,6 +13,8 @@
     GET  /api/tkl/1/referens              [TklReference] (referensstationerna, TKL40)
     GET  /api/tkl/1/referens/{id}         TklTrackPlan (att titta på)
     POST /api/tkl/1/referens/{id}/use     TklTrackPlan (Använd som min station)
+    GET  /api/tkl/1/studio/manover        TklManover: Manövers inställningar (STV-46)
+    PUT  /api/tkl/1/studio/manover        TklManover -> TklManover (sparas med modellen)
     GET  /api/tkl/1/hubs                  [FoundHub]
     GET  /api/tkl/1/connection            TklConnection
     POST /api/tkl/1/connection            TklConnect -> TklConnection
@@ -87,6 +89,7 @@ from contracts.tkl import (
     TklIdState,
     TklInterlocking,
     TklLeverAsk,
+    TklManover,
     TklMode,
     TklPinChange,
     TklReport,
@@ -104,7 +107,7 @@ from contracts.tkl import (
     TklView,
     TklWait,
 )
-from tkl import VERSION, hub_reports, id_login, track_plan
+from tkl import VERSION, hub_reports, id_login, manover, track_plan
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
@@ -118,6 +121,7 @@ from tkl.store import (
     Full,
     HasModel,
     InterlockingBusy,
+    NoModel,
     NotSetUp,
     TklStore,
     TooManyAttempts,
@@ -445,6 +449,49 @@ def create_app(
             raise HTTPException(404, "Ingen referensstation med det id:t.")
         return keep_model(found, model)
 
+    # --- Manöver, the owner's free panel (STV-46) ---------------------------------------------
+
+    @routes.get("/studio/manover")
+    def manover_settings(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Manöver's settings: the symbols, the owner's labels and what is shown. The same on
+        every screen; the defaults until the owner chooses. Labels for what the panel lacks are
+        left out."""
+        no_store(response)
+        found = unlocked(slot, session)
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.")
+        kept = store.manover(found)
+        return manover.shown(track_plan.panel_of(model), kept).model_dump(mode="json")
+
+    @routes.put("/studio/manover")
+    def save_manover(
+        settings: TklManover,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Manöver's settings, kept with the station's model. Every label must name a track, a
+        signal or a switch on the panel, else nothing is kept. Sends no order (STV-18)."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.")
+        wrong = manover.problems(track_plan.panel_of(model), settings)
+        if wrong:
+            raise HTTPException(
+                422, {"message": "Manövers inställningar sparades inte.", "problems": wrong}
+            )
+        try:
+            return store.save_manover(found, settings).model_dump(mode="json")
+        except NoModel as error:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.") from error
+
     # --- TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78) ------------------------------
 
     with_id = TklIdLogin(id_settings, client) if id_settings is not None else None
@@ -560,8 +607,11 @@ def create_app(
                 LOGGER.warning("ID:s token förnyades inte: %s", failed)
                 raise HTTPException(401, "Logga in med TrainMeet ID igen.") from failed
             store.new_tokens(found, access, refresh, until)
-        _, outside, model = store.latest_package(found)
+        number, outside, model = store.latest_package(found)
         inside: dict[str, object] = {} if model is None else {"station_model": dump(model)}
+        settings = store.manover_of_version(found, number) if model is not None else None
+        if settings is not None:
+            inside["manover"] = settings.model_dump(mode="json", exclude_defaults=True)
         package = StationPackage(station_id=outside.station_id, outside=outside, inside=inside)
         base = asked.on_top if asked.on_top is not None else (account.saved or 0)
         address = f"{id_settings.cloud}/api/sync/1/stations/{outside.station_id}/versions"

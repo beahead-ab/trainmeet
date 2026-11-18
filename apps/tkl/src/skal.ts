@@ -3,14 +3,20 @@
 // (stallverk.ts) says what each thing is in logical terms; the skin says how it looks. 85
 // follows TDOK 2014:0693 and 95 TDOK 2021:0552, both on a black background (STV-13, STV-42);
 // 59 is SJ's signal interlocking model 59, an illuminated track plan operated with toggle
-// switches (STV-36). Manöver and Foto are listed and come later. The values are the skins
-// document's tables (trainmeet-spec docs/trainmeet-tkl-skalen.md), in its units: 24 to a cell.
-// The choice of skin, proportion and view is per screen and kept in this browser (STV-05); a
-// change never sends an order (STV-18).
+// switches (STV-36). Manöver is the owner's free panel (STV-46): the station's own panel with the
+// symbols and colours of one of 59, 85 and 95, as the owner chose for the station, so it reuses
+// that skin's entry and adds nothing of its own. Foto is the fun skin, drawn in the station's real
+// shape (foto.ts); its colours are here. The values are the skins document's tables
+// (trainmeet-spec docs/trainmeet-tkl-skalen.md), in its units: 24 to a cell. The choice of skin,
+// proportion and view is per screen and kept in this browser (STV-05); a change never sends an
+// order (STV-18).
+import type { Manover } from "./api";
 import type { SignalType, TrackState } from "./stallverk";
 
 export type SkinId = "85" | "95" | "59" | "manover" | "foto";
-/** Every skin by name, in the order they are offered; only the ones in SKINS can be chosen. */
+/** The standard skins, which Manöver takes its symbols from (STV-46). */
+export type StandardId = "85" | "95" | "59";
+/** Every skin by name, in the order they are offered. */
 export const SKIN_NAMES: Record<SkinId, string> = { "85": "85", "95": "95", "59": "59", manover: "Manöver", foto: "Foto" };
 export const SKIN_ORDER: SkinId[] = ["85", "95", "59", "manover", "foto"];
 
@@ -84,7 +90,7 @@ export type Skin = {
   /** Model 59 only: its lamps, arrows and toggles. */
   plan59: Lamps | null;
   /** The key of its name and legend in texter.ts. */
-  legend: "legend85" | "legend95" | "legend59";
+  legend: "legend85" | "legend95" | "legend59" | "legendFoto";
 };
 
 const UNIT = 1 / 24; // the skins document counts 24 units to a cell
@@ -367,11 +373,71 @@ const SKIN_59: Skin = {
   legend: "legend59",
 };
 
-/** The skins that can be chosen now. The rest are listed as coming. */
-export const SKINS: Partial<Record<SkinId, Skin>> = { "85": SKIN_85, "95": SKIN_95, "59": SKIN_59 };
+// --- Foto · förenklad bild ovanifrån med landskap ---------------------------------------------------
 
-export function skinOf(id: SkinId): Skin {
-  return SKINS[id] ?? SKIN_85;
+/** Foto's colours, from the skins document's table: the glow and the band between the rails in
+ * the state's colour, green for a train route, yellow for shunting, red for occupied. Foto draws
+ * itself (Foto.tsx); this entry gives the legend, the rings and the row of buttons their colours. */
+export const SKIN_FOTO: Skin = {
+  ...SKIN_95,
+  id: "foto",
+  style: "screen",
+  ground: "#91a265",
+  platform: "#8d929a",
+  tracks: { free: "#aaa69c", train: "#3ee07a", shunting: "#ffd000", occupied: "#ff4b3e", local: "#4da3ff", out_of_service: "#ffffff", programming: "#4da3ff" },
+  protection: "#ffd000",
+  local: "#4da3ff",
+  font: "Inter, system-ui, sans-serif",
+  signalId: "#1f2421",
+  switchNumber: "#1f2421",
+  trackName: "#1f2421",
+  label: "#ffffff",
+  endLabel: "#ff4b3e",
+  buffer: () => [],
+  lamps: { stop: "#ff4b3e", local: "#ffd000", on: "#3ee07a", off: "#c9c4b8" },
+  rings: { train: "#2256c3", shunting: "#d9a400", goal: "#ffffff", blocked: "#4b5563", chosen: "#1f2421" },
+  plan59: null,
+  legend: "legendFoto",
+};
+
+/** The standard skins: exactly as their public models, and the source of Manöver's symbols. */
+export const STANDARD: Record<StandardId, Skin> = { "85": SKIN_85, "95": SKIN_95, "59": SKIN_59 };
+
+export const isSkin = (id: unknown): id is SkinId => typeof id === "string" && (SKIN_ORDER as string[]).includes(id);
+
+/** A skin's symbols and colours. Manöver is the standard skin the owner chose for the station
+ * (STV-46), its very entry; Foto has its own. */
+export function skinOf(id: SkinId, symbols: StandardId = "85"): Skin {
+  if (id === "manover") return STANDARD[symbols] ?? SKIN_85;
+  if (id === "foto") return SKIN_FOTO;
+  return STANDARD[id] ?? SKIN_85;
+}
+
+// --- Manöver (STV-46): the owner's choices, the same on every screen ----------------------------
+
+/** What Manöver can leave out: the track names, switch numbers, signal ids, train numbers and the
+ * row of buttons. */
+export type ShownKey = "track_names" | "switch_numbers" | "signal_ids" | "train_numbers" | "functions";
+export type Shown = Record<ShownKey, boolean>;
+/** What Manöver shows, each on or off, and the owner's labels: what is drawn for a track, a
+ * signal or a switch, by its id. */
+export type OwnerChoices = { shown: Shown; labels: { tracks: Record<string, string>; signals: Record<string, string>; switches: Record<string, string> } };
+
+/** Everything shown: the standard skins, and Manöver until the owner turns something off. */
+export const EVERYTHING: Shown = { track_names: true, switch_numbers: true, signal_ids: true, train_numbers: true, functions: true };
+
+/** The defaults, as TKL's server gives them for a station whose owner has not chosen. */
+export const DEFAULT_MANOVER: Manover = { symbols: "85", shown: EVERYTHING, labels: { tracks: {}, signals: {}, switches: {} } };
+
+/** The station's Manöver settings as the panel draws them. */
+export function ownerChoices(settings: Manover | null): OwnerChoices {
+  const labels = settings?.labels;
+  const given = settings?.shown;
+  const shown = Object.fromEntries((Object.keys(EVERYTHING) as ShownKey[]).map((key) => [key, given?.[key] ?? true])) as Shown;
+  return {
+    shown,
+    labels: { tracks: labels?.tracks ?? {}, signals: labels?.signals ?? {}, switches: labels?.switches ?? {} },
+  };
 }
 
 /** A panel function's code in a skin, such as L01 in 85 and 95 and L1 in 59 (FR41). */
@@ -394,7 +460,7 @@ export function screenNumber(search: string): number {
 
 const key = (screen: number) => `tkl.skarm.${screen}`;
 
-/** A screen's settings. A skin that cannot be chosen yet, or anything unreadable, is 85. */
+/** A screen's settings. A skin TKL does not have, or anything unreadable, is 85. */
 export function readScreen(screen: number, storage: Pick<Storage, "getItem"> | null): Screen {
   let found: Partial<Screen> = {};
   try {
@@ -404,7 +470,7 @@ export function readScreen(screen: number, storage: Pick<Storage, "getItem"> | n
     found = {};
   }
   const view: ScreenView = found.view === "panel" || found.view === "row" ? found.view : DEFAULT.view;
-  const skin: SkinId = found.skin && found.skin in SKINS ? found.skin : DEFAULT.skin;
+  const skin: SkinId = isSkin(found.skin) ? found.skin : DEFAULT.skin;
   const number = Number(found.proportion);
   const proportion = Number.isFinite(number) ? Math.min(PROPORTION.max, Math.max(PROPORTION.min, Math.round(number))) : DEFAULT.proportion;
   return { view, skin, proportion };
@@ -418,7 +484,7 @@ export function saveScreen(screen: number, settings: Screen, storage: Pick<Stora
  * never sends an order to the interlocking (STV-18). */
 export function changeScreen(screen: number, settings: Screen, next: Partial<Screen>, storage: Pick<Storage, "setItem"> | null): Screen {
   const made: Screen = { ...settings, ...next };
-  if (!(made.skin in SKINS)) made.skin = settings.skin;
+  if (!isSkin(made.skin)) made.skin = settings.skin;
   saveScreen(screen, made, storage);
   return made;
 }

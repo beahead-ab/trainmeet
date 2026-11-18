@@ -78,6 +78,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.saved": tkl.TklSaved,
     "trainmeet.tkl-1.track-plan": tkl.TklTrackPlan,
     "trainmeet.tkl-1.reference": tkl.TklReference,
+    "trainmeet.tkl-1.manover": tkl.TklManover,
     "trainmeet.tkl-1.interlocking": tkl.TklInterlocking,
     "trainmeet.tkl-1.interlocking-answer": tkl.TklAnswer,
     "trainmeet.tkl-1.interlocking-wait": tkl.TklWait,
@@ -1901,6 +1902,9 @@ def tkl_openapi() -> str:
     route("get", a + "/referens", "tklReferences", t + "reference", many=True)
     route("get", a + "/referens/{station_id}", "tklReference", t + "track-plan")
     route("post", a + "/referens/{station_id}/use", "tklUseReference", t + "track-plan")
+    # Manöver, the owner's free panel (STV-46): station settings, versioned with the model.
+    route("get", a + "/studio/manover", "tklManover", t + "manover")
+    route("put", a + "/studio/manover", "tklSaveManover", t + "manover", t + "manover")
     # Ställverket at level 1–2 (#84).
     s = a + "/stallverk"
     answer = t + "interlocking-answer"
