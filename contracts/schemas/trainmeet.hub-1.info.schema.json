@@ -76,6 +76,21 @@
       "description": "Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?",
       "title": "Id Login",
       "type": "boolean"
+    },
+    "ticket_name": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "På träffens Pi: vems biljett från ID webbläsaren har, för Logga in igen utan internet (KONTO-11, KONTO-37).",
+      "title": "Ticket Name"
     }
   },
   "required": [

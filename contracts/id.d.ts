@@ -388,6 +388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ticketKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/apps/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/apps/meets": {
         parameters: {
             query?: never;
@@ -1076,6 +1108,56 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TicketRequest
+         * @description The Hub asks for a ticket for someone who logged in on a meet's Pi with internet
+         *     (KONTO-11, KONTO-37, #78): for which Pi, and the meets in ID whose roles go in it.
+         */
+        "trainmeet.id-1.ticket-request": {
+            /**
+             * Person
+             * Format: uuid
+             */
+            person: string;
+            /** Hub */
+            hub: string;
+            /** Meets */
+            meets?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Ticket
+         * @description Biljetten: signed by ID, checked by the Pi against ID's public keys, fetched before
+         *     (KONTO-11). It lasts 30 days and holds the roles as they were (KONTO-37).
+         */
+        "trainmeet.id-1.ticket": {
+            /**
+             * Ticket
+             * @description A signed JWT (ES256). Never written to a log.
+             */
+            ticket: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TicketKeys
+         * @description ID's public keys for the tickets, open to anyone, as a JWK set (KONTO-11). The Pi gets
+         *     them through its cloud hub while it has internet.
+         */
+        "trainmeet.id-1.ticket-keys": {
+            /** Keys */
+            keys: {
+                [key: string]: unknown;
+            }[];
         } & {
             [key: string]: unknown;
         };
@@ -3550,6 +3632,86 @@ export interface operations {
             };
             /** @description ID säger nej */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    ticketKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.ticket-keys"];
+                };
+            };
+        };
+    };
+    appTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.ticket-request"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.ticket"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

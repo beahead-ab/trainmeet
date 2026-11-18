@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.ticket-request.schema.json",
+  "title": "trainmeet.id-1.ticket-request",
+  "additionalProperties": true,
+  "description": "The Hub asks for a ticket for someone who logged in on a meet's Pi with internet\n(KONTO-11, KONTO-37, #78): for which Pi, and the meets in ID whose roles go in it.",
+  "properties": {
+    "person": {
+      "format": "uuid",
+      "title": "Person",
+      "type": "string"
+    },
+    "hub": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Hub",
+      "type": "string"
+    },
+    "meets": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 10,
+      "title": "Meets",
+      "type": "array"
+    }
+  },
+  "required": [
+    "person",
+    "hub"
+  ],
+  "type": "object"
+}

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Final
+from typing import Any, Final
 
 from pydantic import Field, model_validator
 
@@ -274,3 +274,26 @@ class StationVersions(Contract):
 
     station_id: Id
     versions: list[StationVersionInfo] = Field(default_factory=list)
+
+
+class PiLoginStart(Contract):
+    """Logga in med TrainMeet ID på träffens Pi (KONTO-11, #78): the Pi asks its cloud hub,
+    with its key, to log someone in, and says where the browser comes back."""
+
+    back: str = Field(
+        max_length=300, description="Pi:ns /api/hub/id/back, som webbläsaren ser den."
+    )
+
+
+class PiLoginStarted(Contract):
+    attempt: Text = Field(description="Försöket, som Pi:n hämtar biljetten med.")
+    address: str = Field(description="Molnhubbens inloggning med ID, för webbläsaren.")
+
+
+class PiTicket(Contract):
+    """Biljetten för Pi:n, en gång, och ID:s publika nycklar att kontrollera den med
+    (KONTO-11, KONTO-37). Skrivs aldrig i loggen."""
+
+    ticket: str
+    issuer: str
+    keys: dict[str, Any]

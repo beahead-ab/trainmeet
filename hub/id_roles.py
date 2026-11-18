@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -92,6 +93,42 @@ class IdRoles:
             result: object = answer.json()
             return result
         raise unavailable()
+
+    def ticket(self, person: str, hub: str, meets: list[UUID]) -> str:
+        """Biljetten för Pi:n (KONTO-11, KONTO-37): signed by ID for the Pi with the hub id,
+        with the person's roles at the meets."""
+        body = {"person": person, "hub": hub, "meets": [str(m) for m in meets]}
+        for attempt in (1, 2):
+            try:
+                answer = self.http.post(
+                    f"{self.api}/api/id/1/apps/tickets",
+                    json=body,
+                    headers={"Authorization": f"Bearer {self._bearer()}"},
+                )
+            except httpx.HTTPError as error:
+                LOGGER.warning("ID:s API: %s", type(error).__name__)
+                raise unavailable() from error
+            if answer.status_code == 401 and attempt == 1:
+                with self._lock:
+                    self._token = None
+                continue
+            if answer.status_code != 200:
+                LOGGER.warning("ID:s biljett svarade %s.", answer.status_code)
+                raise unavailable()
+            return str(answer.json()["ticket"])
+        raise unavailable()
+
+    def keys(self) -> dict[str, Any]:
+        """ID's public keys for the tickets, for the Pi to keep (KONTO-11)."""
+        try:
+            answer = self.http.get(f"{self.api}/api/id/1/keys")
+        except httpx.HTTPError as error:
+            LOGGER.warning("ID:s nycklar: %s", type(error).__name__)
+            raise unavailable() from error
+        if answer.status_code != 200:
+            raise unavailable()
+        found: dict[str, Any] = answer.json()
+        return found
 
     def at_meet(self, person: str, id_meet: UUID) -> set[str]:
         """The person's roles at ID's meet, as ID says now. The club's admin has admin."""

@@ -44,6 +44,8 @@ export const TEXT = {
     useCode: "Jag har en engångskod",
     idLogIn: "Logga in med TrainMeet ID",
     idFailed: "Inloggningen med TrainMeet ID gick inte. Försök igen.",
+    again: (name: string) => `Logga in igen som ${name}`,
+    againNote: "Utan internet: biljetten från TrainMeet ID gäller i 30 dagar på den här Pi:n.",
     usePin: "Jag har hubbens PIN-kod",
     toDrift: "Till driften →",
     close: "Stäng",
@@ -92,6 +94,8 @@ export const TEXT = {
     useCode: "I have a one-time code",
     idLogIn: "Log in with TrainMeet ID",
     idFailed: "Logging in with TrainMeet ID did not work. Try again.",
+    again: (name: string) => `Log in again as ${name}`,
+    againNote: "Without internet: the ticket from TrainMeet ID holds for 30 days on this Pi.",
     usePin: "I have the hub's PIN",
     toDrift: "To operations →",
     close: "Close",
@@ -134,13 +138,16 @@ export type DeltagareProps = {
   onLogInWithCode?: (code: string) => void;
   /** The hub logs in with TrainMeet ID (#78). */
   idLogin?: boolean;
+  /** On the meet's Pi: whose ticket from ID this browser has, and Logga in igen (KONTO-11). */
+  ticketName?: string | null;
+  onLogInAgain?: () => void;
 };
 
 /** The key that says when the package Drift goes by has changed: the version and the
  * driftändringar on top of it. */
 const packageKey = (now: Now) => `${now.meet_id}:${now.version}:${(now.changes ?? []).map((change) => `${change.change_id}:${change.status}`).join(",")}`;
 
-export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn, onLogInWithCode, idLogin = false }: DeltagareProps) {
+export function DeltagarePage({ now, elapsedMs, message, language = languageOf(typeof navigator === "undefined" ? ["sv"] : navigator.languages ?? [navigator.language]), initial, onLogIn, onLogInWithCode, idLogin = false, ticketName = null, onLogInAgain }: DeltagareProps) {
   const t = TEXT[language];
   const [participant, setParticipant] = useState<Participant | null>(initial?.participant ?? null);
   const [pkg, setPkg] = useState<Package | null>(initial?.pkg ?? null);
@@ -213,10 +220,10 @@ export function DeltagarePage({ now, elapsedMs, message, language = languageOf(t
           <p className="lankar">
             <a href="/drift">{t.toDrift}</a>
           </p>
-        ) : loggingIn ? (
+        ) : loggingIn || ticketName ? (
           <>
             <LogIn t={t} message={message} onLogIn={onLogIn} onLogInWithCode={onLogInWithCode} />
-            {idLogin && <IdLogIn label={t.idLogIn} failedText={t.idFailed} />}
+            {idLogin && <IdLogIn label={t.idLogIn} failedText={t.idFailed} ticketName={ticketName} againLabel={t.again} againNote={t.againNote} onAgain={onLogInAgain} />}
           </>
         ) : (
           <button id="deltagare-logga-in" type="button" className="tm-knapp" onClick={() => setLoggingIn(true)}>

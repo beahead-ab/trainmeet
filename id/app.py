@@ -54,6 +54,9 @@ from contracts.id import (
     ResourceKind,
     Session,
     Switcher,
+    Ticket,
+    TicketKeys,
+    TicketRequest,
     Version,
 )
 from id import login as id_login
@@ -64,6 +67,7 @@ from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
+from id.tickets import Tickets
 
 LOGGER = logging.getLogger("id")
 API = "/api/id/1"
@@ -118,6 +122,7 @@ def create_app(
     login = id_login.Login(db, settings, http)
     mail: AllMail = mailer if mailer is not None else SmtpMailer(settings.smtp)
     roles = Roles(db, mail, settings.public_url)
+    tickets = Tickets(db, roles, settings.public_url)
     help_desk = HelpDesk(mail, settings.support)
     accounts = Accounts(settings, http, roles)
 
@@ -368,6 +373,16 @@ def create_app(
     def app_meets(person: UUID, _: App) -> list[Meet]:
         """The meets the Hub may link its own meet to, with the person's roles (ID10, #78)."""
         return roles.meets_for(person)
+
+    @app.post(API + "/apps/tickets")
+    def ticket(body: TicketRequest, app_name: App) -> Ticket:
+        """Biljetten för Pi:n (KONTO-11, KONTO-37, #78), asked for by the Hub."""
+        return tickets.issue(app_name, body.person, body.hub, body.meets)
+
+    @app.get(API + "/keys")
+    def ticket_keys() -> TicketKeys:
+        """The public keys the Pi checks tickets with, open to anyone (KONTO-11)."""
+        return TicketKeys.model_validate(tickets.jwks())
 
     @app.get(API + "/apps/fleets")
     def fleets(person: UUID, _: App) -> list[FleetAccess]:

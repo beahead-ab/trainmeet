@@ -72,6 +72,8 @@ export const hub = {
   logIn: (pin: string) => call<unknown>("/api/hub/login", { pin }),
   /** Engångskoden från trafikledningen (H56): a role in the meet that runs, and only there. */
   logInWithCode: (code: string) => call<unknown>("/api/hub/login/code", { code }),
+  /** On the meet's Pi: Logga in igen with the ticket from ID, without internet (KONTO-11). */
+  logInAgain: () => call<unknown>("/api/hub/id/again", {}),
   // På den här hubben (SYNK-07): the hub's name, and a new PIN with the current one first.
   rename: (name: string) => call<HubInfo>("/api/hub/name", { name }),
   changePin: (pin: string, newPin: string) => call<unknown>("/api/hub/pin", { pin, new_pin: newPin }),

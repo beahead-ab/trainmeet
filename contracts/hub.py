@@ -43,6 +43,11 @@ class HubInfo(Contract):
     id_login: bool = Field(
         default=False, description="Har hubben inloggning med TrainMeet ID (#78, KONTO-27)?"
     )
+    ticket_name: Text | None = Field(
+        default=None,
+        description="På träffens Pi: vems biljett från ID webbläsaren har, för Logga in igen "
+        "utan internet (KONTO-11, KONTO-37).",
+    )
 
 
 class SetUp(Contract):

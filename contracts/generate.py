@@ -162,6 +162,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.sync-1.station-package": sync.StationPackage,
     "trainmeet.sync-1.station-version-info": sync.StationVersionInfo,
     "trainmeet.sync-1.station-versions": sync.StationVersions,
+    "trainmeet.sync-1.pi-login-start": sync.PiLoginStart,
+    "trainmeet.sync-1.pi-login-started": sync.PiLoginStarted,
+    "trainmeet.sync-1.pi-ticket": sync.PiTicket,
     "trainmeet.catalog-1.version": catalog.CatalogVersion,
     "trainmeet.catalog-1.account": catalog.Account,
     "trainmeet.catalog-1.session": catalog.Session,
@@ -210,6 +213,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.grant": id_api.Grant,
     "trainmeet.id-1.resource": id_api.Resource,
     "trainmeet.id-1.removed": id_api.Removed,
+    "trainmeet.id-1.ticket-request": id_api.TicketRequest,
+    "trainmeet.id-1.ticket": id_api.Ticket,
+    "trainmeet.id-1.ticket-keys": id_api.TicketKeys,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -592,6 +598,10 @@ def openapi() -> str:
     )
     y = "trainmeet.sync-1."
     st = "/api/sync/1/stations/{station}/versions"
+    pl = "/api/sync/1/meets/{meet}/id-login"
+    route("post", pl, "piLoginStart", y + "pi-login-started", y + "pi-login-start", bearer=True)
+    route("get", pl + "/{attempt}", "piTicket", y + "pi-ticket", bearer=True)
+    route("post", "/api/hub/id/again", "hubLogInAgain", h + "session")
     route("post", st, "saveStation", y + "station-version-info", y + "station-package", bearer=True)
     route("get", st, "stationVersions", y + "station-versions", bearer=True)
     route("get", st + "/{number}", "stationPackage", y + "station-package", bearer=True)
@@ -1039,6 +1049,16 @@ def id_openapi() -> str:
         "switcher",
         query=("person",),
         problems=(401, 422),
+        app=True,
+    )
+    route("get", a + "/keys", "ticketKeys", "ticket-keys")
+    route(
+        "post",
+        a + "/apps/tickets",
+        "appTicket",
+        "ticket",
+        "ticket-request",
+        problems=(401, 403, 404, 422),
         app=True,
     )
     route(

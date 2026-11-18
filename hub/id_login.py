@@ -153,6 +153,8 @@ class Finished:
     person: Person
     id_token: str
     next_path: str
+    pi_attempt: str | None = None
+    """For a meet's Pi (hub/pi_login.py): a ticket for the Pi instead of a session here."""
 
 
 class IdLogin:
@@ -168,11 +170,13 @@ class IdLogin:
 
     # --- To ID ------------------------------------------------------------------------------
 
-    def start(self, next_path: str, language: str | None = None) -> Started:
+    def start(
+        self, next_path: str, language: str | None = None, pi_attempt: str | None = None
+    ) -> Started:
         state = secrets.token_urlsafe(24)
         nonce = secrets.token_urlsafe(24)
         verifier = secrets.token_urlsafe(48)
-        key = self.login.begin_id_login(state, nonce, verifier, safe_next(next_path))
+        key = self.login.begin_id_login(state, nonce, verifier, safe_next(next_path), pi_attempt)
         query = {
             "client_id": self.settings.client,
             "redirect_uri": self.settings.redirect_uri,
@@ -211,7 +215,9 @@ class IdLogin:
             person = person_from(claims)
         except LoginFailed as failed:
             raise LoginFailed(str(failed), next_path) from failed
-        return Finished(person=person, id_token=id_token, next_path=next_path)
+        return Finished(
+            person=person, id_token=id_token, next_path=next_path, pi_attempt=attempt.pi_attempt
+        )
 
     def _exchange(self, code: str, verifier: str, next_path: str) -> str:
         try:

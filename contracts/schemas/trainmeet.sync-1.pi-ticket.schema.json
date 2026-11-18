@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.pi-ticket.schema.json",
+  "title": "trainmeet.sync-1.pi-ticket",
+  "additionalProperties": true,
+  "description": "Biljetten för Pi:n, en gång, och ID:s publika nycklar att kontrollera den med\n(KONTO-11, KONTO-37). Skrivs aldrig i loggen.",
+  "properties": {
+    "ticket": {
+      "title": "Ticket",
+      "type": "string"
+    },
+    "issuer": {
+      "title": "Issuer",
+      "type": "string"
+    },
+    "keys": {
+      "additionalProperties": true,
+      "title": "Keys",
+      "type": "object"
+    }
+  },
+  "required": [
+    "ticket",
+    "issuer",
+    "keys"
+  ],
+  "type": "object"
+}

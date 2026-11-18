@@ -159,7 +159,7 @@ def world(database_url: str, tmp_path: Path) -> Iterator[World]:
         client="id",
         secret=SECRET,
         public_url=PUBLIC,
-        apps=("catalog",),
+        apps=("catalog", "hub"),
         web_dir=tmp_path,
         support="support@example.test",
         catalog="http://catalog:8080",
@@ -634,6 +634,40 @@ def test_the_organizer_hands_out_dispatcher_and_loco_lead_and_the_admin_every_ro
     assert kim.client.delete(f"{API}/meets/{meet}").status_code == 200
     assert kim.client.get(f"{API}/clubs/{club}").json()["meets"] == []
     assert apps(world, "access", person=kim.id, resource=resource).json()["roles"] == []
+
+
+def test_the_hub_gets_a_signed_ticket_the_pi_checks_without_internet(world: World) -> None:
+    """KONTO-11, KONTO-37 (#78): ID signs a ticket for the person on a Pi, with the roles at
+    the meet as they are now, for 30 days. The Pi checks it with ID's open keys."""
+    kim, club, _ = club_with(world)
+    meet = kim.client.post(f"{API}/clubs/{club}/meets", json=AUTUMN).json()["id"]
+    client = world.browser()
+    asked = {"person": kim.id, "hub": "pi-sjovik", "meets": [meet]}
+    hub = {"Authorization": f"Bearer {world.keycloak.app_token('hub')}"}
+    answer = client.post(f"{API}/apps/tickets", json=asked, headers=hub)
+    assert answer.status_code == 200, answer.text
+    token = answer.json()["ticket"]
+
+    keys = client.get(f"{API}/keys").json()["keys"]
+    assert [k["alg"] for k in keys] == ["ES256"] and all("d" not in k for k in keys)
+    key = jwt.PyJWK(keys[0])
+    claims = jwt.decode(
+        token, key=key, algorithms=["ES256"], audience="trainmeet-hub:pi-sjovik", issuer=PUBLIC
+    )
+    assert (claims["sub"], claims["name"]) == (kim.id, "Kim Ek")
+    assert claims["roles"] == {meet: ["admin", "organizer"]}
+    assert 29 * 86400 < claims["exp"] - claims["iat"] <= 30 * 86400
+    assert "kim@example.com" not in json.dumps(claims), "never the address"
+    # The same key signs the next one.
+    again = client.post(f"{API}/apps/tickets", json=asked, headers=hub).json()["ticket"]
+    assert jwt.get_unverified_header(again)["kid"] == keys[0]["kid"]
+
+    # Only the Hub asks, with its own token, for someone ID knows.
+    catalog = {"Authorization": f"Bearer {world.keycloak.app_token('catalog')}"}
+    assert client.post(f"{API}/apps/tickets", json=asked, headers=catalog).status_code == 403
+    assert client.post(f"{API}/apps/tickets", json=asked).status_code == 401
+    nobody = {**asked, "person": str(uuid.uuid4())}
+    assert client.post(f"{API}/apps/tickets", json=nobody, headers=hub).status_code == 404
 
 
 def test_help_and_faults_go_to_support_with_the_app_page_and_version(world: World) -> None:

@@ -1108,6 +1108,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/1/meets/{meet}/id-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["piLoginStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/1/meets/{meet}/id-login/{attempt}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["piTicket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hub/id/again": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hubLogInAgain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/1/stations/{station}/versions": {
         parameters: {
             query?: never;
@@ -8204,6 +8252,12 @@ export interface components {
              * @default false
              */
             id_login: boolean;
+            /**
+             * Ticket Name
+             * @description På träffens Pi: vems biljett från ID webbläsaren har, för Logga in igen utan internet (KONTO-11, KONTO-37).
+             * @default null
+             */
+            ticket_name: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -16239,6 +16293,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * PiLoginStart
+         * @description Logga in med TrainMeet ID på träffens Pi (KONTO-11, #78): the Pi asks its cloud hub,
+         *     with its key, to log someone in, and says where the browser comes back.
+         */
+        "trainmeet.sync-1.pi-login-start": {
+            /**
+             * Back
+             * @description Pi:ns /api/hub/id/back, som webbläsaren ser den.
+             */
+            back: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PiLoginStarted */
+        "trainmeet.sync-1.pi-login-started": {
+            /**
+             * Attempt
+             * @description Försöket, som Pi:n hämtar biljetten med.
+             */
+            attempt: string;
+            /**
+             * Address
+             * @description Molnhubbens inloggning med ID, för webbläsaren.
+             */
+            address: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PiTicket
+         * @description Biljetten för Pi:n, en gång, och ID:s publika nycklar att kontrollera den med
+         *     (KONTO-11, KONTO-37). Skrivs aldrig i loggen.
+         */
+        "trainmeet.sync-1.pi-ticket": {
+            /** Ticket */
+            ticket: string;
+            /** Issuer */
+            issuer: string;
+            /** Keys */
+            keys: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -17915,6 +18015,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.hub-1.ai-service"];
+                };
+            };
+        };
+    };
+    piLoginStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.sync-1.pi-login-start"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.pi-login-started"];
+                };
+            };
+        };
+    };
+    piTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                attempt: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.pi-ticket"];
+                };
+            };
+        };
+    };
+    hubLogInAgain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.hub-1.session"];
                 };
             };
         };

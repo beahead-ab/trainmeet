@@ -371,3 +371,12 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(html).not.toContain('id="auto-save"');
   });
 });
+
+describe("Logga in igen på träffens Pi utan internet (KONTO-11, KONTO-37)", () => {
+  it("offers the ticket's owner to log in again, and still the login with internet", () => {
+    const html = renderToStaticMarkup(<StartPage info={{ name: "Pi:n", set_up: true, logged_in: false, id_login: true, ticket_name: "Provare Ett" } as HubInfo} version={null} message="" navigate={() => undefined} onLogInAgain={() => undefined} />);
+    expect(html).toContain('id="id-again" type="button" class="tm-knapp primar">Logga in igen som Provare Ett<');
+    expect(html).toContain("biljetten från TrainMeet ID gäller i 30 dagar");
+    expect(html).toContain('id="id-login" class="tm-knapp"');
+  });
+});
