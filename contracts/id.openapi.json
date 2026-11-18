@@ -1884,6 +1884,352 @@
           }
         ]
       }
+    },
+    "/api/id/1/tokens": {
+      "get": {
+        "operationId": "tokens",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.token-balance"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/id/1/apps/tokens": {
+      "get": {
+        "operationId": "appTokens",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-balance"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
+    "/api/id/1/apps/tokens/reservations": {
+      "post": {
+        "operationId": "appReserveTokens",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-reservation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.token-reserve"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
+    "/api/id/1/apps/tokens/reservations/{reservation}/draw": {
+      "post": {
+        "operationId": "appDrawTokens",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-reservation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.id-1.token-draw"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "reservation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
+    "/api/id/1/apps/tokens/reservations/{reservation}/return": {
+      "post": {
+        "operationId": "appReturnTokens",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.token-reservation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "reservation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3156,6 +3502,378 @@
         "title": "TicketKeys",
         "type": "object"
       },
+      "trainmeet.id-1.token-owner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-owner.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-owner.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.token-balance": {
+        "additionalProperties": true,
+        "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-balance.TokenOwner"
+          },
+          "title": {
+            "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "free_left": {
+            "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+            "minimum": 0,
+            "title": "Free Left",
+            "type": "integer"
+          },
+          "free_monthly": {
+            "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+            "minimum": 0,
+            "title": "Free Monthly",
+            "type": "integer"
+          },
+          "bought": {
+            "description": "Köpta tokens som är kvar. De förfaller inte.",
+            "minimum": 0,
+            "title": "Bought",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+            "minimum": 0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "available": {
+            "description": "Det som går att använda nu: gratis och köpt.",
+            "minimum": 0,
+            "title": "Available",
+            "type": "integer"
+          },
+          "month": {
+            "description": "Månaden gratiskvoten gäller, i svensk tid.",
+            "pattern": "^[0-9]{4}-[0-9]{2}$",
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "title",
+          "free_left",
+          "free_monthly",
+          "bought",
+          "reserved",
+          "available",
+          "month"
+        ],
+        "title": "TokenBalance",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-balance.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-balance.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-balance.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.token-reserve": {
+        "additionalProperties": true,
+        "description": "En app reserverar före ett arbete som kostar (TOKEN-24). Personen som arbetar ska få\nanvända saldot: sitt eget, eller klubbens som medlem i klubben.",
+        "properties": {
+          "person": {
+            "format": "uuid",
+            "title": "Person",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reserve.TokenOwner"
+          },
+          "amount": {
+            "exclusiveMinimum": 0,
+            "maximum": 100000,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "key": {
+            "description": "Appens egen nyckel för arbetet. Samma nyckel igen ger samma reservation.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "what": {
+            "description": "Vad det gäller, som det visas: t.ex. 12 sidor i importen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "owner",
+          "amount",
+          "key",
+          "what"
+        ],
+        "title": "TokenReserve",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reserve.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reserve.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reserve.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.token-draw": {
+        "additionalProperties": true,
+        "description": "Dra det som arbetet kostade. Resten lämnas tillbaka. Utan belopp dras allt.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          }
+        },
+        "title": "TokenDraw",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reservation": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reservation.TokenOwner"
+          },
+          "amount": {
+            "description": "Det reserverade.",
+            "title": "Amount",
+            "type": "integer"
+          },
+          "drawn": {
+            "default": 0,
+            "description": "Det dragna, när reservationen är dragen.",
+            "title": "Drawn",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reservation.TokenReservationState"
+          },
+          "what": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "What",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "expires": {
+            "description": "När en reservation som ingen drar går tillbaka.",
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reservation.TokenBalance",
+            "description": "Saldot efter det här."
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "amount",
+          "state",
+          "what",
+          "at",
+          "expires",
+          "balance"
+        ],
+        "title": "TokenReservation",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reservation.TokenBalance": {
+        "additionalProperties": true,
+        "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reservation.TokenOwner"
+          },
+          "title": {
+            "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "free_left": {
+            "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+            "minimum": 0,
+            "title": "Free Left",
+            "type": "integer"
+          },
+          "free_monthly": {
+            "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+            "minimum": 0,
+            "title": "Free Monthly",
+            "type": "integer"
+          },
+          "bought": {
+            "description": "Köpta tokens som är kvar. De förfaller inte.",
+            "minimum": 0,
+            "title": "Bought",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+            "minimum": 0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "available": {
+            "description": "Det som går att använda nu: gratis och köpt.",
+            "minimum": 0,
+            "title": "Available",
+            "type": "integer"
+          },
+          "month": {
+            "description": "Månaden gratiskvoten gäller, i svensk tid.",
+            "pattern": "^[0-9]{4}-[0-9]{2}$",
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "title",
+          "free_left",
+          "free_monthly",
+          "bought",
+          "reserved",
+          "available",
+          "month"
+        ],
+        "title": "TokenBalance",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reservation.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.token-reservation.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.token-reservation.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.token-reservation.TokenReservationState": {
+        "enum": [
+          "held",
+          "drawn",
+          "returned"
+        ],
+        "title": "TokenReservationState",
+        "type": "string"
+      },
       "trainmeet.id-1.access": {
         "additionalProperties": true,
         "description": "What ID says now: the roles a person has for a resource (KONTO-34). Empty: none.\n\nFor a club's fleet the club's roles count too (CAT-51, C36): its administrators have admin,\nwhich is the owner's right, and its members viewer.",
@@ -3467,6 +4185,18 @@
             ],
             "default": null,
             "description": "Catalog's data, where Catalog runs beside ID."
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.id-1.account-export.TokenBalance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The person's own balance of TrainMeet tokens (#79)."
           }
         },
         "required": [
@@ -4065,6 +4795,98 @@
           "sim"
         ],
         "title": "TagKind",
+        "type": "string"
+      },
+      "trainmeet.id-1.account-export.TokenBalance": {
+        "additionalProperties": true,
+        "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.id-1.account-export.TokenOwner"
+          },
+          "title": {
+            "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "free_left": {
+            "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+            "minimum": 0,
+            "title": "Free Left",
+            "type": "integer"
+          },
+          "free_monthly": {
+            "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+            "minimum": 0,
+            "title": "Free Monthly",
+            "type": "integer"
+          },
+          "bought": {
+            "description": "Köpta tokens som är kvar. De förfaller inte.",
+            "minimum": 0,
+            "title": "Bought",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+            "minimum": 0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "available": {
+            "description": "Det som går att använda nu: gratis och köpt.",
+            "minimum": 0,
+            "title": "Available",
+            "type": "integer"
+          },
+          "month": {
+            "description": "Månaden gratiskvoten gäller, i svensk tid.",
+            "pattern": "^[0-9]{4}-[0-9]{2}$",
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "title",
+          "free_left",
+          "free_monthly",
+          "bought",
+          "reserved",
+          "available",
+          "month"
+        ],
+        "title": "TokenBalance",
+        "type": "object"
+      },
+      "trainmeet.id-1.account-export.TokenOwner": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.id-1.account-export.TokenOwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "TokenOwner",
+        "type": "object"
+      },
+      "trainmeet.id-1.account-export.TokenOwnerKind": {
+        "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "TokenOwnerKind",
         "type": "string"
       },
       "trainmeet.id-1.account-export.Vehicle": {
@@ -4923,7 +5745,8 @@
           "invalid",
           "conflict",
           "unavailable",
-          "too_many"
+          "too_many",
+          "no_tokens"
         ],
         "title": "ProblemCode",
         "type": "string"

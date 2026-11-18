@@ -29,6 +29,7 @@ from contracts import (
     sync,
     terminal,
     tkl,
+    tokens,
 )
 from contracts import id as id_api
 
@@ -219,6 +220,11 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.ticket-request": id_api.TicketRequest,
     "trainmeet.id-1.ticket": id_api.Ticket,
     "trainmeet.id-1.ticket-keys": id_api.TicketKeys,
+    "trainmeet.id-1.token-owner": tokens.TokenOwner,
+    "trainmeet.id-1.token-balance": tokens.TokenBalance,
+    "trainmeet.id-1.token-reserve": tokens.TokenReserve,
+    "trainmeet.id-1.token-draw": tokens.TokenDraw,
+    "trainmeet.id-1.token-reservation": tokens.TokenReservation,
     "trainmeet.id-1.access": id_api.Access,
     "trainmeet.id-1.fleet-access": id_api.FleetAccess,
     "trainmeet.id-1.club-role-change": id_api.ClubRoleChange,
@@ -1082,6 +1088,44 @@ def id_openapi() -> str:
         many=True,
         query=("person",),
         problems=(401, 422),
+        app=True,
+    )
+    # TrainMeet tokens (#79, TOKEN-08): the person's balances, and the apps' reservations.
+    route("get", a + "/tokens", "tokens", "token-balance", many=True, problems=(401,))
+    route(
+        "get",
+        a + "/apps/tokens",
+        "appTokens",
+        "token-balance",
+        query=("person", "owner"),
+        problems=(401, 403, 404, 422),
+        app=True,
+    )
+    route(
+        "post",
+        a + "/apps/tokens/reservations",
+        "appReserveTokens",
+        "token-reservation",
+        "token-reserve",
+        created=True,
+        problems=(401, 402, 403, 404, 409, 422),
+        app=True,
+    )
+    route(
+        "post",
+        a + "/apps/tokens/reservations/{reservation}/draw",
+        "appDrawTokens",
+        "token-reservation",
+        "token-draw",
+        problems=(401, 404, 409, 422),
+        app=True,
+    )
+    route(
+        "post",
+        a + "/apps/tokens/reservations/{reservation}/return",
+        "appReturnTokens",
+        "token-reservation",
+        problems=(401, 404, 409),
         app=True,
     )
     return (

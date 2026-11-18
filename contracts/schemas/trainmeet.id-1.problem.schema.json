@@ -11,7 +11,8 @@
         "invalid",
         "conflict",
         "unavailable",
-        "too_many"
+        "too_many",
+        "no_tokens"
       ],
       "title": "ProblemCode",
       "type": "string"

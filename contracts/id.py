@@ -58,6 +58,7 @@ from pydantic import Field, StringConstraints, model_validator
 
 from contracts.catalog import CatalogExport
 from contracts.common import AppKey, Contract, Text
+from contracts.tokens import TokenBalance
 
 Email = Annotated[
     str,
@@ -430,6 +431,8 @@ class ProblemCode(StrEnum):
     CONFLICT = "conflict"
     UNAVAILABLE = "unavailable"
     TOO_MANY = "too_many"
+    NO_TOKENS = "no_tokens"
+    """Saldot räcker inte (TOKEN-04): köp fler eller använd egen AI. HTTP 402."""
 
 
 class Problem(Contract):
@@ -469,4 +472,7 @@ class AccountExport(Contract):
     meets: list[Meet]
     catalog: CatalogExport | None = Field(
         default=None, description="Catalog's data, where Catalog runs beside ID."
+    )
+    tokens: TokenBalance | None = Field(
+        default=None, description="The person's own balance of TrainMeet tokens (#79)."
     )

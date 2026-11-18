@@ -59,6 +59,12 @@ from contracts.id import (
     TicketRequest,
     Version,
 )
+from contracts.tokens import (
+    TokenBalance,
+    TokenDraw,
+    TokenReservation,
+    TokenReserve,
+)
 from id import login as id_login
 from id import migrate
 from id.accounts import Accounts
@@ -68,6 +74,7 @@ from id.mail import SmtpMailer
 from id.roles import Asker, Mailer, Refused, Roles
 from id.settings import Settings, from_env
 from id.tickets import Tickets
+from id.tokens import Tokens, owner_from
 
 LOGGER = logging.getLogger("id")
 API = "/api/id/1"
@@ -123,6 +130,7 @@ def create_app(
     mail: AllMail = mailer if mailer is not None else SmtpMailer(settings.smtp)
     roles = Roles(db, mail, settings.public_url)
     tickets = Tickets(db, roles, settings.public_url)
+    tokens = Tokens(db)
     help_desk = HelpDesk(mail, settings.support)
     accounts = Accounts(settings, http, roles)
 
@@ -317,6 +325,7 @@ def create_app(
         if account is None:
             raise Refused(401, ProblemCode.LOGIN, "Logga in först.")
         file = accounts.export(Asker(id=account.id, email=account.email), account)
+        file = file.model_copy(update={"tokens": tokens.balances_for(account.id)[0]})
         return JSONResponse(
             file.model_dump(mode="json"),
             headers={
@@ -387,6 +396,29 @@ def create_app(
     @app.get(API + "/apps/fleets")
     def fleets(person: UUID, _: App) -> list[FleetAccess]:
         return roles.fleets_for(person)
+
+    # --- TrainMeet tokens (#79, TOKEN-08) ------------------------------------------------------
+
+    @app.get(API + "/tokens")
+    def my_tokens(person: Person) -> list[TokenBalance]:
+        """The person's balance and their clubs' (TOKEN-01)."""
+        return tokens.balances_for(person.id)
+
+    @app.get(API + "/apps/tokens")
+    def app_tokens(person: UUID, owner: str, _: App) -> TokenBalance:
+        return tokens.balance(person, owner_from(owner))
+
+    @app.post(API + "/apps/tokens/reservations", status_code=201)
+    def reserve_tokens(body: TokenReserve, app_name: App) -> TokenReservation:
+        return tokens.reserve(app_name, body)
+
+    @app.post(API + "/apps/tokens/reservations/{reservation}/draw")
+    def draw_tokens(reservation: UUID, body: TokenDraw, app_name: App) -> TokenReservation:
+        return tokens.draw(app_name, reservation, body)
+
+    @app.post(API + "/apps/tokens/reservations/{reservation}/return")
+    def return_tokens(reservation: UUID, app_name: App) -> TokenReservation:
+        return tokens.give_back(app_name, reservation)
 
     @app.api_route(
         "/api/{rest:path}",

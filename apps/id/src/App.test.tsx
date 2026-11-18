@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ClubPage, FleetPage, Invitation, Meet, MeetPage, Session } from "./api";
+import type { ClubPage, FleetPage, Invitation, Meet, MeetPage, Session, TokenBalance } from "./api";
 import { days, helpAbout, helpHref, Shell, switcherApps, type ShellProps } from "./App";
 import { TEXTS } from "./i18n";
 import { routeFor } from "./routes";
@@ -50,7 +50,23 @@ describe("TrainMeet ID's web app", () => {
     expect(html).toContain("Klubb: Västby MJK");
     expect(html).toContain("från Kim Ek");
     expect(html).toContain("Ja, gå med");
-    expect(html).toContain("Saldot och köpen av tokens kommer med Tokens.");
+    expect(html).toContain("Tokens betalar AI och lagring i hela TrainMeet.");
+  });
+
+  it("shows the person's balance and the club's, with the free quota and the bought tokens (#79)", () => {
+    const tokens: TokenBalance[] = [
+      { owner: { kind: "person", id: kim.id }, title: "Kim Ek", free_left: 64, free_monthly: 100, bought: 1500, reserved: 12, available: 1564, month: "2026-11" },
+      { owner: { kind: "club", id: club.id }, title: "Västby MJK", free_left: 300, free_monthly: 300, bought: 0, reserved: 0, available: 300, month: "2026-11" },
+    ];
+    const html = render({ route: { page: "tokens" }, data: { tokens } });
+    expect(html).toContain("Ditt saldo");
+    expect(html).toContain("1\u00a0564 tokens");
+    expect(html).toContain("64 av 100 gratis kvar den här månaden");
+    expect(html).toContain("1\u00a0500 köpta, som inte förfaller");
+    expect(html).toContain("12 reserverade just nu");
+    expect(html).toContain("Klubben Västby MJK");
+    expect(html).toContain(">300 tokens<");
+    expect(html.match(/reserverade/g)?.length).toBe(1);
   });
 
   it("shows the club's members, and only the admin may invite and remove", () => {

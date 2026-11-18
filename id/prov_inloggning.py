@@ -542,6 +542,49 @@ def run_hub_roles(base: str, mails: Path, hub: str, id_app: str) -> None:
     print("Får publicera och Läsare i ID, och rätten att publicera i hubben: ok")
 
 
+def run_tokens(base: str, mails: Path, secret: str, id_app: str) -> None:
+    """TrainMeet tokens i ID (#79, TOKEN-08): the person sees the month's free quota, and an app
+    reserves, draws and asks again with the same key, with its own token from Keycloak."""
+    person = Browser(base, id_app, "/api/id/1/session")
+    address = f"prov-{secrets.token_hex(4)}@example.com"
+    log_in_to_app(person, mails, address, "Provare Sex", "/api/id/1/login?next=%2Ftokens")
+    who = person.app.get("/api/id/1/session").json()["account"]["id"]
+    seen = person.app.get("/api/id/1/tokens").json()
+    check(
+        [(b["title"], b["available"]) for b in seen] == [("Provare Sex", 100)],
+        f"Saldot i ID: {seen}",
+    )
+    token = httpx.post(
+        f"{base.rstrip('/')}/realms/trainmeet/protocol/openid-connect/token",
+        data={"grant_type": "client_credentials"},
+        auth=("catalog", secret),
+        timeout=20,
+    )
+    check(token.status_code == 200, f"Appens token från ID svarade {token.status_code}.")
+    as_app = httpx.Client(
+        base_url=id_app.rstrip("/") + "/api/id/1/apps/tokens",
+        headers={"Authorization": "Bearer " + token.json()["access_token"]},
+        timeout=20,
+    )
+    asked = {
+        "person": who,
+        "owner": {"kind": "person", "id": who},
+        "amount": 24,
+        "key": f"prov-{secrets.token_hex(4)}",
+        "what": "2 bilder i provet",
+    }
+    held = as_app.post("/reservations", json=asked)
+    check(held.status_code == 201, f"Reservera svarade {held.status_code}: {held.text}")
+    reservation = held.json()["id"]
+    check(as_app.post("/reservations", json=asked).json()["id"] == reservation, "Två gånger.")
+    drawn = as_app.post(f"/reservations/{reservation}/draw", json={"amount": 12})
+    check(drawn.status_code == 200, f"Dra svarade {drawn.status_code}: {drawn.text}")
+    balance = as_app.get("", params={"person": who, "owner": f"person:{who}"}).json()
+    check(balance["available"] == 88, f"Saldot efter dragningen: {balance}")
+    check(as_app.post(f"/reservations/{reservation}/return").status_code == 409, "Tillbaka?")
+    print("Tokens i ID: saldot, reservera, dra och samma nyckel igen: ok")
+
+
 def run_tkl(base: str, mails: Path, tkl: str) -> None:
     """TKL med TrainMeet ID (TKL18, SYNK-30, #78): TKL logs in as the public client tkl with PKCE,
     and saves the station package in the hub, which takes the owner from TKL's token from ID."""
@@ -836,6 +879,7 @@ def main(argv: list[str]) -> int:
             run_catalog(argv[1], Path(argv[2]), argv[4])
         if id_app:
             run_id_api(argv[1], Path(argv[2]), id_app)
+            run_tokens(argv[1], Path(argv[2]), argv[3], id_app)
         if id_app and through_catalog:
             run_sharing(argv[1], Path(argv[2]), argv[4], id_app)
             run_club_fleet(argv[1], Path(argv[2]), argv[4], id_app)
