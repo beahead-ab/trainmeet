@@ -29,7 +29,7 @@ import logging
 from typing import Final, Literal, Protocol
 from uuid import UUID
 
-from pydantic import ValidationError
+import httpx
 
 from catalog.id_roles import IdRoles, unavailable
 from contracts.tokens import TokenOwner, TokenReservation, TokenReservationState
@@ -91,7 +91,7 @@ class IdPayer:
             )
             if held.status_code not in (200, 201):
                 raise _refused(held.status_code)
-            reservation = _reservation(held.json())
+            reservation = _reservation(held)
             if reservation.state is TokenReservationState.DRAWN:
                 return  # paid before, by this call or another
             if reservation.state is TokenReservationState.RETURNED:
@@ -106,10 +106,11 @@ class IdPayer:
         raise unavailable()
 
 
-def _reservation(body: object) -> TokenReservation:
+def _reservation(answer: httpx.Response) -> TokenReservation:
+    """ID's reservation, or 503 when its answer cannot be read."""
     try:
-        return TokenReservation.model_validate(body)
-    except ValidationError as error:
+        return TokenReservation.model_validate(answer.json())
+    except ValueError as error:  # not JSON, or not a reservation (ValidationError)
         LOGGER.warning("ID:s svar om lagringen gick inte att läsa.")
         raise unavailable() from error
 
