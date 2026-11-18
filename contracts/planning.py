@@ -19,9 +19,10 @@ from uuid import UUID
 
 from pydantic import Discriminator, Field, Tag
 
-from contracts.common import Contract, Id, Text, Weekday
+from contracts.common import Contract, Id, Language, Text, Weekday
 from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import (
+    Attachment,
     ClearanceMode,
     Finding,
     MapPoint,
@@ -394,11 +395,29 @@ class TrainDaysChange(Contract):
     days: list[Weekday] = Field(min_length=1, max_length=7)
 
 
+INSTRUCTIONS_MAX: Final = 20_000
+"""The general instructions as text, in characters (PLAN-40)."""
+
+
+class InstructionsChange(Contract):
+    """De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en
+    text per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,
+    och följer med nästa version till Drift och Lokföraren. Tomt tar bort."""
+
+    instructions: Literal["text", "pdf"]
+    language: Language = Field(default=Language.SV, description="Textens språk.")
+    text: str | None = Field(default=None, max_length=INSTRUCTIONS_MAX)
+    pdf: Attachment | None = Field(
+        default=None, description="PDF:en, sparad bredvid paketet med sin kontrollsumma."
+    )
+
+
 def _change_kind(value: Any) -> str:
     """Which change it is, from its fields: a place, a section's tracks or its clearance, a
-    call, a train's field or its days."""
+    call, a train's field or its days, or the general instructions."""
     if isinstance(value, dict):
         for key, kind in (
+            ("instructions", "instructions"),
             ("confirm", "confirm"),
             ("station", "station"),
             ("call", "call"),
@@ -411,6 +430,7 @@ def _change_kind(value: Any) -> str:
                 return kind
         return "section"
     for model, kind in (
+        (InstructionsChange, "instructions"),
         (ConfirmChange, "confirm"),
         (StationChange, "station"),
         (CallChange, "call"),
@@ -432,7 +452,8 @@ Change = Annotated[
     | Annotated[TrainChange, Tag("train")]
     | Annotated[TrainDaysChange, Tag("days")]
     | Annotated[ConfirmChange, Tag("confirm")]
-    | Annotated[StationChange, Tag("station")],
+    | Annotated[StationChange, Tag("station")]
+    | Annotated[InstructionsChange, Tag("instructions")],
     Discriminator(_change_kind),
 ]
 

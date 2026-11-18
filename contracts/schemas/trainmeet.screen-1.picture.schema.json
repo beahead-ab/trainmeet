@@ -653,6 +653,119 @@
       "title": "DayStatus",
       "type": "object"
     },
+    "DriverAlarm": {
+      "additionalProperties": true,
+      "description": "Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit\növer. Utan förarens namn (B13).",
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "number": {
+          "description": "Tjänstens nummer, eller tågets.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "from_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Place"
+        },
+        "to_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Place"
+        },
+        "since": {
+          "description": "Modelltiden när tjänsten släpptes.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Since",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Drifthändelsen då tjänsten släpptes.",
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "service",
+        "number",
+        "since",
+        "seq"
+      ],
+      "title": "DriverAlarm",
+      "type": "object"
+    },
+    "DriverMessageKind": {
+      "description": "Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).",
+      "enum": [
+        "delayed",
+        "stopped_on_line",
+        "needs_help",
+        "engine_trouble"
+      ],
+      "title": "DriverMessageKind",
+      "type": "string"
+    },
     "ExternalClockNow": {
       "additionalProperties": true,
       "description": "FastClock som träffens klocka (F12, IMPORT-35): Drift follows it, and Nu says so. Open\nto everyone who looks, so it holds no user or password.",
@@ -1238,6 +1351,22 @@
           ],
           "default": null,
           "description": "Tellurian Dispatch läses i skugga (IMPORT-34)."
+        },
+        "driver_alarms": {
+          "description": "Tåg som står utan förare på linjen (LOK-35).",
+          "items": {
+            "$ref": "#/$defs/DriverAlarm"
+          },
+          "title": "Driver Alarms",
+          "type": "array"
+        },
+        "driver_messages": {
+          "description": "Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).",
+          "items": {
+            "$ref": "#/$defs/NowDriverMessage"
+          },
+          "title": "Driver Messages",
+          "type": "array"
         }
       },
       "required": [
@@ -1251,6 +1380,73 @@
         "clearances"
       ],
       "title": "Now",
+      "type": "object"
+    },
+    "NowDriverMessage": {
+      "additionalProperties": true,
+      "description": "Ett meddelande från en förare, som Nu visar det: utan namn (B13).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DriverMessageKind"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "service_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Number"
+        },
+        "model_time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Model Time",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "model_time",
+        "seq"
+      ],
+      "title": "NowDriverMessage",
       "type": "object"
     },
     "NowPlace": {
@@ -1327,6 +1523,34 @@
       ],
       "title": "ScreenView",
       "type": "string"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
     },
     "SwitchWaiting": {
       "additionalProperties": true,

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.join.schema.json",
+  "title": "trainmeet.driver-1.join",
+  "$defs": {
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Kom in (LOK-01, LOK-16): QR-koden på träffen, namnet och nivån. Koden behövs inte på\nträffens nät, där föraren kommer till träffen som kör.",
+  "properties": {
+    "code": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9]{6}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Förarnas kod ur QR-koden.",
+      "title": "Code"
+    },
+    "name": {
+      "description": "Namnet föraren skriver.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "level": {
+      "$ref": "#/$defs/DriverLevel",
+      "default": "easy"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}

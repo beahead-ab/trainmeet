@@ -356,7 +356,13 @@
         "drift_locked",
         "not_locked",
         "not_leader",
-        "already_leader"
+        "already_leader",
+        "unknown_service",
+        "service_taken",
+        "one_service",
+        "no_service",
+        "unknown_driver",
+        "not_in_service"
       ],
       "title": "Reason",
       "type": "string"

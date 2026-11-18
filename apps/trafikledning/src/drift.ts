@@ -60,6 +60,22 @@ export const EVENTS: Record<string, string> = {
   "place.left": "Lämnad till automatiken",
   "place.taken_back": "Tagen tillbaka från automatiken",
   "automation.set": "Automatikens inställningar ändrade",
+  // Lokföraren (LOK-07): what the drivers do, and what the game lets them see.
+  "service.claimed": "Tjänsten tagen",
+  "service.released": "Tjänsten släppt",
+  "service.alarm_cleared": "Larmet om tåg utan förare kvitterat",
+  "driver.checked_in": "Föraren checkade in",
+  "driver.message": "Meddelande från föraren",
+  "driver.arrived": "Föraren: Framme",
+  "driver.settings": "Förarnas val ändrade",
+};
+
+/** The drivers' ready-made messages (LOK-23), as Trafikledningen reads them. */
+export const DRIVER_MESSAGES: Record<string, string> = {
+  delayed: "Försenad",
+  stopped_on_line: "Står på linjen",
+  needs_help: "Behöver hjälp",
+  engine_trouble: "Loket krånglar",
 };
 
 // Automatiken (F14): the place's mode, who left it, and the choices (F15, H42).
@@ -108,6 +124,8 @@ export function actorName(who: Actor | null | undefined, clients: Client[]): str
   if (!who || who.kind === "system") return "Hubben";
   if (who.kind === "automation") return "Automatiken";
   if (who.kind === "dispatcher") return "Trafikledningen";
+  if (who.kind === "loco_lead") return "Lokledaren";
+  if (who.kind === "driver") return `Förare ${who.id ?? ""}`.trim();
   const known = clients.find((client) => client.client_id === who.id);
   return known ? known.name : (who.id ?? who.kind);
 }
@@ -183,6 +201,12 @@ export function describe(event: DriftEvent, pkg: Package | null = null): string 
   if (event.kind === "clock.speed") return `Ny hastighet ${String(data["speed"])}×`;
   if (event.kind === "clearance.reminded" && data["count"]) return `Påminnelse ${String(data["count"])}, obesvarad begäran`;
   if (event.kind === "train.arrived") return (data["track"] ? `Ankomst spår ${String(data["track"])}` : "Ankomst") + forward;
+  if (event.kind === "driver.message" && typeof data["kind"] === "string") return `Föraren: ${DRIVER_MESSAGES[data["kind"]] ?? data["kind"]}`;
+  if (event.kind === "service.released") {
+    if (data["done"]) return "Tjänsten klar: Framme vid slutet";
+    return data["on_line"] ? "Tjänsten släppt på linjen: tåget står utan förare" : "Tjänsten släppt";
+  }
+  if (event.kind === "driver.arrived") return data["counted"] ? "Föraren: Framme, räknas som ankomst" : "Föraren: Framme";
   return EVENTS[event.kind] ?? event.kind;
 }
 

@@ -25,6 +25,7 @@ from hub import (
     clock_source,
     deltagare,
     drift_api,
+    driver_api,
     hubben,
     id_login,
     id_roles,
@@ -309,6 +310,8 @@ def create_app(
     # Tellurian Dispatch i skugga (IMPORT-34): read beside Drift, never sent to.
     app.state.tellurian = shadowing = tellurian_shadow.Shadow(running, login, tellurian_client)
     app.include_router(drift_api.router(running, login, may, clock, shadowing))
+    # Förarnas API (trainmeet.driver/1): Lokföraren, and Förare in Drift (LOK-08, TRAFIK-33).
+    app.include_router(driver_api.router(running, login, may))
     app.include_router(clock_source.router(clock, login, may))
     app.include_router(tellurian_shadow.router(shadowing, login, may))
     app.include_router(

@@ -555,6 +555,39 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.reply.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /**
+         * DriverMessageHere
+         * @description Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+         *     DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.
+         */
+        "trainmeet.station-1.reply.DriverMessageHere": {
+            kind: components["schemas"]["trainmeet.station-1.reply.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Seq
+             * @description Drifthändelsen meddelandet är.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.station-1.reply.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
         /** ExitChoice */
         "trainmeet.station-1.reply.ExitChoice": {
             /** Exit */
@@ -688,7 +721,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service";
         /**
          * ReplyStatus
          * @enum {string}
@@ -793,6 +826,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.station-1.reply.ExitQuestion"][];
             /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
             track_display?: components["schemas"]["trainmeet.station-1.reply.TrackDisplay"];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).
+             */
+            driver_messages?: components["schemas"]["trainmeet.station-1.reply.DriverMessageHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -1385,6 +1423,39 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.view.DepartureState": "planned" | "requested" | "cleared" | "departed";
+        /**
+         * DriverMessageHere
+         * @description Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,
+         *     DRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.
+         */
+        "trainmeet.tkl-1.view.DriverMessageHere": {
+            kind: components["schemas"]["trainmeet.tkl-1.view.DriverMessageKind"];
+            /**
+             * Train
+             * @default null
+             */
+            train: string | null;
+            /**
+             * Train Number
+             * @default null
+             */
+            train_number: string | null;
+            /** Model Time */
+            model_time: string;
+            /**
+             * Seq
+             * @description Drifthändelsen meddelandet är.
+             */
+            seq: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverMessageKind
+         * @description Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.view.DriverMessageKind": "delayed" | "stopped_on_line" | "needs_help" | "engine_trouble";
         /** ExitChoice */
         "trainmeet.tkl-1.view.ExitChoice": {
             /** Exit */
@@ -1568,6 +1639,11 @@ export interface components {
             questions?: components["schemas"]["trainmeet.tkl-1.view.ExitQuestion"][];
             /** @description Spår-vyn: platsens spår i stationens ordning (BOXIOS-16). */
             track_display?: components["schemas"]["trainmeet.tkl-1.view.TrackDisplay"];
+            /**
+             * Driver Messages
+             * @description Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).
+             */
+            driver_messages?: components["schemas"]["trainmeet.tkl-1.view.DriverMessageHere"][];
         } & {
             [key: string]: unknown;
         };

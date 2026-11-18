@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.me.schema.json",
+  "title": "trainmeet.driver-1.me",
+  "$defs": {
+    "CheckedIn": {
+      "additionalProperties": true,
+      "description": "Förarens senaste incheckning, så länge den syns: 10 spelminuter och sedan 5 till medan\nden tonar ut (A8).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "model_time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Model Time",
+          "type": "string"
+        },
+        "age_seconds": {
+          "description": "Spelsekunder sedan incheckningen.",
+          "minimum": 0,
+          "title": "Age Seconds",
+          "type": "number"
+        },
+        "fading": {
+          "default": false,
+          "description": "Tonar ut.",
+          "title": "Fading",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "place",
+        "place_name",
+        "model_time",
+        "age_seconds"
+      ],
+      "title": "CheckedIn",
+      "type": "object"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "Driver": {
+      "additionalProperties": true,
+      "description": "En förare på träffen. Namn, initialer och foto bara där reglerna tillåter (LOK-37).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tomt över internet utan inloggning.",
+          "title": "Name"
+        },
+        "initials": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Initials"
+        },
+        "level": {
+          "$ref": "#/$defs/DriverLevel"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "photo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Adressen till fotot, om det finns.",
+          "title": "Photo"
+        },
+        "linked": {
+          "default": false,
+          "description": "Kopplad till en person i TrainMeet ID.",
+          "title": "Linked",
+          "type": "boolean"
+        },
+        "joined": {
+          "format": "date-time",
+          "title": "Joined",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "level",
+        "joined"
+      ],
+      "title": "Driver",
+      "type": "object"
+    },
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
+    "DriverSettings": {
+      "additionalProperties": true,
+      "description": "Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som\nförval, och bara trafikledningen ändrar det.",
+      "properties": {
+        "reality": {
+          "default": false,
+          "description": "Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.",
+          "title": "Reality",
+          "type": "boolean"
+        },
+        "clearances": {
+          "default": false,
+          "description": "Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.",
+          "title": "Clearances",
+          "type": "boolean"
+        },
+        "arrival": {
+          "default": false,
+          "description": "Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
+          "title": "Arrival",
+          "type": "boolean"
+        }
+      },
+      "title": "DriverSettings",
+      "type": "object"
+    },
+    "DriverState": {
+      "description": "What the others see of a driver without a service on the line (LOK-27).",
+      "enum": [
+        "pause",
+        "waiting_start"
+      ],
+      "title": "DriverState",
+      "type": "string"
+    },
+    "ServiceEnd": {
+      "additionalProperties": true,
+      "description": "Där tjänsten startar eller slutar, som på framsidan: tid och driftplats.",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "place_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Place Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place",
+        "place_name"
+      ],
+      "title": "ServiceEnd",
+      "type": "object"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceOffer": {
+      "additionalProperties": true,
+      "description": "En tjänst som listan visar den, med samma uppgifter som papprets framsida: nummer, start,\nslut, bolag och svårighet (LOK-19). Tagen visar att någon kör den.",
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "number": {
+          "description": "Papprets nummer, eller tågets nummer.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "end": {
+          "$ref": "#/$defs/ServiceEnd"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trains": {
+          "description": "Tågnumren, i ordning.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "taken": {
+          "default": false,
+          "title": "Taken",
+          "type": "boolean"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Föraren som har tjänsten.",
+          "title": "Driver"
+        },
+        "driver_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bara där namn får visas.",
+          "title": "Driver Name"
+        },
+        "released_on_line": {
+          "default": false,
+          "description": "Släppt på linjen: står först i listan (LOK-40).",
+          "title": "Released On Line",
+          "type": "boolean"
+        },
+        "matches_level": {
+          "default": false,
+          "description": "Passar förarens nivå (LOK-32).",
+          "title": "Matches Level",
+          "type": "boolean"
+        },
+        "exact": {
+          "default": false,
+          "description": "Numret är exakt det som söktes.",
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "done": {
+          "default": false,
+          "description": "Klar: Framme vid sista tågbesöket.",
+          "title": "Done",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "service",
+        "number",
+        "start",
+        "end"
+      ],
+      "title": "ServiceOffer",
+      "type": "object"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    },
+    "Start": {
+      "additionalProperties": true,
+      "description": "När tjänsten startar, för nedräkningen och påminnelserna 20 och 10 minuter före (LOK-41).\nVerklig tid bredvid nedräkningen.",
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Starten i sekunder in på speldygnet.",
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "in_game_seconds": {
+          "description": "Spelsekunder kvar; negativt när den passerats.",
+          "title": "In Game Seconds",
+          "type": "integer"
+        },
+        "in_real_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Verkliga sekunder kvar med klockans fart; tomt när den står.",
+          "title": "In Real Seconds"
+        },
+        "reminders": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Reminders",
+          "type": "array"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "in_game_seconds"
+      ],
+      "title": "Start",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Föraren själv: tjänsten, klockan, incheckningen och vad trafikspelet visar.",
+  "properties": {
+    "driver": {
+      "$ref": "#/$defs/Driver"
+    },
+    "service": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServiceOffer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "start": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Start"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "checkin": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CheckedIn"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "clock": {
+      "$ref": "#/$defs/Clock"
+    },
+    "settings": {
+      "$ref": "#/$defs/DriverSettings"
+    },
+    "revision": {
+      "description": "Senaste drifthändelsen, för väntan på nästa.",
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "driver",
+    "clock",
+    "settings",
+    "revision"
+  ],
+  "type": "object"
+}

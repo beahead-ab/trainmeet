@@ -34,7 +34,9 @@
         "client",
         "dispatcher",
         "automation",
-        "system"
+        "system",
+        "driver",
+        "loco_lead"
       ],
       "title": "ActorKind",
       "type": "string"
@@ -81,7 +83,14 @@
         "version.called_off",
         "change.made",
         "change.applied",
-        "change.dropped"
+        "change.dropped",
+        "service.claimed",
+        "service.released",
+        "service.alarm_cleared",
+        "driver.checked_in",
+        "driver.message",
+        "driver.arrived",
+        "driver.settings"
       ],
       "title": "EventKind",
       "type": "string"
@@ -1420,6 +1429,295 @@
       },
       "title": "AutomationSettings",
       "type": "object"
+    },
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    },
+    "ServiceClaimed": {
+      "additionalProperties": true,
+      "description": "En förare har tjänsten: tog den själv, eller fick den av trafikledningen eller\nlokledaren (LOK-18, LOK-30). En tjänst har en förare i taget (LOK-40).",
+      "properties": {
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "by": {
+          "default": "driver",
+          "enum": [
+            "driver",
+            "dispatcher",
+            "loco_lead"
+          ],
+          "title": "By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "driver",
+        "service"
+      ],
+      "title": "ServiceClaimed",
+      "type": "object"
+    },
+    "ServiceReleased": {
+      "additionalProperties": true,
+      "description": "Tjänsten är släppt och ledig för nästa (LOK-25). Släppt på linjen står tåget utan\nförare, och trafikledningen får ett larm direkt (LOK-35).",
+      "properties": {
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "by": {
+          "default": "driver",
+          "enum": [
+            "driver",
+            "dispatcher",
+            "loco_lead"
+          ],
+          "title": "By",
+          "type": "string"
+        },
+        "on_line": {
+          "default": false,
+          "description": "Tåget var ute på linjen.",
+          "title": "On Line",
+          "type": "boolean"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sträckan tåget var på.",
+          "title": "Section"
+        },
+        "from_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Place"
+        },
+        "to_place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Place"
+        },
+        "done": {
+          "default": false,
+          "description": "Framme vid tjänstens slut.",
+          "title": "Done",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "driver",
+        "service"
+      ],
+      "title": "ServiceReleased",
+      "type": "object"
+    },
+    "AlarmCleared": {
+      "additionalProperties": true,
+      "description": "Trafikledningen har tagit hand om tåget utan förare.",
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        }
+      },
+      "required": [
+        "service"
+      ],
+      "title": "AlarmCleared",
+      "type": "object"
+    },
+    "DriverCheckedIn": {
+      "additionalProperties": true,
+      "description": "Förarens egen incheckning på en driftplats (LOK-22). Den styr ingenting; den visas bredvid\ntågets läge enligt Drift. Platsen och tåget står i händelsen.",
+      "properties": {
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "service": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ServiceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        }
+      },
+      "required": [
+        "driver"
+      ],
+      "title": "DriverCheckedIn",
+      "type": "object"
+    },
+    "DriverMessageKind": {
+      "description": "Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).",
+      "enum": [
+        "delayed",
+        "stopped_on_line",
+        "needs_help",
+        "engine_trouble"
+      ],
+      "title": "DriverMessageKind",
+      "type": "string"
+    },
+    "DriverMessageSent": {
+      "additionalProperties": true,
+      "description": "Ett färdigt meddelande till trafikledningen (LOK-23, DRIFT-38). Tåget står i händelsen.",
+      "properties": {
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/DriverMessageKind"
+        },
+        "service": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ServiceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "driver",
+        "kind"
+      ],
+      "title": "DriverMessageSent",
+      "type": "object"
+    },
+    "DriverArrived": {
+      "additionalProperties": true,
+      "description": "Framme (LOK-11, LOK-39): föraren säger att tåget är framme vid tågbesöket i händelsen.\nDet räknas som ankomst bara när trafikspelet valt det och driftplatsen är obemannad.",
+      "properties": {
+        "driver": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Driver",
+          "type": "string"
+        },
+        "service": {
+          "$ref": "#/$defs/ServiceRef"
+        },
+        "counted": {
+          "default": false,
+          "description": "Räknades som tågets ankomst.",
+          "title": "Counted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "driver",
+        "service"
+      ],
+      "title": "DriverArrived",
+      "type": "object"
+    },
+    "DriverSettings": {
+      "additionalProperties": true,
+      "description": "Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som\nförval, och bara trafikledningen ändrar det.",
+      "properties": {
+        "reality": {
+          "default": false,
+          "description": "Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och sena mötande tåg.",
+          "title": "Reality",
+          "type": "boolean"
+        },
+        "clearances": {
+          "default": false,
+          "description": "Förarna ser tågklareringens besked: sträckan klar, spåret och att stationen väntar.",
+          "title": "Clearances",
+          "type": "boolean"
+        },
+        "arrival": {
+          "default": false,
+          "description": "Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
+          "title": "Arrival",
+          "type": "boolean"
+        }
+      },
+      "title": "DriverSettings",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -2074,6 +2372,111 @@
     {
       "properties": {
         "kind": {
+          "const": "service.claimed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ServiceClaimed"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "service.released",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ServiceReleased"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "service.alarm_cleared",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AlarmCleared"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "driver.checked_in",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DriverCheckedIn"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "driver.message",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DriverMessageSent"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "driver.arrived",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DriverArrived"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "driver.settings",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/DriverSettings"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {
           "not": {
             "enum": [
               "meet.started",
@@ -2110,7 +2513,14 @@
               "place.manned",
               "place.left",
               "place.taken_back",
-              "automation.set"
+              "automation.set",
+              "service.claimed",
+              "service.released",
+              "service.alarm_cleared",
+              "driver.checked_in",
+              "driver.message",
+              "driver.arrived",
+              "driver.settings"
             ]
           }
         }

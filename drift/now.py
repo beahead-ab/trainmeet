@@ -11,6 +11,7 @@ from datetime import datetime
 from contracts import drift as contract
 from contracts import station
 from contracts.meet import PlaceKind
+from drift.drivers import alarms, now_messages
 from drift.engine import Drift, Leg, model_time
 from drift.snapshot import clearance_of
 
@@ -60,6 +61,9 @@ def now(drift: Drift, at: datetime) -> contract.Now:
             )
             for state in drift.changes.values()
         ],
+        # Lokföraren (LOK-23, LOK-35): no names, only the trains and the services.
+        driver_alarms=alarms(drift),
+        driver_messages=now_messages(drift, at),
     )
 
 

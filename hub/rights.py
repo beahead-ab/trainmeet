@@ -10,6 +10,8 @@
   changes nothing (H16), which is what everyone may in Planering (S1, PLAN-37). Administratör
   and Trafikledare run it in Drift (ID3). A meet that is not linked to ID has no roles from ID:
   only the PIN plans it.
+- Lokledare, from ID or let in with a one-time code: hands out and takes back the drivers'
+  services in Förare, and runs no traffic (LOK-30, LF17).
 """
 
 from __future__ import annotations
@@ -19,8 +21,8 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from hub.id_roles import PLANS, RUNS, IdRoles, publishes, withdraws
-from hub.local import ADMIN, DISPATCHER, PERSON, LocalLogin
+from hub.id_roles import LEADS_DRIVERS, PLANS, RUNS, IdRoles, publishes, withdraws
+from hub.local import ADMIN, DISPATCHER, LOCO_LEAD, PERSON, LocalLogin
 
 NOT_LOGGED_IN = "Logga in med hubbens PIN-kod eller med TrainMeet ID."
 NO_ROLE = "Du har ingen roll på den här träffen i TrainMeet ID."
@@ -76,6 +78,18 @@ class Rights:
         if role in (ADMIN, DISPATCHER):
             return True
         return role == PERSON and bool(self.id_roles(token, id_meet) & RUNS)
+
+    def may_lead_drivers(self, token: str | None, run: str | None, id_meet: UUID | None) -> bool:
+        """Förare in Drift: whoever runs the meet, and the lokledare (LOK-30)."""
+        role = self.login.role(token, run)
+        if role in (ADMIN, DISPATCHER, LOCO_LEAD):
+            return True
+        return role == PERSON and bool(self.id_roles(token, id_meet) & LEADS_DRIVERS)
+
+    def require_driver_lead(self, token: str | None, run: str | None, id_meet: UUID | None) -> None:
+        if self.may_lead_drivers(token, run, id_meet):
+            return
+        self._refuse(token)
 
     def require_planner(self, token: str | None, id_meet: UUID | None) -> None:
         """Planering: the PIN, or Administratör or Arrangör at the meet in ID (PLAN-19)."""

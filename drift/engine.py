@@ -19,6 +19,7 @@ from contracts.common import Side, Weekday
 from contracts.meet import Call, ClearanceMode, MeetPackage, PlaceKind, Section, TrackKind, Train
 from contracts.reasons import Reason
 from core import changes as driftchanges
+from drift.driver_book import DRIVER_EVENTS, DriverBook, Moment
 
 VERSION: Final = 1
 SECONDS_PER_DAY: Final = 86400
@@ -250,6 +251,9 @@ class Drift:
         self.waiting_switch: events.VersionSwitch | None = None
         # The leader's epoch (DRIFT-21): one higher each time another hub takes over (H8).
         self.epoch = 0
+        # Lokföraren (LOK-07): who has which service, the check-ins, the messages and the
+        # game's settings for the drivers. Like the driftändringar, Ångra leaves them be.
+        self.drivers = DriverBook()
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -698,6 +702,7 @@ class Drift:
                 )
                 if not made.waiting:
                     self._lay(made.change_id)
+                    self.drivers.mark(event.train, self._moment(event))
             case events.EventKind.CHANGE_APPLIED:
                 ref = events.ChangeRef.model_validate(event.data)
                 state = self.changes[ref.change_id]
@@ -707,12 +712,14 @@ class Drift:
                     forced=state.forced or ref.forced,
                 )
                 self._lay(ref.change_id)
+                self.drivers.mark(event.train, self._moment(event))
             case events.EventKind.CHANGE_DROPPED:
                 change_id = events.ChangeRef.model_validate(event.data).change_id
                 state = self.changes[change_id]
                 self.changes[change_id] = replace(state, status=events.ChangeStatus.DROPPED)
                 if change_id in self.applied:
                     self._relay()
+                    self.drivers.mark(event.train, self._moment(event))
             case events.EventKind.PLACE_PHONE:
                 assert event.place is not None
                 self.phones[event.place] = events.PhoneChanged.model_validate(event.data).phone
@@ -819,6 +826,7 @@ class Drift:
                 arriving = self.by_arrival.get(event.call)
                 if arriving is not None and arriving.departure.id in self.arrived:
                     self.tracks[arriving.departure.id] = track  # The train moves with it.
+                self.drivers.mark(event.call, self._moment(event))
                 self._touch_call(event.call)
             case events.EventKind.TRAIN_POSITIONED | events.EventKind.TRAIN_CREW_READY:
                 assert event.call is not None
@@ -864,9 +872,74 @@ class Drift:
                     # Trains planned before the automation first ran are history.
                     self.first_run = self.clock.at(event.wall_time)
                 self._touch_places(*self.stops())
+            case kind if kind in DRIVER_EVENTS:
+                self.drivers.apply(event, self._moment(event))
+                if kind == events.EventKind.DRIVER_MESSAGE and event.train is not None:
+                    # The clearers concerned read the message in their snapshot (DRIFT-38).
+                    self._touch_places(*self.places_of_train_now(event.train))
             case _:
                 raise ValueError(f"Okänd händelse i Provbanans logg: {event.kind}")
         self.history.append(event)
+
+    def _moment(self, event: events.DriftEvent) -> Moment:
+        """When the event happened on the meet clock: its game day and model seconds."""
+        return Moment(
+            event.game_day, self.clock.at(event.wall_time), event.model_time, event.wall_time
+        )
+
+    # --- Lokföraren (LOK-07): the drivers' events go through here ------------------------
+
+    def record_driver(
+        self,
+        kind: events.EventKind,
+        data: dict[str, object],
+        now: datetime,
+        *,
+        actor: events.Actor,
+        train: str | None = None,
+        call: str | None = None,
+        place: str | None = None,
+    ) -> events.DriftEvent:
+        """A driver's event, or the dispatcher's or the lokledare's about the drivers."""
+        self._writable()
+        self._record(kind, data, now, actor=actor, train=train, call=call, place=place)
+        return self.history[-1]
+
+    def places_of_train_now(self, train: str) -> set[str]:
+        """Where the train is today according to the stations, and where it goes next: the
+        places that should hear about it (DRIFT-38)."""
+        legs = [leg for leg in self.legs.values() if leg.train.id == train]
+        for leg in legs:
+            if leg.departure.id in self.arrived:
+                continue
+            return {leg.departure.place, leg.arrival.place}
+        return {legs[-1].arrival.place} if legs else set()
+
+    def arrive_by_driver(self, call: str, now: datetime, actor: events.Actor) -> bool:
+        """Framme as the train's arrival (LOK-11, LOK-39): only at a place nobody works, where
+        no one presses Ankommit, and only once. A train still waiting for its clearance is not
+        taken in. True when the arrival was made."""
+        leg = self.by_arrival.get(call)
+        if leg is None or leg.departure.id in self.arrived:
+            return False
+        if not self.automatic(leg.arrival.place):
+            return False
+        case = self.active_case(leg.departure.id)
+        track = self._arrival_track(leg, None)
+        place = leg.arrival.place
+        if case is None:
+            data: dict[str, object] = {"track": track}
+            kind = events.EventKind.TRAIN_MOVED_HERE
+        elif case.status == station.ClearanceStatus.WAITING:
+            return False
+        else:
+            data = {"clearance_id": case.id, "track": track}
+            if not case.departed:
+                data["forward"] = True
+            kind = events.EventKind.TRAIN_ARRIVED
+        self._record(kind, data, now, leg=leg, actor=actor, place=place)
+        self._apply_if_waiting(now)
+        return True
 
     # --- The automation's state (F14): who works a place --------------------------------
 

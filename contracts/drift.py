@@ -28,6 +28,11 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
     POST /api/drift/1/switch/call-off    -> DriftEvent                  avbryt bytet
     POST /api/drift/1/unlock             -> DriftEvent                  lås upp (DRIFT-47)
 
+The drivers' API, under /api/drift/1/drivers, is described in contracts/driver.py
+(trainmeet.driver/1). What a driver does is a Drift event here: service.claimed,
+service.released, driver.checked_in, driver.message, driver.arrived and the game's
+driver.settings (LOK-07).
+
 Still to come, each in the step that builds it: takeover (steps 4–5), screen data for
 Banöversikt and Tågdiagram.
 
@@ -51,6 +56,7 @@ from contracts.station import (
     Clearance,
     ClearanceStatus,
     Clock,
+    DriverMessageKind,
     ExitQuestion,
     MeetContext,
 )
@@ -438,6 +444,15 @@ class EventKind(StrEnum):
     CHANGE_MADE = "change.made"
     CHANGE_APPLIED = "change.applied"
     CHANGE_DROPPED = "change.dropped"
+    # Lokföraren (LOK-07): which service a driver runs, the check-ins, the messages, Framme and
+    # what the game lets the drivers see. The driver is an id; the name stays out of the events.
+    SERVICE_CLAIMED = "service.claimed"
+    SERVICE_RELEASED = "service.released"
+    SERVICE_ALARM_CLEARED = "service.alarm_cleared"
+    DRIVER_CHECKED_IN = "driver.checked_in"
+    DRIVER_MESSAGE = "driver.message"
+    DRIVER_ARRIVED = "driver.arrived"  # Framme
+    DRIVER_SETTINGS = "driver.settings"
 
 
 class ActorKind(StrEnum):
@@ -445,6 +460,8 @@ class ActorKind(StrEnum):
     DISPATCHER = "dispatcher"
     AUTOMATION = "automation"
     SYSTEM = "system"
+    DRIVER = "driver"  # Lokföraren, with the driver's id
+    LOCO_LEAD = "loco_lead"  # lokledaren, who hands out services and runs no traffic (LOK-30)
 
 
 class Actor(Contract):
@@ -625,6 +642,99 @@ class LineAcknowledged(Contract):
     message_id: Id
 
 
+# --- Lokföraren (LOK-01–LOK-41): what Drift owns of the drivers -------------------------------
+
+
+class ServiceKind(StrEnum):
+    DUTY = "duty"  # köruppdrag ur paketet
+    TRAIN = "train"  # ett tåg, på en träff utan köruppdrag (LOK-17, LOK-31)
+
+
+class ServiceRef(Contract):
+    """En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen."""
+
+    kind: ServiceKind
+    id: Id
+
+
+ClaimedBy = Literal["driver", "dispatcher", "loco_lead"]
+
+
+class ServiceClaimed(Contract):
+    """En förare har tjänsten: tog den själv, eller fick den av trafikledningen eller
+    lokledaren (LOK-18, LOK-30). En tjänst har en förare i taget (LOK-40)."""
+
+    driver: Id
+    service: ServiceRef
+    by: ClaimedBy = "driver"
+
+
+class ServiceReleased(Contract):
+    """Tjänsten är släppt och ledig för nästa (LOK-25). Släppt på linjen står tåget utan
+    förare, och trafikledningen får ett larm direkt (LOK-35)."""
+
+    driver: Id
+    service: ServiceRef
+    by: ClaimedBy = "driver"
+    on_line: bool = Field(default=False, description="Tåget var ute på linjen.")
+    section: Id | None = Field(default=None, description="Sträckan tåget var på.")
+    from_place: Id | None = None
+    to_place: Id | None = None
+    done: bool = Field(default=False, description="Framme vid tjänstens slut.")
+
+
+class AlarmCleared(Contract):
+    """Trafikledningen har tagit hand om tåget utan förare."""
+
+    service: ServiceRef
+
+
+class DriverCheckedIn(Contract):
+    """Förarens egen incheckning på en driftplats (LOK-22). Den styr ingenting; den visas bredvid
+    tågets läge enligt Drift. Platsen och tåget står i händelsen."""
+
+    driver: Id
+    service: ServiceRef | None = None
+    track: Text | None = None
+
+
+class DriverMessageSent(Contract):
+    """Ett färdigt meddelande till trafikledningen (LOK-23, DRIFT-38). Tåget står i händelsen."""
+
+    driver: Id
+    kind: DriverMessageKind
+    service: ServiceRef | None = None
+
+
+class DriverArrived(Contract):
+    """Framme (LOK-11, LOK-39): föraren säger att tåget är framme vid tågbesöket i händelsen.
+    Det räknas som ankomst bara när trafikspelet valt det och driftplatsen är obemannad."""
+
+    driver: Id
+    service: ServiceRef
+    counted: bool = Field(default=False, description="Räknades som tågets ankomst.")
+
+
+class DriverSettings(Contract):
+    """Vad förarna får se och göra i trafikspelet (LOK-20, LOK-21, LOK-39). Allt är av som
+    förval, och bara trafikledningen ändrar det."""
+
+    reality: bool = Field(
+        default=False,
+        description="Förarna ser verkligheten: var tåget är enligt stationerna, förseningen och "
+        "sena mötande tåg.",
+    )
+    clearances: bool = Field(
+        default=False,
+        description="Förarna ser tågklareringens besked: sträckan klar, spåret och att "
+        "stationen väntar.",
+    )
+    arrival: bool = Field(
+        default=False,
+        description="Framme räknas som ankomst, bara på obemannade driftplatser (LOK-39).",
+    )
+
+
 # --- Automatiken (F14, F15, H41, H42; gamla Servers automatic.py) ---------------------------
 
 PRESENCE_SECONDS: Final = 45
@@ -765,6 +875,13 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.PLACE_LEFT: PlaceLeft,
     EventKind.PLACE_TAKEN_BACK: PlaceTakenBack,
     EventKind.AUTOMATION_SET: AutomationSettings,
+    EventKind.SERVICE_CLAIMED: ServiceClaimed,
+    EventKind.SERVICE_RELEASED: ServiceReleased,
+    EventKind.SERVICE_ALARM_CLEARED: AlarmCleared,
+    EventKind.DRIVER_CHECKED_IN: DriverCheckedIn,
+    EventKind.DRIVER_MESSAGE: DriverMessageSent,
+    EventKind.DRIVER_ARRIVED: DriverArrived,
+    EventKind.DRIVER_SETTINGS: DriverSettings,
 }
 
 
@@ -777,6 +894,7 @@ _ON_A_PLACE: Final = frozenset(
         EventKind.PLACE_LEFT,
         EventKind.PLACE_TAKEN_BACK,
         EventKind.PLACE_PHONE,
+        EventKind.DRIVER_CHECKED_IN,
     }
 )
 
@@ -804,7 +922,7 @@ class DriftEvent(Contract):
             raise ValueError("Klareringsbegäran måste ange avgångens tågbesök.")
         if self.kind in (EventKind.TRAIN_MOVED_HERE, EventKind.TRAIN_SET_ASIDE) and not self.call:
             raise ValueError("Händelsen måste ange ankomstens tågbesök.")
-        if self.kind in _ON_A_CALL and not self.call:
+        if (self.kind in _ON_A_CALL or self.kind == EventKind.DRIVER_ARRIVED) and not self.call:
             raise ValueError("Händelsen måste ange tågbesöket.")
         if self.kind in _ON_A_PLACE and not self.place:
             raise ValueError("Händelsen måste ange driftplatsen.")
@@ -967,6 +1085,32 @@ class TellurianShadow(Contract):
     )
 
 
+class DriverAlarm(Contract):
+    """Ett tåg står utan förare på linjen (LOK-35): tjänsten släpptes där och ingen har tagit
+    över. Utan förarens namn (B13)."""
+
+    service: ServiceRef
+    number: Text = Field(description="Tjänstens nummer, eller tågets.")
+    train: Id | None = None
+    train_number: Text | None = None
+    section: Id | None = None
+    from_place: Id | None = None
+    to_place: Id | None = None
+    since: TimeOfDay = Field(description="Modelltiden när tjänsten släpptes.")
+    seq: int = Field(ge=1, description="Drifthändelsen då tjänsten släpptes.")
+
+
+class NowDriverMessage(Contract):
+    """Ett meddelande från en förare, som Nu visar det: utan namn (B13)."""
+
+    kind: DriverMessageKind
+    train: Id | None = None
+    train_number: Text | None = None
+    service_number: Text | None = None
+    model_time: TimeOfDay
+    seq: int = Field(ge=1)
+
+
 class Leader(Contract):
     """Hubben som leder träffen när den här hubben följer den (SYNK-04, SYNK-14)."""
 
@@ -1014,6 +1158,13 @@ class Now(Contract):
     )
     tellurian: TellurianShadow | None = Field(
         default=None, description="Tellurian Dispatch läses i skugga (IMPORT-34)."
+    )
+    driver_alarms: list[DriverAlarm] = Field(
+        default_factory=list, description="Tåg som står utan förare på linjen (LOK-35)."
+    )
+    driver_messages: list[NowDriverMessage] = Field(
+        default_factory=list,
+        description="Förarnas meddelanden de senaste 30 spelminuterna, nyast först (LOK-23).",
     )
 
 

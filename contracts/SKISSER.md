@@ -20,6 +20,8 @@ Det som finns i `contracts/sync.py` sedan steg 5 del 2: hälsningen med protokol
 
 ## Förarnas API, `trainmeet.driver/1` (steg 7)
 
+*Byggt 18 november (ärende 81 del a): kontraktet står i `driver.py`. Skissen nedan står kvar som underlag.*
+
 För Lokföraren (5.5).
 
 - **Min tjänst:** köruppdraget ur träffpaketet (`duties`) som föraren kör. Drift äger bara vilken tjänst en förare kör.

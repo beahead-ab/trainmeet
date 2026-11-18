@@ -4,7 +4,8 @@ import { Andringar } from "./Andringar";
 import { Följer, Spärrad, Tillbakadragen, Versionsbyte, type SwitchProps } from "./Versionsbyte";
 import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
-import { CASES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
+import { CASES, DRIVER_MESSAGES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
+import { alarmText } from "./Forare";
 import { Chip, Chips } from "./ui";
 
 // Nu (S6, TRAFIK-01): the meet, its clock, the open clearances and the trains. Everyone sees
@@ -40,6 +41,45 @@ export function NuPage(props: NuProps) {
   // While another hub leads the meet this one only shows it (SYNK-14): no controls to refuse,
   // only Ta över when the leader has gone silent.
   return now ? <Meet {...props} admin={props.admin && !now.leader} leaderAdmin={props.owner ?? props.admin} now={now} /> : <NoMeet {...props} />;
+}
+
+/** Lokföraren in Nu (LOK-35, LOK-23): a train that stands without a driver on the line, at
+ * once, and the drivers' latest messages. Nu is open to everyone, so there are no names (B13). */
+export function Forarna({ now }: { now: Now }) {
+  const alarms = now.driver_alarms ?? [];
+  const messages = now.driver_messages ?? [];
+  if (!alarms.length && !messages.length) return null;
+  return (
+    <section id="forar-larm" className={"kort" + (alarms.length ? " varning" : "")} aria-labelledby="forar-larm-rubrik">
+      <h2 id="forar-larm-rubrik">Förarna</h2>
+      {alarms.length > 0 && (
+        <ul className="lista" role="alert">
+          {alarms.map((alarm) => (
+            <li key={`${alarm.service.kind}:${alarm.service.id}`}>
+              <div className="vem">
+                <b>{alarmText(alarm, now)}</b>
+              </div>
+              <a className="liten" href="/drift/forare">
+                Förare →
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {messages.length > 0 && (
+        <ul className="lista" id="forar-meddelanden-nu">
+          {messages.map((message) => (
+            <li key={message.seq}>
+              <div className="vem">
+                <b>{`${message.model_time} · ${DRIVER_MESSAGES[message.kind] ?? message.kind}`}</b>
+                <span className="liten">{[message.train_number ? `Tåg ${message.train_number}` : null, message.service_number ? `tjänst ${message.service_number}` : null].filter(Boolean).join(" · ")}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 /** An unanswered request is reminded of every third minute (H39, DRIFT-33). */
@@ -286,6 +326,7 @@ function Meet(props: NuProps & { now: Now; leaderAdmin?: boolean }) {
       <Följer now={now} admin={props.leaderAdmin} onTakeOver={props.onTakeOver} />
       {admin && <Spärrad now={now} onUnlock={props.onUnlock} />}
       <Tillbakadragen now={now} />
+      <Forarna now={now} />
       {admin && props.switching && <Versionsbyte now={now} pkg={props.pkg ?? null} {...props.switching} />}
       {admin && (!now.external_clock || now.external_clock.can_control) && (
         <div className="rad" id="clock-controls">

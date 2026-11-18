@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.message-send.schema.json",
+  "title": "trainmeet.driver-1.message-send",
+  "$defs": {
+    "DriverMessageKind": {
+      "description": "Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).",
+      "enum": [
+        "delayed",
+        "stopped_on_line",
+        "needs_help",
+        "engine_trouble"
+      ],
+      "title": "DriverMessageKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/DriverMessageKind"
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "type": "object"
+}

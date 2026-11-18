@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.hand-out.schema.json",
+  "title": "trainmeet.driver-1.hand-out",
+  "$defs": {
+    "ServiceKind": {
+      "enum": [
+        "duty",
+        "train"
+      ],
+      "title": "ServiceKind",
+      "type": "string"
+    },
+    "ServiceRef": {
+      "additionalProperties": true,
+      "description": "En tjänst: ett köruppdrag ur träffpaketet, eller ett tåg med körplan ur tidtabellen.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ServiceKind"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ServiceRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Trafikledningen eller lokledaren delar ut en tjänst (LOK-30). Har någon annan den, flyttas\nden; har föraren en annan, lämnas den tillbaka först.",
+  "properties": {
+    "driver": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Driver",
+      "type": "string"
+    },
+    "service": {
+      "$ref": "#/$defs/ServiceRef"
+    }
+  },
+  "required": [
+    "driver",
+    "service"
+  ],
+  "type": "object"
+}

@@ -35,7 +35,7 @@ from drift.store import (
 from hub.clock_source import ClockSource
 from hub.hubben import Authorization, SessionCookie, session_of
 from hub.id_roles import PLANS, RUNS
-from hub.local import DISPATCHER, PERSON, LocalLogin
+from hub.local import DISPATCHER, LOCO_LEAD, PERSON, LocalLogin
 from hub.rights import NO_ROLE, NOT_LOGGED_IN, Rights
 from hub.running import PROVBANAN, NeedsNewerHub, Running, UnknownMeet, WithdrawnVersion
 from hub.tellurian_shadow import Shadow
@@ -659,11 +659,13 @@ def router(
         authorization: Authorization = None,
     ) -> dict[str, Any]:
         """Six digits, once, for 15 minutes, for this meet. The administrator and a dispatcher
-        both give Trafikledare: at most the giver's own role on the meet."""
+        give Trafikledare, or Lokledare from Förare (LOK-30): at most the giver's own role on the
+        meet."""
         response.headers["Cache-Control"] = "no-store"
         run_id = dispatching(session, authorization)
-        code, expires = login.issue_code(run_id, DISPATCHER, request.name)
-        return hub.OneTimeCode(code=code, role=MeetRole.DISPATCHER, expires=expires).model_dump(
+        role = LOCO_LEAD if request.role == "loco_lead" else DISPATCHER
+        code, expires = login.issue_code(run_id, role, request.name)
+        return hub.OneTimeCode(code=code, role=MeetRole(role), expires=expires).model_dump(
             mode="json"
         )
 

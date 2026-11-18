@@ -357,6 +357,71 @@
       "title": "DepartureState",
       "type": "string"
     },
+    "DriverMessageHere": {
+      "additionalProperties": true,
+      "description": "Ett meddelande från föraren på ett tåg som är här, på väg hit eller har lämnat (KLAR-27,\nDRIFT-38). Bara till TKL, inte till TMBox. Utan förarens namn.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DriverMessageKind"
+        },
+        "train": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "model_time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Model Time",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Drifthändelsen meddelandet är.",
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "model_time",
+        "seq"
+      ],
+      "title": "DriverMessageHere",
+      "type": "object"
+    },
+    "DriverMessageKind": {
+      "description": "Förarens färdiga meddelanden till trafikledningen (LOK-23, DRIFT-38).",
+      "enum": [
+        "delayed",
+        "stopped_on_line",
+        "needs_help",
+        "engine_trouble"
+      ],
+      "title": "DriverMessageKind",
+      "type": "string"
+    },
     "ExitChoice": {
       "additionalProperties": true,
       "properties": {
@@ -701,7 +766,13 @@
         "drift_locked",
         "not_locked",
         "not_leader",
-        "already_leader"
+        "already_leader",
+        "unknown_service",
+        "service_taken",
+        "one_service",
+        "no_service",
+        "unknown_driver",
+        "not_in_service"
       ],
       "title": "Reason",
       "type": "string"
@@ -924,6 +995,14 @@
         "track_display": {
           "$ref": "#/$defs/TrackDisplay",
           "description": "Spår-vyn: platsens spår i stationens ordning (BOXIOS-16)."
+        },
+        "driver_messages": {
+          "description": "Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. Bara till TKL (KLAR-27, DRIFT-38).",
+          "items": {
+            "$ref": "#/$defs/DriverMessageHere"
+          },
+          "title": "Driver Messages",
+          "type": "array"
         }
       },
       "required": [

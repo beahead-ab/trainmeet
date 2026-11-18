@@ -43,6 +43,7 @@ from contracts.meet import (
     Call,
     Clock,
     Display,
+    DriverLevel,
     Duty,
     DutyLeg,
     GraphPage,
@@ -211,6 +212,10 @@ def problem(data: dict[str, Any]) -> str:
 
 def _text(value: Any) -> str:
     return "" if value is None or isinstance(value, (dict, list)) else " ".join(str(value).split())
+
+
+# Tellurian's Difficulty on a duty, as the paper's front says it: Lätt, Medel, Erfaren (LOK-19).
+DIFFICULTY: Final = {1: DriverLevel.EASY, 2: DriverLevel.MEDIUM, 3: DriverLevel.EXPERIENCED}
 
 
 def _int(value: Any) -> int:
@@ -819,7 +824,8 @@ class _Importer:
             duty_id = f"k{_id(plan_id)}"
             self.reading.fact(f"duty:{duty_id}", f"DriverDuties Id {plan_id}")
             name = _plain(duty.get("Identity"), 80) or str(plan_id)
-            duties.append(Duty(id=duty_id, name=name, legs=legs))
+            level = DIFFICULTY.get(_int(duty.get("Difficulty")))
+            duties.append(Duty(id=duty_id, name=name, legs=legs, level=level))
         if empty:
             self.reading.left_out.append(f"{empty} köruppdrag har inga tåg i tidtabellen.")
         return duties

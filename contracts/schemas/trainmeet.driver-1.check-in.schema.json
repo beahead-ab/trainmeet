@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.check-in.schema.json",
+  "title": "trainmeet.driver-1.check-in",
+  "additionalProperties": true,
+  "description": "Förarens egen incheckning på en driftplats (LOK-22).",
+  "properties": {
+    "place": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Place",
+      "type": "string"
+    },
+    "track": {
+      "anyOf": [
+        {
+          "maxLength": 12,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Track"
+    }
+  },
+  "required": [
+    "place"
+  ],
+  "type": "object"
+}

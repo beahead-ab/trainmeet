@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.profile.schema.json",
+  "title": "trainmeet.driver-1.profile",
+  "$defs": {
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
+    "DriverState": {
+      "description": "What the others see of a driver without a service on the line (LOK-27).",
+      "enum": [
+        "pause",
+        "waiting_start"
+      ],
+      "title": "DriverState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Det föraren själv ändrar: namnet, nivån och Paus eller Inväntar start. Fält som inte\nskickas ändras inte; state null tar bort läget.",
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DriverLevel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DriverState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "clear_state": {
+      "default": false,
+      "description": "Ta bort Paus eller Inväntar start.",
+      "title": "Clear State",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

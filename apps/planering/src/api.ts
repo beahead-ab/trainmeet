@@ -49,6 +49,22 @@ export const planning = {
   home: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home`),
   reclaim: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home/reclaim`, {}),
   change: (id: string, changes: Changes) => call<Draft>(`${meet(id)}/changes`, changes),
+  /** Förarna (PLAN-40): the general instructions as PDF, its bytes in the body. */
+  instructionsPdf: async (id: string, file: File): Promise<Draft> => {
+    const response = await fetch(`${meet(id)}/instructions.pdf?name=${encodeURIComponent(file.name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/pdf" },
+      body: file,
+      credentials: "same-origin",
+    }).catch(() => null);
+    if (!response) throw new Problem("Kontakten med Hubben bröts. Försök igen.", 0);
+    const answer: unknown = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const said = (answer as { detail?: unknown } | null)?.detail;
+      throw new Problem(typeof said === "string" ? said : "PDF:en gick inte att lägga in.", response.status);
+    }
+    return answer as Draft;
+  },
   answer: (id: string, given: Answer) => call<Draft>(`${meet(id)}/answers`, given),
   proposals: (id: string) => call<Proposal[]>(`${meet(id)}/proposals`),
   take: (id: string, proposal: string) => call<Draft>(`${meet(id)}/proposals/${encodeURIComponent(proposal)}/take`, {}),

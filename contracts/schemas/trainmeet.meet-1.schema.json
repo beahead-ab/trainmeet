@@ -112,6 +112,7 @@
         "clock_face",
         "sketch",
         "overview",
+        "instructions",
         "other"
       ],
       "title": "AttachmentKind",
@@ -425,9 +426,19 @@
       "title": "Display",
       "type": "object"
     },
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
     "Duty": {
       "additionalProperties": true,
-      "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.",
+      "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is\nthe number on the paper's front (LOK-19).",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -446,6 +457,18 @@
           },
           "title": "Legs",
           "type": "array"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32)."
         }
       },
       "required": [

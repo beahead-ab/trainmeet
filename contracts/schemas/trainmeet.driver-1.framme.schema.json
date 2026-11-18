@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.driver-1.framme.schema.json",
+  "title": "trainmeet.driver-1.framme",
+  "additionalProperties": true,
+  "description": "Framme vid ett tågbesök i tjänsten (LOK-04). Vid tjänstens sista tågbesök är tjänsten\nklar. Det räknas som ankomst bara när trafikspelet valt det och platsen är obemannad.",
+  "properties": {
+    "call": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Call",
+      "type": "string"
+    }
+  },
+  "required": [
+    "call"
+  ],
+  "type": "object"
+}

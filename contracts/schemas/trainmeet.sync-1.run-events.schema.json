@@ -34,7 +34,9 @@
         "client",
         "dispatcher",
         "automation",
-        "system"
+        "system",
+        "driver",
+        "loco_lead"
       ],
       "title": "ActorKind",
       "type": "string"
@@ -207,7 +209,14 @@
         "version.called_off",
         "change.made",
         "change.applied",
-        "change.dropped"
+        "change.dropped",
+        "service.claimed",
+        "service.released",
+        "service.alarm_cleared",
+        "driver.checked_in",
+        "driver.message",
+        "driver.arrived",
+        "driver.settings"
       ],
       "title": "EventKind",
       "type": "string"

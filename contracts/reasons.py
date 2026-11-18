@@ -74,6 +74,13 @@ class Reason(StrEnum):
     # Synk (SYNK-14): the hub follows a meet another hub leads
     NOT_LEADER = "not_leader"
     ALREADY_LEADER = "already_leader"
+    # Lokföraren (LOK-40, LOK-25): a service has one driver at a time
+    UNKNOWN_SERVICE = "unknown_service"
+    SERVICE_TAKEN = "service_taken"
+    ONE_SERVICE = "one_service"
+    NO_SERVICE = "no_service"
+    UNKNOWN_DRIVER = "unknown_driver"
+    NOT_IN_SERVICE = "not_in_service"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -128,8 +135,29 @@ TEXT_SV: dict[Reason, str] = {
     Reason.NOT_LOCKED: "Drift är inte spärrad.",
     Reason.NOT_LEADER: "En annan hubb leder träffen. Den här hubben följer den och ändrar inget.",
     Reason.ALREADY_LEADER: "Den här hubben leder redan träffen.",
+    Reason.UNKNOWN_SERVICE: "Tjänsten finns inte i träffen i dag.",
+    Reason.SERVICE_TAKEN: "Tjänsten är tagen.",
+    Reason.ONE_SERVICE: "Du har redan en tjänst. Släpp den först.",
+    Reason.NO_SERVICE: "Du har ingen tjänst.",
+    Reason.UNKNOWN_DRIVER: "Föraren finns inte i träffen.",
+    Reason.NOT_IN_SERVICE: "Platsen eller tågbesöket finns inte i tjänsten.",
     Reason.DAY_STILL_RUNNING: (
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."
     ),
+}
+
+
+# Lokföraren speaks Swedish and English (ST10): the reasons a driver can be told, in English.
+TEXT_EN: dict[Reason, str] = {
+    Reason.UNKNOWN_SERVICE: "The service is not in today's meet.",
+    Reason.SERVICE_TAKEN: "The service is taken.",
+    Reason.ONE_SERVICE: "You already have a service. Release it first.",
+    Reason.NO_SERVICE: "You have no service.",
+    Reason.UNKNOWN_DRIVER: "The driver is not in the meet.",
+    Reason.NOT_IN_SERVICE: "The place or call is not in the service.",
+    Reason.NO_ACTIVE_MEET: "No meet is running.",
+    Reason.UNKNOWN_PLACE: "The place is not in the meet.",
+    Reason.DRIFT_LOCKED: "Operations are locked. Ask the dispatcher.",
+    Reason.NOT_LEADER: "Another hub leads the meet. This hub follows it and changes nothing.",
 }

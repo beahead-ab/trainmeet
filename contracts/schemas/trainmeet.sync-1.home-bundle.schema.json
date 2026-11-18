@@ -142,6 +142,7 @@
         "clock_face",
         "sketch",
         "overview",
+        "instructions",
         "other"
       ],
       "title": "AttachmentKind",
@@ -927,6 +928,9 @@
               },
               {
                 "$ref": "#/$defs/StationChange"
+              },
+              {
+                "$ref": "#/$defs/InstructionsChange"
               }
             ]
           },
@@ -976,9 +980,19 @@
       "title": "Draft",
       "type": "object"
     },
+    "DriverLevel": {
+      "description": "Svårigheten på köruppdragets framsida, och förarens nivå (LOK-19, LOK-32).",
+      "enum": [
+        "easy",
+        "medium",
+        "experienced"
+      ],
+      "title": "DriverLevel",
+      "type": "string"
+    },
     "Duty": {
       "additionalProperties": true,
-      "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7.",
+      "description": "Köruppdrag. Stored from the start (F23); Lokföraren uses them from step 7. The name is\nthe number on the paper's front (LOK-19).",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -997,6 +1011,18 @@
           },
           "title": "Legs",
           "type": "array"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DriverLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Svårigheten på framsidan: Lätt, Medel eller Erfaren (LOK-32)."
         }
       },
       "required": [
@@ -1438,6 +1464,55 @@
         "level"
       ],
       "title": "ImportReport",
+      "type": "object"
+    },
+    "InstructionsChange": {
+      "additionalProperties": true,
+      "description": "De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en\ntext per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,\noch följer med nästa version till Drift och Lokföraren. Tomt tar bort.",
+      "properties": {
+        "instructions": {
+          "enum": [
+            "text",
+            "pdf"
+          ],
+          "title": "Instructions",
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/$defs/Language",
+          "default": "sv",
+          "description": "Textens språk."
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 20000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "pdf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Attachment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PDF:en, sparad bredvid paketet med sin kontrollsumma."
+        }
+      },
+      "required": [
+        "instructions"
+      ],
+      "title": "InstructionsChange",
       "type": "object"
     },
     "Language": {
