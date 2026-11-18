@@ -20,6 +20,15 @@ routes, locks, switch positions, signal aspects and the train numbers (STV-08), 
 /api/tkl/1/stallverk. Every operation answers yes, or no with the reason in Swedish; the
 interlocking's functions are the one place where safety is checked (STV-43, STV-44). The
 clearance, the timetable and the train number on the line stay Hubben's (STV-09).
+
+Level 3 (#85): LocoNet, only in a local TKL, through a LocoBuffer USB or a BTLocoBridge
+(STV-11, STV-27). Studio's Koppla in, under /api/tkl/1/studio/koppla-in, connects to the layout,
+shows the MGP cards with module and channel (STUDIO-11, STUDIO-18) and learns the addresses by
+touching (STUDIO-04): every switch, signal and track circuit is grey, yellow, green or Utan
+adress (STUDIO-17). The pretend LocoNet stands in for the layout, "LocoNet ej ansluten", which
+Prova uses (STUDIO-21, STUDIO-24). With LocoNet the interlocking waits for the switches' feedback,
+the track circuits move the train numbers, and only green and Utan adress objects run (STV-15 –
+STV-17).
 """
 
 from __future__ import annotations
@@ -42,6 +51,7 @@ from contracts.station import (
 )
 from contracts.station_model import (
     Cell,
+    FeedbackType,
     Name,
     NodeType,
     PanelBuilding,
@@ -495,6 +505,15 @@ class TklAspect(StrEnum):
     LOCAL = "local"  # snett höger: växling i ett lokalt frigivet område (FR41, TKL44)
 
 
+class AddressState(StrEnum):
+    """An object's four states in Koppla in (STUDIO-17, TKL26)."""
+
+    GREY = "grey"  # grått: ej kopplat, ingen adress
+    YELLOW = "yellow"  # gult: adressen är angiven men inte bekräftad på banan
+    GREEN = "green"  # grönt: bekräftat på banan
+    WITHOUT = "without"  # Utan adress: valt för manuella växlar och virtuella signaler
+
+
 class TklSectionPart(Contract):
     """A section of a set route, in the order the route runs through it: a track circuit, or
     where the model has none, the pieces between two switches, signals or ends (spårdel). It
@@ -556,6 +575,19 @@ class TklSetRoute(Contract):
     )
     enters: Name | None = Field(default=None, description="Linjeutfarten vägen kommer in från.")
     set_at: datetime
+    waiting: list[Name] = Field(
+        default_factory=list,
+        description="Nivå 3: växlarna vägen väntar på återrapport från. Signalen visar stopp "
+        "tills alla ligger rätt.",
+    )
+    waiting_since: datetime | None = Field(
+        default=None, description="Nivå 3: när ordern till växlarna gick ut."
+    )
+    came_from: Name | None = Field(
+        default=None,
+        description="Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut "
+        "efter passage (STV-16).",
+    )
 
 
 class TklTrain(Contract):
@@ -595,10 +627,25 @@ class TklSwitchShown(Contract):
     function: Name | None = Field(
         default=None, description="Panelfunktionen som låser växeln eller friger den."
     )
+    state: AddressState | None = Field(
+        default=None,
+        description="Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).",
+    )
+    reported: Position | None = Field(
+        default=None,
+        description="Nivå 3 med LocoNet: läget växeln har rapporterat. Inget medan den går.",
+    )
 
 
 class TklSignalShown(Contract):
     aspect: TklAspect = TklAspect.STOP
+    state: AddressState | None = Field(
+        default=None,
+        description="Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17).",
+    )
+    reported: TklAspect | None = Field(
+        default=None, description="Nivå 3: beskedet som kortet har rapporterat."
+    )
     end: bool = Field(default=False, description="Slutpunkt för en lagd väg: röd i 85 och 95.")
     blocked: bool = Field(
         default=False,
@@ -703,6 +750,34 @@ class TklFunctionShown(Contract):
     note: Text | None = None
 
 
+class TklFieldMode(StrEnum):
+    LOCONET = "loconet"  # LocoNet ansluten: banan
+    PRETEND = "pretend"  # LocoNet ej ansluten: låtsas-LocoNet, som Prova använder (STUDIO-21)
+
+
+class TklField(Contract):
+    """Ställverket på nivå 3 med LocoNet: what the layout has reported, and what TKL has
+    ordered. Unknown is None: nothing counts as free or in place until it is reported."""
+
+    mode: TklFieldMode
+    since: datetime = Field(description="När LocoNet anslöts.")
+    switches: dict[Name, Position | None] = Field(
+        default_factory=dict, description="Växeldelarnas återrapporterade lägen."
+    )
+    sections: dict[Name, bool | None] = Field(
+        default_factory=dict, description="Spårledningarnas beläggning: true är belagd."
+    )
+    signals: dict[Name, TklAspect | None] = Field(
+        default_factory=dict, description="Signalernas rapporterade besked."
+    )
+    ordered_switches: dict[Name, Position | None] = Field(
+        default_factory=dict, description="Lägena TKL senast beordrade."
+    )
+    ordered_signals: dict[Name, TklAspect] = Field(
+        default_factory=dict, description="Beskeden TKL senast beordrade."
+    )
+
+
 class TklInterlocking(Contract):
     """Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09)."""
@@ -745,6 +820,11 @@ class TklInterlocking(Contract):
     )
     events: list[TklHappening] = Field(default_factory=list, description="Senaste först.")
     last_id: int = Field(default=0, ge=0, description="Det senaste id:t för en väg eller ett tåg.")
+    field: TklField | None = Field(
+        default=None,
+        description="Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr "
+        "tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna.",
+    )
 
 
 class TklRouteAsk(Contract):
@@ -819,6 +899,7 @@ class TklReportKind(StrEnum):
     DEPARTED = "departed"  # avgång, train.departed
     ARRIVED = "arrived"  # ankomst, train.arrived, eller spårbyte, train.track.change
     EXIT_SIGNAL = "exit_signal"  # utfartssignalens besked, signal.exit
+    SECTION_OCCUPANCY = "section_occupancy"  # beläggningen på linjen, section.occupancy (nivå 3)
 
 
 class TklReport(Contract):
@@ -830,6 +911,9 @@ class TklReport(Contract):
     exit: Id | None = Field(default=None, description="Utfartens id i utsidan.")
     track: Id | None = Field(default=None, description="Stationsspårets id i utsidan.")
     aspect: ExitSignalAspect | None = None
+    occupied: bool | None = Field(
+        default=None, description="Nivå 3: linjens spårledning vid utfarten är belagd."
+    )
     action: Action | None = Field(default=None, description="Kommandot som skickades.")
     sent: bool = False
     accepted: bool | None = None
@@ -873,3 +957,206 @@ class TklWait(Contract):
 
     revision: int = Field(ge=0)
     changed: bool
+
+
+# --- Level 3: LocoNet and Studio's Koppla in (#85) ------------------------------------------
+
+
+class ObjectKind(StrEnum):
+    """What Koppla in connects: a switch part, a signal or a track circuit."""
+
+    SWITCH = "switch"
+    SIGNAL = "signal"
+    TRACK_CIRCUIT = "track_circuit"
+
+
+class LoconetType(StrEnum):
+    """How TKL reaches LocoNet (STUDIO-22)."""
+
+    LOCOBUFFER = "locobuffer"  # LocoBuffer USB, på en serieport
+    BTLOCOBRIDGE = "btlocobridge"  # BTLocoBridge över Bluetooth: adressen eller den parade porten
+    PRETEND = "pretend"  # låtsas-LocoNet: LocoNet ej ansluten, som Prova använder (STUDIO-24)
+
+
+class TklPort(Contract):
+    """A port in the list (STUDIO-11)."""
+
+    type: LoconetType
+    port: Text = Field(description="Serieporten under /dev, eller låtsas för låtsas-LocoNet.")
+    label: Text
+
+
+class TklLoconet(Contract):
+    """The connection to LocoNet. TKL in the cloud never has it (TKLMOLN-08)."""
+
+    available: bool = Field(description="LocoNet går att ansluta här: bara en lokal TKL.")
+    reason: Text | None = Field(default=None, description="Varför det inte går.")
+    connected: bool = False
+    type: LoconetType | None = None
+    port: Text | None = None
+    channel: int | None = Field(default=None, description="BTLocoBridgens RFCOMM-kanal.")
+    label: Text | None = Field(default=None, description="Till exempel LocoNet ansluten via …")
+    error: Text | None = Field(default=None, description="Varför förbindelsen bröts senast.")
+    since: datetime | None = None
+
+
+class TklLoconetConnect(Contract):
+    """Anslut till LocoNet: the type, the port, and the channel for a BTLocoBridge by address."""
+
+    type: LoconetType
+    port: str | None = Field(default=None, max_length=255)
+    channel: int = Field(default=1, ge=1, le=30)
+
+
+class TklCardChannel(Contract):
+    channel: int = Field(ge=1, description="Kortets utgång, från 1.")
+    address: int = Field(ge=1)
+    objects: list[Text] = Field(default_factory=list, description="Objekten på utgången.")
+
+
+class TklCard(Contract):
+    """An MGP card from Discover, with its module and channels (STUDIO-18, STV-11)."""
+
+    address: int = Field(ge=0, description="Kortets adress för SV2.")
+    name: Text = Field(description="Till exempel MGP Signal10 SE.")
+    manufacturer: int
+    developer: int
+    product: int
+    serial: int
+    base: int | None = Field(default=None, description="Basadressen i SV21: kanal 1.")
+    module: Text | None = Field(default=None, description="Modulen kortet sitter i.")
+    channels: list[TklCardChannel] = Field(default_factory=list)
+
+
+class TklKopplaObject(Contract):
+    """A switch part, a signal or a track circuit, with its address and its state."""
+
+    kind: ObjectKind
+    name: Name
+    state: AddressState
+    address: int | None = None
+    default: bool = Field(
+        default=False, description="Adressen är växelns nummer, som förval (STUDIO-19)."
+    )
+    reversed: bool = Field(default=False, description="Omvänd polaritet (STUDIO-24).")
+    feedback: FeedbackType | None = Field(default=None, description="Växelns återrapport.")
+    straight: int | None = Field(default=None, description="Givaren för rakt, med två givare.")
+    diverging: int | None = Field(default=None, description="Givaren för avvikande.")
+    control: SwitchControl | None = None
+    card: int | None = Field(default=None, description="Kortet adressen sitter på.")
+    module: Text | None = None
+    channel: int | None = None
+    note: Text | None = None
+
+
+class TklChoice(Contract):
+    value: Literal["yes", "no", "reversed"]
+    label: Text
+
+
+class TklQuestion(Contract):
+    """A learning question as it comes (STUDIO-04): Givaren 73 slog till. Är det Spår 3?"""
+
+    id: int = Field(ge=1)
+    kind: ObjectKind
+    object: Name | None = Field(default=None, description="Objektet TKL föreslår.")
+    address: int
+    text: Text
+    seen: Text | None = Field(default=None, description="Vad banan rapporterade efter ordern.")
+    answers: list[TklChoice]
+    choices: list[Name] = Field(
+        default_factory=list, description="Andra objekt av samma slag att välja i stället."
+    )
+
+
+class TklLearning(Contract):
+    """The object being learnt, and what the owner does now."""
+
+    kind: ObjectKind
+    name: Name
+    text: Text
+
+
+class TklLevel3(Contract):
+    """Nivå 3: on when the model has addresses and the owner turns it on."""
+
+    on: bool
+    possible: bool
+    reason: Text | None = None
+    problems: list[Text] = Field(default_factory=list)
+
+
+class TklKopplaIn(Contract):
+    """Studio's Koppla in: the connection, the cards, the objects in their four states, and the
+    learning question as it comes."""
+
+    loconet: TklLoconet
+    level: int = Field(ge=0, le=3)
+    level_3: TklLevel3
+    cards: list[TklCard] = Field(default_factory=list)
+    discovered: datetime | None = None
+    objects: list[TklKopplaObject] = Field(default_factory=list)
+    question: TklQuestion | None = None
+    learning: TklLearning | None = None
+    message: Text | None = Field(default=None, description="Vad som just hände.")
+
+
+class TklObjectChange(Contract):
+    """An object's address as the owner gives it: an address (yellow until it is confirmed on
+    the layout), none (grey), or Utan adress; and the polarity and the switch's feedback."""
+
+    kind: ObjectKind
+    name: Name
+    address: int | None = Field(default=None, ge=1, le=4096)
+    without: bool = False
+    reversed: bool | None = None
+    feedback: FeedbackType | None = None
+    straight: int | None = Field(default=None, ge=1, le=4096)
+    diverging: int | None = Field(default=None, ge=1, le=4096)
+
+
+class TklLearnAsk(Contract):
+    """Lär in: Lägg om a switch, Skicka kör to a signal, or wait for a wagon on a track
+    circuit."""
+
+    kind: ObjectKind
+    name: Name
+
+
+class TklLearnAnswer(Contract):
+    question: int = Field(ge=1)
+    answer: Literal["yes", "no", "reversed"]
+    object: Name | None = Field(default=None, description="Ett annat objekt än det föreslagna.")
+
+
+class TklLevelAsk(Contract):
+    level: int = Field(ge=2, le=3)
+
+
+class TklCardModule(Contract):
+    card: int = Field(ge=0)
+    module: str | None = Field(default=None, max_length=40)
+
+
+class TklPretendAsk(Contract):
+    """Låtsas-LocoNet: a wagon put on a track circuit, or lifted off it."""
+
+    track_circuit: Name
+    occupied: bool = True
+
+
+class TklHeard(Contract):
+    """One LocoNet message in Lyssna, decoded in Swedish."""
+
+    at: datetime
+    direction: Literal["in", "out"]
+    hex: Text
+    text: Text
+    objects: list[Text] = Field(default_factory=list)
+
+
+class TklListen(Contract):
+    """Lyssna, behind Felsök: the last messages, newest first."""
+
+    connected: bool
+    messages: list[TklHeard] = Field(default_factory=list)

@@ -25,6 +25,17 @@
       "title": "Action",
       "type": "string"
     },
+    "AddressState": {
+      "description": "An object's four states in Koppla in (STUDIO-17, TKL26).",
+      "enum": [
+        "grey",
+        "yellow",
+        "green",
+        "without"
+      ],
+      "title": "AddressState",
+      "type": "string"
+    },
     "ExitSignalAspect": {
       "enum": [
         "stop",
@@ -123,6 +134,123 @@
       ],
       "title": "TklExitShown",
       "type": "object"
+    },
+    "TklField": {
+      "additionalProperties": true,
+      "description": "Ställverket på nivå 3 med LocoNet: what the layout has reported, and what TKL has\nordered. Unknown is None: nothing counts as free or in place until it is reported.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/TklFieldMode"
+        },
+        "since": {
+          "description": "När LocoNet anslöts.",
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "switches": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Position"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Växeldelarnas återrapporterade lägen.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Switches",
+          "type": "object"
+        },
+        "sections": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Spårledningarnas beläggning: true är belagd.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Sections",
+          "type": "object"
+        },
+        "signals": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TklAspect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Signalernas rapporterade besked.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Signals",
+          "type": "object"
+        },
+        "ordered_switches": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Position"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Lägena TKL senast beordrade.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Ordered Switches",
+          "type": "object"
+        },
+        "ordered_signals": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TklAspect"
+          },
+          "description": "Beskeden TKL senast beordrade.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Ordered Signals",
+          "type": "object"
+        }
+      },
+      "required": [
+        "mode",
+        "since"
+      ],
+      "title": "TklField",
+      "type": "object"
+    },
+    "TklFieldMode": {
+      "enum": [
+        "loconet",
+        "pretend"
+      ],
+      "title": "TklFieldMode",
+      "type": "string"
     },
     "TklFunctionMode": {
       "additionalProperties": true,
@@ -512,6 +640,18 @@
           "minimum": 0,
           "title": "Last Id",
           "type": "integer"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklField"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna."
         }
       },
       "required": [
@@ -743,6 +883,19 @@
           ],
           "default": null
         },
+        "occupied": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: linjens spårledning vid utfarten är belagd.",
+          "title": "Occupied"
+        },
         "action": {
           "anyOf": [
             {
@@ -797,7 +950,8 @@
       "enum": [
         "departed",
         "arrived",
-        "exit_signal"
+        "exit_signal",
+        "section_occupancy"
       ],
       "title": "TklReportKind",
       "type": "string"
@@ -1022,6 +1176,45 @@
           "format": "date-time",
           "title": "Set At",
           "type": "string"
+        },
+        "waiting": {
+          "description": "Nivå 3: växlarna vägen väntar på återrapport från. Signalen visar stopp tills alla ligger rätt.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Waiting",
+          "type": "array"
+        },
+        "waiting_since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: när ordern till växlarna gick ut.",
+          "title": "Waiting Since"
+        },
+        "came_from": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut efter passage (STV-16).",
+          "title": "Came From"
         }
       },
       "required": [
@@ -1043,6 +1236,30 @@
         "aspect": {
           "$ref": "#/$defs/TklAspect",
           "default": "stop"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AddressState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17)."
+        },
+        "reported": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklAspect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: beskedet som kortet har rapporterat."
         },
         "end": {
           "default": false,
@@ -1113,6 +1330,30 @@
           "default": null,
           "description": "Panelfunktionen som låser växeln eller friger den.",
           "title": "Function"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AddressState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3: grått, gult, grönt eller Utan adress, som syns i panelen (STV-17)."
+        },
+        "reported": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Position"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nivå 3 med LocoNet: läget växeln har rapporterat. Inget medan den går."
         }
       },
       "required": [

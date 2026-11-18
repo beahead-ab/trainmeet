@@ -29,6 +29,10 @@ from the model's own parameters: the area's sections, the signals, the local swi
 protection switches' positions, the track a function applies to and its modes. A turntable in
 the model that no function names gets one of its own, so that its bridge can always be turned.
 
+Addresses (level 3, #85). Every switch part, signal and track circuit has its state from
+Koppla in: grey, yellow, green or Utan adress (STUDIO-17, tkl.loconet.objects). With LocoNet
+the interlocking runs only green and Utan adress objects (STV-17).
+
 Pure Python without I/O, using only the contracts and the engine. No code here names a station
 (RS13).
 """
@@ -54,6 +58,8 @@ from contracts.station_model import (
     SwitchType,
     to_json,
 )
+from contracts.tkl import AddressState, ObjectKind
+from tkl.loconet.objects import states
 from tkl.standard import PointKind, Route, RouteKind, alternatives, chains
 from tkl.standard.graph import Graph, Step, opposite, parts
 from tkl.standard.levers import Levers, own_parts
@@ -250,6 +256,8 @@ class Plant:
         self._lock = Lock()
         self.functions: dict[str, Function] = {}
         self._make_functions()
+        self.states: dict[tuple[ObjectKind, str], AddressState] = states(model)
+        """Every object's state in Koppla in (STUDIO-17), for level 3."""
 
     # --- sections ---------------------------------------------------------------------------
 

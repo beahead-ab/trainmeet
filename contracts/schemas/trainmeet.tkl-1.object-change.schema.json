@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.object-change.schema.json",
+  "title": "trainmeet.tkl-1.object-change",
+  "$defs": {
+    "FeedbackType": {
+      "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
+      "enum": [
+        "card",
+        "sensors",
+        "none",
+        "manual"
+      ],
+      "title": "FeedbackType",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "description": "What Koppla in connects: a switch part, a signal or a track circuit.",
+      "enum": [
+        "switch",
+        "signal",
+        "track_circuit"
+      ],
+      "title": "ObjectKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "An object's address as the owner gives it: an address (yellow until it is confirmed on\nthe layout), none (grey), or Utan adress; and the polarity and the switch's feedback.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "address": {
+      "anyOf": [
+        {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Address"
+    },
+    "without": {
+      "default": false,
+      "title": "Without",
+      "type": "boolean"
+    },
+    "reversed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reversed"
+    },
+    "feedback": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FeedbackType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "straight": {
+      "anyOf": [
+        {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Straight"
+    },
+    "diverging": {
+      "anyOf": [
+        {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Diverging"
+    }
+  },
+  "required": [
+    "kind",
+    "name"
+  ],
+  "type": "object"
+}

@@ -5,7 +5,7 @@
   "$defs": {
     "Address": {
       "additionalProperties": true,
-      "description": "A decoder or detector address on a bus (level 3).",
+      "description": "A decoder or detector address on a bus (level 3).\n\nIts own origin says where the address comes from and whether it is confirmed on the layout:\nin Koppla in a confirmed address is green, an address that is only given is yellow\n(STUDIO-17). The object's origin is about the object itself, as drawn or imported.",
       "properties": {
         "bus": {
           "default": "LocoNet",
@@ -20,6 +20,24 @@
           "minimum": 0,
           "title": "Number",
           "type": "integer"
+        },
+        "reversed": {
+          "default": false,
+          "description": "Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens kör är kortets thrown, och givaren är belagd när den släpper.",
+          "title": "Reversed",
+          "type": "boolean"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Origin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in."
         }
       },
       "required": [
@@ -27,6 +45,17 @@
       ],
       "title": "Address",
       "type": "object"
+    },
+    "FeedbackType": {
+      "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
+      "enum": [
+        "card",
+        "sensors",
+        "none",
+        "manual"
+      ],
+      "title": "FeedbackType",
+      "type": "string"
     },
     "Lever": {
       "additionalProperties": true,
@@ -966,11 +995,16 @@
               "$ref": "#/$defs/Address"
             },
             {
+              "const": "without",
+              "type": "string"
+            },
+            {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Nivå 3."
+          "description": "Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).",
+          "title": "Address"
         },
         "origin": {
           "anyOf": [
@@ -1029,18 +1063,13 @@
         "feedback": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Address"
-            },
-            {
-              "const": "without",
-              "type": "string"
+              "$ref": "#/$defs/SwitchFeedback"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Feedback"
+          "default": null
         }
       },
       "required": [
@@ -1057,7 +1086,8 @@
         "signal_plan",
         "anyrail",
         "jmri",
-        "assumed"
+        "assumed",
+        "layout"
       ],
       "title": "Source",
       "type": "string"
@@ -1233,24 +1263,20 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19)."
         },
         "feedback": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Address"
-            },
-            {
-              "const": "without",
-              "type": "string"
+              "$ref": "#/$defs/SwitchFeedback"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Återrapport (nivå 3).",
-          "title": "Feedback"
+          "description": "Återrapport (nivå 3)."
         },
         "origin": {
           "anyOf": [
@@ -1282,6 +1308,44 @@
       ],
       "title": "SwitchControl",
       "type": "string"
+    },
+    "SwitchFeedback": {
+      "additionalProperties": true,
+      "description": "How a switch tells where it lies, at level 3. With two sensors, each sensor is active\nwhen the switch lies in its position, and both passive while it moves.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/FeedbackType"
+        },
+        "straight": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Address"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Givaren för rakt (+)."
+        },
+        "diverging": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Address"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Givaren för avvikande (-)."
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SwitchFeedback",
+      "type": "object"
     },
     "SwitchPath": {
       "additionalProperties": true,
@@ -1548,7 +1612,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses.",
+  "description": "Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and\nconfirmed in Studio's Koppla in.",
   "properties": {
     "format": {
       "const": "trainmeet.station-model/1",

@@ -91,12 +91,12 @@ const quiet: Interlocking = {
   model: "abc",
   revision: 1,
   problem: null,
-  switches: { "1": { position: "+", control: "tkl", routes: [], protection: false, local: false, function: null } },
+  switches: { "1": { position: "+", control: "tkl", routes: [], protection: false, local: false, function: null, state: null, reported: null } },
   levers: { "1": "+" },
   turntables: { T: null },
   routes: [],
   trains: [{ id: 3, number: "41", call: null, section: "Spår 1", exit: null }],
-  signals: { In: { aspect: "stop", end: false, blocked: false }, Ut: { aspect: "stop", end: false, blocked: false } },
+  signals: { In: { aspect: "stop", end: false, blocked: false, state: null, reported: null }, Ut: { aspect: "stop", end: false, blocked: false, state: null, reported: null } },
   pieces: { b: { state: "occupied", route: null } },
   numbers: [{ number: "41", train: 3, colour: "red", section: "Spår 1", exit: null, pieces: ["b"], track: null, route: null, estimated: true }],
   exits: [{ exit: "V", outside: "v", pieces: ["a"], aspect: "stop" }],
@@ -105,6 +105,7 @@ const quiet: Interlocking = {
   functions: [fn("Signalstopp", "signal_stop", { signals: ["In"] }), turntable],
   events: [],
   last_id: 3,
+  field: null,
 };
 const ends = routeEnds(plan.route_list ?? []);
 const page = {
@@ -267,7 +268,7 @@ function onTheRoute(model: Model, at: 0 | 1): Interlocking {
     station_id: model.station_id,
     switches: {},
     turntables: {},
-    routes: [{ id: 7, kind: "train", start: "A", end: "B", chain: null, sections, positions: {}, locked: {}, protection: [], crossings: [], turntable: null, train: 3, at, aspect: "proceed", held: null, passed: [], leaves: null, enters: null, set_at: "2026-11-18T12:00:00Z" }],
+    routes: [{ id: 7, kind: "train", start: "A", end: "B", chain: null, sections, positions: {}, locked: {}, protection: [], crossings: [], turntable: null, train: 3, at, aspect: "proceed", held: null, passed: [], leaves: null, enters: null, set_at: "2026-11-18T12:00:00Z", waiting: [], waiting_since: null, came_from: null }],
     trains: [
       { id: 3, number: "41", call: null, section: here.section, exit: null },
       { id: 4, number: "9103", call: null, section: "Gods", exit: null },
@@ -409,7 +410,7 @@ describe("The turntable in the panel (RS4, STV-04)", () => {
     const dashed = renderToStaticMarkup(<Panelen panel={provby} drawn={drawing(provby, turned(null), new Set(), ends)} skin={skinOf("85")} say={say} />);
     expect(dashed).toMatch(/class="brygga"[^>]*stroke-dasharray=/);
     // A set route over the turntable holds the bridge, in the route's colour.
-    const held = filled({ ...quiet, turntables: { T: "t1" }, routes: [{ id: 9, kind: "shunting", start: "In", end: "S", chain: null, sections: [{ section: "Spår 2", pieces: ["c", "t1"], released: false }], positions: {}, locked: {}, protection: [], crossings: [], turntable: "t1", train: null, at: -1, aspect: "shunt", held: null, passed: [], leaves: null, enters: null, set_at: "2026-11-18T12:00:00Z" }] });
+    const held = filled({ ...quiet, turntables: { T: "t1" }, routes: [{ id: 9, kind: "shunting", start: "In", end: "S", chain: null, sections: [{ section: "Spår 2", pieces: ["c", "t1"], released: false }], positions: {}, locked: {}, protection: [], crossings: [], turntable: "t1", train: null, at: -1, aspect: "shunt", held: null, passed: [], leaves: null, enters: null, set_at: "2026-11-18T12:00:00Z", waiting: [], waiting_since: null, came_from: null }] });
     expect(tables(provby, held)[0]?.held).toBe("shunting");
     expect(renderToStaticMarkup(<Panelen panel={provby} drawn={drawing(provby, held, new Set(), ends)} skin={skinOf("85")} say={say} />)).toMatch(/class="brygga"[^>]*stroke="#feff00"/);
   });

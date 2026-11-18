@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.listen.schema.json",
+  "title": "trainmeet.tkl-1.listen",
+  "$defs": {
+    "TklHeard": {
+      "additionalProperties": true,
+      "description": "One LocoNet message in Lyssna, decoded in Swedish.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "in",
+            "out"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "hex": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Hex",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "objects": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Objects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "at",
+        "direction",
+        "hex",
+        "text"
+      ],
+      "title": "TklHeard",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lyssna, behind Felsök: the last messages, newest first.",
+  "properties": {
+    "connected": {
+      "title": "Connected",
+      "type": "boolean"
+    },
+    "messages": {
+      "items": {
+        "$ref": "#/$defs/TklHeard"
+      },
+      "title": "Messages",
+      "type": "array"
+    }
+  },
+  "required": [
+    "connected"
+  ],
+  "type": "object"
+}

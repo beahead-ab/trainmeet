@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.learn-answer.schema.json",
+  "title": "trainmeet.tkl-1.learn-answer",
+  "additionalProperties": true,
+  "properties": {
+    "question": {
+      "minimum": 1,
+      "title": "Question",
+      "type": "integer"
+    },
+    "answer": {
+      "enum": [
+        "yes",
+        "no",
+        "reversed"
+      ],
+      "title": "Answer",
+      "type": "string"
+    },
+    "object": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ett annat objekt än det föreslagna.",
+      "title": "Object"
+    }
+  },
+  "required": [
+    "question",
+    "answer"
+  ],
+  "type": "object"
+}

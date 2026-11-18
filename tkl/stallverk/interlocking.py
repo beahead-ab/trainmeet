@@ -48,6 +48,32 @@ releases do.
 Two Förslag wait for Benny's answer (trainmeet #62) and have a seam each: the signals a route
 passes (STV-19, `passed_showing`) and where the green number stands (STV-21, `green_numbers`).
 Flank protection (STV-20) has its seam in plant.protection_holds.
+
+Level 3 with LocoNet (#85, STV-11, STV-15–STV-17). The service (tkl.loconet.service) connects
+the field with `field_connect`, passes the layout's reports to `field_reports` and the time to
+`field_tick`, and sends what `take_orders` gives. Then:
+
+- setting a route orders its switches and waits for their feedback: the signal shows stop
+  until every switch has reported its position, and without feedback within six seconds the
+  route is held with the reason (cda-tkl's commandTimeoutMs). A switch that reports another
+  position under a set route holds it too. Setting it again orders the switches again;
+- the signals' aspects are ordered as they change, and all stop when LocoNet connects;
+- sensor reports set the track circuits' occupancy, and the train number follows it (STV-15):
+  the front moves into the next section of its route, and a section behind it is released when
+  its circuit becomes free (sectional release, after the train);
+- arrival is the entry route released after passage (STV-16): the train is in the route's last
+  section, every section behind it is released and the one it came from is free. A train route
+  then reports the arrival with its track. A route out to the line is departed when the train
+  has left its last section. Occupancy never frees anything by itself: a free circuit releases
+  only behind a train that has moved on, and a train number stays where it is;
+- only green and Utan adress objects run (STV-17): a route over a grey or a yellow one, or a
+  lever that would lay one, is refused with the reason. Against the pretend LocoNet the yellow
+  ones run too (Prova). The panel's state shows each object's state;
+- a section on the line outside an exit reports its occupancy up as section.occupancy (STV-10);
+- Kör, Ankommit and Avgått are refused: the track circuits do that.
+
+Without LocoNet the interlocking is as at level 1–2, with the buttons ("LocoNet ej ansluten"
+without the pretend LocoNet, or in the cloud).
 """
 
 from __future__ import annotations
@@ -59,10 +85,13 @@ from typing import Final
 
 from contracts.station import ExitSignalAspect
 from contracts.station_model import PanelFunctionType, Position, SwitchControl
-from contracts.tkl import RouteKind as ShownKind
 from contracts.tkl import (
+    AddressState,
+    ObjectKind,
     TklAspect,
     TklExitShown,
+    TklField,
+    TklFieldMode,
     TklFunctionAction,
     TklFunctionMode,
     TklFunctionShown,
@@ -81,6 +110,15 @@ from contracts.tkl import (
     TklTarget,
     TklTargets,
     TklTrain,
+)
+from contracts.tkl import RouteKind as ShownKind
+from tkl.loconet.objects import (
+    RUNNING,
+    STATE_WORD,
+    FieldReport,
+    SectionReported,
+    SignalReported,
+    SwitchReported,
 )
 from tkl.stallverk.plant import (
     DWARFS,
@@ -112,6 +150,15 @@ STOP, LOCAL, OUT, TRACTION, EMERGENCY, TURNTABLE, PROGRAMMING = (
 )
 SWITCHED: Final = frozenset({STOP, LOCAL, OUT, PROGRAMMING})
 """The functions that are switched on and off."""
+KOPPLA_IN: Final = "Studio \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK} Koppla in"
+FEEDBACK_SECONDS: Final = 6
+"""How long a route waits for its switches' feedback at level 3 (cda-tkl: commandTimeoutMs)."""
+CONNECTED_HELD: Final = "LocoNet anslöts: lägg vägen på nytt när återrapporterna har kommit"
+DISCONNECTED_HELD: Final = "LocoNet kopplades från: lägg vägen på nytt"
+BY_CIRCUITS: Final = (
+    "Med LocoNet följer tågnumret spårledningarna (STV-15): Kör, Ankommit och Avgått görs "
+    "av tåget självt."
+)
 
 
 @dataclass(frozen=True)
@@ -122,6 +169,17 @@ class Outcome:
     message: str
     route: int | None = None
     reports: tuple[TklReport, ...] = ()
+
+
+@dataclass(frozen=True)
+class Order:
+    """What the layout must do at level 3: a switch part to a position, or a signal to an
+    aspect. The service makes the LocoNet message of it."""
+
+    kind: ObjectKind
+    name: str
+    position: Position | None = None
+    aspect: TklAspect | None = None
 
 
 class UnknownStart(Exception):
@@ -138,7 +196,13 @@ class _Route:
     train: int | None = None
     at: int = -1
     held: str | None = None
-    """Why the route's signals are held at stop: a signal stop or a track out of service."""
+    """Why the route's signals are held at stop: a signal stop, a track out of service, or at
+    level 3 a switch's feedback that did not come."""
+    waiting: dict[str, Position] = field(default_factory=dict)
+    """Level 3: the switches it waits for, with the position each must report."""
+    waiting_since: datetime | None = None
+    came_from: str | None = None
+    """Level 3: the section the train came from, which must be free for the passage."""
 
     @property
     def name(self) -> str:
@@ -176,6 +240,8 @@ class _Route:
         the route is held."""
         if self.at >= 0 or self.way.route.start.kind != PointKind.SIGNAL or self.held:
             return TklAspect.STOP
+        if self.waiting:
+            return TklAspect.STOP
         return TklAspect.PROCEED if self.way.kind == RouteKind.TRAIN else TklAspect.SHUNT
 
     def passed_showing(self) -> list[str]:
@@ -209,6 +275,30 @@ class _Train:
     @property
     def said(self) -> str:
         return f"Tåg {self.number}" if self.number else "Tåget utan nummer"
+
+
+@dataclass
+class _Field:
+    """Level 3: what the layout has reported, and what TKL has ordered (TklField)."""
+
+    mode: TklFieldMode
+    since: datetime
+    switches: dict[str, Position | None]
+    sections: dict[str, bool | None]
+    signals: dict[str, TklAspect | None] = field(default_factory=dict)
+    ordered_switches: dict[str, Position | None] = field(default_factory=dict)
+    ordered_signals: dict[str, TklAspect] = field(default_factory=dict)
+
+    def shown(self) -> TklField:
+        return TklField(
+            mode=self.mode,
+            since=self.since,
+            switches=dict(self.switches),
+            sections=dict(self.sections),
+            signals=dict(self.signals),
+            ordered_switches=dict(self.ordered_switches),
+            ordered_signals=dict(self.ordered_signals),
+        )
 
 
 @dataclass
@@ -268,6 +358,7 @@ class Interlocking:
             if f.type == TRACTION and f.modes
         }
         self._saved: TklInterlocking | None = None
+        self.field: _Field | None = None
         if saved is not None:
             self._restore(saved)
 
@@ -300,11 +391,15 @@ class Interlocking:
         return next((r for r in self.routes if r.train == train.id and r.at >= 0), None)
 
     def _under_train(self, part: str, occupied: dict[str, _Train]) -> str | None:
+        """The section at the switch with a train in it: its number, or at level 3 its
+        circuit's occupancy."""
         node = self.plant.part_node.get(part)
         if node is None:
             return None
         for section in sorted(self.plant.touching(node)):
             if section in occupied:
+                return section
+            if self.field is not None and self.field.sections.get(section):
                 return section
         return None
 
@@ -338,6 +433,10 @@ class Interlocking:
         stopped = self._function_hindrance(way)
         if stopped is not None:
             return stopped
+        if self.field is not None:
+            not_running = self._not_running(way)
+            if not_running is not None:
+                return not_running
         for i, (name, pieces) in enumerate(way.sections):
             for piece in pieces:
                 holder = locks.pieces.get(piece)
@@ -347,9 +446,19 @@ class Interlocking:
             if taken is not None:
                 return f"{_cap(plant.said(name))} är låst i vägen {taken[1].name}."
             train = occupied.get(name)
+            towards = way.kind == RouteKind.SHUNTING and last and i == way.last
+            if train is None and not towards and name not in starting:
+                detected = self._detected(name)
+                if detected is None:
+                    return (
+                        f"{_cap(plant.said(name))} har okänd beläggning: givaren har inte "
+                        "rapporterat än."
+                    )
+                if detected:
+                    return f"{_cap(plant.said(name))} är belagd."
             if train is None or name in starting:
                 continue
-            if way.kind == RouteKind.SHUNTING and last and i == way.last:
+            if towards:
                 continue  # a shunting route may go towards an occupied track (TKL28)
             return f"{_cap(plant.said(name))} är belagd av {train.said.lower()}."
         for crossing in way.route.crossings:
@@ -388,6 +497,69 @@ class Interlocking:
             if holder is not None and not (signal == way.end and holder.way.start == signal):
                 return f"Signalen {signal} visar kör för vägen {holder.name}."
         return None
+
+    # --- level 3: what runs, and what the circuits say (STV-15, STV-17) ---------------------
+
+    def _state(self, kind: ObjectKind, name: str) -> AddressState:
+        return self.plant.states.get((kind, name), AddressState.GREY)
+
+    def _runs(self, state: AddressState) -> bool:
+        assert self.field is not None
+        return state == AddressState.WITHOUT or state in RUNNING[self.field.mode]
+
+    def _refused_state(self, kind: ObjectKind, name: str) -> str | None:
+        """Why an object may not run with LocoNet (STV-17), or None."""
+        state = self._state(kind, name)
+        if self._runs(state):
+            return None
+        what = {
+            ObjectKind.SWITCH: f"Växel {name}",
+            ObjectKind.SIGNAL: f"Signalen {name}",
+            ObjectKind.TRACK_CIRCUIT: f"Spårledningen {name}",
+        }[kind]
+        if state == AddressState.GREY:
+            why = "den har ingen adress. Koppla in den"
+        else:
+            why = "adressen är inte bekräftad på banan. Bekräfta den"
+        return f"{what} är {STATE_WORD[state]}: {why} i {KOPPLA_IN} (STV-17)."
+
+    def _not_running(self, way: Way) -> str | None:
+        """The first object on the way that may not run with LocoNet (STV-17)."""
+        plant = self.plant
+        for part in way.route.positions:
+            if plant.control.get(part) == SwitchControl.TKL:
+                why = self._refused_state(ObjectKind.SWITCH, part)
+                if why is not None:
+                    return why
+        shown = [way.start] if way.route.start.kind == PointKind.SIGNAL else []
+        for signal in [*shown, *way.route.passed]:
+            why = self._refused_state(ObjectKind.SIGNAL, signal)
+            if why is not None:
+                return why
+        for name, _ in way.sections:
+            if not plant.sections[name].circuit:
+                return (
+                    f"{_cap(plant.said(name))} har ingen spårledning: med LocoNet går vägar bara "
+                    "över spårledningar (STV-15)."
+                )
+            why = self._refused_state(ObjectKind.TRACK_CIRCUIT, name)
+            if why is not None:
+                return why
+        return None
+
+    def _detects(self, section: str) -> bool:
+        """The section's circuit reports its occupancy now."""
+        if self.field is None or not self.plant.sections[section].circuit:
+            return False
+        return self._state(ObjectKind.TRACK_CIRCUIT, section) in RUNNING[self.field.mode]
+
+    def _detected(self, section: str) -> bool | None:
+        """What the circuit says: occupied, free, or None when it has not reported. False
+        without LocoNet and for a circuit without a sensor."""
+        if not self._detects(section):
+            return False
+        assert self.field is not None
+        return self.field.sections.get(section)
 
     def _active(self, *kinds: PanelFunctionType) -> Iterator[Function]:
         for name, function in self.plant.functions.items():
@@ -503,10 +675,23 @@ class Interlocking:
             holder = self._held_by(route)
             if holder is not None:
                 return Outcome(False, f"{said} står i stopp: {holder} är på.")
+        if self.field is not None:
+            for route in parts:
+                why = self._not_running(route.way)
+                if why is not None:
+                    return Outcome(False, why)
         before = self.exit_aspects()
+        waiting: list[str] = []
         for route in parts:
             route.held = None
-        outcome = self._done(f"{said} lagd på nytt: signalen visar kör.", route=already.id)
+            if self.field is not None and route.at < 0:
+                waiting += self._wait_for(route)
+        if waiting:
+            text = f"{said} lagd på nytt. Väntar på återrapport från växel "
+            text += f"{_listed(sorted(set(waiting)))}."
+        else:
+            text = f"{said} lagd på nytt: signalen visar kör."
+        outcome = self._done(text, route=already.id)
         return Outcome(True, outcome.message, already.id, self._exit_reports(before))
 
     def _lay(self, chain: Chain, planned: list[_Route]) -> Outcome:
@@ -523,6 +708,10 @@ class Interlocking:
             if route.way.turntable is not None:
                 self.turntables[route.way.turntable[0]] = route.way.turntable[1]
         self.routes.extend(planned)
+        waiting: list[str] = []
+        if self.field is not None:
+            for route in planned:
+                waiting += self._wait_for(route)
         first, way = planned[0], chain[0]
         word = _cap(WORD[way.kind])
         if len(chain) > 1:
@@ -535,8 +724,26 @@ class Interlocking:
             said += f": {levers}"
         if len(starting) == 1:
             said += f". {starting[0].said} tar vägen"
+        if waiting:
+            said += f". Väntar på återrapport från växel {_listed(sorted(set(waiting)))}"
         outcome = self._done(said + ".", route=first.id)
         return Outcome(True, outcome.message, first.id, self._exit_reports(before))
+
+    def _wait_for(self, route: _Route) -> list[str]:
+        """Level 3: the route waits for every switch it lays that has not reported its
+        position, and each is ordered again."""
+        assert self.field is not None
+        field_ = self.field
+        route.waiting = {
+            part: position
+            for part, position in route.way.route.positions.items()
+            if self.plant.control.get(part) == SwitchControl.TKL
+            and field_.switches.get(part) != position
+        }
+        route.waiting_since = self.now() if route.waiting else None
+        for part in route.waiting:
+            field_.ordered_switches[part] = None
+        return list(route.waiting)
 
     def _levers_of(self, chain: Chain) -> str:
         plant = self.plant
@@ -626,6 +833,10 @@ class Interlocking:
                 return Outcome(False, f"Växel {part} finns inte i stationsmodellen.")
             if control != SwitchControl.TKL:
                 return Outcome(False, not_laid(part, control))
+            if self.field is not None:
+                why = self._refused_state(ObjectKind.SWITCH, part)
+                if why is not None:
+                    return Outcome(False, why)
             held = locks.parts.get(part)
             if held:
                 follow = "" if part in own else " och kan inte följa med"
@@ -696,6 +907,8 @@ class Interlocking:
         """Kör: the train number one section on, and the section behind released (STV-06)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if self.field is not None:
+            return Outcome(False, BY_CIRCUITS)
         route = self._route(route_id)
         if route is None:
             return Outcome(False, "Vägen finns inte längre.")
@@ -768,6 +981,8 @@ class Interlocking:
         the arrival goes up to Hubben, with the track the train stands on."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if self.field is not None:
+            return Outcome(False, BY_CIRCUITS)
         route = self._route(route_id)
         if route is None:
             return Outcome(False, "Vägen finns inte längre.")
@@ -795,6 +1010,8 @@ class Interlocking:
         """Avgått: the train on a route out has left on the line (STV-10)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if self.field is not None:
+            return Outcome(False, BY_CIRCUITS)
         route = self._route(route_id)
         if route is None:
             return Outcome(False, "Vägen finns inte längre.")
@@ -1092,6 +1309,319 @@ class Interlocking:
         if route in self.routes:
             self.routes.remove(route)
 
+    # --- level 3: LocoNet (#85, STV-11, STV-15–STV-17) -------------------------------------------
+
+    def _laid(self) -> list[str]:
+        return [p for p, c in self.plant.control.items() if c == SwitchControl.TKL]
+
+    def _circuits(self) -> list[str]:
+        return [n for n, section in self.plant.sections.items() if section.circuit]
+
+    def field_connect(self, mode: TklFieldMode | None) -> Outcome:
+        """LocoNet connected, against the layout or the pretend LocoNet, or disconnected (None).
+        Either way every set route keeps its locks and shows stop until it is set again:
+        nothing the layout said before counts (cda-tkl: Återansluten, inväntar nya
+        återrapporter). Connected, every switch, circuit and signal is unknown until reported."""
+        if mode is None:
+            if self.field is None:
+                return Outcome(True, "LocoNet är inte anslutet.")
+            self.field = None
+            for route in self.routes:
+                route.held = route.held or DISCONNECTED_HELD
+                route.waiting, route.waiting_since = {}, None
+            return self._done(
+                "LocoNet kopplades från. Vägarna ligger kvar med sina lås och signalerna i stopp; "
+                "ställverket går med knapparna som på nivå 1–2."
+            )
+        if self.level < 3:
+            return Outcome(
+                False,
+                f"Stationen är inte på nivå 3. Slå på nivå 3 i {KOPPLA_IN}.",
+            )
+        self.field = _Field(
+            mode=mode,
+            since=self.now(),
+            switches=dict.fromkeys(self._laid()),
+            sections=dict.fromkeys(self._circuits()),
+            ordered_switches=dict(self.positions),
+        )
+        for route in self.routes:
+            route.held = route.held or CONNECTED_HELD
+            route.waiting, route.waiting_since = {}, None
+        where = "låtsas-LocoNet, LocoNet ej ansluten" if mode == TklFieldMode.PRETEND else "banan"
+        return self._done(
+            f"LocoNet anslutet ({where}): spårledningarna styr tågnumren och växlarna "
+            "återrapporterar (nivå 3). Alla signaler i stopp."
+        )
+
+    def take_orders(self) -> list[Order]:
+        """What the layout must do now that it has not been told: the switches whose position
+        changed, or that a route waits for, and the signals whose aspect changed. Each is
+        noted as ordered."""
+        field_ = self.field
+        if field_ is None or self.problem is not None:
+            return []
+        orders: list[Order] = []
+        for part, position in self.positions.items():
+            if field_.ordered_switches.get(part) != position:
+                field_.ordered_switches[part] = position
+                orders.append(Order(ObjectKind.SWITCH, part, position=position))
+        for name, aspect in self._aspects().items():
+            if field_.ordered_signals.get(name) != aspect:
+                field_.ordered_signals[name] = aspect
+                orders.append(Order(ObjectKind.SIGNAL, name, aspect=aspect))
+        if orders:
+            self.revision += 1
+        return orders
+
+    def field_reports(self, reports: Iterable[FieldReport]) -> Outcome:
+        """What the layout reported. Accepted with what it led to; the revision only moves when
+        something changed."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        if self.field is None:
+            return Outcome(False, "LocoNet är inte anslutet.")
+        before = self.exit_aspects()
+        changed = False
+        said: list[str] = []
+        up: list[TklReport] = []
+        for report in reports:
+            if isinstance(report, SwitchReported):
+                moved, lines = self._switch_reported(report.part, report.position)
+            elif isinstance(report, SectionReported):
+                moved, lines, sent = self._section_reported(report.section, report.occupied)
+                up += sent
+            else:
+                moved, lines = self._signal_reported(report)
+            changed = changed or moved
+            said += lines
+        if not changed:
+            return Outcome(True, "")
+        self.revision += 1
+        for line in said:
+            self._log(line)
+        return Outcome(True, " ".join(said), None, (*up, *self._exit_reports(before)))
+
+    def field_tick(self) -> Outcome:
+        """The time: a route whose switches have not all reported within the time is held."""
+        if self.field is None or self.problem is not None:
+            return Outcome(True, "")
+        now = self.now()
+        before = self.exit_aspects()
+        said = []
+        for route in self.routes:
+            since = route.waiting_since
+            if not route.waiting or since is None or route.held:
+                continue
+            if (now - since).total_seconds() < FEEDBACK_SECONDS:
+                continue
+            parts = _listed(sorted(route.waiting))
+            route.held = f"ingen återrapport från växel {parts} inom {FEEDBACK_SECONDS} sekunder"
+            said.append(
+                f"Vägen {route.name} står i stopp: {route.held}. Lägg den på nytt eller lös ut den."
+            )
+        if not said:
+            return Outcome(True, "")
+        self.revision += 1
+        for line in said:
+            self._log(line)
+        return Outcome(True, " ".join(said), None, self._exit_reports(before))
+
+    def _switch_reported(self, part: str, position: Position | None) -> tuple[bool, list[str]]:
+        assert self.field is not None
+        if part not in self.field.switches or self.field.switches[part] == position:
+            return False, []
+        self.field.switches[part] = position
+        said: list[str] = []
+        for route in self.routes:
+            wanted = route.waiting.get(part)
+            if wanted is not None:
+                if position != wanted:
+                    continue
+                del route.waiting[part]
+                if not route.waiting:
+                    route.waiting_since = None
+                    if not route.held:
+                        word = "kör" if route.way.kind == RouteKind.TRAIN else "växling"
+                        said.append(
+                            f"Vägen {route.name}: växlarna ligger rätt, signalen visar {word}."
+                        )
+                continue
+            locked = route.locked_parts().get(part)
+            if locked is None or route.held or position == locked:
+                continue
+            word = "okänt läge" if position is None else sign(position)
+            route.held = f"växel {part} rapporterar {word}, men vägen kräver {sign(locked)}"
+            said.append(f"Vägen {route.name} står i stopp: {route.held}.")
+        return True, said
+
+    def _signal_reported(self, report: SignalReported) -> tuple[bool, list[str]]:
+        assert self.field is not None
+        if report.name not in self.plant.signals:
+            return False, []
+        if self.field.signals.get(report.name) == report.aspect:
+            return False, []
+        self.field.signals[report.name] = report.aspect
+        return True, []
+
+    def _section_reported(
+        self, section: str, occupied: bool
+    ) -> tuple[bool, list[str], list[TklReport]]:
+        """A circuit's occupancy: the train number follows it (STV-15)."""
+        field_ = self.field
+        assert field_ is not None
+        if section not in field_.sections or field_.sections[section] == occupied:
+            return False, [], []
+        field_.sections[section] = occupied
+        up: list[TklReport] = []
+        line = self.plant.exit_of_section(section)
+        if line is not None:
+            up.append(
+                TklReport(
+                    kind=TklReportKind.SECTION_OCCUPANCY,
+                    exit=self.plant.exits[line].outside,
+                    occupied=occupied,
+                )
+            )
+        said, reports = self._front(section) if occupied else self._tail(section)
+        return True, said, [*up, *reports]
+
+    def _ahead(self, route: _Route, section: str) -> int | None:
+        """The section of the route the front has come into, past sections that cannot say."""
+        for i in range(route.at + 1, len(route.way.sections)):
+            name = route.way.sections[i][0]
+            if name == section:
+                return i
+            if self._detects(name):
+                return None
+        return None
+
+    def _front(self, section: str) -> tuple[list[str], list[TklReport]]:
+        """A circuit became occupied: a train's front moves on in its route, or a train takes a
+        set route whose signal shows kör. Anything else is only shown as occupied."""
+        for route in self.routes:
+            if route.at < 0 or route.at >= route.way.last:
+                continue
+            ahead = self._ahead(route, section)
+            if ahead is None:
+                continue
+            route.at = ahead
+            train = self._train(route.train)
+            if train is not None:
+                train.section, train.exit = section, None
+            who = train.said if train is not None else "Tåget"
+            return [f"{who} i {self.plant.said(section)}."], []
+        for route in self.routes:
+            if route.at >= 0 or route.held or route.waiting:
+                continue
+            if route.way.route.start.kind == PointKind.SIGNAL and route.aspect() == TklAspect.STOP:
+                continue
+            names = [name for name, _ in route.way.sections]
+            if section != names[0] and not (len(names) > 1 and section == names[1]):
+                continue
+            train, _ = self._train_for(route)
+            if train is not None and section != names[0] and train.section != names[0]:
+                continue
+            if train is None:
+                if section != names[0]:
+                    continue
+                train = _Train(self._next_id(), None, None, None, None)
+                self.trains.append(train)
+                came_from = None
+            else:
+                came_from = train.section or self._box(train.exit)
+            said = self._enter(route, train)
+            route.came_from = came_from if came_from and self._detects(came_from) else None
+            return [said], []
+        return [], []
+
+    def _box(self, exit_id: str | None) -> str | None:
+        """The section on the line just outside an exit's entry signal."""
+        place = self.plant.exits.get(exit_id or "")
+        if place is None or not place.pieces:
+            return None
+        return self.plant.section_of.get(place.pieces[-1])
+
+    def _tail(self, section: str) -> tuple[list[str], list[TklReport]]:
+        """A circuit became free: behind a train that has moved on, the route is released up to
+        it; a train that has passed into its route's last section has arrived (STV-16); a
+        train that left its route's last section for the line has departed. Nothing else."""
+        said: list[str] = []
+        up: list[TklReport] = []
+        for route in list(self.routes):
+            if route.at < 0:
+                continue
+            train = self._train(route.train)
+            names = [name for name, _ in route.way.sections]
+            if route.came_from == section:
+                route.came_from = None
+            behind = [i for i, name in enumerate(names) if name == section and i < route.at]
+            if behind:
+                newly = [j for j in range(max(behind) + 1) if not route.released[j]]
+                for j in newly:
+                    route.released[j] = True
+                if newly:
+                    who = train.said.lower() if train is not None else "tåget"
+                    said.append(f"{_cap(self.plant.said(section))} utlöst efter {who}.")
+            at_end = route.at == route.way.last
+            if at_end and names[-1] == section and self._out_on_line(route):
+                if train is not None:
+                    text, report = self._leave(route, train)
+                    said.append(text)
+                    up.append(report)
+                else:
+                    self._complete(route)
+                continue
+            if at_end and route.way.leaves is None and self._passed(route, train):
+                text, reports = self._arrived(route, train)
+                said.append(text)
+                up += reports
+        return said, up
+
+    def _out_on_line(self, route: _Route) -> bool:
+        """A route out has its train on the line: where the line outside the exit has a
+        circuit, it must be occupied; without one, the route's last section being free is all
+        there is to go by."""
+        if route.way.leaves is None:
+            return False
+        box = self._box(route.way.leaves)
+        if box is None or not self._detects(box):
+            return True
+        assert self.field is not None
+        return bool(self.field.sections.get(box))
+
+    def _passed(self, route: _Route, train: _Train | None) -> bool:
+        """The train stands wholly in the route's last section: every section behind it with a
+        circuit that can say is released, and the one it came from is free. A train with a set
+        route on from there goes on instead."""
+        if route.came_from is not None:
+            return False
+        for i in range(route.way.last):
+            if not route.released[i] and self._detects(route.way.sections[i][0]):
+                return False
+        return train is None or self._onward(route, train) is None
+
+    def _arrived(self, route: _Route, train: _Train | None) -> tuple[str, list[TklReport]]:
+        """Ankomst at level 3: the route released after passage (STV-16)."""
+        self._complete(route)
+        word = _cap(WORD[route.way.kind])
+        if train is None:
+            return f"{word}en {route.name} är utlöst efter passage.", []
+        section = train.section or ""
+        track = self.plant.track_of.get(section)
+        where = f"spår {track}" if track else self.plant.said(section)
+        said = f"{train.said} har kommit fram till {where}. "
+        said += f"{word}en {route.name} är utlöst efter passage."
+        if route.way.kind != RouteKind.TRAIN or not (train.number or train.call):
+            return said, []
+        report = TklReport(
+            kind=TklReportKind.ARRIVED,
+            train_number=train.number,
+            call=train.call,
+            track=self.plant.track_outside.get(track) if track else None,
+        )
+        return said, [report]
+
     # --- goals from a start (for choosing, STV-01, STV-24) ------------------------------------
 
     def targets(self, start: str) -> TklTargets:
@@ -1216,7 +1746,7 @@ class Interlocking:
             pieces=pieces,
             track=plant.track_of.get(section) if section is not None else None,
             route=route,
-            estimated=self.level < 3,
+            estimated=self.field is None,
         )
 
     def view(self) -> TklInterlocking:
@@ -1229,6 +1759,8 @@ class Interlocking:
         locks = self._locks()
         local = {p: f.name for f in self._active(LOCAL) for p in f.switches}
         guarded = {p: f.name for f in self._active(LOCAL) for p in f.locked_parts}
+        level_3 = self.level == 3
+        field_ = self.field
         switches = {}
         for part, control in plant.control.items():
             holders = [r for r, _ in locks.parts.get(part, [])]
@@ -1239,18 +1771,22 @@ class Interlocking:
                 protection=any(part in r.way.protection for r in holders) or part in guarded,
                 local=part in local,
                 function=local.get(part) or guarded.get(part),
+                state=self._state(ObjectKind.SWITCH, part) if level_3 else None,
+                reported=field_.switches.get(part) if field_ is not None else None,
             )
         ends = {r.way.end for r in self.routes}
         blocked = {s for f in self._active(STOP) for s in f.signals}
         blocked |= {s for f in self._active(LOCAL) for s in f.blocked}
-        shunting = {s for f in self._active(LOCAL) for s in f.signals}
+        showing = self._aspects(locks)
         signals = {}
-        for name, signal in plant.signals.items():
-            holder = locks.showing.get(name)
-            aspect = holder.showing()[name] if holder is not None else TklAspect.STOP
-            if aspect == TklAspect.STOP and name in shunting and signal.type in DWARFS:
-                aspect = TklAspect.LOCAL
-            signals[name] = TklSignalShown(aspect=aspect, end=name in ends, blocked=name in blocked)
+        for name in plant.signals:
+            signals[name] = TklSignalShown(
+                aspect=showing[name],
+                end=name in ends,
+                blocked=name in blocked,
+                state=self._state(ObjectKind.SIGNAL, name) if level_3 else None,
+                reported=field_.signals.get(name) if field_ is not None else None,
+            )
         pieces: dict[str, TklPieceShown] = {}
         for route in self.routes:
             state = (
@@ -1276,6 +1812,13 @@ class Interlocking:
             for piece in on:
                 route_id = pieces[piece].route if piece in pieces else None
                 pieces[piece] = TklPieceShown(state=TklPieceState.OCCUPIED, route=route_id)
+        if field_ is not None:
+            with_number = {t.section for t in self.trains}
+            for name, occupied in field_.sections.items():
+                if occupied and name not in with_number and name in plant.sections:
+                    for piece in plant.sections[name].pieces:
+                        route_id = pieces[piece].route if piece in pieces else None
+                        pieces[piece] = TklPieceShown(state=TklPieceState.OCCUPIED, route=route_id)
         shown_as = {
             LOCAL: TklPieceState.LOCAL,
             OUT: TklPieceState.OUT_OF_SERVICE,
@@ -1318,7 +1861,22 @@ class Interlocking:
             functions=[self._function_shown(f) for f in plant.functions.values()],
             events=list(self.events),
             last_id=self.last_id,
+            field=field_.shown() if field_ is not None else None,
         )
+
+    def _aspects(self, locks: _Locks | None = None) -> dict[str, TklAspect]:
+        """What every signal shows now: a route's aspect, shunting in a locally released area,
+        else stop."""
+        found = locks if locks is not None else self._locks()
+        shunting = {s for f in self._active(LOCAL) for s in f.signals}
+        aspects = {}
+        for name, signal in self.plant.signals.items():
+            holder = found.showing.get(name)
+            aspect = holder.showing()[name] if holder is not None else TklAspect.STOP
+            if aspect == TklAspect.STOP and name in shunting and signal.type in DWARFS:
+                aspect = TklAspect.LOCAL
+            aspects[name] = aspect
+        return aspects
 
     def _function_shown(self, function: Function) -> TklFunctionShown:
         if function.type == TURNTABLE:
@@ -1366,6 +1924,9 @@ class Interlocking:
             leaves=way.leaves,
             enters=way.enters,
             set_at=route.set_at,
+            waiting=sorted(route.waiting),
+            waiting_since=route.waiting_since,
+            came_from=route.came_from,
         )
 
     # --- a saved state ------------------------------------------------------------------------
@@ -1414,6 +1975,7 @@ class Interlocking:
             if way is None or names != [name for name, _ in way.sections]:
                 self._stale(saved)
                 return
+            positions = way.route.positions
             routes.append(
                 _Route(
                     id=shown.id,
@@ -1424,9 +1986,23 @@ class Interlocking:
                     train=shown.train if shown.train in known else None,
                     at=min(shown.at, way.last),
                     held=shown.held,
+                    waiting={p: positions[p] for p in shown.waiting if p in positions},
+                    waiting_since=shown.waiting_since,
+                    came_from=shown.came_from if shown.came_from in plant.sections else None,
                 )
             )
         self.trains, self.routes = trains, routes
+        if saved.field is not None and self.level == 3:
+            kept = saved.field
+            self.field = _Field(
+                mode=kept.mode,
+                since=kept.since,
+                switches={p: kept.switches.get(p) for p in self._laid()},
+                sections={n: kept.sections.get(n) for n in self._circuits()},
+                signals={n: a for n, a in kept.signals.items() if n in plant.signals},
+                ordered_switches=dict(kept.ordered_switches),
+                ordered_signals=dict(kept.ordered_signals),
+            )
 
     def _stale(self, saved: TklInterlocking) -> None:
         self.problem = STALE

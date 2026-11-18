@@ -10,7 +10,15 @@ from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from contracts.generate import SCHEMA_DIR, STATION_MODEL, filename
-from contracts.station_model import FORMAT, StationModel, dump, to_json
+from contracts.station_model import (
+    FORMAT,
+    Address,
+    FeedbackType,
+    StationModel,
+    SwitchFeedback,
+    dump,
+    to_json,
+)
 
 SMALL: dict[str, Any] = {
     "format": FORMAT,
@@ -33,7 +41,7 @@ SMALL: dict[str, Any] = {
     ],
     "switches": [
         {"number": "1", "type": "ordinary", "node": "1", "trunk": "b", "straight": "c",
-         "diverging": "d", "feedback": "without"},
+         "diverging": "d", "feedback": {"type": "none"}},
     ],
     "levers": [{"id": "1", "plus": {"1": "+"}, "minus": {"1": "-"}}],
     "signals": [
@@ -62,10 +70,38 @@ def test_defaults_are_left_out_and_the_format_comes_first() -> None:
 
 def test_the_bus_is_loconet_unless_another_is_named() -> None:
     model = StationModel.model_validate(SMALL)
-    assert model.signals[0].address is not None and model.signals[0].address.bus == "LocoNet"
+    address = model.signals[0].address
+    assert isinstance(address, Address) and address.bus == "LocoNet"
     other = {**SMALL["signals"][0], "address": {"bus": "XpressNet", "number": 3}}
     data = dump(StationModel.model_validate({**SMALL, "signals": [other]}))
     assert data["signals"][0]["address"] == {"bus": "XpressNet", "number": 3}
+
+
+def test_level_3_has_feedback_polarity_and_without() -> None:
+    """#85: the switch's feedback, the address's polarity and its own origin (green in Koppla
+    in), and Utan adress for a virtual signal (STUDIO-17, STUDIO-24, TKL26)."""
+    switch = {
+        **SMALL["switches"][0],
+        "address": {
+            "number": 1,
+            "reversed": True,
+            "origin": {"source": "layout", "confirmed": True},
+        },
+        "feedback": {"type": "sensors", "straight": {"number": 11}, "diverging": {"number": 12}},
+    }
+    signal = {**SMALL["signals"][0], "address": "without"}
+    model = StationModel.model_validate({**SMALL, "switches": [switch], "signals": [signal]})
+    assert model.signals[0].address == "without"
+    address = model.switches[0].address
+    assert address is not None and address.reversed and address.origin is not None
+    assert address.origin.confirmed
+    assert model.switches[0].feedback == SwitchFeedback(
+        type=FeedbackType.SENSORS, straight=Address(number=11), diverging=Address(number=12)
+    )
+    data = dump(model)
+    assert data["switches"][0]["feedback"]["type"] == "sensors"
+    assert data["signals"][0]["address"] == "without"
+    assert "reversed" not in dump(StationModel.model_validate(SMALL))["signals"][0]["address"]
 
 
 def test_points_and_names_stay_on_one_line() -> None:

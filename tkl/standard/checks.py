@@ -5,7 +5,9 @@
 - Every track circuit has a name and at least one piece.
 - The levers have unambiguous positions.
 - No number or name is used twice.
-- At level 3: addresses are unique per bus, and every switch has feedback or "without".
+- At level 3: addresses are unique per bus, a switch's number counting as its address by default
+  (STUDIO-19), and every switch has its feedback: from the card, two sensors, none or manual
+  (STUDIO-24). A manual switch is Utan adress and has no address (TKL26).
 - The panel can be made: the station's own track plan holds (STD-26, STD-28), or, without one,
   the engine lays the station out so that it fits, or proposes fields (STD-03).
 - The station's outside can be derived: the model has station tracks and line exits, each gets
@@ -27,12 +29,14 @@ from collections.abc import Iterable
 
 from contracts.station_model import (
     Address,
+    FeedbackType,
     NodeType,
     StationModel,
     SwitchControl,
     SwitchType,
 )
-from contracts.tkl import Panel
+from contracts.tkl import AddressState, ObjectKind, Panel
+from tkl.loconet.objects import objects
 from tkl.standard import outside, plan
 from tkl.standard.graph import SLIP_TYPES, Graph, Step, parts
 from tkl.standard.layout import FITS, LayoutError, lay_out
@@ -340,31 +344,40 @@ def _level_3(model: StationModel) -> list[str]:
             )
         table.setdefault(key, who)
 
-    for switch in model.switches:
-        if switch.type == SwitchType.CROSSING:
-            continue
-        units = (
-            [(switch.number, switch.address, switch.feedback)]
-            if switch.type in (SwitchType.ORDINARY, SwitchType.Y)
-            else [(p.number, p.address, p.feedback) for p in switch.parts]
-        )
-        for number, address, feedback in units:
-            if switch.control != SwitchControl.TKL:
+    for wired in objects(model):
+        who = wired.said
+        if wired.kind == ObjectKind.SWITCH:
+            if wired.control != SwitchControl.TKL:
                 continue
-            if address is None:
-                found.append(f"Växel {number} saknar adress.")
+            if wired.address is None:
+                found.append(f"Växel {wired.name} saknar adress.")
             else:
-                claim(outputs, address, f"växel {number}", "Adressen")
+                claim(outputs, wired.address, who, "Adressen")
+            feedback = wired.feedback
             if feedback is None:
-                found.append(f"Växel {number} saknar återrapport: ange en givare eller utan.")
-            elif isinstance(feedback, Address):
-                claim(sensors, feedback, f"växel {number}", "Givaren")
-    for signal in model.signals:
-        if signal.address is not None:
-            claim(outputs, signal.address, f"signal {signal.name}", "Adressen")
-    for circuit in model.track_circuits:
-        if circuit.detection is None:
-            found.append(f"Spårledningen {circuit.name} saknar givare: ange en givare eller utan.")
-        elif isinstance(circuit.detection, Address):
-            claim(sensors, circuit.detection, f"spårledningen {circuit.name}", "Givaren")
+                found.append(
+                    f"Växel {wired.name} saknar återrapport: välj från kortet, två givare, ingen "
+                    "eller manuell."
+                )
+            elif feedback.type == FeedbackType.MANUAL:
+                found.append(
+                    f"Växel {wired.name} har manuell återrapport men läggs av ställverket: välj "
+                    "Utan adress för en manuell växel."
+                )
+            elif feedback.type == FeedbackType.SENSORS:
+                for sensor, word in (
+                    (feedback.straight, "rakt"),
+                    (feedback.diverging, "avvikande"),
+                ):
+                    if sensor is None:
+                        found.append(f"Växel {wired.name} saknar givaren för {word}.")
+                    else:
+                        claim(sensors, sensor, f"{who} ({word})", "Givaren")
+        elif wired.kind == ObjectKind.SIGNAL:
+            if wired.address is not None:
+                claim(outputs, wired.address, who, "Adressen")
+        elif wired.address is not None:
+            claim(sensors, wired.address, f"spårledningen {wired.name}", "Givaren")
+        elif wired.state != AddressState.WITHOUT:
+            found.append(f"Spårledningen {wired.name} saknar givare: ange en givare eller utan.")
     return found

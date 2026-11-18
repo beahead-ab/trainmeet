@@ -7,11 +7,13 @@ from typing import Any
 from contracts.station_model import (
     WITHOUT,
     Address,
+    FeedbackType,
     Lever,
     SignalType,
     StationModel,
     Switch,
     SwitchControl,
+    SwitchFeedback,
     SwitchPath,
     SwitchType,
     TrackCircuit,
@@ -155,7 +157,12 @@ def level_3(**update: Any) -> StationModel:
     """Provby with every address and feedback in place."""
     model = provby(level=3)
     switches = [
-        s.model_copy(update={"address": Address(number=n), "feedback": WITHOUT})
+        s.model_copy(
+            update={
+                "address": Address(number=n),
+                "feedback": SwitchFeedback(type=FeedbackType.NONE),
+            }
+        )
         for n, s in zip((1, 2), model.switches, strict=True)
     ]
     signals = [
@@ -178,25 +185,47 @@ def test_level_3_addresses_are_unique_per_bus() -> None:
     assert problems(clash) == ["Adressen LocoNet 100 används av både signal In och signal Ut."]
     other_bus = changed(model, "signals", 1, address=Address(bus="DCC", number=100))
     assert problems(other_bus) == []
-    sensor = changed(model, "switches", 0, feedback=Address(number=500))
+    two = SwitchFeedback(
+        type=FeedbackType.SENSORS, straight=Address(number=500), diverging=Address(number=600)
+    )
+    sensor = changed(model, "switches", 0, feedback=two)
     assert problems(sensor) == [
-        "Givaren LocoNet 500 används av både växel 1 och spårledningen Infart V."
+        "Givaren LocoNet 500 används av både växel 1 (rakt) och spårledningen Infart V."
     ]
+    by_number = changed(model, "switches", 0, address=None)
+    clash = changed(by_number, "signals", 0, address=Address(number=1))
+    assert problems(clash) == ["Adressen LocoNet 1 används av både växel 1 och signal In."], (
+        "the switch's number is its address by default (STUDIO-19)"
+    )
 
 
 def test_level_3_every_switch_has_feedback_or_without() -> None:
+    """STD-17, §6 and STUDIO-24: every switch has its feedback, from the card, two sensors,
+    none or manual, and an address, its number by default (STUDIO-19)."""
     model = level_3()
     assert problems(changed(model, "switches", 0, feedback=None)) == [
-        "Växel 1 saknar återrapport: ange en givare eller utan."
+        "Växel 1 saknar återrapport: välj från kortet, två givare, ingen eller manuell."
     ]
-    assert problems(changed(model, "switches", 0, feedback=Address(number=7))) == []
-    assert problems(changed(model, "switches", 0, address=None)) == ["Växel 1 saknar adress."]
+    card = SwitchFeedback(type=FeedbackType.CARD)
+    assert problems(changed(model, "switches", 0, feedback=card)) == []
+    half = SwitchFeedback(type=FeedbackType.SENSORS, straight=Address(number=700))
+    assert problems(changed(model, "switches", 0, feedback=half)) == [
+        "Växel 1 saknar givaren för avvikande."
+    ]
+    manual_feedback = SwitchFeedback(type=FeedbackType.MANUAL)
+    assert problems(changed(model, "switches", 0, feedback=manual_feedback)) == [
+        "Växel 1 har manuell återrapport men läggs av ställverket: välj Utan adress för en "
+        "manuell växel."
+    ]
+    assert problems(changed(model, "switches", 0, address=None)) == [], "its number"
     manual = changed(model, "switches", 0, address=None, feedback=None)
     manual = changed(manual, "switches", 0, control=SwitchControl.MANUAL)
     assert problems(manual) == [], "a manual switch has no address (TKL26)"
     assert problems(changed(model, "track_circuits", 0, detection=None)) == [
         "Spårledningen Infart V saknar givare: ange en givare eller utan."
     ]
+    assert problems(changed(model, "track_circuits", 0, detection=WITHOUT)) == []
+    assert problems(changed(model, "signals", 0, address=WITHOUT)) == [], "a virtual signal"
 
 
 def test_level_2_does_not_ask_for_addresses() -> None:

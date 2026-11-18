@@ -91,6 +91,17 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.train-ref": tkl.TklTrainRef,
     "trainmeet.tkl-1.reset": tkl.TklReset,
     "trainmeet.tkl-1.function-ask": tkl.TklFunctionAsk,
+    # Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL.
+    "trainmeet.tkl-1.koppla-in": tkl.TklKopplaIn,
+    "trainmeet.tkl-1.port": tkl.TklPort,
+    "trainmeet.tkl-1.loconet-connect": tkl.TklLoconetConnect,
+    "trainmeet.tkl-1.card-module": tkl.TklCardModule,
+    "trainmeet.tkl-1.object-change": tkl.TklObjectChange,
+    "trainmeet.tkl-1.learn-ask": tkl.TklLearnAsk,
+    "trainmeet.tkl-1.learn-answer": tkl.TklLearnAnswer,
+    "trainmeet.tkl-1.level-ask": tkl.TklLevelAsk,
+    "trainmeet.tkl-1.listen": tkl.TklListen,
+    "trainmeet.tkl-1.pretend-ask": tkl.TklPretendAsk,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1929,6 +1940,21 @@ def tkl_openapi() -> str:
     route("post", s + "/train/remove", "tklRemoveTrain", answer, t + "train-ref")
     route("post", s + "/reset", "tklReset", answer, t + "reset")
     route("post", s + "/function", "tklPanelFunction", answer, t + "function-ask")
+    # Studio's Koppla in at level 3 (#85).
+    k = a + "/studio/koppla-in"
+    koppla = t + "koppla-in"
+    route("get", k, "tklKopplaIn", koppla)
+    route("get", k + "/ports", "tklPorts", t + "port", many=True)
+    route("post", k + "/connect", "tklLoconetConnect", koppla, t + "loconet-connect")
+    route("post", k + "/disconnect", "tklLoconetDisconnect", koppla)
+    route("post", k + "/discover", "tklDiscover", koppla)
+    route("put", k + "/card", "tklCardModule", koppla, t + "card-module")
+    route("put", k + "/object", "tklObjectChange", koppla, t + "object-change")
+    route("post", k + "/learn", "tklLearn", koppla, t + "learn-ask")
+    route("post", k + "/answer", "tklLearnAnswer", koppla, t + "learn-answer")
+    route("post", k + "/level", "tklLevel", koppla, t + "level-ask")
+    route("get", k + "/lyssna", "tklListen", t + "listen")
+    route("post", k + "/latsas", "tklPretend", koppla, t + "pretend-ask")
     stems = [
         s
         for s in CONTRACTS
