@@ -386,7 +386,9 @@
         "area_released",
         "route_refused",
         "unknown_automat",
-        "local_area_not_given"
+        "local_area_not_given",
+        "part_request_not_pending",
+        "not_ready_to_send"
       ],
       "title": "Reason",
       "type": "string"

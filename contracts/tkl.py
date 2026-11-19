@@ -1954,12 +1954,19 @@ class DeckStyle(StrEnum):
 
 class DeckMode(StrEnum):
     """Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-    deck, for a deck with a part's role (#87 del d, SD74)."""
+    deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+    a page per station it controls (#36 del d, SD37)."""
 
     TRAINS = "tagen"
     PLACES = "platser"
     TRACK_PLAN = "sparplan"
     YARD = "bangard"
+    REMOTE = "fjarr"
+
+
+DECK_REMOTE_ROLE: Final = "fjarrtagklarerare"
+"""The fjärrtågklarerare's role on a deck (#36 del d, SD37): `TklDeckSettings.role` with this id
+opens the mode Fjärr. Never a part's id; a remote interlocking's decks always have it."""
 
 
 class DeckPageKind(StrEnum):
@@ -1975,6 +1982,7 @@ class DeckPageKind(StrEnum):
     CUTOUT = "utsnitt"  # Spårplan, the cut-out (SD71)
     OWN = "egen"  # a page the owner added in Studio (SD40)
     YARD = "bangard"  # Bangård, the shunter's deck (SD61, SD86, SD87)
+    REMOTE = "fjarr"  # Fjärr: one station's catalogue routes, the fjärrtågklarerare's (SD37)
 
 
 class DeckKeyType(StrEnum):
@@ -2003,6 +2011,9 @@ class DeckKeyType(StrEnum):
     STREET = "gata"  # a track of the part: a press lays the switch street from the end (SD61)
     REQUEST = "begar"  # a route out: a press requests it from the station (SD61, RANG-03)
     READY = "klart-tag"  # the next train from the plan: a press announces it (SD60, TKL108)
+    # Fjärr, the fjärrtågklarerare's deck (#36 del d, SD37):
+    REMOTE_ROUTE = "fjarrvag"  # a route of a station's remote catalogue: press, then press again
+    OFFER = "erbjudande"  # a station offered: press takes it, hold declines it (FR8)
 
 
 class DeckAction(StrEnum):
@@ -2113,6 +2124,11 @@ class TklDeckKey(Contract):
     side: PartSide | None = Field(
         default=None,
         description="Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).",
+    )
+    remote: Id | None = Field(
+        default=None,
+        description="Tågvägens id i stationens fjärrkatalog, med driftplatsen i place "
+        "(REMOTE_ROUTE, #36 del d).",
     )
     text: KeyText = Field(default="", description="Knappens text, när den är given.")
     under: KeyText = Field(default="", description="Undertexten, när ägaren har gett den.")
@@ -2240,8 +2256,9 @@ class TklDeckSettings(Contract):
     )
     role: Id | None = Field(
         default=None,
-        description="Rollen: inget för tågklareraren, eller en del av stationen med sitt id "
-        "(#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+        description="Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del "
+        "d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en "
+        "dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.",
     )
 
 
@@ -2296,6 +2313,8 @@ DeckFaceType = Literal[
     "street",
     "request",
     "fika",
+    "remote",
+    "offer",
     "empty",
 ]
 """What kind of key a face is: the catalogue's types and the deck's own (SD4)."""
@@ -2437,10 +2456,16 @@ class TklDeckStatus(Contract):
 
 class TklDeckRole(Contract):
     """A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
-    whose deck is the shunter's, Bangård."""
+    whose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck
+    is made from the remote catalogues of the stations TKL controls."""
 
-    part: Id | None = Field(default=None, description="Delens id; inget för tågklareraren.")
+    part: Id | None = Field(
+        default=None,
+        description="Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; "
+        "inget för tågklareraren.",
+    )
     name: Text
+    remote: bool = Field(default=False, description="Fjärrtågklareraren (SD37).")
 
 
 class TklDecks(Contract):

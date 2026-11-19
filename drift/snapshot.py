@@ -7,6 +7,7 @@ worked out from Drift's state; the events only tell a client to fetch it again.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 
 from contracts import station
@@ -78,6 +79,8 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
             route_state=drift.route_states.get(place),
             automats_asked=automats_asked(drift, place),
             local_requests=local_requests(drift, place),
+            part_answers=part_answers(drift, place),
+            ready_asks=ready_asks(drift, place),
         ),
     )
 
@@ -300,3 +303,42 @@ def allowed_actions(drift: Drift, call: str) -> list[station.Action]:
         allowed.append(action.TRAIN_SET_ASIDE)
     allowed.append(action.TRAIN_TRACK_CHANGE)
     return allowed
+
+
+def part_answers(
+    drift: Drift, place: str, name: Callable[[str], str] | None = None
+) -> list[station.PartAnswered]:
+    """The controller's answers to the parts' requests at the place, not yet done by the station
+    (#36 del d, FR50), in the order they were given. name: the controller's name by its client
+    id, as Klienter has it."""
+    named = name or (lambda client: client)
+    return [
+        station.PartAnswered(
+            seq=answer.seq,
+            part=answer.part,
+            request_id=answer.request_id,
+            approve=answer.approve,
+            reason=answer.reason,
+            by=named(answer.by) if answer.by else "fjärr",
+        )
+        for (at, _), answer in sorted(drift.part_answers.items())
+        if at == place
+    ]
+
+
+def ready_asks(
+    drift: Drift, place: str, name: Callable[[str], str] | None = None
+) -> list[station.ReadyAsked]:
+    """The controller's changes to the list Klara att skicka at the place, not yet done by the
+    station (#36 del d, FR51), in the order they were made."""
+    named = name or (lambda client: client)
+    return [
+        station.ReadyAsked(
+            seq=asked.seq,
+            train_number=asked.train_number,
+            to=asked.to,
+            by=named(asked.by) if asked.by else "fjärr",
+        )
+        for (at, _), asked in sorted(drift.ready_asks.items())
+        if at == place
+    ]

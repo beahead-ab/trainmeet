@@ -60,6 +60,9 @@ class Place:
         self.calls: list[station.CallHere] = []
         self.coming: list[station.TrainOnSection] = []
         self.clearances: list[station.Clearance] = []
+        # #36 del d: the controller's answers to the parts and its changes to the ready list.
+        self.part_answers: list[station.PartAnswered] = []
+        self.ready_asks: list[station.ReadyAsked] = []
 
     def snapshot(self) -> station.Snapshot:
         sections = [
@@ -93,6 +96,8 @@ class Place:
                 route_state=self.state,
                 automats_asked=self.asked,
                 local_requests=self.local,
+                part_answers=self.part_answers,
+                ready_asks=self.ready_asks,
             ),
         )
 
@@ -204,6 +209,12 @@ class PretendHub:
                 )
             case station.Action.ROUTE_STATE:
                 place.state = station.RouteState.model_validate(payload)
+                waiting = {r.request_id for r in place.state.part_requests}
+                done = set(place.state.answered)
+                place.part_answers = [
+                    a for a in place.part_answers if a.seq not in done and a.request_id in waiting
+                ]
+                place.ready_asks = [a for a in place.ready_asks if a.seq not in done]
                 shown = {a.code for a in place.state.automats}
                 shown |= {a.code for a in place.state.local_areas}
                 place.asked = [a for a in place.asked if (a.code in shown) != a.on]

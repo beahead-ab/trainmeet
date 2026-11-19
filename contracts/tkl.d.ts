@@ -2987,7 +2987,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
+        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end" | "part.answer" | "ready.move" | "ready.sent";
         /**
          * ArrivalState
          * @enum {string}
@@ -3431,16 +3431,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PartAnswered
+         * @description An answer to a part's request from whoever controls the station (part.answer), until the
+         *     station has done it: it is no longer waiting, or route.state lists it in answered (FR50).
+         */
+        "trainmeet.station-1.reply.PartAnswered": {
+            /**
+             * Seq
+             * @description Hubbens nummer på svaret: drifthändelsen.
+             */
+            seq: number;
+            /** Part */
+            part: string;
+            /** Request Id */
+            request_id: string;
+            /** Approve */
+            approve: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * By
+             * @description Vem som svarade: den som fjärrstyr, med sitt namn.
+             */
+            by: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PartRequest
          * @description DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the
-         *     clearer, when a station with parts is remote-controlled. The station forwards it.
+         *     clearer, when a station with parts is remote-controlled. The station forwards it, waiting,
+         *     until it is answered with part.answer (#36 del d).
          */
         "trainmeet.station-1.reply.PartRequest": {
             /** Request Id */
             request_id: string;
             /**
              * Part
-             * @description Delens id i utsidan.
+             * @description Delens id i stationen, som i utsidan när delen är en egen plats.
              */
             part: string;
             /**
@@ -3448,6 +3479,24 @@ export interface components {
              * @description Vad delen begär, som stationen skriver det.
              */
             text: string;
+            /**
+             * Part Name
+             * @description Delens namn, som rutan säger det.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Said
+             * @description Vägen som rutan säger den, till exempel 52 → 3.
+             * @default null
+             */
+            said: string | null;
+            /**
+             * Note
+             * @description Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.
+             * @default null
+             */
+            note: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -3459,8 +3508,36 @@ export interface components {
          */
         "trainmeet.station-1.reply.PlaceMode": "manned" | "offered" | "remote" | "no_contact" | "automatic";
         /**
+         * ReadyAsked
+         * @description A move in the list Klara att skicka, or Skickat, from whoever controls the station, until
+         *     the station has done it (FR51).
+         */
+        "trainmeet.station-1.reply.ReadyAsked": {
+            /**
+             * Seq
+             * @description Hubbens nummer på ändringen: drifthändelsen.
+             */
+            seq: number;
+            /** Train Number */
+            train_number: string;
+            /**
+             * To
+             * @description Den nya platsen; inget: Skickat.
+             * @default null
+             */
+            to: number | null;
+            /**
+             * By
+             * @description Vem som gjorde det: den som fjärrstyr, med sitt namn.
+             */
+            by: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ReadyToSend
-         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order.
+         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before
+         *     the first with a later planned departure, and where the controller or the clearer moved it.
          */
         "trainmeet.station-1.reply.ReadyToSend": {
             /** Train Number */
@@ -3480,6 +3557,24 @@ export interface components {
              * @default null
              */
             departure: string | null;
+            /**
+             * Part Name
+             * @description Delen som anmälde tåget.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Track
+             * @description Spåret tåget står på.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Moved
+             * @description Flyttat i listan, inte i planens ordning.
+             * @default false
+             */
+            moved: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3487,7 +3582,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given" | "part_request_not_pending" | "not_ready_to_send";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -3557,6 +3652,16 @@ export interface components {
              * @description Lokala områden stationen har bett om, utan svar än.
              */
             local_requests?: components["schemas"]["trainmeet.station-1.reply.LocalRequestHere"][];
+            /**
+             * Part Answers
+             * @description Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).
+             */
+            part_answers?: components["schemas"]["trainmeet.station-1.reply.PartAnswered"][];
+            /**
+             * Ready Asks
+             * @description Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).
+             */
+            ready_asks?: components["schemas"]["trainmeet.station-1.reply.ReadyAsked"][];
         } & {
             [key: string]: unknown;
         };
@@ -3668,6 +3773,11 @@ export interface components {
              * @description Tåg som är klara att skicka, i avgångstidens ordning (FR51).
              */
             ready_to_send?: components["schemas"]["trainmeet.station-1.reply.ReadyToSend"][];
+            /**
+             * Answered
+             * @description Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).
+             */
+            answered?: number[];
         } & {
             [key: string]: unknown;
         };
@@ -4561,7 +4671,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.view.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
+        "trainmeet.tkl-1.view.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end" | "part.answer" | "ready.move" | "ready.sent";
         /**
          * ArrivalState
          * @enum {string}
@@ -4976,16 +5086,47 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PartAnswered
+         * @description An answer to a part's request from whoever controls the station (part.answer), until the
+         *     station has done it: it is no longer waiting, or route.state lists it in answered (FR50).
+         */
+        "trainmeet.tkl-1.view.PartAnswered": {
+            /**
+             * Seq
+             * @description Hubbens nummer på svaret: drifthändelsen.
+             */
+            seq: number;
+            /** Part */
+            part: string;
+            /** Request Id */
+            request_id: string;
+            /** Approve */
+            approve: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * By
+             * @description Vem som svarade: den som fjärrstyr, med sitt namn.
+             */
+            by: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PartRequest
          * @description DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the
-         *     clearer, when a station with parts is remote-controlled. The station forwards it.
+         *     clearer, when a station with parts is remote-controlled. The station forwards it, waiting,
+         *     until it is answered with part.answer (#36 del d).
          */
         "trainmeet.tkl-1.view.PartRequest": {
             /** Request Id */
             request_id: string;
             /**
              * Part
-             * @description Delens id i utsidan.
+             * @description Delens id i stationen, som i utsidan när delen är en egen plats.
              */
             part: string;
             /**
@@ -4993,6 +5134,24 @@ export interface components {
              * @description Vad delen begär, som stationen skriver det.
              */
             text: string;
+            /**
+             * Part Name
+             * @description Delens namn, som rutan säger det.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Said
+             * @description Vägen som rutan säger den, till exempel 52 → 3.
+             * @default null
+             */
+            said: string | null;
+            /**
+             * Note
+             * @description Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.
+             * @default null
+             */
+            note: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -5004,8 +5163,36 @@ export interface components {
          */
         "trainmeet.tkl-1.view.PlaceMode": "manned" | "offered" | "remote" | "no_contact" | "automatic";
         /**
+         * ReadyAsked
+         * @description A move in the list Klara att skicka, or Skickat, from whoever controls the station, until
+         *     the station has done it (FR51).
+         */
+        "trainmeet.tkl-1.view.ReadyAsked": {
+            /**
+             * Seq
+             * @description Hubbens nummer på ändringen: drifthändelsen.
+             */
+            seq: number;
+            /** Train Number */
+            train_number: string;
+            /**
+             * To
+             * @description Den nya platsen; inget: Skickat.
+             * @default null
+             */
+            to: number | null;
+            /**
+             * By
+             * @description Vem som gjorde det: den som fjärrstyr, med sitt namn.
+             */
+            by: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ReadyToSend
-         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order.
+         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before
+         *     the first with a later planned departure, and where the controller or the clearer moved it.
          */
         "trainmeet.tkl-1.view.ReadyToSend": {
             /** Train Number */
@@ -5025,6 +5212,24 @@ export interface components {
              * @default null
              */
             departure: string | null;
+            /**
+             * Part Name
+             * @description Delen som anmälde tåget.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Track
+             * @description Spåret tåget står på.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Moved
+             * @description Flyttat i listan, inte i planens ordning.
+             * @default false
+             */
+            moved: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5032,7 +5237,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.tkl-1.view.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
+        "trainmeet.tkl-1.view.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given" | "part_request_not_pending" | "not_ready_to_send";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -5102,6 +5307,16 @@ export interface components {
              * @description Lokala områden stationen har bett om, utan svar än.
              */
             local_requests?: components["schemas"]["trainmeet.tkl-1.view.LocalRequestHere"][];
+            /**
+             * Part Answers
+             * @description Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).
+             */
+            part_answers?: components["schemas"]["trainmeet.tkl-1.view.PartAnswered"][];
+            /**
+             * Ready Asks
+             * @description Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).
+             */
+            ready_asks?: components["schemas"]["trainmeet.tkl-1.view.ReadyAsked"][];
         } & {
             [key: string]: unknown;
         };
@@ -5192,6 +5407,11 @@ export interface components {
              * @description Tåg som är klara att skicka, i avgångstidens ordning (FR51).
              */
             ready_to_send?: components["schemas"]["trainmeet.tkl-1.view.ReadyToSend"][];
+            /**
+             * Answered
+             * @description Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).
+             */
+            answered?: number[];
         } & {
             [key: string]: unknown;
         };
@@ -5407,7 +5627,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
+        "trainmeet.tkl-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end" | "part.answer" | "ready.move" | "ready.sent";
         /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
@@ -10155,7 +10375,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
+        "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end" | "part.answer" | "ready.move" | "ready.sent";
         /**
          * AddressState
          * @description An object's four states in Koppla in (STUDIO-17, TKL26).
@@ -12606,14 +12826,15 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
+        "trainmeet.tkl-1.deck-profile.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag" | "fjarrvag" | "erbjudande";
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-profile.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -12625,7 +12846,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
+        "trainmeet.tkl-1.deck-profile.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard" | "fjarr";
         /**
          * DeckPan
          * @enum {string}
@@ -12779,6 +13000,12 @@ export interface components {
              * @default null
              */
             side: components["schemas"]["trainmeet.tkl-1.deck-profile.PartSide"] | null;
+            /**
+             * Remote
+             * @description Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).
+             * @default null
+             */
+            remote: string | null;
             /**
              * Text
              * @description Knappens text, när den är given.
@@ -13108,10 +13335,11 @@ export interface components {
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-view.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-view.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -13147,7 +13375,7 @@ export interface components {
              * @default empty
              * @enum {string}
              */
-            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "empty";
+            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "remote" | "offer" | "empty";
             /**
              * Text
              * @default
@@ -13376,7 +13604,7 @@ export interface components {
             opens_on: string | null;
             /**
              * Role
-             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @description Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.
              * @default null
              */
             role: string | null;
@@ -13604,10 +13832,11 @@ export interface components {
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.decks.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.decks.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -13672,17 +13901,24 @@ export interface components {
         /**
          * TklDeckRole
          * @description A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
-         *     whose deck is the shunter's, Bangård.
+         *     whose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck
+         *     is made from the remote catalogues of the stations TKL controls.
          */
         "trainmeet.tkl-1.decks.TklDeckRole": {
             /**
              * Part
-             * @description Delens id; inget för tågklareraren.
+             * @description Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.
              * @default null
              */
             part: string | null;
             /** Name */
             name: string;
+            /**
+             * Remote
+             * @description Fjärrtågklareraren (SD37).
+             * @default false
+             */
+            remote: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -13756,7 +13992,7 @@ export interface components {
             opens_on: string | null;
             /**
              * Role
-             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @description Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.
              * @default null
              */
             role: string | null;
@@ -13848,14 +14084,15 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
+        "trainmeet.tkl-1.deck-deviations.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag" | "fjarrvag" | "erbjudande";
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-deviations.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -13867,7 +14104,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
+        "trainmeet.tkl-1.deck-deviations.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard" | "fjarr";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -14059,6 +14296,12 @@ export interface components {
              */
             side: components["schemas"]["trainmeet.tkl-1.deck-deviations.PartSide"] | null;
             /**
+             * Remote
+             * @description Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).
+             * @default null
+             */
+            remote: string | null;
+            /**
              * Text
              * @description Knappens text, när den är given.
              * @default
@@ -14183,14 +14426,15 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
+        "trainmeet.tkl-1.deck-studio.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag" | "fjarrvag" | "erbjudande";
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-studio.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -14202,7 +14446,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
+        "trainmeet.tkl-1.deck-studio.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard" | "fjarr";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -14387,7 +14631,7 @@ export interface components {
              * @default empty
              * @enum {string}
              */
-            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "empty";
+            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "remote" | "offer" | "empty";
             /**
              * Text
              * @default
@@ -14635,6 +14879,12 @@ export interface components {
              * @default null
              */
             side: components["schemas"]["trainmeet.tkl-1.deck-studio.PartSide"] | null;
+            /**
+             * Remote
+             * @description Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).
+             * @default null
+             */
+            remote: string | null;
             /**
              * Text
              * @description Knappens text, när den är given.
@@ -14895,17 +15145,24 @@ export interface components {
         /**
          * TklDeckRole
          * @description A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
-         *     whose deck is the shunter's, Bangård.
+         *     whose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck
+         *     is made from the remote catalogues of the stations TKL controls.
          */
         "trainmeet.tkl-1.deck-studio.TklDeckRole": {
             /**
              * Part
-             * @description Delens id; inget för tågklareraren.
+             * @description Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.
              * @default null
              */
             part: string | null;
             /** Name */
             name: string;
+            /**
+             * Remote
+             * @description Fjärrtågklareraren (SD37).
+             * @default false
+             */
+            remote: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -15637,14 +15894,15 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
+        "trainmeet.tkl-1.deck-edit.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag" | "fjarrvag" | "erbjudande";
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-edit.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -15656,7 +15914,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
+        "trainmeet.tkl-1.deck-edit.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard" | "fjarr";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -15848,6 +16106,12 @@ export interface components {
              */
             side: components["schemas"]["trainmeet.tkl-1.deck-edit.PartSide"] | null;
             /**
+             * Remote
+             * @description Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).
+             * @default null
+             */
+            remote: string | null;
+            /**
              * Text
              * @description Knappens text, när den är given.
              * @default
@@ -15932,14 +16196,15 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
+        "trainmeet.tkl-1.deck-suggest.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag" | "fjarrvag" | "erbjudande";
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-suggest.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -15951,7 +16216,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
+        "trainmeet.tkl-1.deck-suggest.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard" | "fjarr";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -16148,6 +16413,12 @@ export interface components {
              * @default null
              */
             side: components["schemas"]["trainmeet.tkl-1.deck-suggest.PartSide"] | null;
+            /**
+             * Remote
+             * @description Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).
+             * @default null
+             */
+            remote: string | null;
             /**
              * Text
              * @description Knappens text, när den är given.
@@ -16376,10 +16647,11 @@ export interface components {
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-change.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-change.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * TklDeckStatus
          * @description One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is
@@ -16442,10 +16714,11 @@ export interface components {
         /**
          * DeckMode
          * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
-         *     deck, for a deck with a part's role (#87 del d, SD74).
+         *     deck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,
+         *     a page per station it controls (#36 del d, SD37).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-status.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
+        "trainmeet.tkl-1.deck-status.DeckMode": "tagen" | "platser" | "sparplan" | "bangard" | "fjarr";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -16577,7 +16850,7 @@ export interface components {
             opens_on: string | null;
             /**
              * Role
-             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @description Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.
              * @default null
              */
             role: string | null;
@@ -17126,14 +17399,15 @@ export interface components {
         /**
          * PartRequest
          * @description DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the
-         *     clearer, when a station with parts is remote-controlled. The station forwards it.
+         *     clearer, when a station with parts is remote-controlled. The station forwards it, waiting,
+         *     until it is answered with part.answer (#36 del d).
          */
         "trainmeet.tkl-1.fjarr.PartRequest": {
             /** Request Id */
             request_id: string;
             /**
              * Part
-             * @description Delens id i utsidan.
+             * @description Delens id i stationen, som i utsidan när delen är en egen plats.
              */
             part: string;
             /**
@@ -17141,6 +17415,24 @@ export interface components {
              * @description Vad delen begär, som stationen skriver det.
              */
             text: string;
+            /**
+             * Part Name
+             * @description Delens namn, som rutan säger det.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Said
+             * @description Vägen som rutan säger den, till exempel 52 → 3.
+             * @default null
+             */
+            said: string | null;
+            /**
+             * Note
+             * @description Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.
+             * @default null
+             */
+            note: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -17153,7 +17445,8 @@ export interface components {
         "trainmeet.tkl-1.fjarr.PlaceMode": "manned" | "offered" | "remote" | "no_contact" | "automatic";
         /**
          * ReadyToSend
-         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order.
+         * @description FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before
+         *     the first with a later planned departure, and where the controller or the clearer moved it.
          */
         "trainmeet.tkl-1.fjarr.ReadyToSend": {
             /** Train Number */
@@ -17173,6 +17466,24 @@ export interface components {
              * @default null
              */
             departure: string | null;
+            /**
+             * Part Name
+             * @description Delen som anmälde tåget.
+             * @default null
+             */
+            part_name: string | null;
+            /**
+             * Track
+             * @description Spåret tåget står på.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Moved
+             * @description Flyttat i listan, inte i planens ordning.
+             * @default false
+             */
+            moved: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -17180,7 +17491,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.tkl-1.fjarr.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
+        "trainmeet.tkl-1.fjarr.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given" | "part_request_not_pending" | "not_ready_to_send";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -17339,6 +17650,11 @@ export interface components {
              * @description Tåg som är klara att skicka, i avgångstidens ordning (FR51).
              */
             ready_to_send?: components["schemas"]["trainmeet.tkl-1.fjarr.ReadyToSend"][];
+            /**
+             * Answered
+             * @description Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).
+             */
+            answered?: number[];
         } & {
             [key: string]: unknown;
         };

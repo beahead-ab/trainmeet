@@ -74,18 +74,27 @@ Fjärrbild på en skärm och Tåg och klarering på en annan, som skärm 1 och 3
 
 En stations egen TKL får fliken **Fjärr** med samma sidor när den styr en granne eller en granne erbjuds den (FR3).
 
+### Fjärrtågklarerarens Stream Deck
+
+Fjärrbilden har en ruta **Stream Deck** som i Ställverket. Decket har rollen Fjärrtågklareraren och läget Fjärr (SD37): en sida per station man styr, en knapp per tågväg i stationens fjärrkatalog, Erbjudande, Avbryt, klockan, ▶ och Läge. Ett tryck väljer en tågväg och den blinkar; ett tryck till skickar den. Knappen blir gul när vägen väntar på stationen, grön när stationens ställverk har låst den, och röd med skälet i tre sekunder vid ett nej. Håll in en väg man lagt för att ta bort den. Erbjudande tar emot en station med ett tryck och avböjer med ett håll. Ett fjärrställverks deck har alltid den rollen, också över USB och med WebHID; i en stations TKL väljs rollen under Studio › Stream Deck › Deck.
+
+### Delarna när stationen fjärrstyrs
+
+En station med delställverk skickar delarnas begäran och listan Klara att skicka vidare till den som fjärrstyr (FR50, FR51). Begäran står under *Väntar på dig* med Godkänn och Neka, och listan under *Klara att skicka* per station, i planens ordning, med ▲ ▼ och Skickat. Stationens eget ställverk gör det precis som tågklarerarens svar i rutan. Medan stationen fjärrstyrs visar stationens egen ruta bara, och säger varför.
+
 ### Webbläsarprovet
 
-`apps/tkl/e2e/fjarr.mjs` provar fjärrstyrningen mot en hubb med Provbanan och TKL som fjärrställverk: erbjudande, Ta emot, en tågväg som låses och blir grön, en väg som krockar och nekas med skäl utan att bilden ändras, Ta bort, Tåg och klarering, och att stationen tas tillbaka.
+`apps/tkl/e2e/fjarr.mjs` provar fjärrstyrningen mot en hubb med Provbanan, en riktig station och TKL som fjärrställverk. Station A är Åsen med referensstationen Gårdsjö, som väljer sin fjärrkatalog i Studio och lämnar över i sitt eget Ställverk. Provet går igenom erbjudande, Ta emot, en tågväg som låses och blir grön, en väg som krockar och nekas med stationens skäl utan att bilden ändras, Ta bort, Tåg och klarering, en tågväg från fjärrtågklarerarens Stream Deck, och att stationen tas tillbaka. Sist byter A till Charlottendal: Rangerbangårdens begäran godkänns hos fjärrställverket, och ett tåg i Klara att skicka skickas därifrån.
 
 ```
-PROV_HUBB=http://127.0.0.1:8080 PROV_TKL_FJARR=http://127.0.0.1:8093 PROV_TKL_GRANNE=http://127.0.0.1:8094 \
+PROV_HUBB=http://127.0.0.1:8080 PROV_TKL_STATION=http://127.0.0.1:8095 \
+  PROV_TKL_FJARR=http://127.0.0.1:8093 PROV_TKL_GRANNE=http://127.0.0.1:8094 \
   CHROME_PATH=/usr/bin/google-chrome node apps/tkl/e2e/fjarr.mjs
 ```
 
-Med `PROV_TKL_GRANNE`, en andra nystartad TKL, provas också grannen: Norrbys egen TKL får fliken Fjärr när Åsen erbjuds den, tar emot och lägger en tågväg med samma fjärrbild (FR3).
+Med `PROV_TKL_GRANNE`, en tredje nystartad TKL, provas också grannen: Norrbys egen TKL får fliken Fjärr när Åsen erbjuds den, tar emot och lägger en tågväg med samma fjärrbild (FR3).
 
-Station A (Åsen i Provbanan) är tills vidare ett låtsat ställverk i provet, `stationA` i skriptet: en klient på stationsprotokollet som TKL på nivå 2, med en fjärrkatalog och en översikt i Gårdsjös form, som svarar på `route.request` som stationen ska. När Studio tar fram fjärrkatalogen och översikten och ställverket svarar på begärda vägar (#36 del b) byts det mot en andra TKL med Gårdsjö som stationsmodell, som erbjuder och tar tillbaka stationen i sitt eget Ställverk.
+Hubben kör Provbanans fasta utsida för Åsen. Dess fjärrkatalog och översikt har Gårdsjös id:n, så vägarna fjärrställverket begär är desamma som stationens egna.
 
 ## Fjärrstyrning, stationens sida
 

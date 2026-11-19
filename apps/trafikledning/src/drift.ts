@@ -75,6 +75,11 @@ export const EVENTS: Record<string, string> = {
   "local_release.answered": "Lokalt område givet",
   "local_release.ended": "Lokalt område slut",
   "automat.set": "Stationsautomat",
+  // The parts of a remote-controlled station (#36 del d, FR50, FR51).
+  "part.requested": "Delens begäran",
+  "part.answered": "Svar på delens begäran",
+  "ready.moved": "Klara att skicka flyttat",
+  "ready.sent": "Skickat",
   "automation.set": "Automatikens inställningar ändrade",
   // Lokföraren (LOK-07): what the drivers do, and what the game lets them see.
   "service.claimed": "Tjänsten tagen",
@@ -280,6 +285,17 @@ function remoteText(event: DriftEvent, clients: Client[]): string | null {
       return `Lokalt område ${String(data["code"])} ${data["given"] === false ? "nekat" : "givet"}`;
     case "local_release.ended":
       return `Lokalt område ${String(data["code"])} slut`;
+    case "part.requested":
+      return `Vidare från stationen: ${String(data["text"])}`;
+    case "part.answered": {
+      const verb = data["approve"] ? "godkände" : "nekade";
+      const why = typeof data["reason"] === "string" && !data["approve"] ? `: ${data["reason"]}` : "";
+      return `${who(event.actor?.id)} ${verb} delens begäran${why}`;
+    }
+    case "ready.moved":
+      return `${who(event.actor?.id)} flyttade tåg ${String(data["train_number"])} till plats ${Number(data["to"] ?? 0) + 1} i Klara att skicka`;
+    case "ready.sent":
+      return `${who(event.actor?.id)}: tåg ${String(data["train_number"])} skickat`;
     default:
       return null;
   }

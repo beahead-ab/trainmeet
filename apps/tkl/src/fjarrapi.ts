@@ -24,6 +24,8 @@ export type OfferHere = Schemas["trainmeet.tkl-1.fjarr.OfferHere"];
 export type PlaceMode = Schemas["trainmeet.tkl-1.fjarr.PlaceMode"];
 export type Receiver = Schemas["trainmeet.tkl-1.fjarr.Receiver"];
 export type SectionOverview = Schemas["trainmeet.tkl-1.fjarr.SectionOverview"];
+export type PartRequest = Schemas["trainmeet.tkl-1.fjarr.PartRequest"];
+export type ReadyToSend = Schemas["trainmeet.tkl-1.fjarr.ReadyToSend"];
 
 export const fjarrApi = {
   setUp: (change: RemoteSetUp) => call<State>(`${TKL}/fjarr/setup`, "POST", change),

@@ -4,8 +4,12 @@
 // and who controls it. What is drawn comes from fjarr.ts in logical terms; the colours, widths,
 // signals and train numbers are 95's entry in skal.ts (FR47). Clicks go to the page, which asks
 // Hubben: the picture decides nothing (FR12, FR13).
+//
+// The parts of a station TKL controls (#36 del d, FR50, FR51): Väntar på dig has each part's
+// request with Godkänn and Neka, and Klara att skicka each station's list, moved with ▲ ▼ and
+// marked Skickat, as the clearer's box in Ställverket.
 import type { KeyboardEvent, ReactNode } from "react";
-import { clockText, COLOURS, myRoutes, pieceColour, pieceWidth, reasonText, routeLabel, routeOf, routesFrom, SKIN, timeLeft, type Choice, type Drawn, type DrawnSignal, type DrawnStation, type Hit, type Sent, sentState } from "./fjarr";
+import { clockText, COLOURS, myRoutes, partAsks, pieceColour, pieceWidth, readyLists, readyStep, readyText, reasonText, routeLabel, routeOf, routesFrom, SKIN, timeLeft, type Choice, type Drawn, type DrawnSignal, type DrawnStation, type Hit, type Sent, sentState } from "./fjarr";
 import type { Fjarr } from "./fjarrapi";
 import type { Shape } from "./skal";
 
@@ -254,11 +258,16 @@ type PanelProps = {
   onAgain: (place: string, route: string) => void;
   onRemove: (place: string, requestId: string) => void;
   onOffer: (place: string, accept: boolean) => void;
+  /** The parts' requests answered here, by place and request, until the station has done it. */
+  answered?: Set<string>;
+  onPart?: (place: string, part: string, requestId: string, approve: boolean) => void;
 };
 
-/** Väntar på dig: the offers with the time left (FR8), the chosen route with Lägg tågvägen and
- * Avbryt (FR13), the routes waiting for the station's answer, and the noes for a while. */
-export function Vantar({ fjarr, choice, sent, notices, heardAt, now, busy, onLay, onDrop, onChoose, onAgain, onOffer }: PanelProps) {
+/** Väntar på dig: the offers with the time left (FR8), the parts' requests at the stations TKL
+ * controls with Godkänn and Neka (FR50), the chosen route with Lägg tågvägen and Avbryt (FR13),
+ * the routes waiting for the station's answer, and the noes for a while. */
+export function Vantar({ fjarr, choice, sent, notices, heardAt, now, busy, onLay, onDrop, onChoose, onAgain, onOffer, answered, onPart }: PanelProps) {
+  const parts = partAsks(fjarr);
   const names = new Map((fjarr?.overview?.places ?? []).map((p) => [p.place.place, p.place.name]));
   const name = (place: string) => names.get(place) ?? place;
   const chosen = choice?.route ? routeOf(fjarr, choice.place, choice.route) : null;
@@ -268,7 +277,7 @@ export function Vantar({ fjarr, choice, sent, notices, heardAt, now, busy, onLay
     const state = sentState(fjarr, s)?.state;
     return !state || state === "requested";
   });
-  const empty = !(fjarr?.offers ?? []).length && !choice && !waiting.length && !notices.length;
+  const empty = !(fjarr?.offers ?? []).length && !parts.length && !choice && !waiting.length && !notices.length;
   return (
     <section className="fj-ruta" aria-labelledby="fj-vantar">
       <h2 id="fj-vantar">Väntar på dig</h2>
@@ -285,6 +294,30 @@ export function Vantar({ fjarr, choice, sent, notices, heardAt, now, busy, onLay
           </button>
         </div>
       ))}
+      {parts.map(({ place, name: at, request }) => {
+        const done = answered?.has(`${place}:${request.request_id}`) ?? false;
+        return (
+          <div key={`${place}:${request.request_id}`} className="fj-rad del-begaran" data-part-request={request.request_id} data-place={place}>
+            <span>
+              <b>{request.part_name ?? request.part}</b> begär <b>{request.said ?? request.text}</b> vid {at}
+              {request.note ? <span className="liten fj-not"> · Godkänd men inte lagd än: {request.note}</span> : null}
+            </span>
+            <span className="tm-fyll" />
+            {done ? (
+              <span className="chip">Svar skickat · väntar på {at}s ställverk</span>
+            ) : (
+              <>
+                <button type="button" className="primar" disabled={busy || !onPart} onClick={() => onPart?.(place, request.part, request.request_id, true)}>
+                  Godkänn
+                </button>
+                <button type="button" disabled={busy || !onPart} onClick={() => onPart?.(place, request.part, request.request_id, false)}>
+                  Neka
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
       {choice ? (
         <div className="fj-rad vald" data-choice={choice.route ?? choice.start}>
           {chosen ? (
@@ -383,6 +416,53 @@ export function Lagda({ fjarr, busy, marked, onRemove }: { fjarr: Fjarr | null; 
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+/** Klara att skicka (FR51): each station TKL controls, its list as the station orders it, by the
+ * plan's departure time, with ▲ ▼ to move a train and Skickat, as the clearer's box has it. */
+export function KlaraAttSkicka({ fjarr, busy, onMove, onSent }: { fjarr: Fjarr | null; busy: boolean; onMove: (place: string, number: string, to: number) => void; onSent: (place: string, number: string) => void }) {
+  const lists = readyLists(fjarr);
+  return (
+    <section className="fj-ruta" aria-labelledby="fj-klara">
+      <h2 id="fj-klara">Klara att skicka</h2>
+      {lists.length ? (
+        lists.map((list) => (
+          <div key={list.place} className="fj-klara" data-ready-place={list.place}>
+            <h3>
+              {list.name} <span className="liten">· efter avgångstiden</span>
+            </h3>
+            <ol aria-label={`Klara att skicka vid ${list.name}`}>
+              {list.trains.map((train, k) => {
+                const move = (step: number) => {
+                  const to = readyStep(list.trains, train.train_number, step);
+                  if (to !== null) onMove(list.place, train.train_number, to);
+                };
+                return (
+                  <li key={train.train_number} className="fj-rad" data-ready={train.train_number}>
+                    <span>
+                      <b className="tm-mono">{train.train_number}</b> · {readyText(train)}
+                    </span>
+                    <span className="tm-fyll" />
+                    <button type="button" aria-label={`Flytta tåg ${train.train_number} uppåt`} disabled={busy || k === 0} onClick={() => move(-1)}>
+                      ▲
+                    </button>
+                    <button type="button" aria-label={`Flytta tåg ${train.train_number} nedåt`} disabled={busy || k === list.trains.length - 1} onClick={() => move(1)}>
+                      ▼
+                    </button>
+                    <button type="button" aria-label={`Tåg ${train.train_number} är skickat`} disabled={busy} onClick={() => onSent(list.place, train.train_number)}>
+                      Skickat
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        ))
+      ) : (
+        <p className="tom">Inga tåg är anmälda klara att skicka vid stationerna du styr.</p>
+      )}
     </section>
   );
 }

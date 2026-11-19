@@ -56,6 +56,8 @@ def test_the_actions_kept_from_v2_and_the_new_ones_for_tkl() -> None:
     # #36 del b: the station automats from afar, and the local area over the protocol.
     new |= {"automat.set", "local_release.request", "local_release.response"}
     new |= {"local_release.end"}
+    # #36 del d: the parts' requests and the list Klara att skicka from afar (DRIFT-40).
+    new |= {"part.answer", "ready.move", "ready.sent"}
     assert {a.value for a in station.Action} == kept | new
 
 

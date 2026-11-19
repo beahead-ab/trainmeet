@@ -15,12 +15,20 @@ the web app asks:
 4. What the controller decided for the automats and the local areas (`remote.automats_asked`)
    is switched: an automat at once, a local area in when no route goes to, from or through it
    (FR42) and out when it is empty (FR23).
-5. After 90 seconds without contact with the controller, the default automat is switched on, by
+5. What the controller answered the parts (`remote.part_answers`) and did with the list Klara
+   att skicka (`remote.ready_asks`) is done as the clearer's Godkänn, Neka, move and Skickat in
+   the box, once each, written in the events with the controller's name (FR50, FR51, TKL100).
+   The station says so in route.state's `answered`; an approval the interlocking cannot lay yet
+   leaves the request waiting with the interlocking's words in its `note`.
+6. After 90 seconds without contact with the controller, the default automat is switched on, by
    the automat itself (FR29).
-6. The automats lay what the trains want (tkl.stallverk.automats): a train on its way in at a line
+7. The automats lay what the trains want (tkl.stallverk.automats): a train on its way in at a line
    end wants the route in to its track; one on its track with its departure cleared wants the
    route out.
-7. route.state goes up whole whenever it differs from what Hubben keeps (FR13).
+8. route.state goes up whole whenever it differs from what Hubben keeps (FR13). While the station
+   is remote-controlled it carries the parts' waiting requests and the list Klara att skicka
+   (DRIFT-40); a part's request or Klart att skicka goes up at once (`soon`, from TKL's
+   `forward`), not at the next look.
 
 The catalogue and the automats are those of the outside TKL connected with, and the owner's
 choice that went with that version. A station with neither has nothing to report, as at level 0
@@ -82,6 +90,10 @@ class Looked:
     refused: list[str] = field(default_factory=list)
     reports: list[TklReport] = field(default_factory=list)
     """The exit signals that changed, to go up as signal.exit (STV-10)."""
+    done: list[int] = field(default_factory=list)
+    """The controller's answers to the parts and the list done now, by Hubben's seq (FR50)."""
+    notes: dict[str, str] = field(default_factory=dict)
+    """Why an approval could not be laid yet, by the request it was for (FR50)."""
 
 
 def setup_of(store: TklStore, found: str, made: Connection, model: StationModel) -> Setup | None:
@@ -158,13 +170,45 @@ def wants_of(snapshot: station.Snapshot, setup: Setup) -> list[automat.Want]:
     return found
 
 
+def answer_parts(
+    it: Interlocking, remote: station.RemoteHere, done: set[int], looked: Looked
+) -> None:
+    """Step 5: the controller's answers to the parts' requests and its changes to the list Klara
+    att skicka, each once, as the clearer's in the box (FR50, FR51, TKL100). done: the answers
+    already done, which Hubben still lists until it has the route.state that says so."""
+    for answer in remote.part_answers:
+        if answer.seq in done:
+            continue
+        looked.done.append(answer.seq)
+        try:
+            request = int(answer.request_id)
+        except ValueError:
+            continue
+        reason = answer.reason if not answer.approve else None
+        outcome = it.remote_reply(request, answer.approve, answer.by, reason)
+        (looked.said if outcome.accepted else looked.refused).append(outcome.message)
+        if answer.approve and not outcome.accepted:
+            looked.notes[answer.request_id] = outcome.message
+    for asked in remote.ready_asks:
+        if asked.seq in done:
+            continue
+        looked.done.append(asked.seq)
+        if asked.to is None:
+            outcome = it.ready_sent(asked.train_number, by=asked.by)
+        else:
+            outcome = it.ready_move(asked.train_number, asked.to, by=asked.by)
+        (looked.said if outcome.accepted else looked.refused).append(outcome.message)
+
+
 def look(
     it: Interlocking,
     snapshot: station.Snapshot,
     setup: Setup,
+    done: set[int] | None = None,
 ) -> Looked:
-    """One look at the station's interlocking, as the snapshot says how things stand: steps 1–6
-    of the module's list. The caller keeps the state, sends the answers and the route.state."""
+    """One look at the station's interlocking, as the snapshot says how things stand: steps 1–7
+    of the module's list. The caller keeps the state, sends the answers and the route.state.
+    done: the controller's answers to the parts already done (step 5)."""
     remote = snapshot.remote
     controller = remote.controller.name if remote.controller is not None else None
     looked = Looked()
@@ -192,23 +236,25 @@ def look(
         )
     for asked in remote.routes:
         if asked.state == station.RemoteRouteState.CANCELLED:
-            done = automat.cancel(it, asked.request_id)
-            if done is not None and not done.accepted:
-                looked.refused.append(done.message)
+            cancelled = automat.cancel(it, asked.request_id)
+            if cancelled is not None and not cancelled.accepted:
+                looked.refused.append(cancelled.message)
     for switched in remote.automats_asked:
         function = automat.local_function(setup.specs, switched.code)
         if function is not None:
-            done = it.switch_local(function, switched.on, empty=not switched.on)
+            done_now = it.switch_local(function, switched.on, empty=not switched.on)
         else:
-            done = automat.set_automat(
+            done_now = automat.set_automat(
                 it, setup.specs, switched.code, switched.on, station.RouteBy.REMOTE
             )
-        (looked.said if done.accepted else looked.refused).append(done.message)
+        (looked.said if done_now.accepted else looked.refused).append(done_now.message)
+    if controller is not None:
+        answer_parts(it, remote, done or set(), looked)
     default = automat.default_automat(setup.specs)
     lost = silent is not None and silent >= SILENT_DEFAULT
     if lost and default is not None and all(a.code != default.code for a in it.fjarr.automats):
-        done = automat.set_automat(it, setup.specs, default.code, True, station.RouteBy.AUTOMAT)
-        looked.said.append(done.message)
+        on = automat.set_automat(it, setup.specs, default.code, True, station.RouteBy.AUTOMAT)
+        looked.said.append(on.message)
     looked.said += automat.tick(it, setup.specs, wants_of(snapshot, setup))
     if it.problem is None:
         looked.reports = list(it._exit_reports(before))
@@ -234,6 +280,13 @@ class StationRemote:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        self._done: dict[str, set[int]] = {}
+        """The controller's answers to the parts done, per station, until Hubben drops them."""
+        self._notes: dict[str, dict[str, str]] = {}
+        """Why an approval could not be laid yet, per station and request (FR50)."""
+        self._soon: set[str] = set()
+        self._again: set[str] = set()
+        self._soon_lock = threading.Lock()
 
     def step(self, found: str) -> Looked | None:
         """One look for the station: None when there is nothing to look at (not connected, no
@@ -260,6 +313,10 @@ class StationRemote:
         except (Unreachable, HubError):
             return None
         plant = plant_of(model)
+        pending = {a.seq for a in snapshot.remote.part_answers}
+        pending |= {a.seq for a in snapshot.remote.ready_asks}
+        done = self._done.setdefault(found, set())
+        done &= pending
 
         def change(
             kept_model: StationModel | None, revision: int, body: str | None
@@ -267,13 +324,15 @@ class StationRemote:
             if kept_model is None:
                 return None, (Looked(), station.RouteState(), [])
             it = load(plant, revision, body)
-            looked = look(it, snapshot, setup)
+            looked = look(it, snapshot, setup, done)
             state = automat.route_state(it, setup.catalogue, setup.specs)
             orders = it.take_orders()
             kept = it.view() if it.revision != revision else None
             return kept, (looked, state, orders)
 
         looked, state, orders = self.store.change_interlocking(found, change)
+        done |= set(looked.done)
+        state = self._answered(found, state, looked, done & pending)
         if orders and self.orders is not None:
             self.orders(orders)
         if looked.reports and self.report is not None:
@@ -289,6 +348,46 @@ class StationRemote:
         for line in looked.said:
             LOGGER.info("Fjärrstyrning: %s", line)
         return looked
+
+    def _answered(
+        self, found: str, state: station.RouteState, looked: Looked, done: set[int]
+    ) -> station.RouteState:
+        """route.state with what the station has done of the controller's answers (FR50): their
+        seqs while Hubben still lists them, and why an approval waits, on its request."""
+        notes = self._notes.setdefault(found, {})
+        notes.update(looked.notes)
+        waiting = {r.request_id for r in state.part_requests}
+        for gone in set(notes) - waiting:
+            del notes[gone]
+        requests = [
+            r.model_copy(update={"note": notes[r.request_id]}) if r.request_id in notes else r
+            for r in state.part_requests
+        ]
+        return state.model_copy(update={"part_requests": requests, "answered": sorted(done)})
+
+    def soon(self, found: str) -> None:
+        """A look for the station at once, in the background: a part's request or Klart att
+        skicka goes up to whoever controls the station without waiting for the next look
+        (TKL100). Several asks while one runs give one more look."""
+        with self._soon_lock:
+            if found in self._soon:
+                self._again.add(found)
+                return
+            self._soon.add(found)
+
+        def run() -> None:
+            while True:
+                try:
+                    self.step(found)
+                except Exception:  # the next look tries again
+                    LOGGER.exception("Fjärrstyrning: en titt gick fel.")
+                with self._soon_lock:
+                    if found not in self._again:
+                        self._soon.discard(found)
+                        return
+                    self._again.discard(found)
+
+        threading.Thread(target=run, name="tkl-fjarr-nu", daemon=True).start()
 
     @staticmethod
     def _send(

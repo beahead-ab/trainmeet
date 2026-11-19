@@ -569,9 +569,12 @@ def test_route_state_is_kept_and_passed_on(meet: Meet, lines: Any) -> None:
     before = len(meet.drift().history)
     assert asen.send(Action.ROUTE_STATE, "asn", **state).status == "accepted"
     assert asen.send(Action.ROUTE_STATE, "asn", **state).status == "accepted"
-    assert meet.kinds(before) == ["route.state", "automat.set", "local_release.answered"], (
-        "the same state again changes nothing"
-    )
+    assert meet.kinds(before) == [
+        "route.state",
+        "automat.set",
+        "local_release.answered",
+        "part.requested",
+    ], "the same state again changes nothing; a part's request forwarded is in Logg (#36 del d)"
     assert asen.refused(Action.ROUTE_STATE, "asn", occupied=["1"]) == Reason.NOT_LEVEL_3
     for reader in (remote, asen):
         seen = reader.snapshot("asn").remote
@@ -593,7 +596,7 @@ def test_route_state_is_kept_and_passed_on(meet: Meet, lines: Any) -> None:
         meet.store.overview(norrby.key, ["sjv"])
     # The automat off and the area ended, and a route laid by the automat released.
     asen.send(Action.ROUTE_STATE, "asn")
-    assert meet.kinds(before + 3) == [
+    assert meet.kinds(before + 4) == [
         "route.state",
         "route.released",
         "automat.set",

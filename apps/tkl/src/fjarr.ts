@@ -15,7 +15,12 @@
 // A route is chosen with a click on its start and one on its target, only from a station's
 // remote catalogue (FR11). It blinks until Lägg tågvägen sends it (FR13). Pure functions, so the
 // picture and its tests read the same thing. Nothing here names a station (RS13).
-import type { Fjarr, OfferHere, OverviewPlace, PlaceMode, RemoteRoute, RemoteRouteHere, SectionOverview } from "./fjarrapi";
+//
+// A station with parts forwards its parts' requests and its list Klara att skicka in route.state
+// while it is remote-controlled (#36 del d, DRIFT-40, FR50, FR51): the requests wait under Väntar
+// på dig with Godkänn and Neka, and each station's list stands in the plan's order, to be moved
+// and marked Skickat, as the clearer's box has them.
+import type { Fjarr, OfferHere, OverviewPlace, PartRequest, PlaceMode, ReadyToSend, RemoteRoute, RemoteRouteHere, SectionOverview } from "./fjarrapi";
 import { STANDARD, type Skin } from "./skal";
 
 /** The skin 95, exactly as the station's own picture has it (FR47). */
@@ -231,6 +236,45 @@ export function choose(fjarr: Fjarr | null, choice: Choice | null, hit: Hit): Ch
   const start = starts.find((s) => routesFrom(place, s).length > 0);
   if (start) return { place: hit.place, start, route: null };
   return choice;
+}
+
+// --- The parts when a station is remote-controlled (#36 del d, FR50, FR51) ---------------------
+
+/** A part's request at a station TKL controls, with the station's name. */
+export type PartAsk = { place: string; name: string; request: PartRequest };
+/** A station's list Klara att skicka, in the station's order. */
+export type ReadyList = { place: string; name: string; trains: ReadyToSend[] };
+
+const controlled = (fjarr: Fjarr | null): OverviewPlace[] => {
+  const mine = new Set(fjarr?.controls ?? []);
+  return lineOrder(placesOf(fjarr)).filter((p) => mine.has(p.place.place));
+};
+
+/** The parts' requests waiting at the stations TKL controls, in the order of the line and then
+ * as each station forwards them, the oldest first (FR50). */
+export function partAsks(fjarr: Fjarr | null): PartAsk[] {
+  return controlled(fjarr).flatMap((p) => (p.route_state?.part_requests ?? []).map((request) => ({ place: p.place.place, name: p.place.name, request })));
+}
+
+/** Each controlled station's list Klara att skicka, as the station orders it: by the planned
+ * departure, and where it was moved (FR51). Stations with an empty list are left out. */
+export function readyLists(fjarr: Fjarr | null): ReadyList[] {
+  return controlled(fjarr)
+    .map((p) => ({ place: p.place.place, name: p.place.name, trains: p.route_state?.ready_to_send ?? [] }))
+    .filter((list) => list.trains.length > 0);
+}
+
+/** The place a train moves to one step up or down in a list, or null at either end. */
+export function readyStep(trains: ReadyToSend[], number: string, step: number): number | null {
+  const at = trains.findIndex((t) => t.train_number === number);
+  const to = at + step;
+  return at < 0 || to < 0 || to >= trains.length ? null : to;
+}
+
+/** What a train in the list says: the part, the track and the planned departure. */
+export function readyText(train: ReadyToSend): string {
+  const bits = [train.part_name ?? train.part ?? "", train.track ? `spår ${train.track}` : "", train.departure ? `avgår ${train.departure}` : ""].filter(Boolean);
+  return bits.join(" · ") + (train.moved ? " · flyttat" : "");
 }
 
 export function routeOf(fjarr: Fjarr | null, place: string, route: string): RemoteRoute | null {
@@ -572,6 +616,9 @@ export function fjarrHappenings(before: Fjarr | null, now: Fjarr): FjarrHappenin
   const had = new Set(before.controls ?? []);
   const has = new Set(now.controls ?? []);
   for (const place of has) if (!had.has(place)) add(`took:${place}`, place, `${name(place)} fjärrstyrs härifrån`);
+  // A part's request a controlled station forwards (FR50).
+  const askedBefore = new Set(partAsks(before).map((a) => `${a.place}:${a.request.request_id}`));
+  for (const a of partAsks(now)) if (!askedBefore.has(`${a.place}:${a.request.request_id}`)) add(`part:${a.place}:${a.request.request_id}`, a.place, `${name(a.place)}: ${a.request.text}`);
   for (const place of had) if (!has.has(place)) add(`gone:${place}`, place, `${name(place)} styrs inte längre härifrån`);
   const was = new Map(placesOf(before).map((p) => [p.place.place, p]));
   for (const place of placesOf(now)) {

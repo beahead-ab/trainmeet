@@ -10,6 +10,11 @@
 // concept's overview. The station's own picture in detail stays the station's (its inside never
 // leaves it).
 //
+// A station with parts forwards its parts' requests and its list Klara att skicka while it is
+// remote-controlled (#36 del d, FR50, FR51): Väntar på dig answers a request with part.answer,
+// and Klara att skicka moves a train with ready.move and marks it with ready.sent. The button
+// Stream Deck opens the fjärrtågklarerare's deck on the screen, as in Ställverket (SD37).
+//
 // The fjärrbild is read from TKL's server every two seconds, every second while a route waits
 // for its answer, and every ten while the page is hidden: Hubben's overview has no revision
 // counter yet, and reading it keeps the one who remote-controls heard (FR28). Every button sends a station
@@ -17,15 +22,17 @@
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api, full, Problem, type Action, type CallHere, type Clearance, type Connection, type FoundHub, type State, type View } from "./api";
-import { choose, drawPicture, fjarrHappenings, myRoutes, reasonText, routeLabel, routeOf, sentState, type Choice, type FjarrHappening, type Hit, type Sent } from "./fjarr";
+import { choose, drawPicture, fjarrHappenings, myRoutes, partAsks, readyLists, reasonText, routeLabel, routeOf, sentState, type Choice, type FjarrHappening, type Hit, type Sent } from "./fjarr";
 import { fjarrApi, type Fjarr, type RemoteAreas } from "./fjarrapi";
-import { FjarrbildView, Lagda, Teckenforklaring, Vantar, type Notice } from "./Fjarrbild";
+import { FjarrbildView, KlaraAttSkicka, Lagda, Teckenforklaring, Vantar, type Notice } from "./Fjarrbild";
 import { FirstStart } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Pin } from "./Installningar";
 import { revisionOf } from "./niva0";
 import { screenNumber } from "./skal";
 import { Handelser, Klarering, Tag } from "./Stallverket";
+import { DeckPanel } from "./Deck";
+import { readDeck, REMOTE_ROLE, saveDeck } from "./deck";
 import "./fjarr.css";
 
 const EVERY_MS = 2000;
@@ -377,8 +384,13 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
   const [journal, setJournal] = useState<FjarrHappening[]>([]);
   const [marked, setMarked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The parts' requests answered here (#36 del d), by place and request, until the station's
+  // route.state no longer lists them waiting.
+  const [answered, setAnswered] = useState<Set<string>>(() => new Set());
   const screen = typeof location === "undefined" ? 1 : screenNumber(location.search);
   const [view, setView] = useState<ScreenView>(readFjarrScreen(screen, storage()));
+  // The fjärrtågklarerare's Stream Deck (#36 del d, SD37), on the screen as in Ställverket.
+  const [deckOpen, setDeckOpen] = useState(() => readDeck(screen, storage(), REMOTE_ROLE).open);
   const last = useRef<Fjarr | null>(null);
   const waiting = useRef(false);
   waiting.current = sent.length > 0;
@@ -443,6 +455,15 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
     });
   }, [now]);
 
+  // An answer to a part stays marked until the request no longer waits, or the station says
+  // why its interlocking could not lay it yet (FR50).
+  useEffect(() => {
+    if (!fjarr || !answered.size) return;
+    const asking = new Map(partAsks(fjarr).map((a) => [`${a.place}:${a.request.request_id}`, a.request]));
+    const kept = new Set([...answered].filter((key) => asking.has(key) && !asking.get(key)?.note));
+    if (kept.size !== answered.size) setAnswered(kept);
+  }, [fjarr, answered]);
+
   const command = async (place: string, action: Action, payload: Record<string, unknown>, context = fjarr?.overview?.context, call?: CallHere, clearance?: Clearance) => {
     if (!context) return null;
     setBusy(true);
@@ -477,6 +498,22 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
     const reply = await command(place, "route.cancel", { request_id: requestIdOf });
     if (reply?.status === "rejected") setNotices((before) => [{ id: `${requestIdOf}-bort`, at: Date.now(), text: reply.message ?? reasonText(reply.reason) }, ...before]);
     setMarked(null);
+    await read();
+  };
+
+  /** Godkänn or Neka a part's request (FR50): part.answer, which the station does as the
+   * clearer's answer in its box. */
+  const answerPart = async (place: string, part: string, request: string, approve: boolean) => {
+    const reply = await command(place, "part.answer", { part, request_id: request, approve });
+    if (reply?.status === "rejected") setNotices((before) => [{ id: `${place}-${request}-del`, at: Date.now(), text: reply.message ?? reasonText(reply.reason) }, ...before]);
+    else if (reply) setAnswered((before) => new Set([...before, `${place}:${request}`]));
+    await read();
+  };
+
+  /** Klara att skicka (FR51): a train moved in the station's list, or Skickat. */
+  const ready = async (place: string, action: "ready.move" | "ready.sent", payload: Record<string, unknown>) => {
+    const reply = await command(place, action, payload);
+    if (reply?.status === "rejected") setNotices((before) => [{ id: `${place}-${String(payload.train_number)}-klar`, at: Date.now(), text: reply.message ?? reasonText(reply.reason) }, ...before]);
     await read();
   };
 
@@ -518,6 +555,8 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
     onAgain: (place: string, route: string) => void lay(place, route),
     onRemove: (place: string, id: string) => void remove(place, id),
     onOffer: (place: string, accept: boolean) => void offer(place, accept),
+    answered,
+    onPart: (place: string, part: string, request: string, approve: boolean) => void answerPart(place, part, request, approve),
   };
   return (
     <div className={`fj-sida fj-vy-${view}`}>
@@ -547,6 +586,17 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-pressed={deckOpen}
+          onClick={() => {
+            const open = !deckOpen;
+            setDeckOpen(open);
+            saveDeck(screen, { ...readDeck(screen, storage(), REMOTE_ROLE), open }, storage(), REMOTE_ROLE);
+          }}
+        >
+          Stream Deck
+        </button>
       </div>
       {fjarr.stale ? (
         <p className="gammal" role="status">
@@ -556,9 +606,11 @@ export function FjarrSida({ part, onProblem: given }: { part: "bild" | "klarerin
       <div className="fj-bild">
         <FjarrbildView drawn={drawn} onHit={hit} stale={fjarr.stale ?? false} />
       </div>
+      {deckOpen ? <DeckPanel screen={screen} plan={null} role={REMOTE_ROLE} /> : null}
       <Teckenforklaring />
       <div className="kolumner fj-kolumner">
         <Vantar {...panels} />
+        {view === "allt" || readyLists(fjarr).length ? <KlaraAttSkicka fjarr={fjarr} busy={busy} onMove={(place, number, to) => void ready(place, "ready.move", { train_number: number, to })} onSent={(place, number) => void ready(place, "ready.sent", { train_number: number })} /> : null}
         {view === "allt" ? <Lagda fjarr={fjarr} busy={busy} marked={marked} onRemove={panels.onRemove} /> : null}
         {view === "allt" ? <FjarrHandelser journal={journal} /> : null}
       </div>

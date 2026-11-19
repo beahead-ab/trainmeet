@@ -13,7 +13,7 @@ export type Look = Pick<DeckKey, "text" | "under" | "press" | "hold" | "number" 
 export type Dragged = { from: "list"; index: number } | { from: "cell"; cell: number };
 
 export const SIZES: DeckModelId[] = ["mini", "neo", "15", "xl", "plus", "plus-xl", "studio", "pedal"];
-export const MODE_NAMES: Record<DeckMode, string> = { tagen: "Tågen", platser: "Platser", sparplan: "Spårplan", bangard: "Bangård" };
+export const MODE_NAMES: Record<DeckMode, string> = { tagen: "Tågen", platser: "Platser", sparplan: "Spårplan", bangard: "Bangård", fjarr: "Fjärr" };
 /** A part's deck, the shunter's (#87 del d): the pedal has none (TKL122). */
 export const YARD_SIZES: DeckModelId[] = SIZES.filter((s) => s !== "pedal");
 export const ACTION_NAMES: Record<DeckAction, string> = {
@@ -61,6 +61,8 @@ export const TYPE_NAMES: Record<KeyType, string> = {
   gata: "Spår",
   begar: "Väg ut",
   "klart-tag": "Tågknapp, klart att skicka",
+  fjarrvag: "Fjärrväg",
+  erbjudande: "Erbjudande",
 };
 /** What a press and a hold may do, per type: the fixed list (SD43), as TKL's server has it.
  * Lös ut alla, Noll and Nödutlösning are holds, never a press (SD29). */
@@ -143,6 +145,7 @@ export function fullKey(given: Partial<DeckKey> & Pick<DeckKey, "type">): DeckKe
     route: null,
     track: null,
     side: null,
+    remote: null,
     text: "",
     under: "",
     press: null,

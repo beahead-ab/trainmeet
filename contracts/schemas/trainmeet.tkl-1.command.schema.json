@@ -30,7 +30,10 @@
         "automat.set",
         "local_release.request",
         "local_release.response",
-        "local_release.end"
+        "local_release.end",
+        "part.answer",
+        "ready.move",
+        "ready.sent"
       ],
       "title": "Action",
       "type": "string"

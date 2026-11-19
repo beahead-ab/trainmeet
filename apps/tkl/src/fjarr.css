@@ -174,3 +174,21 @@ svg.fjarrbild text,
 svg.fjarrbild polygon.fj-pil {
   pointer-events: none;
 }
+
+/* #36 del d: the parts' requests and Klara att skicka at the stations TKL controls (FR50, FR51). */
+.fj-rad.del-begaran {
+  border-left: 3px solid #a78bfa;
+  padding-left: 8px;
+}
+.fj-not {
+  color: var(--tm-amber, #f5c518);
+}
+.fj-klara h3 {
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+.fj-klara ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

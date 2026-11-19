@@ -120,14 +120,21 @@ class Room:
         slot: str,
         settings: TklDeckSettings,
         profile: TklDeckProfile,
-        world: logic.World,
+        world: logic.World | None,
+        opener: Callable[[TklDeckSettings, TklDeckProfile], logic.Deck] | None = None,
     ) -> logic.Deck:
-        """The deck's state, opened afresh when it is new or its profile changed."""
+        """The deck's state, opened afresh when it is new or its profile changed. opener: how a
+        deck in another role opens, such as the fjärrtågklarerare's (#36 del d); else the
+        station's, with its world."""
         with self.lock:
             key = (slot, settings.serial)
             found = self.decks.get(key)
             if found is None or found.profile is not profile:
-                found = logic.open_deck(settings, profile, world)
+                if opener is not None:
+                    found = opener(settings, profile)
+                else:
+                    assert world is not None
+                    found = logic.open_deck(settings, profile, world)
                 if key in self.decks:
                     found.revision = self.decks[key].revision + 1
                 self.decks[key] = found
