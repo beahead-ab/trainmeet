@@ -14,7 +14,7 @@
 // the first (STV-05); the skin, the proportion and the view are chosen per screen and kept in
 // this browser. Klarering is level 0's, as it is.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
+import { api, Problem, type Connection, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
 import { Foto, FotoGreyed } from "./Foto";
 import { hasRealForm } from "./foto";
 import type { Happening } from "./handelser";
@@ -23,7 +23,7 @@ import { Panelen } from "./Panelen";
 import { changeScreen, codeIn, ownerChoices, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, type Screen, type ScreenView, type Skin, type SkinId, type StandardId } from "./skal";
 import { Klarering, Questions, Stallverket, type Send } from "./Stallverket";
 import { DeckPanel } from "./Deck";
-import { PartBox } from "./Delar";
+import { PartBox, PartPlaces } from "./Delar";
 import { attention, rings } from "./delar";
 import { readDeck, saveDeck } from "./deck";
 import {
@@ -56,6 +56,8 @@ type Props = {
   view: View | null;
   /** Why the hub's part is missing, when TKL is not connected and approved. */
   hubNote?: string | null;
+  /** The connection: the parts' driftplatser in Hubben with their answers (#87 del b). */
+  connection?: Connection | null;
   outside: Outside | null;
   journal: Happening[];
   sounds: Sounds;
@@ -136,7 +138,7 @@ export function StallverketSida(props: Props) {
 
 type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; manover?: Manover | null; onState: (state: Interlocking) => void };
 
-export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, outside, journal, sounds, busy, onSend, onExit, initial }: PanelProps) {
+export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, connection = null, outside, journal, sounds, busy, onSend, onExit, initial }: PanelProps) {
   const [screen] = useState(() => (typeof location === "undefined" ? 1 : screenNumber(location.search)));
   const [settings, setSettings] = useState<Screen>(() => initial?.screen ?? readScreen(screen, storage()));
   const [language, setLanguage] = useState<Language>(() => initial?.language ?? readLanguage(storage()));
@@ -226,6 +228,7 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
           {say("deck")}
         </button>
       </div>
+      <PartPlaces parts={raw.parts ?? []} connection={connection} />
       <PartBox state={raw} say={say} working={working} onWork={(work) => void run(() => trainCall(valet, work))} />
       {deckOpen ? <DeckPanel screen={screen} plan={{ panel, drawn }} /> : null}
       {state.problem ? (

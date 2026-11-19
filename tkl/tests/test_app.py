@@ -104,6 +104,8 @@ def test_not_connected_says_so(tmp_path: Path) -> None:
         "hub_name": None,
         "status": None,
         "places": [],
+        "place": None,
+        "parts": [],
         "outside_version": None,
         "message": None,
         "preview": False,

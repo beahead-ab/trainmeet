@@ -80,6 +80,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.reference": tkl.TklReference,
     "trainmeet.tkl-1.drawing": tkl.TklDrawing,
     "trainmeet.tkl-1.rita": tkl.TklRita,
+    # Studio, Dela stationen (#87 del b).
+    "trainmeet.tkl-1.dela": tkl.TklDela,
+    "trainmeet.tkl-1.dela-edit": tkl.TklDelaEdit,
     "trainmeet.tkl-1.manover": tkl.TklManover,
     "trainmeet.tkl-1.interlocking": tkl.TklInterlocking,
     "trainmeet.tkl-1.interlocking-answer": tkl.TklAnswer,
@@ -1958,6 +1961,11 @@ def tkl_openapi() -> str:
     route("put", a + "/studio/rita", "tklSaveDrawing", t + "rita", t + "drawing")
     route("post", a + "/studio/rita/use", "tklUseDrawing", t + "rita")
     route("delete", a + "/studio/rita", "tklForgetDrawing", t + "rita")
+    # Studio, Dela stationen (#87 del b): the parts, kept as a draft until they are used.
+    route("get", a + "/studio/dela", "tklParts", t + "dela")
+    route("put", a + "/studio/dela", "tklSaveParts", t + "dela", t + "dela-edit")
+    route("post", a + "/studio/dela/use", "tklUseParts", t + "dela")
+    route("delete", a + "/studio/dela", "tklForgetParts", t + "dela")
     # Manöver, the owner's free panel (STV-46): station settings, versioned with the model.
     route("get", a + "/studio/manover", "tklManover", t + "manover")
     route("put", a + "/studio/manover", "tklSaveManover", t + "manover", t + "manover")

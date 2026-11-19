@@ -1314,6 +1314,21 @@
           "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
           "title": "Place"
         },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+          "title": "Code"
+        },
         "rules": {
           "$ref": "#/$defs/PartRules"
         },

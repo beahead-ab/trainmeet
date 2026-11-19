@@ -309,3 +309,22 @@ def test_nu_shows_the_part_with_its_station(meet: TestClient) -> None:
     assert places[LEKBY].part_of is None
     automation = drift.AutomationStatus.model_validate(meet.get(DRIFT + "/automation").json())
     assert "lokstall" in [p.place for p in automation.places]
+
+
+def test_the_tkl_hears_each_place_with_its_answer_and_its_part(meet: TestClient) -> None:
+    """#87 del b: TKL tells the station's place from the part's by the part's link, and shows
+    the part's answer, from ConnectReply.wanted: the same rows Klienter shows."""
+    tkl = Tkl(meet, {"outside": with_parts(YARD)})
+    waiting = tkl.poll()
+    assert [(w.place, w.status.value, w.part, w.part_of) for w in waiting.wanted] == [
+        (LEKBY, "waiting", None, None),
+        ("lokstall", "waiting", "lokstall", LEKBY),
+    ]
+    tkl.answer("approve", LEKBY)
+    tkl.answer("refuse", "lokstall")
+    reply = tkl.poll()
+    assert [(w.place, w.status.value) for w in reply.wanted] == [
+        (LEKBY, "approved"),
+        ("lokstall", "refused"),
+    ]
+    assert reply.wanted == tkl.listed().wanted

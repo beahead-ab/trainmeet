@@ -149,7 +149,7 @@
     },
     "ClientPlace": {
       "additionalProperties": true,
-      "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+      "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att\nen TKL vet vilken driftplats som är stationens och vilken som är en dels.",
       "properties": {
         "place": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",

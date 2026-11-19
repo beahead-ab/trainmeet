@@ -5,6 +5,10 @@
 // mot en stoppbock: varje växel har tre ben, så antalet ändar är jämnt, och provet har därför två
 // stoppbockar. Provet ser att de röda punkterna försvinner när ändarna får stoppbock och utfart,
 // att motorn räknar fram vägarna, tar ritningen i bruk och lägger tågvägen A1 → 1Ö i Ställverket.
+// Sist delas stationen i Studio › Dela stationen (#87 del b): spår 2 blir delen Lastplatsen med
+// växel 1 som gränsväxel och en växelgata till spår 2. Använd väntar med 409 medan tågvägen
+// ligger, och går igenom när den är utlöst. På delens skärm /del/lastplatsen läggs gatan, och
+// växel 1 ligger i minus.
 //
 //   PROV_TKL=http://127.0.0.1:8090 CHROME_PATH=/usr/bin/google-chrome node apps/tkl/e2e/rita.mjs
 //
@@ -93,6 +97,59 @@ async function signal(page, column, row, facing, name) {
 
 const loose = (page) => grid(page).locator('circle[data-loose="ja"]').count();
 
+/** Studio › Dela stationen: a part on track 2, its border switch, a street, the checks and
+ * Använd, which waits while the train route is set; then the part's own screen lays the street. */
+async function dela(page) {
+  const plan = await (await page.request.get(`${TKL}/api/tkl/1/studio/model`)).json();
+  const below = plan.panel.lines.filter((l) => l.cells.some(([, y]) => y > 4.5)).map((l) => l.piece);
+  check(below.length >= 1, "Spår 2 saknas på panelen.");
+  await page.goto(`${TKL}/studio/dela`);
+  await page.getByRole("heading", { name: "Dela stationen", exact: true }).waitFor();
+  await page.getByRole("button", { name: "+ Ny del" }).click();
+  await page.getByLabel("Delens namn").fill("Lastplatsen");
+  check((await page.getByLabel("Delens id").inputValue()) === "lastplatsen", "Id:t följer inte namnet.");
+  const svg = page.locator("svg.dela-svg");
+  // The area is clicked section by section: a click takes the whole section in.
+  for (const piece of below) {
+    const line = svg.locator(`polyline[data-piece="${piece}"]`);
+    if ((await line.getAttribute("data-area")) !== "ja") await line.click({ force: true });
+    await svg.locator(`polyline[data-piece="${piece}"][data-area="ja"]`).waitFor({ state: "attached" });
+  }
+  const checks = page.getByRole("region", { name: "Kontroller" });
+  await checks.getByText("växel 1 står vid gränsen", { exact: false }).waitFor();
+  await page.getByRole("navigation", { name: "Verktyg" }).getByRole("button", { name: "Gränsväxlar", exact: true }).click();
+  await svg.getByRole("button", { name: "Växel 1", exact: true }).click();
+  await page.locator('tr[data-border-row="1"]').waitFor();
+  check((await page.getByLabel("Läge mot delen för 1").inputValue()) === "-", "Gränsväxeln 1 ligger inte mot delen i minus.");
+  await page.getByRole("group", { name: "Ände" }).getByRole("button", { name: "Vänster" }).click();
+  await page.locator('[data-offer-street="2"]').click();
+  await page.locator('li[data-street="V2"]').waitFor();
+  await checks.getByText("Inga problem", { exact: false }).waitFor();
+  await page.getByText("Inga problem: delarna kan användas.").waitFor();
+  await screenshot(page, "dela-stationen");
+  // Använd medan tågvägen A1 → 1Ö ligger: 409, och utkastet står kvar.
+  await page.getByRole("button", { name: "Använd", exact: true }).click();
+  await page.locator(".fel, .notis", { hasText: "Ställverket har lagda vägar" }).waitFor();
+  await page.getByText("Utkast, sparat på datorn", { exact: true }).waitFor();
+  const state = await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json();
+  for (const route of state.routes) {
+    const done = await page.request.post(`${TKL}/api/tkl/1/stallverk/release`, { data: { route: route.id } });
+    check(done.ok() && (await done.json()).accepted, `Tågvägen ${route.id} löstes inte ut.`);
+  }
+  await page.getByRole("button", { name: "Använd", exact: true }).click();
+  await page.getByText("Används i Ställverket", { exact: true }).waitFor();
+  await screenshot(page, "dela-anvand");
+  // Delens skärm: gatan till 2 lägger växel 1 i minus.
+  await page.goto(`${TKL}/del/lastplatsen`);
+  await page.getByRole("heading", { name: "Lastplatsen", exact: true }).waitFor();
+  await page.locator('[data-street="V2"]').click();
+  await page.locator(".stv-svar", { hasText: "V 2" }).waitFor();
+  const after = await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json();
+  check(after.switches["1"]?.position === "-", `Gatan lade inte växel 1 i minus: ${JSON.stringify(after.switches["1"])}`);
+  await page.locator('[data-street="V2"].ligger').waitFor();
+  await screenshot(page, "del-gatan");
+}
+
 const errors = [];
 const started = Date.now();
 const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
@@ -174,8 +231,12 @@ try {
   await page.getByRole("button", { name: /^Tågväg A1 → 1Ö/ }).waitFor();
   check((await panel.locator('g[data-signal="A1"]').getAttribute("data-aspect")) === "proceed", "A1 visar inte kör.");
   await screenshot(page, "stallverket-tagvag");
+
+  // 6. Dela stationen (#87 del b): spår 2 och benet dit från växel 1 blir delen Lastplatsen.
+  await dela(page);
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Rita i TKL: stationen ritades, togs i bruk och tågvägen A1 → 1Ö lades i Ställverket på ${Math.round((Date.now() - started) / 1000)} s.`);
+  console.log("Dela stationen: Lastplatsen fick spår 2, gränsväxeln 1 och gatan till 2; Använd väntade med 409 medan tågvägen låg, och gatan lades på /del/lastplatsen.");
 } catch (error) {
   if (error instanceof ProvFel) {
     console.error(`Provet misslyckades: ${error.message}`);

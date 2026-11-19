@@ -28,6 +28,11 @@ buffer stops, at other exits and at the turntable. A planned switch is not built
 does not pass it. The station tracks the walk stops at are the exit's tracks, in the model's
 order.
 
+Parts. A station divided into parts (delställverk, TKL97) lists the parts its owner made their
+own driftplatser in Hubben (TKL101), with the part's id, its name and its signature, in the
+model's order; the first of two parts with the same id counts. A part the same person runs is
+left out: Hubben never sees it (PLAN-34, TRAFIK-35).
+
 The boxes' sides (`sides`) are left out, as at level 0: neither first start nor the list in
 Studio writes them, and Planering works them out when the outside has none (F3).
 
@@ -45,7 +50,7 @@ from typing import Final
 
 from contracts.common import Side
 from contracts.station_model import LineExit, StationModel, SwitchControl
-from contracts.station_outside import Exit, StationOutside, StationTrack
+from contracts.station_outside import Exit, StationOutside, StationPart, StationTrack
 from contracts.tkl import Panel
 from tkl.standard import plan
 from tkl.standard.graph import Graph, Step
@@ -195,7 +200,19 @@ def outside_of(
             for track, track_id in zip(model.station_tracks, tracks, strict=True)
         ],
         exits=exits,
+        parts=_parts(model),
     )
+
+
+def _parts(model: StationModel) -> list[StationPart]:
+    """The parts that are their own driftplatser in Hubben (TKL101), the first of each id."""
+    found: dict[str, StationPart] = {}
+    for part in model.parts:
+        if part.own_place and part.id not in found:
+            found[part.id] = StationPart(
+                id=part.id, name=part.name, code=(part.code or "").strip() or None
+            )
+    return list(found.values())
 
 
 def _name(line: LineExit) -> str:

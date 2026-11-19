@@ -6,6 +6,7 @@
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, full, Problem, TKL, type Action, type CallHere, type Clearance, type Connection, type FoundHub, type Snapshot, type State, type Studio as StudioData, type View } from "./api";
+import { DelaStationen } from "./DelaStationen";
 import { DelSida } from "./Delar";
 import { FirstStart, Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
@@ -27,11 +28,16 @@ const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : 
 const SPARPLAN = "/studio/sparplan";
 const KOPPLA_IN = "/studio/koppla-in";
 const RITA = "/studio/rita";
+/** Studio › Dela stationen (#87 del b): the station's parts, next to Rita. */
+const DELA = "/studio/dela";
 const PROVA = "/studio/prova";
 const STUDIO_INSTALLNINGAR = "/studio/installningar";
 /** A part's own screen (TKL102): /del/<id>, behind the same PIN as TKL. */
 const PART = /^\/del\/([^/?#]+)/;
 const REFRESH_MS = 10_000;
+/** After the approval TKL keeps asking: a part may be approved later (TRAFIK-35). TKL's server
+ * asks the hub no more often than it should. */
+const FOLLOW_MS = 15_000;
 const REQUEST_AGAIN_MS = 30_000;
 
 export function App() {
@@ -135,7 +141,8 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   const last = useRef<Snapshot | null>(null);
   const soundsRef = useRef(sounds);
   soundsRef.current = sounds;
-  const place = connection?.status === "approved" ? (connection.places?.[0] ?? null) : null;
+  // The station's own place: with parts that are their own driftplatser, TKL runs several.
+  const place = connection?.status === "approved" ? (connection.place ?? connection.places?.[0] ?? null) : null;
 
   const fail = (error: unknown) => {
     if (error instanceof Problem && error.status === 401 && /PIN/.test(error.message)) {
@@ -178,10 +185,12 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // While TKL waits for approval, ask how it stands every few seconds.
+  // While TKL waits for approval, ask how it stands every few seconds; after it, now and then,
+  // since a part of the station may be approved or refused later (TRAFIK-35).
   useEffect(() => {
-    if (!connection?.connected || connection.status !== "waiting") return;
-    const waiting = setInterval(() => api.connection().then(setConnection).catch(() => undefined), 3000);
+    if (!connection?.connected || (connection.status !== "waiting" && connection.status !== "approved")) return;
+    const every = connection.status === "waiting" ? 3000 : FOLLOW_MS;
+    const waiting = setInterval(() => api.connection().then(setConnection).catch(() => undefined), every);
     return () => clearInterval(waiting);
   }, [connection?.connected, connection?.status]);
 
@@ -251,6 +260,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     const plan = path.startsWith(SPARPLAN);
     const koppla = path.startsWith(KOPPLA_IN);
     const rita = path.startsWith(RITA);
+    const dela = path.startsWith(DELA);
     const prova = path.startsWith(PROVA);
     const installningar = path.startsWith(STUDIO_INSTALLNINGAR);
     const changedModel = () => {
@@ -260,7 +270,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     body = (
       <>
         <nav className="studio-flikar" aria-label="Studio">
-          <button type="button" aria-current={plan || rita || koppla || prova || installningar ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+          <button type="button" aria-current={plan || rita || dela || koppla || prova || installningar ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
             Utsidan
           </button>
           <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
@@ -268,6 +278,9 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           </button>
           <button type="button" aria-current={rita ? "page" : undefined} onClick={() => navigate(RITA)}>
             Rita
+          </button>
+          <button type="button" aria-current={dela ? "page" : undefined} onClick={() => navigate(DELA)}>
+            Dela stationen
           </button>
           <button type="button" aria-current={koppla ? "page" : undefined} onClick={() => navigate(KOPPLA_IN)}>
             Koppla in
@@ -283,6 +296,8 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           <StudioInstallningar />
         ) : rita ? (
           <Rita onChanged={changedModel} />
+        ) : dela ? (
+          <DelaStationen onChanged={changedModel} />
         ) : prova ? (
           <Prova onChanged={() => void api.state().then(onLocked)} />
         ) : koppla ? (
@@ -357,6 +372,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
         level={state.station?.level ?? 0}
         view={connection?.status === "approved" ? view : null}
         hubNote={hubNote}
+        connection={connection}
         outside={studio?.draft ?? null}
         journal={journal}
         sounds={sounds}

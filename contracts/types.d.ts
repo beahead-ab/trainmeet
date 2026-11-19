@@ -3111,6 +3111,11 @@ export interface components {
              */
             places?: string[];
             /**
+             * Wanted
+             * @description Varje driftplats klienten vill köra eller är godkänd för, med svaret för just den och vilken del av stationen den är (TRAFIK-35, PLAN-34). Tomt från en äldre hubb.
+             */
+            wanted?: components["schemas"]["trainmeet.station-1.connect-reply.ClientPlace"][];
+            /**
              * Key
              * @description Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.
              * @default null
@@ -3141,6 +3146,33 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-1.connect-reply.ApprovalStatus": "waiting" | "approved" | "refused" | "revoked";
+        /**
+         * ClientPlace
+         * @description En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
+         *     (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
+         *     driftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att
+         *     en TKL vet vilken driftplats som är stationens och vilken som är en dels.
+         */
+        "trainmeet.station-1.connect-reply.ClientPlace": {
+            /** Place */
+            place: string;
+            /** @description Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det. */
+            status: components["schemas"]["trainmeet.station-1.connect-reply.ApprovalStatus"];
+            /**
+             * Part
+             * @description Delen av stationen, med delens id i utsidan.
+             * @default null
+             */
+            part: string | null;
+            /**
+             * Part Of
+             * @description Stationens driftplats, när driftplatsen är en del av den.
+             * @default null
+             */
+            part_of: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** Command */
         "trainmeet.station-1.command": ({
             /**
@@ -6082,7 +6114,8 @@ export interface components {
          * ClientPlace
          * @description En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
          *     (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
-         *     driftplats (PLAN-34).
+         *     driftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att
+         *     en TKL vet vilken driftplats som är stationens och vilken som är en dels.
          */
         "trainmeet.drift-1.client.ClientPlace": {
             /** Place */
@@ -9228,7 +9261,8 @@ export interface components {
          * ClientPlace
          * @description En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
          *     (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
-         *     driftplats (PLAN-34).
+         *     driftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att
+         *     en TKL vet vilken driftplats som är stationens och vilken som är en dels.
          */
         "trainmeet.drift-1.preview-clients.ClientPlace": {
             /** Place */
@@ -21082,6 +21116,33 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.sync-1.relay-answer.ClearanceStatus": "waiting" | "approved" | "rejected" | "cancelled" | "invalidated";
+        /**
+         * ClientPlace
+         * @description En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
+         *     (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
+         *     driftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att
+         *     en TKL vet vilken driftplats som är stationens och vilken som är en dels.
+         */
+        "trainmeet.sync-1.relay-answer.ClientPlace": {
+            /** Place */
+            place: string;
+            /** @description Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det. */
+            status: components["schemas"]["trainmeet.sync-1.relay-answer.ApprovalStatus"];
+            /**
+             * Part
+             * @description Delen av stationen, med delens id i utsidan.
+             * @default null
+             */
+            part: string | null;
+            /**
+             * Part Of
+             * @description Stationens driftplats, när driftplatsen är en del av den.
+             * @default null
+             */
+            part_of: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** Clock */
         "trainmeet.sync-1.relay-answer.Clock": {
             /** Time */
@@ -21119,6 +21180,11 @@ export interface components {
              * @description Godkända driftplatser. Godkännandet gäller per driftplats, så en del som godkänns senare kommer med här, med samma nyckel (TRAFIK-35).
              */
             places?: string[];
+            /**
+             * Wanted
+             * @description Varje driftplats klienten vill köra eller är godkänd för, med svaret för just den och vilken del av stationen den är (TRAFIK-35, PLAN-34). Tomt från en äldre hubb.
+             */
+            wanted?: components["schemas"]["trainmeet.sync-1.relay-answer.ClientPlace"][];
             /**
              * Key
              * @description Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.

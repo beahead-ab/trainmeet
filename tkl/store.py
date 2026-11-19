@@ -14,10 +14,20 @@ the outside holds them as they were; the defaults are not stored.
 At level 3 a local TKL keeps how it last reached LocoNet and the MGP cards Discover found, with
 the module the owner said each sits in (#85). The addresses themselves belong to the model.
 
+A station with parts that are their own driftplatser is approved per driftplats (TRAFIK-35):
+the connection keeps each place TKL asked for with the dispatcher's answer and the part it is,
+and when TKL last asked the hub, so that it keeps following without asking too often.
+
 Rita (#85) keeps the owner's drawing as a draft until it is taken into use: the station model
 with its panel plan, problems and all. Taking it into use saves it as the station's model like
 an import; a new model, imported or taken from a reference station, or none, leaves no draft
 behind.
+
+Studio's Dela stationen (#87 del b) keeps the parts as a draft too, until Använd makes them the
+model's (TKL97–TKL103): the stored model with the draft's parts, under the same rules as any
+model, never under set routes or train numbers. A drawing in Rita's draft gets the same parts, so
+that taking the drawing into use later keeps them. A new model, or none, leaves no draft of the
+parts behind.
 
 Studio's Prova keeps its results with the station for the model they tried (#85 del c): the
 model's fingerprint goes with them, and they no longer count once the model changes. The station
@@ -61,12 +71,13 @@ from typing import Final, TypeVar
 
 from contracts import station
 from contracts.common import Side
-from contracts.station_model import StationModel, to_json
+from contracts.station_model import StationModel, StationPart, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.tkl import (
     OutsideVersion,
     TklDeckDeviations,
     TklDeckSettings,
+    TklDelaEdit,
     TklDrawing,
     TklInterlocking,
     TklManover,
@@ -148,6 +159,9 @@ CREATE TABLE IF NOT EXISTS streamdeck_version (
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS dela (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS rita (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
@@ -228,6 +242,14 @@ def _migrate(db: sqlite3.Connection) -> None:
     columns = {str(row[1]) for row in db.execute("PRAGMA table_info(connection)")}
     if "preview" not in columns:
         db.execute("ALTER TABLE connection ADD COLUMN preview INTEGER NOT NULL DEFAULT 0")
+    if "wanted" not in columns:
+        db.execute("ALTER TABLE connection ADD COLUMN wanted TEXT NOT NULL DEFAULT '[]'")
+    if "asked" not in columns:
+        db.execute("ALTER TABLE connection ADD COLUMN asked REAL NOT NULL DEFAULT 0")
+
+
+def _wanted_json(wanted: list[station.ClientPlace]) -> str:
+    return json.dumps([w.model_dump(mode="json") for w in wanted])
 
 
 def _hash_pin(pin: str, salt: bytes) -> bytes:
@@ -273,6 +295,10 @@ class Connection:
     key: str | None = field(default=None, repr=False)
     preview: bool = False
     """A preview run in Provbanan, never a real meet (STUDIO-12)."""
+    wanted: list[station.ClientPlace] = field(default_factory=list)
+    """Each place TKL asked for, with the dispatcher's answer and the part it is (TRAFIK-35)."""
+    asked: float = 0.0
+    """When TKL last asked the hub how the approval stands, as a timestamp."""
 
 
 class TklStore:
@@ -525,6 +551,7 @@ class TklStore:
             self._new_interlocking(db, slot, kept)
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
+            db.execute("DELETE FROM dela WHERE slot=?", (slot,))
             db.execute(
                 "UPDATE station SET level=?, draft=? WHERE slot=?",
                 (kept.level, draft.model_dump_json(), slot),
@@ -539,6 +566,7 @@ class TklStore:
             self._new_interlocking(db, slot, None)
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
+            db.execute("DELETE FROM dela WHERE slot=?", (slot,))
             db.execute("DELETE FROM manover WHERE slot=?", (slot,))
             db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
@@ -568,6 +596,65 @@ class TklStore:
     def forget_drawing(self, slot: str) -> None:
         with self._transaction() as db:
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
+
+    # --- Dela stationen (#87 del b): the parts, kept as a draft until Använd ----------------
+
+    def parts_draft(self, slot: str) -> list[StationPart] | None:
+        """The owner's draft of the parts, if there is one. One TKL can no longer read is
+        dropped."""
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM dela WHERE slot=?", (slot,)).fetchone()
+        if row is None:
+            return None
+        try:
+            return list(TklDelaEdit.model_validate_json(row[0]).parts)
+        except ValueError:
+            self.forget_parts_draft(slot)
+            return None
+
+    def save_parts_draft(self, slot: str, parts: list[StationPart]) -> None:
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                raise NotSetUp()
+            body = TklDelaEdit(parts=parts).model_dump_json()
+            db.execute("INSERT OR REPLACE INTO dela VALUES (?, ?)", (slot, body))
+
+    def forget_parts_draft(self, slot: str) -> None:
+        with self._transaction() as db:
+            db.execute("DELETE FROM dela WHERE slot=?", (slot,))
+
+    def save_parts(self, slot: str, parts: list[StationPart]) -> StationModel:
+        """Använd: the parts become the model's, which gives the interlocking its model and the
+        outside its parts, never under set routes or train numbers (InterlockingBusy). Rita's
+        draft gets the same parts; the parts' draft is gone."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT station_id, name FROM station WHERE slot=?", (slot,)
+            ).fetchone()
+            body = self._model(db, slot)
+            if row is None:
+                raise NotSetUp()
+            if body is None:
+                raise NoModel()
+            kept = StationModel.model_validate_json(body).model_copy(update={"parts": parts})
+            draft = outside_of(kept, row[0], row[1])
+            self._new_interlocking(db, slot, kept)
+            db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
+            db.execute("UPDATE station SET draft=? WHERE slot=?", (draft.model_dump_json(), slot))
+            db.execute("DELETE FROM dela WHERE slot=?", (slot,))
+            drawn = db.execute("SELECT body FROM rita WHERE slot=?", (slot,)).fetchone()
+            if drawn is not None:
+                try:
+                    drawing = TklDrawing.model_validate_json(drawn[0])
+                except ValueError:
+                    drawing = None
+                if drawing is not None:
+                    model = drawing.model.model_copy(update={"parts": parts})
+                    db.execute(
+                        "UPDATE rita SET body=? WHERE slot=?",
+                        (drawing.model_copy(update={"model": model}).model_dump_json(), slot),
+                    )
+        return kept
 
     def model_fingerprint(self, slot: str) -> str | None:
         """The fingerprint of the station's model as it is kept: what Prova's results belong to."""
@@ -908,7 +995,7 @@ class TklStore:
         with self._transaction() as db:
             row = db.execute(
                 "SELECT address, relay, hub_name, client_id, status, places, outside_version, "
-                "message, key, preview FROM connection WHERE slot=?",
+                "message, key, preview, wanted, asked FROM connection WHERE slot=?",
                 (slot,),
             ).fetchone()
         if row is None:
@@ -924,6 +1011,8 @@ class TklStore:
             message=row[7],
             key=row[8],
             preview=bool(row[9]),
+            wanted=[station.ClientPlace.model_validate(w) for w in json.loads(row[10])],
+            asked=float(row[11]),
         )
 
     def connected(self, slot: str, made: Connection) -> None:
@@ -932,8 +1021,8 @@ class TklStore:
             db.execute("DELETE FROM seen WHERE slot=?", (slot,))
             db.execute(
                 "INSERT OR REPLACE INTO connection (slot, address, relay, hub_name, client_id, "
-                "status, places, key, outside_version, message, preview) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "status, places, key, outside_version, message, preview, wanted, asked) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     slot,
                     made.address,
@@ -946,6 +1035,8 @@ class TklStore:
                     made.outside_version,
                     made.message,
                     int(made.preview),
+                    _wanted_json(made.wanted),
+                    made.asked,
                 ),
             )
 
@@ -956,17 +1047,28 @@ class TklStore:
         places: list[str],
         key: str | None,
         message: str | None = None,
+        wanted: list[station.ClientPlace] | None = None,
     ) -> None:
-        """How the approval stands. A key arrives once and is kept; a revoked one is dropped."""
+        """How the approval stands. A key arrives once and is kept; a revoked one is dropped.
+        wanted: each place with its answer, as the hub gave it; None keeps what was known."""
         with self._transaction() as db:
             if key is not None:
                 db.execute("UPDATE connection SET key=? WHERE slot=?", (key, slot))
             if status in (station.ApprovalStatus.REVOKED, station.ApprovalStatus.REFUSED):
                 db.execute("UPDATE connection SET key=NULL WHERE slot=?", (slot,))
             db.execute(
-                "UPDATE connection SET status=?, places=?, message=? WHERE slot=?",
-                (status.value, json.dumps(places), message, slot),
+                "UPDATE connection SET status=?, places=?, message=?, asked=? WHERE slot=?",
+                (status.value, json.dumps(places), message, now_utc().timestamp(), slot),
             )
+            if wanted is not None:
+                db.execute(
+                    "UPDATE connection SET wanted=? WHERE slot=?", (_wanted_json(wanted), slot)
+                )
+
+    def asked(self, slot: str) -> None:
+        """TKL asked the hub how the approval stands, and got no answer that changed it."""
+        with self._transaction() as db:
+            db.execute("UPDATE connection SET asked=? WHERE slot=?", (now_utc().timestamp(), slot))
 
     def disconnect(self, slot: str) -> None:
         with self._transaction() as db:

@@ -239,7 +239,8 @@ class Automatik:
             # A train planned before the automation started is history, not a queue to send
             # all at once. One the timetable had on the line when the trains were placed waits
             # at its departure place for a clearance, and is sent (DRIFT-43).
-            if leg.previous is None and planned.departure < start and key not in drift.held:
+            first = self._waits_for(drift, leg) is None
+            if first and planned.departure < start and key not in drift.held:
                 return ""
             if seconds < ready - REQUEST_LEAD_SECONDS:
                 return ""
@@ -300,8 +301,13 @@ class Automatik:
 
     def _ready_at(self, drift: Drift, planned: Planned, legs: dict[str, Planned]) -> float:
         """When the train may leave: on time the timetable decides. Late, it stands its
-        short stop and goes, never longer than the planned stop (Casper, 2026-10-10)."""
-        previous = planned.leg.previous
+        short stop and goes, never longer than the planned stop (Casper, 2026-10-10).
+
+        A train that comes from a part of the station that is its own driftplats, or from the
+        station to its part, makes that move without a section between (PLAN-34, TKL101): it
+        departs the part and is at the station, and no arrival is ever reported for the move.
+        It waits only for what came before the part, if anything came over a section."""
+        previous = self._waits_for(drift, planned.leg)
         delay = self._delay(drift, "station", planned.key)
         if previous is None:
             return planned.departure + delay
@@ -313,6 +319,31 @@ class Automatik:
         )
         stop = min(planned.dwell, drift.automation.late_stop_minutes * 60)
         return max(planned.departure, arrived + stop) + delay
+
+    @staticmethod
+    def _waits_for(drift: Drift, leg: Leg) -> str | None:
+        """The leg whose arrival the train waits for before it may leave: the one before.
+        When the move from the previous call is no leg because it is between a part and its
+        station (PLAN-34), the train departs the part and is at the station without a section
+        between: it waits for the leg that brought it to the part, if one did, else for
+        nothing. A move with no section that is not a part's still waits, as it always has:
+        the plan lacks the section, and Planering says so."""
+        previous = leg.previous
+        if previous is None or previous in drift.legs:
+            return previous
+        found = drift.calls.get(previous)
+        if found is None:
+            return previous
+        here = leg.departure.place
+        places = {p.id: p for p in drift.package.places}
+        there, home = places.get(found[1].place), places.get(here)
+        linked = (there is not None and there.part_of == here) or (
+            home is not None and home.part_of == found[1].place
+        )
+        if not linked:
+            return previous
+        came = drift.by_arrival.get(previous)
+        return came.departure.id if came is not None else None
 
     def _delay(self, drift: Drift, kind: str, key: str) -> float:
         """Extra model seconds for a train: station work before the departure ("station") or

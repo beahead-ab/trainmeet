@@ -23,7 +23,7 @@ from contracts.station_model import (
 from contracts.station_outside import StationOutside
 from tkl.standard import OutsideError, checks, outside_of, problems
 from tkl.standard.outside import outside_id
-from tkl.tests.provstation import ekby, provby
+from tkl.tests.provstation import bangard, ekby, provby
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = ROOT / "tkl" / "referens"
@@ -263,3 +263,34 @@ def test_the_exit_s_name_keeps_within_a_line_of_text() -> None:
     far = renamed(found, west.model_copy(update={"neighbour": "Långby" * 83}), east)
     name = outside(far).exits[0].name
     assert name is not None and name.startswith("V mot Långby") and len(name) <= 500
+
+
+def test_the_parts_that_are_their_own_driftplatser_are_in_the_outside() -> None:
+    """#87 del b (TKL101, PLAN-34): the outside lists the parts the owner made their own
+    driftplatser, with id, name and signature, the first of two with the same id; a part the
+    same person runs is not there."""
+    found = bangard()
+    [part] = found.parts
+    yard = part.model_copy(update={"code": " Bg "})
+    staffed = found.model_copy(
+        update={
+            "parts": [
+                yard,
+                part.model_copy(update={"id": "lokstall", "name": "Lokstallet", "pieces": []}),
+                part.model_copy(update={"id": "lokstall", "name": "Igen", "own_place": True}),
+                part.model_copy(
+                    update={"id": "dragspar", "name": "Dragspåret", "own_place": False}
+                ),
+            ]
+        }
+    )
+    made = outside(staffed)
+    assert [(p.id, p.name, p.code) for p in made.parts] == [
+        ("bangarden", "Bangården", "Bg"),
+        ("lokstall", "Lokstallet", None),
+    ]
+    StationOutside.model_validate(made.model_dump(mode="json"))
+    alone = outside(
+        found.model_copy(update={"parts": [part.model_copy(update={"own_place": False})]})
+    )
+    assert alone.parts == []

@@ -12,6 +12,32 @@
       ],
       "title": "ApprovalStatus",
       "type": "string"
+    },
+    "TklPartPlace": {
+      "additionalProperties": true,
+      "description": "A part's driftplats in Hubben, with the dispatcher's answer for it (TKL101,\nTRAFIK-35): found by its link, the part's id in the station's outside.",
+      "properties": {
+        "part": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Part",
+          "type": "string"
+        },
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus"
+        }
+      },
+      "required": [
+        "part",
+        "place",
+        "status"
+      ],
+      "title": "TklPartPlace",
+      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -66,6 +92,28 @@
         "type": "string"
       },
       "title": "Places",
+      "type": "array"
+    },
+    "place": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Stationens egen driftplats, när den är godkänd.",
+      "title": "Place"
+    },
+    "parts": {
+      "description": "Delarnas driftplatser, var och en med trafikledningens svar.",
+      "items": {
+        "$ref": "#/$defs/TklPartPlace"
+      },
+      "title": "Parts",
       "type": "array"
     },
     "outside_version": {

@@ -6271,6 +6271,14 @@
             "title": "Places",
             "type": "array"
           },
+          "wanted": {
+            "description": "Varje driftplats klienten vill köra eller är godkänd för, med svaret för just den och vilken del av stationen den är (TRAFIK-35, PLAN-34). Tomt från en äldre hubb.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.connect-reply.ClientPlace"
+            },
+            "title": "Wanted",
+            "type": "array"
+          },
           "key": {
             "anyOf": [
               {
@@ -6336,6 +6344,55 @@
         ],
         "title": "ApprovalStatus",
         "type": "string"
+      },
+      "trainmeet.station-1.connect-reply.ClientPlace": {
+        "additionalProperties": true,
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att\nen TKL vet vilken driftplats som är stationens och vilken som är en dels.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.station-1.connect-reply.ApprovalStatus",
+            "description": "Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det."
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen, med delens id i utsidan.",
+            "title": "Part"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när driftplatsen är en del av den.",
+            "title": "Part Of"
+          }
+        },
+        "required": [
+          "place",
+          "status"
+        ],
+        "title": "ClientPlace",
+        "type": "object"
       },
       "trainmeet.station-1.command": {
         "additionalProperties": true,
@@ -12657,7 +12714,7 @@
       },
       "trainmeet.drift-1.client.ClientPlace": {
         "additionalProperties": true,
-        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att\nen TKL vet vilken driftplats som är stationens och vilken som är en dels.",
         "properties": {
           "place": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -19122,7 +19179,7 @@
       },
       "trainmeet.drift-1.preview-clients.ClientPlace": {
         "additionalProperties": true,
-        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att\nen TKL vet vilken driftplats som är stationens och vilken som är en dels.",
         "properties": {
           "place": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -42146,6 +42203,55 @@
         "title": "ClearanceStatus",
         "type": "string"
       },
+      "trainmeet.sync-1.relay-answer.ClientPlace": {
+        "additionalProperties": true,
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att\nen TKL vet vilken driftplats som är stationens och vilken som är en dels.",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ApprovalStatus",
+            "description": "Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det."
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen, med delens id i utsidan.",
+            "title": "Part"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när driftplatsen är en del av den.",
+            "title": "Part Of"
+          }
+        },
+        "required": [
+          "place",
+          "status"
+        ],
+        "title": "ClientPlace",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-answer.Clock": {
         "additionalProperties": true,
         "properties": {
@@ -42210,6 +42316,14 @@
               "type": "string"
             },
             "title": "Places",
+            "type": "array"
+          },
+          "wanted": {
+            "description": "Varje driftplats klienten vill köra eller är godkänd för, med svaret för just den och vilken del av stationen den är (TRAFIK-35, PLAN-34). Tomt från en äldre hubb.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ClientPlace"
+            },
+            "title": "Wanted",
             "type": "array"
           },
           "key": {

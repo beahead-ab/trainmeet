@@ -1,0 +1,168 @@
+/* Studio › Dela stationen (#87 del b): the station's panel with the part's area tinted, the
+   border marked, and the part's lists beside it. The panel is Spårplan's (svg.panel). */
+.dela .dela-status {
+  margin: 4px 0 10px;
+  align-items: center;
+}
+.dela .dela-delar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.dela .spar-val button[aria-pressed="true"] {
+  background: var(--tm-head);
+  border-color: var(--tm-head);
+  color: var(--tm-head-text);
+}
+.dela-yta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dela-panel-ruta {
+  margin: 0;
+}
+.dela-listor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.dela-listor .ruta {
+  margin: 0;
+}
+.dela-listor .dela-ande {
+  grid-column: 1 / -1;
+}
+.dela-del label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.dela-del label.kryss {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.dela label.kryss {
+  font-size: 14px;
+}
+.dela .dela-ande {
+  display: flex;
+  gap: 4px;
+}
+.dela .dela-ande button {
+  flex: 1;
+}
+.dela .dela-ande button[aria-pressed="true"] {
+  background: var(--tm-head);
+  border-color: var(--tm-head);
+  color: var(--tm-head-text);
+}
+.dela-erbjudna {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.dela-lista {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dela-lista li {
+  display: grid;
+  grid-template-columns: 8em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.dela-kontroller .dela-lista li {
+  display: block;
+}
+.dela td .lank,
+.dela-lista .lank {
+  white-space: nowrap;
+}
+.dela-erbjudna-vagar li {
+  display: block;
+}
+.dela-erbjudna-vagar label.kryss {
+  margin: 2px 0;
+}
+.dela-erbjudna-vagar {
+  max-height: 14em;
+  overflow: auto;
+}
+.dela-markerad,
+tr.dela-markerad td {
+  outline: 2px solid #f29d1d;
+  outline-offset: 1px;
+}
+.dela-kontroller {
+  margin-top: 12px;
+}
+.dela-kontroll {
+  text-align: left;
+  width: 100%;
+}
+.dela-kontroll.problem {
+  border-left: 4px solid #d9363e;
+}
+.dela-kontroll.not {
+  border-left: 4px solid var(--tm-blue);
+}
+svg.dela-svg .spar polyline.dela-i {
+  stroke: #3fb6e8;
+}
+svg.dela-svg .spar polyline.dela-annan {
+  stroke: #5b5f86;
+}
+svg.dela-svg .spar polyline.dela-markerad,
+svg.dela-svg g.dela-markerad circle {
+  stroke: #f29d1d;
+  outline: none;
+}
+svg.dela-svg .dela-kanter circle {
+  fill: none;
+  stroke: #f29d1d;
+  stroke-width: 3;
+}
+svg.dela-svg .dela-vaxlar circle,
+svg.dela-svg .dela-signaler circle {
+  fill: transparent;
+  stroke: #555;
+}
+svg.dela-svg .dela-vaxlar circle.egen,
+svg.dela-svg .dela-signaler circle.egen {
+  fill: #3fb6e8;
+  stroke: #3fb6e8;
+}
+svg.dela-svg .dela-vaxlar circle.grans,
+svg.dela-svg .dela-signaler circle.grans {
+  fill: none;
+  stroke: #f29d1d;
+}
+svg.dela-svg text {
+  fill: #d8d8d8;
+}
+svg.dela-svg .dela-texter text {
+  fill: #9a9a9a;
+}
+svg.dela-svg .dela-texter text.spar-namn {
+  fill: #f2f2f2;
+  font-weight: 700;
+}
+.forklaring .farg.dela-omrade {
+  background: #3fb6e8;
+}
+.forklaring .farg.dela-annan {
+  background: #5b5f86;
+}
+.forklaring .farg.dela-grans {
+  background: #f29d1d;
+}
