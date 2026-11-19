@@ -1,0 +1,854 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.fjarr-studio.schema.json",
+  "title": "trainmeet.tkl-1.fjarr-studio",
+  "$defs": {
+    "Automat": {
+      "additionalProperties": true,
+      "description": "A station automat in the station's own interlocking (FR24). Switched on and off by whoever\ncontrols the station: on the spot when manned, from the remote picture when remote-controlled\n(FR25).",
+      "properties": {
+        "code": {
+          "description": "Koden vid stationsnamnet, till exempel A3, AU21 eller L01. Flera av samma slag skiljs åt med infartssignalens nummer (FR40).",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutomatKind"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Förvald: stationen kopplar in den själv efter 90 sekunder utan kontakt med den som fjärrstyr (FR29).",
+          "title": "Default"
+        }
+      },
+      "required": [
+        "code",
+        "kind"
+      ],
+      "title": "Automat",
+      "type": "object"
+    },
+    "AutomatKind": {
+      "description": "The station automats (FR24, FR39), as in interlockings 85 and 95.",
+      "enum": [
+        "a1",
+        "a2",
+        "a3",
+        "an",
+        "au",
+        "local_release"
+      ],
+      "title": "AutomatKind",
+      "type": "string"
+    },
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "OverviewDrawing": {
+      "additionalProperties": true,
+      "description": "The outside's overview (FR31, FR48, TKL88): a simple drawing, in a grid read from left to\nright, of the tracks, switches and main signals that are controlled centrally. Every signal\nand switch sits on a horizontal line, as in the remote picture. Tracks no catalogue route\nreaches are left out, and there are no switch numbers, dwarf signals or addresses. Each\ncatalogue route names the pieces and links it lays, in order, so that a locked route can be\ndrawn and the switches' lie seen. Studio makes it from the drawing.",
+      "properties": {
+        "columns": {
+          "description": "Rutnätets bredd i kolumner.",
+          "maximum": 400,
+          "minimum": 1,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "description": "Rutnätets höjd i rader.",
+          "maximum": 40,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/OverviewTrack"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/OverviewLink"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/OverviewSignal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/OverviewExit"
+          },
+          "title": "Exits",
+          "type": "array"
+        },
+        "routes": {
+          "description": "Katalogvägens id → bitarna och strecken den lägger, i ordning.",
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "items": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "title": "Routes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "OverviewDrawing",
+      "type": "object"
+    },
+    "OverviewExit": {
+      "additionalProperties": true,
+      "description": "Where a line end leaves the drawing.",
+      "properties": {
+        "exit": {
+          "description": "Utfartens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "row": {
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exit",
+        "row",
+        "column"
+      ],
+      "title": "OverviewExit",
+      "type": "object"
+    },
+    "OverviewLink": {
+      "additionalProperties": true,
+      "description": "A switch as a line between two rows (växeln som streck, FR31, FR36): from a point on one\nrow to a point on another. No number, no address.",
+      "properties": {
+        "id": {
+          "description": "Streckets id i översikten. Aldrig växelns nummer.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from_row": {
+          "minimum": 0,
+          "title": "From Row",
+          "type": "integer"
+        },
+        "from_column": {
+          "minimum": 0,
+          "title": "From Column",
+          "type": "integer"
+        },
+        "to_row": {
+          "minimum": 0,
+          "title": "To Row",
+          "type": "integer"
+        },
+        "to_column": {
+          "minimum": 0,
+          "title": "To Column",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "from_row",
+        "from_column",
+        "to_row",
+        "to_column"
+      ],
+      "title": "OverviewLink",
+      "type": "object"
+    },
+    "OverviewSignal": {
+      "additionalProperties": true,
+      "description": "A main signal with its number, where it stands and which way it faces. The catalogue's\nroutes start and end at them (FR31). Dwarf signals are never in the overview (FR36).",
+      "properties": {
+        "name": {
+          "description": "Signalens nummer, som i tågvägarna.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "row": {
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        },
+        "towards": {
+          "$ref": "#/$defs/Side",
+          "description": "Åt vilket håll signalen visar."
+        }
+      },
+      "required": [
+        "name",
+        "row",
+        "column",
+        "towards"
+      ],
+      "title": "OverviewSignal",
+      "type": "object"
+    },
+    "OverviewTrack": {
+      "additionalProperties": true,
+      "description": "A horizontal piece of track in the overview, on one row of the grid.",
+      "properties": {
+        "id": {
+          "description": "Bitens id i översikten. Inte ett nummer eller en adress.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "row": {
+          "description": "Raden, uppifrån och från 0.",
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "start": {
+          "description": "Kolumnen där biten börjar, från vänster och från 0.",
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "description": "Kolumnen där biten slutar, till höger om start.",
+          "minimum": 1,
+          "title": "End",
+          "type": "integer"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationsspåret biten är, med spårets id i utsidan.",
+          "title": "Track"
+        },
+        "platform": {
+          "default": false,
+          "description": "Biten har plattform.",
+          "title": "Platform",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "row",
+        "start",
+        "end"
+      ],
+      "title": "OverviewTrack",
+      "type": "object"
+    },
+    "ReceiverKind": {
+      "description": "Who may receive the station when it is handed over (FR3, TKL46, TKL47).",
+      "enum": [
+        "neighbours",
+        "remote"
+      ],
+      "title": "ReceiverKind",
+      "type": "string"
+    },
+    "RemoteRoute": {
+      "additionalProperties": true,
+      "description": "A route in the remote catalogue (fjärrkatalog, TKL46, FR10): one of the station's own\ntrain routes that may be requested from afar. Shunting routes never are. The catalogue only\nsays what may be asked for; the station's interlocking tries each request as if it had been\nlaid on the spot (FR12).",
+      "properties": {
+        "id": {
+          "description": "Tågvägens fasta id i stationen, till exempel 21-33.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "description": "Start som i stationens egen tabell: en signal, ett spår eller A1.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "description": "Mål som i stationens egen tabell.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "exit": {
+          "description": "Linjeänden: utfartens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "track": {
+          "description": "Stationsspåret.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Track",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/RouteDirection",
+          "description": "in från linjen till spåret, out från spåret mot linjen."
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "exit",
+        "track",
+        "direction"
+      ],
+      "title": "RemoteRoute",
+      "type": "object"
+    },
+    "RouteDirection": {
+      "enum": [
+        "in",
+        "out"
+      ],
+      "title": "RouteDirection",
+      "type": "string"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StationOutside": {
+      "additionalProperties": true,
+      "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+      "properties": {
+        "format": {
+          "const": "trainmeet.station-outside/1",
+          "default": "trainmeet.station-outside/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "station_id": {
+          "description": "Stationens id, skapat i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/StationTrack"
+          },
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/Exit"
+          },
+          "minItems": 1,
+          "title": "Exits",
+          "type": "array"
+        },
+        "sides": {
+          "items": {
+            "$ref": "#/$defs/BoxSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "parts": {
+          "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+          "items": {
+            "$ref": "#/$defs/StationPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "remote_routes": {
+          "description": "Fjärrkatalogen: de av stationens tågvägar som får begäras från fjärr (TKL46, FR10). Tomt: stationen kan inte fjärrstyras, som på nivå 0 (FR16).",
+          "items": {
+            "$ref": "#/$defs/RemoteRoute"
+          },
+          "title": "Remote Routes",
+          "type": "array"
+        },
+        "automats": {
+          "description": "Stationsautomaterna med sina koder (FR24, FR39).",
+          "items": {
+            "$ref": "#/$defs/Automat"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "overview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverviewDrawing"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "En enkel ritning av det som styrs centralt, för fjärrbilden (FR31, FR48)."
+        },
+        "remote_receivers": {
+          "description": "Vilket slag som får ta emot stationen: grannar, fjärrställverk eller båda. Tomt: båda. Vilka grannarna är avgörs per träff (H26).",
+          "items": {
+            "$ref": "#/$defs/ReceiverKind"
+          },
+          "title": "Remote Receivers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "tracks",
+        "exits"
+      ],
+      "title": "StationOutside",
+      "type": "object"
+    },
+    "StationPart": {
+      "additionalProperties": true,
+      "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+      "properties": {
+        "id": {
+          "description": "Delens fasta id i stationen, satt i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Delens namn, som driftplatsen får i planen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "StationPart",
+      "type": "object"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    },
+    "TklAutomatSpec": {
+      "additionalProperties": true,
+      "description": "A station automat as the owner sets it up (FR24, FR39, FR40): A1, A2 and A3 for the\nwhole station, AN and AU for the entry signals of the down and up track, and a local release\nautomat for one of the station's local release functions.",
+      "properties": {
+        "code": {
+          "description": "Koden vid stationsnamnet: A3, AN21 eller L01.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutomatKind"
+        },
+        "signals": {
+          "description": "Infartssignalerna automaten sköter, för AN och AU. Tomt: alla.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "function": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Panelfunktionen, för en lokalfrigivningsautomat.",
+          "title": "Function"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Förvald: kopplas in efter 90 sekunder utan kontakt (FR29).",
+          "title": "Default"
+        }
+      },
+      "required": [
+        "code",
+        "kind"
+      ],
+      "title": "TklAutomatSpec",
+      "type": "object"
+    },
+    "TklFjarrChoice": {
+      "additionalProperties": true,
+      "description": "Studio, Inställningar, Fjärrstyrning: the owner's choice, kept with the station's model\nand versioned with it like Manöver's settings. Level 0 has none (FR16).",
+      "properties": {
+        "routes": {
+          "description": "Fjärrkatalogen: de valda tågvägarnas id.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Routes",
+          "type": "array"
+        },
+        "automats": {
+          "items": {
+            "$ref": "#/$defs/TklAutomatSpec"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "receivers": {
+          "description": "Vilka som får ta emot stationen. Tomt: grannar och fjärrställverk.",
+          "items": {
+            "$ref": "#/$defs/ReceiverKind"
+          },
+          "title": "Receivers",
+          "type": "array"
+        }
+      },
+      "title": "TklFjarrChoice",
+      "type": "object"
+    },
+    "TklRemoteCandidate": {
+      "additionalProperties": true,
+      "description": "A train route that may be in the remote catalogue (FR10): in from a line end to a\nstation track, or out from a station track to a line end, through the signals between where\nit must be (TKL53). Studio lists them from the model; shunting routes never are.",
+      "properties": {
+        "id": {
+          "description": "Tågvägens fasta id i stationen, som i fjärrkatalogen.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "via": {
+          "description": "Signalerna mellan, när vägen läggs genom flera.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Via",
+          "type": "array"
+        },
+        "exit": {
+          "description": "Utfartens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "exit_name": {
+          "description": "Utfarten som stationsmodellen kallar den.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Exit Name",
+          "type": "string"
+        },
+        "track": {
+          "description": "Stationsspårets id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Track",
+          "type": "string"
+        },
+        "track_label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track Label",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/RouteDirection"
+        },
+        "chosen": {
+          "default": false,
+          "description": "I fjärrkatalogen.",
+          "title": "Chosen",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "exit",
+        "exit_name",
+        "track",
+        "track_label",
+        "direction"
+      ],
+      "title": "TklRemoteCandidate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The page in Studio: the owner's choice, the routes to choose from, the automats\nsuggested, what is wrong, and the outside the choice gives.",
+  "properties": {
+    "settings": {
+      "$ref": "#/$defs/TklFjarrChoice"
+    },
+    "kept": {
+      "description": "Ägaren har sparat ett val; annars är det förslaget.",
+      "title": "Kept",
+      "type": "boolean"
+    },
+    "level": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Level",
+      "type": "integer"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/TklRemoteCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "entry_signals": {
+      "description": "Infartssignalerna, att välja för AN och AU.",
+      "items": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Entry Signals",
+      "type": "array"
+    },
+    "functions": {
+      "description": "Stationens panelfunktioner för lokal frigivning.",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Functions",
+      "type": "array"
+    },
+    "suggested": {
+      "description": "Förslaget ur stationens tågvägar och modell.",
+      "items": {
+        "$ref": "#/$defs/TklAutomatSpec"
+      },
+      "title": "Suggested",
+      "type": "array"
+    },
+    "problems": {
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Problems",
+      "type": "array"
+    },
+    "outside": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StationOutside"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Utsidan med fjärrkatalogen, automaterna och översikten."
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför stationen inte har någon katalog.",
+      "title": "Note"
+    }
+  },
+  "required": [
+    "settings",
+    "kept",
+    "level"
+  ],
+  "type": "object"
+}

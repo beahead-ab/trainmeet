@@ -29,6 +29,11 @@ model, never under set routes or train numbers. A drawing in Rita's draft gets t
 that taking the drawing into use later keeps them. A new model, or none, leaves no draft of the
 parts behind.
 
+Studio's Fjärrstyrning (#36 del b) keeps the owner's choice with the model, versioned with it
+like Manöver's settings: the remote catalogue, the station automats and who may receive the
+station. The outside is derived from the model with that choice (tkl.studio.fjarr); before the
+owner has chosen, it has no catalogue.
+
 Studio's Prova keeps its results with the station for the model they tried (#85 del c): the
 model's fingerprint goes with them, and they no longer count once the model changes. The station
 is Klart (tried) when every route passed for the model as it is now.
@@ -79,6 +84,7 @@ from contracts.tkl import (
     TklDeckSettings,
     TklDelaEdit,
     TklDrawing,
+    TklFjarrChoice,
     TklInterlocking,
     TklManover,
     TklStation,
@@ -86,6 +92,7 @@ from contracts.tkl import (
 )
 from tkl.stallverk import Interlocking, fingerprint, plant_of
 from tkl.standard import outside_of
+from tkl.studio.fjarr import remote_of
 
 LOCAL: Final = "lokal"
 SESSION_LIFETIME: Final = timedelta(hours=12)
@@ -155,6 +162,14 @@ CREATE TABLE IF NOT EXISTS streamdeck (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS streamdeck_version (
+    slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
+    PRIMARY KEY (slot, number),
+    FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS fjarr (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fjarr_version (
     slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
@@ -246,6 +261,14 @@ def _migrate(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE connection ADD COLUMN wanted TEXT NOT NULL DEFAULT '[]'")
     if "asked" not in columns:
         db.execute("ALTER TABLE connection ADD COLUMN asked REAL NOT NULL DEFAULT 0")
+
+
+def _read_fjarr(body: str) -> TklFjarrChoice | None:
+    """The owner's choice as kept; one TKL can no longer read counts as none."""
+    try:
+        return TklFjarrChoice.model_validate_json(body)
+    except ValueError:
+        return None
 
 
 def _wanted_json(wanted: list[station.ClientPlace]) -> str:
@@ -479,6 +502,8 @@ class TklStore:
         latest_manover = self._manover_of(db, slot, versions[0][0]) if versions else None
         deck = self._streamdeck(db, slot)
         latest_deck = self._streamdeck_of(db, slot, versions[0][0]) if versions else None
+        fjarr = self._fjarr(db, slot)
+        latest_fjarr = self._fjarr_of(db, slot, versions[0][0]) if versions else None
         return TklStudio(
             draft=draft,
             versions=[
@@ -488,7 +513,8 @@ class TklStore:
             changed=latest != draft
             or latest_model != model
             or latest_manover != manover
-            or latest_deck != deck,
+            or latest_deck != deck
+            or latest_fjarr != fjarr,
             station_model=model is not None,
         )
 
@@ -528,6 +554,27 @@ class TklStore:
         ).fetchone()
         return None if row is None else str(row[0])
 
+    @staticmethod
+    def _fjarr(db: sqlite3.Connection, slot: str) -> str | None:
+        row = db.execute("SELECT body FROM fjarr WHERE slot=?", (slot,)).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _fjarr_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
+        row = db.execute(
+            "SELECT body FROM fjarr_version WHERE slot=? AND number=?", (slot, number)
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    def _outside(
+        self, db: sqlite3.Connection, slot: str, model: StationModel, station_id: str, name: str
+    ) -> StationOutside:
+        """The outside derived from the model, with the owner's remote control (#36 del b)."""
+        body = self._fjarr(db, slot)
+        settings = None if body is None else _read_fjarr(body)
+        remote = remote_of(plant_of(model), settings)
+        return outside_of(model, station_id, name, remote=remote)
+
     # --- The station's model (#83): kept with the station, versioned with the outside ------
 
     def station_model(self, slot: str) -> StationModel | None:
@@ -547,7 +594,7 @@ class TklStore:
             if row is None:
                 raise NotSetUp()
             kept = model.model_copy(update={"station_id": row[0], "name": row[1]})
-            draft = outside_of(kept, row[0], row[1])
+            draft = self._outside(db, slot, kept, row[0], row[1])
             self._new_interlocking(db, slot, kept)
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
@@ -569,6 +616,7 @@ class TklStore:
             db.execute("DELETE FROM dela WHERE slot=?", (slot,))
             db.execute("DELETE FROM manover WHERE slot=?", (slot,))
             db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
+            db.execute("DELETE FROM fjarr WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     # --- Rita (#85): the drawing, kept as a draft until it is taken into use ----------------
@@ -637,7 +685,7 @@ class TklStore:
             if body is None:
                 raise NoModel()
             kept = StationModel.model_validate_json(body).model_copy(update={"parts": parts})
-            draft = outside_of(kept, row[0], row[1])
+            draft = self._outside(db, slot, kept, row[0], row[1])
             self._new_interlocking(db, slot, kept)
             db.execute("INSERT OR REPLACE INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
             db.execute("UPDATE station SET draft=? WHERE slot=?", (draft.model_dump_json(), slot))
@@ -766,6 +814,50 @@ class TklStore:
         with self._transaction() as db:
             body = self._streamdeck_of(db, slot, number)
         return None if body is None else TklDeckDeviations.model_validate_json(body)
+
+    # --- Fjärrstyrning in Studio (#36 del b): the owner's choice, with the model -------------
+
+    def fjarr(self, slot: str) -> TklFjarrChoice | None:
+        """The owner's choice of remote control; None before the owner has chosen."""
+        with self._transaction() as db:
+            body = self._fjarr(db, slot)
+        return None if body is None else _read_fjarr(body)
+
+    def save_fjarr(self, slot: str, settings: TklFjarrChoice) -> TklStudio:
+        """Kept with the station's model, as Manöver's settings: the caller has checked it. The
+        outside is derived again with it, so that the catalogue goes with the next version."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT station_id, name FROM station WHERE slot=?", (slot,)
+            ).fetchone()
+            body = self._model(db, slot)
+            if row is None:
+                raise NotSetUp()
+            if body is None:
+                raise NoModel()
+            kept = settings.model_dump(mode="json", exclude_defaults=True)
+            db.execute(
+                "INSERT OR REPLACE INTO fjarr VALUES (?, ?)",
+                (slot, json.dumps(kept, ensure_ascii=False, sort_keys=True)),
+            )
+            model = StationModel.model_validate_json(body)
+            draft = self._outside(db, slot, model, row[0], row[1])
+            db.execute("UPDATE station SET draft=? WHERE slot=?", (draft.model_dump_json(), slot))
+            return self._studio(db, slot)
+
+    def fjarr_of_version(self, slot: str, number: int) -> TklFjarrChoice | None:
+        """The choice a version of the outside holds, if the owner had made one."""
+        with self._transaction() as db:
+            body = self._fjarr_of(db, slot, number)
+        return None if body is None else _read_fjarr(body)
+
+    def outside_of_version(self, slot: str, number: int) -> StationOutside | None:
+        """A version of the outside, as it went to the meet with the connection."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT body FROM outside_version WHERE slot=? AND number=?", (slot, number)
+            ).fetchone()
+        return None if row is None else StationOutside.model_validate_json(row[0])
 
     # --- The interlocking's state (#84) -----------------------------------------------------
 
@@ -897,6 +989,9 @@ class TklStore:
                     db.execute(
                         "INSERT INTO streamdeck_version VALUES (?, ?, ?)", (slot, number, deck)
                     )
+                fjarr = self._fjarr(db, slot)
+                if model is not None and fjarr is not None:
+                    db.execute("INSERT INTO fjarr_version VALUES (?, ?, ?)", (slot, number, fjarr))
             return self._studio(db, slot)
 
     def latest_outside(self, slot: str) -> tuple[int, StationOutside]:
@@ -1020,6 +1115,12 @@ class TklStore:
             wanted=[station.ClientPlace.model_validate(w) for w in json.loads(row[10])],
             asked=float(row[11]),
         )
+
+    def connected_slots(self) -> list[str]:
+        """The stations with a key for a meet: those that answer for themselves (#36 del b)."""
+        with self._transaction() as db:
+            rows = db.execute("SELECT slot FROM connection WHERE key IS NOT NULL").fetchall()
+        return [str(row[0]) for row in rows]
 
     def connected(self, slot: str, made: Connection) -> None:
         """A new connection replaces the one before, and what was seen with it."""

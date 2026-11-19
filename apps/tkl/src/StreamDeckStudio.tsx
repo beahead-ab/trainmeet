@@ -20,6 +20,7 @@
 //
 // Roll (#87 del d): Sidor and Prova show the tågklarerare's deck or a part's, the shunter's deck
 // Bangård, with its own changes per size; under Deck each deck gets its role.
+import { FjarrStudio } from "./FjarrStudio";
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   api,
@@ -1326,18 +1327,22 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
 }
 
 /** Studio › Inställningar: the settings that belong to the station, beside its drawing. */
-export function StudioInstallningar({ calls }: { calls?: Calls }) {
+/** Studio › Inställningar: Stream Deck (#86 del c) and Fjärrstyrning (#36 del b). */
+export type StudioPart = "stream-deck" | "fjarrstyrning";
+
+export function StudioInstallningar({ calls, part = "stream-deck", onPart }: { calls?: Calls; part?: StudioPart; onPart?: (part: StudioPart) => void }) {
   return (
     <div className="installningar sds-ram">
       <nav className="sidomeny" aria-label="Inställningar i Studio">
-        <button type="button" aria-current="page">
+        <button type="button" aria-current={part === "stream-deck" ? "page" : undefined} onClick={() => onPart?.("stream-deck")}>
           Stream Deck
+        </button>
+        <button type="button" aria-current={part === "fjarrstyrning" ? "page" : undefined} onClick={() => onPart?.("fjarrstyrning")}>
+          Fjärrstyrning
         </button>
         <p className="liten">Manöver ställs in under Spårplan.</p>
       </nav>
-      <div className="innehall">
-        <StreamDeckStudio calls={calls} />
-      </div>
+      <div className="innehall">{part === "fjarrstyrning" ? <FjarrStudio /> : <StreamDeckStudio calls={calls} />}</div>
     </div>
   );
 }

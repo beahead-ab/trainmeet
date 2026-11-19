@@ -4023,12 +4023,28 @@ export interface components {
             /** @constant */
             action: "route.state";
             payload: components["schemas"]["trainmeet.station-1.command.RouteState"];
+        } | {
+            /** @constant */
+            action: "automat.set";
+            payload: components["schemas"]["trainmeet.station-1.command.AutomatSetAsk"];
+        } | {
+            /** @constant */
+            action: "local_release.request";
+            payload: components["schemas"]["trainmeet.station-1.command.LocalReleaseRequest"];
+        } | {
+            /** @constant */
+            action: "local_release.response";
+            payload: components["schemas"]["trainmeet.station-1.command.LocalReleaseResponse"];
+        } | {
+            /** @constant */
+            action: "local_release.end";
+            payload: components["schemas"]["trainmeet.station-1.command.LocalReleaseEnd"];
         });
         /**
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.station-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
@@ -4273,11 +4289,12 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.command.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.station-1.command.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * RouteResponse
          * @description route.response: the station's interlocking has locked the route, or says no with a reason
-         *     of its own: conflicting_route, switch_not_in_control, area_released or track_occupied.
+         *     of its own: conflicting_route, switch_not_in_control, area_released or track_occupied, else
+         *     route_refused with its own words (#36 del b).
          */
         "trainmeet.station-1.command.RouteResponse": {
             /** Request Id */
@@ -4286,6 +4303,11 @@ export interface components {
             locked: boolean;
             /** @default null */
             reason: components["schemas"]["trainmeet.station-1.command.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet, som stationen säger det.
+             */
+            message?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -4430,6 +4452,69 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * AutomatSetAsk
+         * @description automat.set: whoever remote-controls the station switches one of its automats on or off,
+         *     from the remote picture (FR25). It goes to the station's TKL, which switches it in its own
+         *     interlocking and says so in route.state. A local release automat's code gives or takes back
+         *     the local area, as local_release.response and .end do. On the spot, when the station is
+         *     manned, the station's own panel switches them; nothing goes through Hubben then.
+         */
+        "trainmeet.station-1.command.AutomatSetAsk": {
+            /**
+             * Code
+             * @description Automatens kod i utsidan, till exempel A3.
+             */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LocalReleaseRequest
+         * @description local_release.request: the people on a remote-controlled station ask whoever controls it
+         *     for a local area, with the local release's code, a while or all day (FR20, FR39).
+         */
+        "trainmeet.station-1.command.LocalReleaseRequest": {
+            /**
+             * Code
+             * @description Lokalfrigivningens kod, till exempel L01.
+             */
+            code: string;
+            /**
+             * All Day
+             * @description Hela dagen; annars en stund.
+             * @default false
+             */
+            all_day: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LocalReleaseResponse
+         * @description local_release.response: whoever controls the station gives the local area, or refuses
+         *     it. Given, the station switches it in when no route goes to, from or through it (FR42).
+         */
+        "trainmeet.station-1.command.LocalReleaseResponse": {
+            /** Code */
+            code: string;
+            /** Give */
+            give: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LocalReleaseEnd
+         * @description local_release.end: the station gives the area back, or whoever controls it takes it back
+         *     after a question; the station switches it out when the area is empty (FR23, FR44).
+         */
+        "trainmeet.station-1.command.LocalReleaseEnd": {
+            /** Code */
+            code: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Reply */
         "trainmeet.station-1.reply": ({
             /**
@@ -4473,12 +4558,26 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * ArrivalState
          * @enum {string}
          */
         "trainmeet.station-1.reply.ArrivalState": "none" | "on_the_way" | "arrived";
+        /**
+         * AutomatAsked
+         * @description What whoever controls the station has decided for one of its automats or local areas,
+         *     with automat.set or local_release.response and .end, until the station's route.state shows
+         *     it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).
+         */
+        "trainmeet.station-1.reply.AutomatAsked": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * AutomatOn
          * @description A station automat that is switched on, and who switched it on (FR25, FR29).
@@ -4775,6 +4874,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LocalRequestHere
+         * @description A local area the people on the station have asked for and not yet been answered (FR20).
+         */
+        "trainmeet.station-1.reply.LocalRequestHere": {
+            /** Code */
+            code: string;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Asked At */
+            asked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LockedRoute
          * @description A catalogue route the station's interlocking holds locked. It stays until the train has
          *     gone, also when the station is taken back (FR15).
@@ -4942,7 +5058,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -5002,6 +5118,16 @@ export interface components {
              * @default null
              */
             route_state: components["schemas"]["trainmeet.station-1.reply.RouteState"] | null;
+            /**
+             * Automats Asked
+             * @description Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.
+             */
+            automats_asked?: components["schemas"]["trainmeet.station-1.reply.AutomatAsked"][];
+            /**
+             * Local Requests
+             * @description Lokala områden stationen har bett om, utan svar än.
+             */
+            local_requests?: components["schemas"]["trainmeet.station-1.reply.LocalRequestHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -5030,6 +5156,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.station-1.reply.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -5376,12 +5507,26 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.station-1.snapshot.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * ArrivalState
          * @enum {string}
          */
         "trainmeet.station-1.snapshot.ArrivalState": "none" | "on_the_way" | "arrived";
+        /**
+         * AutomatAsked
+         * @description What whoever controls the station has decided for one of its automats or local areas,
+         *     with automat.set or local_release.response and .end, until the station's route.state shows
+         *     it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).
+         */
+        "trainmeet.station-1.snapshot.AutomatAsked": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * AutomatOn
          * @description A station automat that is switched on, and who switched it on (FR25, FR29).
@@ -5678,6 +5823,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LocalRequestHere
+         * @description A local area the people on the station have asked for and not yet been answered (FR20).
+         */
+        "trainmeet.station-1.snapshot.LocalRequestHere": {
+            /** Code */
+            code: string;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Asked At */
+            asked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LockedRoute
          * @description A catalogue route the station's interlocking holds locked. It stays until the train has
          *     gone, also when the station is taken back (FR15).
@@ -5816,7 +5978,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.snapshot.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.station-1.snapshot.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -5876,6 +6038,16 @@ export interface components {
              * @default null
              */
             route_state: components["schemas"]["trainmeet.station-1.snapshot.RouteState"] | null;
+            /**
+             * Automats Asked
+             * @description Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.
+             */
+            automats_asked?: components["schemas"]["trainmeet.station-1.snapshot.AutomatAsked"][];
+            /**
+             * Local Requests
+             * @description Lokala områden stationen har bett om, utan svar än.
+             */
+            local_requests?: components["schemas"]["trainmeet.station-1.snapshot.LocalRequestHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -5904,6 +6076,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.station-1.snapshot.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -6708,7 +6885,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.overview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.station-1.overview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -6800,6 +6977,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.station-1.overview.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -10149,7 +10331,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.event.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.drift-1.event.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * RouteAnswered
          * @description The station's interlocking locked the route or said no. With no answer in ten seconds it
@@ -10162,6 +10344,12 @@ export interface components {
             locked: boolean;
             /** @default null */
             reason: components["schemas"]["trainmeet.drift-1.event.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             * @default null
+             */
+            message: string | null;
             /**
              * Timed Out
              * @description Stationen svarade inte i tid.
@@ -10338,7 +10526,9 @@ export interface components {
         };
         /**
          * LocalReleaseSet
-         * @description A local area asked for, given or refused, or ended (TKL44, TKL48).
+         * @description A local area asked for, given or refused, or ended (TKL44, TKL48). asked: the request,
+         *     answer or end came over the protocol (#36 del b), and the station switches it when it can;
+         *     without, it is what the station's route.state showed.
          */
         "trainmeet.drift-1.event.LocalReleaseSet": {
             /** Code */
@@ -10349,12 +10539,26 @@ export interface components {
              * @default null
              */
             given: boolean | null;
+            /**
+             * All Day
+             * @description Vid begäran: hela dagen.
+             * @default null
+             */
+            all_day: boolean | null;
+            /**
+             * Asked
+             * @description Över protokollet, inte ur stationens läge.
+             * @default false
+             */
+            asked: boolean;
         } & {
             [key: string]: unknown;
         };
         /**
          * AutomatSet
-         * @description A station automat switched on or off, by someone or by itself (FR25, FR29).
+         * @description A station automat switched on or off, by someone or by itself (FR25, FR29). asked: whoever
+         *     controls the station decided it with automat.set (#36 del b), and the station switches it;
+         *     without, it is what the station's route.state showed.
          */
         "trainmeet.drift-1.event.AutomatSet": {
             /** Code */
@@ -10366,6 +10570,12 @@ export interface components {
              * @default null
              */
             by: components["schemas"]["trainmeet.drift-1.event.RouteBy"] | null;
+            /**
+             * Asked
+             * @description Med automat.set, inte ur stationens läge.
+             * @default false
+             */
+            asked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -11893,7 +12103,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.drift-1.preview.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Weekday
          * @description The timetable's weekday (trafikdag). Not the same as the game day (Dag 1…N).
@@ -23786,7 +23996,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-call.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.sync-1.relay-call.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * Automat
          * @description A station automat in the station's own interlocking (FR24). Switched on and off by whoever
@@ -24364,7 +24574,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-calls.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.sync-1.relay-calls.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * Automat
          * @description A station automat in the station's own interlocking (FR24). Switched on and off by whoever
@@ -25024,7 +25234,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.sync-1.relay-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * ApprovalStatus
          * @enum {string}
@@ -25054,6 +25264,20 @@ export interface components {
              * @default false
              */
             default: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AutomatAsked
+         * @description What whoever controls the station has decided for one of its automats or local areas,
+         *     with automat.set or local_release.response and .end, until the station's route.state shows
+         *     it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).
+         */
+        "trainmeet.sync-1.relay-answer.AutomatAsked": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -25472,6 +25696,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LocalRequestHere
+         * @description A local area the people on the station have asked for and not yet been answered (FR20).
+         */
+        "trainmeet.sync-1.relay-answer.LocalRequestHere": {
+            /** Code */
+            code: string;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Asked At */
+            asked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LockedRoute
          * @description A catalogue route the station's interlocking holds locked. It stays until the train has
          *     gone, also when the station is taken back (FR15).
@@ -25837,7 +26078,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.sync-1.relay-answer.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -25903,6 +26144,16 @@ export interface components {
              * @default null
              */
             route_state: components["schemas"]["trainmeet.sync-1.relay-answer.RouteState"] | null;
+            /**
+             * Automats Asked
+             * @description Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.
+             */
+            automats_asked?: components["schemas"]["trainmeet.sync-1.relay-answer.AutomatAsked"][];
+            /**
+             * Local Requests
+             * @description Lokala områden stationen har bett om, utan svar än.
+             */
+            local_requests?: components["schemas"]["trainmeet.sync-1.relay-answer.LocalRequestHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -25969,6 +26220,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.sync-1.relay-answer.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.

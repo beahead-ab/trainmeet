@@ -23,6 +23,13 @@ interlocking answers with `route.response`, and reports the state at the overvie
 `route.state`, whole each time it changes. The remote picture draws only what the station reports
 (FR13). The safety stays in the station; the inside never leaves it.
 
+The station automats and the local area (#36 del b): whoever controls the station switches its
+automats from afar with `automat.set` (FR25); the people on a remote-controlled station ask for a
+local area with `local_release.request`, the controller gives or refuses it with
+`local_release.response`, and either ends it with `local_release.end` (FR20–FR23). Hubben keeps
+what was decided in `RemoteHere.automats_asked` until the station's route.state shows it; the
+station's TKL switches it when its interlocking allows (FR42).
+
     GET  /api/station/1/overview?places=a,b   Overview: the remote picture's data, for the places
                                               the client runs, controls or is approved for, and
                                               their neighbours
@@ -225,6 +232,11 @@ class Action(StrEnum):
     ROUTE_CANCEL = "route.cancel"  # den som styr tar bort en begärd eller låst väg
     ROUTE_RESPONSE = "route.response"  # stationens ställverk: låst, eller nej med skäl
     ROUTE_STATE = "route.state"  # stationens läge i översiktsnivå, helt varje gång
+    # Stationsautomaterna och det lokala området (#36 del b, FR20–FR25, FR39, FR44)
+    AUTOMAT_SET = "automat.set"  # den som fjärrstyr kopplar in eller ur en stationsautomat
+    LOCAL_RELEASE_REQUEST = "local_release.request"  # stationen ber om ett lokalt område
+    LOCAL_RELEASE_RESPONSE = "local_release.response"  # den som fjärrstyr ger eller nekar det
+    LOCAL_RELEASE_END = "local_release.end"  # endera lämnar tillbaka eller tar tillbaka det
 
 
 class RevisionScope(StrEnum):
@@ -383,11 +395,16 @@ class RouteCancel(Contract):
 
 class RouteResponse(Contract):
     """route.response: the station's interlocking has locked the route, or says no with a reason
-    of its own: conflicting_route, switch_not_in_control, area_released or track_occupied."""
+    of its own: conflicting_route, switch_not_in_control, area_released or track_occupied, else
+    route_refused with its own words (#36 del b)."""
 
     request_id: Id
     locked: bool
     reason: Reason | None = None
+    message: Text | None = Field(
+        default_factory=lambda: None,
+        description="Ställverkets egna ord om nejet, som stationen säger det.",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> RouteResponse:
@@ -471,6 +488,43 @@ class RouteState(Contract):
     )
 
 
+# --- Stationsautomaterna och det lokala området (#36 del b) -------------------------------------
+
+
+class AutomatSetAsk(Contract):
+    """automat.set: whoever remote-controls the station switches one of its automats on or off,
+    from the remote picture (FR25). It goes to the station's TKL, which switches it in its own
+    interlocking and says so in route.state. A local release automat's code gives or takes back
+    the local area, as local_release.response and .end do. On the spot, when the station is
+    manned, the station's own panel switches them; nothing goes through Hubben then."""
+
+    code: Text = Field(max_length=12, description="Automatens kod i utsidan, till exempel A3.")
+    on: bool
+
+
+class LocalReleaseRequest(Contract):
+    """local_release.request: the people on a remote-controlled station ask whoever controls it
+    for a local area, with the local release's code, a while or all day (FR20, FR39)."""
+
+    code: Text = Field(max_length=12, description="Lokalfrigivningens kod, till exempel L01.")
+    all_day: bool = Field(default=False, description="Hela dagen; annars en stund.")
+
+
+class LocalReleaseResponse(Contract):
+    """local_release.response: whoever controls the station gives the local area, or refuses
+    it. Given, the station switches it in when no route goes to, from or through it (FR42)."""
+
+    code: Text = Field(max_length=12)
+    give: bool
+
+
+class LocalReleaseEnd(Contract):
+    """local_release.end: the station gives the area back, or whoever controls it takes it back
+    after a question; the station switches it out when the area is empty (FR23, FR44)."""
+
+    code: Text = Field(max_length=12)
+
+
 PAYLOADS: dict[Action, type[Contract]] = {
     Action.TRAIN_LOOKUP: TrainLookup,
     Action.TRAIN_TRACK_CHANGE: TrackChange,
@@ -494,6 +548,10 @@ PAYLOADS: dict[Action, type[Contract]] = {
     Action.ROUTE_CANCEL: RouteCancel,
     Action.ROUTE_RESPONSE: RouteResponse,
     Action.ROUTE_STATE: RouteState,
+    Action.AUTOMAT_SET: AutomatSetAsk,
+    Action.LOCAL_RELEASE_REQUEST: LocalReleaseRequest,
+    Action.LOCAL_RELEASE_RESPONSE: LocalReleaseResponse,
+    Action.LOCAL_RELEASE_END: LocalReleaseEnd,
 }
 
 
@@ -740,11 +798,31 @@ class RemoteRouteHere(Contract):
     train_number: Text | None = None
     state: RemoteRouteState
     reason: Reason | None = Field(default=None, description="Skälet till ett nej.")
+    message: Text | None = Field(
+        default_factory=lambda: None, description="Ställverkets egna ord om nejet."
+    )
     by: Id = Field(description="Klienten som begärde.")
     asked_at: TimeOfDay
     answer_in: int | None = Field(
         default=None, description="Sekunder kvar för stationen att svara (FR14)."
     )
+
+
+class AutomatAsked(Contract):
+    """What whoever controls the station has decided for one of its automats or local areas,
+    with automat.set or local_release.response and .end, until the station's route.state shows
+    it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42)."""
+
+    code: Text = Field(max_length=12)
+    on: bool
+
+
+class LocalRequestHere(Contract):
+    """A local area the people on the station have asked for and not yet been answered (FR20)."""
+
+    code: Text = Field(max_length=12)
+    all_day: bool = False
+    asked_at: TimeOfDay
 
 
 class RemoteHere(Contract):
@@ -771,6 +849,15 @@ class RemoteHere(Contract):
     )
     route_state: RouteState | None = Field(
         default=None, description="Stationens senaste route.state."
+    )
+    # #36 del b: the station automats and the local areas over the protocol.
+    automats_asked: list[AutomatAsked] = Field(
+        default_factory=list,
+        description="Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, "
+        "tills stationens läge visar det.",
+    )
+    local_requests: list[LocalRequestHere] = Field(
+        default_factory=list, description="Lokala områden stationen har bett om, utan svar än."
     )
 
 

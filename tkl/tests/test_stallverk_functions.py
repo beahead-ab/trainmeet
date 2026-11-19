@@ -251,7 +251,9 @@ def test_ported_no_route_touches_a_released_area_and_routes_come_back_when_it_is
     yes(it.function("Lokal frigivning", ON))
     area = "Området för Lokal frigivning är lokalt frigivet för växling"
     no(it.set_route("In", "22"), area)  # over the area
-    no(it.set_route("21", "Ut"), area)  # from one of its signals
+    # From one of its signals out of it (FR22, #36 del b): the area does not stop it, the
+    # protection switch it needs the other way does.
+    no(it.set_route("21", "Ut"), "Växel 1 är låst i läget + av Lokal frigivning")
     no(it.set_route("12", "Ut2"), area)  # lays a local switch
     no(it.set_route("In2", "11"), area)
     yes(it.set_route("In", "12"))  # needs switch 1 in its locked position, and touches nothing

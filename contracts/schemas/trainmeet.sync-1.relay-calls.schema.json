@@ -26,7 +26,11 @@
         "route.request",
         "route.cancel",
         "route.response",
-        "route.state"
+        "route.state",
+        "automat.set",
+        "local_release.request",
+        "local_release.response",
+        "local_release.end"
       ],
       "title": "Action",
       "type": "string"

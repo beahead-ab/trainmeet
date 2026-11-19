@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.automat-ask.schema.json",
+  "title": "trainmeet.tkl-1.automat-ask",
+  "additionalProperties": true,
+  "description": "Koppla in eller ur en stationsautomat på platsen, när stationen är bemannad (FR25).",
+  "properties": {
+    "code": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "on": {
+      "title": "On",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "on"
+  ],
+  "type": "object"
+}

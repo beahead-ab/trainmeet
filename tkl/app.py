@@ -83,6 +83,21 @@ acts under its own path, and the interlocking checks the part's rights at the bo
 The messages between a part and the station are handed to `forward`, the seam for a station
 that is remote-controlled through Hubben (TKL100, #36).
 
+Fjärrstyrning, the station's side (#36 del b): Studio, Inställningar, Fjärrstyrning, and the
+station automats on the spot. TKL itself answers the routes asked for from afar, switches what
+the controller decided, runs the automats and reports route.state, every few seconds while it is
+connected (tkl/station_remote.py):
+
+    GET  /api/tkl/1/studio/fjarrstyrning          TklFjarrStudio: the catalogue to choose from,
+                                                  the automats, the receivers and the outside
+    PUT  /api/tkl/1/studio/fjarrstyrning          TklFjarrChoice -> TklFjarrStudio: kept with the
+                                                  model; 422 with the problems
+    POST /api/tkl/1/stallverk/automat             TklAutomatAsk: a station automat on or off on
+                                                  the spot, while the station is manned (FR25)
+
+Handing the station over goes as station commands through /api/tkl/1/commands: place.offer,
+place.take_back (also to withdraw an offer) and local_release.request.
+
 Studio's Koppla in at level 3 (#85), LocoNet only in a local TKL (tkl/loconet/service.py); TKL in
 the cloud shows the objects and their addresses but never opens a port (TKLMOLN-08):
 
@@ -241,6 +256,7 @@ from contracts.tkl import (
     DeckModelId,
     Panel,
     TklAnswer,
+    TklAutomatAsk,
     TklCardModule,
     TklCommand,
     TklConnect,
@@ -265,6 +281,8 @@ from contracts.tkl import (
     TklDrawingState,
     TklEmergencyRelease,
     TklFjarr,
+    TklFjarrChoice,
+    TklFjarrStudio,
     TklFunctionAction,
     TklFunctionAsk,
     TklIdState,
@@ -333,9 +351,11 @@ from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
 from tkl.provkor import NoQuestion, Provkor, idle
 from tkl.stallverk import Interlocking, Outcome, Plant, UnknownStart, load, plant_of
+from tkl.stallverk import automats as station_automats
 from tkl.stallverk.interlocking import KOPPLA_IN, Order
 from tkl.stallverk.parts import Part, plan_trains
-from tkl.standard import LayoutError, RouteKind, problems
+from tkl.standard import LayoutError, OutsideError, RouteKind, outside_of, problems
+from tkl.station_remote import StationRemote
 from tkl.store import (
     LOCAL,
     SESSION_LIFETIME,
@@ -353,6 +373,7 @@ from tkl.store import (
     token_hash,
 )
 from tkl.studio import dela, rita
+from tkl.studio import fjarr as remote_choice
 
 SESSION = "tkl_session"
 SLOT = "tkl_station"
@@ -998,6 +1019,81 @@ def create_app(
         except NoModel as error:
             raise HTTPException(404, "Stationen har ingen stationsmodell än.") from error
 
+    # --- Fjärrstyrning in Studio (#36 del b, TKL46, FR10, FR16, FR24, FR40) -------------------
+
+    def fjarr_view(found: str) -> TklFjarrStudio:
+        """The page: the owner's choice, else Studio's suggestion; the routes to choose from;
+        the problems; and the outside the choice gives, with the overview."""
+        own = store.station_of(found)
+        model = store.station_model(found)
+        if own is None or model is None:
+            return TklFjarrStudio(
+                settings=TklFjarrChoice(),
+                kept=False,
+                level=0,
+                note="En station på nivå 0 har inget ställverk som låser vägar och därför ingen "
+                "fjärrkatalog och inga automater (FR16).",
+            )
+        plant = plant_of(model)
+        kept = store.fjarr(found)
+        settings = kept or TklFjarrChoice(automats=remote_choice.suggested(model))
+        found_routes = remote_choice.candidates(plant)
+        try:
+            outside = outside_of(
+                model, own.station_id, own.name, remote=remote_choice.remote_of(plant, settings)
+            )
+        except (OutsideError, ValueError):
+            outside = None
+        return TklFjarrStudio(
+            settings=settings,
+            kept=kept is not None,
+            level=model.level,
+            candidates=remote_choice.shown(found_routes, settings.routes),
+            entry_signals=remote_choice.entry_signals(plant),
+            functions=remote_choice.local_releases(model),
+            suggested=remote_choice.suggested(model),
+            problems=remote_choice.problems(plant, settings, model.level),
+            outside=outside,
+            note=None
+            if found_routes
+            else "Stationsmodellen har inga tågvägar in från eller ut mot en linje.",
+        )
+
+    @routes.get("/studio/fjarrstyrning")
+    def fjarr_studio(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Studio, Inställningar, Fjärrstyrning (#36 del b)."""
+        no_store(response)
+        return fjarr_view(unlocked(slot, session)).model_dump(mode="json")
+
+    @routes.put("/studio/fjarrstyrning")
+    def save_fjarr(
+        settings: TklFjarrChoice,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """The owner's choice, kept with the station's model and versioned with it: only train
+        routes the model has, never a shunting route (FR10), and at most one A3 (FR26)."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.")
+        wrong = remote_choice.problems(plant_of(model), settings, model.level)
+        if wrong:
+            raise HTTPException(
+                422, {"message": "Fjärrstyrningen sparades inte.", "problems": wrong}
+            )
+        try:
+            store.save_fjarr(found, settings)
+        except NoModel as error:
+            raise HTTPException(404, "Stationen har ingen stationsmodell än.") from error
+        return fjarr_view(found).model_dump(mode="json")
+
     # --- TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78) ------------------------------
 
     with_id = TklIdLogin(id_settings, client) if id_settings is not None else None
@@ -1302,7 +1398,21 @@ def create_app(
         no_store(response)
         found = unlocked(slot, session)
         store.disconnect(found)
+        no_controller(found)
         return shown(None)
+
+    def no_controller(found: str) -> None:
+        """Koppla från: no one controls the station from afar any more, as TKL sees it (#36)."""
+
+        def change(
+            model: StationModel | None, revision: int, body: str | None
+        ) -> tuple[TklInterlocking | None, None]:
+            if model is None:
+                return None, None
+            made = load(plant_of(model), revision, body)
+            return (made.view() if made.set_remote(None) else None), None
+
+        store.change_interlocking(found, change)
 
     # --- The place: snapshot, commands, exits and hints ----------------------------------------
 
@@ -1819,6 +1929,36 @@ def create_app(
         no_store(response)
         found = unlocked(slot, session)
         return operate(found, lambda made: made.reset(ask.confirm, ask.trains))
+
+    @routes.post("/stallverk/automat")
+    def station_automat(
+        ask: TklAutomatAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Koppla in eller ur en stationsautomat på platsen (FR25, FR43). While the station is
+        remote-controlled the one who controls it switches them, from the remote picture."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        model = store.station_model(found)
+        # The owner's automats, else Studio's suggestion: on the spot they work before the owner
+        # has chosen; from afar only those in the outside do (#36 del b).
+        settings = store.fjarr(found)
+        if model is not None and settings is None:
+            settings = TklFjarrChoice(automats=remote_choice.suggested(model))
+        specs = remote_choice.automats_of(model, settings) if model is not None and settings else []
+
+        def switch(made: Interlocking) -> Outcome:
+            refused = made.remote_refusal()
+            if refused is not None:
+                return refused
+            by = station.RouteBy.STATION
+            return station_automats.set_automat(made, specs, ask.code, ask.on, by)
+
+        return operate(found, switch)
 
     @routes.post("/stallverk/function")
     def panel_function(
@@ -3123,6 +3263,17 @@ def create_app(
     if service is not None:
         services.append(service)
     app.state.loconet = service
+
+    # --- Fjärrstyrning, the station's side (#36 del b): TKL answers for its own station -------
+
+    def send_orders(orders: list[Order]) -> None:
+        if services:
+            services[0].send(orders)
+
+    remote = StationRemote(store, hub, one_place, report=up, orders=send_orders)
+    app.state.station_remote = remote
+    starting.append(lambda: remote.start(store.connected_slots))
+    stopping.append(remote.stop)
 
     def koppla(found: str) -> Any:
         if service is None:

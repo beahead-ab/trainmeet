@@ -105,6 +105,10 @@ class Reason(StrEnum):
     CONFLICTING_ROUTE = "conflicting_route"
     SWITCH_NOT_IN_CONTROL = "switch_not_in_control"
     AREA_RELEASED = "area_released"
+    ROUTE_REFUSED = "route_refused"
+    # The station automats and the local areas (#36 del b)
+    UNKNOWN_AUTOMAT = "unknown_automat"
+    LOCAL_AREA_NOT_GIVEN = "local_area_not_given"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -204,6 +208,9 @@ TEXT_SV: dict[Reason, str] = {
     Reason.CONFLICTING_ROUTE: "En fientlig väg är lagd.",
     Reason.SWITCH_NOT_IN_CONTROL: "Växlarna ligger inte i kontroll.",
     Reason.AREA_RELEASED: "Området är lokalt frigivet.",
+    Reason.ROUTE_REFUSED: "Stationens ställverk sa nej.",
+    Reason.UNKNOWN_AUTOMAT: "Stationen har ingen automat eller lokal frigivning med den koden.",
+    Reason.LOCAL_AREA_NOT_GIVEN: "Det lokala området är inte givet.",
 }
 
 

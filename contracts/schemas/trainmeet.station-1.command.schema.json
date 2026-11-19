@@ -26,7 +26,11 @@
         "route.request",
         "route.cancel",
         "route.response",
-        "route.state"
+        "route.state",
+        "automat.set",
+        "local_release.request",
+        "local_release.response",
+        "local_release.end"
       ],
       "title": "Action",
       "type": "string"
@@ -551,14 +555,17 @@
         "no_contact",
         "conflicting_route",
         "switch_not_in_control",
-        "area_released"
+        "area_released",
+        "route_refused",
+        "unknown_automat",
+        "local_area_not_given"
       ],
       "title": "Reason",
       "type": "string"
     },
     "RouteResponse": {
       "additionalProperties": true,
-      "description": "route.response: the station's interlocking has locked the route, or says no with a reason\nof its own: conflicting_route, switch_not_in_control, area_released or track_occupied.",
+      "description": "route.response: the station's interlocking has locked the route, or says no with a reason\nof its own: conflicting_route, switch_not_in_control, area_released or track_occupied, else\nroute_refused with its own words (#36 del b).",
       "properties": {
         "request_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -579,6 +586,20 @@
             }
           ],
           "default": null
+        },
+        "message": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ställverkets egna ord om nejet, som stationen säger det.",
+          "title": "Message"
         }
       },
       "required": [
@@ -835,6 +856,92 @@
         }
       },
       "title": "RouteState",
+      "type": "object"
+    },
+    "AutomatSetAsk": {
+      "additionalProperties": true,
+      "description": "automat.set: whoever remote-controls the station switches one of its automats on or off,\nfrom the remote picture (FR25). It goes to the station's TKL, which switches it in its own\ninterlocking and says so in route.state. A local release automat's code gives or takes back\nthe local area, as local_release.response and .end do. On the spot, when the station is\nmanned, the station's own panel switches them; nothing goes through Hubben then.",
+      "properties": {
+        "code": {
+          "description": "Automatens kod i utsidan, till exempel A3.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "on": {
+          "title": "On",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "on"
+      ],
+      "title": "AutomatSetAsk",
+      "type": "object"
+    },
+    "LocalReleaseRequest": {
+      "additionalProperties": true,
+      "description": "local_release.request: the people on a remote-controlled station ask whoever controls it\nfor a local area, with the local release's code, a while or all day (FR20, FR39).",
+      "properties": {
+        "code": {
+          "description": "Lokalfrigivningens kod, till exempel L01.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "all_day": {
+          "default": false,
+          "description": "Hela dagen; annars en stund.",
+          "title": "All Day",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "LocalReleaseRequest",
+      "type": "object"
+    },
+    "LocalReleaseResponse": {
+      "additionalProperties": true,
+      "description": "local_release.response: whoever controls the station gives the local area, or refuses\nit. Given, the station switches it in when no route goes to, from or through it (FR42).",
+      "properties": {
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "give": {
+          "title": "Give",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "give"
+      ],
+      "title": "LocalReleaseResponse",
+      "type": "object"
+    },
+    "LocalReleaseEnd": {
+      "additionalProperties": true,
+      "description": "local_release.end: the station gives the area back, or whoever controls it takes it back\nafter a question; the station switches it out when the area is empty (FR23, FR44).",
+      "properties": {
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "LocalReleaseEnd",
       "type": "object"
     }
   },
@@ -1218,6 +1325,66 @@
         },
         "payload": {
           "$ref": "#/$defs/RouteState"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "automat.set",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/AutomatSetAsk"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "local_release.request",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/LocalReleaseRequest"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "local_release.response",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/LocalReleaseResponse"
+        }
+      },
+      "required": [
+        "action",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "local_release.end",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/LocalReleaseEnd"
         }
       },
       "required": [

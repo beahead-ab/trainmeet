@@ -1093,6 +1093,7 @@ class RouteAnswered(Contract):
     request_id: Id
     locked: bool
     reason: Reason | None = None
+    message: Text | None = Field(default=None, description="Ställverkets egna ord om nejet.")
     timed_out: bool = Field(default=False, description="Stationen svarade inte i tid.")
 
 
@@ -1110,20 +1111,27 @@ class RouteReleased(Contract):
 
 
 class LocalReleaseSet(Contract):
-    """A local area asked for, given or refused, or ended (TKL44, TKL48)."""
+    """A local area asked for, given or refused, or ended (TKL44, TKL48). asked: the request,
+    answer or end came over the protocol (#36 del b), and the station switches it when it can;
+    without, it is what the station's route.state showed."""
 
     code: Text = Field(max_length=12)
     given: bool | None = Field(default=None, description="Vid svaret: gavs eller nekades.")
+    all_day: bool | None = Field(default=None, description="Vid begäran: hela dagen.")
+    asked: bool = Field(default=False, description="Över protokollet, inte ur stationens läge.")
 
 
 class AutomatSet(Contract):
-    """A station automat switched on or off, by someone or by itself (FR25, FR29)."""
+    """A station automat switched on or off, by someone or by itself (FR25, FR29). asked: whoever
+    controls the station decided it with automat.set (#36 del b), and the station switches it;
+    without, it is what the station's route.state showed."""
 
     code: Text = Field(max_length=12)
     on: bool
     by: RouteBy | None = Field(
         default=None, description="Vem som kopplade in den; tomt när det inte syns i läget."
     )
+    asked: bool = Field(default=False, description="Med automat.set, inte ur stationens läge.")
 
 
 class AutomationTrain(Contract):

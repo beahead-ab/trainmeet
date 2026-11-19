@@ -138,6 +138,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     # Stream Deck (#86 del c): Studio, Inställningar, Stream Deck
     "trainmeet.tkl-1.deck-deviations": tkl.TklDeckDeviations,
     "trainmeet.tkl-1.deck-studio": tkl.TklDeckStudio,
+    # Fjärrstyrning, the station's side (#36 del b): Studio and the automats on the spot.
+    "trainmeet.tkl-1.fjarr-choice": tkl.TklFjarrChoice,
+    "trainmeet.tkl-1.fjarr-studio": tkl.TklFjarrStudio,
+    "trainmeet.tkl-1.automat-ask": tkl.TklAutomatAsk,
     "trainmeet.tkl-1.deck-edit": tkl.TklDeckEdit,
     "trainmeet.tkl-1.deck-suggest": tkl.TklDeckSuggest,
     "trainmeet.tkl-1.deck-prova": tkl.TklDeckProva,
@@ -1999,6 +2003,12 @@ def tkl_openapi() -> str:
     route("post", s + "/train/remove", "tklRemoveTrain", answer, t + "train-ref")
     route("post", s + "/reset", "tklReset", answer, t + "reset")
     route("post", s + "/function", "tklPanelFunction", answer, t + "function-ask")
+    # Fjärrstyrning (#36 del b): Studio's choice, and a station automat on the spot (FR25).
+    route("get", a + "/studio/fjarrstyrning", "tklFjarrStudio", t + "fjarr-studio")
+    route(
+        "put", a + "/studio/fjarrstyrning", "tklSaveFjarr", t + "fjarr-studio", t + "fjarr-choice"
+    )
+    route("post", s + "/automat", "tklStationAutomat", answer, t + "automat-ask")
     # Delställverk (#87): the station's answers, and a part's own screen at /del/<id>.
     route("post", s + "/parts/reply", "tklPartReply", answer, t + "part-reply")
     route("post", s + "/parts/ring-answer", "tklPartRingAnswer", answer, t + "part-ref")

@@ -1,5 +1,15 @@
 """Ställverket at level 1–2 (#84): the interlocking's state machine over one station model.
 
+Fjärrstyrning (#36 del b): while the station is remote-controlled, its own panel, its Stream Deck
+and its answers to the parts lay nothing (FR6, FR17): set_route, release, emergency_release,
+lay_lever, reset, part_reply and the functions say who controls it, except the local area, which
+is given back on the spot and whose switches are laid with the modules' buttons (FR21, FR44).
+The routes asked for from afar and those the station automats lay go through the same checks,
+with lay_route and free_route (tkl.stallverk.automats, FR12). Every set route remembers the
+catalogue route it is, who laid it and the request it answered (FR13, FR33). While a local area
+is released, a train route may still start at one of its signals and go out of it, from the
+border, without touching it (FR22); none goes into it (FR42).
+
 It holds the state of the moment (STV-08): the switch positions and so the levers, the set
 routes with their locks, the signal aspects that follow from them, the turntable's bridge and
 the train numbers. It never holds the model, the clearance or the timetable (STV-09).
@@ -30,8 +40,10 @@ request all call them (STV-43, STV-44). An unknown id is a no, never a guess.
   - local release (lokal frigivning, TKL44, STD-14, FR41): the protection levers are laid and
     locked, the local switches are laid with the modules' buttons (`lay`) and never by the
     interlocking, the area's dwarf signals show shunting, its entry signals are blocked, and
-    no route touches the area. It is refused while a route touches the area. Taking it back
-    is always allowed, as in the prototype: the local switches stay where they lie.
+    no route touches the area, except a train route out of it from one of its signals that
+    touches nothing else of it (FR22, #36 del b). It is refused while a route touches the area.
+    Taking it back is always allowed, as in the prototype: the local switches stay where they
+    lie.
   - traction current (körström): the track's mode, 2R or 3R; it touches no route.
   - out of service (spår ur drift): no route over the track; a route already there is held.
   - emergency release (nödutlösning) of the function's track circuits, confirmed and logged:
@@ -108,7 +120,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Final
 
-from contracts.station import ExitSignalAspect
+from contracts.station import ExitSignalAspect, RouteBy
 from contracts.station_model import PanelFunctionType, PartOwner, Position, SwitchControl
 from contracts.tkl import (
     PART_REFUSALS,
@@ -118,6 +130,7 @@ from contracts.tkl import (
     TklExitShown,
     TklField,
     TklFieldMode,
+    TklFjarrState,
     TklFunctionAction,
     TklFunctionMode,
     TklFunctionShown,
@@ -248,6 +261,14 @@ class _Route:
     """The part the route is: set by it, or its approved request (TKL97)."""
     request: int | None = None
     """The request it was set for: the one-way rule holds it for the part (RANG-09)."""
+    catalogue: str | None = None
+    """The remote catalogue's route it is, when it is one (#36 del b)."""
+    by: RouteBy | None = None
+    """Laid from afar or by a station automat; None on the spot (FR33)."""
+    request_id: str | None = None
+    """The remote request it answered."""
+    automat: str | None = None
+    """The station automat that laid it."""
 
     @property
     def name(self) -> str:
@@ -430,6 +451,8 @@ class Interlocking:
         self.field: _Field | None = None
         self.parts: dict[str, _PartState] = {p: _PartState() for p in plant.parts}
         self.ready: list[TklReady] = []
+        self.fjarr = TklFjarrState()
+        """Who remote-controls the station, the automats that are on and the magazine (#36)."""
         if saved is not None:
             self._restore(saved)
 
@@ -651,7 +674,7 @@ class Interlocking:
                 if name in function.sections:
                     return f"{_cap(self.plant.said(name))} är ur drift ({function.name})."
         for function in self._active(LOCAL):
-            if function.touches(way):
+            if function.touches(way) and not _from_border(function, way):
                 return f"Området för {function.name} är lokalt frigivet för växling."
             for part, position in way.route.positions.items():
                 held = function.locked_parts.get(part)
@@ -670,9 +693,12 @@ class Interlocking:
                 return function.name
         return None
 
-    def _plan(self, chain: Chain) -> tuple[list[_Route], str | None]:
-        """The chain as routes on top of the set ones, or why it cannot be set."""
-        locks = self._locks()
+    def _plan(
+        self, chain: Chain, routes: Iterable[_Route] | None = None
+    ) -> tuple[list[_Route], str | None]:
+        """The chain as routes on top of the set ones (or only `routes`), or why it cannot be
+        set."""
+        locks = self._locks(routes)
         occupied = self._occupied()
         starting = {t.section for t in self._at_start(chain[0]) if t.section is not None}
         planned: list[_Route] = []
@@ -686,6 +712,91 @@ class Interlocking:
             planned.append(route)
             locks.add(route, self.plant)
         return planned, None
+
+    # --- fjärrstyrning (#36 del b): what the remote module asks of the interlocking -----------
+
+    def conflicts(self, start: str, end: str, kind: RouteKind = RouteKind.TRAIN) -> list[int]:
+        """The set routes that alone stop a route from start to end: what it would wait for
+        in the magazine (FR45). Empty when nothing stops it, or when something besides set
+        routes does, such as a train in the way or a local area."""
+        for chain in self.plant.candidates(kind, start, end):
+            if self._border_for_station(chain) is not None:
+                continue
+            if self._plan(chain, [])[1] is not None:
+                continue
+            found = [r.id for r in self.routes if self._plan(chain, [r])[1] is not None]
+            if found:
+                return found
+        return []
+
+    def set_by(self, start: str, end: str, kind: RouteKind = RouteKind.TRAIN) -> int | None:
+        """The set route, or the first part of the set chain, from start to end."""
+        found = self._already(kind, start, end)
+        return found.id if found is not None else None
+
+    def mark(
+        self,
+        route_id: int,
+        catalogue: str,
+        by: RouteBy | None,
+        request_id: str | None = None,
+        automat: str | None = None,
+    ) -> None:
+        """The set route, with the rest of its chain, is the catalogue's route, laid by the
+        controller, an automat or on the spot (#36 del b, FR13, FR33)."""
+        first = self._route(route_id)
+        if first is None:
+            return
+        parts = [r for r in self.routes if r.chain == first.id] or [first]
+        for route in parts:
+            route.catalogue, route.by = catalogue, by
+            route.request_id, route.automat = request_id, automat
+        self.revision += 1
+
+    def switch_local(self, name: str, on: bool, *, empty: bool = False) -> Outcome:
+        """A local area switched in or out for whoever controls the station (FR20, FR42); with
+        `empty`, out only when no train is in it (FR23)."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        function = self.plant.functions.get(name)
+        if function is None or function.type != LOCAL:
+            return Outcome(False, f"Panelfunktionen {name} är ingen lokal frigivning.")
+        if not on and empty and self.on.get(name):
+            inside = [t.said for t in self.trains if t.section in function.sections]
+            if self.field is not None:
+                inside += [
+                    self.plant.said(n)
+                    for n in sorted(function.sections)
+                    if self.field.sections.get(n)
+                ]
+            if inside:
+                return Outcome(False, f"{_cap(name)} är inte tomt: {_listed(inside)}.")
+        return self._switch(function, on)
+
+    def area_tracks(self, name: str) -> list[str]:
+        """The station tracks in a local area, by their id in the outside (FR39)."""
+        function = self.plant.functions.get(name)
+        if function is None:
+            return []
+        pieces = set(function.pieces)
+        return [
+            self.plant.track_outside.get(t.id, t.id)
+            for t in self.plant.model.station_tracks
+            if t.pieces and set(t.pieces) <= pieces
+        ]
+
+    def occupied_tracks(self) -> list[str]:
+        """Level 3 with LocoNet: the station tracks a track circuit reports occupied, by their
+        id in the outside."""
+        if self.field is None:
+            return []
+        found = []
+        section_of = self.plant.section_of
+        for track in self.plant.model.station_tracks:
+            sections = {section_of[p] for p in track.pieces if p in section_of}
+            if any(self.field.sections.get(n) for n in sections):
+                found.append(self.plant.track_outside.get(track.id, track.id))
+        return found
 
     def _already(self, kind: RouteKind, start: str, end: str) -> _Route | None:
         """A set route, or the first part of a set chain, from start to end."""
@@ -705,8 +816,37 @@ class Interlocking:
     def _refuse_stale(self) -> Outcome | None:
         return Outcome(False, self.problem) if self.problem is not None else None
 
+    def remote_refusal(self) -> Outcome | None:
+        """While the station is remote-controlled its own panel lays nothing (FR6, FR17)."""
+        controller = self.fjarr.controller
+        if controller is None:
+            return None
+        return Outcome(
+            False,
+            f"Stationen fjärrstyrs från {controller}. Den som fjärrstyr lägger vägarna; ta "
+            "tillbaka stationen för att lägga dem här.",
+        )
+
+    def set_remote(self, controller: str | None) -> bool:
+        """Who remote-controls the station now, as Hubben says it; True when it changed."""
+        if self.fjarr.controller == controller:
+            return False
+        self.fjarr = self.fjarr.model_copy(update={"controller": controller})
+        if controller is None:
+            self._done("Stationen är bemannad.")
+        else:
+            self._done(f"Stationen fjärrstyrs från {controller}.")
+        return True
+
     def set_route(self, start: str, end: str, kind: RouteKind | None = None) -> Outcome:
-        """Lägg en väg (STV-01, STV-03, STV-14, STV-24)."""
+        """Lägg en väg (STV-01, STV-03, STV-14, STV-24), on the spot."""
+        if (remote := self.remote_refusal()) is not None:
+            return remote
+        return self.lay_route(start, end, kind)
+
+    def lay_route(self, start: str, end: str, kind: RouteKind | None = None) -> Outcome:
+        """The interlocking's own check for a route, whoever asks for it: the panel, a remote
+        request or a station automat (FR12)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
         plant = self.plant
@@ -845,6 +985,13 @@ class Interlocking:
 
     def release(self, route_id: int) -> Outcome:
         """Lös ut: a route without a train in it, or with the train at its end."""
+        if (remote := self.remote_refusal()) is not None:
+            return remote
+        return self.free_route(route_id)
+
+    def free_route(self, route_id: int) -> Outcome:
+        """Lös ut, whoever asks: also a route taken away from afar (route.cancel), released when
+        the interlocking allows."""
         if (stale := self._refuse_stale()) is not None:
             return stale
         route = self._route(route_id)
@@ -886,6 +1033,8 @@ class Interlocking:
         """Nödutlös: the route goes even with a train in it. The train stays where it is."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if (remote := self.remote_refusal()) is not None:
+            return remote
         route = self._route(route_id)
         if route is None:
             return Outcome(False, "Vägen finns inte längre. Ingenting löstes ut.")
@@ -909,6 +1058,8 @@ class Interlocking:
         """Lägg hela spaken (STV-01, STV-52, TKL104)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if (remote := self.remote_refusal()) is not None:
+            return remote
         return self._lever(switch, position, None)
 
     def _lever(self, switch: str, position: Position | None, part: Part | None) -> Outcome:
@@ -1269,6 +1420,8 @@ class Interlocking:
         the numbers go too. A state that belongs to another model starts over."""
         if not confirm:
             return Outcome(False, "Bekräfta att ställverket ska nollställas.")
+        if self.problem is None and (remote := self.remote_refusal()) is not None:
+            return remote
         before = self.exit_aspects()
         released = len(self.routes)
         stale = self.problem is not None
@@ -1281,6 +1434,7 @@ class Interlocking:
             self.problem, self._saved = None, None
         self.routes = []
         self._drop_spent()
+        self.fjarr = self.fjarr.model_copy(update={"magazine": []})
         removed = len(self.trains) if trains else 0
         if trains:
             self.trains = []
@@ -1535,9 +1689,12 @@ class Interlocking:
     def part_reply(self, request_id: int, approved: bool) -> Outcome:
         """Svar (TKL98): the station approves a request, and its interlocking sets the route,
         which is then the part's (RANG-09); or refuses it. A route that cannot be set now is a
-        no to the station, and the request waits."""
+        no to the station, and the request waits. While the station is remote-controlled the one
+        who controls it answers instead (FR50)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if (remote := self.remote_refusal()) is not None:
+            return remote
         found = self._request(request_id)
         if found is None:
             return Outcome(False, "Begäran finns inte längre.")
@@ -1912,6 +2069,18 @@ class Interlocking:
         function = self.plant.functions.get(name)
         if function is None:
             return Outcome(False, f"Panelfunktionen {name} finns inte i stationsmodellen.")
+        on_the_spot = function.type == LOCAL and action in (
+            TklFunctionAction.OFF,
+            TklFunctionAction.LAY,
+        )
+        if not on_the_spot and (remote := self.remote_refusal()) is not None:
+            if function.type == LOCAL and action == TklFunctionAction.ON:
+                return Outcome(
+                    False,
+                    f"Stationen fjärrstyrs från {self.fjarr.controller}. Be den som fjärrstyr om "
+                    f"det lokala området {_cap(name)}.",
+                )
+            return remote
         if function.type in SWITCHED and action in (TklFunctionAction.ON, TklFunctionAction.OFF):
             return self._switch(function, action == TklFunctionAction.ON)
         if function.type == LOCAL and action == TklFunctionAction.LAY:
@@ -2646,6 +2815,7 @@ class Interlocking:
             field=field_.shown() if field_ is not None else None,
             parts=[self._part_shown(part) for part in plant.parts.values()],
             ready=list(self.ready),
+            fjarr=self.fjarr,
         )
 
     def _part_shown(self, part: Part) -> TklPartShown:
@@ -2783,6 +2953,10 @@ class Interlocking:
             came_from=route.came_from,
             part=route.part,
             request=route.request,
+            catalogue=route.catalogue,
+            by=route.by,
+            request_id=route.request_id,
+            automat=route.automat,
         )
 
     # --- a saved state ------------------------------------------------------------------------
@@ -2847,6 +3021,10 @@ class Interlocking:
                     came_from=shown.came_from if shown.came_from in plant.sections else None,
                     part=shown.part if shown.part in plant.parts else None,
                     request=shown.request if shown.part in plant.parts else None,
+                    catalogue=shown.catalogue,
+                    by=shown.by,
+                    request_id=shown.request_id,
+                    automat=shown.automat,
                 )
             )
         parts: dict[str, _PartState] = {p: _PartState() for p in plant.parts}
@@ -2866,6 +3044,17 @@ class Interlocking:
             )
         self.trains, self.routes, self.parts = trains, routes, parts
         self.ready = list(saved.ready)
+        known_routes = {r.id for r in routes}
+        self.fjarr = saved.fjarr.model_copy(
+            update={
+                "magazine": [
+                    m.model_copy(
+                        update={"blocked_by": [b for b in m.blocked_by if b in known_routes]}
+                    )
+                    for m in saved.fjarr.magazine
+                ]
+            }
+        )
         if saved.field is not None and self.level == 3:
             kept = saved.field
             self.field = _Field(
@@ -2904,6 +3093,19 @@ def load(
         made.problem = BROKEN
         return made
     return Interlocking(plant, saved, now=now)
+
+
+def _from_border(function: Function, way: Way) -> bool:
+    """A train route out of a released local area from its border (FR22): it starts at one of
+    the area's signals and touches nothing else of it, neither its sections, nor its signals at
+    the end, nor its local switches."""
+    return (
+        way.kind == RouteKind.TRAIN
+        and way.start in function.signals
+        and way.end not in function.signals
+        and not any(name in function.sections for name, _ in way.sections)
+        and not any(part in function.switches for part in way.route.positions)
+    )
 
 
 def _cap(text: str) -> str:

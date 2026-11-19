@@ -28,6 +28,10 @@
 // (#87 del d, läget Bangård) och trycker Ände till höger, 52, som lägger gatan, och 3, som begär
 // vägen ut. TKL godkänner i rutan överst i Ställverket, rangeraren anmäler tåg 3795 klart att
 // skicka, och det står under Klara att skicka hos TKL. Rangeraren lämnar sedan tillbaka vägen.
+// Fjärrstyrning (#36 del b): före anslutningen väljs alla Gårdsjös tågvägar in och ut i Studio ›
+// Inställningar › Fjärrstyrning, som följer med en ny version av utsidan. Efter godkännandet ansluter
+// ett låtsat fjärrställverk till hubben och godkänns för Åsen; TKL lämnar stationen till det med
+// Lämna till …, ser Erbjuden med tiden kvar och tar tillbaka erbjudandet.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -180,6 +184,51 @@ async function studioDeck(page) {
   await screenshot(page, "studio-stream-deck");
 }
 
+/** Studio › Inställningar › Fjärrstyrning (#36 del b): fjärrkatalogen har Gårdsjös tågvägar in och
+ * ut; alla väljs, sparas med stationsmodellen och följer med en ny version av utsidan. */
+async function fjarrStudio(page) {
+  await page.goto(`${TKL}/studio/installningar/fjarrstyrning`);
+  await page.getByRole("heading", { name: "Fjärrkatalogen" }).waitFor();
+  const routes = page.locator(".fjarr-vag input[type=checkbox]");
+  const count = await routes.count();
+  check(count > 0, "Fjärrkatalogen i Studio har inga tågvägar.");
+  check(await page.getByText("Tågväg in", { exact: true }).count(), "Katalogen visar inga vägar in.");
+  await page.getByRole("group", { name: "Snabbval" }).getByRole("button", { name: "Alla", exact: true }).click();
+  await page.getByText(`${count} av ${count} tågvägar i katalogen.`).waitFor();
+  await page.getByRole("button", { name: "Spara", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "Sparat" }).waitFor();
+  await screenshot(page, "studio-fjarrstyrning");
+  await page.goto(`${TKL}/studio`);
+  const version = page.getByRole("button", { name: "Ny version av utsidan" });
+  await version.waitFor();
+  if (await version.isEnabled()) await version.click();
+  await page.waitForFunction(() => !document.querySelector("button.primar:not([disabled])")?.textContent?.includes("Ny version av utsidan"));
+  return count;
+}
+
+/** Lämna till … (#36 del b, FR8): ett låtsat fjärrställverk godkänt för Åsen tar emot; TKL erbjuder
+ * stationen, ser Erbjuden med tiden kvar, och tar tillbaka erbjudandet. */
+async function offerAndWithdraw(page, hub, code) {
+  const made = await hub.post(`${HUB}/api/station/1/connect`, { data: { kind: "remote", name: "Fjärrställverket", software: "prov", wants: ["asn"], code } });
+  check(made.ok(), `Fjärrställverket kom inte in (${made.status()}).`);
+  await approve(hub, "remote", "asn");
+  await page.goto(`${TKL}/`);
+  const bar = page.locator("section.driftform");
+  await bar.locator(".driftform-lage", { hasText: "Bemannad" }).waitFor({ timeout: 20_000 });
+  const to = bar.getByLabel("Lämna till");
+  await to.waitFor({ timeout: 30_000 });
+  await to.selectOption({ label: "Fjärrställverket (fjärrställverk)" });
+  await screenshot(page, "fjarr-bemannad");
+  await bar.getByRole("button", { name: "Lämna", exact: true }).click();
+  await bar.locator(".driftform-lage", { hasText: "Erbjuden till Fjärrställverket" }).waitFor();
+  const left = (await bar.textContent()) ?? "";
+  check(/\d+ s kvar/.test(left), `Erbjudandet visar inte tiden kvar: ${left}`);
+  await screenshot(page, "fjarr-erbjuden");
+  await bar.getByRole("button", { name: "Ta tillbaka erbjudandet" }).click();
+  await bar.locator(".driftform-lage", { hasText: "Bemannad" }).waitFor();
+  await screenshot(page, "fjarr-tillbaka");
+}
+
 /** Stream Deck på skärmen som 15 (#86 del a): tågknappen, Läge och Platser lägger samma väg. */
 async function streamDeck(page) {
   const routes = async () => (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).routes;
@@ -318,6 +367,7 @@ try {
   await screenshot(page, "sparplan-gardsjo");
   const tried = await prova(page);
   await studioDeck(page);
+  const catalogue = await fjarrStudio(page);
   await connect(page, code);
   await approve(hub, "tkl", "asn");
   await page.goto(`${TKL}/`);
@@ -325,6 +375,9 @@ try {
   await page.getByText("Nivå 2", { exact: true }).waitFor();
 
   await screenshot(page, "ansluten");
+
+  // Fjärrstyrning (#36 del b): Lämna till ett låtsat fjärrställverk, och ta tillbaka erbjudandet.
+  await offerAndWithdraw(page, hub, code);
 
   // En andra skärm: bara Tåg · Klarering · Händelser, valt för den skärmen och sparat i webbläsaren.
   const second = await context.newPage();
@@ -477,6 +530,7 @@ try {
   await rangerbangarden(browser, page);
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Prova i TKL: ${tried} vägar gick igenom, Klart.`);
+  console.log(`Fjärrstyrning: ${catalogue} tågvägar i Studios fjärrkatalog; stationen erbjöds fjärrställverket och erbjudandet togs tillbaka.`);
   console.log("Stream Deck på skärmen: tågknappen lade 52 → 62, Läge bytte till Platser, och Öst 2 → 2 lade samma väg.");
   console.log("Studio › Stream Deck: snabbvägen 52 → 62 sparades på Väster och lade vägen från decket på skärmen.");
   console.log("Delställverk: Rangerbangården lade 52 och begärde 52 → 3 från sitt Stream Deck på skärmen, TKL godkände i rutan, tåg 3795 stod under Klara att skicka, och vägen lämnades tillbaka.");
