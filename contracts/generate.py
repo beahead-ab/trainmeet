@@ -93,6 +93,18 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.train-ref": tkl.TklTrainRef,
     "trainmeet.tkl-1.reset": tkl.TklReset,
     "trainmeet.tkl-1.function-ask": tkl.TklFunctionAsk,
+    # Delställverk (#87, TKL97–TKL103).
+    "trainmeet.tkl-1.part-reply": tkl.TklPartReply,
+    "trainmeet.tkl-1.part-ref": tkl.TklPartRef,
+    "trainmeet.tkl-1.part-street-ask": tkl.TklPartStreetAsk,
+    "trainmeet.tkl-1.part-request-ask": tkl.TklPartRequestAsk,
+    "trainmeet.tkl-1.part-request-ref": tkl.TklPartRequestRef,
+    "trainmeet.tkl-1.part-fika": tkl.TklPartFika,
+    "trainmeet.tkl-1.part-trains": tkl.TklPartTrains,
+    "trainmeet.tkl-1.part-message": tkl.TklPartMessage,
+    "trainmeet.tkl-1.ready-ask": tkl.TklReadyAsk,
+    "trainmeet.tkl-1.ready-move": tkl.TklReadyMove,
+    "trainmeet.tkl-1.ready-ref": tkl.TklReadyRef,
     # Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL.
     "trainmeet.tkl-1.koppla-in": tkl.TklKopplaIn,
     "trainmeet.tkl-1.port": tkl.TklPort,
@@ -1973,6 +1985,25 @@ def tkl_openapi() -> str:
     route("post", s + "/train/remove", "tklRemoveTrain", answer, t + "train-ref")
     route("post", s + "/reset", "tklReset", answer, t + "reset")
     route("post", s + "/function", "tklPanelFunction", answer, t + "function-ask")
+    # Delställverk (#87): the station's answers, and a part's own screen at /del/<id>.
+    route("post", s + "/parts/reply", "tklPartReply", answer, t + "part-reply")
+    route("post", s + "/parts/ring-answer", "tklPartRingAnswer", answer, t + "part-ref")
+    route("post", s + "/ready/move", "tklReadyMove", answer, t + "ready-move")
+    route("post", s + "/ready/sent", "tklReadySent", answer, t + "ready-ref")
+    pa = s + "/parts/{part}"
+    route("get", pa + "/trains", "tklPartTrains", t + "part-trains")
+    route("get", pa + "/targets", "tklPartTargets", t + "interlocking-targets", query=start_query)
+    route("post", pa + "/route", "tklPartRoute", answer, t + "route-ask")
+    route("post", pa + "/release", "tklPartRelease", answer, t + "route-ref")
+    route("post", pa + "/lever", "tklPartLever", answer, t + "lever-ask")
+    route("post", pa + "/street", "tklPartStreet", answer, t + "part-street-ask")
+    route("post", pa + "/request", "tklPartRequest", answer, t + "part-request-ask")
+    route("post", pa + "/return", "tklPartReturn", answer, t + "part-request-ref")
+    route("post", pa + "/done", "tklPartDone", answer)
+    route("post", pa + "/gates", "tklPartGates", answer)
+    route("post", pa + "/ring", "tklPartRing", answer)
+    route("post", pa + "/fika", "tklPartFika", answer, t + "part-fika")
+    route("post", pa + "/ready", "tklPartReady", answer, t + "ready-ask")
     # Studio's Koppla in at level 3 (#85).
     k = a + "/studio/koppla-in"
     koppla = t + "koppla-in"

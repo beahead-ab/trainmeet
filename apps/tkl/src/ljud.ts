@@ -61,3 +61,41 @@ export function play(sound: Sound, sounds: Sounds) {
     // No sound where the browser does not allow it yet; the screen still shows everything.
   }
 }
+
+/** Delställverk (#87): Tuta, the loco's horn in this screen's loudspeaker, and the ring when a part
+ * rings or asks. Played here only, whatever the screen's sound choices: they are pressed for. */
+export function tone(kind: "horn" | "ring") {
+  if (typeof AudioContext === "undefined") return;
+  try {
+    context ??= new AudioContext();
+    const start = context.currentTime;
+    const parts: [number, number, number][] =
+      kind === "horn"
+        ? [
+            [370, 0, 0.55],
+            [466, 0, 0.55],
+            [370, 0.7, 0.9],
+            [466, 0.7, 0.9],
+          ]
+        : [
+            [880, 0, 0.18],
+            [1100, 0.2, 0.18],
+            [880, 0.5, 0.18],
+            [1100, 0.7, 0.18],
+          ];
+    for (const [frequency, at, length] of parts) {
+      const sound = context.createOscillator();
+      const volume = context.createGain();
+      sound.type = kind === "horn" ? "sawtooth" : "sine";
+      sound.frequency.value = frequency;
+      volume.gain.setValueAtTime(0.0001, start + at);
+      volume.gain.exponentialRampToValueAtTime(0.18, start + at + 0.02);
+      volume.gain.exponentialRampToValueAtTime(0.0001, start + at + length);
+      sound.connect(volume).connect(context.destination);
+      sound.start(start + at);
+      sound.stop(start + at + length + 0.05);
+    }
+  } catch {
+    // No sound where the browser does not allow it yet; the screen still shows everything.
+  }
+}

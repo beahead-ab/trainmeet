@@ -8020,6 +8020,242 @@
    "note": "Knappen gör spåret till programmeringsspår (TKL106). Vad den kopplar om är inte bestämt."
   }
  ],
+ "parts": [
+  {
+   "id": "rangerbangarden",
+   "name": "Rangerbangården",
+   "pieces": ["p6.0", "p6.1", "p11", "p13", "p15.0", "p15.1", "p16.0", "p16.1", "p16.2", "p25", "p26", "p43", "p44.0", "p44.1", "p44.2", "p45.0", "p45.1", "p46", "p60", "p61", "p62", "p65.1", "p67.1", "p74.1", "p80.1", "p80.2", "p84", "p85.0", "p85.1", "p86.0", "p86.1", "p87", "p89", "p90", "p91", "p92u", "p92v", "p93", "p94", "p95", "p96", "p97.0", "p97.1", "p103", "p104", "p105", "p106", "p107", "p108", "p109", "p110", "p111u", "p111v", "p112", "p113", "p114", "p48a.0", "p48a.1", "p48b.0", "p48b.1", "p47a.0", "p47a.1", "p47b.0", "p47b.1", "p27a.0", "p27a.1", "p27b.0", "p27b.1", "p59a.0", "p59a.1", "p59b.0", "p59b.1"],
+   "switches": ["111", "114", "115", "118", "119", "127", "128", "130", "133", "150", "155", "42", "43", "51"],
+   "signals": ["3/1", "IIIev", "3/3", "8/10", "8/5", "7/10", "7/5", "6/10", "6/5", "9/5", "6/8", "6/6", "6/9", "6/11", "3/2", "6/7", "9/10", "3/13"],
+   "border": [
+    {
+     "switch": "103",
+     "towards_part": "-"
+    },
+    {
+     "switch": "132",
+     "towards_part": "+"
+    },
+    {
+     "switch": "144",
+     "towards_part": "+"
+    },
+    {
+     "switch": "164",
+     "towards_part": "+"
+    }
+   ],
+   "border_signals": ["3/3", "6/8", "6/9", "3/13"],
+   "own_place": true,
+   "streets": [
+    {
+     "id": "V51",
+     "name": "V 51",
+     "side": "left",
+     "track": "51",
+     "positions": {
+      "103": "-",
+      "114": "+",
+      "115": "-"
+     }
+    },
+    {
+     "id": "V52",
+     "name": "V 52",
+     "side": "left",
+     "track": "52",
+     "positions": {
+      "103": "-",
+      "114": "+",
+      "115": "+"
+     }
+    },
+    {
+     "id": "V53",
+     "name": "V 53",
+     "side": "left",
+     "track": "53",
+     "positions": {
+      "103": "-",
+      "114": "-",
+      "111": "+",
+      "118": "+"
+     }
+    },
+    {
+     "id": "V54",
+     "name": "V 54",
+     "side": "left",
+     "track": "54",
+     "positions": {
+      "103": "-",
+      "114": "-",
+      "111": "-",
+      "118": "-"
+     }
+    },
+    {
+     "id": "H51",
+     "name": "H 51",
+     "side": "right",
+     "track": "51",
+     "positions": {
+      "132": "+",
+      "130": "+",
+      "127": "-"
+     }
+    },
+    {
+     "id": "H52",
+     "name": "H 52",
+     "side": "right",
+     "track": "52",
+     "positions": {
+      "132": "+",
+      "130": "+",
+      "127": "+"
+     }
+    },
+    {
+     "id": "H53",
+     "name": "H 53",
+     "side": "right",
+     "track": "53",
+     "positions": {
+      "132": "+",
+      "130": "-",
+      "128": "-"
+     }
+    },
+    {
+     "id": "H54",
+     "name": "H 54",
+     "side": "right",
+     "track": "54",
+     "positions": {
+      "132": "+",
+      "130": "-",
+      "128": "+"
+     }
+    },
+    {
+     "id": "Last1",
+     "name": "Last 1",
+     "side": "left",
+     "track": "Lastspår 1",
+     "positions": {
+      "119": "-"
+     }
+    },
+    {
+     "id": "Last2",
+     "name": "Last 2",
+     "side": "left",
+     "track": "Lastspår 2",
+     "positions": {
+      "119": "+"
+     }
+    },
+    {
+     "id": "Last3",
+     "name": "Last 3",
+     "side": "right",
+     "track": "Lastspår 3",
+     "positions": {
+      "133": "-"
+     }
+    },
+    {
+     "id": "Kolgard",
+     "name": "Kolgård",
+     "side": "right",
+     "track": "Kolgård",
+     "positions": {
+      "133": "+",
+      "144": "+",
+      "150": "-",
+      "155": "+"
+     }
+    },
+    {
+     "id": "Lokstall",
+     "name": "Lokstall",
+     "side": "right",
+     "track": "Lokstall",
+     "positions": {
+      "133": "+",
+      "144": "+",
+      "150": "+"
+     }
+    }
+   ],
+   "routes_out": [
+    {
+     "id": "V3",
+     "name": "V 3",
+     "side": "left",
+     "track": "3",
+     "start": "3/1",
+     "end": "3/5"
+    },
+    {
+     "id": "V4",
+     "name": "V 4",
+     "side": "left",
+     "track": "4",
+     "start": "3/1",
+     "end": "4/5"
+    },
+    {
+     "id": "V5",
+     "name": "V 5",
+     "side": "left",
+     "track": "5",
+     "start": "3/1",
+     "end": "5/5"
+    },
+    {
+     "id": "H3",
+     "name": "H 3",
+     "side": "right",
+     "track": "3",
+     "start": "6/6",
+     "end": "3/10"
+    },
+    {
+     "id": "H4",
+     "name": "H 4",
+     "side": "right",
+     "track": "4",
+     "start": "6/6",
+     "end": "4/10"
+    },
+    {
+     "id": "H5",
+     "name": "H 5",
+     "side": "right",
+     "track": "5",
+     "start": "6/6",
+     "end": "5/10"
+    },
+    {
+     "id": "Spar6",
+     "name": "Spår 6 ut",
+     "track": "6 ut",
+     "start": "6/7",
+     "end": "6/9"
+    },
+    {
+     "id": "3d",
+     "name": "3d ut",
+     "track": "3d ut",
+     "start": "3/2",
+     "end": "3/6"
+    }
+   ],
+   "note": "Rangerbangården är ett delställverk med rangeraren som operatör och en egen driftplats (TKL52, TKL97, TKL101). Området är spår 3e, godsbangården med 51–54 och lastspår 1–2, spår 6 och lastspår 3, lokstallsområdet och 3d fram till 3/13 (RANG-08). Grindväxlarna 103, 132, 144 och 164 styrs av TKL; 170, 172 och 173 är TKL:s (RANG-11–RANG-13, RANG-19). Gatorna och vägarna ut är bilagans tabeller. Vändskivan, 174, 4/13 och 3d förbi 3/13 är öppna."
+  }
+ ],
  "panel": {
   "basis": "Ritad efter bilderna av panelen, 12 november 2026 (ärende 156); östra delen efter den tredje bilden. Östra änden avviker från ritningen; se avviker. Förbindelsen 110/117 och de planerade växlarna 7 och 8 finns inte i bilderna och är ritade efter ritningen i samma stil.",
   "grid": {

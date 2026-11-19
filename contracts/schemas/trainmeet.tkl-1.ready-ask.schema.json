@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.ready-ask.schema.json",
+  "title": "trainmeet.tkl-1.ready-ask",
+  "additionalProperties": true,
+  "description": "Klart att skicka (TKL108): a train by its number, chosen from the plan or typed. TKL\nfinds its track and planned departure in the plan when it is there.",
+  "properties": {
+    "number": {
+      "pattern": "^[0-9A-Za-z]{1,8}$",
+      "title": "Number",
+      "type": "string"
+    },
+    "call": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Call"
+    }
+  },
+  "required": [
+    "number"
+  ],
+  "type": "object"
+}

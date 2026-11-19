@@ -14,6 +14,33 @@
       "title": "AddressState",
       "type": "string"
     },
+    "BorderSwitch": {
+      "additionalProperties": true,
+      "description": "Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.\n\nIts owner lays it both ways. The other side may always lay it towards the part's area, where\nit keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.\nA route out over it is a request that the station's interlocking sets.",
+      "properties": {
+        "switch": {
+          "description": "Växelns nummer, eller en korsningsväxels del.",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Switch",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/PartOwner",
+          "default": "station"
+        },
+        "towards_part": {
+          "$ref": "#/$defs/Position",
+          "description": "Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut."
+        }
+      },
+      "required": [
+        "switch",
+        "towards_part"
+      ],
+      "title": "BorderSwitch",
+      "type": "object"
+    },
     "ExitSignalAspect": {
       "enum": [
         "stop",
@@ -35,6 +62,44 @@
         "programming_track"
       ],
       "title": "PanelFunctionType",
+      "type": "string"
+    },
+    "PartOwner": {
+      "description": "Who steers a border switch (TKL99).",
+      "enum": [
+        "station",
+        "part"
+      ],
+      "title": "PartOwner",
+      "type": "string"
+    },
+    "PartRules": {
+      "additionalProperties": true,
+      "description": "The rules at the border, set per station in Studio (TKL99). The defaults are those of\nthe first station divided into parts (TKL99): the station steers the border switches, the\npart may lay them towards its area and never out, and an approved request can only be\nreturned.",
+      "properties": {
+        "lays_towards_part": {
+          "default": true,
+          "description": "Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.",
+          "title": "Lays Towards Part",
+          "type": "boolean"
+        },
+        "one_way": {
+          "default": true,
+          "description": "Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.",
+          "title": "One Way",
+          "type": "boolean"
+        }
+      },
+      "title": "PartRules",
+      "type": "object"
+    },
+    "PartSide": {
+      "description": "Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "PartSide",
       "type": "string"
     },
     "Position": {
@@ -413,6 +478,21 @@
           "minLength": 1,
           "title": "Text",
           "type": "string"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vem som gjorde det: delställverkets namn eller Tågklareraren (RANG-05).",
+          "title": "By"
         }
       },
       "required": [
@@ -533,6 +613,432 @@
       "title": "TklNumberColour",
       "type": "string"
     },
+    "TklPartRefusal": {
+      "additionalProperties": true,
+      "description": "What the part was refused, and why: by the interlocking at once (RANG-10), or by the\nstation (Neka).",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "text"
+      ],
+      "title": "TklPartRefusal",
+      "type": "object"
+    },
+    "TklPartRequest": {
+      "additionalProperties": true,
+      "description": "Begäran (TKL98, RANG-03): a route out that a part has asked the station for.",
+      "properties": {
+        "id": {
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "part": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Part",
+          "type": "string"
+        },
+        "route_out": {
+          "description": "Den begärda vägens id i delen.",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Route Out",
+          "type": "string"
+        },
+        "said": {
+          "description": "Som rutan säger den: spåret delen kommer från och spåret ut, till exempel 52 → 3, eller vägens namn.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Said",
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/TklPartRequestState"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Den lagda vägen, när den är godkänd.",
+          "title": "Route"
+        },
+        "asked": {
+          "format": "date-time",
+          "title": "Asked",
+          "type": "string"
+        },
+        "answered": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answered"
+        }
+      },
+      "required": [
+        "id",
+        "part",
+        "route_out",
+        "said",
+        "start",
+        "end",
+        "state",
+        "asked"
+      ],
+      "title": "TklPartRequest",
+      "type": "object"
+    },
+    "TklPartRequestState": {
+      "enum": [
+        "waiting",
+        "approved"
+      ],
+      "title": "TklPartRequestState",
+      "type": "string"
+    },
+    "TklPartRouteOut": {
+      "additionalProperties": true,
+      "description": "A route out (RANG-03) as the part's screen shows it: whether a request can go now, and\nthe request when there is one.",
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartSide"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "track": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track",
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "possible": {
+          "default": true,
+          "title": "Possible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Varför en begäran inte kan gå nu.",
+          "title": "Reason"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklPartRequestState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "track",
+        "start",
+        "end"
+      ],
+      "title": "TklPartRouteOut",
+      "type": "object"
+    },
+    "TklPartShown": {
+      "additionalProperties": true,
+      "description": "Ett delställverk (TKL97–TKL103) as both screens show it: the area, the border, the\nswitch streets and the routes out, with the requests, the ring and Fika.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "own_place": {
+          "default": false,
+          "title": "Own Place",
+          "type": "boolean"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "pieces": {
+          "description": "Områdets spårbitar.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "switches": {
+          "description": "Delens egna växeldelar.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Switches",
+          "type": "array"
+        },
+        "signals": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "border": {
+          "items": {
+            "$ref": "#/$defs/BorderSwitch"
+          },
+          "title": "Border",
+          "type": "array"
+        },
+        "rules": {
+          "$ref": "#/$defs/PartRules"
+        },
+        "streets": {
+          "items": {
+            "$ref": "#/$defs/TklPartStreet"
+          },
+          "title": "Streets",
+          "type": "array"
+        },
+        "routes_out": {
+          "items": {
+            "$ref": "#/$defs/TklPartRouteOut"
+          },
+          "title": "Routes Out",
+          "type": "array"
+        },
+        "requests": {
+          "items": {
+            "$ref": "#/$defs/TklPartRequest"
+          },
+          "title": "Requests",
+          "type": "array"
+        },
+        "rings": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen ringer: sedan när, tills stationen svarar (TKL98).",
+          "title": "Rings"
+        },
+        "fika": {
+          "default": false,
+          "description": "Delen har fika: skärmen är låst tills den är tillbaka.",
+          "title": "Fika",
+          "type": "boolean"
+        },
+        "refused": {
+          "description": "Senaste först.",
+          "items": {
+            "$ref": "#/$defs/TklPartRefusal"
+          },
+          "maxItems": 10,
+          "title": "Refused",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "TklPartShown",
+      "type": "object"
+    },
+    "TklPartStreet": {
+      "additionalProperties": true,
+      "description": "A switch street (RANG-02) as the part's screen shows it.",
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartSide"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "track": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track",
+          "type": "string"
+        },
+        "positions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Position"
+          },
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Positions",
+          "type": "object"
+        },
+        "laid": {
+          "default": false,
+          "description": "Varje växel i gatan ligger i sitt läge.",
+          "title": "Laid",
+          "type": "boolean"
+        },
+        "possible": {
+          "default": true,
+          "title": "Possible",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "track"
+      ],
+      "title": "TklPartStreet",
+      "type": "object"
+    },
     "TklPieceShown": {
       "additionalProperties": true,
       "properties": {
@@ -569,6 +1075,90 @@
       ],
       "title": "TklPieceState",
       "type": "string"
+    },
+    "TklReady": {
+      "additionalProperties": true,
+      "description": "Klart att skicka (TKL108): a train a part has announced ready to send, in the station's\nlist.",
+      "properties": {
+        "number": {
+          "pattern": "^[0-9A-Za-z]{1,8}$",
+          "title": "Number",
+          "type": "string"
+        },
+        "part": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Part",
+          "type": "string"
+        },
+        "part_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Part Name",
+          "type": "string"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret tåget står på.",
+          "title": "Track"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Avgångstiden i planen. Ett inskrivet nummer har ingen.",
+          "title": "Departure"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "at": {
+          "description": "När det anmäldes.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "moved": {
+          "default": false,
+          "description": "Stationen har flyttat det i listan.",
+          "title": "Moved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "number",
+        "part",
+        "part_name",
+        "at"
+      ],
+      "title": "TklReady",
+      "type": "object"
     },
     "TklSectionPart": {
       "additionalProperties": true,
@@ -829,6 +1419,33 @@
           "default": null,
           "description": "Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut efter passage (STV-16).",
           "title": "Came From"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delställverket vägen tillhör: lagd av delen, eller en godkänd begäran (TKL97).",
+          "title": "Part"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och stationen löser inte ut den (RANG-09).",
+          "title": "Request"
         }
       },
       "required": [
@@ -1257,6 +1874,22 @@
       ],
       "default": null,
       "description": "Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna."
+    },
+    "parts": {
+      "description": "Delställverken med sitt läge (TKL97).",
+      "items": {
+        "$ref": "#/$defs/TklPartShown"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "ready": {
+      "description": "Klara att skicka, i stationens ordning: efter avgångstiden i planen, och som stationen har flyttat dem (TKL108).",
+      "items": {
+        "$ref": "#/$defs/TklReady"
+      },
+      "title": "Ready",
+      "type": "array"
     }
   },
   "required": [

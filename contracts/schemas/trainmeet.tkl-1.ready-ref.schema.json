@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.ready-ref.schema.json",
+  "title": "trainmeet.tkl-1.ready-ref",
+  "additionalProperties": true,
+  "description": "Skickat: the train leaves the list Klara att skicka.",
+  "properties": {
+    "number": {
+      "pattern": "^[0-9A-Za-z]{1,8}$",
+      "title": "Number",
+      "type": "string"
+    }
+  },
+  "required": [
+    "number"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-reply.schema.json",
+  "title": "trainmeet.tkl-1.part-reply",
+  "additionalProperties": true,
+  "description": "Svar (TKL98): the station approves a request, and its interlocking sets the route, or\nrefuses it.",
+  "properties": {
+    "request": {
+      "minimum": 1,
+      "title": "Request",
+      "type": "integer"
+    },
+    "approved": {
+      "title": "Approved",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "request",
+    "approved"
+  ],
+  "type": "object"
+}

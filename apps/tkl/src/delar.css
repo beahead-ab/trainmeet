@@ -1,0 +1,212 @@
+/* Delställverk (#87): the box at the top of Ställverket, as the prototype's (#sdbeg in the
+   specification's src/streamdeck.js), and a part's own screen at /del/<id>. */
+
+.del-ruta {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin: 8px auto;
+  max-width: 760px;
+  background: #1e1b4b;
+  color: #eef2ff;
+  border: 1px solid #6366f1;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font: 13px system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.del-rad {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0;
+  flex-wrap: wrap;
+}
+.del-rad > span:first-child {
+  flex: 1 1 auto;
+}
+.del-ruta button {
+  font: inherit;
+  border-radius: 7px;
+  border: 1px solid #6366f1;
+  background: #312e81;
+  color: #fff;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.del-ruta button.ja {
+  background: #15803d;
+  border-color: #22c55e;
+}
+.del-ruta button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.del-ruta .klarh {
+  font-weight: 600;
+  color: #c7d2fe;
+  margin-top: 6px;
+}
+.del-ruta .liten {
+  color: #a5b4fc;
+  font-weight: 400;
+}
+.del-klara {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.del-klara li {
+  cursor: grab;
+  border-radius: 7px;
+  padding: 1px 4px;
+}
+.del-klara li.dras {
+  background: #312e81;
+}
+.del-rad.ringer {
+  animation: del-ringer 1s steps(2, start) infinite;
+  border-radius: 7px;
+  padding: 2px 4px;
+}
+.del-klocka {
+  font-size: 16px;
+}
+@keyframes del-ringer {
+  50% {
+    background: #4c3a8a;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .del-rad.ringer {
+    animation: none;
+    background: #4c3a8a;
+  }
+}
+
+/* A part's own screen */
+.del-sida .del-huvud h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.del-sida .del-huvud .klocka {
+  color: inherit;
+  font-size: 18px;
+}
+.del-knappar {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.del-ande,
+.del-fot {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.del-ande button,
+.del-fot button,
+.del-rutnat button,
+.del-nummer button {
+  font: 600 14px system-ui, sans-serif;
+  border-radius: 9px;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #f3f4f6;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.del-ande button[aria-pressed="true"],
+.del-fot button[aria-pressed="true"] {
+  background: #f5c518;
+  color: #111827;
+  border-color: #f5c518;
+}
+.del-fot button.ringer {
+  background: #4c3a8a;
+  border-color: #b69cff;
+}
+.del-grupp h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.del-rutnat {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+}
+.del-rutnat button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  justify-content: center;
+}
+.del-rutnat button b {
+  font-size: 18px;
+}
+.del-rutnat button .liten {
+  font-weight: 400;
+  font-size: 11px;
+  color: #cbd5e1;
+  text-align: center;
+}
+.del-knapp.ligger,
+.del-knapp.godkand {
+  background: #15803d;
+  border-color: #bbf7d0;
+}
+.del-knapp.vantar {
+  background: #ca8a04;
+  border-color: #c4b5fd;
+  animation: del-ringer 1s steps(2, start) infinite;
+}
+.del-knapp.hindrad {
+  background: #191d21;
+  color: #98a2ad;
+  border-color: #5c4a12;
+}
+.del-rutnat button.anmald {
+  background: #0f2a1a;
+  border-color: #22c55e;
+}
+.del-nummer {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+.del-nummer button {
+  flex: 0 0 auto;
+}
+.del-nummer input {
+  width: auto;
+  max-width: 12em;
+  flex: 0 1 auto;
+  font: 600 14px ui-monospace, Menlo, monospace;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #9ca3af;
+}
+.del-nekat {
+  max-height: 180px;
+  overflow: auto;
+}
+.del-fika {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(11, 13, 15, 0.94);
+  color: #f3f4f6;
+  font: 600 18px system-ui, sans-serif;
+}
+.del-fika .kopp {
+  font-size: 96px;
+  line-height: 1;
+}

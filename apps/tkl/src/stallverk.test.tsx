@@ -108,6 +108,8 @@ const route = (id: number, kind: "train" | "shunting", extra: Partial<NonNullabl
   waiting: [],
   waiting_since: null,
   came_from: null,
+  part: null,
+  request: null,
   ...extra,
 });
 
@@ -124,7 +126,7 @@ const running: Interlocking = {
     { number: "41", train: 3, colour: "red", section: null, exit: "V", pieces: ["a"], track: null, route: null, estimated: true },
     { number: "41", train: 3, colour: "green", section: "Spår 1", exit: null, pieces: ["b"], track: "1", route: 7, estimated: true },
   ],
-  events: [{ at: "2026-11-18T12:00:01Z", text: "Tågväg In → Ut lagd. Tåg 41 tar vägen." }],
+  events: [{ at: "2026-11-18T12:00:01Z", text: "Tågväg In → Ut lagd. Tåg 41 tar vägen.", by: null }],
 };
 
 const answer = (state: Interlocking, message: string, accepted = true, routeId: number | null = null): InterlockingAnswer => ({ accepted, message, route: routeId, state, reports: [] });

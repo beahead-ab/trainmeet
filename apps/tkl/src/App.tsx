@@ -6,6 +6,7 @@
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, full, Problem, TKL, type Action, type CallHere, type Clearance, type Connection, type FoundHub, type Snapshot, type State, type Studio as StudioData, type View } from "./api";
+import { DelSida } from "./Delar";
 import { FirstStart, Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
@@ -28,6 +29,8 @@ const KOPPLA_IN = "/studio/koppla-in";
 const RITA = "/studio/rita";
 const PROVA = "/studio/prova";
 const STUDIO_INSTALLNINGAR = "/studio/installningar";
+/** A part's own screen (TKL102): /del/<id>, behind the same PIN as TKL. */
+const PART = /^\/del\/([^/?#]+)/;
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
@@ -68,7 +71,22 @@ export function App() {
       </Frame>
     );
   }
+  const part = PART.exec(path);
+  if (part) return <PartScreen state={state} part={decodeURIComponent(part[1] ?? "")} />;
   return <Unlocked state={state} page={page} path={path} navigate={navigate} onLocked={setState} />;
+}
+
+/** Delställverk (#87, TKL102): a part's own screen, a role with an area against the station's
+ * one interlocking. No tabs and no Lås: Fika locks only the part. */
+function PartScreen({ state, part }: { state: State; part: string }) {
+  return (
+    <>
+      <Header product="TKL" productLabel="TKL" place={state.station?.name ?? ""} home={`/del/${encodeURIComponent(part)}`} navLabel="TKL" tabs={[]} navigate={() => undefined} />
+      <main className="tkl">
+        <DelSida partId={part} />
+      </main>
+    </>
+  );
 }
 
 function Frame({ state, page, navigate, connection, clock, onLock, children }: { state: State; page: Page; navigate: (href: string) => void; connection?: Connection | null; clock?: string; onLock?: () => void; children: React.ReactNode }) {

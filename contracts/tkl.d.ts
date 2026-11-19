@@ -596,6 +596,278 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/stallverk/parts/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/ring-answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartRingAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/ready/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklReadyMove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/ready/sent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklReadySent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/trains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklPartTrains"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklPartTargets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/lever": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartLever"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/street": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartStreet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartReturn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartDone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartGates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/ring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartRing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/fika": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartFika"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/parts/{part}/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklPartReady"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/studio/koppla-in": {
         parameters: {
             query?: never;
@@ -1391,6 +1663,11 @@ export interface components {
             turntables?: components["schemas"]["trainmeet.station-model-1.Turntable"][];
             /** Functions */
             functions?: components["schemas"]["trainmeet.station-model-1.PanelFunction"][];
+            /**
+             * Parts
+             * @description Delställverken (TKL97): fasta områden med en egen operatör, mot stationens enda ställverk.
+             */
+            parts?: components["schemas"]["trainmeet.station-model-1.StationPart"][];
             /** @default null */
             panel: components["schemas"]["trainmeet.station-model-1.PanelPlan"] | null;
         } & {
@@ -1424,6 +1701,27 @@ export interface components {
              * @default null
              */
             origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.station-model-1.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.station-model-1.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.station-model-1.Position"];
         } & {
             [key: string]: unknown;
         };
@@ -1841,11 +2139,86 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.station-model-1.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.station-model-1.PartSide": "left" | "right";
+        /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
          * @enum {string}
          */
         "trainmeet.station-model-1.Position": "+" | "-";
+        /**
+         * RouteOut
+         * @description Begärd väg (RANG-03): a station route out over the border that the part may request.
+         *     The station's interlocking sets it when the request is approved; until the part returns it
+         *     the route is the part's (envägsregeln).
+         */
+        "trainmeet.station-model-1.RouteOut": {
+            /**
+             * Id
+             * @description Till exempel H3.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel H 3.
+             */
+            name: string;
+            /**
+             * @description Änden vägen går ut från.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.station-model-1.PartSide"] | null;
+            /**
+             * Track
+             * @description Stationens spår vägen leder till, till exempel 3.
+             */
+            track: string;
+            /**
+             * Start
+             * @description Vägens start, en signal i delens område.
+             */
+            start: string;
+            /**
+             * End
+             * @description Vägens mål på stationen.
+             */
+            end: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Signal */
         "trainmeet.station-model-1.Signal": {
             /** Name */
@@ -1907,6 +2280,90 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-model-1.Source": "drawn" | "photo" | "signal_plan" | "anyrail" | "jmri" | "assumed" | "layout";
+        /**
+         * StationPart
+         * @description Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against
+         *     the station's one interlocking, which locks every route.
+         *
+         *     Its area is the same kind of area as local release's (TKL103): track circuits or pieces,
+         *     the switches the part lays freely and the signals in it. Its border is the border switches,
+         *     with their owner, and the signals at the border. The part may be its own driftplats in
+         *     Hubben (TKL101). Its switch streets and the routes out it may request belong to it.
+         */
+        "trainmeet.station-model-1.StationPart": {
+            /**
+             * Id
+             * @description Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Till exempel Rangerbangården.
+             */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Pieces
+             * @description Området, utan spårledningar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växlar, som den lägger fritt.
+             */
+            switches?: string[];
+            /**
+             * Signals
+             * @description Signalerna i området.
+             */
+            signals?: string[];
+            /**
+             * Border
+             * @description Gränsväxlarna.
+             */
+            border?: components["schemas"]["trainmeet.station-model-1.BorderSwitch"][];
+            /**
+             * Border Signals
+             * @description Signalerna vid gränsen, där vägarna ut går över.
+             */
+            border_signals?: string[];
+            /**
+             * Own Place
+             * @description En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @description Driftplatsens id i Hubben, när delen är en egen driftplats.
+             * @default null
+             */
+            place: string | null;
+            rules?: components["schemas"]["trainmeet.station-model-1.PartRules"];
+            /**
+             * Streets
+             * @description Växelgatorna.
+             */
+            streets?: components["schemas"]["trainmeet.station-model-1.SwitchStreet"][];
+            /**
+             * Routes Out
+             * @description Vägarna ut över gränsen som delen får begära.
+             */
+            routes_out?: components["schemas"]["trainmeet.station-model-1.RouteOut"][];
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * StationTrack
          * @description Stationsspår: what the station's outside is made of (TKL92).
@@ -2048,6 +2505,43 @@ export interface components {
              * @description Delarnas lägen. Tomt för en korsning utan växel.
              */
             positions?: {
+                [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchStreet
+         * @description Växelgata (RANG-02): the part's switches laid straight out to a track with one press,
+         *     without a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked
+         *     route refuses the whole street.
+         */
+        "trainmeet.station-model-1.SwitchStreet": {
+            /**
+             * Id
+             * @description Till exempel V51.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel V 51.
+             */
+            name: string;
+            /**
+             * @description Änden gatan hör till.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.station-model-1.PartSide"] | null;
+            /**
+             * Track
+             * @description Spåret gatan leder till, till exempel 51 eller Lastspår 1.
+             */
+            track: string;
+            /**
+             * Positions
+             * @description Växlarna i gatan, med sina lägen.
+             */
+            positions: {
                 [key: string]: components["schemas"]["trainmeet.station-model-1.Position"];
             };
         } & {
@@ -4408,6 +4902,27 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.tkl-1.drawing.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.tkl-1.drawing.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.tkl-1.drawing.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * FeedbackType
          * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
          * @enum {string}
@@ -4821,11 +5336,86 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.drawing.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.tkl-1.drawing.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.drawing.PartSide": "left" | "right";
+        /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
          * @enum {string}
          */
         "trainmeet.tkl-1.drawing.Position": "+" | "-";
+        /**
+         * RouteOut
+         * @description Begärd väg (RANG-03): a station route out over the border that the part may request.
+         *     The station's interlocking sets it when the request is approved; until the part returns it
+         *     the route is the part's (envägsregeln).
+         */
+        "trainmeet.tkl-1.drawing.RouteOut": {
+            /**
+             * Id
+             * @description Till exempel H3.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel H 3.
+             */
+            name: string;
+            /**
+             * @description Änden vägen går ut från.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.drawing.PartSide"] | null;
+            /**
+             * Track
+             * @description Stationens spår vägen leder till, till exempel 3.
+             */
+            track: string;
+            /**
+             * Start
+             * @description Vägens start, en signal i delens område.
+             */
+            start: string;
+            /**
+             * End
+             * @description Vägens mål på stationen.
+             */
+            end: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Signal */
         "trainmeet.tkl-1.drawing.Signal": {
             /** Name */
@@ -4938,8 +5528,97 @@ export interface components {
             turntables?: components["schemas"]["trainmeet.tkl-1.drawing.Turntable"][];
             /** Functions */
             functions?: components["schemas"]["trainmeet.tkl-1.drawing.PanelFunction"][];
+            /**
+             * Parts
+             * @description Delställverken (TKL97): fasta områden med en egen operatör, mot stationens enda ställverk.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.drawing.StationPart"][];
             /** @default null */
             panel: components["schemas"]["trainmeet.tkl-1.drawing.PanelPlan"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationPart
+         * @description Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against
+         *     the station's one interlocking, which locks every route.
+         *
+         *     Its area is the same kind of area as local release's (TKL103): track circuits or pieces,
+         *     the switches the part lays freely and the signals in it. Its border is the border switches,
+         *     with their owner, and the signals at the border. The part may be its own driftplats in
+         *     Hubben (TKL101). Its switch streets and the routes out it may request belong to it.
+         */
+        "trainmeet.tkl-1.drawing.StationPart": {
+            /**
+             * Id
+             * @description Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Till exempel Rangerbangården.
+             */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Pieces
+             * @description Området, utan spårledningar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växlar, som den lägger fritt.
+             */
+            switches?: string[];
+            /**
+             * Signals
+             * @description Signalerna i området.
+             */
+            signals?: string[];
+            /**
+             * Border
+             * @description Gränsväxlarna.
+             */
+            border?: components["schemas"]["trainmeet.tkl-1.drawing.BorderSwitch"][];
+            /**
+             * Border Signals
+             * @description Signalerna vid gränsen, där vägarna ut går över.
+             */
+            border_signals?: string[];
+            /**
+             * Own Place
+             * @description En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @description Driftplatsens id i Hubben, när delen är en egen driftplats.
+             * @default null
+             */
+            place: string | null;
+            rules?: components["schemas"]["trainmeet.tkl-1.drawing.PartRules"];
+            /**
+             * Streets
+             * @description Växelgatorna.
+             */
+            streets?: components["schemas"]["trainmeet.tkl-1.drawing.SwitchStreet"][];
+            /**
+             * Routes Out
+             * @description Vägarna ut över gränsen som delen får begära.
+             */
+            routes_out?: components["schemas"]["trainmeet.tkl-1.drawing.RouteOut"][];
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.drawing.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5084,6 +5763,43 @@ export interface components {
              * @description Delarnas lägen. Tomt för en korsning utan växel.
              */
             positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.drawing.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchStreet
+         * @description Växelgata (RANG-02): the part's switches laid straight out to a track with one press,
+         *     without a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked
+         *     route refuses the whole street.
+         */
+        "trainmeet.tkl-1.drawing.SwitchStreet": {
+            /**
+             * Id
+             * @description Till exempel V51.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel V 51.
+             */
+            name: string;
+            /**
+             * @description Änden gatan hör till.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.drawing.PartSide"] | null;
+            /**
+             * Track
+             * @description Spåret gatan leder till, till exempel 51 eller Lastspår 1.
+             */
+            track: string;
+            /**
+             * Positions
+             * @description Växlarna i gatan, med sina lägen.
+             */
+            positions: {
                 [key: string]: components["schemas"]["trainmeet.tkl-1.drawing.Position"];
             };
         } & {
@@ -5248,6 +5964,27 @@ export interface components {
              * @default null
              */
             origin: components["schemas"]["trainmeet.tkl-1.rita.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.tkl-1.rita.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.tkl-1.rita.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.tkl-1.rita.Position"];
         } & {
             [key: string]: unknown;
         };
@@ -5665,6 +6402,41 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.rita.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.tkl-1.rita.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.rita.PartSide": "left" | "right";
+        /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
          * @enum {string}
@@ -5675,6 +6447,46 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.rita.RouteKind": "train" | "shunting";
+        /**
+         * RouteOut
+         * @description Begärd väg (RANG-03): a station route out over the border that the part may request.
+         *     The station's interlocking sets it when the request is approved; until the part returns it
+         *     the route is the part's (envägsregeln).
+         */
+        "trainmeet.tkl-1.rita.RouteOut": {
+            /**
+             * Id
+             * @description Till exempel H3.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel H 3.
+             */
+            name: string;
+            /**
+             * @description Änden vägen går ut från.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.rita.PartSide"] | null;
+            /**
+             * Track
+             * @description Stationens spår vägen leder till, till exempel 3.
+             */
+            track: string;
+            /**
+             * Start
+             * @description Vägens start, en signal i delens område.
+             */
+            start: string;
+            /**
+             * End
+             * @description Vägens mål på stationen.
+             */
+            end: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** Signal */
         "trainmeet.tkl-1.rita.Signal": {
             /** Name */
@@ -5787,8 +6599,97 @@ export interface components {
             turntables?: components["schemas"]["trainmeet.tkl-1.rita.Turntable"][];
             /** Functions */
             functions?: components["schemas"]["trainmeet.tkl-1.rita.PanelFunction"][];
+            /**
+             * Parts
+             * @description Delställverken (TKL97): fasta områden med en egen operatör, mot stationens enda ställverk.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.rita.StationPart"][];
             /** @default null */
             panel: components["schemas"]["trainmeet.tkl-1.rita.PanelPlan"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationPart
+         * @description Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against
+         *     the station's one interlocking, which locks every route.
+         *
+         *     Its area is the same kind of area as local release's (TKL103): track circuits or pieces,
+         *     the switches the part lays freely and the signals in it. Its border is the border switches,
+         *     with their owner, and the signals at the border. The part may be its own driftplats in
+         *     Hubben (TKL101). Its switch streets and the routes out it may request belong to it.
+         */
+        "trainmeet.tkl-1.rita.StationPart": {
+            /**
+             * Id
+             * @description Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Till exempel Rangerbangården.
+             */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Pieces
+             * @description Området, utan spårledningar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växlar, som den lägger fritt.
+             */
+            switches?: string[];
+            /**
+             * Signals
+             * @description Signalerna i området.
+             */
+            signals?: string[];
+            /**
+             * Border
+             * @description Gränsväxlarna.
+             */
+            border?: components["schemas"]["trainmeet.tkl-1.rita.BorderSwitch"][];
+            /**
+             * Border Signals
+             * @description Signalerna vid gränsen, där vägarna ut går över.
+             */
+            border_signals?: string[];
+            /**
+             * Own Place
+             * @description En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @description Driftplatsens id i Hubben, när delen är en egen driftplats.
+             * @default null
+             */
+            place: string | null;
+            rules?: components["schemas"]["trainmeet.tkl-1.rita.PartRules"];
+            /**
+             * Streets
+             * @description Växelgatorna.
+             */
+            streets?: components["schemas"]["trainmeet.tkl-1.rita.SwitchStreet"][];
+            /**
+             * Routes Out
+             * @description Vägarna ut över gränsen som delen får begära.
+             */
+            routes_out?: components["schemas"]["trainmeet.tkl-1.rita.RouteOut"][];
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.rita.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5933,6 +6834,43 @@ export interface components {
              * @description Delarnas lägen. Tomt för en korsning utan växel.
              */
             positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.rita.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchStreet
+         * @description Växelgata (RANG-02): the part's switches laid straight out to a track with one press,
+         *     without a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked
+         *     route refuses the whole street.
+         */
+        "trainmeet.tkl-1.rita.SwitchStreet": {
+            /**
+             * Id
+             * @description Till exempel V51.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel V 51.
+             */
+            name: string;
+            /**
+             * @description Änden gatan hör till.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.rita.PartSide"] | null;
+            /**
+             * Track
+             * @description Spåret gatan leder till, till exempel 51 eller Lastspår 1.
+             */
+            track: string;
+            /**
+             * Positions
+             * @description Växlarna i gatan, med sina lägen.
+             */
+            positions: {
                 [key: string]: components["schemas"]["trainmeet.tkl-1.rita.Position"];
             };
         } & {
@@ -6315,6 +7253,16 @@ export interface components {
              * @default null
              */
             field: components["schemas"]["trainmeet.tkl-1.interlocking.TklField"] | null;
+            /**
+             * Parts
+             * @description Delställverken med sitt läge (TKL97).
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartShown"][];
+            /**
+             * Ready
+             * @description Klara att skicka, i stationens ordning: efter avgångstiden i planen, och som stationen har flyttat dem (TKL108).
+             */
+            ready?: components["schemas"]["trainmeet.tkl-1.interlocking.TklReady"][];
         } & {
             [key: string]: unknown;
         };
@@ -6324,6 +7272,27 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.AddressState": "grey" | "yellow" | "green" | "without";
+        /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.tkl-1.interlocking.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.tkl-1.interlocking.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.tkl-1.interlocking.Position"];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * ExitSignalAspect
          * @enum {string}
@@ -6335,6 +7304,41 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
+        /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.tkl-1.interlocking.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.PartSide": "left" | "right";
         /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
@@ -6532,6 +7536,12 @@ export interface components {
             at: string;
             /** Text */
             text: string;
+            /**
+             * By
+             * @description Vem som gjorde det: delställverkets namn eller Tågklareraren (RANG-05).
+             * @default null
+             */
+            by: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -6586,6 +7596,206 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.TklNumberColour": "red" | "green";
+        /**
+         * TklPartRefusal
+         * @description What the part was refused, and why: by the interlocking at once (RANG-10), or by the
+         *     station (Neka).
+         */
+        "trainmeet.tkl-1.interlocking.TklPartRefusal": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequest
+         * @description Begäran (TKL98, RANG-03): a route out that a part has asked the station for.
+         */
+        "trainmeet.tkl-1.interlocking.TklPartRequest": {
+            /** Id */
+            id: number;
+            /** Part */
+            part: string;
+            /**
+             * Route Out
+             * @description Den begärda vägens id i delen.
+             */
+            route_out: string;
+            /**
+             * Said
+             * @description Som rutan säger den: spåret delen kommer från och spåret ut, till exempel 52 → 3, eller vägens namn.
+             */
+            said: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            state: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartRequestState"];
+            /**
+             * Route
+             * @description Den lagda vägen, när den är godkänd.
+             * @default null
+             */
+            route: number | null;
+            /**
+             * Asked
+             * Format: date-time
+             */
+            asked: string;
+            /**
+             * Answered
+             * @default null
+             */
+            answered: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequestState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.TklPartRequestState": "waiting" | "approved";
+        /**
+         * TklPartRouteOut
+         * @description A route out (RANG-03) as the part's screen shows it: whether a request can go now, and
+         *     the request when there is one.
+         */
+        "trainmeet.tkl-1.interlocking.TklPartRouteOut": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** @default null */
+            side: components["schemas"]["trainmeet.tkl-1.interlocking.PartSide"] | null;
+            /** Track */
+            track: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Possible
+             * @default true
+             */
+            possible: boolean;
+            /**
+             * Reason
+             * @description Varför en begäran inte kan gå nu.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Request
+             * @default null
+             */
+            request: number | null;
+            /** @default null */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartRequestState"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartShown
+         * @description Ett delställverk (TKL97–TKL103) as both screens show it: the area, the border, the
+         *     switch streets and the routes out, with the requests, the ring and Fika.
+         */
+        "trainmeet.tkl-1.interlocking.TklPartShown": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Own Place
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Pieces
+             * @description Områdets spårbitar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växeldelar.
+             */
+            switches?: string[];
+            /** Signals */
+            signals?: string[];
+            /** Border */
+            border?: components["schemas"]["trainmeet.tkl-1.interlocking.BorderSwitch"][];
+            rules?: components["schemas"]["trainmeet.tkl-1.interlocking.PartRules"];
+            /** Streets */
+            streets?: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartStreet"][];
+            /** Routes Out */
+            routes_out?: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartRouteOut"][];
+            /** Requests */
+            requests?: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartRequest"][];
+            /**
+             * Rings
+             * @description Delen ringer: sedan när, tills stationen svarar (TKL98).
+             * @default null
+             */
+            rings: string | null;
+            /**
+             * Fika
+             * @description Delen har fika: skärmen är låst tills den är tillbaka.
+             * @default false
+             */
+            fika: boolean;
+            /**
+             * Refused
+             * @description Senaste först.
+             */
+            refused?: components["schemas"]["trainmeet.tkl-1.interlocking.TklPartRefusal"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartStreet
+         * @description A switch street (RANG-02) as the part's screen shows it.
+         */
+        "trainmeet.tkl-1.interlocking.TklPartStreet": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** @default null */
+            side: components["schemas"]["trainmeet.tkl-1.interlocking.PartSide"] | null;
+            /** Track */
+            track: string;
+            /** Positions */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.Position"];
+            };
+            /**
+             * Laid
+             * @description Varje växel i gatan ligger i sitt läge.
+             * @default false
+             */
+            laid: boolean;
+            /**
+             * Possible
+             * @default true
+             */
+            possible: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** TklPieceShown */
         "trainmeet.tkl-1.interlocking.TklPieceShown": {
             state: components["schemas"]["trainmeet.tkl-1.interlocking.TklPieceState"];
@@ -6602,6 +7812,50 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.TklPieceState": "train" | "shunting" | "occupied" | "local" | "out_of_service" | "programming";
+        /**
+         * TklReady
+         * @description Klart att skicka (TKL108): a train a part has announced ready to send, in the station's
+         *     list.
+         */
+        "trainmeet.tkl-1.interlocking.TklReady": {
+            /** Number */
+            number: string;
+            /** Part */
+            part: string;
+            /** Part Name */
+            part_name: string;
+            /**
+             * Track
+             * @description Spåret tåget står på.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Departure
+             * @description Avgångstiden i planen. Ett inskrivet nummer har ingen.
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * At
+             * Format: date-time
+             * @description När det anmäldes.
+             */
+            at: string;
+            /**
+             * Moved
+             * @description Stationen har flyttat det i listan.
+             * @default false
+             */
+            moved: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklSectionPart
          * @description A section of a set route, in the order the route runs through it: a track circuit, or
@@ -6733,6 +7987,18 @@ export interface components {
              * @default null
              */
             came_from: string | null;
+            /**
+             * Part
+             * @description Delställverket vägen tillhör: lagd av delen, eller en godkänd begäran (TKL97).
+             * @default null
+             */
+            part: string | null;
+            /**
+             * Request
+             * @description Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och stationen löser inte ut den (RANG-09).
+             * @default null
+             */
+            request: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -6878,6 +8144,27 @@ export interface components {
          */
         "trainmeet.tkl-1.interlocking-answer.AddressState": "grey" | "yellow" | "green" | "without";
         /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.tkl-1.interlocking-answer.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.tkl-1.interlocking-answer.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ExitSignalAspect
          * @enum {string}
          */
@@ -6888,6 +8175,41 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
+        /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.tkl-1.interlocking-answer.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.PartSide": "left" | "right";
         /**
          * Position
          * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
@@ -7085,6 +8407,12 @@ export interface components {
             at: string;
             /** Text */
             text: string;
+            /**
+             * By
+             * @description Vem som gjorde det: delställverkets namn eller Tågklareraren (RANG-05).
+             * @default null
+             */
+            by: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -7186,6 +8514,16 @@ export interface components {
              * @default null
              */
             field: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklField"] | null;
+            /**
+             * Parts
+             * @description Delställverken med sitt läge (TKL97).
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartShown"][];
+            /**
+             * Ready
+             * @description Klara att skicka, i stationens ordning: efter avgångstiden i planen, och som stationen har flyttat dem (TKL108).
+             */
+            ready?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklReady"][];
         } & {
             [key: string]: unknown;
         };
@@ -7240,6 +8578,206 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.TklNumberColour": "red" | "green";
+        /**
+         * TklPartRefusal
+         * @description What the part was refused, and why: by the interlocking at once (RANG-10), or by the
+         *     station (Neka).
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartRefusal": {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequest
+         * @description Begäran (TKL98, RANG-03): a route out that a part has asked the station for.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartRequest": {
+            /** Id */
+            id: number;
+            /** Part */
+            part: string;
+            /**
+             * Route Out
+             * @description Den begärda vägens id i delen.
+             */
+            route_out: string;
+            /**
+             * Said
+             * @description Som rutan säger den: spåret delen kommer från och spåret ut, till exempel 52 → 3, eller vägens namn.
+             */
+            said: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartRequestState"];
+            /**
+             * Route
+             * @description Den lagda vägen, när den är godkänd.
+             * @default null
+             */
+            route: number | null;
+            /**
+             * Asked
+             * Format: date-time
+             */
+            asked: string;
+            /**
+             * Answered
+             * @default null
+             */
+            answered: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequestState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartRequestState": "waiting" | "approved";
+        /**
+         * TklPartRouteOut
+         * @description A route out (RANG-03) as the part's screen shows it: whether a request can go now, and
+         *     the request when there is one.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartRouteOut": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** @default null */
+            side: components["schemas"]["trainmeet.tkl-1.interlocking-answer.PartSide"] | null;
+            /** Track */
+            track: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Possible
+             * @default true
+             */
+            possible: boolean;
+            /**
+             * Reason
+             * @description Varför en begäran inte kan gå nu.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Request
+             * @default null
+             */
+            request: number | null;
+            /** @default null */
+            state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartRequestState"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartShown
+         * @description Ett delställverk (TKL97–TKL103) as both screens show it: the area, the border, the
+         *     switch streets and the routes out, with the requests, the ring and Fika.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartShown": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Own Place
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Pieces
+             * @description Områdets spårbitar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växeldelar.
+             */
+            switches?: string[];
+            /** Signals */
+            signals?: string[];
+            /** Border */
+            border?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.BorderSwitch"][];
+            rules?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.PartRules"];
+            /** Streets */
+            streets?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartStreet"][];
+            /** Routes Out */
+            routes_out?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartRouteOut"][];
+            /** Requests */
+            requests?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartRequest"][];
+            /**
+             * Rings
+             * @description Delen ringer: sedan när, tills stationen svarar (TKL98).
+             * @default null
+             */
+            rings: string | null;
+            /**
+             * Fika
+             * @description Delen har fika: skärmen är låst tills den är tillbaka.
+             * @default false
+             */
+            fika: boolean;
+            /**
+             * Refused
+             * @description Senaste först.
+             */
+            refused?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPartRefusal"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartStreet
+         * @description A switch street (RANG-02) as the part's screen shows it.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklPartStreet": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** @default null */
+            side: components["schemas"]["trainmeet.tkl-1.interlocking-answer.PartSide"] | null;
+            /** Track */
+            track: string;
+            /** Positions */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.Position"];
+            };
+            /**
+             * Laid
+             * @description Varje växel i gatan ligger i sitt läge.
+             * @default false
+             */
+            laid: boolean;
+            /**
+             * Possible
+             * @default true
+             */
+            possible: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** TklPieceShown */
         "trainmeet.tkl-1.interlocking-answer.TklPieceShown": {
             state: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklPieceState"];
@@ -7256,6 +8794,50 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.TklPieceState": "train" | "shunting" | "occupied" | "local" | "out_of_service" | "programming";
+        /**
+         * TklReady
+         * @description Klart att skicka (TKL108): a train a part has announced ready to send, in the station's
+         *     list.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklReady": {
+            /** Number */
+            number: string;
+            /** Part */
+            part: string;
+            /** Part Name */
+            part_name: string;
+            /**
+             * Track
+             * @description Spåret tåget står på.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Departure
+             * @description Avgångstiden i planen. Ett inskrivet nummer har ingen.
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * At
+             * Format: date-time
+             * @description När det anmäldes.
+             */
+            at: string;
+            /**
+             * Moved
+             * @description Stationen har flyttat det i listan.
+             * @default false
+             */
+            moved: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklReport
          * @description Vad ställverket rapporterar upp till Hubben (STV-10), and how it went.
@@ -7451,6 +9033,18 @@ export interface components {
              * @default null
              */
             came_from: string | null;
+            /**
+             * Part
+             * @description Delställverket vägen tillhör: lagd av delen, eller en godkänd begäran (TKL97).
+             * @default null
+             */
+            part: string | null;
+            /**
+             * Request
+             * @description Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och stationen löser inte ut den (RANG-09).
+             * @default null
+             */
+            request: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -7773,6 +9367,206 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.function-ask.TklFunctionAction": "on" | "off" | "set" | "lay" | "release";
+        /**
+         * TklPartReply
+         * @description Svar (TKL98): the station approves a request, and its interlocking sets the route, or
+         *     refuses it.
+         */
+        "trainmeet.tkl-1.part-reply": {
+            /** Request */
+            request: number;
+            /** Approved */
+            approved: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRef
+         * @description A part, for the station: answering its ring.
+         */
+        "trainmeet.tkl-1.part-ref": {
+            /** Part */
+            part: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartStreetAsk
+         * @description Lägg en växelgata (RANG-02).
+         */
+        "trainmeet.tkl-1.part-street-ask": {
+            /** Street */
+            street: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequestAsk
+         * @description Begär väg (TKL98): a route out over the border. Refused at once when it cannot go, and
+         *     then nothing reaches the station (RANG-10).
+         */
+        "trainmeet.tkl-1.part-request-ask": {
+            /** Route Out */
+            route_out: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartRequestRef
+         * @description Lämna tillbaka (TKL98): an approved request returned, or a waiting one taken back.
+         */
+        "trainmeet.tkl-1.part-request-ref": {
+            /** Request */
+            request: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartFika
+         * @description Fika: the part's screen is locked until the part is back, and the station sees it.
+         */
+        "trainmeet.tkl-1.part-fika": {
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartTrains
+         * @description The trains a part chooses among for Klart att skicka. A part that is its own driftplats
+         *     has the trains that depart from it in the timetable (TKL108); another part has the
+         *     station's trains that stand on a track in its area (TKL110). Another number may be typed.
+         */
+        "trainmeet.tkl-1.part-trains": {
+            /** Part */
+            part: string;
+            /** Trains */
+            trains?: components["schemas"]["trainmeet.tkl-1.part-trains.TklPartTrain"][];
+            /**
+             * Message
+             * @description Varför listan är tom, när den är det.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartTrain
+         * @description A train the part may announce ready to send: from the plan (TKL108, TKL110).
+         */
+        "trainmeet.tkl-1.part-trains.TklPartTrain": {
+            /** Number */
+            number: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Departure
+             * @default null
+             */
+            departure: string | null;
+            /**
+             * Label
+             * @description Tågets slag, till exempel Godståg.
+             * @default null
+             */
+            label: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartMessage
+         * @description One of the five messages, as the interlocking hands it on. Locally the station's
+         *     interlocking is the whole exchange; when the station is remote-controlled the message goes
+         *     through Hubben to whoever remote-controls it, who answers as the station would (TKL100,
+         *     DRIFT-40, #36).
+         */
+        "trainmeet.tkl-1.part-message": {
+            kind: components["schemas"]["trainmeet.tkl-1.part-message.TklPartMessageKind"];
+            /** Part */
+            part: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Request
+             * @default null
+             */
+            request: number | null;
+            /**
+             * Route Out
+             * @default null
+             */
+            route_out: string | null;
+            /**
+             * Approved
+             * @default null
+             */
+            approved: boolean | null;
+            /**
+             * Number
+             * @default null
+             */
+            number: string | null;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklPartMessageKind
+         * @description The five messages between a part and the station (TKL98).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.part-message.TklPartMessageKind": "request" | "reply" | "return" | "ready" | "ring";
+        /**
+         * TklReadyAsk
+         * @description Klart att skicka (TKL108): a train by its number, chosen from the plan or typed. TKL
+         *     finds its track and planned departure in the plan when it is there.
+         */
+        "trainmeet.tkl-1.ready-ask": {
+            /** Number */
+            number: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklReadyMove
+         * @description Flytta i listan Klara att skicka: the train to its new place, counted from 0.
+         */
+        "trainmeet.tkl-1.ready-move": {
+            /** Number */
+            number: string;
+            /** To */
+            to: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklReadyRef
+         * @description Skickat: the train leaves the list Klara att skicka.
+         */
+        "trainmeet.tkl-1.ready-ref": {
+            /** Number */
+            number: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklKopplaIn
          * @description Studio's Koppla in: the connection, the cards, the objects in their four states, and the
@@ -9283,6 +11077,12 @@ export interface components {
              */
             blink: string | null;
             /**
+             * Ready
+             * @description Klart att skicka (SD62): det gröna märket på tågknappen.
+             * @default false
+             */
+            ready: boolean;
+            /**
              * Dim
              * @default false
              */
@@ -10439,6 +12239,12 @@ export interface components {
              * @default null
              */
             blink: string | null;
+            /**
+             * Ready
+             * @description Klart att skicka (SD62): det gröna märket på tågknappen.
+             * @default false
+             */
+            ready: boolean;
             /**
              * Dim
              * @default false
@@ -12855,6 +14661,422 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["trainmeet.tkl-1.function-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartReply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-reply"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartRingAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklReadyMove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.ready-move"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklReadySent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.ready-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartTrains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.part-trains"];
+                };
+            };
+        };
+    };
+    tklPartTargets: {
+        parameters: {
+            query: {
+                start: string;
+            };
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-targets"];
+                };
+            };
+        };
+    };
+    tklPartRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.route-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartLever: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.lever-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartStreet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-street-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-request-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartReturn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-request-ref"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartDone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartGates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartRing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartFika: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.part-fika"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklPartReady: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.ready-ask"];
             };
         };
         responses: {

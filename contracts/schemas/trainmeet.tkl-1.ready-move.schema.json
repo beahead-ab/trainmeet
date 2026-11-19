@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.ready-move.schema.json",
+  "title": "trainmeet.tkl-1.ready-move",
+  "additionalProperties": true,
+  "description": "Flytta i listan Klara att skicka: the train to its new place, counted from 0.",
+  "properties": {
+    "number": {
+      "pattern": "^[0-9A-Za-z]{1,8}$",
+      "title": "Number",
+      "type": "string"
+    },
+    "to": {
+      "minimum": 0,
+      "title": "To",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "number",
+    "to"
+  ],
+  "type": "object"
+}

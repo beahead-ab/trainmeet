@@ -14,6 +14,9 @@ about it, and where the interlocking has its number. Its next step (SD8, SD10):
 - väntar på klart, then klart · lägg ut: the exit route is the next press;
 - utfart lagd, and har lämnat, dimmed until it has arrived at the neighbour.
 
+A train a part has announced ready to send (TKL108) is marked on its key, on the page Nu and
+nowhere else (SD62, TKL111).
+
 The order is what happens next first (port of cda-tkl's turn list, stream-deck-turns.test.mjs):
 the trains the interlocking has, those on their way, those at the station, then the timetable's
 in time order, and those that have left last. A train leaves the list when it is done, and the
@@ -74,6 +77,8 @@ class Turn:
     clearance: station.Clearance | None = None
     section: str | None = None
     """The hub's section towards the next station, for asking clearance."""
+    ready: bool = False
+    """Klart att skicka (SD62, TKL111): a part has announced it ready to send."""
 
 
 @dataclass(frozen=True)
@@ -159,7 +164,17 @@ def _section_to(snapshot: station.Snapshot, other: str | None) -> str | None:
 def turns(
     state: TklInterlocking, snapshot: station.Snapshot | None, plant: Plant, geo: Geography
 ) -> list[Turn]:
-    """The trains on turn, what happens next first."""
+    """The trains on turn, what happens next first, each marked when it is ready to send."""
+    ready = {r.number for r in state.ready}
+    return [
+        replace(t, ready=True) if t.number in ready else t
+        for t in _turns(state, snapshot, plant, geo)
+    ]
+
+
+def _turns(
+    state: TklInterlocking, snapshot: station.Snapshot | None, plant: Plant, geo: Geography
+) -> list[Turn]:
     calls = {c.train_number: c for c in snapshot.calls} if snapshot is not None else {}
     by_call = {c.call: c for c in snapshot.calls} if snapshot is not None else {}
     found: list[tuple[int, str, Turn]] = []

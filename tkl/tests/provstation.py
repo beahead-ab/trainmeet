@@ -12,15 +12,21 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from contracts.station_model import (
+    BorderSwitch,
     LineExit,
     Node,
     NodeType,
+    PartRules,
+    PartSide,
     Position,
+    RouteOut,
     Signal,
     SignalType,
     StationModel,
+    StationPart,
     StationTrack,
     Switch,
+    SwitchStreet,
     SwitchType,
     TrackCircuit,
     TrackPiece,
@@ -240,3 +246,87 @@ def ekby(**more: Any) -> StationModel:
     }
     settings.update(more)
     return drawn(nodes, spec, **settings)
+
+
+def bangard(**more: Any) -> StationModel:
+    """A station with a yard as its part (delställverk, TKL97), made up for the tests.
+
+    V -a- W -b- [1] -c- T1 -d- T2 -e- O               track 1 is d
+                  \\y- B -w- [3] -v- U -u- Stopp
+                                \\x- [4] -p- P1 -q- Stopp51    track 51 is q
+                                       \\r- R1 -s- Stopp52    track 52 is s
+
+    The yard, Bangården, is u v w x p q r s: its own switch 4, the border switch 3, which lies
+    towards the yard in -, and the border signal B. Its streets V51 and V52 lay 3 and 4 out to
+    51 and 52, and its route out is U1 → Ut, over 3 + and through B onto the station's 1 -.
+    Every piece is its own track circuit, so that it runs at level 3 too.
+    """
+    hsi, dvsi = SignalType.HSI, SignalType.DVSI
+    spec = (
+        "a:V-W b:W-1 c:1-T1 d:T1-T2 e:T2-O y:1-B w:B-3 v:3-U u:U-Stopp "
+        "x:3-4 p:4-P1 q:P1-Stopp51 r:4-R1 s:R1-Stopp52"
+    )
+    yard = ["u", "v", "w", "x", "p", "q", "r", "s"]
+    part = StationPart(
+        id="bangarden",
+        name="Bangården",
+        pieces=more.pop("area", yard),
+        switches=["4"],
+        signals=["U1", "51", "52", "B"],
+        border=[BorderSwitch(switch="3", towards_part=MINUS, **more.pop("border", {}))],
+        border_signals=["B"],
+        own_place=more.pop("own_place", True),
+        place=more.pop("place", None),
+        rules=more.pop("rules", PartRules()),
+        streets=[
+            SwitchStreet(
+                id="V51",
+                name="V 51",
+                side=PartSide.LEFT,
+                track="51",
+                positions={"3": MINUS, "4": PLUS},
+            ),
+            SwitchStreet(
+                id="V52",
+                name="V 52",
+                side=PartSide.LEFT,
+                track="52",
+                positions={"3": MINUS, "4": MINUS},
+            ),
+        ],
+        routes_out=[
+            RouteOut(id="Ut", name="V Ut", side=PartSide.LEFT, track="V", start="U1", end="Ut")
+        ],
+    )
+    settings: dict[str, Any] = {
+        "switches": [
+            switch("1", "b", "c", "y"),
+            switch("3", "v", "w", "x"),
+            switch("4", "x", "p", "r"),
+        ],
+        "signals": [
+            signal("In", hsi, "W", "a"),
+            signal("Ut", hsi, "W", "b"),
+            signal("11", hsi, "T1", "c"),
+            signal("12", hsi, "T2", "d"),
+            signal("B", dvsi, "B", "w"),
+            signal("U1", dvsi, "U", "u"),
+            signal("51", dvsi, "P1", "q"),
+            signal("52", dvsi, "R1", "s"),
+        ],
+        "exits": {"V": "Västby", "O": "Östby"},
+        "boundary": {"V": ["W"], "O": ["T2"]},
+        "track_circuits": [TrackCircuit(name=p, pieces=[p]) for p in spec_pieces(spec)],
+        "station_tracks": [
+            StationTrack(id="1", label="Spår 1", pieces=["d"]),
+            StationTrack(id="51", label="Spår 51", pieces=["q"]),
+            StationTrack(id="52", label="Spår 52", pieces=["s"]),
+        ],
+        "parts": [part],
+    }
+    settings.update(more)
+    return build(spec, **settings)
+
+
+def spec_pieces(spec: str) -> list[str]:
+    return [word.split(":")[0] for word in spec.split()]

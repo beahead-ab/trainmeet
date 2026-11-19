@@ -68,7 +68,7 @@ from typing import Annotated, Final, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
-from contracts.common import Contract, Id, Text
+from contracts.common import Contract, Id, Text, TimeOfDay
 from contracts.station import (
     Action,
     ApprovalStatus,
@@ -79,12 +79,15 @@ from contracts.station import (
     Snapshot,
 )
 from contracts.station_model import (
+    BorderSwitch,
     Cell,
     FeedbackType,
     Name,
     NodeType,
     PanelBuilding,
     PanelFunctionType,
+    PartRules,
+    PartSide,
     Point,
     Position,
     SignalType,
@@ -716,6 +719,16 @@ class TklSetRoute(Contract):
         description="Nivå 3: sektionen tåget kom från, som ska bli fri innan vägen löses ut "
         "efter passage (STV-16).",
     )
+    part: Id | None = Field(
+        default=None,
+        description="Delställverket vägen tillhör: lagd av delen, eller en godkänd begäran "
+        "(TKL97).",
+    )
+    request: int | None = Field(
+        default=None,
+        description="Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och "
+        "stationen löser inte ut den (RANG-09).",
+    )
 
 
 class TklTrain(Contract):
@@ -832,6 +845,10 @@ class TklExitShown(Contract):
 class TklHappening(Contract):
     at: datetime
     text: Text
+    by: Text | None = Field(
+        default=None,
+        description="Vem som gjorde det: delställverkets namn eller Tågklareraren (RANG-05).",
+    )
 
 
 class TklFunctionMode(Contract):
@@ -906,6 +923,115 @@ class TklField(Contract):
     )
 
 
+# --- Delställverk (#87, TKL97–TKL103): the parts' state, both screens' -----------------------
+
+PART_REFUSALS: Final = 10
+"""How many of a part's refusals are kept, the last first."""
+
+
+class TklPartRequestState(StrEnum):
+    WAITING = "waiting"  # begärd: väntar på svar från stationen
+    APPROVED = "approved"  # godkänd: vägen ligger och är delens tills den lämnas tillbaka
+
+
+class TklPartRequest(Contract):
+    """Begäran (TKL98, RANG-03): a route out that a part has asked the station for."""
+
+    id: int = Field(ge=1)
+    part: Id
+    route_out: Name = Field(description="Den begärda vägens id i delen.")
+    said: Text = Field(
+        description="Som rutan säger den: spåret delen kommer från och spåret ut, till exempel "
+        "52 → 3, eller vägens namn."
+    )
+    start: Name
+    end: Name
+    state: TklPartRequestState
+    route: int | None = Field(default=None, description="Den lagda vägen, när den är godkänd.")
+    asked: datetime
+    answered: datetime | None = None
+
+
+class TklPartRefusal(Contract):
+    """What the part was refused, and why: by the interlocking at once (RANG-10), or by the
+    station (Neka)."""
+
+    at: datetime
+    text: Text
+
+
+class TklPartStreet(Contract):
+    """A switch street (RANG-02) as the part's screen shows it."""
+
+    id: Name
+    name: Text
+    side: PartSide | None = None
+    track: Text
+    positions: dict[Name, Position] = Field(default_factory=dict)
+    laid: bool = Field(default=False, description="Varje växel i gatan ligger i sitt läge.")
+    possible: bool = True
+    reason: Text | None = None
+
+
+class TklPartRouteOut(Contract):
+    """A route out (RANG-03) as the part's screen shows it: whether a request can go now, and
+    the request when there is one."""
+
+    id: Name
+    name: Text
+    side: PartSide | None = None
+    track: Text
+    start: Name
+    end: Name
+    possible: bool = True
+    reason: Text | None = Field(default=None, description="Varför en begäran inte kan gå nu.")
+    request: int | None = None
+    state: TklPartRequestState | None = None
+
+
+class TklPartShown(Contract):
+    """Ett delställverk (TKL97–TKL103) as both screens show it: the area, the border, the
+    switch streets and the routes out, with the requests, the ring and Fika."""
+
+    id: Id
+    name: Text
+    own_place: bool = False
+    place: Id | None = None
+    pieces: list[Name] = Field(default_factory=list, description="Områdets spårbitar.")
+    switches: list[Name] = Field(default_factory=list, description="Delens egna växeldelar.")
+    signals: list[Name] = Field(default_factory=list)
+    border: list[BorderSwitch] = Field(default_factory=list)
+    rules: PartRules = Field(default_factory=PartRules)
+    streets: list[TklPartStreet] = Field(default_factory=list)
+    routes_out: list[TklPartRouteOut] = Field(default_factory=list)
+    requests: list[TklPartRequest] = Field(default_factory=list)
+    rings: datetime | None = Field(
+        default=None, description="Delen ringer: sedan när, tills stationen svarar (TKL98)."
+    )
+    fika: bool = Field(
+        default=False, description="Delen har fika: skärmen är låst tills den är tillbaka."
+    )
+    refused: list[TklPartRefusal] = Field(
+        default_factory=list, max_length=PART_REFUSALS, description="Senaste först."
+    )
+
+
+class TklReady(Contract):
+    """Klart att skicka (TKL108): a train a part has announced ready to send, in the station's
+    list."""
+
+    number: TrainNumber
+    part: Id
+    part_name: Text
+    track: Text | None = Field(default=None, description="Spåret tåget står på.")
+    departure: TimeOfDay | None = Field(
+        default=None, description="Avgångstiden i planen. Ett inskrivet nummer har ingen."
+    )
+    call: Id | None = None
+    at: datetime = Field(description="När det anmäldes.")
+    moved: bool = Field(default=False, description="Stationen har flyttat det i listan.")
+
+
 class TklInterlocking(Contract):
     """Ställverkets läge i stunden (STV-08): everything the panel draws, kept with the station
     so that a restart keeps it. Never the model, the clearance or the timetable (STV-09)."""
@@ -952,6 +1078,14 @@ class TklInterlocking(Contract):
         default=None,
         description="Nivå 3 med LocoNet ansluten (eller låtsas-LocoNet): spårledningarna styr "
         "tågnumren och växlarna återrapporterar (STV-15). Inget: nivå 1–2, med knapparna.",
+    )
+    parts: list[TklPartShown] = Field(
+        default_factory=list, description="Delställverken med sitt läge (TKL97)."
+    )
+    ready: list[TklReady] = Field(
+        default_factory=list,
+        description="Klara att skicka, i stationens ordning: efter avgångstiden i planen, och "
+        "som stationen har flyttat dem (TKL108).",
     )
 
 
@@ -1021,6 +1155,115 @@ class TklFunctionAsk(Contract):
     action: TklFunctionAction
     value: Name | None = Field(default=None, description="Läget, spåret eller växeln.")
     confirm: bool = Field(default=False, description="Nödutlösningen är bekräftad.")
+
+
+# --- Delställverk (#87): what a part and the station ask of the interlocking ----------------
+
+
+class TklPartStreetAsk(Contract):
+    """Lägg en växelgata (RANG-02)."""
+
+    street: Name
+
+
+class TklPartRequestAsk(Contract):
+    """Begär väg (TKL98): a route out over the border. Refused at once when it cannot go, and
+    then nothing reaches the station (RANG-10)."""
+
+    route_out: Name
+
+
+class TklPartRequestRef(Contract):
+    """Lämna tillbaka (TKL98): an approved request returned, or a waiting one taken back."""
+
+    request: int = Field(ge=1)
+
+
+class TklPartReply(Contract):
+    """Svar (TKL98): the station approves a request, and its interlocking sets the route, or
+    refuses it."""
+
+    request: int = Field(ge=1)
+    approved: bool
+
+
+class TklPartRef(Contract):
+    """A part, for the station: answering its ring."""
+
+    part: Id
+
+
+class TklPartFika(Contract):
+    """Fika: the part's screen is locked until the part is back, and the station sees it."""
+
+    on: bool
+
+
+class TklReadyAsk(Contract):
+    """Klart att skicka (TKL108): a train by its number, chosen from the plan or typed. TKL
+    finds its track and planned departure in the plan when it is there."""
+
+    number: TrainNumber
+    call: Id | None = None
+
+
+class TklReadyMove(Contract):
+    """Flytta i listan Klara att skicka: the train to its new place, counted from 0."""
+
+    number: TrainNumber
+    to: int = Field(ge=0)
+
+
+class TklReadyRef(Contract):
+    """Skickat: the train leaves the list Klara att skicka."""
+
+    number: TrainNumber
+
+
+class TklPartTrain(Contract):
+    """A train the part may announce ready to send: from the plan (TKL108, TKL110)."""
+
+    number: TrainNumber
+    call: Id | None = None
+    track: Text | None = None
+    departure: TimeOfDay | None = None
+    label: Text | None = Field(default=None, description="Tågets slag, till exempel Godståg.")
+
+
+class TklPartTrains(Contract):
+    """The trains a part chooses among for Klart att skicka. A part that is its own driftplats
+    has the trains that depart from it in the timetable (TKL108); another part has the
+    station's trains that stand on a track in its area (TKL110). Another number may be typed."""
+
+    part: Id
+    trains: list[TklPartTrain] = Field(default_factory=list)
+    message: Text | None = Field(default=None, description="Varför listan är tom, när den är det.")
+
+
+class TklPartMessageKind(StrEnum):
+    """The five messages between a part and the station (TKL98)."""
+
+    REQUEST = "request"  # begär väg
+    REPLY = "reply"  # svar: godkänt eller nekat
+    RETURN = "return"  # lämna tillbaka
+    READY = "ready"  # klart att skicka
+    RING = "ring"  # ring
+
+
+class TklPartMessage(Contract):
+    """One of the five messages, as the interlocking hands it on. Locally the station's
+    interlocking is the whole exchange; when the station is remote-controlled the message goes
+    through Hubben to whoever remote-controls it, who answers as the station would (TKL100,
+    DRIFT-40, #36)."""
+
+    kind: TklPartMessageKind
+    part: Id
+    at: datetime
+    request: int | None = None
+    route_out: Name | None = None
+    approved: bool | None = None
+    number: TrainNumber | None = None
+    text: Text
 
 
 class TklReportKind(StrEnum):
@@ -1766,6 +2009,9 @@ class TklDeckFace(Contract):
     chip: KeyText = Field(default="", description="Tågnumret på platsen (SD19).")
     chip_colour: Literal["green", "red", ""] = ""
     blink: Colour | None = Field(default=None, description="Blinkar mellan bg och den här.")
+    ready: bool = Field(
+        default=False, description="Klart att skicka (SD62): det gröna märket på tågknappen."
+    )
     dim: bool = False
     tile: TklDeckTile | None = None
     label: KeyText = Field(default="", description="För skärmläsare: vad knappen är.")

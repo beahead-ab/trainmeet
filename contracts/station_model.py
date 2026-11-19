@@ -10,6 +10,10 @@ along one of its pieces, so a stop lamp can stand at the very end of a track.
 Levers say which position each switch gets in + and -: two or more parts on one lever, parts that
 lie reversed, and switches that drag another along in one position (STD-29, TKL104).
 
+A station may be divided into parts (delställverk, TKL97–TKL103): a fixed area with its own
+operator, its border switches and their owner, its switch streets and the routes out it may
+request. The interlocking is still one, and locks every route.
+
 Never stored: train routes, shunting routes, lever positions and conflicts. tkl/standard derives
 them from the model (STD-07). The panel's layout is derived too, until the owner redraws the
 track plan; then the plan is stored here as `panel` (STD-25, TKL81).
@@ -456,6 +460,119 @@ class PanelPlan(Contract):
     deviation: PanelDeviation | None = None
 
 
+# --- Delställverk: a station in parts (TKL97–TKL103) ---------------------------------------
+
+
+class PartOwner(StrEnum):
+    """Who steers a border switch (TKL99)."""
+
+    STATION = "station"  # stationens ställverk, tågklareraren: förvalet
+    PART = "part"  # delen
+
+
+class BorderSwitch(Contract):
+    """Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+
+    Its owner lays it both ways. The other side may always lay it towards the part's area, where
+    it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+    A route out over it is a request that the station's interlocking sets."""
+
+    switch: Name = Field(description="Växelns nummer, eller en korsningsväxels del.")
+    owner: PartOwner = PartOwner.STATION
+    towards_part: Position = Field(
+        description="Läget mot delens område, som skiljer delen från stationen: dit får den som "
+        "inte äger växeln alltid lägga den, aldrig ut."
+    )
+
+
+class PartRules(Contract):
+    """The rules at the border, set per station in Studio (TKL99). The defaults are those of
+    the first station divided into parts (TKL99): the station steers the border switches, the
+    part may lay them towards its area and never out, and an approved request can only be
+    returned."""
+
+    lays_towards_part: bool = Field(
+        default=True,
+        description="Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). "
+        "Annars lägger bara stationen dem.",
+    )
+    one_way: bool = Field(
+        default=True,
+        description="Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, "
+        "aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.",
+    )
+
+
+class PartSide(StrEnum):
+    """Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122)."""
+
+    LEFT = "left"  # vänster, väster
+    RIGHT = "right"  # höger, öster
+
+
+class SwitchStreet(Contract):
+    """Växelgata (RANG-02): the part's switches laid straight out to a track with one press,
+    without a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked
+    route refuses the whole street."""
+
+    id: Name = Field(description="Till exempel V51.")
+    name: Text = Field(description="Som knappen säger det, till exempel V 51.")
+    side: PartSide | None = Field(default=None, description="Änden gatan hör till.")
+    track: Text = Field(description="Spåret gatan leder till, till exempel 51 eller Lastspår 1.")
+    positions: dict[Name, Position] = Field(description="Växlarna i gatan, med sina lägen.")
+
+
+class RouteOut(Contract):
+    """Begärd väg (RANG-03): a station route out over the border that the part may request.
+    The station's interlocking sets it when the request is approved; until the part returns it
+    the route is the part's (envägsregeln)."""
+
+    id: Name = Field(description="Till exempel H3.")
+    name: Text = Field(description="Som knappen säger det, till exempel H 3.")
+    side: PartSide | None = Field(default=None, description="Änden vägen går ut från.")
+    track: Text = Field(description="Stationens spår vägen leder till, till exempel 3.")
+    start: Name = Field(description="Vägens start, en signal i delens område.")
+    end: Name = Field(description="Vägens mål på stationen.")
+
+
+class StationPart(Contract):
+    """Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against
+    the station's one interlocking, which locks every route.
+
+    Its area is the same kind of area as local release's (TKL103): track circuits or pieces,
+    the switches the part lays freely and the signals in it. Its border is the border switches,
+    with their owner, and the signals at the border. The part may be its own driftplats in
+    Hubben (TKL101). Its switch streets and the routes out it may request belong to it."""
+
+    id: Id = Field(description="Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.")
+    name: Text = Field(description="Till exempel Rangerbangården.")
+    track_circuits: list[Name] = Field(default_factory=list, description="Området.")
+    pieces: list[Name] = Field(default_factory=list, description="Området, utan spårledningar.")
+    switches: list[Name] = Field(
+        default_factory=list, description="Delens egna växlar, som den lägger fritt."
+    )
+    signals: list[Name] = Field(default_factory=list, description="Signalerna i området.")
+    border: list[BorderSwitch] = Field(default_factory=list, description="Gränsväxlarna.")
+    border_signals: list[Name] = Field(
+        default_factory=list, description="Signalerna vid gränsen, där vägarna ut går över."
+    )
+    own_place: bool = Field(
+        default=False,
+        description="En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns "
+        "delen inte i Hubben.",
+    )
+    place: Id | None = Field(
+        default=None, description="Driftplatsens id i Hubben, när delen är en egen driftplats."
+    )
+    rules: PartRules = Field(default_factory=PartRules)
+    streets: list[SwitchStreet] = Field(default_factory=list, description="Växelgatorna.")
+    routes_out: list[RouteOut] = Field(
+        default_factory=list, description="Vägarna ut över gränsen som delen får begära."
+    )
+    note: Text | None = None
+    origin: Origin | None = None
+
+
 # --- The station ------------------------------------------------------------------------
 
 
@@ -479,6 +596,11 @@ class StationModel(Contract):
     line_exits: list[LineExit] = Field(default_factory=list)
     turntables: list[Turntable] = Field(default_factory=list)
     functions: list[PanelFunction] = Field(default_factory=list)
+    parts: list[StationPart] = Field(
+        default_factory=list,
+        description="Delställverken (TKL97): fasta områden med en egen operatör, mot stationens "
+        "enda ställverk.",
+    )
     panel: PanelPlan | None = None
 
 
