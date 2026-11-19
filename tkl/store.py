@@ -31,7 +31,8 @@ replaced or taken away, and a state that does not belong to the model fails clos
 Stream Deck (#86, SD49): which deck shows what is kept on this computer, one row per deck by its
 serial number (SD35); how often each route is set, the routes pinned on Favoriter and Dagens
 vägar are TKL's runtime data, kept here too and never in the station package. Only routes are
-counted, never people (SD24).
+counted, never people (SD24). The owner's deviations from the default profiles, per size, belong
+with the model like Manöver's settings (SD40, SD49): versioned with it, in the package's inside.
 
 The PIN is never stored, only an scrypt hash with its own salt, and wrong attempts are counted
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
@@ -64,6 +65,7 @@ from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.tkl import (
     OutsideVersion,
+    TklDeckDeviations,
     TklDeckSettings,
     TklDrawing,
     TklInterlocking,
@@ -134,6 +136,14 @@ CREATE TABLE IF NOT EXISTS manover (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS manover_version (
+    slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
+    PRIMARY KEY (slot, number),
+    FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS streamdeck (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS streamdeck_version (
     slot TEXT NOT NULL, number INTEGER NOT NULL, body TEXT NOT NULL,
     PRIMARY KEY (slot, number),
     FOREIGN KEY (slot, number) REFERENCES outside_version(slot, number) ON DELETE CASCADE
@@ -441,13 +451,18 @@ class TklStore:
         latest_model = self._model_of(db, slot, versions[0][0]) if versions else None
         manover = self._manover(db, slot)
         latest_manover = self._manover_of(db, slot, versions[0][0]) if versions else None
+        deck = self._streamdeck(db, slot)
+        latest_deck = self._streamdeck_of(db, slot, versions[0][0]) if versions else None
         return TklStudio(
             draft=draft,
             versions=[
                 OutsideVersion(number=number, saved=datetime.fromtimestamp(saved, UTC))
                 for number, saved, _ in versions
             ],
-            changed=latest != draft or latest_model != model or latest_manover != manover,
+            changed=latest != draft
+            or latest_model != model
+            or latest_manover != manover
+            or latest_deck != deck,
             station_model=model is not None,
         )
 
@@ -472,6 +487,18 @@ class TklStore:
     def _manover_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
         row = db.execute(
             "SELECT body FROM manover_version WHERE slot=? AND number=?", (slot, number)
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _streamdeck(db: sqlite3.Connection, slot: str) -> str | None:
+        row = db.execute("SELECT body FROM streamdeck WHERE slot=?", (slot,)).fetchone()
+        return None if row is None else str(row[0])
+
+    @staticmethod
+    def _streamdeck_of(db: sqlite3.Connection, slot: str, number: int) -> str | None:
+        row = db.execute(
+            "SELECT body FROM streamdeck_version WHERE slot=? AND number=?", (slot, number)
         ).fetchone()
         return None if row is None else str(row[0])
 
@@ -506,12 +533,14 @@ class TklStore:
 
     def forget_model(self, slot: str) -> None:
         """Back to level 0: the last outside, derived from the model, is the list again. The
-        Manöver settings go with the model; the versions keep theirs."""
+        Manöver settings and the Stream Deck deviations go with the model; the versions keep
+        theirs."""
         with self._transaction() as db:
             self._new_interlocking(db, slot, None)
             db.execute("DELETE FROM station_model WHERE slot=?", (slot,))
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
             db.execute("DELETE FROM manover WHERE slot=?", (slot,))
+            db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     # --- Rita (#85): the drawing, kept as a draft until it is taken into use ----------------
@@ -600,6 +629,50 @@ class TklStore:
         with self._transaction() as db:
             body = self._manover_of(db, slot, number)
         return None if body is None else TklManover.model_validate_json(body)
+
+    # --- Stream Deck in Studio (#86 del c): the owner's deviations, with the model --------
+
+    def deck_deviations(self, slot: str) -> TklDeckDeviations:
+        """The owner's deviations per size (SD40); none when the owner has changed nothing. A
+        body TKL can no longer read is none too."""
+        with self._transaction() as db:
+            body = self._streamdeck(db, slot)
+        if body is None:
+            return TklDeckDeviations()
+        try:
+            return TklDeckDeviations.model_validate_json(body)
+        except ValueError:
+            return TklDeckDeviations()
+
+    def deck_deviations_body(self, slot: str) -> str:
+        """The deviations as they are kept: what a deck's profile follows."""
+        with self._transaction() as db:
+            return self._streamdeck(db, slot) or ""
+
+    def save_deck_deviations(self, slot: str, kept: TklDeckDeviations) -> TklDeckDeviations:
+        """Kept with the station's model, as Manöver's settings: the caller has checked them
+        (SD43). None at all is not stored, and the same deviations are always the same text, so
+        that only a real change counts as one since the latest version."""
+        sizes = {size: found for size, found in kept.sizes.items() if found}
+        made = TklDeckDeviations(sizes=sizes)
+        with self._transaction() as db:
+            if self._model(db, slot) is None:
+                raise NoModel()
+            if not sizes:
+                db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
+            else:
+                body = made.model_dump(mode="json", exclude_defaults=True)
+                db.execute(
+                    "INSERT OR REPLACE INTO streamdeck VALUES (?, ?)",
+                    (slot, json.dumps(body, ensure_ascii=False, sort_keys=True)),
+                )
+        return made
+
+    def deck_deviations_of_version(self, slot: str, number: int) -> TklDeckDeviations | None:
+        """The deviations a version of the outside holds, if the owner had any."""
+        with self._transaction() as db:
+            body = self._streamdeck_of(db, slot, number)
+        return None if body is None else TklDeckDeviations.model_validate_json(body)
 
     # --- The interlocking's state (#84) -----------------------------------------------------
 
@@ -725,6 +798,11 @@ class TklStore:
                 if model is not None and manover is not None:
                     db.execute(
                         "INSERT INTO manover_version VALUES (?, ?, ?)", (slot, number, manover)
+                    )
+                deck = self._streamdeck(db, slot)
+                if model is not None and deck is not None:
+                    db.execute(
+                        "INSERT INTO streamdeck_version VALUES (?, ?, ?)", (slot, number, deck)
                     )
             return self._studio(db, slot)
 
@@ -949,6 +1027,12 @@ class TklStore:
                 "INSERT OR REPLACE INTO deck VALUES (?, ?, ?, ?)",
                 (slot, settings.serial, settings.model_dump_json(), now_utc().timestamp()),
             )
+
+    def forget_deck(self, slot: str, serial: str) -> bool:
+        """Glöm deck (SD46): the deck's settings on this computer go; True when there were any."""
+        with self._transaction() as db:
+            gone = db.execute("DELETE FROM deck WHERE slot=? AND serial=?", (slot, serial))
+            return gone.rowcount > 0
 
     def deck_drift(self, slot: str) -> dict[str, object]:
         """TKL's runtime data for the decks: counted routes, pinned ones and Dagens vägar."""

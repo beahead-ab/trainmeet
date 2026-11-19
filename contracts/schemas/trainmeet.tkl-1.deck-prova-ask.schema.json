@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-prova-ask.schema.json",
+  "title": "trainmeet.tkl-1.deck-prova-ask",
+  "$defs": {
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "size": {
+      "$ref": "#/$defs/DeckModelId"
+    }
+  },
+  "required": [
+    "size"
+  ],
+  "type": "object"
+}

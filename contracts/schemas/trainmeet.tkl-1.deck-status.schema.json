@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-status.schema.json",
+  "title": "trainmeet.tkl-1.deck-status",
+  "$defs": {
+    "DeckConnection": {
+      "description": "How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser\ndrives it with WebHID; or it is the deck on the screen (SD59).",
+      "enum": [
+        "usb",
+        "webhid",
+        "skarm"
+      ],
+      "title": "DeckConnection",
+      "type": "string"
+    },
+    "DeckHold": {
+      "description": "How long a hold is, per deck (SD29): Kort, Normal (0.6 s) or Lång.",
+      "enum": [
+        "kort",
+        "normal",
+        "lang"
+      ],
+      "title": "DeckHold",
+      "type": "string"
+    },
+    "DeckMode": {
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "enum": [
+        "tagen",
+        "platser",
+        "sparplan"
+      ],
+      "title": "DeckMode",
+      "type": "string"
+    },
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    },
+    "DeckPlacesShown": {
+      "description": "Platser's variants (SD68).",
+      "enum": [
+        "alla",
+        "valbara"
+      ],
+      "title": "DeckPlacesShown",
+      "type": "string"
+    },
+    "DeckPlanDrawn": {
+      "description": "How Spårplan is drawn (SD72).",
+      "enum": [
+        "85",
+        "rela"
+      ],
+      "title": "DeckPlanDrawn",
+      "type": "string"
+    },
+    "TklDeckGrid": {
+      "additionalProperties": true,
+      "description": "What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,\nthe info line, the touch points and the pedals. A model TKL does not know is read this\nway too, and gets the default for its grid.",
+      "properties": {
+        "columns": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "dials": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Dials",
+          "type": "integer"
+        },
+        "strip": {
+          "default": false,
+          "description": "Pekremsan, på + och + XL.",
+          "title": "Strip",
+          "type": "boolean"
+        },
+        "info": {
+          "default": false,
+          "description": "Inforaden, på Neo.",
+          "title": "Info",
+          "type": "boolean"
+        },
+        "touch": {
+          "default": 0,
+          "description": "Pekpunkterna, på Neo.",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Touch",
+          "type": "integer"
+        },
+        "pedals": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Pedals",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TklDeckGrid",
+      "type": "object"
+    },
+    "TklDeckSettings": {
+      "additionalProperties": true,
+      "description": "One deck, known by its serial number (SD35), as this computer keeps it (SD49).",
+      "properties": {
+        "serial": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Serial",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckModelId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "grid": {
+          "$ref": "#/$defs/TklDeckGrid"
+        },
+        "workplace": {
+          "default": "1",
+          "description": "Deck på samma arbetsplats delar vald start (SD36).",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Workplace",
+          "type": "string"
+        },
+        "opens_in": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Läget decket öppnar i (SD65)."
+        },
+        "may_change_mode": {
+          "default": true,
+          "title": "May Change Mode",
+          "type": "boolean"
+        },
+        "hold": {
+          "$ref": "#/$defs/DeckHold",
+          "default": "normal"
+        },
+        "places_shown": {
+          "$ref": "#/$defs/DeckPlacesShown",
+          "default": "alla"
+        },
+        "plan_drawn": {
+          "$ref": "#/$defs/DeckPlanDrawn",
+          "default": "85"
+        },
+        "signal_numbers": {
+          "default": false,
+          "description": "Signalnumren i Platser (SD69).",
+          "title": "Signal Numbers",
+          "type": "boolean"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ägarens namn på decket.",
+          "title": "Name"
+        },
+        "brightness": {
+          "default": 70,
+          "description": "Ljusstyrkan, i procent (SD46).",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Brightness",
+          "type": "integer"
+        },
+        "sleep": {
+          "default": 0,
+          "description": "Släcks efter så många minuter utan tryck; 0 aldrig.",
+          "maximum": 240,
+          "minimum": 0,
+          "title": "Sleep",
+          "type": "integer"
+        },
+        "lock_key": {
+          "default": true,
+          "description": "Lås (Fika) på sidan Läge (SD30). Låst TKL visar ändå bara klockan.",
+          "title": "Lock Key",
+          "type": "boolean"
+        },
+        "opens_on": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan decket öppnar på (SD35); annars lägets första.",
+          "title": "Opens On"
+        }
+      },
+      "required": [
+        "serial",
+        "grid"
+      ],
+      "title": "TklDeckSettings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is\nconnected now, and whether its model is tried with a real deck (SD35, SD50, SD58).",
+  "properties": {
+    "serial": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Serial",
+      "type": "string"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeckModelId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "name": {
+      "description": "Modellens namn, eller rutnätet för en okänd modell.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "grid": {
+      "$ref": "#/$defs/TklDeckGrid"
+    },
+    "workplace": {
+      "default": "1",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Workplace",
+      "type": "string"
+    },
+    "connection": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeckConnection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ansluten nu: över USB, med WebHID eller på skärmen."
+    },
+    "tried": {
+      "default": false,
+      "description": "Modellen är provad med ett riktigt deck.",
+      "title": "Tried",
+      "type": "boolean"
+    },
+    "settings": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklDeckSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Decket som datorn har det: ljusstyrka, hålltid och resten."
+    },
+    "blinking": {
+      "default": false,
+      "description": "Decket blinkar just nu (Blinka).",
+      "title": "Blinking",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "serial",
+    "name",
+    "grid"
+  ],
+  "type": "object"
+}

@@ -82,7 +82,28 @@ export type DeckOpen = Schemas["trainmeet.tkl-1.deck-open"];
 export type DeckGrid = Schemas["trainmeet.tkl-1.deck-open.TklDeckGrid"];
 export type DeckConnection = Schemas["trainmeet.tkl-1.deck-open.DeckConnection"];
 export type Decks = Schemas["trainmeet.tkl-1.decks"];
-export type DeckStatus = Schemas["trainmeet.tkl-1.decks.TklDeckStatus"];
+export type DeckStatus = Schemas["trainmeet.tkl-1.deck-status"];
+export type DeckSettings = Schemas["trainmeet.tkl-1.deck-view.TklDeckSettings"];
+// Stream Deck (#86 del c): Studio › Inställningar › Stream Deck, the owner's deviations per size.
+export type DeckStudio = Schemas["trainmeet.tkl-1.deck-studio"];
+export type DeckEdit = Schemas["trainmeet.tkl-1.deck-edit"];
+export type DeckSuggest = Schemas["trainmeet.tkl-1.deck-suggest"];
+export type DeckDeviation = Schemas["trainmeet.tkl-1.deck-edit.TklDeckDeviation"];
+export type DeckPageRef = Schemas["trainmeet.tkl-1.deck-edit.DeckPageRef"];
+export type DeckKey = Schemas["trainmeet.tkl-1.deck-profile.TklDeckKey"];
+export type DeckPage = Schemas["trainmeet.tkl-1.deck-profile.TklDeckPage"];
+export type DeckAction = NonNullable<DeckKey["action"]>;
+export type DeckMode = DeckPage["mode"];
+export type DeckButton = Schemas["trainmeet.tkl-1.deck-studio.TklDeckButton"];
+export type DeckToCheck = Schemas["trainmeet.tkl-1.deck-studio.TklDeckToCheck"];
+export type DeckProblem = Schemas["trainmeet.tkl-1.deck-studio.TklDeckProblem"];
+export type DeckChecks = Schemas["trainmeet.tkl-1.deck-studio.TklDeckChecks"];
+export type DeckSize = Schemas["trainmeet.tkl-1.deck-studio.TklDeckSize"];
+export type DeckStudioPage = Schemas["trainmeet.tkl-1.deck-studio.TklDeckStudioPage"];
+export type DeckSuggestion = DeckSuggest["rule"];
+export type DeckProva = Schemas["trainmeet.tkl-1.deck-prova"];
+export type DeckKeyTried = Schemas["trainmeet.tkl-1.deck-prova.TklDeckKeyTried"];
+export type DeckChange = Schemas["trainmeet.tkl-1.deck-change"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -234,4 +255,15 @@ export const api = {
   deckFavourites: () => call<DeckFavourites>(`${TKL}/deck-favoriter`),
   deckPin: (start: string, end: string, kind: RouteKind, pinned: boolean) =>
     call<DeckFavourites>(`${TKL}/deck-favoriter`, "POST", { start, end, kind, pinned }),
+  // Stream Deck (#86 del c): Studio, Deck and Studio › Inställningar › Stream Deck.
+  deckSettings: (serial: string, change: DeckChange) => call<DeckStatus>(`${TKL}/deck/${encodeURIComponent(serial)}`, "PUT", change),
+  deckBlink: (serial: string) => call<DeckStatus>(`${TKL}/deck/${encodeURIComponent(serial)}/blinka`, "POST"),
+  deckForget: (serial: string) => call<void>(`${TKL}/deck/${encodeURIComponent(serial)}`, "DELETE"),
+  streamDeck: (size: DeckModelId) => call<DeckStudio>(`${TKL}/studio/stream-deck?size=${encodeURIComponent(size)}`),
+  streamDeckDraft: (edit: DeckEdit) => call<DeckStudio>(`${TKL}/studio/stream-deck/utkast`, "POST", edit),
+  saveStreamDeck: (edit: DeckEdit) => call<DeckStudio>(`${TKL}/studio/stream-deck`, "PUT", edit),
+  streamDeckSuggest: (ask: DeckSuggest) => call<DeckStudio>(`${TKL}/studio/stream-deck/foresla`, "POST", ask),
+  streamDeckProva: (size: DeckModelId | null) => call<DeckProva>(`${TKL}/studio/stream-deck/prova${size ? `?size=${encodeURIComponent(size)}` : ""}`),
+  streamDeckProvaStart: (size: DeckModelId) => call<DeckProva>(`${TKL}/studio/stream-deck/prova/start`, "POST", { size }),
+  streamDeckProvaStop: () => call<DeckProva>(`${TKL}/studio/stream-deck/prova/stop`, "POST"),
 };

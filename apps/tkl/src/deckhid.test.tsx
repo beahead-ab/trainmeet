@@ -71,6 +71,10 @@ class FakeDeck {
     this.lcd.push(data[0] ?? index);
   };
   clearPanel = async () => {};
+  brightness: number[] = [];
+  setBrightness = async (percent: number) => {
+    this.brightness.push(percent);
+  };
   close = async () => {
     this.closed = true;
   };
@@ -120,7 +124,7 @@ class FakeApi implements BridgeApi {
   owned: string[] = [];
   faces: DeckFace[] = Array.from({ length: 36 }, (_, i) => face(`K${i}`));
   down = false;
-  decks = async (): Promise<Decks> => ({ usb: true, usb_problem: null, decks: this.owned.map((serial) => ({ serial, model: "xl", name: "XL", grid: GRID, workplace: "1", connection: "usb", tried: false })) });
+  decks = async (): Promise<Decks> => ({ usb: true, usb_problem: null, decks: this.owned.map((serial) => ({ serial, model: "xl", name: "XL", grid: GRID, workplace: "1", connection: "usb", tried: false, settings: null, blinking: false })) });
   open = async (serial: string, open: DeckOpen) => {
     this.opened.push([serial, open]);
     return viewOf(serial, open.model ?? null, this.faces);
@@ -217,6 +221,40 @@ describe("Stream Deck with WebHID (#86 del b, SD50)", () => {
     await bridge.close();
   });
 
+  it("takes the brightness from Studio › Deck, goes dark after the owner's minutes, and wakes on a press (SD46)", async () => {
+    const { deck, api, bridge, clock } = await started("xl");
+    expect(deck.brightness).toEqual([70]);
+    const settings = { serial: "SD0001", model: "xl", grid: { columns: 8, rows: 4 }, brightness: 40, sleep: 1 };
+    await bridge.show(viewOf("SD0001", "xl", api.faces, { revision: 2, settings } as unknown as Partial<DeckView>));
+    expect(deck.brightness).toEqual([70, 40]);
+    clock.now += 59_000;
+    bridge.tick();
+    expect(bridge.asleep).toBe(false);
+    clock.now += 2_000;
+    bridge.tick();
+    expect(bridge.asleep).toBe(true);
+    expect(deck.brightness.at(-1)).toBe(0);
+    deck.emit("down", deck.control(3));
+    clock.now += 100;
+    deck.emit("up", deck.control(3));
+    await bridge.settled();
+    expect(api.calls).toEqual([]);
+    expect(deck.brightness.at(-1)).toBe(40);
+    deck.emit("down", deck.control(3));
+    deck.emit("up", deck.control(3));
+    await bridge.settled();
+    expect(api.calls).toEqual(["press 3"]);
+    await bridge.show(viewOf("SD0001", "xl", api.faces, { revision: 3, settings } as unknown as Partial<DeckView>));
+    clock.now += 61_000;
+    bridge.tick();
+    expect(bridge.asleep).toBe(true);
+    const here = api.faces.map(() => face("Här", { type: "here", blink: "#0b1220" }));
+    await bridge.show(viewOf("SD0001", "xl", here, { revision: 4, settings } as unknown as Partial<DeckView>));
+    expect(bridge.asleep).toBe(false);
+    expect(deck.brightness.at(-1)).toBe(40);
+    await bridge.close();
+  });
+
   it("says Ingen kontakt on every key when TKL does not answer, never an old state (SD21)", async () => {
     const { deck, api, bridge, clock } = await started("xl");
     deck.filled = [];
@@ -271,7 +309,7 @@ describe("Stream Deck with WebHID (#86 del b, SD50)", () => {
   });
 
   it("shows Anslut Stream Deck where the browser has WebHID, and a short line elsewhere", () => {
-    const decks: Decks = { usb: true, usb_problem: null, decks: [{ serial: "XL1", model: "xl", name: "XL", grid: GRID, workplace: "1", connection: "usb", tried: false }] };
+    const decks: Decks = { usb: true, usb_problem: null, decks: [{ serial: "XL1", model: "xl", name: "XL", grid: GRID, workplace: "1", connection: "usb", tried: false, settings: null, blinking: false }] };
     const without = renderToStaticMarkup(<HidRow hid={false} decks={null} connected={[]} said={[]} />);
     expect(without).toContain(NOT_HERE);
     expect(without).not.toContain("Anslut Stream Deck");

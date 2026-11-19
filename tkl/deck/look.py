@@ -129,3 +129,30 @@ def tab(text: str, under: str, active: bool) -> TklDeckFace:
         line="#f8fafc" if active else None,
         label=f"Sida {text}",
     )
+
+
+def here(name: str) -> TklDeckFace:
+    """Blinka in Studio (SD46): every key lit, so that the owner sees which deck it is."""
+    return TklDeckFace(
+        type="here",
+        text="Här",
+        under=name,
+        bg=BLUE,
+        fg="#ffffff",
+        blink="#0b1220",
+        label=f"Det här decket{f': {name}' if name else ''}",
+    )
+
+
+def asking(text: str) -> TklDeckFace:
+    """A key that asks once more before it does (SD43): the second press within three seconds
+    does it."""
+    return TklDeckFace(
+        type="ask",
+        text=text or "Säker?",
+        under="tryck igen",
+        bg=CHOSEN_BG,
+        fg="#ffffff",
+        frame=LIGHT_BLUE,
+        label=f"{text}: tryck igen" if text else "Tryck igen",
+    )

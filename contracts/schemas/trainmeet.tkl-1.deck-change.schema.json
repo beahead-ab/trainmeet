@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-change.schema.json",
+  "title": "trainmeet.tkl-1.deck-change",
+  "$defs": {
+    "DeckHold": {
+      "description": "How long a hold is, per deck (SD29): Kort, Normal (0.6 s) or Lång.",
+      "enum": [
+        "kort",
+        "normal",
+        "lang"
+      ],
+      "title": "DeckHold",
+      "type": "string"
+    },
+    "DeckMode": {
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "enum": [
+        "tagen",
+        "platser",
+        "sparplan"
+      ],
+      "title": "DeckMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Studio, Deck (SD46): what the owner sets for one deck on this computer. What is not\ngiven, or null, stays as it is; an empty name or start page takes it away.",
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 60,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "brightness": {
+      "anyOf": [
+        {
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brightness"
+    },
+    "hold": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeckHold"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sleep": {
+      "anyOf": [
+        {
+          "maximum": 240,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sleep"
+    },
+    "lock_key": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lock Key"
+    },
+    "opens_in": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeckMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "opens_on": {
+      "anyOf": [
+        {
+          "maxLength": 60,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Opens On"
+    },
+    "workplace": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Workplace"
+    }
+  },
+  "type": "object"
+}

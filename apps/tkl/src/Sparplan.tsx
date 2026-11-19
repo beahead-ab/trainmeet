@@ -6,7 +6,7 @@
 // close to skin 85: black ground (STV-42), grey track, the signal in the track line with its id
 // beside it (TKL45). Under the own station's panel, the owner sets Manöver, the free panel with
 // the symbols of one of the standard skins, the owner's labels and what is shown (STV-46).
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { api, Problem, type Checks, type Panel, type PanelSignal, type Reference, type Route, type TrackPlan } from "./api";
 import { ManoverInstallningar } from "./ManoverInstallningar";
 import { LEVELS, points, readModelFile, round, routeLines, routeName, routesByKind, SIGNAL_NAMES, viewBox, type Form } from "./sparplan";
@@ -294,8 +294,10 @@ export function RoutesView({ routes, counts, chosen, onChoose }: { routes: Route
   );
 }
 
-/** The panel in SVG: schematic on the grid, or soft in the drawing's real shape. */
-export function PanelView({ panel, form, route, field = null }: { panel: Panel; form: Form; route: Route | null; field?: number | null }) {
+/** The panel in SVG: schematic on the grid, or soft in the drawing's real shape. With `onSignal`
+ * its signals are buttons, as the miniature in Studio › Inställningar › Stream Deck has them
+ * (SD42); `marked` signals get a ring. */
+export function PanelView({ panel, form, route, field = null, onSignal, marked = [] }: { panel: Panel; form: Form; route: Route | null; field?: number | null; onSignal?: (name: string) => void; marked?: string[] }) {
   const box = viewBox(panel, form, field);
   const lit = routeLines(panel, route);
   const colour = route?.kind === "shunting" ? "vaxling" : "tagvag";
@@ -310,15 +312,15 @@ export function PanelView({ panel, form, route, field = null }: { panel: Panel; 
         preserveAspectRatio="xMidYMid meet"
       >
         <rect x={box.x} y={box.y} width={box.width} height={box.height} className="botten" />
-        {soft ? <Soft panel={panel} lit={lit} colour={colour} /> : <Schematic panel={panel} lit={lit} colour={colour} />}
+        {soft ? <Soft panel={panel} lit={lit} colour={colour} /> : <Schematic panel={panel} lit={lit} colour={colour} onSignal={onSignal} marked={marked} />}
       </svg>
     </div>
   );
 }
 
-type Drawn = { panel: Panel; lit: Panel["lines"]; colour: string };
+type Drawn = { panel: Panel; lit: Panel["lines"]; colour: string; onSignal?: (name: string) => void; marked?: string[] };
 
-function Schematic({ panel, lit, colour }: Drawn) {
+function Schematic({ panel, lit, colour, onSignal, marked = [] }: Drawn) {
   const [dx, dy] = panel.cell;
   const u = Math.min(dx, dy);
   const scale: [number, number] = [dx, dy];
@@ -362,7 +364,7 @@ function Schematic({ panel, lit, colour }: Drawn) {
         ))}
       </g>
       {(panel.signals ?? []).map((s) => (
-        <Signal key={s.name} signal={s} at={[s.symbol[0] * dx, s.symbol[1] * dy]} toward={s.toward} size={0.5 * u} label={[s.label[0] * dx, s.label[1] * dy]} />
+        <Signal key={s.name} signal={s} at={[s.symbol[0] * dx, s.symbol[1] * dy]} toward={s.toward} size={0.5 * u} label={[s.label[0] * dx, s.label[1] * dy]} onClick={onSignal} marked={marked.includes(s.name)} />
       ))}
       {(panel.labels ?? []).map((l) => (
         <text key={`${l.kind}${l.text}`} className={l.kind === "exit" ? "utfart" : "punkt"} x={l.cell[0] * dx} y={l.cell[1] * dy} textAnchor={l.anchor ?? "middle"}>
@@ -422,7 +424,7 @@ function Soft({ panel, lit, colour }: Drawn) {
 }
 
 /** A signal: its symbol in the track line, pointing the way it applies (TKL45), and its id. */
-function Signal({ signal, at, toward, size, label }: { signal: PanelSignal; at: [number, number]; toward: [number, number]; size: number; label: [number, number] }) {
+function Signal({ signal, at, toward, size, label, onClick, marked = false }: { signal: PanelSignal; at: [number, number]; toward: [number, number]; size: number; label: [number, number]; onClick?: (name: string) => void; marked?: boolean }) {
   const [tx, ty] = toward;
   const normal: [number, number] = [-ty, tx];
   const kind = signal.type;
@@ -431,9 +433,26 @@ function Signal({ signal, at, toward, size, label }: { signal: PanelSignal; at: 
   const tip: [number, number] = [at[0] + tx * s * 0.55, at[1] + ty * s * 0.55];
   const base: [number, number] = [at[0] - tx * s * 0.45, at[1] - ty * s * 0.45];
   const corners: [number, number][] = [tip, [base[0] + normal[0] * s * 0.45, base[1] + normal[1] * s * 0.45], [base[0] - normal[0] * s * 0.45, base[1] - normal[1] * s * 0.45]];
+  const clickable = onClick
+    ? {
+        role: "button",
+        tabIndex: 0,
+        "aria-label": `Signal ${signal.name}`,
+        "data-signal": signal.name,
+        onClick: () => onClick(signal.name),
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick(signal.name);
+          }
+        },
+      }
+    : {};
   return (
-    <g className={`signal ${kind}${signal.planned ? " planerad" : ""}`}>
+    <g className={`signal ${kind}${signal.planned ? " planerad" : ""}${onClick ? " valbar" : ""}${marked ? " markerad" : ""}`} {...clickable}>
       <title>{`${SIGNAL_NAMES[kind] ?? kind} ${signal.name}${signal.planned ? " (planerad)" : ""}`}</title>
+      {marked ? <circle className="ring" cx={at[0]} cy={at[1]} r={s * 0.75} strokeWidth={s * 0.12} fill="none" /> : null}
+      {onClick ? <circle className="traff" cx={at[0]} cy={at[1]} r={s * 0.9} /> : null}
       {kind === "fsi" ? <circle cx={at[0]} cy={at[1]} r={s * 0.32} strokeWidth={s * 0.1} /> : <polygon points={points(corners)} strokeWidth={s * 0.1} />}
       {kind === "hdvsi" ? <line x1={base[0] + normal[0] * s * 0.45} y1={base[1] + normal[1] * s * 0.45} x2={base[0] - normal[0] * s * 0.45} y2={base[1] - normal[1] * s * 0.45} strokeWidth={s * 0.18} /> : null}
       <text x={label[0]} y={label[1]} textAnchor="middle">

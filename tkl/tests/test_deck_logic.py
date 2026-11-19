@@ -90,6 +90,14 @@ class Hands:
         self.calls.append("lock")
         return Said(True, "TKL är låst.")
 
+    def reset(self) -> Said:
+        self.calls.append("reset")
+        return self.said(self.it.reset(True))
+
+    def emergency(self, route: int) -> Said:
+        self.calls.append(f"emergency {route}")
+        return self.said(self.it.emergency_release(route, True))
+
 
 @dataclass
 class Station:

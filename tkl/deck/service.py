@@ -11,6 +11,10 @@ so that its pictures are drawn from it without reading the interlocking again (#
 
 Only routes are counted, never people (SD24). Dagens vägar are made again when the meet's
 package changes version (SD23).
+
+Studio (#86 del c): every deck gets the owner's profile of its size, the default with the
+owner's deviations laid on (tkl.deck.deviations); its settings from Studio, Deck reach it with
+its next view, and Blinka lights it for a moment so that the owner sees which one it is (SD46).
 """
 
 from __future__ import annotations
@@ -93,6 +97,7 @@ class Room:
         self.panels: dict[str, Panel | None] = {}
         self.links: dict[tuple[str, str], tuple[DeckConnection, float]] = {}
         self.kept: dict[tuple[str, str], tuple[int, float, Shown]] = {}
+        self.blinks: dict[tuple[str, str], float] = {}
 
     def panel(self, plant: Plant, make: Callable[[], Panel | None]) -> Panel | None:
         with self.lock:
@@ -122,17 +127,31 @@ class Room:
                 if key in self.decks:
                     found.revision = self.decks[key].revision + 1
                 self.decks[key] = found
-            elif (
-                found.settings.workplace != settings.workplace
-                or found.settings.grid != settings.grid
-            ):
+            elif found.settings != settings:
+                # Studio, Deck changed it, or the deck itself did and it was kept (SD46).
                 found.settings = settings
+            found.blink_until = self.blinks.get(key, 0.0)
             return found
 
     def forget(self, slot: str, serial: str) -> None:
         with self.lock:
             self.decks.pop((slot, serial), None)
             self.kept.pop((slot, serial), None)
+
+    # --- Blinka (SD46) ------------------------------------------------------------------------
+
+    def blink(self, slot: str, serial: str, seconds: float = logic.BLINK_SECONDS) -> None:
+        """The deck lights every key for a moment, so that the owner sees which one it is."""
+        with self.lock:
+            until = time.monotonic() + seconds
+            self.blinks[(slot, serial)] = until
+            found = self.decks.get((slot, serial))
+            if found is not None:
+                found.blink_until = until
+
+    def blinking(self, slot: str, serial: str) -> bool:
+        with self.lock:
+            return self.blinks.get((slot, serial), 0.0) > time.monotonic()
 
     # --- how each deck is connected now (SD50) ---------------------------------------------
 
@@ -267,6 +286,31 @@ def favourites(store: TklStore, slot: str, plant: Plant) -> TklDeckFavourites:
     listed.sort(key=lambda c: (-c.count, c.start, c.end))
     shown = logic.favourites(pinned, counted, exists(plant))
     return TklDeckFavourites(pinned=pinned, counted=listed, shown=shown)
+
+
+def counts(store: TklStore, slot: str) -> dict[tuple[str, str, RouteKind], int]:
+    """How often each route has been set (SD24): Mest använda in Studio's Föreslå."""
+    counted = store.deck_drift(slot).get(COUNTS)
+    found: dict[tuple[str, str, RouteKind], int] = {}
+    for key, n in counted.items() if isinstance(counted, dict) else []:
+        route = _route(str(key))
+        if route is not None and isinstance(n, int):
+            found[(route.start, route.end, route.kind)] = n
+    return found
+
+
+def kept_daily(store: TklStore, slot: str) -> list[Daily]:
+    """Dagens vägar as TKL's runtime data last kept them (SD23, SD49), whatever meet they were
+    made for: Studio's Föreslå and Prova alla knappar use them without Hubben."""
+    kept = store.deck_drift(slot).get(DAILY)
+    listed = kept.get("routes") if isinstance(kept, dict) else None
+    found = []
+    for item in listed if isinstance(listed, list) else []:
+        if isinstance(item, list) and len(item) == 5:
+            found.append(
+                Daily(str(item[0]), str(item[1]), str(item[2]), str(item[3]), bool(item[4]))
+            )
+    return found
 
 
 def todays(

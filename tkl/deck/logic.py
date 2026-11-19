@@ -19,6 +19,11 @@ and holding it shows every page (SD26, SD64); on Mini holding ▶ opens the page
 Decks at the same workplace share the chosen start (SD36): the start is a `Selection` that the
 caller keeps per workplace and gives to every deck there.
 
+The owner's profile (#86 del c, SD40, SD43) may give a key its own text and line under, what a
+press and a hold do from the fixed list, whether a snabbväg shows the train number and dims when
+hindered, and whether it asks once more before a press. A pedal does only what the owner chose
+for it (SD55). Blinka lights a deck so that the owner sees which one it is (SD46).
+
 Pure Python without I/O: the interlocking is read, and changed only through Hands. No code here
 names a station (RS13).
 """
@@ -71,6 +76,12 @@ HOLD_MS: Final = {DeckHold.SHORT: 400, DeckHold.NORMAL: 600, DeckHold.LONG: 1000
 """How long a hold is (SD29): Normal is 0.6 seconds."""
 FLASH_SECONDS: Final = 3.0
 """The reason stands on the key this long after a no (SD18)."""
+BLINK_SECONDS: Final = 3.0
+"""Blinka in Studio lights the deck this long (SD46)."""
+ASK_SECONDS: Final = 3.0
+"""A key that asks once more waits this long for the second press."""
+HOLD_ONLY: Final = frozenset({DeckAction.RELEASE_ALL, DeckAction.RESET, DeckAction.EMERGENCY})
+"""Done with a hold, never a press (SD29)."""
 MODE_NAMES: Final = {
     DeckMode.TRAINS: ("Tågen", "ett tåg per knapp"),
     DeckMode.PLACES: ("Platser", "från och till i klartext"),
@@ -87,6 +98,7 @@ FAMILIES: Final = {
     DeckPageKind.ALL: "signals",
     DeckPageKind.WHOLE: "plan",
     DeckPageKind.CUTOUT: "plan",
+    DeckPageKind.OWN: "own",
 }
 """The pages ▶ turns between on the bigger decks: those of the same kind."""
 MOST_FAVOURITES: Final = 10
@@ -117,6 +129,14 @@ class Hands(Protocol):
     ) -> Said: ...
     def lock(self) -> Said:
         """Lås (Fika, SD30): TKL is locked for the whole station until the PIN opens it."""
+        ...
+
+    def reset(self) -> Said:
+        """Noll, with a hold (SD29): the interlocking's own reset, confirmed by the hold."""
+        ...
+
+    def emergency(self, route: int) -> Said:
+        """Nödutlösning of a route, with a hold (SD29): confirmed by the hold."""
         ...
 
 
@@ -176,6 +196,10 @@ class Deck:
     accepted: bool | None = None
     said_at: float = 0.0
     revision: int = 0
+    blink_until: float = 0.0
+    """Blinka (SD46): the deck shows that it is this one until then."""
+    asking: tuple[int, int, float] | None = None
+    """A key that asks once more (SD43): its page, its cell and until when."""
 
 
 @dataclass
@@ -292,10 +316,28 @@ def open_deck(settings: TklDeckSettings, profile: TklDeckProfile, world: World) 
     (SD11, SD22)."""
     deck = Deck(settings=settings, profile=profile)
     have = modes(deck, world)
+    start = _start_page(deck, world)
+    if start is not None:
+        # The page the deck opens on (SD35), when its mode is there now.
+        deck.mode = profile.pages[start].mode
+        deck.page = start
+        return deck
     wanted = settings.opens_in
     mode = wanted if wanted in have else (have[0] if have else None)
     go_mode(deck, world, mode)
     return deck
+
+
+def _start_page(deck: Deck, world: World) -> int | None:
+    name = deck.settings.opens_on
+    if not name:
+        return None
+    have = modes(deck, world)
+    for i, page in enumerate(deck.profile.pages):
+        wanted = deck.settings.opens_in in (None, page.mode) and page.mode in have
+        if page.name == name and page.listed and wanted and shown(page, world):
+            return i
+    return None
 
 
 def go_mode(deck: Deck, world: World, mode: DeckMode | None) -> None:
@@ -409,6 +451,10 @@ def view(deck: Deck, selection: Selection, world: World) -> TklDeckView:
     page = current(deck)
     faces = keys(deck, selection, world)
     flashing = [f.until for f in deck.flash.values() if f.until > world.now]
+    if deck.blink_until > world.now:
+        flashing.append(deck.blink_until)
+    if deck.asking is not None and deck.asking[2] > world.now:
+        flashing.append(deck.asking[2])
     said = ""
     if (
         deck.accepted is False
@@ -459,6 +505,10 @@ def keys(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace]:
         if size:
             faces[at] = look.clock(world.time, world.station)
         return faces
+    if deck.blink_until > world.now:
+        # Blinka (SD46): every key lit, so that the owner sees which deck this is.
+        name = deck.settings.name or ""
+        return [look.here(name) for _ in range(size)]
     if world.interlocking is None:
         return [look.no_contact() for _ in range(size)]
     if deck.overlay is not None:
@@ -472,6 +522,9 @@ def keys(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace]:
     faces = [face(deck, selection, world, page, k) for k in page.keys]
     if selection.chosen and page.cancel is not None and page.cancel < size:
         faces[page.cancel] = _cancel(selection, deck)
+    asking = deck.asking
+    if asking is not None and asking[2] > world.now and asking[0] == deck.page and asking[1] < size:
+        faces[asking[1]] = look.asking(faces[asking[1]].text)
     for index, flash in deck.flash.items():
         if flash.until > world.now and flash.page == deck.page and index < size:
             faces[index] = look.refused(flash.text, flash.reason)
@@ -488,6 +541,20 @@ def _cancel(selection: Selection, deck: Deck) -> TklDeckFace:
 
 
 def face(
+    deck: Deck, selection: Selection, world: World, page: TklDeckPage, key: TklDeckKey | None
+) -> TklDeckFace:
+    found = _face(deck, selection, world, page, key)
+    if key is None or found.type == "empty" or not (key.text or key.under):
+        return found
+    # The owner's text and line under (SD43); the colours and symbols stay the catalogue's.
+    text = key.text or found.text
+    update: dict[str, object] = {"text": text, "under": key.under or found.under}
+    if key.text and found.label:
+        update["label"] = found.label.replace(found.text, text, 1) if found.text else text
+    return found.model_copy(update=update)
+
+
+def _face(
     deck: Deck, selection: Selection, world: World, page: TklDeckPage, key: TklDeckKey | None
 ) -> TklDeckFace:
     if key is None:
@@ -525,6 +592,8 @@ def face(
             return _action_face(deck, selection, world, key.action)
         case K.PANEL:
             return _panel_face(world, key.function or "")
+        case K.ROUTE:
+            return _quick_face(deck, world, key)
     return look.EMPTY
 
 
@@ -970,10 +1039,11 @@ def _route_face(
     kind: RouteKind,
     text: str,
     under: str,
-    typ: Literal["daily", "favourite"],
+    typ: Literal["daily", "favourite", "route"],
+    dim: bool = True,
 ) -> TklDeckFace:
     """A one-press route, as the prototype's snabbväg: green or yellow when set, dimmed with
-    the reason when it cannot be set now (SD17)."""
+    the reason when it cannot be set now (SD17), or only marked when the owner chose so."""
     shunting = kind == RouteKind.SHUNTING
     laid = next((r for r in world.state.routes if r.start == start and r.end == end), None)
     if laid is not None:
@@ -996,11 +1066,11 @@ def _route_face(
             type=typ,
             text=text,
             under=look.short(reason),
-            bg="#191d21",
-            fg="#98a2ad",
-            band="#3a424a",
+            bg="#191d21" if dim else "#262b31",
+            fg="#98a2ad" if dim else "#e5e7eb",
+            band="#3a424a" if dim else ("#eab308" if shunting else "#22c55e"),
             dot=look.DOT,
-            dim=True,
+            dim=dim,
             label=f"{text}: {reason}",
         )
     return TklDeckFace(
@@ -1037,6 +1107,27 @@ def _favourite_face(world: World, slot: int | None) -> TklDeckFace:
     route = found[slot - 1]
     text = f"{route.start}\N{RIGHTWARDS ARROW}{route.end}"
     return _route_face(world, route.start, route.end, route.kind, text, "", "favourite")
+
+
+def _quick_face(deck: Deck, world: World, key: TklDeckKey) -> TklDeckFace:
+    """Snabbväg (SD42): the whole route with one press, with the train number on its goal when
+    the owner wants it (SD19, SD43)."""
+    route = key.route
+    if route is None:
+        return look.EMPTY
+    text = f"{route.start}\N{RIGHTWARDS ARROW}{route.end}"
+    found = _route_face(
+        world, route.start, route.end, route.kind, text, "", "route", key.dim is not False
+    )
+    if key.number is False:
+        return found
+    place = place_of(world, deck, world.geo.end_place.get(route.end))
+    if place is None:
+        return found
+    number, colour = number_at(world, place)
+    if not number:
+        return found
+    return found.model_copy(update={"chip": number, "chip_colour": colour})
 
 
 def _cut(deck: Deck) -> tuple[int, int]:
@@ -1359,7 +1450,7 @@ def _overlay(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace
             faces[mode_at] = _mode_face(deck)
         # Lås (SD30) on the last free key of the page Läge: the default pages stay as they are.
         free = [i for i, f in enumerate(faces) if f.type == "empty"]
-        if free:
+        if free and deck.settings.lock_key:
             faces[free[-1]] = look.LOCK
         return faces
     if overlay.kind == "pages":
@@ -1637,9 +1728,25 @@ def press(
     """A press, or a hold, on a key. Nothing is done when TKL is locked (SD30) or the
     interlocking does not answer (SD21)."""
     settle(deck, world)
+    press_here(deck, selection, world, hands, index, hold)
+
+
+def press_here(
+    deck: Deck,
+    selection: Selection,
+    world: World,
+    hands: Hands,
+    index: int,
+    hold: bool = False,
+) -> None:
+    """A press on the page the deck shows, as it is: Prova alla knappar presses every page's
+    keys this way, Tågen's too without Hubben (SD47)."""
     deck.revision += 1
     deck.flash = {i: f for i, f in deck.flash.items() if f.until > world.now}
     if world.locked or world.interlocking is None:
+        return
+    if deck.profile.style == DeckStyle.NONE:
+        _press_pedal(deck, selection, world, hands, index, hold)
         return
     size = deck.profile.grid.columns * deck.profile.grid.rows
     if not 0 <= index < size:
@@ -1661,7 +1768,33 @@ def press(
     key = page.keys[index] if index < len(page.keys) else None
     if key is None:
         return
+    if key.confirm and not hold:
+        # Fråga en gång till (SD43): the first press asks, the second within three seconds does.
+        asked = deck.asking
+        if asked is None or asked[:2] != (deck.page, index) or asked[2] <= world.now:
+            deck.asking = (deck.page, index, world.now + ASK_SECONDS)
+            _say(deck, world, "Tryck igen för att göra det.")
+            return
+    deck.asking = None
     _press_key(deck, selection, world, hands, page, key, index, hold)
+
+
+def _press_pedal(
+    deck: Deck, selection: Selection, world: World, hands: Hands, index: int, hold: bool
+) -> None:
+    """A pedal does what the owner chose for it, and nothing before that (SD55). A hold does
+    only what the owner chose for the hold: Lös ut alla is never on a pedal."""
+    pedals = deck.profile.pedals
+    key = pedals[index] if 0 <= index < len(pedals) else None
+    if key is None:
+        _say(deck, world, "Pedalen gör ingenting förrän en funktion är vald i Studio.")
+        return
+    page = current(deck) or TklDeckPage(
+        name="Pedal", mode=DeckMode.PLACES, kind=DeckPageKind.OWN, keys=[]
+    )
+    if hold and key.hold is None:
+        return
+    _press_key(deck, selection, world, hands, page, key, None, hold)
 
 
 def _press_list(
@@ -1689,9 +1822,23 @@ def _press_key(
     hands: Hands,
     page: TklDeckPage,
     key: TklDeckKey,
-    index: int,
+    index: int | None,
     hold: bool,
 ) -> None:
+    chosen = key.hold if hold else key.press
+    if chosen is not None:
+        # What the owner chose from the fixed list (SD43).
+        _do(deck, selection, world, hands, page, key, chosen, index, hold)
+        return
+    if index is None:
+        # A pedal: only what can be done without a screen.
+        if key.type == K.ACTION:
+            _press_action(deck, selection, world, hands, page, key.action, None, False)
+        elif key.type == K.ROUTE:
+            _press_quick(deck, world, hands, key, None, False)
+        elif key.type == K.PANEL:
+            _press_panel(deck, world, hands, key, None)
+        return
     match key.type:
         case K.TRAIN:
             _press_train(deck, selection, world, hands, _turn(world, key.slot), index, hold)
@@ -1743,9 +1890,86 @@ def _press_key(
         case K.ACTION:
             _press_action(deck, selection, world, hands, page, key.action, index, hold)
         case K.PANEL:
-            found = next((f for f in world.state.functions if f.name == key.function), None)
-            if found is not None:
-                _said(deck, world, hands.function(found.name, not found.on), index, found.name)
+            _press_panel(deck, world, hands, key, index)
+        case K.ROUTE:
+            _press_quick(deck, world, hands, key, index, hold)
+
+
+def _press_panel(
+    deck: Deck, world: World, hands: Hands, key: TklDeckKey, index: int | None
+) -> None:
+    found = next((f for f in world.state.functions if f.name == key.function), None)
+    if found is not None:
+        _said(deck, world, hands.function(found.name, not found.on), index, found.name)
+
+
+def _laid(world: World, route: TklDeckRoute) -> int | None:
+    found = next(
+        (r for r in world.state.routes if r.start == route.start and r.end == route.end), None
+    )
+    return None if found is None else (found.chain or found.id)
+
+
+def _press_quick(
+    deck: Deck, world: World, hands: Hands, key: TklDeckKey, index: int | None, hold: bool
+) -> None:
+    """Snabbväg (SD42): a press sets the whole route, and again runs it outside drift as
+    Favoriter's do; holding releases it (SD29)."""
+    route = key.route
+    if route is None:
+        return
+    text = f"{route.start}\N{RIGHTWARDS ARROW}{route.end}"
+    laid = next(
+        (r for r in world.state.routes if r.start == route.start and r.end == route.end), None
+    )
+    if hold:
+        if laid is not None:
+            _said(deck, world, hands.release(laid.chain or laid.id), index, text)
+        return
+    if laid is not None and not world.drift:
+        _said(deck, world, hands.step(laid.id), index, text)
+        return
+    _set(deck, world, hands, route.start, route.end, route.kind, index, text)
+
+
+def _do(
+    deck: Deck,
+    selection: Selection,
+    world: World,
+    hands: Hands,
+    page: TklDeckPage,
+    key: TklDeckKey,
+    action: DeckAction,
+    index: int | None,
+    hold: bool,
+) -> None:
+    """A press or a hold the owner chose from the fixed list (SD43). Lös ut alla, Noll and
+    Nödutlösning only with a hold (SD29)."""
+    route = key.route
+    text = f"{route.start}\N{RIGHTWARDS ARROW}{route.end}" if route is not None else ""
+    match action:
+        case DeckAction.NOTHING:
+            return
+        case DeckAction.LAY:
+            if route is not None:
+                _set(deck, world, hands, route.start, route.end, route.kind, index, text)
+        case DeckAction.RELEASE_ROUTE:
+            laid = _laid(world, route) if route is not None else None
+            if laid is None:
+                _say(deck, world, "Vägen ligger inte.")
+                return
+            _said(deck, world, hands.release(laid), index, text)
+        case DeckAction.RUN if route is not None:
+            found = next(
+                (r for r in world.state.routes if r.start == route.start and r.end == route.end),
+                None,
+            )
+            if found is None:
+                _say(deck, world, "Vägen ligger inte.")
+                return
+            _said(deck, world, hands.step(found.id), index, text)
+        case _:
+            _press_action(deck, selection, world, hands, page, action, index, hold)
 
 
 def _press_overlay(
@@ -2235,10 +2459,18 @@ def _press_action(
     hands: Hands,
     page: TklDeckPage,
     action: DeckAction | None,
-    index: int,
+    index: int | None,
     hold: bool,
 ) -> None:
     state = world.state
+    if action in HOLD_ONLY and not hold:
+        name = {
+            DeckAction.RELEASE_ALL: "Lös ut alla",
+            DeckAction.RESET: "Noll",
+            DeckAction.EMERGENCY: "Nödutlösning",
+        }[action]
+        _say(deck, world, f"Håll in för {name}.")
+        return
     match action:
         case DeckAction.RELEASE:
             roots = list(dict.fromkeys((r.chain or r.id) for r in state.routes))
@@ -2279,6 +2511,21 @@ def _press_action(
         case DeckAction.LOCK:
             # Lås (Fika, SD30), where the owner has put it in Studio (#86 del c).
             _said(deck, world, hands.lock(), None, "Lås")
+        case DeckAction.RELEASE_ALL:
+            roots = list(dict.fromkeys((r.chain or r.id) for r in state.routes))
+            if not roots:
+                _say(deck, world, "Inga vägar att lösa ut.")
+                return
+            for route in reversed(roots):
+                _said(deck, world, hands.release(route), index, "Lös ut alla")
+        case DeckAction.RESET:
+            _said(deck, world, hands.reset(), index, "Noll")
+        case DeckAction.EMERGENCY:
+            latest = list(dict.fromkeys((r.chain or r.id) for r in state.routes))
+            if not latest:
+                _say(deck, world, "Ingen väg att nödutlösa.")
+                return
+            _said(deck, world, hands.emergency(latest[-1]), index, "Nödutlösning")
 
 
 # --- dials and touch (SD82, SD83) ----------------------------------------------------------------
@@ -2458,6 +2705,7 @@ __all__ = [
     "favourites",
     "open_deck",
     "press",
+    "press_here",
     "touch",
     "view",
 ]

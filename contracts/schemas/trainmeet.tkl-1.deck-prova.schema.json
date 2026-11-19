@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-prova.schema.json",
+  "title": "trainmeet.tkl-1.deck-prova",
+  "$defs": {
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    },
+    "DeckTried": {
+      "enum": [
+        "gick",
+        "nej",
+        "inget"
+      ],
+      "title": "DeckTried",
+      "type": "string"
+    },
+    "TklDeckKeyTried": {
+      "additionalProperties": true,
+      "description": "One key pressed by Prova alla knappar (SD47).",
+      "properties": {
+        "page": {
+          "minimum": 0,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Page Name",
+          "type": "string"
+        },
+        "cell": {
+          "minimum": 0,
+          "title": "Cell",
+          "type": "integer"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/DeckTried"
+        },
+        "said": {
+          "default": "",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Said",
+          "type": "string"
+        }
+      },
+      "required": [
+        "page",
+        "page_name",
+        "cell",
+        "label",
+        "result"
+      ],
+      "title": "TklDeckKeyTried",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Prova alla knappar (SD47): every key of every page of one size pressed against an empty\ninterlocking, a copy that is never the live one, in the background with its progress.",
+  "properties": {
+    "size": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeckModelId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "running": {
+      "default": false,
+      "title": "Running",
+      "type": "boolean"
+    },
+    "done": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Done",
+      "type": "integer"
+    },
+    "total": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    },
+    "did": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Did",
+      "type": "integer"
+    },
+    "refused": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Refused",
+      "type": "integer"
+    },
+    "nothing": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Nothing",
+      "type": "integer"
+    },
+    "keys": {
+      "items": {
+        "$ref": "#/$defs/TklDeckKeyTried"
+      },
+      "title": "Keys",
+      "type": "array"
+    },
+    "started": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started"
+    },
+    "finished": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "type": "object"
+}

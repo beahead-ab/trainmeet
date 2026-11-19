@@ -16,6 +16,7 @@ import { clockAt, revisionOf } from "./niva0";
 import { Prova } from "./Prova";
 import { Sparplan } from "./Sparplan";
 import { StallverketSida } from "./Stallverk12";
+import { StudioInstallningar } from "./StreamDeckStudio";
 import { Stallverket } from "./Stallverket";
 import { Studio } from "./Studio";
 
@@ -26,6 +27,7 @@ const SPARPLAN = "/studio/sparplan";
 const KOPPLA_IN = "/studio/koppla-in";
 const RITA = "/studio/rita";
 const PROVA = "/studio/prova";
+const STUDIO_INSTALLNINGAR = "/studio/installningar";
 const REFRESH_MS = 10_000;
 const REQUEST_AGAIN_MS = 30_000;
 
@@ -232,6 +234,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     const koppla = path.startsWith(KOPPLA_IN);
     const rita = path.startsWith(RITA);
     const prova = path.startsWith(PROVA);
+    const installningar = path.startsWith(STUDIO_INSTALLNINGAR);
     const changedModel = () => {
       void api.state().then(onLocked);
       void api.studio().then(setStudio);
@@ -239,7 +242,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     body = (
       <>
         <nav className="studio-flikar" aria-label="Studio">
-          <button type="button" aria-current={plan || rita || koppla || prova ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
+          <button type="button" aria-current={plan || rita || koppla || prova || installningar ? undefined : "page"} onClick={() => navigate(PAGES.studio)}>
             Utsidan
           </button>
           <button type="button" aria-current={plan ? "page" : undefined} onClick={() => navigate(SPARPLAN)}>
@@ -254,8 +257,13 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           <button type="button" aria-current={prova ? "page" : undefined} onClick={() => navigate(PROVA)}>
             Prova
           </button>
+          <button type="button" aria-current={installningar ? "page" : undefined} onClick={() => navigate(`${STUDIO_INSTALLNINGAR}/stream-deck`)}>
+            Inställningar
+          </button>
         </nav>
-        {rita ? (
+        {installningar ? (
+          <StudioInstallningar />
+        ) : rita ? (
           <Rita onChanged={changedModel} />
         ) : prova ? (
           <Prova onChanged={() => void api.state().then(onLocked)} />

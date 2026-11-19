@@ -10,12 +10,16 @@
 // the server's (SD29); the dials, the strip and Neo's touch points go to dial and touch (SD82,
 // SD83). Without an answer from TKL every key says Ingen kontakt (SD21). Unplugged, the bridge
 // lets go of the deck and tells TKL.
+//
+// Studio › Deck (#86 del c, SD46) reaches the deck through its view: its brightness, and after the
+// owner's minutes without a press the deck goes dark; the first press then only wakes it. Blinka
+// lights every key, and a dark deck too.
 import type { StreamDeck, StreamDeckButtonControlDefinition, StreamDeckControlDefinition, StreamDeckEncoderControlDefinition, StreamDeckLcdSegmentControlDefinition } from "@elgato-stream-deck/webhid";
 import type { DeckFace, DeckGrid, DeckModelId, DeckOpen, Decks, DeckView, InterlockingWait } from "./api";
 import { Holds } from "./deck";
 
 /** What the bridge uses of a deck: @elgato-stream-deck/webhid's StreamDeck, or a fake one. */
-export type HidDeck = Pick<StreamDeck, "modelInfo" | "getSerialNumber" | "fillKeyBuffer" | "fillKeyColor" | "fillLcd" | "clearPanel" | "close" | "on" | "removeAllListeners">;
+export type HidDeck = Pick<StreamDeck, "modelInfo" | "getSerialNumber" | "fillKeyBuffer" | "fillKeyColor" | "fillLcd" | "clearPanel" | "close" | "on" | "removeAllListeners" | "setBrightness">;
 
 /** A picture as RGBA pixels, ready for the deck. */
 export type Pixels = { width: number; height: number; data: Uint8ClampedArray };
@@ -107,6 +111,10 @@ export class Bridge {
   private phase = 0;
   private sending: Promise<void> = Promise.resolve();
   private timer: ReturnType<typeof setInterval> | null = null;
+  brightness: number | null = null;
+  asleep = false;
+  private activeAt = 0;
+  private swallowed = new Set<number>();
 
   constructor(
     readonly deck: HidDeck,
@@ -143,6 +151,7 @@ export class Bridge {
     const first = info.controls.find(isKey);
     if (first) this.nothing = await this.api.picture(`${TKL}/deck/ingen-kontakt.png?size=${first.pixelSize.width}${first.pixelSize.height !== first.pixelSize.width ? `&height=${first.pixelSize.height}` : ""}`).catch(() => null);
     this.listen();
+    this.activeAt = this.now();
     await this.deck.clearPanel().catch(() => {});
     for (const touch of info.controls.filter((c) => c.type === "button" && c.feedbackType === "rgb")) {
       await this.deck.fillKeyColor((touch as StreamDeckButtonControlDefinition).index, 51, 65, 85).catch(() => {});
@@ -156,6 +165,10 @@ export class Bridge {
   private listen(): void {
     const keys = this.deck.modelInfo.controls.filter(isKey).length;
     this.deck.on("down", (control) => {
+      if (this.woken()) {
+        if (control.type === "button") this.swallowed.add(control.index);
+        return;
+      }
       if (control.type === "encoder") {
         this.send(() => this.api.dial(this.serial, control.index, 0, true));
       } else if (control.feedbackType === "rgb") {
@@ -167,15 +180,18 @@ export class Bridge {
       }
     });
     this.deck.on("up", (control) => {
+      if (control.type === "button" && this.swallowed.delete(control.index)) return;
       if (control.type !== "button" || control.feedbackType !== "lcd") return;
       const what = this.holds.released(control.index, this.now());
       if (what) this.send(() => this.api.press(this.serial, control.index, what === "hold"));
     });
     this.deck.on("rotate", (control, amount) => {
+      if (this.woken()) return;
       const turn = Math.max(-20, Math.min(20, amount));
       this.send(() => this.api.dial(this.serial, control.index, turn, false));
     });
     this.deck.on("lcdShortPress", (control, position) => {
+      if (this.woken()) return;
       // A tap on the strip presses the dial over it (SD83).
       const dials = this.deck.modelInfo.controls.filter(isDial).length;
       if (!dials) return;
@@ -187,6 +203,24 @@ export class Bridge {
       if (Math.abs(moved) >= SWIPE) this.send(() => this.api.touch(this.serial, moved < 0 ? 1 : -1));
     });
     this.deck.on("error", () => void this.close());
+  }
+
+  /** Something done on the deck: a dark deck only wakes (SD46); true when it did. */
+  private woken(): boolean {
+    this.activeAt = this.now();
+    if (!this.asleep) return false;
+    this.asleep = false;
+    void this.light(this.view?.settings.brightness ?? 70);
+    return true;
+  }
+
+  private async light(percent: number): Promise<void> {
+    this.brightness = percent;
+    try {
+      await this.deck.setBrightness?.(percent);
+    } catch {
+      // A deck that cannot be dimmed is still a deck.
+    }
   }
 
   /** One thing at a time, in order: the next press builds on the answer to this one. */
@@ -210,6 +244,12 @@ export class Bridge {
   tick(): void {
     if (this.closed) return;
     const at = this.now();
+    const minutes = this.view?.settings.sleep ?? 0;
+    if (minutes && !this.asleep && at - this.activeAt >= minutes * 60_000) {
+      // Släckning (SD46): dark after the owner's minutes without a press.
+      this.asleep = true;
+      void this.light(0);
+    }
     for (const key of this.holds.tick(at)) this.send(() => this.api.press(this.serial, key, true));
     const phase = Math.floor(at / BLINK) % 2;
     if (phase !== this.phase) {
@@ -247,6 +287,12 @@ export class Bridge {
     this.view = view;
     this.contact = true;
     this.holds.ms = view.hold_ms ?? 600;
+    if (this.asleep && (view.keys ?? []).some((f) => f.type === "here")) {
+      this.asleep = false; // Blinka lights a dark deck
+      this.activeAt = this.now();
+    }
+    const wanted = view.settings.brightness ?? 70;
+    if (!this.asleep && this.brightness !== wanted) await this.light(wanted);
     if (back) this.painted.clear();
     const faces: DeckFace[] = view.keys ?? [];
     const work: Promise<void>[] = [];

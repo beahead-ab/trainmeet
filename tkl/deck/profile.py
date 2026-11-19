@@ -232,7 +232,16 @@ def _built(
     geo = geography_of(plant, panel)
     f = frame(grid)
     if f.style == DeckStyle.NONE:
-        return TklDeckProfile(model=model, grid=grid, style=f.style, places=geo.places)
+        # Pedal: no default, nothing until the owner chooses a function per pedal (SD55).
+        return TklDeckProfile(
+            model=model,
+            grid=grid,
+            style=f.style,
+            places=geo.places,
+            parts=geo.parts,
+            points=geo.points,
+            pedals=[None] * grid.pedals,
+        )
     b = Builder(f, geo)
     modes = [DeckMode.TRAINS, DeckMode.PLACES]
     _trains(b)

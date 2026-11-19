@@ -10,7 +10,13 @@
         "kor",
         "avbryt",
         "tillbaka",
-        "las"
+        "las",
+        "lagg",
+        "los-vagen",
+        "los-alla",
+        "noll",
+        "nodutlosning",
+        "ingenting"
       ],
       "title": "DeckAction",
       "type": "string"
@@ -51,7 +57,8 @@
         "next",
         "page",
         "action",
-        "panel"
+        "panel",
+        "route"
       ],
       "title": "DeckKeyType",
       "type": "string"
@@ -95,7 +102,8 @@
         "signaler",
         "alla",
         "hela",
-        "utsnitt"
+        "utsnitt",
+        "egen"
       ],
       "title": "DeckPageKind",
       "type": "string"
@@ -121,6 +129,14 @@
         "column"
       ],
       "title": "DeckStyle",
+      "type": "string"
+    },
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
       "type": "string"
     },
     "TklDeckGrid": {
@@ -183,7 +199,7 @@
     },
     "TklDeckKey": {
       "additionalProperties": true,
-      "description": "A key in a profile: its type from the catalogue and what it points at, as data (SD5).",
+      "description": "A key in a profile: its type from the catalogue and what it points at, as data (SD5).\n\nWhat the owner may change in Studio (SD43) is here too: the text and the line under, what a\npress and a hold do from the fixed list `DeckAction`, and what the key shows. Never the\ncolours, the symbols or what a gesture means (SD3): those follow the catalogue.",
       "properties": {
         "type": {
           "$ref": "#/$defs/DeckKeyType"
@@ -354,12 +370,94 @@
           "description": "Panelfunktionens namn (PANEL).",
           "title": "Function"
         },
+        "route": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckRoute"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Snabbvägens väg (ROUTE)."
+        },
         "text": {
           "default": "",
           "description": "Knappens text, när den är given.",
           "maxLength": 60,
           "title": "Text",
           "type": "string"
+        },
+        "under": {
+          "default": "",
+          "description": "Undertexten, när ägaren har gett den.",
+          "maxLength": 60,
+          "title": "Under",
+          "type": "string"
+        },
+        "press": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad ett tryck gör, ur den fasta listan; annars katalogens."
+        },
+        "hold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad håll in gör, ur den fasta listan; annars katalogens."
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Visa tågnumret på målspåret (snabbväg). Förval: ja.",
+          "title": "Number"
+        },
+        "dim": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tona ned knappen när vägen är hindrad (SD17). Förval: ja.",
+          "title": "Dim"
+        },
+        "confirm": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fråga en gång till före trycket. Förval: nej.",
+          "title": "Confirm"
         }
       },
       "required": [
@@ -587,10 +685,37 @@
       ],
       "title": "TklDeckPoint",
       "type": "object"
+    },
+    "TklDeckRoute": {
+      "additionalProperties": true,
+      "properties": {
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "kind"
+      ],
+      "title": "TklDeckRoute",
+      "type": "object"
     }
   },
   "additionalProperties": true,
-  "description": "The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and\nnever stored as code. The owner's changes in Studio come in del c.",
+  "description": "The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and\nnever stored as code, with the owner's deviations laid on (SD40, tkl.deck.deviations).",
   "properties": {
     "model": {
       "anyOf": [
@@ -715,6 +840,21 @@
         }
       ],
       "title": "Plan",
+      "type": "array"
+    },
+    "pedals": {
+      "description": "Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TklDeckKey"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Pedals",
       "type": "array"
     }
   },

@@ -17,7 +17,9 @@ its USB product id: the Modules and the 15 with Scissor Keys get the profile of 
   signature as the API's wait, and when a reason's three seconds run out (SD18);
 - when TKL cannot read the deck's state, every key says Ingen kontakt, never an old state
   (SD21); when TKL is locked, the deck shows only the clock (SD30);
-- a deck that is unplugged is closed, and nothing a deck does can stop TKL.
+- a deck that is unplugged is closed, and nothing a deck does can stop TKL;
+- the deck's brightness is the owner's from Studio, Deck (SD46), and after the owner's minutes
+  without a press it goes dark: the first press then only wakes it; Blinka lights every key.
 
 The pictures are TKL's own (tkl.deck.render), the same as WebHID's.
 """
@@ -107,6 +109,7 @@ class Device(Protocol):
     ) -> None: ...
     def set_screen_image(self, image: bytes) -> None: ...
     def set_key_color(self, key: int, r: int, g: int, b: int) -> None: ...
+    def set_brightness(self, percent: int) -> None: ...
     def set_key_callback(self, callback: Callable[..., None] | None) -> None: ...
     def set_dial_callback(self, callback: Callable[..., None] | None) -> None: ...
     def set_touchscreen_callback(self, callback: Callable[..., None] | None) -> None: ...
@@ -265,6 +268,11 @@ class Plugged:
     strip_drawn: str | None = None
     info_drawn: str | None = None
     painted: tuple[int, int] | None = None
+    brightness: int | None = None
+    asleep: bool = False
+    active_at: float = 0.0
+    swallowed: set[int] = field(default_factory=set)
+    """Keys pressed to wake the deck: their release does nothing either."""
 
 
 class Driver:
@@ -435,6 +443,7 @@ class Driver:
         except Exception:
             _quietly(device.close)
             return
+        plugged.active_at = now
         self.decks[path] = plugged
         LOGGER.info("Stream Deck över USB: %s inkopplat", model_of(model).name)
         self._read(plugged, now, first=True)
@@ -466,6 +475,7 @@ class Driver:
             acted = self._input(plugged, done, now) or acted
         for key in plugged.holds.tick(now):
             acted = self._held(plugged, key) or acted
+        self._sleep(plugged, now)
         if not acted:
             due = now >= plugged.read_at
             if not due and plugged.contact and now - plugged.polled_at >= POLL:
@@ -482,8 +492,37 @@ class Driver:
         """A key held for the hold time, while it is still down: a hold (SD29)."""
         return self._act(plugged, lambda: self.desk.press(plugged.serial, key, True))
 
+    def _sleep(self, plugged: Plugged, now: float) -> None:
+        """Släckning (SD46): dark after the owner's minutes without a press."""
+        if plugged.key_form is None and plugged.strip_form is None:
+            return  # a pedal has nothing to put out
+        minutes = plugged.shown.view.settings.sleep if plugged.shown is not None else 0
+        if minutes and not plugged.asleep and now - plugged.active_at >= minutes * 60:
+            plugged.asleep = True
+            self._light(plugged, 0)
+
+    def _wake(self, plugged: Plugged, now: float) -> None:
+        plugged.asleep = False
+        plugged.active_at = now
+        wanted = plugged.shown.view.settings.brightness if plugged.shown is not None else 70
+        self._light(plugged, wanted)
+
+    def _light(self, plugged: Plugged, percent: int) -> None:
+        self._write(plugged, lambda: plugged.device.set_brightness(percent))
+        plugged.brightness = percent
+
     def _input(self, plugged: Plugged, done: Input, now: float) -> bool:
         serial = plugged.serial
+        plugged.active_at = now
+        if plugged.asleep:
+            # The first press only wakes the deck: nothing is done in the dark.
+            self._wake(plugged, now)
+            if done.kind == "down":
+                plugged.swallowed.add(done.index)
+            return True
+        if done.kind == "up" and done.index in plugged.swallowed:
+            plugged.swallowed.discard(done.index)
+            return False
         if done.kind in ("down", "up") and done.index >= plugged.keys:
             # Neo's touch points come after the keys: the pages back and forth (SD82).
             if done.kind == "down":
@@ -547,6 +586,11 @@ class Driver:
         plugged.read_at = now + shown.view.refresh_ms / 1000
         plugged.polled_at = now
         plugged.holds.seconds = shown.view.hold_ms / 1000
+        if plugged.asleep and any(f.type == "here" for f in shown.view.keys):
+            self._wake(plugged, now)  # Blinka lights a deck that has gone dark
+        wanted = shown.view.settings.brightness
+        if not plugged.asleep and plugged.brightness != wanted:
+            self._light(plugged, wanted)
 
     def _lost(self, plugged: Plugged, now: float) -> None:
         """Ingen kontakt (SD21): never an old state, and a hold half done is forgotten."""

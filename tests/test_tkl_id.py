@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 
 from contracts.station_model import StationModel
 from contracts.sync import StationPackage
-from contracts.tkl import TklIdState, TklMode, TklSaved
+from contracts.tkl import DeckModelId, TklDeckDeviations, TklIdState, TklMode, TklSaved
 from hub import id_login as hub_id
 from hub.app import create_app as create_hub
 from hub.build_info import BuildInfo
@@ -215,10 +215,14 @@ def test_the_station_s_model_goes_to_the_cloud_in_the_station_package(
     tkl: TestClient, cloud: TestClient, pretend: PretendId
 ) -> None:
     """From level 1 the model is kept with the station and versioned with the outside; both go
-    to the cloud as one station package (SYNK-30, #83). The cloud keeps the inside as it came."""
+    to the cloud as one station package (SYNK-30, #83). The cloud keeps the inside as it came.
+    The owner's Stream Deck deviations go along in the inside (SD49, #86)."""
     listed = tkl.get(API + "/referens").json()
     used = tkl.post(API + f"/referens/{listed[0]['id']}/use")
     assert used.status_code == 200, used.text
+    pedal = {"change": "pedal", "pedal": 0, "key": {"type": "action", "action": "ankommit"}}
+    deck = tkl.put(API + "/studio/stream-deck", json={"size": "pedal", "deviations": [pedal]})
+    assert deck.status_code == 200, deck.text
     assert tkl.post(API + "/studio/version").json()["versions"][0]["number"] == 2
     log_in(tkl, pretend)
     saved = TklSaved.model_validate(tkl.post(API + "/id/save", json={}).json())
@@ -231,3 +235,5 @@ def test_the_station_s_model_goes_to_the_cloud_in_the_station_package(
     inside = StationPackage.model_validate(package.json()).inside
     kept = StationModel.model_validate(inside["station_model"])
     assert (kept.station_id, kept.name) == ("asen", "Åsen")
+    own = TklDeckDeviations.model_validate(inside["streamdeck"])
+    assert [d.pedal for d in own.sizes[DeckModelId.PEDAL]] == [0]
