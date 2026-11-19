@@ -88,6 +88,23 @@ class Reason(StrEnum):
     PAPER_FEW_PLACES = "paper_few_places"
     PAPER_NO_TIMES = "paper_no_times"
     PAPER_NO_NUMBER = "paper_no_number"
+    # Fjärrstyrning (#36, TKL89): handing a station over, and the routes asked for from afar
+    NOT_CONTROLLER = "not_controller"
+    NOT_IN_CATALOG = "not_in_catalog"
+    ROUTE_ALREADY_REQUESTED = "route_already_requested"
+    ROUTE_NOT_PENDING = "route_not_pending"
+    OFFER_NOT_PENDING = "offer_not_pending"
+    OFFER_PENDING = "offer_pending"
+    STATION_NOT_ANSWERING = "station_not_answering"
+    PLACE_REMOTE = "place_remote"
+    NO_CATALOG = "no_catalog"
+    NOT_STATION = "not_station"
+    UNKNOWN_RECEIVER = "unknown_receiver"
+    NO_CONTACT = "no_contact"
+    # The station's interlocking says no (FR12): it alone tries the route.
+    CONFLICTING_ROUTE = "conflicting_route"
+    SWITCH_NOT_IN_CONTROL = "switch_not_in_control"
+    AREA_RELEASED = "area_released"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -163,6 +180,30 @@ TEXT_SV: dict[Reason, str] = {
         "Dagens tåg är ute eller har en öppen klarering. Vänta tills de har kommit fram, "
         "eller gör ett tidshopp."
     ),
+    Reason.NOT_CONTROLLER: "Du styr inte driftplatsen.",
+    Reason.NOT_IN_CATALOG: "Tågvägen finns inte i stationens fjärrkatalog.",
+    Reason.ROUTE_ALREADY_REQUESTED: "Tågvägen är redan begärd.",
+    Reason.ROUTE_NOT_PENDING: "Begäran om tågvägen finns inte, eller gäller inte längre.",
+    Reason.OFFER_NOT_PENDING: "Erbjudandet gäller inte längre.",
+    Reason.OFFER_PENDING: "Stationen är redan erbjuden. Vänta på svaret, eller ta tillbaka den.",
+    Reason.STATION_NOT_ANSWERING: "Stationens ställverk svarar inte.",
+    Reason.PLACE_REMOTE: "Driftplatsen fjärrstyrs. Ta tillbaka den först.",
+    Reason.NO_CATALOG: (
+        "Stationen kan inte fjärrstyras: den har ingen fjärrkatalog. En station på nivå 0 har "
+        "ingen."
+    ),
+    Reason.NOT_STATION: "Bara stationens egen TKL kan lämna över eller ta tillbaka stationen.",
+    Reason.UNKNOWN_RECEIVER: (
+        "Stationen kan bara lämnas till en granne, till den som redan fjärrstyr en granne eller "
+        "till ett godkänt fjärrställverk."
+    ),
+    Reason.NO_CONTACT: (
+        "Kontakten med den som fjärrstyr saknades. Inga nya tågvägar gick under tiden. Läs om "
+        "läget och försök igen."
+    ),
+    Reason.CONFLICTING_ROUTE: "En fientlig väg är lagd.",
+    Reason.SWITCH_NOT_IN_CONTROL: "Växlarna ligger inte i kontroll.",
+    Reason.AREA_RELEASED: "Området är lokalt frigivet.",
 }
 
 

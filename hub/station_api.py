@@ -20,7 +20,7 @@ from collections.abc import AsyncIterator, Callable
 from secrets import token_hex
 from typing import Annotated, Any, NoReturn
 
-from fastapi import APIRouter, Header, HTTPException, Path, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Path, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
@@ -52,6 +52,12 @@ HEARTBEAT_SECONDS = 15
 Authorization = Annotated[str | None, Header(max_length=200)]
 PlaceId = Annotated[Id, Path()]
 HubId = Annotated[Id, Path()]
+# The places of the remote picture, as a=b,c: comma-separated driftplatser (#36).
+Places = Annotated[str | None, Query(max_length=2000, pattern=r"^[A-Za-z0-9._:,-]*$")]
+
+
+def _places(given: str | None) -> list[str]:
+    return [place for place in (given or "").split(",") if place][:100]
 
 
 def _key(authorization: str | None) -> str:
@@ -165,6 +171,18 @@ def router(
         response.headers["Cache-Control"] = "no-store"
         try:
             return store.station_command(_key(authorization), command).model_dump(mode="json")
+        except failures as error:
+            _error(error)
+
+    @routes.get("/overview")
+    def overview(
+        response: Response, places: Places = None, authorization: Authorization = None
+    ) -> dict[str, Any]:
+        """Fjärrbildens data (#36, FR31–FR38): the places the client runs, controls, is offered
+        or is approved for, and their neighbours. Comma-separated; none asked for gives all."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            return store.overview(_key(authorization), _places(places)).model_dump(mode="json")
         except failures as error:
             _error(error)
 
@@ -303,6 +321,8 @@ def relayed(store: AnyRun, call: RelayCall, relay: Callable[[], str | None]) -> 
         if call.kind == RelayKind.PUSH:
             store.set_push(key, call.push)
             return answer(204)
+        if call.kind == RelayKind.OVERVIEW:
+            return answer(200, overview=store.overview(key, list(call.places)))
         if call.kind == RelayKind.REVISION and call.place is not None:
             deadline = time.monotonic() + call.wait
             while True:
@@ -366,6 +386,18 @@ def relay_router(relay: Relay) -> APIRouter:
         response.headers["Cache-Control"] = "no-store"
         hashed = key_hash(_key(authorization))
         return given((await ask(hub_id, RelayKind.COMMAND, key_hash=hashed, command=command)).reply)
+
+    @routes.get("/overview")
+    async def overview(
+        hub_id: HubId,
+        response: Response,
+        places: Places = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        hashed = key_hash(_key(authorization))
+        asked = await ask(hub_id, RelayKind.OVERVIEW, key_hash=hashed, places=_places(places))
+        return given(asked.overview)
 
     @routes.post("/places/{place}/exits")
     async def exits(

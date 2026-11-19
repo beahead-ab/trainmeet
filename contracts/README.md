@@ -6,7 +6,7 @@ Den enda vägen mellan TrainMeets delar. Ingen del använder en annan dels inre 
 | --- | --- | --- |
 | Träffpaketet, `trainmeet.meet/1` | `meet.py` | Allt som behövs för att köra en träff. Exempel: `examples/provbanan.meet.json`. |
 | Stationens utsida, `trainmeet.station-outside/1` | `station_outside.py` | Det TKL Studio publicerar om en station. Exempel: `examples/asen.station-outside.json`. |
-| Stationsprotokollet, `trainmeet.station/1` | `station.py` | För klienter som ritar sin egen skärm: TKL, TMBox iPhone och trafikledningens vyer. Anslutning och godkännande med nyckel, kommandon, ögonblicksbilden och händelserna. |
+| Stationsprotokollet, `trainmeet.station/1` | `station.py` | För klienter som ritar sin egen skärm: TKL, TMBox iPhone, fjärrställverket och trafikledningens vyer. Anslutning och godkännande med nyckel, kommandon, ögonblicksbilden och händelserna. Fjärrstyrningen (#36): att lämna över och ta tillbaka en station, fjärrtågvägarna, stationens läge i `route.state` och fjärrbildens översikt. |
 | Terminalprotokollet, 16×2-profilen | `terminal.py` | För TMBoxar: Drift ritar bilden och boxen skickar knapptryck. Exakt gamla Servers profil, över MQTT för fysiska boxar och HTTP för TMBox web. |
 | Driftens API, `trainmeet.drift/1` | `drift.py` | För trafikledningen och skärmarna: starta, klockan, lista, godkänna och tilldela klienter samt händelseloggen. |
 | Skälen | `reasons.py` | Varför Drift sa nej, med texten för varje skäl. |

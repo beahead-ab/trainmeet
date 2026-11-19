@@ -11,7 +11,11 @@
         "clearance.answered",
         "clearance.reminder",
         "line.available",
-        "approval"
+        "approval",
+        "place.offered",
+        "route.requested",
+        "route.answered",
+        "local_release.requested"
       ],
       "title": "EventKind",
       "type": "string"

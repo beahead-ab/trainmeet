@@ -19,6 +19,11 @@ leave the place to the automation ("going to the toilet") and take it back; that
 stands until someone changes it. While the automation works a place, a traffic key on its box
 or TKL first asks to take the place back (Casper, 2026-10-10).
 
+A remote-controlled place (#36) is out of contact when its station or its controller is not
+heard (FR28): the controller is heard wherever it reads or acts, not at the place, which it
+never mans. After the meet's time for Kontakt saknas the automation takes it over, as any place
+out of contact, and the station's own TKL can take it back at once (FR30).
+
 Who works a place, the settings and every act are Drift events, so a restart reads them back.
 Only the contact (who was heard when) lives in memory: after a restart nobody has been heard
 yet, and that is not minutes of silence. The automation acts through the same station
@@ -97,6 +102,8 @@ class Automatik:
         # heard yet, and that is not minutes of silence.
         self.started = now()
         self.seen: dict[str, tuple[str, float]] = {}
+        # When each client was last heard, wherever: a controller reads and acts from afar.
+        self.contact: dict[str, float] = {}
         # When the automation may answer each waiting request (clearance id -> now()).
         self.answer_at: dict[str, float] = {}
         # The trains the automation waits with, and why (call -> reason), for Nu.
@@ -106,7 +113,25 @@ class Automatik:
 
     def observe(self, client: str, place: str) -> None:
         """A box or TKL at work at the place: heard now."""
-        self.seen[client] = (place, self.now())
+        heard = self.now()
+        self.seen[client] = (place, heard)
+        self.contact[client] = heard
+
+    def touch(self, client: str) -> None:
+        """A client heard from afar: a controller, or one that only watches (#36). It works no
+        place by it."""
+        self.contact[client] = self.now()
+
+    def client_silent(self, client: str) -> float:
+        """Seconds since the client was last heard anywhere, counted from the hub's start."""
+        return self.now() - max(self.contact.get(client, -math.inf), self.started)
+
+    def client_heard(self, client: str) -> bool:
+        return self.client_silent(client) <= events.PRESENCE_SECONDS
+
+    def station_heard(self, place: str) -> bool:
+        """The station's own box or TKL has been heard at the place within 45 seconds."""
+        return self.now() - self.last_heard(place) <= events.PRESENCE_SECONDS
 
     def last_heard(self, place: str) -> float:
         return max((at for here, at in self.seen.values() if here == place), default=-math.inf)
@@ -122,16 +147,29 @@ class Automatik:
         return [client for _, client in sorted(here, reverse=True)]
 
     def mode(self, drift: Drift, place: str) -> events.PlaceMode:
+        control = drift.remote.get(place)
+        if control is not None:
+            # Kontakt saknas holds both ends: the station and the one who controls it (FR28).
+            if not self.client_heard(control.controller) or not self.station_heard(place):
+                return events.PlaceMode.NO_CONTACT
+            return events.PlaceMode.REMOTE
         if drift.automatic(place):
             return events.PlaceMode.AUTOMATIC
         # The owner is the first client that worked the place. Another box or TKL there
         # still works it when the owner is gone.
-        if self.now() - self.last_heard(place) <= events.PRESENCE_SECONDS:
-            return events.PlaceMode.MANNED
+        if self.station_heard(place):
+            return events.PlaceMode.OFFERED if place in drift.offers else events.PlaceMode.MANNED
         return events.PlaceMode.NO_CONTACT
 
     def _silent(self, place: str) -> float:
         return self.now() - max(self.last_heard(place), self.started)
+
+    def _silence(self, drift: Drift, place: str) -> float:
+        """How long the place has been out of contact: its station, or its controller."""
+        control = drift.remote.get(place)
+        if control is None:
+            return self._silent(place)
+        return max(self._silent(place), self.client_silent(control.controller))
 
     def takes_over_in(self, drift: Drift, place: str) -> int | None:
         """Seconds until the automation takes a place out of contact; None when it never
@@ -139,7 +177,7 @@ class Automatik:
         minutes = drift.automation.lost_contact_minutes
         if not minutes or self.mode(drift, place) != events.PlaceMode.NO_CONTACT:
             return None
-        return max(0, math.ceil(minutes * 60 - self._silent(place)))
+        return max(0, math.ceil(minutes * 60 - self._silence(drift, place)))
 
     # --- The traffic ----------------------------------------------------------------------
 
@@ -151,9 +189,10 @@ class Automatik:
             return
         seconds = drift.clock.at(now)
         if settings.lost_contact_minutes:
-            for place, owner in sorted(drift.manned.items()):
-                if self._silent(place) >= settings.lost_contact_minutes * 60:
-                    drift.leave(place, events.LeftBy.LOST_CONTACT, now, owner)
+            # A remote-controlled place goes too, when its controller is silent (FR30).
+            for place in sorted(set(drift.manned) | set(drift.remote)):
+                if self._silence(drift, place) >= settings.lost_contact_minutes * 60:
+                    drift.leave(place, events.LeftBy.LOST_CONTACT, now, drift.manned.get(place))
         planned = plan(drift)
         start = drift.first_run if drift.first_run is not None else seconds
         order = {case_id: index for index, case_id in enumerate(drift.cases)}
@@ -377,12 +416,18 @@ class Automatik:
 
     # --- What Nu shows ------------------------------------------------------------------
 
-    def status(self, drift: Drift) -> events.AutomationStatus:
+    def status(
+        self, drift: Drift, controllable: frozenset[str] = frozenset()
+    ) -> events.AutomationStatus:
+        """Who works each place and how (FR5), the settings, and the trains the automation
+        waits with. controllable: the places with a remote catalogue (FR16)."""
         places = []
         for place in drift.package.places:
             if place.id not in drift.stops():
                 continue
             left = drift.left.get(place.id)
+            control = drift.remote.get(place.id)
+            offer = drift.offers.get(place.id)
             places.append(
                 events.AutomationPlaceStatus(
                     place=place.id,
@@ -393,6 +438,10 @@ class Automatik:
                     takes_over_in=self.takes_over_in(drift, place.id),
                     operator=drift.manned.get(place.id) or (left.client_id if left else None),
                     present=self.present(place.id),
+                    controller=control.controller if control else None,
+                    offered_to=offer.to if offer else None,
+                    back_to=left.controller if left else None,
+                    controllable=place.id in controllable,
                 )
             )
         trains = [

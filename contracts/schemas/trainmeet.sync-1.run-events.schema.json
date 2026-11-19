@@ -219,7 +219,19 @@
         "driver.settings",
         "paper.created",
         "paper.approved",
-        "paper.rejected"
+        "paper.rejected",
+        "place.offered",
+        "place.offer_answered",
+        "place.remote",
+        "route.requested",
+        "route.answered",
+        "route.cancelled",
+        "route.released",
+        "route.state",
+        "local_release.requested",
+        "local_release.answered",
+        "local_release.ended",
+        "automat.set"
       ],
       "title": "EventKind",
       "type": "string"

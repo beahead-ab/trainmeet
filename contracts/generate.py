@@ -63,6 +63,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.station-1.notice": station.Notice,
     "trainmeet.station-1.exit-answer": station.ExitAnswer,
     "trainmeet.station-1.track-display-change": station.TrackDisplayChange,
+    "trainmeet.station-1.overview": station.Overview,
     "trainmeet.tkl-1.state": tkl.TklState,
     "trainmeet.tkl-1.setup": tkl.TklSetUp,
     "trainmeet.tkl-1.unlock": tkl.TklUnlock,

@@ -14,6 +14,8 @@ import {
   days,
   partOf,
   plural,
+  areaPlaces,
+  remoteFrom,
   reportSummary,
   sourceKind,
   trainName,
@@ -23,6 +25,7 @@ import {
   type Part,
   type Place,
   type Question,
+  type RemoteArea,
   type Section,
   type Shunting,
   type Source,
@@ -30,6 +33,7 @@ import {
   type TrainTypeRule,
   type Turn,
 } from "./data";
+import { Fjarromraden } from "./Fjarromraden";
 import { levelText, number, when } from "./text";
 import { Underlag } from "./Underlag";
 
@@ -404,7 +408,7 @@ function makeBlocks(context: Context): AnyBlock[] {
           cell: (place) => (
             <span>
               {KINDS[place.kind] ?? place.kind}
-              {place.remote_from && <span className="liten block">{`från ${placeName(place.remote_from)}`}</span>}
+              {remoteFrom(pkg, place, placeName) && <span className="liten block">{`från ${remoteFrom(pkg, place, placeName)}`}</span>}
             </span>
           ),
         },
@@ -414,7 +418,7 @@ function makeBlocks(context: Context): AnyBlock[] {
       ],
       title: (place) => `${place.code} · ${place.name}`,
       detail: (place) => [
-        ["Platstyp", (KINDS[place.kind] ?? place.kind) + (place.remote_from ? `, från ${placeName(place.remote_from)}` : "")],
+        ["Platstyp", (KINDS[place.kind] ?? place.kind) + (remoteFrom(pkg, place, placeName) ? `, från ${remoteFrom(pkg, place, placeName)}` : "")],
         ...(place.part_of ? ([["Del av", `${placeName(place.part_of)}, egen driftplats som bemannas för sig`]] as [string, ReactNode][]) : []),
         ["Telefon", value("place", place.id, place.phone ?? null) ?? "–"],
         [
@@ -483,6 +487,26 @@ function makeBlocks(context: Context): AnyBlock[] {
             .map((part) => placeName(part.to_place))
             .join(", ") || "–",
         ],
+      ],
+    }),
+    // Fjärrområden (PLAN-33, FR49): driftplatser in a row, planned to be remote-controlled together.
+    block<RemoteArea>({
+      key: "remote_areas",
+      label: "Fjärrområden",
+      chosen: "Valt fjärrområde",
+      text: "driftplatser som är tänkta att fjärrstyras tillsammans",
+      rows: pkg.remote_areas ?? [],
+      ref: (area) => `remote_area:${area.id}`,
+      places: (area) => area.places,
+      columns: [
+        { name: "Namn", text: (area) => area.name, cell: (area) => <b>{area.name}</b> },
+        { name: "Driftplatser", text: (area) => areaPlaces(area, placeName) },
+        { name: "Antal", cls: "tal", text: (area) => String(area.places.length) },
+      ],
+      title: (area) => `Fjärrområdet ${area.name}`,
+      detail: (area) => [
+        ["Driftplatser", areaPlaces(area, placeName)],
+        ["Förval", "Driftplatserna är tänkta att fjärrstyras härifrån, av ett fjärrställverk. På träffen lämnar varje station över själv, och driftformen avgör."],
       ],
     }),
     block<{ section: Section; part: Part }>({
@@ -975,6 +999,7 @@ export function DataPage({ admin, meet, draft, findings, versions, initialBlocks
           <span className="kalla">JSON</span> Tellurians plan <span className="kalla andrad">PLAN</span> ändrat i Planering <span className="kalla regel">REGEL</span> regelboken
         </p>
       </section>
+      {admin && <Fjarromraden meet={meet} draft={draft} pkg={pkg} onDraft={onDraft} onTell={onTell} onFail={onFail} />}
       {drawerNode}
     </>
   );

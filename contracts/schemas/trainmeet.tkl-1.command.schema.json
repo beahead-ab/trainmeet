@@ -20,7 +20,13 @@
         "section.occupancy",
         "signal.exit",
         "place.leave",
-        "place.take_back"
+        "place.take_back",
+        "place.offer",
+        "place.offer.answer",
+        "route.request",
+        "route.cancel",
+        "route.response",
+        "route.state"
       ],
       "title": "Action",
       "type": "string"
