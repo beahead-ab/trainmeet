@@ -1248,6 +1248,11 @@ export interface components {
             exits: components["schemas"]["trainmeet.station-outside-1.Exit"][];
             /** Sides */
             sides?: components["schemas"]["trainmeet.station-outside-1.BoxSide"][];
+            /**
+             * Parts
+             * @description Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.
+             */
+            parts?: components["schemas"]["trainmeet.station-outside-1.StationPart"][];
         } & {
             [key: string]: unknown;
         };
@@ -1296,6 +1301,30 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.station-outside-1.Side": "left" | "right";
+        /**
+         * StationPart
+         * @description A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).
+         */
+        "trainmeet.station-outside-1.StationPart": {
+            /**
+             * Id
+             * @description Delens fasta id i stationen, satt i TKL Studio.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Delens namn, som driftplatsen får i planen.
+             */
+            name: string;
+            /**
+             * Code
+             * @description Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.
+             * @default null
+             */
+            code: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** StationTrack */
         "trainmeet.station-outside-1.StationTrack": {
             /**
@@ -2953,6 +2982,35 @@ export interface components {
             exits: components["schemas"]["trainmeet.tkl-1.studio.Exit"][];
             /** Sides */
             sides?: components["schemas"]["trainmeet.tkl-1.studio.BoxSide"][];
+            /**
+             * Parts
+             * @description Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.studio.StationPart"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationPart
+         * @description A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).
+         */
+        "trainmeet.tkl-1.studio.StationPart": {
+            /**
+             * Id
+             * @description Delens fasta id i stationen, satt i TKL Studio.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Delens namn, som driftplatsen får i planen.
+             */
+            name: string;
+            /**
+             * Code
+             * @description Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.
+             * @default null
+             */
+            code: string | null;
         } & {
             [key: string]: unknown;
         };

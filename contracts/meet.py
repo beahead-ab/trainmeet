@@ -7,6 +7,8 @@ Built on the old Server's schema 3, made plain (spec 5.1 with the decisions of 4
 - The telephone number is a field on the place: the meet's game number, not personal data (H30).
 - A call keeps the plan's track name. A table per place translates it to the station's
   track id when a station is coupled (H27, TKL14).
+- A part of a station that is its own driftplats (TKL101) stands as a place of its own, next to
+  the station's, linked to the same station and marked with the station's place (PLAN-34).
 - US meets are not part of this format (F26).
 
 Synk stores a published package as a frozen version with its checksum (common.checksum).
@@ -154,6 +156,11 @@ class CoupledStation(Contract):
     exit_map: dict[Id, Id] = Field(
         default_factory=dict, description="Sträckans id → stationens utfart (H26)."
     )
+    part: Id | None = Field(
+        default=None,
+        description="Delen av stationen som driftplatsen är, med delens id i utsidan (PLAN-34). "
+        "Tomt för stationens egen driftplats.",
+    )
 
 
 class Place(Contract):
@@ -169,6 +176,11 @@ class Place(Contract):
     tracks: list[PlanTrack] = Field(default_factory=list)
     default_tracks: list[DefaultTrack] = Field(default_factory=list)
     station: CoupledStation | None = None
+    part_of: Id | None = Field(
+        default=None,
+        description="Stationens driftplats, när platsen är en del av stationen som är egen "
+        "driftplats: en del som bemannas för sig, kopplad till samma station (PLAN-34, TKL101).",
+    )
     instructions: dict[Language, str] = Field(default_factory=dict)
     source_ids: dict[str, str] = Field(
         default_factory=dict, description="Planens käll-id:n, till exempel för Tellurian."
@@ -368,6 +380,34 @@ def _duplicates(ids: list[str]) -> list[str]:
     return sorted(repeated)
 
 
+def _part_problems(place: Place, places: dict[str, Place]) -> list[str]:
+    """A part of a station (PLAN-34): it points at the station's place, which is no part itself,
+    and both are linked to the same station, as one of its parts."""
+    problems: list[str] = []
+    station = place.station
+    if station is not None and station.part is not None:
+        if station.part not in {p.id for p in station.outside.parts}:
+            problems.append(f"Stationen vid {place.id} har ingen del {station.part}.")
+        if place.part_of is None:
+            problems.append(f"Delen {place.id} pekar inte på stationens driftplats.")
+    if place.part_of is None:
+        return problems
+    whole = places.get(place.part_of)
+    if whole is None:
+        problems.append(f"Driftplatsen {place.id} pekar på en okänd driftplats: {place.part_of}.")
+    elif whole.id == place.id:
+        problems.append(f"Driftplatsen {place.id} kan inte vara en del av sig själv.")
+    elif whole.part_of is not None:
+        problems.append(f"Driftplatsen {place.id} är en del av {whole.id}, som själv är en del.")
+    elif (
+        station is not None
+        and whole.station is not None
+        and station.station_id != whole.station.station_id
+    ):
+        problems.append(f"Delen {place.id} och {whole.id} är kopplade till olika stationer.")
+    return problems
+
+
 def _structural_problems(package: MeetPackage) -> list[str]:
     """Structural errors: a package with any of these cannot be published (spec 4.1)."""
     problems: list[str] = []
@@ -402,6 +442,7 @@ def _structural_problems(package: MeetPackage) -> list[str]:
                 problems.append(f"Driftplatsen {place.id} kan inte fjärrstyra sig själv.")
         if place.remote_from is not None:
             place_ref(place.remote_from, f"Driftplatsen {place.id}")
+        problems += _part_problems(place, places)
         names = [t.name for t in place.tracks]
         for dup in _duplicates([n.casefold() for n in names]):
             problems.append(f"Driftplatsen {place.id} har två spår som heter {dup}.")

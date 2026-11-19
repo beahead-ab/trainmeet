@@ -58,7 +58,12 @@ class ClientKind(StrEnum):
 
 class ConnectRequest(Contract):
     """The client says what it is, which station it is and which places it wants to run.
-    A TKL that is not coupled in advance sends its outside along (H28)."""
+    A TKL that is not coupled in advance sends its outside along (H28).
+
+    A station with parts that are their own driftplatser lists them in its outside (TKL101), and
+    asks for one driftplats per part besides the station's (TRAFIK-35). Without wants Hubben
+    fills them in: the station's place and each part's, coupled in advance in the version or
+    found by the part's id or name. Trafikledningen approves each on its own in Klienter."""
 
     protocol: Literal["trainmeet.station/1"] = PROTOCOL
     protocols: list[Text] = Field(
@@ -69,7 +74,11 @@ class ConnectRequest(Contract):
     software: Text = Field(description="Program och version, till exempel TKL 0.1.0.")
     station_id: Id | None = None
     outside: StationOutside | None = None
-    wants: list[Id] = Field(default_factory=list, description="Driftplatserna den vill köra.")
+    wants: list[Id] = Field(
+        default_factory=list,
+        description="Driftplatserna den vill köra. Tomt: Hubben föreslår stationens driftplats "
+        "och en per del i utsidan (TRAFIK-35).",
+    )
     code: Text | None = Field(
         default=None,
         description="Provbanans kod, bara i en provkörning: den visar vilken körning det gäller.",
@@ -99,7 +108,11 @@ class ConnectReply(Contract):
     protocol: Literal["trainmeet.station/1"] = PROTOCOL
     client_id: Id
     status: ApprovalStatus
-    places: list[Id] = Field(default_factory=list, description="Godkända driftplatser.")
+    places: list[Id] = Field(
+        default_factory=list,
+        description="Godkända driftplatser. Godkännandet gäller per driftplats, så en del som "
+        "godkänns senare kommer med här, med samma nyckel (TRAFIK-35).",
+    )
     key: str | None = Field(
         default=None,
         description="Nyckeln, bara en gång: i första svaret efter godkännandet. Skrivs aldrig ut.",
@@ -120,6 +133,10 @@ class ConnectReply(Contract):
 
 
 class Action(StrEnum):
+    # DRIFT-40: when a station with parts (delställverk, TKL97) is remote-controlled, the parts'
+    # requests, the answers and the list of trains ready to send travel in this protocol too
+    # (TKL100, TKL108). Their actions and snapshot fields are written when remote control is
+    # built (#36); until then they stay inside the station's TKL.
     TRAIN_LOOKUP = "train.lookup"
     TRAIN_TRACK_CHANGE = "train.track.change"
     TRAIN_DEPARTED = "train.departed"

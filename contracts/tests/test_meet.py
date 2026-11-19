@@ -150,3 +150,59 @@ def test_the_outside_carries_no_phone_number_field() -> None:
     package = MeetPackage.model_validate(provbanan())
     station = next(p.station for p in package.places if p.station is not None)
     assert "phone" not in station.outside.model_dump()
+
+
+def with_part(data: dict[str, Any]) -> dict[str, Any]:
+    """Åsen with a yard of its own as a part that is its own driftplats (PLAN-34)."""
+    station = place(data, "asn")["station"]
+    station["outside"]["parts"] = [{"id": "bangard", "name": "Åsens bangård"}]
+    yard = {
+        "id": "asn-bg",
+        "code": "Åbg",
+        "name": "Åsens bangård",
+        "kind": "manned",
+        "part_of": "asn",
+        "station": {**copy.deepcopy(station), "track_map": {}, "exit_map": {}, "part": "bangard"},
+    }
+    at = next(i for i, p in enumerate(data["places"]) if p["id"] == "asn")
+    data["places"].insert(at + 1, yard)
+    return data
+
+
+def test_a_package_without_parts_reads_as_before() -> None:
+    """Parts are optional: a package and an outside from before them still read (PLAN-34)."""
+    package = MeetPackage.model_validate(provbanan())
+    assert all(p.part_of is None for p in package.places)
+    station = next(p.station for p in package.places if p.station is not None)
+    assert station.part is None and station.outside.parts == []
+
+
+def test_a_part_of_a_station_is_its_own_place_linked_to_the_station() -> None:
+    package = MeetPackage.model_validate(with_part(provbanan()))
+    yard = next(p for p in package.places if p.id == "asn-bg")
+    assert yard.part_of == "asn" and yard.station is not None and yard.station.part == "bangard"
+
+
+def test_a_part_points_at_a_known_station_place_that_is_no_part() -> None:
+    data = with_part(provbanan())
+    place(data, "asn-bg")["part_of"] = "xyz"
+    assert "pekar på en okänd driftplats: xyz" in problems(data)
+    data = with_part(provbanan())
+    place(data, "asn-bg")["part_of"] = "asn-bg"
+    assert "kan inte vara en del av sig själv" in problems(data)
+    data = with_part(provbanan())
+    place(data, "nby")["part_of"] = "asn-bg"
+    assert "som själv är en del" in problems(data)
+
+
+def test_a_part_is_one_of_its_stations_parts() -> None:
+    data = with_part(provbanan())
+    place(data, "asn-bg")["station"]["part"] = "lokstall"
+    assert "har ingen del lokstall" in problems(data)
+    data = with_part(provbanan())
+    del place(data, "asn-bg")["part_of"]
+    assert "pekar inte på stationens driftplats" in problems(data)
+    data = with_part(provbanan())
+    yard = place(data, "asn-bg")["station"]
+    yard["station_id"] = yard["outside"]["station_id"] = "annan"
+    assert "kopplade till olika stationer" in problems(data)

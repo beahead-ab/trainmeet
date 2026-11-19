@@ -124,7 +124,12 @@ def router(store: PreviewStore) -> APIRouter:
     def boxes(
         response: Response,
         run_id: str | None,
-        change: drift.Assign | drift.Approve | drift.Revoke | drift.CoupleExit | None = None,
+        change: drift.Assign
+        | drift.Approve
+        | drift.Refuse
+        | drift.Revoke
+        | drift.CoupleExit
+        | None = None,
     ) -> dict[str, Any]:
         response.headers["Cache-Control"] = "no-store"
         try:
@@ -135,6 +140,8 @@ def router(store: PreviewStore) -> APIRouter:
                     listed = store.assign(run_id, change)
                 case drift.Approve():
                     listed = store.approve(run_id, change)
+                case drift.Refuse():
+                    listed = store.refuse(run_id, change)
                 case drift.Revoke():
                     listed = store.revoke(run_id, change)
                 case drift.CoupleExit():
@@ -169,6 +176,10 @@ def router(store: PreviewStore) -> APIRouter:
         approval: drift.Approve, response: Response, run: RunCookie = None
     ) -> dict[str, Any]:
         return boxes(response, run, approval)
+
+    @routes.post("/api/provbanan/clients/refuse")
+    def refuse(refusal: drift.Refuse, response: Response, run: RunCookie = None) -> dict[str, Any]:
+        return boxes(response, run, refusal)
 
     @routes.post("/api/provbanan/clients/revoke")
     def revoke(

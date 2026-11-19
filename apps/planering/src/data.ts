@@ -49,6 +49,17 @@ export function days(list: readonly string[]): string {
 
 export const trainName = (train: Train) => [train.train_type, train.number].filter(Boolean).join(" ");
 
+/** The places with each part of a station right after the station's own (PLAN-34): a part that
+ * is its own driftplats stands next to its station, wherever the plan has it. */
+export function byStation<Row extends { id: string; part_of?: string | null }>(places: Row[]): Row[] {
+  const known = new Set(places.map((place) => place.id));
+  const isPart = (place: Row) => Boolean(place.part_of && place.part_of !== place.id && known.has(place.part_of));
+  return places.filter((place) => !isPart(place)).flatMap((place) => [place, ...places.filter((part) => isPart(part) && part.part_of === place.id)]);
+}
+
+/** A part's mark: Del av and its station's name. */
+export const partOf = (place: { part_of?: string | null }, name: (id: string) => string) => (place.part_of ? `del av ${name(place.part_of)}` : null);
+
 export function callKind(train: Train, call: Call, index: number): string {
   if (index === 0) return "Utgångsstation";
   if (index === train.calls.length - 1) return "Slutstation";

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Problem } from "@trainmeet/hubben";
 import { planning, type Changes, type Draft, type TrackPicture } from "./api";
-import { CERTAINTY, Facts, KINDS, MODES, TRACKS, plural, sourceKind, type Package, type Place, type Section } from "./data";
+import { CERTAINTY, Facts, KINDS, MODES, TRACKS, partOf, plural, sourceKind, type Package, type Place, type Section } from "./data";
 import { layout, links, sectionLabel, STEP_X, STEP_Y } from "./karta";
 
 // Bana (S6): the map with the places and the clearance sections, with their parts under. Choose
@@ -107,6 +107,7 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
             <span>Streckad ram = skuggbangård</span>
             <span>Dubbla linjer = dubbelspår</span>
             <span>Grå streckad = spår utan klarering i planen</span>
+            {pkg.places.some((item) => item.part_of) && <span id="part-legend">Prickad = del av en station, egen driftplats</span>}
             <span className="bla">Blå = vald</span>
             {picture && <span id="picture-legend">Grått under = banbilden</span>}
           </footer>
@@ -222,6 +223,15 @@ export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: 
             );
           })}
         </g>
+        <g className="delar">
+          {pkg.places
+            .filter((place) => place.part_of && plan.at.has(place.id) && plan.at.has(place.part_of))
+            .map((place) => {
+              const [ax, ay] = point(place.part_of as string);
+              const [bx, by] = point(place.id);
+              return <line key={`${place.id}-del`} x1={ax} y1={ay} x2={bx} y2={by} className="del" aria-hidden="true" />;
+            })}
+        </g>
         <g className="etiketter">
           {shown.map((link) => {
             const section = link.section;
@@ -245,12 +255,12 @@ export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: 
               const [x, y] = point(place.id);
               const chosen = choice?.kind === "place" && choice.id === place.id;
               const remote = place.remote_from ? places.get(place.remote_from) : undefined;
-              const note = place.kind === "shadow_yard" ? "skuggbangård" : remote ? `fjärrstyrd från ${remote.name}` : place.kind === "unmanned" ? "obemannad" : null;
+              const note = partOf(place, (id) => places.get(id)?.name ?? id) ?? (place.kind === "shadow_yard" ? "skuggbangård" : remote ? `fjärrstyrd från ${remote.name}` : place.kind === "unmanned" ? "obemannad" : null);
               const boxWidth = Math.max(54, place.code.length * 9 + 22);
               return (
                 <g
                   key={place.id}
-                  className={`plats ${place.kind}${chosen ? " vald" : ""}`}
+                  className={`plats ${place.kind}${place.part_of ? " del" : ""}${chosen ? " vald" : ""}`}
                   tabIndex={0}
                   role="button"
                   aria-label={place.name}
@@ -424,6 +434,12 @@ function PlaceChoice({ admin, draft, pkg, place, facts, unsure, onSave }: { admi
           <dt>Platstyp</dt>
           <dd>{(KINDS[place.kind] ?? place.kind) + (place.remote_from ? `, från ${nameOf(pkg, place.remote_from)}` : "")}</dd>
         </div>
+        {place.part_of && (
+          <div className="par">
+            <dt>Del av</dt>
+            <dd>{`${nameOf(pkg, place.part_of)}, egen driftplats som bemannas för sig`}</dd>
+          </div>
+        )}
         <div className="par">
           <dt>Telefon</dt>
           <dd>{place.phone ?? "–"}</dd>

@@ -872,6 +872,38 @@
         ]
       }
     },
+    "/api/drift/1/clients/refuse": {
+      "post": {
+        "operationId": "refuseClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.refuse"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/drift/1/clients/revoke": {
       "post": {
         "operationId": "revokeClient",
@@ -2175,6 +2207,33 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/trainmeet.drift-1.approve"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/provbanan/clients/refuse": {
+      "post": {
+        "operationId": "refusePreviewClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.drift-1.preview-clients"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.refuse"
               }
             }
           }
@@ -4496,6 +4555,20 @@
             },
             "title": "Exit Map",
             "type": "object"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen som driftplatsen är, med delens id i utsidan (PLAN-34). Tomt för stationens egen driftplats.",
+            "title": "Part"
           }
         },
         "required": [
@@ -5048,6 +5121,20 @@
             ],
             "default": null
           },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av stationen som är egen driftplats: en del som bemannas för sig, kopplad till samma station (PLAN-34, TKL101).",
+            "title": "Part Of"
+          },
           "instructions": {
             "additionalProperties": {
               "type": "string"
@@ -5343,6 +5430,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.meet-1.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -5352,6 +5447,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.meet-1.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.meet-1.StationTrack": {
@@ -5613,6 +5748,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-outside-1.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -5709,6 +5852,46 @@
         "title": "Side",
         "type": "string"
       },
+      "trainmeet.station-outside-1.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
+        "type": "object"
+      },
       "trainmeet.station-outside-1.StationTrack": {
         "additionalProperties": true,
         "properties": {
@@ -5735,7 +5918,7 @@
       },
       "trainmeet.station-1.connect-request": {
         "additionalProperties": true,
-        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).\n\nA station with parts that are their own driftplatser lists them in its outside (TKL101), and\nasks for one driftplats per part besides the station's (TRAFIK-35). Without wants Hubben\nfills them in: the station's place and each part's, coupled in advance in the version or\nfound by the part's id or name. Trafikledningen approves each on its own in Klienter.",
         "properties": {
           "protocol": {
             "const": "trainmeet.station/1",
@@ -5795,7 +5978,7 @@
             "default": null
           },
           "wants": {
-            "description": "Driftplatserna den vill köra.",
+            "description": "Driftplatserna den vill köra. Tomt: Hubben föreslår stationens driftplats och en per del i utsidan (TRAFIK-35).",
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
               "type": "string"
@@ -5979,6 +6162,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.connect-request.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -5988,6 +6179,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.station-1.connect-request.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.station-1.connect-request.StationTrack": {
@@ -6032,7 +6263,7 @@
             "$ref": "#/components/schemas/trainmeet.station-1.connect-reply.ApprovalStatus"
           },
           "places": {
-            "description": "Godkända driftplatser.",
+            "description": "Godkända driftplatser. Godkännandet gäller per driftplats, så en del som godkänns senare kommer med här, med samma nyckel (TRAFIK-35).",
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
               "type": "string"
@@ -12132,6 +12363,7 @@
       },
       "trainmeet.drift-1.approve": {
         "additionalProperties": true,
+        "description": "Trafikledningen godkänner en TKL eller appen för driftplatser (H31). Godkännandet gäller\nper driftplats (TRAFIK-35): en klient som redan är godkänd behåller sin nyckel och får\ndriftplatserna till de den har. Annars ger godkännandet en ny nyckel.",
         "properties": {
           "client_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -12153,6 +12385,32 @@
           "places"
         ],
         "title": "Approve",
+        "type": "object"
+      },
+      "trainmeet.drift-1.refuse": {
+        "additionalProperties": true,
+        "description": "Trafikledningen nekar en klient driftplatser den vill köra, var och en för sig\n(TRAFIK-35). En nekad del stoppar inte stationen: de andra driftplatserna står kvar. En\ngodkänd driftplats som nekas tas från klienten; har den inga kvar slutar nyckeln gälla.",
+        "properties": {
+          "client_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Places",
+            "type": "array"
+          }
+        },
+        "required": [
+          "client_id",
+          "places"
+        ],
+        "title": "Refuse",
         "type": "object"
       },
       "trainmeet.drift-1.revoke": {
@@ -12368,6 +12626,14 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "wanted": {
+            "description": "Bara för TKL och appen: driftplatserna klienten vill köra eller är godkänd för, var och en med sitt svar (TRAFIK-35).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.client.ClientPlace"
+            },
+            "title": "Wanted",
+            "type": "array"
           }
         },
         "required": [
@@ -12388,6 +12654,55 @@
         ],
         "title": "ApprovalStatus",
         "type": "string"
+      },
+      "trainmeet.drift-1.client.ClientPlace": {
+        "additionalProperties": true,
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.client.ApprovalStatus",
+            "description": "Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det."
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen, med delens id i utsidan.",
+            "title": "Part"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när driftplatsen är en del av den.",
+            "title": "Part Of"
+          }
+        },
+        "required": [
+          "place",
+          "status"
+        ],
+        "title": "ClientPlace",
+        "type": "object"
       },
       "trainmeet.drift-1.client.DisplaySize": {
         "additionalProperties": true,
@@ -17281,6 +17596,20 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av den som är egen driftplats (PLAN-34, TRAFIK-35).",
+            "title": "Part Of"
           }
         },
         "required": [
@@ -18772,6 +19101,14 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "wanted": {
+            "description": "Bara för TKL och appen: driftplatserna klienten vill köra eller är godkänd för, var och en med sitt svar (TRAFIK-35).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.drift-1.preview-clients.ClientPlace"
+            },
+            "title": "Wanted",
+            "type": "array"
           }
         },
         "required": [
@@ -18781,6 +19118,55 @@
           "status"
         ],
         "title": "Client",
+        "type": "object"
+      },
+      "trainmeet.drift-1.preview-clients.ClientPlace": {
+        "additionalProperties": true,
+        "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+        "properties": {
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.drift-1.preview-clients.ApprovalStatus",
+            "description": "Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det."
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen, med delens id i utsidan.",
+            "title": "Part"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när driftplatsen är en del av den.",
+            "title": "Part Of"
+          }
+        },
+        "required": [
+          "place",
+          "status"
+        ],
+        "title": "ClientPlace",
         "type": "object"
       },
       "trainmeet.drift-1.preview-clients.DisplaySize": {
@@ -25703,6 +26089,20 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av den som är egen driftplats (PLAN-34, TRAFIK-35).",
+            "title": "Part Of"
           }
         },
         "required": [
@@ -28020,6 +28420,20 @@
             },
             "title": "Exit Map",
             "type": "object"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen som driftplatsen är, med delens id i utsidan (PLAN-34). Tomt för stationens egen driftplats.",
+            "title": "Part"
           }
         },
         "required": [
@@ -28909,6 +29323,20 @@
             ],
             "default": null
           },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av stationen som är egen driftplats: en del som bemannas för sig, kopplad till samma station (PLAN-34, TKL101).",
+            "title": "Part Of"
+          },
           "instructions": {
             "additionalProperties": {
               "type": "string"
@@ -29280,6 +29708,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.import.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -29289,6 +29725,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.planning-1.import.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.planning-1.import.StationTrack": {
@@ -30455,6 +30931,20 @@
             },
             "title": "Exit Map",
             "type": "object"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen som driftplatsen är, med delens id i utsidan (PLAN-34). Tomt för stationens egen driftplats.",
+            "title": "Part"
           }
         },
         "required": [
@@ -31604,6 +32094,20 @@
             ],
             "default": null
           },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av stationen som är egen driftplats: en del som bemannas för sig, kopplad till samma station (PLAN-34, TKL101).",
+            "title": "Part Of"
+          },
           "instructions": {
             "additionalProperties": {
               "type": "string"
@@ -32146,6 +32650,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.planning-1.draft.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -32155,6 +32667,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.planning-1.draft.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.planning-1.draft.StationTrack": {
@@ -37057,6 +37609,20 @@
             },
             "title": "Exit Map",
             "type": "object"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen av stationen som driftplatsen är, med delens id i utsidan (PLAN-34). Tomt för stationens egen driftplats.",
+            "title": "Part"
           }
         },
         "required": [
@@ -38352,6 +38918,20 @@
             ],
             "default": null
           },
+          "part_of": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens driftplats, när platsen är en del av stationen som är egen driftplats: en del som bemannas för sig, kopplad till samma station (PLAN-34, TKL101).",
+            "title": "Part Of"
+          },
           "instructions": {
             "additionalProperties": {
               "type": "string"
@@ -39046,6 +39626,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.home-bundle.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -39055,6 +39643,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.home-bundle.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.sync-1.home-bundle.StationTrack": {
@@ -39873,7 +40501,7 @@
       },
       "trainmeet.sync-1.relay-call.ConnectRequest": {
         "additionalProperties": true,
-        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).\n\nA station with parts that are their own driftplatser lists them in its outside (TKL101), and\nasks for one driftplats per part besides the station's (TRAFIK-35). Without wants Hubben\nfills them in: the station's place and each part's, coupled in advance in the version or\nfound by the part's id or name. Trafikledningen approves each on its own in Klienter.",
         "properties": {
           "protocol": {
             "const": "trainmeet.station/1",
@@ -39933,7 +40561,7 @@
             "default": null
           },
           "wants": {
-            "description": "Driftplatserna den vill köra.",
+            "description": "Driftplatserna den vill köra. Tomt: Hubben föreslår stationens driftplats och en per del i utsidan (TRAFIK-35).",
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
               "type": "string"
@@ -40221,6 +40849,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-call.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -40230,6 +40866,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-call.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.sync-1.relay-call.StationTrack": {
@@ -40438,7 +41114,7 @@
       },
       "trainmeet.sync-1.relay-calls.ConnectRequest": {
         "additionalProperties": true,
-        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+        "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).\n\nA station with parts that are their own driftplatser lists them in its outside (TKL101), and\nasks for one driftplats per part besides the station's (TRAFIK-35). Without wants Hubben\nfills them in: the station's place and each part's, coupled in advance in the version or\nfound by the part's id or name. Trafikledningen approves each on its own in Klienter.",
         "properties": {
           "protocol": {
             "const": "trainmeet.station/1",
@@ -40498,7 +41174,7 @@
             "default": null
           },
           "wants": {
-            "description": "Driftplatserna den vill köra.",
+            "description": "Driftplatserna den vill köra. Tomt: Hubben föreslår stationens driftplats och en per del i utsidan (TRAFIK-35).",
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
               "type": "string"
@@ -40922,6 +41598,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-calls.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -40931,6 +41615,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-calls.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.sync-1.relay-calls.StationTrack": {
@@ -41480,7 +42204,7 @@
             "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ApprovalStatus"
           },
           "places": {
-            "description": "Godkända driftplatser.",
+            "description": "Godkända driftplatser. Godkännandet gäller per driftplats, så en del som godkänns senare kommer med här, med samma nyckel (TRAFIK-35).",
             "items": {
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
               "type": "string"
@@ -43020,6 +43744,14 @@
             },
             "title": "Sides",
             "type": "array"
+          },
+          "parts": {
+            "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-package.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
           }
         },
         "required": [
@@ -43029,6 +43761,46 @@
           "exits"
         ],
         "title": "StationOutside",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-package.StationPart": {
+        "additionalProperties": true,
+        "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+        "properties": {
+          "id": {
+            "description": "Delens fasta id i stationen, satt i TKL Studio.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Delens namn, som driftplatsen får i planen.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+            "title": "Code"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
         "type": "object"
       },
       "trainmeet.sync-1.station-package.StationTrack": {

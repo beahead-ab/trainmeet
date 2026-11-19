@@ -141,6 +141,14 @@
           },
           "title": "Sides",
           "type": "array"
+        },
+        "parts": {
+          "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+          "items": {
+            "$ref": "#/$defs/StationPart"
+          },
+          "title": "Parts",
+          "type": "array"
         }
       },
       "required": [
@@ -150,6 +158,46 @@
         "exits"
       ],
       "title": "StationOutside",
+      "type": "object"
+    },
+    "StationPart": {
+      "additionalProperties": true,
+      "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+      "properties": {
+        "id": {
+          "description": "Delens fasta id i stationen, satt i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Delens namn, som driftplatsen får i planen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "StationPart",
       "type": "object"
     },
     "StationTrack": {
@@ -178,7 +226,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).",
+  "description": "The client says what it is, which station it is and which places it wants to run.\nA TKL that is not coupled in advance sends its outside along (H28).\n\nA station with parts that are their own driftplatser lists them in its outside (TKL101), and\nasks for one driftplats per part besides the station's (TRAFIK-35). Without wants Hubben\nfills them in: the station's place and each part's, coupled in advance in the version or\nfound by the part's id or name. Trafikledningen approves each on its own in Klienter.",
   "properties": {
     "protocol": {
       "const": "trainmeet.station/1",
@@ -238,7 +286,7 @@
       "default": null
     },
     "wants": {
-      "description": "Driftplatserna den vill köra.",
+      "description": "Driftplatserna den vill köra. Tomt: Hubben föreslår stationens driftplats och en per del i utsidan (TRAFIK-35).",
       "items": {
         "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
         "type": "string"

@@ -228,6 +228,8 @@ export function App() {
           return api.assign({ client_id: change.client_id, places: change.places, side: change.side, language: change.language as never });
         case "approve":
           return api.approve({ client_id: change.client_id, places: change.places });
+        case "refuse":
+          return api.refuse({ client_id: change.client_id, places: change.places });
         case "revoke":
           return api.revoke({ client_id: change.client_id });
         case "view":

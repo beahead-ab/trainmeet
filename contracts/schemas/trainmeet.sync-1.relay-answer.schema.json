@@ -387,7 +387,7 @@
           "$ref": "#/$defs/ApprovalStatus"
         },
         "places": {
-          "description": "Godkända driftplatser.",
+          "description": "Godkända driftplatser. Godkännandet gäller per driftplats, så en del som godkänns senare kommer med här, med samma nyckel (TRAFIK-35).",
           "items": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "type": "string"

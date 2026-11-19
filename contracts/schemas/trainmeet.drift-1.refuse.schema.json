@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.refuse.schema.json",
+  "title": "trainmeet.drift-1.refuse",
+  "additionalProperties": true,
+  "description": "Trafikledningen nekar en klient driftplatser den vill köra, var och en för sig\n(TRAFIK-35). En nekad del stoppar inte stationen: de andra driftplatserna står kvar. En\ngodkänd driftplats som nekas tas från klienten; har den inga kvar slutar nyckeln gälla.",
+  "properties": {
+    "client_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Places",
+      "type": "array"
+    }
+  },
+  "required": [
+    "client_id",
+    "places"
+  ],
+  "type": "object"
+}

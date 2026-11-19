@@ -46,3 +46,20 @@ def test_a_station_needs_tracks_and_exits() -> None:
     data["exits"] = []
     with pytest.raises(ValidationError):
         StationOutside.model_validate(data)
+
+
+def test_the_parts_that_are_their_own_places_are_optional() -> None:
+    """TKL101, PLAN-34: an outside from before parts reads with none; a part has an id and a
+    name, and a code only if the owner gives one."""
+    assert StationOutside.model_validate(asen()).parts == []
+    data = asen()
+    data["parts"] = [{"id": "bangard", "name": "Åsens bangård"}]
+    [part] = StationOutside.model_validate(data).parts
+    assert (part.id, part.name, part.code) == ("bangard", "Åsens bangård", None)
+
+
+def test_two_parts_cannot_share_an_id() -> None:
+    data = asen()
+    data["parts"] = [{"id": "bangard", "name": "Bangården"}, {"id": "bangard", "name": "Depån"}]
+    with pytest.raises(ValidationError, match="Två delar har samma id"):
+        StationOutside.model_validate(data)

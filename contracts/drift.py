@@ -7,6 +7,7 @@ the dispatcher's login (a local PIN until TrainMeet ID, step 6):
     POST /api/drift/1/clock              ClockControl -> DriftEvent
     GET  /api/drift/1/clients            list[Client]         Väntar first
     POST /api/drift/1/clients/approve    Approve -> Client    TKL and the app (H31)
+    POST /api/drift/1/clients/refuse     Refuse -> Client     one driftplats said no to (TRAFIK-35)
     POST /api/drift/1/clients/revoke     Revoke -> Client
     POST /api/drift/1/clients/assign     Assign -> Client     TMBoxes: place and side
     GET  /api/drift/1/automation         AutomationStatus     who works which place (F14)
@@ -389,6 +390,19 @@ class SwitchPreview(Contract):
 
 
 class Approve(Contract):
+    """Trafikledningen godkänner en TKL eller appen för driftplatser (H31). Godkännandet gäller
+    per driftplats (TRAFIK-35): en klient som redan är godkänd behåller sin nyckel och får
+    driftplatserna till de den har. Annars ger godkännandet en ny nyckel."""
+
+    client_id: Id
+    places: list[Id] = Field(min_length=1)
+
+
+class Refuse(Contract):
+    """Trafikledningen nekar en klient driftplatser den vill köra, var och en för sig
+    (TRAFIK-35). En nekad del stoppar inte stationen: de andra driftplatserna står kvar. En
+    godkänd driftplats som nekas tas från klienten; har den inga kvar slutar nyckeln gälla."""
+
     client_id: Id
     places: list[Id] = Field(min_length=1)
 
@@ -415,6 +429,24 @@ class Assign(Contract):
     language: BoxLanguage | None = None
 
 
+class ClientPlace(Contract):
+    """En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
+    (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
+    driftplats (PLAN-34)."""
+
+    place: Id
+    status: ApprovalStatus = Field(
+        description="Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela "
+        "klienten är det."
+    )
+    part: Id | None = Field(
+        default=None, description="Delen av stationen, med delens id i utsidan."
+    )
+    part_of: Id | None = Field(
+        default=None, description="Stationens driftplats, när driftplatsen är en del av den."
+    )
+
+
 class Client(Contract):
     client_id: Id
     name: Text
@@ -428,6 +460,11 @@ class Client(Contract):
     station_id: Id | None = Field(default=None, description="Bara för TKL: stationens id.")
     questions: list[ExitQuestion] = Field(
         default_factory=list, description="Hubbens frågor om stationens utfarter (H26)."
+    )
+    wanted: list[ClientPlace] = Field(
+        default_factory=list,
+        description="Bara för TKL och appen: driftplatserna klienten vill köra eller är godkänd "
+        "för, var och en med sitt svar (TRAFIK-35).",
     )
 
 
@@ -1100,6 +1137,11 @@ class NowPlace(Contract):
     place: Id
     code: Text
     name: Text
+    part_of: Id | None = Field(
+        default=None,
+        description="Stationens driftplats, när platsen är en del av den som är egen driftplats "
+        "(PLAN-34, TRAFIK-35).",
+    )
 
 
 class LegNow(Contract):

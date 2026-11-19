@@ -13,6 +13,55 @@
       "title": "ApprovalStatus",
       "type": "string"
     },
+    "ClientPlace": {
+      "additionalProperties": true,
+      "description": "En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den\n(TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens\ndriftplats (PLAN-34).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus",
+          "description": "Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela klienten är det."
+        },
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen av stationen, med delens id i utsidan.",
+          "title": "Part"
+        },
+        "part_of": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationens driftplats, när driftplatsen är en del av den.",
+          "title": "Part Of"
+        }
+      },
+      "required": [
+        "place",
+        "status"
+      ],
+      "title": "ClientPlace",
+      "type": "object"
+    },
     "DisplaySize": {
       "additionalProperties": true,
       "description": "16×2 or 20×4. Anything else, or nothing, counts as 16×2; a box is never shut out.",
@@ -257,6 +306,14 @@
         "$ref": "#/$defs/ExitQuestion"
       },
       "title": "Questions",
+      "type": "array"
+    },
+    "wanted": {
+      "description": "Bara för TKL och appen: driftplatserna klienten vill köra eller är godkänd för, var och en med sitt svar (TRAFIK-35).",
+      "items": {
+        "$ref": "#/$defs/ClientPlace"
+      },
+      "title": "Wanted",
       "type": "array"
     }
   },

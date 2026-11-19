@@ -1623,6 +1623,20 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
+        },
+        "part_of": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationens driftplats, när platsen är en del av den som är egen driftplats (PLAN-34, TRAFIK-35).",
+          "title": "Part Of"
         }
       },
       "required": [

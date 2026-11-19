@@ -4,7 +4,7 @@ import { Andringar } from "./Andringar";
 import { Följer, Spärrad, Tillbakadragen, Versionsbyte, type SwitchProps } from "./Versionsbyte";
 import type { DriftChange } from "./changes";
 import type { MeetChoice } from "@trainmeet/hubben";
-import { CASES, DRIVER_MESSAGES, ORDINARY, SPEEDS, STATES, WEEKDAYS, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, placeCode, placeName } from "./drift";
+import { CASES, DRIVER_MESSAGES, ORDINARY, SPEEDS, STATES, WEEKDAYS, byStation, clockAt, dayDue, dayName, dayNote, dayTitle, jumpNote, jumpText, minuteOf, modeText, partText, placeCode, placeName, stationOf } from "./drift";
 import { alarmText } from "./Forare";
 import { Chip, Chips } from "./ui";
 
@@ -443,7 +443,9 @@ function Belagda({ now }: { now: Now }) {
 function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuProps & { now: Now; automation: Automation }) {
   const settings = automation.settings;
   const counts: Record<string, number> = { manned: 0, no_contact: 0, automatic: 0 };
-  const places = automation.places ?? [];
+  // A part of a station that is its own driftplats is a row of its own, after its station
+  // (TRAFIK-35).
+  const places = byStation(automation.places ?? [], (place) => place.place, (place) => stationOf(now, place.place));
   for (const place of places) counts[place.mode] = (counts[place.mode] ?? 0) + 1;
   const clientName = (id: string) => clients.find((client) => client.client_id === id)?.name ?? id;
   const trains = (automation.trains ?? []).filter((train) => !ORDINARY.has(train.reason));
@@ -476,8 +478,11 @@ function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuPr
           </thead>
           <tbody id="auto-places">
             {places.map((place) => (
-              <tr key={place.place}>
-                <td>{`${place.name} (${place.code})`}</td>
+              <tr key={place.place} className={stationOf(now, place.place) ? "del" : undefined}>
+                <td>
+                  {`${place.name} (${place.code})`}
+                  {stationOf(now, place.place) && <span className="liten block">{partText(now, stationOf(now, place.place))}</span>}
+                </td>
                 <td>
                   <span className={`pill ${place.mode}`}>{modeText(place, clientName)}</span>
                 </td>

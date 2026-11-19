@@ -9,8 +9,10 @@ import {
   MODES,
   SHOWN,
   TRACKS,
+  byStation,
   callKind,
   days,
+  partOf,
   plural,
   reportSummary,
   sourceKind,
@@ -193,6 +195,8 @@ function makeBlocks(context: Context): AnyBlock[] {
   const stationName = (id: string | null) => (id ? (stations.find((s) => s.outside.station_id === id)?.outside.name ?? id) : null);
   const stationCell = (place: Place) => {
     const shown = value("station", place.id, place.station?.station_id ?? null);
+    // A part follows its station's coupling (PLAN-34): it is coupled with the station, not here.
+    if (place.part_of) return <span>{`${stationName(place.station?.station_id ?? null) ?? "–"} · del`}</span>;
     if (!admin || !stations.length || selectedRef !== `place:${place.id}`) return shown ? <span>{stationName(shown)}</span> : <span className="svag">–</span>;
     return (
       <select
@@ -379,12 +383,21 @@ function makeBlocks(context: Context): AnyBlock[] {
       label: "Driftplatser",
       chosen: "Vald driftplats",
       text: "planens platser; ett ställverk eller en handbox kopplas när den ansluter",
-      rows: places,
+      rows: byStation(places),
       ref: (place) => `place:${place.id}`,
       places: (place) => [place.id],
       columns: [
         { name: "Kod", text: (place) => place.code, cell: (place) => <span className="kod">{place.code}</span> },
-        { name: "Driftplats", text: (place) => place.name },
+        {
+          name: "Driftplats",
+          text: (place) => [place.name, partOf(place, placeName)].filter(Boolean).join(" · "),
+          cell: (place) => (
+            <span>
+              {place.name}
+              {place.part_of && <span className="del-av liten block">{partOf(place, placeName)}</span>}
+            </span>
+          ),
+        },
         {
           name: "Platstyp",
           text: (place) => KINDS[place.kind] ?? place.kind,
@@ -402,6 +415,7 @@ function makeBlocks(context: Context): AnyBlock[] {
       title: (place) => `${place.code} · ${place.name}`,
       detail: (place) => [
         ["Platstyp", (KINDS[place.kind] ?? place.kind) + (place.remote_from ? `, från ${placeName(place.remote_from)}` : "")],
+        ...(place.part_of ? ([["Del av", `${placeName(place.part_of)}, egen driftplats som bemannas för sig`]] as [string, ReactNode][]) : []),
         ["Telefon", value("place", place.id, place.phone ?? null) ?? "–"],
         [
           "Spår",
@@ -1004,7 +1018,8 @@ function Detail({
 }) {
   if (!shown) return null;
   const fact = facts.byRef.get(selected.ref);
-  const asked = (draft.questions ?? []).filter((question) => (question.refs ?? []).includes(selected.ref));
+  // The questions about the chosen row, and the question itself when it is the row (Kontroll).
+  const asked = (draft.questions ?? []).filter((question) => (question.refs ?? []).includes(selected.ref) || selected.ref === `finding:${question.id}`);
   const from = facts.of(selected.ref);
   return (
     <aside id="detail" className="vald" aria-label={shown.chosen}>

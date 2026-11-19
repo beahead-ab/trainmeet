@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Draft, ImportPreview } from "./api";
 import { changesOf, clockValue, DataPage, shownValue, type Edit } from "./Data";
-import { days, describePreview, Facts, reportSummary, sourceKind } from "./data";
+import { byStation, days, describePreview, Facts, reportSummary, sourceKind } from "./data";
 import { Skriv, Underlag } from "./Underlag";
 
 const go = () => undefined;
@@ -265,5 +265,33 @@ describe("Lägg till underlag", () => {
     expect((html.match(/class="fylld"/g) ?? []).length).toBe(2);
     const kept = { ...drawn, report: { level: 2, trains: 0, sections: 0, notes: ["Planeringsfilen har redan banan; banbilden sparas som underlag."] } } as unknown as ImportPreview;
     expect(renderToStaticMarkup(<Underlag meet="varnamo" onClose={go} onApplied={go} initial={{ name: "Banan.pdf", state: "read", preview: kept }} />)).toContain("Banbild · sparas som underlag");
+  });
+});
+
+describe("Data: en del av en station som egen driftplats (PLAN-34)", () => {
+  // Norrby's yard is a part of Norrby that is its own driftplats, last in the plan's list.
+  const yard = { id: "nby-bg", code: "Nbg", name: "Norrby bangård", kind: "manned", remote_from: null, phone: null, tracks: [], part_of: "nby", station: { station_id: "norrby-tkl", version: 1, outside: { station_id: "norrby-tkl", name: "Norrby", tracks: [{ id: "1", label: "Spår 1" }], exits: [{ id: "v", side: "left" }], parts: [{ id: "bg", name: "Norrby bangård" }] }, track_map: {}, exit_map: {}, part: "bg" } };
+  const station = { ...yard.station, part: null };
+  const parted = {
+    ...draft,
+    stations: [{ version: 1, source: "u-1", outside: station.outside }],
+    package: { ...draft.package, places: [{ ...draft.package?.places[0], station }, draft.package?.places[1], yard] },
+  } as unknown as Draft;
+
+  it("shows the part right after its station, marked with it, and coupled with it", () => {
+    const html = renderToStaticMarkup(<DataPage admin meet="varnamo" draft={parted} findings={[]} versions={[]} initialBlocks={["places"]} />);
+    const norrby = html.indexOf(">Norrby<");
+    const part = html.indexOf(">Norrby bangård<");
+    const sjovik = html.indexOf(">Sjövik<");
+    expect(norrby).toBeGreaterThan(-1);
+    expect(norrby).toBeLessThan(part);
+    expect(part).toBeLessThan(sjovik);
+    expect(html).toContain('<span class="del-av liten block">del av Norrby</span>');
+    expect(html).toContain("Norrby · del");
+  });
+
+  it("orders any rows so that each part follows its station", () => {
+    const rows = [{ id: "a" }, { id: "x", part_of: "b" }, { id: "b" }, { id: "y", part_of: "a" }, { id: "z", part_of: "gone" }];
+    expect(byStation(rows).map((row) => row.id)).toEqual(["a", "y", "b", "x", "z"]);
   });
 });

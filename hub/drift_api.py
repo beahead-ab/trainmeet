@@ -473,6 +473,21 @@ def router(
         except failures as error:
             _error(error)
 
+    @routes.post("/clients/refuse")
+    def refuse(
+        change: drift.Refuse,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Trafikledningen nekar driftplatser, var och en för sig (TRAFIK-35)."""
+        response.headers["Cache-Control"] = "no-store"
+        run_id = dispatching(session, authorization)
+        try:
+            return changed(running.store.refuse(run_id, change), change.client_id)
+        except failures as error:
+            _error(error)
+
     @routes.post("/clients/exit")
     def couple_exit(
         change: drift.CoupleExit,

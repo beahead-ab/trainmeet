@@ -4,6 +4,12 @@ The outside is what the meet needs to know about a station: its id and name, its
 tracks, its exits with a fixed id and side, and the sides boxes can show. Synk stores it,
 and the meet package pins it to a version (decisions H28, TKL14, TKL21).
 
+A station split into parts (delställverk, TKL97) lists the parts that are their own driftplatser
+in Hubben: those staffed on their own, chosen by the owner in Studio (TKL101). Each becomes a
+driftplats of its own in the plan, linked to the same station (PLAN-34), and the station's TKL
+asks for one driftplats per part when it connects (TRAFIK-35). A part the same person runs is
+not listed: Hubben never sees it.
+
 Never in the outside: the inside (track plan, signals, addresses) and telephone numbers.
 The telephone number belongs to the place in the plan (H30).
 """
@@ -41,6 +47,18 @@ class BoxSide(Contract):
     label: Text = Field(description="Det boxen visar för sidan, till exempel Väster.")
 
 
+class StationPart(Contract):
+    """A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34)."""
+
+    id: Id = Field(description="Delens fasta id i stationen, satt i TKL Studio.")
+    name: Text = Field(description="Delens namn, som driftplatsen får i planen.")
+    code: Text | None = Field(
+        default=None,
+        description="Delens signatur som driftplats. Tomt: namnet används, som när planen saknar "
+        "en signatur.",
+    )
+
+
 class StationOutside(Contract):
     """The outside of one station. Level 0 stations write tracks and exits as a list (TKL21)."""
 
@@ -50,6 +68,11 @@ class StationOutside(Contract):
     tracks: list[StationTrack] = Field(min_length=1)
     exits: list[Exit] = Field(min_length=1)
     sides: list[BoxSide] = Field(default_factory=list)
+    parts: list[StationPart] = Field(
+        default_factory=list,
+        description="Delarna som är egna driftplatser i Hubben, de som bemannas för sig "
+        "(TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> StationOutside:
@@ -63,4 +86,7 @@ class StationOutside(Contract):
             unknown = sorted(set(exit_.tracks) - set(track_ids))
             if unknown:
                 raise ValueError(f"Utfarten {exit_.id} pekar på okända spår: {', '.join(unknown)}.")
+        part_ids = [p.id for p in self.parts]
+        if len(set(part_ids)) != len(part_ids):
+            raise ValueError("Två delar har samma id.")
         return self

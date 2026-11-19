@@ -149,3 +149,28 @@ describe("Graf (S6)", () => {
     expect(html).toContain('class="ring conflict"');
   });
 });
+
+describe("Bana: en del av en station som egen driftplats (PLAN-34)", () => {
+  // Byn's yard is a part of Byn that is its own driftplats: no section reaches it.
+  const parted = { ...pkg, places: [...pkg.places, { id: "by-bg", code: "Bbg", name: "Byns bangård", kind: "manned", remote_from: null, phone: null, tracks: [], part_of: "b" }] } as unknown as Package;
+
+  it("stands the part right by its station, not in the row of places no line reaches", () => {
+    const plan = layout(parted);
+    const [column, row] = plan.at.get("b") ?? [0, 0];
+    const [partColumn, partRow] = plan.at.get("by-bg") ?? [99, 99];
+    expect(Math.abs(partColumn - column)).toBeLessThanOrEqual(1);
+    expect(Math.abs(partRow - row)).toBeLessThanOrEqual(2);
+    expect(partRow).not.toBe(row);
+  });
+
+  it("marks the part with its station on the map and in the choice", () => {
+    const html = renderToStaticMarkup(<Karta pkg={parted} choice={null} unsure={new Set()} onSelect={go} />);
+    expect(html).toContain('class="plats manned del"');
+    expect(html).toContain(">del av Byn</text>");
+    expect(html).toContain('class="del"');
+    const draft = { meet: { id: "m", name: "Mellby", clearance_mode: "requested" }, package: parted, facts: [], sources: [] } as unknown as Draft;
+    const chosen = renderToStaticMarkup(<BanaPage admin={false} meet="m" draft={draft} initialChoice={{ kind: "place", id: "by-bg" }} />);
+    expect(chosen).toContain("<dt>Del av</dt><dd>Byn, egen driftplats som bemannas för sig</dd>");
+    expect(chosen).toContain("Prickad = del av en station, egen driftplats");
+  });
+});
