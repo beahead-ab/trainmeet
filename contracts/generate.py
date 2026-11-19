@@ -431,6 +431,14 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.new-profile": cad.NewProfile,
     "trainmeet.cad-1.track-graph": cad.TrackGraph,
     "trainmeet.cad-1.assembly": cad.Assembly,
+    # Ritningen and Lås mått (#89 del b).
+    "trainmeet.cad-1.drawing-edit": cad.DrawingEdit,
+    "trainmeet.cad-1.drawing-view": cad.DrawingView,
+    "trainmeet.cad-1.check-item": cad.CheckItem,
+    "trainmeet.cad-1.lock-ask": cad.LockAsk,
+    "trainmeet.cad-1.lock-proposal": cad.LockProposal,
+    "trainmeet.cad-1.smooth-ask": cad.SmoothAsk,
+    "trainmeet.cad-1.smooth-result": cad.SmoothResult,
 }
 
 
@@ -2335,6 +2343,48 @@ def cad_openapi() -> str:
         "visibility-change",
         problems=write,
     )
+    route(
+        "post",
+        a + "/modules/{module}/drawing",
+        "cadDrawing",
+        "drawing-view",
+        "drawing-edit",
+        problems=write,
+    )
+    route(
+        "post",
+        a + "/modules/{module}/drawing/save",
+        "cadSaveDrawing",
+        "module",
+        "drawing-edit",
+        problems=write,
+    )
+    route(
+        "post",
+        a + "/modules/{module}/drawing/approve",
+        "cadApprovePlan",
+        "module",
+        "drawing-edit",
+        problems=write,
+    )
+    route(
+        "post",
+        a + "/modules/{module}/drawing/lock",
+        "cadLockMeasures",
+        "lock-proposal",
+        "lock-ask",
+        problems=write,
+    )
+    route(
+        "get",
+        a + "/modules/{module}/checks",
+        "cadChecks",
+        "check-item",
+        many=True,
+        query=(("version", {"type": "integer"}),),
+        problems=read,
+    )
+    route("post", a + "/smooth", "cadSmooth", "smooth-result", "smooth-ask", problems=(401, 422))
     route(
         "get",
         a + "/profiles",

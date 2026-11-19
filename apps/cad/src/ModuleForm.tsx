@@ -17,6 +17,8 @@ type FormState = {
   length: string;
   width: string;
   widthB: string;
+  /** Förskjutning: gable B's corner at Kant 1 across from gable A's, mm (a trapezoid). */
+  offset: string;
   mode: "chord" | "radius";
   chord: string;
   sagitta: string;
@@ -81,6 +83,7 @@ function initial(kind: FormKind, scale: Scale, profiles: ProfileList | null, mod
       length: shape.kind === "curve" ? "" : show(shape.length),
       width: shape.kind === "trapezoid" ? show(shape.width_a) : show(shape.width),
       widthB: shape.kind === "trapezoid" ? show(shape.width_b) : "",
+      offset: shape.kind === "trapezoid" ? show(shape.offset ?? 0) : "0",
       mode: shape.kind === "curve" && shape.measured ? "chord" : "radius",
       chord: shape.kind === "curve" && shape.measured ? show(shape.measured.chord) : "",
       sagitta: shape.kind === "curve" && shape.measured ? show(shape.measured.sagitta) : "",
@@ -105,6 +108,7 @@ function initial(kind: FormKind, scale: Scale, profiles: ProfileList | null, mod
     length: kind === "trapezoid" ? "685" : "1500",
     width: String(width),
     widthB: kind === "trapezoid" ? "280" : "",
+    offset: "0",
     mode: "chord",
     chord: "",
     sagitta: "",
@@ -159,7 +163,9 @@ function shapeOf(state: FormState): Shape | null {
   if (state.kind === "trapezoid") {
     const widthB = n(state.widthB);
     if (!(widthB > 0)) return null;
-    return { kind: "trapezoid", length, width_a: width, width_b: widthB };
+    const offset = state.offset.trim() === "" ? 0 : n(state.offset);
+    if (Number.isNaN(offset)) return null;
+    return { kind: "trapezoid", length, width_a: width, width_b: widthB, offset };
   }
   return { kind: "straight", length, width };
 }
@@ -442,6 +448,9 @@ export function ModuleForm({ kind, scale, profiles, module, owners = [], owner =
                 <MmInput name="langd" label="Längd" value={state.length} onChange={(v) => set({ length: v })} />
                 <MmInput name="bredd" label={state.kind === "trapezoid" ? "Bredd vid A" : "Bredd"} value={state.width} onChange={(v) => set({ width: v })} />
                 {state.kind === "trapezoid" ? <MmInput name="bredd-b" label="Bredd vid B" value={state.widthB} onChange={(v) => set({ widthB: v })} /> : null}
+                {state.kind === "trapezoid" ? (
+                  <MmInput name="forskjutning" label="Förskjutning av Kant 1 vid B" value={state.offset} onChange={(v) => set({ offset: v })} />
+                ) : null}
               </div>
             ) : null}
           </fieldset>

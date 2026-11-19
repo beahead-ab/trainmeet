@@ -13,14 +13,16 @@ it joins the same two nodes. An id is never used again for something else: graph
 every id issued.
 
 as_station_model() maps the graph to the station model's parts (contracts/station_model.py),
-which is what part d sends to Studio (CAD-10): the same ids, the same node types, and the
-segments as points, arcs sampled every SAMPLE_STEP mm as the AnyRail import does.
+which is what part d sends to Studio (CAD-10): the same ids, the same node types, the segments as
+points, arcs sampled every SAMPLE_STEP mm as the AnyRail import does, and the switches with their
+trunk, straight and diverging pieces (part b draws them, cad/editor.py).
 """
 
 from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from cad import geometry
 from contracts.cad import (
@@ -34,12 +36,14 @@ from contracts.cad import (
     GraphOrigin,
     GraphPiece,
     GraphSource,
+    GraphSwitch,
     LineSegment,
     Segment,
     Shape,
     TrackGraph,
+    Trapezoid,
 )
-from contracts.station_model import Node, NodeType, Origin, Point, Source, TrackPiece
+from contracts.station_model import Node, NodeType, Origin, Point, Source, Switch, TrackPiece
 
 MATCH_WITHIN = 30.0
 """How far in mm a track at a gable may move and still be the same track."""
@@ -56,18 +60,20 @@ def same_tracks(a: Sequence[float], b: Sequence[float]) -> bool:
     )
 
 
-def _gable_point(shape: Shape, gables: Sequence[Gable], end: GableEnd, offset: float) -> Point:
+def gable_point(shape: Shape, gables: Sequence[Gable], end: GableEnd, offset: float) -> Point:
+    """The point offset mm from Kant 1 on the gable."""
     if isinstance(shape, Curve):
         track1 = gables[0].tracks[0]
         angle = 0.0 if end == GableEnd.A else shape.angle
         return geometry.point_on(shape, track1, offset, angle)
     x = 0.0 if end == GableEnd.A else shape.length
-    return (x, offset)
+    shift = shape.offset if isinstance(shape, Trapezoid) and end == GableEnd.B else 0.0
+    return (x, shift + offset)
 
 
 def _segment(shape: Shape, gables: Sequence[Gable], offset: float) -> Segment:
-    start = _gable_point(shape, gables, GableEnd.A, offset)
-    end = _gable_point(shape, gables, GableEnd.B, offset)
+    start = gable_point(shape, gables, GableEnd.A, offset)
+    end = gable_point(shape, gables, GableEnd.B, offset)
     if isinstance(shape, Curve):
         track1 = gables[0].tracks[0]
         return ArcSegment(
@@ -137,7 +143,7 @@ def from_measures(
                 GraphNode(
                     id=node_id,
                     type=NodeType.MODULE_JOINT,
-                    at=_gable_point(shape, gables, gable.end, offset),
+                    at=gable_point(shape, gables, gable.end, offset),
                     gable=gable.end,
                     track=n + 1,
                 )
@@ -215,8 +221,37 @@ STUDIO_SOURCE: dict[GraphSource, Source] = {
 but not how it lies, so Studio shows them as assumed until the owner confirms them."""
 
 
-def as_station_model(graph: TrackGraph) -> tuple[list[Node], list[TrackPiece]]:
-    """The graph as the station model's nodes and track pieces, with the same ids (CAD-10)."""
+class StationParts(NamedTuple):
+    """The graph as the station model's parts: what part d sends to Studio (CAD-10)."""
+
+    nodes: list[Node]
+    pieces: list[TrackPiece]
+    switches: list[Switch]
+
+
+def _origin(origin: GraphOrigin | None, ref: str) -> Origin | None:
+    if origin is None:
+        return None
+    return Origin(
+        source=STUDIO_SOURCE[origin.source],
+        confirmed=origin.certainty == Certainty.CONFIRMED,
+        ref=ref,
+    )
+
+
+def switch_design_text(switch: GraphSwitch) -> str | None:
+    """The switch as the source says it, for the station model's design: "R 705 · 11,4°"."""
+    if switch.radius is None:
+        return None
+    text = f"R {switch.radius:.0f}"
+    if switch.angle is not None:
+        text += f" · {switch.angle:.1f}°".replace(".", ",")
+    return text
+
+
+def as_station_model(graph: TrackGraph) -> StationParts:
+    """The graph as the station model's nodes, track pieces and switches, with the same ids
+    (CAD-10). A switch's number is the owner's, or its place in the drawing."""
     nodes = [Node(id=n.id, type=n.type) for n in graph.nodes]
     pieces: list[TrackPiece] = []
     for piece in graph.pieces:
@@ -224,13 +259,6 @@ def as_station_model(graph: TrackGraph) -> tuple[list[Node], list[TrackPiece]]:
         for segment in piece.segments:
             sampled = sample(segment)
             points.extend(sampled if not points else sampled[1:])
-        origin = None
-        if piece.origin is not None:
-            origin = Origin(
-                source=STUDIO_SOURCE[piece.origin.source],
-                confirmed=piece.origin.certainty == Certainty.CONFIRMED,
-                ref=piece.id,
-            )
         pieces.append(
             TrackPiece(
                 id=piece.id,
@@ -238,7 +266,20 @@ def as_station_model(graph: TrackGraph) -> tuple[list[Node], list[TrackPiece]]:
                 end=piece.end,
                 track=piece.track,
                 geometry=points,
-                origin=origin,
+                origin=_origin(piece.origin, piece.id),
             )
         )
-    return nodes, pieces
+    switches = [
+        Switch(
+            number=s.number or str(n),
+            type=s.type,
+            node=s.node,
+            trunk=s.trunk,
+            straight=s.straight,
+            diverging=s.diverging,
+            design=switch_design_text(s),
+            origin=_origin(s.origin, s.id),
+        )
+        for n, s in enumerate(graph.switches, start=1)
+    ]
+    return StationParts(nodes, pieces, switches)

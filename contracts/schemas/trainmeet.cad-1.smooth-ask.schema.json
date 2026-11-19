@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.smooth-ask.schema.json",
+  "title": "trainmeet.cad-1.smooth-ask",
+  "$defs": {
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    },
+    "Smoothing": {
+      "description": "Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).",
+      "enum": [
+        "off",
+        "light",
+        "normal",
+        "strong"
+      ],
+      "title": "Smoothing",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Utjämning of one line, to see what a level does.",
+  "properties": {
+    "points": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "maxItems": 4000,
+      "minItems": 2,
+      "title": "Points",
+      "type": "array"
+    },
+    "level": {
+      "$ref": "#/$defs/Smoothing",
+      "default": "normal"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale",
+      "default": "H0"
+    }
+  },
+  "required": [
+    "points"
+  ],
+  "type": "object"
+}

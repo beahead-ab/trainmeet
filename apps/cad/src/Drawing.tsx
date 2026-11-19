@@ -16,9 +16,15 @@ type Props = {
   title?: string;
 };
 
-type Turn = (p: Point) => Point;
+export type Turn = (p: Point) => Point;
 
-function turner(shape: Shape): Turn {
+/** The turn that lays a curve's string level; nothing for the other shapes. */
+export function turnDegrees(shape: Shape): number {
+  if (shape.kind !== "curve") return 0;
+  return (shape.angle / 2) * ((shape.edge ?? "outer") === "outer" ? -1 : 1);
+}
+
+export function turner(shape: Shape): Turn {
   if (shape.kind !== "curve") return (p) => p;
   // Turn the curve by half its angle so that the string between the gables lies level.
   const half = ((shape.angle / 2) * Math.PI) / 180 * ((shape.edge ?? "outer") === "outer" ? -1 : 1);
@@ -27,9 +33,12 @@ function turner(shape: Shape): Turn {
   return ([x, y]) => [x * cos - y * sin, x * sin + y * cos];
 }
 
-function outline(shape: Shape, track1: number): Point[] {
+export function outline(shape: Shape, track1: number): Point[] {
   if (shape.kind === "straight") return [[0, 0], [shape.length, 0], [shape.length, shape.width], [0, shape.width]];
-  if (shape.kind === "trapezoid") return [[0, 0], [shape.length, 0], [shape.length, shape.width_b], [0, shape.width_a]];
+  if (shape.kind === "trapezoid") {
+    const o = shape.offset ?? 0;
+    return [[0, 0], [shape.length, o], [shape.length, o + shape.width_b], [0, shape.width_a]];
+  }
   const steps = 24;
   const edge: Point[] = [];
   const far: Point[] = [];
@@ -43,13 +52,14 @@ function outline(shape: Shape, track1: number): Point[] {
   return [...edge, ...far.reverse()];
 }
 
-function kantOne(shape: Shape, track1: number): Point[] {
+export function kantOne(shape: Shape, track1: number): Point[] {
+  if (shape.kind === "trapezoid") return [[0, 0], [shape.length, shape.offset ?? 0]];
   if (shape.kind !== "curve") return [[0, 0], [shape.length, 0]];
   const steps = 24;
   return Array.from({ length: steps + 1 }, (_, k) => pointOn(shape, track1, 0, (shape.angle * k) / steps));
 }
 
-function segsOf(graph: TrackGraph): Seg[] {
+export function segsOf(graph: TrackGraph): Seg[] {
   return (graph.pieces ?? []).flatMap((piece) =>
     piece.segments.map((s): Seg =>
       s.kind === "arc"
@@ -59,16 +69,16 @@ function segsOf(graph: TrackGraph): Seg[] {
   );
 }
 
-const f = (n: number) => (Math.round(n * 10) / 10).toString();
+export const f = (n: number) => (Math.round(n * 10) / 10).toString();
 
-function pathOf(seg: Seg, turn: Turn): string {
+export function pathOf(seg: Seg, turn: Turn): string {
   const [x0, y0] = turn(seg.start);
   const [x1, y1] = turn(seg.end);
   if (seg.kind === "line") return `M${f(x0)} ${f(y0)}L${f(x1)} ${f(y1)}`;
   return `M${f(x0)} ${f(y0)}A${f(seg.radius)} ${f(seg.radius)} 0 0 ${seg.clockwise ? 1 : 0} ${f(x1)} ${f(y1)}`;
 }
 
-function poly(points: Point[], turn: Turn, close: boolean): string {
+export function poly(points: Point[], turn: Turn, close: boolean): string {
   return points.map((p, i) => `${i ? "L" : "M"}${f(turn(p)[0])} ${f(turn(p)[1])}`).join("") + (close ? "Z" : "");
 }
 
@@ -109,7 +119,7 @@ export function ModuleDrawing({ shape, tracks, graph, gables, small = false, tit
   const labelA = labelOf(gables?.[0]);
   const labelB = labelOf(gables?.[1]);
   const gableA = turn([0, 0]);
-  const endB: Point = shape.kind === "curve" ? pointOn(shape, track1, 0, shape.angle) : [shape.length, 0];
+  const endB: Point = shape.kind === "curve" ? pointOn(shape, track1, 0, shape.angle) : [shape.length, shape.kind === "trapezoid" ? (shape.offset ?? 0) : 0];
   const gableB = turn(endB);
   return (
     <svg

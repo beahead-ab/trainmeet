@@ -1,0 +1,1760 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.drawing-view.schema.json",
+  "title": "trainmeet.cad-1.drawing-view",
+  "$defs": {
+    "ArcSegment": {
+      "additionalProperties": true,
+      "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+      "properties": {
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "center": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center",
+          "type": "array"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "clockwise": {
+          "title": "Clockwise",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "center",
+        "radius",
+        "clockwise"
+      ],
+      "title": "ArcSegment",
+      "type": "object"
+    },
+    "Certainty": {
+      "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+      "enum": [
+        "certain",
+        "probable",
+        "uncertain",
+        "confirmed"
+      ],
+      "title": "Certainty",
+      "type": "string"
+    },
+    "CheckAnswer": {
+      "additionalProperties": true,
+      "description": "Ägarens svar på en sak att kolla: kept with the version, by the item's key.",
+      "properties": {
+        "key": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "answer": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Answer",
+          "type": "string"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "By"
+        }
+      },
+      "required": [
+        "key",
+        "answer"
+      ],
+      "title": "CheckAnswer",
+      "type": "object"
+    },
+    "CheckChoice": {
+      "additionalProperties": true,
+      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "closes": {
+          "default": true,
+          "title": "Closes",
+          "type": "boolean"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "design",
+                "lock"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "CheckChoice",
+      "type": "object"
+    },
+    "CheckItem": {
+      "additionalProperties": true,
+      "description": "Att kolla: one thing the owner answers before the track plan is approved. The key names\nthe kind, the parts and the measured value, so a changed value asks again.",
+      "properties": {
+        "key": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/CheckKind"
+        },
+        "source": {
+          "$ref": "#/$defs/CheckSource",
+          "default": "code"
+        },
+        "at": {
+          "description": "The place in mm, in the module's coordinates.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "refs": {
+          "description": "The nodes, pieces and switches.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/CheckChoice"
+          },
+          "minItems": 1,
+          "title": "Choices",
+          "type": "array"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckAnswer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "assumed": {
+          "default": false,
+          "description": "Antagen (AR3): yellow; otherwise orange, as a proposal.",
+          "title": "Assumed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "at",
+        "title",
+        "text",
+        "choices"
+      ],
+      "title": "CheckItem",
+      "type": "object"
+    },
+    "CheckKind": {
+      "description": "Att kolla: what the code found, or (part c) what AI asks.",
+      "enum": [
+        "short_rail",
+        "open_end",
+        "switch_radius",
+        "switch_assumed",
+        "kink",
+        "tight_radius",
+        "gable_position",
+        "question"
+      ],
+      "title": "CheckKind",
+      "type": "string"
+    },
+    "CheckSource": {
+      "enum": [
+        "code",
+        "ai"
+      ],
+      "title": "CheckSource",
+      "type": "string"
+    },
+    "Curve": {
+      "additionalProperties": true,
+      "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+      "properties": {
+        "kind": {
+          "const": "curve",
+          "default": "curve",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius": {
+          "description": "Track 1's centre line, in mm.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "angle": {
+          "description": "The angle, in degrees.",
+          "exclusiveMaximum": 180,
+          "exclusiveMinimum": 0,
+          "title": "Angle",
+          "type": "number"
+        },
+        "width": {
+          "description": "The module body's width, Kant 1 to the other edge.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width",
+          "type": "number"
+        },
+        "edge": {
+          "$ref": "#/$defs/EdgeSide",
+          "default": "outer"
+        },
+        "sides": {
+          "$ref": "#/$defs/CurveSides",
+          "default": "bent"
+        },
+        "measured": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CurveMeasure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The string and sagitta the radius and angle came from."
+        }
+      },
+      "required": [
+        "radius",
+        "angle",
+        "width"
+      ],
+      "title": "Curve",
+      "type": "object"
+    },
+    "CurveMeasure": {
+      "additionalProperties": true,
+      "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+      "properties": {
+        "chord": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Chord",
+          "type": "number"
+        },
+        "sagitta": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Sagitta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "chord",
+        "sagitta"
+      ],
+      "title": "CurveMeasure",
+      "type": "object"
+    },
+    "CurveSides": {
+      "description": "The box's long sides.",
+      "enum": [
+        "bent",
+        "straight"
+      ],
+      "title": "CurveSides",
+      "type": "string"
+    },
+    "Deviation": {
+      "additionalProperties": true,
+      "description": "How far one line lies from another: the median and the largest distance, in mm, over\ncount points.",
+      "properties": {
+        "median": {
+          "minimum": 0,
+          "title": "Median",
+          "type": "number"
+        },
+        "max": {
+          "minimum": 0,
+          "title": "Max",
+          "type": "number"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "median",
+        "max",
+        "count"
+      ],
+      "title": "Deviation",
+      "type": "object"
+    },
+    "DrawingSource": {
+      "description": "Where the track plan comes from: the badge in Ritningen.",
+      "enum": [
+        "measures",
+        "drawn",
+        "photo"
+      ],
+      "title": "DrawingSource",
+      "type": "string"
+    },
+    "DrawingState": {
+      "additionalProperties": true,
+      "description": "What a version keeps of its drawing besides the graph: where it came from, the\nutjämning, the owner's answers, the drawn lines, the locked measures, and the ids this\nversion split or replaced.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/DrawingSource",
+          "default": "measures"
+        },
+        "smoothing": {
+          "$ref": "#/$defs/Smoothing",
+          "default": "normal"
+        },
+        "answers": {
+          "items": {
+            "$ref": "#/$defs/CheckAnswer"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/DrawnLine"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "locks": {
+          "items": {
+            "$ref": "#/$defs/LockedMeasure"
+          },
+          "title": "Locks",
+          "type": "array"
+        },
+        "ids": {
+          "description": "This version's splits.",
+          "items": {
+            "$ref": "#/$defs/IdChange"
+          },
+          "title": "Ids",
+          "type": "array"
+        },
+        "plan_approved": {
+          "default": false,
+          "description": "Godkänn spårplanen gave this one.",
+          "title": "Plan Approved",
+          "type": "boolean"
+        }
+      },
+      "title": "DrawingState",
+      "type": "object"
+    },
+    "DrawingStats": {
+      "additionalProperties": true,
+      "description": "The canvas's bottom line: Spår totalt, antal växlar, and how far the drawing lies from\nits drawn lines (part c: from the photo).",
+      "properties": {
+        "track_length": {
+          "minimum": 0,
+          "title": "Track Length",
+          "type": "number"
+        },
+        "switches": {
+          "minimum": 0,
+          "title": "Switches",
+          "type": "integer"
+        },
+        "deviation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deviation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "track_length",
+        "switches"
+      ],
+      "title": "DrawingStats",
+      "type": "object"
+    },
+    "DrawnLine": {
+      "additionalProperties": true,
+      "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning\nmakes it LINE and ARC again when its level changes, and the deviation is measured from it.",
+      "properties": {
+        "piece": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Piece",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 4000,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "source": {
+          "default": "hand",
+          "enum": [
+            "hand",
+            "photo"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "piece",
+        "points"
+      ],
+      "title": "DrawnLine",
+      "type": "object"
+    },
+    "EdgeSide": {
+      "description": "Which edge of a curve module is Kant 1.",
+      "enum": [
+        "outer",
+        "inner"
+      ],
+      "title": "EdgeSide",
+      "type": "string"
+    },
+    "Gable": {
+      "additionalProperties": true,
+      "description": "Gavel: a module's end, with its norm, its profile and where the tracks go through it, in\nmm from Kant 1, track 1 nearest Kant 1. Without a profile it is an own gable, measured here.",
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: egen gavel.",
+          "title": "Profile"
+        },
+        "tracks": {
+          "items": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "type": "number"
+          },
+          "maxItems": 12,
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "end"
+      ],
+      "title": "Gable",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "GraphLabel": {
+      "additionalProperties": true,
+      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The piece or switch it names.",
+          "title": "Ref"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "at"
+      ],
+      "title": "GraphLabel",
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": true,
+      "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/NodeType"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "gable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spår n i gaveln.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "at"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    },
+    "GraphOrigin": {
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/GraphSource"
+        },
+        "certainty": {
+          "$ref": "#/$defs/Certainty"
+        }
+      },
+      "required": [
+        "source",
+        "certainty"
+      ],
+      "title": "GraphOrigin",
+      "type": "object"
+    },
+    "GraphPiece": {
+      "additionalProperties": true,
+      "description": "Spårbit: track centre from one node to another, as LINE and ARC segments in order.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "End",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "arc": "#/$defs/ArcSegment",
+                "line": "#/$defs/LineSegment"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LineSegment"
+              },
+              {
+                "$ref": "#/$defs/ArcSegment"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Segments",
+          "type": "array"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spårnummer, när ägaren har gett det.",
+          "title": "Track"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "segments"
+      ],
+      "title": "GraphPiece",
+      "type": "object"
+    },
+    "GraphSource": {
+      "description": "Where a piece of the graph comes from.",
+      "enum": [
+        "measures",
+        "photo",
+        "sketch",
+        "anyrail",
+        "drawn"
+      ],
+      "title": "GraphSource",
+      "type": "string"
+    },
+    "GraphSwitch": {
+      "additionalProperties": true,
+      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);\nthe diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,\nVäxlar). design is the switch type from the switch library (Växeltyp), null while Okänd.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "node": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Node",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SwitchType"
+        },
+        "trunk": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trunk"
+        },
+        "straight": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Straight"
+        },
+        "diverging": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diverging"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 90,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växelnummer.",
+          "title": "Number"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växeltyp; null: Okänd.",
+          "title": "Design"
+        },
+        "toward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The gable the diverging leg heads for."
+        },
+        "locked": {
+          "default": false,
+          "description": "Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.",
+          "title": "Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "node",
+        "type"
+      ],
+      "title": "GraphSwitch",
+      "type": "object"
+    },
+    "IdChange": {
+      "additionalProperties": true,
+      "description": "A piece split or replaced (CAD-20): Lås mått, a switch or a cut. The first new id is the\nfirst old one, so Studio follows the owner's additions (signals, boundaries) along.",
+      "properties": {
+        "old": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Old",
+          "type": "array"
+        },
+        "new": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "New",
+          "type": "array"
+        },
+        "why": {
+          "enum": [
+            "lock",
+            "switch",
+            "cut",
+            "switch_removed"
+          ],
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "old",
+        "new",
+        "why"
+      ],
+      "title": "IdChange",
+      "type": "object"
+    },
+    "LineSegment": {
+      "additionalProperties": true,
+      "description": "LINE: a straight piece of track centre, in mm.",
+      "properties": {
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "LineSegment",
+      "type": "object"
+    },
+    "LockedMeasure": {
+      "additionalProperties": true,
+      "description": "Låst mått: a gable track's position from Kant 1, locked by the owner (CAD-24).",
+      "properties": {
+        "gable": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "track": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Track",
+          "type": "integer"
+        },
+        "value": {
+          "exclusiveMinimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the line said before, mm.",
+          "title": "Line"
+        }
+      },
+      "required": [
+        "gable",
+        "track",
+        "value"
+      ],
+      "title": "LockedMeasure",
+      "type": "object"
+    },
+    "NodeType": {
+      "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+      "enum": [
+        "switch",
+        "crossing",
+        "signal_point",
+        "block_boundary",
+        "module_joint",
+        "joint",
+        "stop_point",
+        "buffer_stop",
+        "line_exit",
+        "turntable"
+      ],
+      "title": "NodeType",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    },
+    "ScaleLimits": {
+      "additionalProperties": true,
+      "description": "What the code holds a drawing in a scale to (cad/switches.py says where each comes from):\nthe track's minimum radius and the kink check, the switches' lower limit, and the gauge.",
+      "properties": {
+        "scale": {
+          "$ref": "#/$defs/Scale"
+        },
+        "gauge": {
+          "description": "Spårvidd, mm.",
+          "exclusiveMinimum": 0,
+          "title": "Gauge",
+          "type": "number"
+        },
+        "min_radius": {
+          "description": "Minsta radie för spår, mm.",
+          "exclusiveMinimum": 0,
+          "title": "Min Radius",
+          "type": "number"
+        },
+        "switch_min_radius": {
+          "description": "Växelns nedre gräns för radien, mm.",
+          "exclusiveMinimum": 0,
+          "title": "Switch Min Radius",
+          "type": "number"
+        },
+        "kink": {
+          "description": "Största vinkelhopp på 10 mm innan det är en knyck, °.",
+          "exclusiveMinimum": 0,
+          "title": "Kink",
+          "type": "number"
+        },
+        "gable_tolerance": {
+          "description": "Hur långt ett gavelspår får ligga från gavelns mått innan det visas, mm.",
+          "exclusiveMinimum": 0,
+          "title": "Gable Tolerance",
+          "type": "number"
+        },
+        "design_tolerance": {
+          "description": "How far a switch's radius may lie from a type's, as a fraction.",
+          "exclusiveMinimum": 0,
+          "title": "Design Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "scale",
+        "gauge",
+        "min_radius",
+        "switch_min_radius",
+        "kink",
+        "gable_tolerance",
+        "design_tolerance"
+      ],
+      "title": "ScaleLimits",
+      "type": "object"
+    },
+    "Smoothing": {
+      "description": "Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).",
+      "enum": [
+        "off",
+        "light",
+        "normal",
+        "strong"
+      ],
+      "title": "Smoothing",
+      "type": "string"
+    },
+    "SmoothingLevel": {
+      "additionalProperties": true,
+      "description": "One level of utjämning in a scale: the smallest radius it draws and how far the result\nmay lie from the line, and the explanation the view shows.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/Smoothing"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "min_radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Radius"
+        },
+        "max_deviation": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Deviation"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "name",
+        "text"
+      ],
+      "title": "SmoothingLevel",
+      "type": "object"
+    },
+    "Straight": {
+      "additionalProperties": true,
+      "description": "Rak modul: length × width.",
+      "properties": {
+        "kind": {
+          "const": "straight",
+          "default": "straight",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "description": "Along Kant 1, gable A to gable B.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Length",
+          "type": "number"
+        },
+        "width": {
+          "description": "Gable width, Kant 1 to the far side.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "length",
+        "width"
+      ],
+      "title": "Straight",
+      "type": "object"
+    },
+    "SwitchDesign": {
+      "additionalProperties": true,
+      "description": "Växeltyp: a known switch in the switch library, with the diverging leg's radius and angle,\nand where the numbers come from (bildkedjan step 12). Okänd has neither.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Scale"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: every scale (Okänd)."
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 90,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the radius and angle come from.",
+          "title": "Source"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "SwitchDesign",
+      "type": "object"
+    },
+    "SwitchInfo": {
+      "additionalProperties": true,
+      "description": "Växelinspektören: one switch as the inspector shows it.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "leaves": {
+          "description": "The track it leaves and toward which: \"spår från A4 mot A3\".",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Leaves",
+          "type": "string"
+        },
+        "from_a": {
+          "description": "Tungspetsen, mm från gavel A.",
+          "title": "From A",
+          "type": "number"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "enum": [
+                "left",
+                "right"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Side"
+        },
+        "toward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "design": {
+          "description": "The chosen type, or \"okand\".",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Design",
+          "type": "string"
+        },
+        "matched": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The type its radius matches within the tolerance.",
+          "title": "Matched"
+        },
+        "assumed": {
+          "description": "Antagen (AR3): Okänd and no type within the tolerance.",
+          "title": "Assumed",
+          "type": "boolean"
+        },
+        "locked": {
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "leaves",
+        "from_a",
+        "design",
+        "assumed",
+        "locked",
+        "at"
+      ],
+      "title": "SwitchInfo",
+      "type": "object"
+    },
+    "SwitchType": {
+      "description": "Växeltyp (RS1).",
+      "enum": [
+        "ordinary",
+        "y",
+        "single_slip",
+        "double_slip",
+        "crossing"
+      ],
+      "title": "SwitchType",
+      "type": "string"
+    },
+    "TrackGraph": {
+      "additionalProperties": true,
+      "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21).\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+      "properties": {
+        "geometry": {
+          "default": "mm",
+          "enum": [
+            "mm",
+            "schema"
+          ],
+          "title": "Geometry",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "pieces": {
+          "items": {
+            "$ref": "#/$defs/GraphPiece"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "switches": {
+          "items": {
+            "$ref": "#/$defs/GraphSwitch"
+          },
+          "title": "Switches",
+          "type": "array"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/GraphLabel"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "complete": {
+          "default": true,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "issued": {
+          "default": 0,
+          "description": "Ids issued so far; the next is one more.",
+          "minimum": 0,
+          "title": "Issued",
+          "type": "integer"
+        }
+      },
+      "title": "TrackGraph",
+      "type": "object"
+    },
+    "Trapezoid": {
+      "additionalProperties": true,
+      "description": "A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and\nwidth_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y\ndown), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1\nis straight and at right angles to the gables, and only the far side slants. A track at the\nsame distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it\nstraight, arc, straight, arc, straight (CAD-24).",
+      "properties": {
+        "kind": {
+          "const": "trapezoid",
+          "default": "trapezoid",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Length",
+          "type": "number"
+        },
+        "width_a": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width A",
+          "type": "number"
+        },
+        "width_b": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width B",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.",
+          "maximum": 20000,
+          "minimum": -20000,
+          "title": "Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "length",
+        "width_a",
+        "width_b"
+      ],
+      "title": "Trapezoid",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Ritningen: the working drawing after a change set, with what to check and the\ninspector's facts. Nothing is saved until Spara.",
+  "properties": {
+    "module": {
+      "format": "uuid",
+      "title": "Module",
+      "type": "string"
+    },
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "latest": {
+      "minimum": 1,
+      "title": "Latest",
+      "type": "integer"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "shape": {
+      "discriminator": {
+        "mapping": {
+          "curve": "#/$defs/Curve",
+          "straight": "#/$defs/Straight",
+          "trapezoid": "#/$defs/Trapezoid"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Straight"
+        },
+        {
+          "$ref": "#/$defs/Curve"
+        },
+        {
+          "$ref": "#/$defs/Trapezoid"
+        }
+      ],
+      "title": "Shape"
+    },
+    "gables": {
+      "items": {
+        "$ref": "#/$defs/Gable"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "Gables",
+      "type": "array"
+    },
+    "graph": {
+      "$ref": "#/$defs/TrackGraph"
+    },
+    "drawing": {
+      "$ref": "#/$defs/DrawingState"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/CheckItem"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "switches": {
+      "items": {
+        "$ref": "#/$defs/SwitchInfo"
+      },
+      "title": "Switches",
+      "type": "array"
+    },
+    "designs": {
+      "items": {
+        "$ref": "#/$defs/SwitchDesign"
+      },
+      "title": "Designs",
+      "type": "array"
+    },
+    "smoothing_levels": {
+      "items": {
+        "$ref": "#/$defs/SmoothingLevel"
+      },
+      "title": "Smoothing Levels",
+      "type": "array"
+    },
+    "limits": {
+      "$ref": "#/$defs/ScaleLimits"
+    },
+    "stats": {
+      "$ref": "#/$defs/DrawingStats"
+    },
+    "changed": {
+      "description": "The operations changed something.",
+      "title": "Changed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "module",
+    "base",
+    "latest",
+    "scale",
+    "shape",
+    "gables",
+    "graph",
+    "drawing",
+    "limits",
+    "stats",
+    "changed"
+  ],
+  "type": "object"
+}

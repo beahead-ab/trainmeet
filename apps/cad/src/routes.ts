@@ -8,6 +8,8 @@ export type Route =
   | { page: "new" }
   | { page: "form"; kind: FormKind; id?: string }
   | { page: "module"; id: string; tab: Tab; version?: number }
+  | { page: "drawing"; id: string }
+  | { page: "lock"; id: string }
   | { page: "assemblies" }
   | { page: "profiles" }
   | { page: "login" }
@@ -34,6 +36,16 @@ export function modulePath(id: string, tab: Tab = "oversikt", version?: number):
   return version ? `${base}?version=${version}` : base;
 }
 
+/** Ritningen, for those who may change the module. */
+export function drawingPath(id: string): string {
+  return `${PATHS.library}/${id}/ritningen`;
+}
+
+/** Lås mått, from Ritningen. */
+export function lockPath(id: string): string {
+  return `${drawingPath(id)}/las-matt`;
+}
+
 export function editPath(id: string): string {
   return `${PATHS.library}/${id}/andra`;
 }
@@ -54,6 +66,8 @@ export function routeFor(pathname: string, search = ""): Route {
     const id = parts[1];
     if (parts.length === 2) return withVersion({ page: "module", id, tab: "oversikt" }, search);
     if (parts.length === 3 && parts[2] === "andra") return { page: "form", kind: "straight", id };
+    if (parts.length === 3 && parts[2] === "ritningen") return { page: "drawing", id };
+    if (parts.length === 4 && parts[2] === "ritningen" && parts[3] === "las-matt") return { page: "lock", id };
     const tab = TABS.find((t) => t === parts[2]);
     if (parts.length === 3 && tab) return withVersion({ page: "module", id, tab }, search);
   }
@@ -69,6 +83,6 @@ function withVersion(route: Extract<Route, { page: "module" }>, search: string):
 export function tabOf(route: Route): "library" | "assemblies" | "profiles" | null {
   if (route.page === "assemblies") return "assemblies";
   if (route.page === "profiles") return "profiles";
-  if (route.page === "library" || route.page === "new" || route.page === "form" || route.page === "module") return "library";
+  if (["library", "new", "form", "module", "drawing", "lock"].includes(route.page)) return "library";
   return null;
 }

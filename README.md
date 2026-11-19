@@ -75,7 +75,7 @@ Friläggningen (CAT-127–CAT-129) körs i Catalog med modellen U2NetP, som `cat
 
 ### CAD på egen dator
 
-TrainMeet CAD är modulbiblioteket (#89): moduler ur bara mått, raka och kurvor, med gavlar, gavelprofiler, synlighet, versioner och historik. Tjänsten i `cad/` har en egen PostgreSQL och webbappen i `apps/cad`, och använder bara `contracts/` (`contracts/cad.py`, `contracts/cad.openapi.json`).
+TrainMeet CAD är modulbiblioteket (#89): moduler ur bara mått, raka, kurvor och trapetser, med gavlar, gavelprofiler, synlighet, versioner och historik, och Ritningen där spårplanen ritas, med växelinspektören, Att kolla, utjämning och Lås mått (del b, `cad/editor.py`). Tjänsten i `cad/` har en egen PostgreSQL och webbappen i `apps/cad`, och använder bara `contracts/` (`contracts/cad.py`, `contracts/cad.openapi.json`).
 
 ```sh
 npm ci && npm run build -w apps/cad            # webbappen, till apps/cad/dist
@@ -85,7 +85,7 @@ npm run dev -w apps/cad                        # eller webbappen med omladdning,
 CAD_TEST_DATABASE_URL=postgresql:///postgres uv run pytest cad
 ```
 
-Med `CAD_ID_ISSUER`, `CAD_ID_SECRET` och `CAD_PUBLIC_URL` loggar CAD in med TrainMeet ID som klienten `cad`, och med `CAD_ID_API` frågar CAD ID:s API om klubbarna och rollerna vid varje anrop; se `cad/settings.py`. Webbläsarprovet går igenom provinloggningen, en rak modul, en kurvmodul, Godkänn och biblioteket i Chrome, mot en låtsad TrainMeet ID (`cad/prov_webblasare.py`):
+Med `CAD_ID_ISSUER`, `CAD_ID_SECRET` och `CAD_PUBLIC_URL` loggar CAD in med TrainMeet ID som klienten `cad`, och med `CAD_ID_API` frågar CAD ID:s API om klubbarna och rollerna vid varje anrop; se `cad/settings.py`. Webbläsarprovet går igenom provinloggningen, en rak modul, en kurvmodul, Godkänn och biblioteket i Chrome, och sedan Ritningen med ett spår, en växel, Att kolla och Lås mått på en MMM-trapets (`apps/cad/e2e/ritningen.mjs`, som `bibliotek.mjs` kör), mot en låtsad TrainMeet ID (`cad/prov_webblasare.py`):
 
 ```sh
 uv run python -m cad.prov_webblasare --databas postgresql://postgres@127.0.0.1:5432/postgres --ny   # port 8095

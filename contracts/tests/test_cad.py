@@ -148,3 +148,49 @@ def test_the_track_graphs_ids_are_ids_the_station_model_takes() -> None:
     for ident in ("n1", "s12", "M-001.s3"):
         node = GraphNode(id=ident, type=NodeType.JOINT, at=(0, 0))
         assert TrackPiece(id=node.id, start=node.id, end=node.id).id == ident
+
+
+def test_the_drawings_change_set_is_a_list_of_operations() -> None:
+    """Ritningen (#89 del b): each operation by its op, checked as it is read."""
+    edit = cad.DrawingEdit.model_validate(
+        {
+            "base": 2,
+            "operations": [
+                {"op": "line", "start": [0, 140], "end": [700, 140]},
+                {"op": "arc", "start": [700, 140], "radius": 800, "angle": 15},
+                {
+                    "op": "switch",
+                    "piece": "s3",
+                    "from_a": 308,
+                    "radius": 705,
+                    "angle": 11.4,
+                    "side": "right",
+                },
+                {"op": "answer", "key": "open_end:n4", "answer": "stoppbock"},
+                {"op": "lock", "radii": "different"},
+            ],
+        }
+    )
+    assert [type(op).__name__ for op in edit.operations] == [
+        "AddLine",
+        "AddArc",
+        "AddSwitch",
+        "AnswerCheck",
+        "LockMeasures",
+    ]
+    with pytest.raises(ValidationError, match="tre punkter"):
+        cad.AddArc.model_validate({"start": [0, 0], "radius": 500})
+    with pytest.raises(ValidationError):
+        cad.DrawingEdit.model_validate({"base": 1, "operations": [{"op": "rita"}]})
+
+
+def test_a_versions_drawing_state_and_a_slanting_trapezoid() -> None:
+    state = cad.DrawingState()
+    assert state.source == cad.DrawingSource.MEASURES and state.smoothing == cad.Smoothing.NORMAL
+    assert state.answers == [] and state.ids == []
+    split = cad.IdChange(old=["s3"], new=["s3", "s9", "s10"], why="lock")
+    assert split.new[0] == split.old[0]
+    assert cad.Trapezoid(length=685, width_a=480, width_b=280).offset == 0
+    graph = TrackGraph(labels=[cad.GraphLabel(id="e1", text="Lastgata", at=(10, 10))])
+    with pytest.raises(ValidationError, match="samma id"):
+        TrackGraph(nodes=[GraphNode(id="e1", type=NodeType.JOINT, at=(0, 0))], labels=graph.labels)

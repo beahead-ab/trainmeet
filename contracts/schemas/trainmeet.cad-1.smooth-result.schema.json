@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.smooth-result.schema.json",
+  "title": "trainmeet.cad-1.smooth-result",
+  "$defs": {
+    "ArcSegment": {
+      "additionalProperties": true,
+      "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+      "properties": {
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "center": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center",
+          "type": "array"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "clockwise": {
+          "title": "Clockwise",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "center",
+        "radius",
+        "clockwise"
+      ],
+      "title": "ArcSegment",
+      "type": "object"
+    },
+    "Deviation": {
+      "additionalProperties": true,
+      "description": "How far one line lies from another: the median and the largest distance, in mm, over\ncount points.",
+      "properties": {
+        "median": {
+          "minimum": 0,
+          "title": "Median",
+          "type": "number"
+        },
+        "max": {
+          "minimum": 0,
+          "title": "Max",
+          "type": "number"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "median",
+        "max",
+        "count"
+      ],
+      "title": "Deviation",
+      "type": "object"
+    },
+    "LineSegment": {
+      "additionalProperties": true,
+      "description": "LINE: a straight piece of track centre, in mm.",
+      "properties": {
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "LineSegment",
+      "type": "object"
+    },
+    "Smoothing": {
+      "description": "Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).",
+      "enum": [
+        "off",
+        "light",
+        "normal",
+        "strong"
+      ],
+      "title": "Smoothing",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "level": {
+      "$ref": "#/$defs/Smoothing"
+    },
+    "segments": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "arc": "#/$defs/ArcSegment",
+            "line": "#/$defs/LineSegment"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/LineSegment"
+          },
+          {
+            "$ref": "#/$defs/ArcSegment"
+          }
+        ]
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "deviation": {
+      "$ref": "#/$defs/Deviation"
+    }
+  },
+  "required": [
+    "level",
+    "segments",
+    "deviation"
+  ],
+  "type": "object"
+}

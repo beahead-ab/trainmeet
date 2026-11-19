@@ -218,7 +218,7 @@
     },
     "Trapezoid": {
       "additionalProperties": true,
-      "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+      "description": "A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and\nwidth_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y\ndown), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1\nis straight and at right angles to the gables, and only the far side slants. A track at the\nsame distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it\nstraight, arc, straight, arc, straight (CAD-24).",
       "properties": {
         "kind": {
           "const": "trapezoid",
@@ -242,6 +242,14 @@
           "exclusiveMinimum": 0,
           "maximum": 20000,
           "title": "Width B",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.",
+          "maximum": 20000,
+          "minimum": -20000,
+          "title": "Offset",
           "type": "number"
         }
       },

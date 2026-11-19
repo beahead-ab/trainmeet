@@ -286,6 +286,69 @@
       "title": "GableLabel",
       "type": "object"
     },
+    "GraphLabel": {
+      "additionalProperties": true,
+      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The piece or switch it names.",
+          "title": "Ref"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "at"
+      ],
+      "title": "GraphLabel",
+      "type": "object"
+    },
     "GraphNode": {
       "additionalProperties": true,
       "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
@@ -455,7 +518,7 @@
     },
     "GraphSwitch": {
       "additionalProperties": true,
-      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known.",
+      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);\nthe diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,\nVäxlar). design is the switch type from the switch library (Växeltyp), null while Okänd.",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -547,6 +610,53 @@
             }
           ],
           "default": null
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växelnummer.",
+          "title": "Number"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växeltyp; null: Okänd.",
+          "title": "Design"
+        },
+        "toward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The gable the diverging leg heads for."
+        },
+        "locked": {
+          "default": false,
+          "description": "Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.",
+          "title": "Locked",
+          "type": "boolean"
         }
       },
       "required": [
@@ -923,6 +1033,13 @@
           "title": "Switches",
           "type": "array"
         },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/GraphLabel"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
         "complete": {
           "default": true,
           "title": "Complete",
@@ -941,7 +1058,7 @@
     },
     "Trapezoid": {
       "additionalProperties": true,
-      "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+      "description": "A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and\nwidth_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y\ndown), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1\nis straight and at right angles to the gables, and only the far side slants. A track at the\nsame distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it\nstraight, arc, straight, arc, straight (CAD-24).",
       "properties": {
         "kind": {
           "const": "trapezoid",
@@ -965,6 +1082,14 @@
           "exclusiveMinimum": 0,
           "maximum": 20000,
           "title": "Width B",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.",
+          "maximum": 20000,
+          "minimum": -20000,
+          "title": "Offset",
           "type": "number"
         }
       },

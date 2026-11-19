@@ -95,6 +95,69 @@
       "title": "GableEnd",
       "type": "string"
     },
+    "GraphLabel": {
+      "additionalProperties": true,
+      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The piece or switch it names.",
+          "title": "Ref"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "at"
+      ],
+      "title": "GraphLabel",
+      "type": "object"
+    },
     "GraphNode": {
       "additionalProperties": true,
       "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
@@ -264,7 +327,7 @@
     },
     "GraphSwitch": {
       "additionalProperties": true,
-      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known.",
+      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);\nthe diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,\nVäxlar). design is the switch type from the switch library (Växeltyp), null while Okänd.",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -356,6 +419,53 @@
             }
           ],
           "default": null
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växelnummer.",
+          "title": "Number"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växeltyp; null: Okänd.",
+          "title": "Design"
+        },
+        "toward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The gable the diverging leg heads for."
+        },
+        "locked": {
+          "default": false,
+          "description": "Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.",
+          "title": "Locked",
+          "type": "boolean"
         }
       },
       "required": [
@@ -473,6 +583,13 @@
         "$ref": "#/$defs/GraphSwitch"
       },
       "title": "Switches",
+      "type": "array"
+    },
+    "labels": {
+      "items": {
+        "$ref": "#/$defs/GraphLabel"
+      },
+      "title": "Labels",
       "type": "array"
     },
     "complete": {

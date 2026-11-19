@@ -31,6 +31,25 @@ export type Segment = GraphPiece["segments"][number];
 export type Scale = Module["scale"];
 export type Norm = NonNullable<GableProfile["norm"]>;
 export type Visibility = Module["visibility"];
+export type GraphNode = NonNullable<TrackGraph["nodes"]>[number];
+export type GraphSwitch = NonNullable<TrackGraph["switches"]>[number];
+export type GraphLabel = NonNullable<TrackGraph["labels"]>[number];
+export type DrawingEdit = Schemas["trainmeet.cad-1.drawing-edit"];
+export type EditOp = NonNullable<DrawingEdit["operations"]>[number];
+export type DrawingView = Schemas["trainmeet.cad-1.drawing-view"];
+export type DrawingState = DrawingView["drawing"];
+export type CheckItem = Schemas["trainmeet.cad-1.check-item"];
+export type CheckChoice = CheckItem["choices"][number];
+export type SwitchInfo = NonNullable<DrawingView["switches"]>[number];
+export type SwitchDesign = NonNullable<DrawingView["designs"]>[number];
+export type SmoothingLevel = NonNullable<DrawingView["smoothing_levels"]>[number];
+export type Smoothing = SmoothingLevel["level"];
+export type Gable = DrawingView["gables"][number];
+export type LockAsk = Schemas["trainmeet.cad-1.lock-ask"];
+export type LockMeasures = LockAsk["lock"];
+export type LockProposal = Schemas["trainmeet.cad-1.lock-proposal"];
+export type LockPart = NonNullable<LockProposal["parts"]>[number];
+export type LockRadii = LockProposal["radii"];
 
 export const API = "/api/cad/1";
 export const SCALES: Scale[] = ["H0", "N", "0"];
@@ -84,6 +103,10 @@ export const api = {
   remove: (id: string) => call<{ id: string }>("DELETE", `${API}/modules/${id}`),
   profiles: (scale: Scale) => call<ProfileList>("GET", `${API}/profiles?scale=${encodeURIComponent(scale)}`),
   newProfile: (body: NewProfile) => call<GableProfile>("POST", `${API}/profiles`, body),
+  drawing: (id: string, body: DrawingEdit) => call<DrawingView>("POST", `${API}/modules/${id}/drawing`, body),
+  saveDrawing: (id: string, body: DrawingEdit) => call<Module>("POST", `${API}/modules/${id}/drawing/save`, body),
+  approvePlan: (id: string, body: DrawingEdit) => call<Module>("POST", `${API}/modules/${id}/drawing/approve`, body),
+  lock: (id: string, body: LockAsk) => call<LockProposal>("POST", `${API}/modules/${id}/drawing/lock`, body),
 };
 
 /** TrainMeet ID's login, back to the page one came from. */

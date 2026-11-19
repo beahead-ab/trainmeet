@@ -180,6 +180,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/modules/{module}/drawing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadDrawing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/drawing/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadSaveDrawing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/drawing/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadApprovePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/drawing/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadLockMeasures"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadChecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/smooth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadSmooth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cad/1/profiles": {
         parameters: {
             query?: never;
@@ -576,6 +672,32 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         */
+        "trainmeet.cad-1.module-list.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece or switch it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.module-list.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * GraphNode
          * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
          *     its track number there.
@@ -640,7 +762,9 @@ export interface components {
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
-         *     ids. The diverging leg's radius and angle, when known.
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
          */
         "trainmeet.cad-1.module-list.GraphSwitch": {
             /** Id */
@@ -675,6 +799,29 @@ export interface components {
             angle: number | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.module-list.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.module-list.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -869,6 +1016,8 @@ export interface components {
             pieces?: components["schemas"]["trainmeet.cad-1.module-list.GraphPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.cad-1.module-list.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.module-list.GraphLabel"][];
             /**
              * Complete
              * @default true
@@ -885,8 +1034,12 @@ export interface components {
         };
         /**
          * Trapezoid
-         * @description A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,
-         *     and the far side slanting from width_a at gable A to width_b at gable B.
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
          */
         "trainmeet.cad-1.module-list.Trapezoid": {
             /**
@@ -900,6 +1053,12 @@ export interface components {
             width_a: number;
             /** Width B */
             width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
         } & {
             [key: string]: unknown;
         };
@@ -996,6 +1155,12 @@ export interface components {
              * @description The newest version; version is the one shown.
              */
             latest: number;
+            drawing?: components["schemas"]["trainmeet.cad-1.module.DrawingState"];
+            /**
+             * Checks
+             * @description Att kolla in this version, answered or not.
+             */
+            checks?: components["schemas"]["trainmeet.cad-1.module.CheckItem"][];
         } & {
             [key: string]: unknown;
         };
@@ -1038,6 +1203,98 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.module.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * CheckAnswer
+         * @description Ägarens svar på en sak att kolla: kept with the version, by the item's key.
+         */
+        "trainmeet.cad-1.module.CheckAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+            /**
+             * By
+             * @default null
+             */
+            by: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckChoice
+         * @description An answer button. closes: the answer settles the item; action: what the view does
+         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         */
+        "trainmeet.cad-1.module.CheckChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * Closes
+             * @default true
+             */
+            closes: boolean;
+            /**
+             * Action
+             * @default null
+             */
+            action: ("design" | "lock") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckItem
+         * @description Att kolla: one thing the owner answers before the track plan is approved. The key names
+         *     the kind, the parts and the measured value, so a changed value asks again.
+         */
+        "trainmeet.cad-1.module.CheckItem": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.module.CheckKind"];
+            /** @default code */
+            source: components["schemas"]["trainmeet.cad-1.module.CheckSource"];
+            /**
+             * At
+             * @description The place in mm, in the module's coordinates.
+             */
+            at: [
+                number,
+                number
+            ];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /**
+             * Refs
+             * @description The nodes, pieces and switches.
+             */
+            refs?: string[];
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.module.CheckChoice"][];
+            /** @default null */
+            answer: components["schemas"]["trainmeet.cad-1.module.CheckAnswer"] | null;
+            /**
+             * Assumed
+             * @description Antagen (AR3): yellow; otherwise orange, as a proposal.
+             * @default false
+             */
+            assumed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckKind
+         * @description Att kolla: what the code found, or (part c) what AI asks.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.CheckKind": "short_rail" | "open_end" | "switch_radius" | "switch_assumed" | "kink" | "tight_radius" | "gable_position" | "question";
+        /**
+         * CheckSource
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.CheckSource": "code" | "ai";
         /**
          * Curve
          * @description Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.
@@ -1096,6 +1353,65 @@ export interface components {
          */
         "trainmeet.cad-1.module.CurveSides": "bent" | "straight";
         /**
+         * DrawingSource
+         * @description Where the track plan comes from: the badge in Ritningen.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.DrawingSource": "measures" | "drawn" | "photo";
+        /**
+         * DrawingState
+         * @description What a version keeps of its drawing besides the graph: where it came from, the
+         *     utjämning, the owner's answers, the drawn lines, the locked measures, and the ids this
+         *     version split or replaced.
+         */
+        "trainmeet.cad-1.module.DrawingState": {
+            /** @default measures */
+            source: components["schemas"]["trainmeet.cad-1.module.DrawingSource"];
+            /** @default normal */
+            smoothing: components["schemas"]["trainmeet.cad-1.module.Smoothing"];
+            /** Answers */
+            answers?: components["schemas"]["trainmeet.cad-1.module.CheckAnswer"][];
+            /** Lines */
+            lines?: components["schemas"]["trainmeet.cad-1.module.DrawnLine"][];
+            /** Locks */
+            locks?: components["schemas"]["trainmeet.cad-1.module.LockedMeasure"][];
+            /**
+             * Ids
+             * @description This version's splits.
+             */
+            ids?: components["schemas"]["trainmeet.cad-1.module.IdChange"][];
+            /**
+             * Plan Approved
+             * @description Godkänn spårplanen gave this one.
+             * @default false
+             */
+            plan_approved: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawnLine
+         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
+         *     makes it LINE and ARC again when its level changes, and the deviation is measured from it.
+         */
+        "trainmeet.cad-1.module.DrawnLine": {
+            /** Piece */
+            piece: string;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Source
+             * @default hand
+             * @enum {string}
+             */
+            source: "hand" | "photo";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * EdgeSide
          * @description Which edge of a curve module is Kant 1.
          * @enum {string}
@@ -1123,6 +1439,32 @@ export interface components {
             profile: string | null;
             /** Tracks */
             tracks: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         */
+        "trainmeet.cad-1.module.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece or switch it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.module.GraphOrigin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1191,7 +1533,9 @@ export interface components {
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
-         *     ids. The diverging leg's radius and angle, when known.
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
          */
         "trainmeet.cad-1.module.GraphSwitch": {
             /** Id */
@@ -1226,6 +1570,47 @@ export interface components {
             angle: number | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.module.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.module.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * IdChange
+         * @description A piece split or replaced (CAD-20): Lås mått, a switch or a cut. The first new id is the
+         *     first old one, so Studio follows the owner's additions (signals, boundaries) along.
+         */
+        "trainmeet.cad-1.module.IdChange": {
+            /** Old */
+            old: string[];
+            /** New */
+            new: string[];
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "lock" | "switch" | "cut" | "switch_removed";
         } & {
             [key: string]: unknown;
         };
@@ -1249,6 +1634,25 @@ export interface components {
                 number,
                 number
             ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockedMeasure
+         * @description Låst mått: a gable track's position from Kant 1, locked by the owner (CAD-24).
+         */
+        "trainmeet.cad-1.module.LockedMeasure": {
+            gable: components["schemas"]["trainmeet.cad-1.module.GableEnd"];
+            /** Track */
+            track: number;
+            /** Value */
+            value: number;
+            /**
+             * Line
+             * @description What the line said before, mm.
+             * @default null
+             */
+            line: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -1296,6 +1700,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.module.Scale": "H0" | "N" | "0";
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.Smoothing": "off" | "light" | "normal" | "strong";
         /**
          * Straight
          * @description Rak modul: length × width.
@@ -1346,6 +1756,8 @@ export interface components {
             pieces?: components["schemas"]["trainmeet.cad-1.module.GraphPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.cad-1.module.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.module.GraphLabel"][];
             /**
              * Complete
              * @default true
@@ -1362,8 +1774,12 @@ export interface components {
         };
         /**
          * Trapezoid
-         * @description A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,
-         *     and the far side slanting from width_a at gable A to width_b at gable B.
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
          */
         "trainmeet.cad-1.module.Trapezoid": {
             /**
@@ -1377,6 +1793,12 @@ export interface components {
             width_a: number;
             /** Width B */
             width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
         } & {
             [key: string]: unknown;
         };
@@ -1561,8 +1983,12 @@ export interface components {
         };
         /**
          * Trapezoid
-         * @description A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,
-         *     and the far side slanting from width_a at gable A to width_b at gable B.
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
          */
         "trainmeet.cad-1.new-module.Trapezoid": {
             /**
@@ -1576,6 +2002,12 @@ export interface components {
             width_a: number;
             /** Width B */
             width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
         } & {
             [key: string]: unknown;
         };
@@ -1728,8 +2160,12 @@ export interface components {
         };
         /**
          * Trapezoid
-         * @description A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,
-         *     and the far side slanting from width_a at gable A to width_b at gable B.
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
          */
         "trainmeet.cad-1.module-change.Trapezoid": {
             /**
@@ -1743,6 +2179,12 @@ export interface components {
             width_a: number;
             /** Width B */
             width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
         } & {
             [key: string]: unknown;
         };
@@ -2081,6 +2523,8 @@ export interface components {
             pieces?: components["schemas"]["trainmeet.cad-1.track-graph.GraphPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.cad-1.track-graph.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.track-graph.GraphLabel"][];
             /**
              * Complete
              * @default true
@@ -2139,6 +2583,32 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.track-graph.GableEnd": "A" | "B";
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         */
+        "trainmeet.cad-1.track-graph.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece or switch it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.track-graph.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * GraphNode
          * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
@@ -2204,7 +2674,9 @@ export interface components {
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
-         *     ids. The diverging leg's radius and angle, when known.
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
          */
         "trainmeet.cad-1.track-graph.GraphSwitch": {
             /** Id */
@@ -2239,6 +2711,29 @@ export interface components {
             angle: number | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.track-graph.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.track-graph.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2386,6 +2881,2176 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.assembly.Scale": "H0" | "N" | "0";
+        /**
+         * DrawingEdit
+         * @description A change set: the operations on top of version base, the newest the person read. The
+         *     view sends the whole list every time, so undo is one less and the result is always the
+         *     same for the same list. Refused with 409 when a newer version exists.
+         */
+        "trainmeet.cad-1.drawing-edit": {
+            /** Base */
+            base: number;
+            /** Operations */
+            operations?: (components["schemas"]["trainmeet.cad-1.drawing-edit.AddLine"] | components["schemas"]["trainmeet.cad-1.drawing-edit.AddArc"] | components["schemas"]["trainmeet.cad-1.drawing-edit.AddPolyline"] | components["schemas"]["trainmeet.cad-1.drawing-edit.AddSwitch"] | components["schemas"]["trainmeet.cad-1.drawing-edit.MoveSwitch"] | components["schemas"]["trainmeet.cad-1.drawing-edit.Move"] | components["schemas"]["trainmeet.cad-1.drawing-edit.Delete"] | components["schemas"]["trainmeet.cad-1.drawing-edit.Join"] | components["schemas"]["trainmeet.cad-1.drawing-edit.Cut"] | components["schemas"]["trainmeet.cad-1.drawing-edit.SetLabel"] | components["schemas"]["trainmeet.cad-1.drawing-edit.SetEnd"] | components["schemas"]["trainmeet.cad-1.drawing-edit.SetSwitch"] | components["schemas"]["trainmeet.cad-1.drawing-edit.AnswerCheck"] | components["schemas"]["trainmeet.cad-1.drawing-edit.SetSmoothing"] | components["schemas"]["trainmeet.cad-1.drawing-edit.LockMeasures"])[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddArc
+         * @description Båge: an ARC from start, by radius and angle (turning right for a positive angle, as
+         *     seen along the track with y down) from the heading at start, or through three points.
+         */
+        "trainmeet.cad-1.drawing-edit.AddArc": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End
+             * @default null
+             */
+            end: [
+                number,
+                number
+            ] | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+            /**
+             * Through
+             * @default null
+             */
+            through: [
+                number,
+                number
+            ] | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @description Degrees.
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Heading
+             * @description Degrees, 0 toward gable B, positive down; null: the track's.
+             * @default null
+             */
+            heading: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddLine
+         * @description Rakt spår: a LINE from start to end. start_node and end_node join it to an end there;
+         *     a point on a gable becomes a module joint.
+         */
+        "trainmeet.cad-1.drawing-edit.AddLine": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddPolyline
+         * @description A hand-drawn line: utjämning makes it LINE and ARC at the version's level.
+         */
+        "trainmeet.cad-1.drawing-edit.AddPolyline": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "polyline";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddSwitch
+         * @description Växel: the diverging leg leaves the piece's track tangentially at from_a mm from gable A,
+         *     with its radius. Either with its angle, to the left or right as seen toward the gable it
+         *     heads for, or drawn to a point: an arc of the radius and then straight to to, which also
+         *     gives the side and the gable it heads for (a track drawn from the middle of another).
+         */
+        "trainmeet.cad-1.drawing-edit.AddSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "switch";
+            /** Piece */
+            piece: string;
+            /**
+             * From A
+             * @description Tungspetsen, mm från gavel A.
+             */
+            from_a: number;
+            /** Radius */
+            radius: number;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Side
+             * @default null
+             */
+            side: ("left" | "right") | null;
+            /** @default B */
+            toward: components["schemas"]["trainmeet.cad-1.drawing-edit.GableEnd"];
+            /**
+             * Design
+             * @default null
+             */
+            design: string | null;
+            /**
+             * Tail
+             * @description Straight after the arc, mm.
+             * @default 0
+             */
+            tail: number;
+            /**
+             * To
+             * @description Where the diverging leg ends.
+             * @default null
+             */
+            to: [
+                number,
+                number
+            ] | null;
+            /**
+             * To Node
+             * @default null
+             */
+            to_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AnswerCheck
+         * @description Answer an item in Att kolla with one of its choices.
+         */
+        "trainmeet.cad-1.drawing-edit.AnswerCheck": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "answer";
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Cut
+         * @description Cut a piece in two at the point nearest at: the first part keeps the id.
+         */
+        "trainmeet.cad-1.drawing-edit.Cut": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "cut";
+            /** Piece */
+            piece: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Delete
+         * @description Delete a piece, a switch, an end or a label. The ids are never used again.
+         */
+        "trainmeet.cad-1.drawing-edit.Delete": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "delete";
+            /** Target */
+            target: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-edit.GableEnd": "A" | "B";
+        /**
+         * Join
+         * @description Join two ends: both move to the middle and become one node.
+         */
+        "trainmeet.cad-1.drawing-edit.Join": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "join";
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockMeasures
+         * @description Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions
+         *     a and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,
+         *     straight, fitted to the line it replaces. Null a or b: the gable's measure.
+         */
+        "trainmeet.cad-1.drawing-edit.LockMeasures": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "lock";
+            /**
+             * Piece
+             * @description Null: the first track from A to B.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * A
+             * @default null
+             */
+            a: number | null;
+            /**
+             * B
+             * @default null
+             */
+            b: number | null;
+            /** @default same */
+            radii: components["schemas"]["trainmeet.cad-1.drawing-edit.LockRadii"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockRadii
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-edit.LockRadii": "same" | "different";
+        /**
+         * Move
+         * @description Move a node, a piece, a switch or a label by a vector in mm. What hangs on it is
+         *     reshaped, never replaced.
+         */
+        "trainmeet.cad-1.drawing-edit.Move": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "move";
+            /** Target */
+            target: string;
+            /** By */
+            by: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MoveSwitch
+         * @description Flytta växel: the points slide along their track; the legs follow.
+         */
+        "trainmeet.cad-1.drawing-edit.MoveSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "move_switch";
+            /** Switch */
+            switch: string;
+            /** From A */
+            from_a: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetEnd
+         * @description Make a free end a buffer stop, or a plain end again.
+         */
+        "trainmeet.cad-1.drawing-edit.SetEnd": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "end";
+            /** Node */
+            node: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "buffer_stop" | "joint";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetLabel
+         * @description Text: a piece's track number, a switch's number, or a free label at a point. An empty
+         *     text removes it.
+         */
+        "trainmeet.cad-1.drawing-edit.SetLabel": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "label";
+            /**
+             * Target
+             * @default null
+             */
+            target: string | null;
+            /**
+             * At
+             * @default null
+             */
+            at: [
+                number,
+                number
+            ] | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetSmoothing
+         * @description Utjämning: the level, kept on the version; the drawn lines are made again at it.
+         */
+        "trainmeet.cad-1.drawing-edit.SetSmoothing": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "smoothing";
+            level: components["schemas"]["trainmeet.cad-1.drawing-edit.Smoothing"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetSwitch
+         * @description Växelinspektören: the diverging radius, the switch type ("okand" for Okänd), and Lås
+         *     växelns läge.
+         */
+        "trainmeet.cad-1.drawing-edit.SetSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "set_switch";
+            /** Switch */
+            switch: string;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Design
+             * @default null
+             */
+            design: string | null;
+            /**
+             * Locked
+             * @default null
+             */
+            locked: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-edit.Smoothing": "off" | "light" | "normal" | "strong";
+        /**
+         * DrawingView
+         * @description Ritningen: the working drawing after a change set, with what to check and the
+         *     inspector's facts. Nothing is saved until Spara.
+         */
+        "trainmeet.cad-1.drawing-view": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Base */
+            base: number;
+            /** Latest */
+            latest: number;
+            scale: components["schemas"]["trainmeet.cad-1.drawing-view.Scale"];
+            /** Shape */
+            shape: components["schemas"]["trainmeet.cad-1.drawing-view.Straight"] | components["schemas"]["trainmeet.cad-1.drawing-view.Curve"] | components["schemas"]["trainmeet.cad-1.drawing-view.Trapezoid"];
+            /** Gables */
+            gables: components["schemas"]["trainmeet.cad-1.drawing-view.Gable"][];
+            graph: components["schemas"]["trainmeet.cad-1.drawing-view.TrackGraph"];
+            drawing: components["schemas"]["trainmeet.cad-1.drawing-view.DrawingState"];
+            /** Checks */
+            checks?: components["schemas"]["trainmeet.cad-1.drawing-view.CheckItem"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.cad-1.drawing-view.SwitchInfo"][];
+            /** Designs */
+            designs?: components["schemas"]["trainmeet.cad-1.drawing-view.SwitchDesign"][];
+            /** Smoothing Levels */
+            smoothing_levels?: components["schemas"]["trainmeet.cad-1.drawing-view.SmoothingLevel"][];
+            limits: components["schemas"]["trainmeet.cad-1.drawing-view.ScaleLimits"];
+            stats: components["schemas"]["trainmeet.cad-1.drawing-view.DrawingStats"];
+            /**
+             * Changed
+             * @description The operations changed something.
+             */
+            changed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.drawing-view.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * CheckAnswer
+         * @description Ägarens svar på en sak att kolla: kept with the version, by the item's key.
+         */
+        "trainmeet.cad-1.drawing-view.CheckAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+            /**
+             * By
+             * @default null
+             */
+            by: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckChoice
+         * @description An answer button. closes: the answer settles the item; action: what the view does
+         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         */
+        "trainmeet.cad-1.drawing-view.CheckChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * Closes
+             * @default true
+             */
+            closes: boolean;
+            /**
+             * Action
+             * @default null
+             */
+            action: ("design" | "lock") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckItem
+         * @description Att kolla: one thing the owner answers before the track plan is approved. The key names
+         *     the kind, the parts and the measured value, so a changed value asks again.
+         */
+        "trainmeet.cad-1.drawing-view.CheckItem": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-view.CheckKind"];
+            /** @default code */
+            source: components["schemas"]["trainmeet.cad-1.drawing-view.CheckSource"];
+            /**
+             * At
+             * @description The place in mm, in the module's coordinates.
+             */
+            at: [
+                number,
+                number
+            ];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /**
+             * Refs
+             * @description The nodes, pieces and switches.
+             */
+            refs?: string[];
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.drawing-view.CheckChoice"][];
+            /** @default null */
+            answer: components["schemas"]["trainmeet.cad-1.drawing-view.CheckAnswer"] | null;
+            /**
+             * Assumed
+             * @description Antagen (AR3): yellow; otherwise orange, as a proposal.
+             * @default false
+             */
+            assumed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckKind
+         * @description Att kolla: what the code found, or (part c) what AI asks.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.CheckKind": "short_rail" | "open_end" | "switch_radius" | "switch_assumed" | "kink" | "tight_radius" | "gable_position" | "question";
+        /**
+         * CheckSource
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.CheckSource": "code" | "ai";
+        /**
+         * Curve
+         * @description Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.
+         *     With Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.
+         */
+        "trainmeet.cad-1.drawing-view.Curve": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "curve";
+            /**
+             * Radius
+             * @description Track 1's centre line, in mm.
+             */
+            radius: number;
+            /**
+             * Angle
+             * @description The angle, in degrees.
+             */
+            angle: number;
+            /**
+             * Width
+             * @description The module body's width, Kant 1 to the other edge.
+             */
+            width: number;
+            /** @default outer */
+            edge: components["schemas"]["trainmeet.cad-1.drawing-view.EdgeSide"];
+            /** @default bent */
+            sides: components["schemas"]["trainmeet.cad-1.drawing-view.CurveSides"];
+            /**
+             * @description The string and sagitta the radius and angle came from.
+             * @default null
+             */
+            measured: components["schemas"]["trainmeet.cad-1.drawing-view.CurveMeasure"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CurveMeasure
+         * @description The owner's measurement of a curve: a string between track 1's centre at A and B, and the
+         *     sagitta (pilhöjd) from the string's middle to the track (CADMOB-03).
+         */
+        "trainmeet.cad-1.drawing-view.CurveMeasure": {
+            /** Chord */
+            chord: number;
+            /** Sagitta */
+            sagitta: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CurveSides
+         * @description The box's long sides.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.CurveSides": "bent" | "straight";
+        /**
+         * Deviation
+         * @description How far one line lies from another: the median and the largest distance, in mm, over
+         *     count points.
+         */
+        "trainmeet.cad-1.drawing-view.Deviation": {
+            /** Median */
+            median: number;
+            /** Max */
+            max: number;
+            /** Count */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingSource
+         * @description Where the track plan comes from: the badge in Ritningen.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.DrawingSource": "measures" | "drawn" | "photo";
+        /**
+         * DrawingState
+         * @description What a version keeps of its drawing besides the graph: where it came from, the
+         *     utjämning, the owner's answers, the drawn lines, the locked measures, and the ids this
+         *     version split or replaced.
+         */
+        "trainmeet.cad-1.drawing-view.DrawingState": {
+            /** @default measures */
+            source: components["schemas"]["trainmeet.cad-1.drawing-view.DrawingSource"];
+            /** @default normal */
+            smoothing: components["schemas"]["trainmeet.cad-1.drawing-view.Smoothing"];
+            /** Answers */
+            answers?: components["schemas"]["trainmeet.cad-1.drawing-view.CheckAnswer"][];
+            /** Lines */
+            lines?: components["schemas"]["trainmeet.cad-1.drawing-view.DrawnLine"][];
+            /** Locks */
+            locks?: components["schemas"]["trainmeet.cad-1.drawing-view.LockedMeasure"][];
+            /**
+             * Ids
+             * @description This version's splits.
+             */
+            ids?: components["schemas"]["trainmeet.cad-1.drawing-view.IdChange"][];
+            /**
+             * Plan Approved
+             * @description Godkänn spårplanen gave this one.
+             * @default false
+             */
+            plan_approved: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingStats
+         * @description The canvas's bottom line: Spår totalt, antal växlar, and how far the drawing lies from
+         *     its drawn lines (part c: from the photo).
+         */
+        "trainmeet.cad-1.drawing-view.DrawingStats": {
+            /** Track Length */
+            track_length: number;
+            /** Switches */
+            switches: number;
+            /** @default null */
+            deviation: components["schemas"]["trainmeet.cad-1.drawing-view.Deviation"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawnLine
+         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
+         *     makes it LINE and ARC again when its level changes, and the deviation is measured from it.
+         */
+        "trainmeet.cad-1.drawing-view.DrawnLine": {
+            /** Piece */
+            piece: string;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Source
+             * @default hand
+             * @enum {string}
+             */
+            source: "hand" | "photo";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EdgeSide
+         * @description Which edge of a curve module is Kant 1.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.EdgeSide": "outer" | "inner";
+        /**
+         * Gable
+         * @description Gavel: a module's end, with its norm, its profile and where the tracks go through it, in
+         *     mm from Kant 1, track 1 nearest Kant 1. Without a profile it is an own gable, measured here.
+         */
+        "trainmeet.cad-1.drawing-view.Gable": {
+            end: components["schemas"]["trainmeet.cad-1.drawing-view.GableEnd"];
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.drawing-view.Norm"] | null;
+            /**
+             * Profile
+             * @description Null: egen gavel.
+             * @default null
+             */
+            profile: string | null;
+            /** Tracks */
+            tracks?: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.GableEnd": "A" | "B";
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         */
+        "trainmeet.cad-1.drawing-view.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece or switch it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphNode
+         * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
+         *     its track number there.
+         */
+        "trainmeet.cad-1.drawing-view.GraphNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-view.NodeType"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            gable: components["schemas"]["trainmeet.cad-1.drawing-view.GableEnd"] | null;
+            /**
+             * Track
+             * @description Spår n i gaveln.
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** GraphOrigin */
+        "trainmeet.cad-1.drawing-view.GraphOrigin": {
+            source: components["schemas"]["trainmeet.cad-1.drawing-view.GraphSource"];
+            certainty: components["schemas"]["trainmeet.cad-1.drawing-view.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPiece
+         * @description Spårbit: track centre from one node to another, as LINE and ARC segments in order.
+         */
+        "trainmeet.cad-1.drawing-view.GraphPiece": {
+            /** Id */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.cad-1.drawing-view.LineSegment"] | components["schemas"]["trainmeet.cad-1.drawing-view.ArcSegment"])[];
+            /**
+             * Track
+             * @description Spårnummer, när ägaren har gett det.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSource
+         * @description Where a piece of the graph comes from.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn";
+        /**
+         * GraphSwitch
+         * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
+         */
+        "trainmeet.cad-1.drawing-view.GraphSwitch": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-view.SwitchType"];
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.drawing-view.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * IdChange
+         * @description A piece split or replaced (CAD-20): Lås mått, a switch or a cut. The first new id is the
+         *     first old one, so Studio follows the owner's additions (signals, boundaries) along.
+         */
+        "trainmeet.cad-1.drawing-view.IdChange": {
+            /** Old */
+            old: string[];
+            /** New */
+            new: string[];
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "lock" | "switch" | "cut" | "switch_removed";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.drawing-view.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockedMeasure
+         * @description Låst mått: a gable track's position from Kant 1, locked by the owner (CAD-24).
+         */
+        "trainmeet.cad-1.drawing-view.LockedMeasure": {
+            gable: components["schemas"]["trainmeet.cad-1.drawing-view.GableEnd"];
+            /** Track */
+            track: number;
+            /** Value */
+            value: number;
+            /**
+             * Line
+             * @description What the line said before, mm.
+             * @default null
+             */
+            line: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * Norm
+         * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.Scale": "H0" | "N" | "0";
+        /**
+         * ScaleLimits
+         * @description What the code holds a drawing in a scale to (cad/switches.py says where each comes from):
+         *     the track's minimum radius and the kink check, the switches' lower limit, and the gauge.
+         */
+        "trainmeet.cad-1.drawing-view.ScaleLimits": {
+            scale: components["schemas"]["trainmeet.cad-1.drawing-view.Scale"];
+            /**
+             * Gauge
+             * @description Spårvidd, mm.
+             */
+            gauge: number;
+            /**
+             * Min Radius
+             * @description Minsta radie för spår, mm.
+             */
+            min_radius: number;
+            /**
+             * Switch Min Radius
+             * @description Växelns nedre gräns för radien, mm.
+             */
+            switch_min_radius: number;
+            /**
+             * Kink
+             * @description Största vinkelhopp på 10 mm innan det är en knyck, °.
+             */
+            kink: number;
+            /**
+             * Gable Tolerance
+             * @description Hur långt ett gavelspår får ligga från gavelns mått innan det visas, mm.
+             */
+            gable_tolerance: number;
+            /**
+             * Design Tolerance
+             * @description How far a switch's radius may lie from a type's, as a fraction.
+             */
+            design_tolerance: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.Smoothing": "off" | "light" | "normal" | "strong";
+        /**
+         * SmoothingLevel
+         * @description One level of utjämning in a scale: the smallest radius it draws and how far the result
+         *     may lie from the line, and the explanation the view shows.
+         */
+        "trainmeet.cad-1.drawing-view.SmoothingLevel": {
+            level: components["schemas"]["trainmeet.cad-1.drawing-view.Smoothing"];
+            /** Name */
+            name: string;
+            /**
+             * Min Radius
+             * @default null
+             */
+            min_radius: number | null;
+            /**
+             * Max Deviation
+             * @default null
+             */
+            max_deviation: number | null;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Straight
+         * @description Rak modul: length × width.
+         */
+        "trainmeet.cad-1.drawing-view.Straight": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "straight";
+            /**
+             * Length
+             * @description Along Kant 1, gable A to gable B.
+             */
+            length: number;
+            /**
+             * Width
+             * @description Gable width, Kant 1 to the far side.
+             */
+            width: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchDesign
+         * @description Växeltyp: a known switch in the switch library, with the diverging leg's radius and angle,
+         *     and where the numbers come from (bildkedjan step 12). Okänd has neither.
+         */
+        "trainmeet.cad-1.drawing-view.SwitchDesign": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * @description Null: every scale (Okänd).
+             * @default null
+             */
+            scale: components["schemas"]["trainmeet.cad-1.drawing-view.Scale"] | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Source
+             * @description Where the radius and angle come from.
+             * @default null
+             */
+            source: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchInfo
+         * @description Växelinspektören: one switch as the inspector shows it.
+         */
+        "trainmeet.cad-1.drawing-view.SwitchInfo": {
+            /** Id */
+            id: string;
+            /** Number */
+            number: string;
+            /**
+             * Leaves
+             * @description The track it leaves and toward which: "spår från A4 mot A3".
+             */
+            leaves: string;
+            /**
+             * From A
+             * @description Tungspetsen, mm från gavel A.
+             */
+            from_a: number;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Side
+             * @default null
+             */
+            side: ("left" | "right") | null;
+            /** @default null */
+            toward: components["schemas"]["trainmeet.cad-1.drawing-view.GableEnd"] | null;
+            /**
+             * Design
+             * @description The chosen type, or "okand".
+             */
+            design: string;
+            /**
+             * Matched
+             * @description The type its radius matches within the tolerance.
+             * @default null
+             */
+            matched: string | null;
+            /**
+             * Assumed
+             * @description Antagen (AR3): Okänd and no type within the tolerance.
+             */
+            assumed: boolean;
+            /** Locked */
+            locked: boolean;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * TrackGraph
+         * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
+         *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+         *     complete is false while the tracks between the gables are unknown: a module from measures
+         *     whose gables differ waits for its photo or its drawing.
+         */
+        "trainmeet.cad-1.drawing-view.TrackGraph": {
+            /**
+             * Geometry
+             * @default mm
+             * @enum {string}
+             */
+            geometry: "mm" | "schema";
+            /** Nodes */
+            nodes?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphNode"][];
+            /** Pieces */
+            pieces?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphLabel"][];
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
+             * Issued
+             * @description Ids issued so far; the next is one more.
+             * @default 0
+             */
+            issued: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Trapezoid
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
+         */
+        "trainmeet.cad-1.drawing-view.Trapezoid": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "trapezoid";
+            /** Length */
+            length: number;
+            /** Width A */
+            width_a: number;
+            /** Width B */
+            width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckItem
+         * @description Att kolla: one thing the owner answers before the track plan is approved. The key names
+         *     the kind, the parts and the measured value, so a changed value asks again.
+         */
+        "trainmeet.cad-1.check-item": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.check-item.CheckKind"];
+            /** @default code */
+            source: components["schemas"]["trainmeet.cad-1.check-item.CheckSource"];
+            /**
+             * At
+             * @description The place in mm, in the module's coordinates.
+             */
+            at: [
+                number,
+                number
+            ];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /**
+             * Refs
+             * @description The nodes, pieces and switches.
+             */
+            refs?: string[];
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.check-item.CheckChoice"][];
+            /** @default null */
+            answer: components["schemas"]["trainmeet.cad-1.check-item.CheckAnswer"] | null;
+            /**
+             * Assumed
+             * @description Antagen (AR3): yellow; otherwise orange, as a proposal.
+             * @default false
+             */
+            assumed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckAnswer
+         * @description Ägarens svar på en sak att kolla: kept with the version, by the item's key.
+         */
+        "trainmeet.cad-1.check-item.CheckAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+            /**
+             * By
+             * @default null
+             */
+            by: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckChoice
+         * @description An answer button. closes: the answer settles the item; action: what the view does
+         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         */
+        "trainmeet.cad-1.check-item.CheckChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * Closes
+             * @default true
+             */
+            closes: boolean;
+            /**
+             * Action
+             * @default null
+             */
+            action: ("design" | "lock") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CheckKind
+         * @description Att kolla: what the code found, or (part c) what AI asks.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.check-item.CheckKind": "short_rail" | "open_end" | "switch_radius" | "switch_assumed" | "kink" | "tight_radius" | "gable_position" | "question";
+        /**
+         * CheckSource
+         * @enum {string}
+         */
+        "trainmeet.cad-1.check-item.CheckSource": "code" | "ai";
+        /**
+         * LockAsk
+         * @description Lås mått, the preview: the change set so far and the lock to try.
+         */
+        "trainmeet.cad-1.lock-ask": {
+            /** Base */
+            base: number;
+            /** Operations */
+            operations?: (components["schemas"]["trainmeet.cad-1.lock-ask.AddLine"] | components["schemas"]["trainmeet.cad-1.lock-ask.AddArc"] | components["schemas"]["trainmeet.cad-1.lock-ask.AddPolyline"] | components["schemas"]["trainmeet.cad-1.lock-ask.AddSwitch"] | components["schemas"]["trainmeet.cad-1.lock-ask.MoveSwitch"] | components["schemas"]["trainmeet.cad-1.lock-ask.Move"] | components["schemas"]["trainmeet.cad-1.lock-ask.Delete"] | components["schemas"]["trainmeet.cad-1.lock-ask.Join"] | components["schemas"]["trainmeet.cad-1.lock-ask.Cut"] | components["schemas"]["trainmeet.cad-1.lock-ask.SetLabel"] | components["schemas"]["trainmeet.cad-1.lock-ask.SetEnd"] | components["schemas"]["trainmeet.cad-1.lock-ask.SetSwitch"] | components["schemas"]["trainmeet.cad-1.lock-ask.AnswerCheck"] | components["schemas"]["trainmeet.cad-1.lock-ask.SetSmoothing"] | components["schemas"]["trainmeet.cad-1.lock-ask.LockMeasures"])[];
+            lock: components["schemas"]["trainmeet.cad-1.lock-ask.LockMeasures"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddArc
+         * @description Båge: an ARC from start, by radius and angle (turning right for a positive angle, as
+         *     seen along the track with y down) from the heading at start, or through three points.
+         */
+        "trainmeet.cad-1.lock-ask.AddArc": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End
+             * @default null
+             */
+            end: [
+                number,
+                number
+            ] | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+            /**
+             * Through
+             * @default null
+             */
+            through: [
+                number,
+                number
+            ] | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @description Degrees.
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Heading
+             * @description Degrees, 0 toward gable B, positive down; null: the track's.
+             * @default null
+             */
+            heading: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddLine
+         * @description Rakt spår: a LINE from start to end. start_node and end_node join it to an end there;
+         *     a point on a gable becomes a module joint.
+         */
+        "trainmeet.cad-1.lock-ask.AddLine": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddPolyline
+         * @description A hand-drawn line: utjämning makes it LINE and ARC at the version's level.
+         */
+        "trainmeet.cad-1.lock-ask.AddPolyline": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "polyline";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Start Node
+             * @default null
+             */
+            start_node: string | null;
+            /**
+             * End Node
+             * @default null
+             */
+            end_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AddSwitch
+         * @description Växel: the diverging leg leaves the piece's track tangentially at from_a mm from gable A,
+         *     with its radius. Either with its angle, to the left or right as seen toward the gable it
+         *     heads for, or drawn to a point: an arc of the radius and then straight to to, which also
+         *     gives the side and the gable it heads for (a track drawn from the middle of another).
+         */
+        "trainmeet.cad-1.lock-ask.AddSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "switch";
+            /** Piece */
+            piece: string;
+            /**
+             * From A
+             * @description Tungspetsen, mm från gavel A.
+             */
+            from_a: number;
+            /** Radius */
+            radius: number;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Side
+             * @default null
+             */
+            side: ("left" | "right") | null;
+            /** @default B */
+            toward: components["schemas"]["trainmeet.cad-1.lock-ask.GableEnd"];
+            /**
+             * Design
+             * @default null
+             */
+            design: string | null;
+            /**
+             * Tail
+             * @description Straight after the arc, mm.
+             * @default 0
+             */
+            tail: number;
+            /**
+             * To
+             * @description Where the diverging leg ends.
+             * @default null
+             */
+            to: [
+                number,
+                number
+            ] | null;
+            /**
+             * To Node
+             * @default null
+             */
+            to_node: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AnswerCheck
+         * @description Answer an item in Att kolla with one of its choices.
+         */
+        "trainmeet.cad-1.lock-ask.AnswerCheck": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "answer";
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Cut
+         * @description Cut a piece in two at the point nearest at: the first part keeps the id.
+         */
+        "trainmeet.cad-1.lock-ask.Cut": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "cut";
+            /** Piece */
+            piece: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Delete
+         * @description Delete a piece, a switch, an end or a label. The ids are never used again.
+         */
+        "trainmeet.cad-1.lock-ask.Delete": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "delete";
+            /** Target */
+            target: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-ask.GableEnd": "A" | "B";
+        /**
+         * Join
+         * @description Join two ends: both move to the middle and become one node.
+         */
+        "trainmeet.cad-1.lock-ask.Join": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "join";
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockMeasures
+         * @description Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions
+         *     a and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,
+         *     straight, fitted to the line it replaces. Null a or b: the gable's measure.
+         */
+        "trainmeet.cad-1.lock-ask.LockMeasures": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "lock";
+            /**
+             * Piece
+             * @description Null: the first track from A to B.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * A
+             * @default null
+             */
+            a: number | null;
+            /**
+             * B
+             * @default null
+             */
+            b: number | null;
+            /** @default same */
+            radii: components["schemas"]["trainmeet.cad-1.lock-ask.LockRadii"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockRadii
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-ask.LockRadii": "same" | "different";
+        /**
+         * Move
+         * @description Move a node, a piece, a switch or a label by a vector in mm. What hangs on it is
+         *     reshaped, never replaced.
+         */
+        "trainmeet.cad-1.lock-ask.Move": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "move";
+            /** Target */
+            target: string;
+            /** By */
+            by: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MoveSwitch
+         * @description Flytta växel: the points slide along their track; the legs follow.
+         */
+        "trainmeet.cad-1.lock-ask.MoveSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "move_switch";
+            /** Switch */
+            switch: string;
+            /** From A */
+            from_a: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetEnd
+         * @description Make a free end a buffer stop, or a plain end again.
+         */
+        "trainmeet.cad-1.lock-ask.SetEnd": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "end";
+            /** Node */
+            node: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "buffer_stop" | "joint";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetLabel
+         * @description Text: a piece's track number, a switch's number, or a free label at a point. An empty
+         *     text removes it.
+         */
+        "trainmeet.cad-1.lock-ask.SetLabel": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "label";
+            /**
+             * Target
+             * @default null
+             */
+            target: string | null;
+            /**
+             * At
+             * @default null
+             */
+            at: [
+                number,
+                number
+            ] | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetSmoothing
+         * @description Utjämning: the level, kept on the version; the drawn lines are made again at it.
+         */
+        "trainmeet.cad-1.lock-ask.SetSmoothing": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "smoothing";
+            level: components["schemas"]["trainmeet.cad-1.lock-ask.Smoothing"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SetSwitch
+         * @description Växelinspektören: the diverging radius, the switch type ("okand" for Okänd), and Lås
+         *     växelns läge.
+         */
+        "trainmeet.cad-1.lock-ask.SetSwitch": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "set_switch";
+            /** Switch */
+            switch: string;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Design
+             * @default null
+             */
+            design: string | null;
+            /**
+             * Locked
+             * @default null
+             */
+            locked: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-ask.Smoothing": "off" | "light" | "normal" | "strong";
+        /**
+         * LockProposal
+         * @description Lås ett mått, räkna om kurvan: the new geometry beside the old line, or why there is
+         *     none. Använd geometrin saves it (the operation lock); Behåll linjen keeps the old.
+         */
+        "trainmeet.cad-1.lock-proposal": {
+            /** Solved */
+            solved: boolean;
+            /**
+             * Why
+             * @description The sentence under LÅSTA MÅTT, or why there is no solution.
+             */
+            why: string;
+            radii: components["schemas"]["trainmeet.cad-1.lock-proposal.LockRadii"];
+            /** Gables */
+            gables?: components["schemas"]["trainmeet.cad-1.lock-proposal.LockGable"][];
+            /** Parts */
+            parts?: components["schemas"]["trainmeet.cad-1.lock-proposal.LockPart"][];
+            /**
+             * Old
+             * @description The line it replaces.
+             */
+            old?: [
+                number,
+                number
+            ][];
+            /** New */
+            new?: (components["schemas"]["trainmeet.cad-1.lock-proposal.LineSegment"] | components["schemas"]["trainmeet.cad-1.lock-proposal.ArcSegment"])[];
+            /**
+             * Tangents
+             * @description The tangent points.
+             */
+            tangents?: [
+                number,
+                number
+            ][];
+            /** @default null */
+            deviation: components["schemas"]["trainmeet.cad-1.lock-proposal.Deviation"] | null;
+            lock: components["schemas"]["trainmeet.cad-1.lock-proposal.LockMeasures"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.lock-proposal.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Deviation
+         * @description How far one line lies from another: the median and the largest distance, in mm, over
+         *     count points.
+         */
+        "trainmeet.cad-1.lock-proposal.Deviation": {
+            /** Median */
+            median: number;
+            /** Max */
+            max: number;
+            /** Count */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-proposal.GableEnd": "A" | "B";
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.lock-proposal.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockGable
+         * @description LÅSTA MÅTT: a gable track, the value locked and what the line said.
+         */
+        "trainmeet.cad-1.lock-proposal.LockGable": {
+            gable: components["schemas"]["trainmeet.cad-1.lock-proposal.GableEnd"];
+            /** Track */
+            track: number;
+            /** Value */
+            value: number;
+            /** Line */
+            line: number;
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.lock-proposal.Norm"] | null;
+            /**
+             * Profile
+             * @description The profile's name, when it fixes it.
+             * @default null
+             */
+            profile: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockMeasures
+         * @description Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions
+         *     a and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,
+         *     straight, fitted to the line it replaces. Null a or b: the gable's measure.
+         */
+        "trainmeet.cad-1.lock-proposal.LockMeasures": {
+            /**
+             * Op
+             * @default lock
+             * @constant
+             */
+            op: "lock";
+            /**
+             * Piece
+             * @description Null: the first track from A to B.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * A
+             * @default null
+             */
+            a: number | null;
+            /**
+             * B
+             * @default null
+             */
+            b: number | null;
+            /** @default same */
+            radii: components["schemas"]["trainmeet.cad-1.lock-proposal.LockRadii"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockPart
+         * @description One row in Kurvan's table: Rakt från gavel A, Båge R, Rakt mm · vinkel, Båge R, Rakt
+         *     till gavel B.
+         */
+        "trainmeet.cad-1.lock-proposal.LockPart": {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "straight" | "arc";
+            /** Label */
+            label: string;
+            /** Length */
+            length: number;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @description Degrees: the straight's angle to gable A, or the arc's.
+             */
+            angle: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LockRadii
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-proposal.LockRadii": "same" | "different";
+        /**
+         * Norm
+         * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.lock-proposal.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        /**
+         * SmoothAsk
+         * @description Utjämning of one line, to see what a level does.
+         */
+        "trainmeet.cad-1.smooth-ask": {
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /** @default normal */
+            level: components["schemas"]["trainmeet.cad-1.smooth-ask.Smoothing"];
+            /** @default H0 */
+            scale: components["schemas"]["trainmeet.cad-1.smooth-ask.Scale"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.smooth-ask.Scale": "H0" | "N" | "0";
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.smooth-ask.Smoothing": "off" | "light" | "normal" | "strong";
+        /** SmoothResult */
+        "trainmeet.cad-1.smooth-result": {
+            level: components["schemas"]["trainmeet.cad-1.smooth-result.Smoothing"];
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.cad-1.smooth-result.LineSegment"] | components["schemas"]["trainmeet.cad-1.smooth-result.ArcSegment"])[];
+            deviation: components["schemas"]["trainmeet.cad-1.smooth-result.Deviation"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.smooth-result.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Deviation
+         * @description How far one line lies from another: the median and the largest distance, in mm, over
+         *     count points.
+         */
+        "trainmeet.cad-1.smooth-result.Deviation": {
+            /** Median */
+            median: number;
+            /** Max */
+            max: number;
+            /** Count */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.smooth-result.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Smoothing
+         * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.smooth-result.Smoothing": "off" | "light" | "normal" | "strong";
     };
     responses: never;
     parameters: never;
@@ -3121,6 +5786,419 @@ export interface operations {
             };
             /** @description CAD säger nej */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadDrawing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.drawing-view"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadSaveDrawing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.module"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadApprovePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.module"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadLockMeasures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.lock-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.lock-proposal"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadChecks: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.check-item"][];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadSmooth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.smooth-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.smooth-result"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
