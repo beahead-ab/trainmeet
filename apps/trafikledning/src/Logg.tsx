@@ -132,7 +132,7 @@ export function LoggPage({ admin, now, pkg = null, clients, navigate, onMessage,
                 shown.events.map((event) => (
                   <tr key={event.seq}>
                     <td>{event.model_time}</td>
-                    <td>{describe(event, pkg)}</td>
+                    <td>{describe(event, pkg, clients)}</td>
                     <td className="tag">{trainNumber(now, event.train)}</td>
                     <td>{event.place ? placeName(now, event.place) : ""}</td>
                     <td>{actorName(event.actor, clients)}</td>

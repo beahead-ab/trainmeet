@@ -211,6 +211,7 @@
         "tkl",
         "tmbox_app",
         "dispatch",
+        "remote",
         "tmbox_web",
         "tmbox",
         "screen"
@@ -314,6 +315,15 @@
         "$ref": "#/$defs/ClientPlace"
       },
       "title": "Wanted",
+      "type": "array"
+    },
+    "controls": {
+      "description": "Driftplatserna klienten fjärrstyr just nu (FR4): ett fjärrställverk, eller en TKL som fjärrstyr en granne (FR3).",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Controls",
       "type": "array"
     }
   },

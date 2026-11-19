@@ -368,7 +368,22 @@
         "paper_no_places",
         "paper_few_places",
         "paper_no_times",
-        "paper_no_number"
+        "paper_no_number",
+        "not_controller",
+        "not_in_catalog",
+        "route_already_requested",
+        "route_not_pending",
+        "offer_not_pending",
+        "offer_pending",
+        "station_not_answering",
+        "place_remote",
+        "no_catalog",
+        "not_station",
+        "unknown_receiver",
+        "no_contact",
+        "conflicting_route",
+        "switch_not_in_control",
+        "area_released"
       ],
       "title": "Reason",
       "type": "string"

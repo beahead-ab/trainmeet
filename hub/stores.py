@@ -62,6 +62,9 @@ class AnyRun:
             UnknownClient, lambda store: store.station_track_display(key, place, change)
         )
 
+    def overview(self, key: str, places: list[str]) -> station.Overview:
+        return self._first(UnknownClient, lambda store: store.overview(key, places))
+
     def set_push(self, key: str, token: station.PushToken | None) -> None:
         self._first(UnknownClient, lambda store: store.set_push(key, token))
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Problem } from "@trainmeet/hubben";
 import { planning, type Changes, type Draft, type TrackPicture } from "./api";
-import { CERTAINTY, Facts, KINDS, MODES, TRACKS, partOf, plural, sourceKind, type Package, type Place, type Section } from "./data";
+import { CERTAINTY, Facts, KINDS, MODES, TRACKS, areaPlaces, partOf, plural, remoteFrom, sourceKind, type Package, type Place, type Section } from "./data";
 import { layout, links, sectionLabel, STEP_X, STEP_Y } from "./karta";
 
 // Bana (S6): the map with the places and the clearance sections, with their parts under. Choose
@@ -108,6 +108,9 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
             <span>Dubbla linjer = dubbelspår</span>
             <span>Grå streckad = spår utan klarering i planen</span>
             {pkg.places.some((item) => item.part_of) && <span id="part-legend">Prickad = del av en station, egen driftplats</span>}
+            {(pkg.remote_areas ?? []).map((area) => (
+              <span key={area.id} className="fjarromrade">{`Fjärrområdet ${area.name}: ${areaPlaces(area, (id) => nameOf(pkg, id))}`}</span>
+            ))}
             <span className="bla">Blå = vald</span>
             {picture && <span id="picture-legend">Grått under = banbilden</span>}
           </footer>
@@ -254,8 +257,9 @@ export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: 
             .map((place) => {
               const [x, y] = point(place.id);
               const chosen = choice?.kind === "place" && choice.id === place.id;
-              const remote = place.remote_from ? places.get(place.remote_from) : undefined;
-              const note = partOf(place, (id) => places.get(id)?.name ?? id) ?? (place.kind === "shadow_yard" ? "skuggbangård" : remote ? `fjärrstyrd från ${remote.name}` : place.kind === "unmanned" ? "obemannad" : null);
+              // Fjärrstyrd från sitt fjärrområde (FR49), or from the place an older plan named.
+              const remote = remoteFrom(pkg, place, (id) => places.get(id)?.name ?? id);
+              const note = partOf(place, (id) => places.get(id)?.name ?? id) ?? (place.kind === "shadow_yard" ? "skuggbangård" : remote ? `fjärrstyrd från ${remote}` : place.kind === "unmanned" ? "obemannad" : null);
               const boxWidth = Math.max(54, place.code.length * 9 + 22);
               return (
                 <g
@@ -432,7 +436,7 @@ function PlaceChoice({ admin, draft, pkg, place, facts, unsure, onSave }: { admi
       <dl>
         <div className="par">
           <dt>Platstyp</dt>
-          <dd>{(KINDS[place.kind] ?? place.kind) + (place.remote_from ? `, från ${nameOf(pkg, place.remote_from)}` : "")}</dd>
+          <dd>{(KINDS[place.kind] ?? place.kind) + (remoteFrom(pkg, place, (id) => nameOf(pkg, id)) ? `, från ${remoteFrom(pkg, place, (id) => nameOf(pkg, id))}` : "")}</dd>
         </div>
         {place.part_of && (
           <div className="par">

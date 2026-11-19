@@ -438,11 +438,44 @@ function Belagda({ now }: { now: Now }) {
   );
 }
 
+type AutomationPlace = NonNullable<Automation["places"]>[number];
+
+/** What Trafikledningen may do with a place (F14, FR9): leave a manned place to the automation,
+ * take a remote-controlled station over, give it back to the one who controlled it, or give it
+ * to a box or TKL in contact there. */
+export function PlaceActions({ place, clientName, onPlace }: { place: AutomationPlace; clientName: (id: string) => string; onPlace?: ((change: ChangePlace) => void) | undefined }) {
+  if (place.mode !== "automatic") {
+    return (
+      <button type="button" onClick={() => onPlace?.({ place: place.place, action: "leave", client_id: null })}>
+        {place.controller ? "Ta över" : "Lämna till automatiken"}
+      </button>
+    );
+  }
+  const back = place.back_to;
+  const present = place.present?.[0];
+  return (
+    <>
+      {back && (
+        <button type="button" onClick={() => onPlace?.({ place: place.place, action: "remote", client_id: back })}>
+          {`Lämna tillbaka till ${clientName(back)}`}
+        </button>
+      )}
+      {present ? (
+        <button type="button" onClick={() => onPlace?.({ place: place.place, action: "take_back", client_id: present })}>
+          {`Ge till ${clientName(present)}`}
+        </button>
+      ) : (
+        !back && <span className="liten">Ingen box eller TKL ansluten</span>
+      )}
+    </>
+  );
+}
+
 /** Automatiken (F14): who works each place, leave and take back; its settings are under the
  * gear (H48, H50). */
 function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuProps & { now: Now; automation: Automation }) {
   const settings = automation.settings;
-  const counts: Record<string, number> = { manned: 0, no_contact: 0, automatic: 0 };
+  const counts: Record<string, number> = { manned: 0, offered: 0, remote: 0, no_contact: 0, automatic: 0 };
   // A part of a station that is its own driftplats is a row of its own, after its station
   // (TRAFIK-35).
   const places = byStation(automation.places ?? [], (place) => place.place, (place) => stationOf(now, place.place));
@@ -450,7 +483,7 @@ function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuPr
   const clientName = (id: string) => clients.find((client) => client.client_id === id)?.name ?? id;
   const trains = (automation.trains ?? []).filter((train) => !ORDINARY.has(train.reason));
   const summary = settings.enabled
-    ? ` · ${counts["automatic"]} automatiska, ${counts["manned"]} bemannade` + (counts["no_contact"] ? `, ${counts["no_contact"]} utan kontakt` : "")
+    ? ` · ${counts["automatic"]} automatiska, ${counts["manned"]} bemannade` + (counts["remote"] ? `, ${counts["remote"]} fjärrstyrda` : "") + (counts["no_contact"] ? `, ${counts["no_contact"]} utan kontakt` : "")
     : " · avstängd";
   return (
     <details id="automatiken" className="kort" open={openAutomation}>
@@ -465,6 +498,7 @@ function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuPr
       <p className="liten">
         En driftplats som ingen box eller TKL arbetar med sköts av automatiken: den ger klart när spåret är ledigt, skickar sina tåg och tar emot dem. Den första box eller TKL som arbetar med platsen gör den bemannad.
       </p>
+      <p className="liten">En station som lämnats över är fjärrstyrd: den som tog emot den lägger tågvägarna och klarerar för hela stationen. Ta över ger stationen till automatiken, och Lämna tillbaka ger den till den som styrde den.</p>
       <div className="ram">
         <table className="tabell">
           <thead>
@@ -487,17 +521,7 @@ function Automatiken({ now, clients, automation, openAutomation, onPlace }: NuPr
                   <span className={`pill ${place.mode}`}>{modeText(place, clientName)}</span>
                 </td>
                 <td>
-                  {place.mode !== "automatic" ? (
-                    <button type="button" onClick={() => onPlace?.({ place: place.place, action: "leave", client_id: null })}>
-                      Lämna till automatiken
-                    </button>
-                  ) : place.present?.[0] ? (
-                    <button type="button" onClick={() => onPlace?.({ place: place.place, action: "take_back", client_id: place.present?.[0] ?? null })}>
-                      {`Ge till ${clientName(place.present[0])}`}
-                    </button>
-                  ) : (
-                    <span className="liten">Ingen box eller TKL ansluten</span>
-                  )}
+                  <PlaceActions place={place} clientName={clientName} onPlace={onPlace} />
                 </td>
               </tr>
             ))}

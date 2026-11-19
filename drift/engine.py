@@ -6,7 +6,7 @@ same state back. Ported from the old Server's engine and protocol_v2 with their 
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -16,7 +16,16 @@ from typing import Any, Final
 from contracts import drift as events
 from contracts import station
 from contracts.common import Side, Weekday
-from contracts.meet import Call, ClearanceMode, MeetPackage, PlaceKind, Section, TrackKind, Train
+from contracts.meet import (
+    Call,
+    ClearanceMode,
+    MeetPackage,
+    PlaceKind,
+    Section,
+    TrackKind,
+    Train,
+    hangs_together,
+)
 from contracts.reasons import Reason
 from core import changes as driftchanges
 from drift.driver_book import DRIVER_EVENTS, DriverBook, Moment
@@ -35,12 +44,15 @@ DAY_CHANGE_WAIT: Final = 30 * 60
 AUTOMATION: Final = "automatik"
 # What a box or TKL may still do at a place left to the automation: look, and take it back.
 # A station at level 3 still reports its detection: occupancy stops the automation (DRIFT-16).
+# Its interlocking still answers the routes asked for before, and reports its state (#36).
 _ALLOWED_WHEN_LEFT: Final = frozenset(
     {
         station.Action.TRAIN_LOOKUP,
         station.Action.PLACE_LEAVE,
         station.Action.PLACE_TAKE_BACK,
         station.Action.SECTION_OCCUPANCY,
+        station.Action.ROUTE_RESPONSE,
+        station.Action.ROUTE_STATE,
     }
 )
 # Detection comes from a station whose TKL connected at level 3 (DRIFT-10, KLAR-16).
@@ -64,6 +76,58 @@ _FASTCLOCK: Final = events.Actor(kind=events.ActorKind.SYSTEM, id="fastclock")
 FOLLOW_TOLERANCE: Final = 5.0
 # What Ångra takes back (F6): a time jump, or a new game day.
 _UNDOABLE: Final = frozenset({events.EventKind.TIME_JUMP, events.EventKind.DAY_CHANGED})
+
+# Fjärrstyrning (#36, TKL89): an offer stands a minute (FR8), and a station answers a route asked
+# for within ten seconds (FR14). Both are defaults to try, real time (TKL125).
+OFFER_SECONDS: Final = 60
+ROUTE_ANSWER_SECONDS: Final = 10
+# What whoever remote-controls a station may do there: clear for the whole station (FR17), run
+# its trains, and ask for routes from its catalogue (FR11). Never what is the station's own:
+# leave it, take it back, offer it, or report its interlocking and detection.
+_CONTROLLER_ACTIONS: Final = frozenset(
+    {
+        station.Action.TRAIN_LOOKUP,
+        station.Action.TRAIN_TRACK_CHANGE,
+        station.Action.TRAIN_DEPARTED,
+        station.Action.TRAIN_ARRIVED,
+        station.Action.TRAIN_POSITION_SET,
+        station.Action.TRAIN_CREW_READY_SET,
+        station.Action.TRAIN_SET_ASIDE,
+        station.Action.CLEARANCE_REQUEST,
+        station.Action.CLEARANCE_RESPONSE,
+        station.Action.CLEARANCE_CANCEL,
+        station.Action.LINE_AVAILABLE_PUBLISH,
+        station.Action.LINE_AVAILABLE_ACKNOWLEDGE,
+        station.Action.ROUTE_REQUEST,
+        station.Action.ROUTE_CANCEL,
+    }
+)
+# What the station's own clients still do while it is remote-controlled: look, take it back,
+# report the detection and the exit signals, answer the routes asked for and report its state.
+# An arrival may come from the station too: at level 3 its interlocking sees the train in
+# (DRIFT-16). Clearing is the controller's (FR17).
+_STATION_WHILE_REMOTE: Final = frozenset(
+    {
+        station.Action.TRAIN_LOOKUP,
+        station.Action.TRAIN_ARRIVED,
+        station.Action.PLACE_TAKE_BACK,
+        station.Action.SECTION_OCCUPANCY,
+        station.Action.SIGNAL_EXIT,
+        station.Action.ROUTE_RESPONSE,
+        station.Action.ROUTE_STATE,
+    }
+)
+# What someone approved for the place, or offered it, who neither runs nor controls it may do:
+# look, and answer an offer. A remote interlocking approved for its area only receives (FR4).
+_OTHER_ACTIONS: Final = frozenset({station.Action.TRAIN_LOOKUP, station.Action.PLACE_OFFER_ANSWER})
+_ROUTE_ACTIONS: Final = frozenset(
+    {
+        station.Action.ROUTE_REQUEST,
+        station.Action.ROUTE_CANCEL,
+        station.Action.ROUTE_RESPONSE,
+        station.Action.ROUTE_STATE,
+    }
+)
 
 
 class Refused(Exception):
@@ -180,6 +244,60 @@ class Case:
 
 
 @dataclass(frozen=True)
+class Offer:
+    """A station handed over and not yet answered (FR8): to whom, and since when, real time."""
+
+    to: str
+    kind: station.ClientKind
+    at: datetime
+
+
+@dataclass(frozen=True)
+class Control:
+    """Who remote-controls a station (FR5): a neighbour's TKL or a remote interlocking."""
+
+    controller: str
+    kind: station.ClientKind
+
+
+@dataclass(frozen=True)
+class RouteAsk:
+    """A route asked for from afar, from the request to its release."""
+
+    request_id: str
+    place: str
+    route: str
+    call: str | None
+    by: str
+    at: datetime
+    asked_at: str
+    state: station.RemoteRouteState = station.RemoteRouteState.REQUESTED
+    reason: Reason | None = None
+
+
+@dataclass(frozen=True)
+class Caller:
+    """What the store knows of the client behind a command, for remote control (FR4–FR16). Drift
+    knows who controls each place; the store knows who the client is, what the station's outside
+    says, and who has been heard. The default is a place's own client, as before remote control.
+
+    own: the client is approved for the place as its own: its TKL, the app or a box.
+    kind: the client's kind; place.offer and taking a station back from afar need the station's
+    TKL (FR7). receivers: the clients the place may be offered to now (FR2, FR3). catalogue: the
+    routes of the station's remote catalogue (FR11); controllable: it has one at level 1 or more
+    (FR16). controller_heard: the client was heard within 45 seconds before this command (FR28);
+    station_heard: the station's own TKL was."""
+
+    own: bool = True
+    kind: station.ClientKind | None = None
+    receivers: Mapping[str, station.ClientKind] = field(default_factory=dict)
+    catalogue: frozenset[str] = frozenset()
+    controllable: bool = False
+    controller_heard: bool = True
+    station_heard: bool = True
+
+
+@dataclass(frozen=True)
 class ChangeState:
     """A driftändring in the running meet (DRIFT-41): what it is, and whether it applies."""
 
@@ -269,6 +387,13 @@ class Drift:
         # Lokföraren (LOK-07): who has which service, the check-ins, the messages and the
         # game's settings for the drivers. Like the driftändringar, Ångra leaves them be.
         self.drivers = DriverBook()
+        # Fjärrstyrning (#36): the offers out, who remote-controls which place, the routes asked
+        # for from afar, and each station's latest route.state, which is kept also when the
+        # station is taken back (FR15). Like who works a place, Ångra leaves them be.
+        self.offers: dict[str, Offer] = {}
+        self.remote: dict[str, Control] = {}
+        self.route_asks: dict[tuple[str, str], RouteAsk] = {}
+        self.route_states: dict[str, station.RouteState] = {}
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -885,13 +1010,72 @@ class Drift:
                 assert event.place is not None
                 self.left[event.place] = events.PlaceLeft.model_validate(event.data)
                 self.manned.pop(event.place, None)
-                self._touch_places(event.place)
+                self._end_remote(event.place)
             case events.EventKind.PLACE_TAKEN_BACK:
                 assert event.place is not None
                 back = events.PlaceTakenBack.model_validate(event.data)
                 self.left.pop(event.place, None)
+                self._end_remote(event.place)
                 self.manned[event.place] = back.client_id
+            case events.EventKind.PLACE_OFFERED:
+                assert event.place is not None
+                offered = events.PlaceOffered.model_validate(event.data)
+                self.offers[event.place] = Offer(offered.to, offered.kind, event.wall_time)
+                self._touch_places(event.place, *self.places_of(offered.to))
+            case events.EventKind.PLACE_OFFER_ANSWERED:
+                assert event.place is not None
+                answered = events.OfferAnswered.model_validate(event.data)
+                offer = self.offers.pop(event.place, None)
+                if answered.accepted and offer is not None:
+                    self.remote[event.place] = Control(offer.to, offer.kind)
+                self._touch_places(event.place, *self.places_of(answered.to))
+            case events.EventKind.PLACE_REMOTE:
+                assert event.place is not None
+                given = events.PlaceRemote.model_validate(event.data)
+                self.left.pop(event.place, None)
+                self._end_remote(event.place)
+                self.remote[event.place] = Control(given.controller, given.kind)
+                self._touch_places(event.place, *self.places_of(given.controller))
+            case events.EventKind.ROUTE_REQUESTED:
+                assert event.place is not None and event.actor.id is not None
+                asked = events.RouteRequested.model_validate(event.data)
+                self.route_asks[(event.place, asked.request_id)] = RouteAsk(
+                    asked.request_id,
+                    event.place,
+                    asked.route,
+                    asked.call,
+                    event.actor.id,
+                    event.wall_time,
+                    event.model_time,
+                )
                 self._touch_places(event.place)
+            case events.EventKind.ROUTE_ANSWERED:
+                assert event.place is not None
+                routed = events.RouteAnswered.model_validate(event.data)
+                ask = self.route_asks[(event.place, routed.request_id)]
+                self.route_asks[(event.place, ask.request_id)] = replace(
+                    ask,
+                    state=station.RemoteRouteState.LOCKED
+                    if routed.locked
+                    else station.RemoteRouteState.REFUSED,
+                    reason=routed.reason,
+                )
+                self._touch_places(event.place, *self.places_of(ask.by))
+            case events.EventKind.ROUTE_CANCELLED | events.EventKind.ROUTE_RELEASED:
+                assert event.place is not None
+                self._route_ended(event)
+            case events.EventKind.ROUTE_STATE:
+                assert event.place is not None
+                self.route_states[event.place] = station.RouteState.model_validate(event.data)
+                self._touch_places(event.place, *self._watching(event.place))
+            case (
+                events.EventKind.LOCAL_RELEASE_REQUESTED
+                | events.EventKind.LOCAL_RELEASE_ANSWERED
+                | events.EventKind.LOCAL_RELEASE_ENDED
+                | events.EventKind.AUTOMAT_SET
+            ):
+                # What they say is in the station's route.state; the events are for Logg (FR37).
+                assert event.place is not None
             case events.EventKind.AUTOMATION_SET:
                 self.automation = events.AutomationSettings.model_validate(event.data)
                 if self.automation.enabled and self.first_run is None and self.clock.running:
@@ -974,7 +1158,10 @@ class Drift:
 
     def automatic(self, place: str) -> bool:
         """Does the automation work the place? Left to it, or never worked by a box or TKL.
-        A manned place out of contact is still manned: it waits for its operator."""
+        A manned place out of contact is still manned: it waits for its operator. A place
+        remote-controlled is worked from afar (FR5)."""
+        if place in self.remote:
+            return False
         return place in self.unmanned or place in self.left or place not in self.manned
 
     def left_here(self, place: str) -> bool:
@@ -1018,11 +1205,17 @@ class Drift:
         data: dict[str, object] = {"by": by.value}
         if owner:
             data["client_id"] = owner
+        control = self.remote.get(place)
+        if control is not None:
+            # Taken over from afar (FR9, FR30): the controller is kept, to give it back.
+            data["controller"] = control.controller
         self._record(events.EventKind.PLACE_LEFT, data, now, place=place, actor=actor)
         return True
 
     def take_back(self, place: str, client: str, by: str, now: datetime) -> None:
-        """Ta tillbaka: a box or TKL in contact at the place works it again."""
+        """Ta tillbaka: a box or TKL in contact at the place works it again, from the automation
+        or from afar (FR7). The routes the station holds locked stay until the train has gone,
+        and Drift keeps their state (FR15)."""
         if place not in self.stops():
             raise Refused(Reason.WRONG_PLACE)
         actor = (
@@ -1030,13 +1223,323 @@ class Drift:
             if by == "dispatcher"
             else events.Actor(kind=events.ActorKind.CLIENT, id=client)
         )
+        data: dict[str, object] = {"by": by, "client_id": client}
+        control = self.remote.get(place)
+        if control is not None:
+            data["controller"] = control.controller
+        self._record(events.EventKind.PLACE_TAKEN_BACK, data, now, place=place, actor=actor)
+
+    # --- Fjärrstyrning (#36, TKL46–TKL48, TKL89): who controls a place ---------------------
+
+    def _route_ended(self, event: events.DriftEvent) -> None:
+        """A route taken away by the controller, or released in the station."""
+        assert event.place is not None
+        if event.kind == events.EventKind.ROUTE_CANCELLED:
+            request: str | None = events.RouteRef.model_validate(event.data).request_id
+            ended = station.RemoteRouteState.CANCELLED
+        else:
+            request = events.RouteReleased.model_validate(event.data).request_id
+            ended = station.RemoteRouteState.RELEASED
+        ask = self.route_asks.get((event.place, request or ""))
+        if ask is not None:
+            self.route_asks[(event.place, ask.request_id)] = replace(ask, state=ended)
+            self._touch_places(*self.places_of(ask.by))
+        self._touch_places(event.place)
+
+    def _end_remote(self, place: str) -> None:
+        """The place is no longer remote-controlled nor offered: left, taken back or given."""
+        ended = self.remote.pop(place, None)
+        offer = self.offers.pop(place, None)
+        told = [*self.places_of(ended.controller)] if ended else []
+        told += [*self.places_of(offer.to)] if offer else []
+        self._touch_places(place, *told)
+
+    def places_of(self, client: str) -> list[str]:
+        """The places a client works or remote-controls: where it hears of what concerns it."""
+        worked = [place for place, owner in self.manned.items() if owner == client]
+        return worked + [p for p, control in self.remote.items() if control.controller == client]
+
+    def controlled_by(self, client: str) -> list[str]:
+        """The places the client remote-controls (FR4)."""
+        return [place for place, control in self.remote.items() if control.controller == client]
+
+    def offered_to(self, client: str) -> list[str]:
+        return [place for place, offer in self.offers.items() if offer.to == client]
+
+    def _watching(self, place: str) -> list[str]:
+        """Who should read a station's route.state again: whoever controls it (FR13)."""
+        control = self.remote.get(place)
+        return self.places_of(control.controller) if control else []
+
+    def controller_of(self, place: str) -> str | None:
+        """Who controls the place now: whoever remote-controls it, else the client that works
+        it. None for a place the automation works."""
+        control = self.remote.get(place)
+        if control is not None:
+            return control.controller
+        if self.automatic(place):
+            return None
+        return self.manned.get(place)
+
+    def mode_of(self, place: str) -> station.PlaceMode:
+        """The operating form as Drift's state has it (FR5). Contact is the hub's to judge: the
+        store makes it Kontakt saknas when the station or its controller is not heard."""
+        if place in self.remote:
+            return station.PlaceMode.REMOTE
+        if self.automatic(place):
+            return station.PlaceMode.AUTOMATIC
+        if place in self.offers:
+            return station.PlaceMode.OFFERED
+        return station.PlaceMode.MANNED
+
+    def clearance_mode(self, section: Section) -> ClearanceMode:
+        """The section's clearance mode now. While both its ends are controlled from the same
+        place, one of them from afar, it is direct (FR18): Drift gives clear at once, as on a
+        remote-blocked line. Against a manned station clearance is as usual (FR19)."""
+        if section.place_a in self.remote or section.place_b in self.remote:
+            here = self.controller_of(section.place_a)
+            if here is not None and here == self.controller_of(section.place_b):
+                return ClearanceMode.DIRECT
+        return section.clearance_mode or self.package.meet.clearance_mode
+
+    def hangs_together(self, places: list[str]) -> bool:
+        """Do the places hang together along the line (FR2)?"""
+        return hangs_together(self.package, places)
+
+    def give_remote(
+        self, place: str, controller: str, kind: station.ClientKind, now: datetime
+    ) -> None:
+        """Trafikledningen gives the station to the one who is to remote-control it, without
+        an offer (FR9). The store has checked that it may receive it."""
+        if place not in self.stops():
+            raise Refused(Reason.WRONG_PLACE)
+        current = self.remote.get(place)
+        if current is not None and current.controller == controller:
+            return
         self._record(
-            events.EventKind.PLACE_TAKEN_BACK,
-            {"by": by, "client_id": client},
+            events.EventKind.PLACE_REMOTE,
+            {"controller": controller, "kind": kind.value},
             now,
             place=place,
-            actor=actor,
+            actor=_DISPATCHER,
         )
+
+    def remote_tick(self, now: datetime) -> None:
+        """An offer nobody answered runs out after a minute (FR8), and a route the station did
+        not answer in ten seconds is a no, with the picture unchanged (FR14). Real time, also
+        while the meet clock stands."""
+        for place, offer in sorted(self.offers.items()):
+            if (now - offer.at).total_seconds() >= OFFER_SECONDS:
+                self._record(
+                    events.EventKind.PLACE_OFFER_ANSWERED,
+                    {"to": offer.to, "expired": True},
+                    now,
+                    place=place,
+                )
+        for ask in list(self.route_asks.values()):
+            waited = (now - ask.at).total_seconds()
+            if ask.state == station.RemoteRouteState.REQUESTED and waited >= ROUTE_ANSWER_SECONDS:
+                self._record(
+                    events.EventKind.ROUTE_ANSWERED,
+                    {
+                        "request_id": ask.request_id,
+                        "locked": False,
+                        "reason": Reason.STATION_NOT_ANSWERING.value,
+                        "timed_out": True,
+                    },
+                    now,
+                    place=ask.place,
+                )
+
+    def _role(self, command: station.Command, caller: Caller) -> str:
+        """controller: whoever remote-controls the place; station: its own client; other:
+        approved for it, or offered it, but neither (FR4)."""
+        control = self.remote.get(command.place)
+        if control is not None and control.controller == command.client_id:
+            return "controller"
+        return "station" if caller.own else "other"
+
+    def actions_for(self, place: str, client: str, own: bool) -> frozenset[station.Action] | None:
+        """What a client may do at the place, for the snapshot's allowed actions: None for
+        everything the place allows, as before remote control."""
+        control = self.remote.get(place)
+        if control is not None and control.controller == client:
+            return _CONTROLLER_ACTIONS
+        if not own:
+            return _OTHER_ACTIONS
+        return _STATION_WHILE_REMOTE if control is not None else None
+
+    def _check_role(self, command: station.Command, caller: Caller) -> None:
+        """Who may do what at a place handed over (FR6, FR7, FR17): the controller clears and
+        asks for routes; the station's own clients report and take it back."""
+        action = station.Action
+        role = self._role(command, caller)
+        if role == "controller":
+            if command.action not in _CONTROLLER_ACTIONS:
+                raise Refused(Reason.NOT_STATION)
+            return
+        if command.action in (action.ROUTE_REQUEST, action.ROUTE_CANCEL):
+            raise Refused(Reason.NOT_CONTROLLER)
+        if role == "other":
+            if command.action not in _OTHER_ACTIONS:
+                raise Refused(Reason.NOT_APPROVED)
+            return
+        if command.place in self.remote:
+            if command.action == action.CLEARANCE_RESPONSE:
+                raise Refused(Reason.NOT_RECEIVER)
+            if command.action not in _STATION_WHILE_REMOTE:
+                raise Refused(Reason.PLACE_REMOTE)
+
+    def _offer(self, command: station.Command, caller: Caller, now: datetime) -> None:
+        """place.offer: only the station's own TKL hands the station over (FR8), to someone
+        who may receive it now (FR2, FR3), and only a station with a catalogue (FR16)."""
+        offer = station.PlaceOffer.model_validate(command.payload)
+        if caller.kind != station.ClientKind.TKL:
+            raise Refused(Reason.NOT_STATION)
+        if command.place in self.offers:
+            raise Refused(Reason.OFFER_PENDING)
+        if not caller.controllable:
+            raise Refused(Reason.NO_CATALOG)
+        kind = caller.receivers.get(offer.to)
+        if kind is None or offer.to == command.client_id:
+            raise Refused(Reason.UNKNOWN_RECEIVER)
+        self._record(
+            events.EventKind.PLACE_OFFERED,
+            {"to": offer.to, "kind": kind.value},
+            now,
+            command=command,
+        )
+
+    def _answer_offer(self, command: station.Command, now: datetime) -> None:
+        """place.offer.answer: the one offered takes the station or declines it."""
+        answer = station.OfferAnswer.model_validate(command.payload)
+        offer = self.offers.get(command.place)
+        if (
+            offer is None
+            or offer.to != command.client_id
+            or (now - offer.at).total_seconds() >= OFFER_SECONDS
+        ):
+            raise Refused(Reason.OFFER_NOT_PENDING)
+        self._record(
+            events.EventKind.PLACE_OFFER_ANSWERED,
+            {"to": offer.to, "accepted": answer.accept},
+            now,
+            command=command,
+        )
+
+    def _take_back(self, command: station.Command, caller: Caller, now: datetime) -> None:
+        """place.take_back: from the automation as before, and from afar by the station's own
+        TKL alone (FR7). A station only offered takes its offer back."""
+        place = command.place
+        if place in self.remote or place in self.offers:
+            if caller.kind != station.ClientKind.TKL:
+                raise Refused(Reason.NOT_STATION)
+            offer = self.offers.get(place)
+            if place not in self.remote and offer is not None:
+                self._record(
+                    events.EventKind.PLACE_OFFER_ANSWERED,
+                    {"to": offer.to, "withdrawn": True},
+                    now,
+                    command=command,
+                )
+                return
+            self.take_back(place, command.client_id, "operator", now)
+        elif place in self.left:
+            self.take_back(place, command.client_id, "operator", now)
+
+    def _route_request(self, command: station.Command, caller: Caller, now: datetime) -> None:
+        """route.request (FR11–FR14): Hubben checks who asks and the catalogue, never the
+        safety, and passes it to the station. Out of contact for 45 seconds, no new route goes
+        (FR28); a station that is not heard cannot answer."""
+        ask = station.RouteRequest.model_validate(command.payload)
+        place = command.place
+        if not caller.controller_heard:
+            raise Refused(Reason.NO_CONTACT)
+        if ask.route not in caller.catalogue:
+            raise Refused(Reason.NOT_IN_CATALOG)
+        busy = {station.RemoteRouteState.REQUESTED, station.RemoteRouteState.LOCKED}
+        if (place, ask.request_id) in self.route_asks or any(
+            other.place == place and other.route == ask.route and other.state in busy
+            for other in self.route_asks.values()
+        ):
+            raise Refused(Reason.ROUTE_ALREADY_REQUESTED)
+        if ask.call is not None and ask.call not in self.calls:
+            raise Refused(Reason.UNKNOWN_CALL)
+        if not caller.station_heard:
+            raise Refused(Reason.STATION_NOT_ANSWERING)
+        data: dict[str, object] = {"request_id": ask.request_id, "route": ask.route}
+        if ask.call is not None:
+            data["call"] = ask.call
+        self._record(events.EventKind.ROUTE_REQUESTED, data, now, command=command, call=ask.call)
+
+    def _route_cancel(self, command: station.Command, now: datetime) -> None:
+        """route.cancel: the station's interlocking decides when the route is released."""
+        ref = station.RouteCancel.model_validate(command.payload)
+        ask = self.route_asks.get((command.place, ref.request_id))
+        if ask is None or ask.state not in {
+            station.RemoteRouteState.REQUESTED,
+            station.RemoteRouteState.LOCKED,
+        }:
+            raise Refused(Reason.ROUTE_NOT_PENDING)
+        self._record(
+            events.EventKind.ROUTE_CANCELLED, {"request_id": ask.request_id}, now, command=command
+        )
+
+    def _route_response(self, command: station.Command, now: datetime) -> None:
+        """route.response: the station's interlocking locked the route, or said no (FR12)."""
+        answer = station.RouteResponse.model_validate(command.payload)
+        ask = self.route_asks.get((command.place, answer.request_id))
+        if ask is None or ask.state != station.RemoteRouteState.REQUESTED:
+            raise Refused(Reason.ROUTE_NOT_PENDING)
+        data: dict[str, object] = {"request_id": ask.request_id, "locked": answer.locked}
+        if answer.reason is not None:
+            data["reason"] = answer.reason.value
+        self._record(events.EventKind.ROUTE_ANSWERED, data, now, command=command)
+
+    def _route_state(self, command: station.Command, now: datetime, level: int) -> None:
+        """route.state: the station at the overview level, kept whole (FR13, FR15). What it
+        says has changed is written as its own event for Logg (FR37): a route laid from afar or
+        by an automat released, an automat switched, a local area given or ended. Occupied
+        tracks come only from a station at level 3."""
+        state = station.RouteState.model_validate(command.payload)
+        if state.occupied and level < DETECTION_LEVEL:
+            raise Refused(Reason.NOT_LEVEL_3)
+        before = self.route_states.get(command.place, station.RouteState())
+        if before == state:
+            return
+        self._record(
+            events.EventKind.ROUTE_STATE, state.model_dump(mode="json"), now, command=command
+        )
+        locked = {route.route for route in state.locked}
+        for route in before.locked:
+            if route.route in locked or (
+                route.by == station.RouteBy.STATION and route.request_id is None
+            ):
+                continue
+            data: dict[str, object] = {"route": route.route, "by": route.by.value}
+            if route.request_id is not None:
+                data["request_id"] = route.request_id
+            self._record(events.EventKind.ROUTE_RELEASED, data, now, command=command)
+        was = {automat.code: automat for automat in before.automats}
+        on = {automat.code: automat for automat in state.automats}
+        for code in sorted(set(was) | set(on)):
+            if (code in was) == (code in on):
+                continue
+            switched: dict[str, object] = {"code": code, "on": code in on}
+            if code in on:
+                switched["by"] = on[code].by.value
+            self._record(events.EventKind.AUTOMAT_SET, switched, now, command=command)
+        areas = {area.code for area in before.local_areas}
+        given = {area.code for area in state.local_areas}
+        for code in sorted(given - areas):
+            self._record(
+                events.EventKind.LOCAL_RELEASE_ANSWERED,
+                {"code": code, "given": True},
+                now,
+                command=command,
+            )
+        for code in sorted(areas - given):
+            self._record(events.EventKind.LOCAL_RELEASE_ENDED, {"code": code}, now, command=command)
 
     def set_automation(self, settings: events.AutomationSettings, now: datetime) -> None:
         self._record(
@@ -1587,7 +2090,7 @@ class Drift:
             command=command,
             leg=leg,
         )
-        mode = leg.section.clearance_mode or self.package.meet.clearance_mode
+        mode = self.clearance_mode(leg.section)
         # Occupancy stops direct clearance (DRIFT-16): the request waits for the receiver.
         if mode == ClearanceMode.DIRECT and not self.detected(leg.section.id):
             self._record(
@@ -1959,12 +2462,20 @@ class Drift:
         if expected.value != current:
             raise Refused(Reason.STALE_REVISION)
 
-    def command(self, command: station.Command, now: datetime, *, level: int = 0) -> Outcome:
+    def command(
+        self,
+        command: station.Command,
+        now: datetime,
+        *,
+        level: int = 0,
+        caller: Caller | None = None,
+    ) -> Outcome:
         """Carry out one station command, or refuse it with a reason and change nothing. A
         driftändring waiting for the train applies as soon as it is in (H38). level: the
-        level the client's station connected at; detection needs level 3 (DRIFT-10)."""
+        level the client's station connected at; detection needs level 3 (DRIFT-10). caller:
+        what the store knows of the client, for remote control (#36)."""
         self._writable()
-        outcome = self._command(command, now, level)
+        outcome = self._command(command, now, level, caller or Caller())
         self._apply_if_waiting(now)
         return outcome
 
@@ -1984,15 +2495,19 @@ class Drift:
                 ),
             )
 
-    def _command(self, command: station.Command, now: datetime, level: int = 0) -> Outcome:
+    def _command(
+        self, command: station.Command, now: datetime, level: int, caller: Caller
+    ) -> Outcome:
         if command.context != self.context:
             raise Refused(Reason.STALE_MEET_CONTEXT)
         if command.client_id == AUTOMATION:
             if not self.automatic(command.place):
                 raise Refused(Reason.PLACE_MANNED)
-        elif self.left_here(command.place) and command.action not in _ALLOWED_WHEN_LEFT:
-            # Ask first: the operator takes the place back, then acts (Casper, 2026-10-10).
-            raise Refused(Reason.PLACE_AUTOMATIC)
+        else:
+            self._check_role(command, caller)
+            if self.left_here(command.place) and command.action not in _ALLOWED_WHEN_LEFT:
+                # Ask first: the operator takes the place back, then acts (Casper, 2026-10-10).
+                raise Refused(Reason.PLACE_AUTOMATIC)
         self._check_revision(command)
         call: str | None = None
         case_id: str | None = None
@@ -2034,8 +2549,25 @@ class Drift:
                 self.leave(command.place, events.LeftBy.OPERATOR, now, command.client_id)
                 return Outcome(revision=self._place_revision(command.place))
             case station.Action.PLACE_TAKE_BACK:
-                if command.place in self.left:
-                    self.take_back(command.place, command.client_id, "operator", now)
+                self._take_back(command, caller, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.PLACE_OFFER:
+                self._offer(command, caller, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.PLACE_OFFER_ANSWER:
+                self._answer_offer(command, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.ROUTE_REQUEST:
+                self._route_request(command, caller, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.ROUTE_CANCEL:
+                self._route_cancel(command, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.ROUTE_RESPONSE:
+                self._route_response(command, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.ROUTE_STATE:
+                self._route_state(command, now, level)
                 return Outcome(revision=self._place_revision(command.place))
             case station.Action.SIGNAL_EXIT:
                 self._exit_signal(command, now)
@@ -2077,8 +2609,7 @@ class Drift:
             "places": {place.id: place.name for place in self.package.places},
             "stations": [p.id for p in self.package.places if p.kind != PlaceKind.HALT],
             "sections": {
-                section.id: (section.clearance_mode or self.package.meet.clearance_mode).value
-                for section in self.package.sections
+                section.id: self.clearance_mode(section).value for section in self.package.sections
             },
             "clock": {
                 "seconds": seconds,

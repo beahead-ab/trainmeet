@@ -11,6 +11,22 @@ Server's v2 (docs/protocol/v2), with the decisions of 4 November:
 - New for TKL: section.occupancy (level 3 only) and signal.exit.
 - The client is told which actions each call allows right now, so it never guesses a rule.
 
+Remote control (fjärrstyrning, #36, TKL46–TKL48, TKL89) goes in the same envelope, with the same
+key. A remote interlocking (fjärrställverk, TKL47) connects as the client kind `remote`, with no
+station and with its remote area in `wants`; Trafikledningen approves it for those places as an
+ordinary interlocking, which only gives the right to receive them (FR4). A station's own TKL hands
+the station over with `place.offer`, the one offered answers with `place.offer.answer`, and only
+the station's own TKL takes it back with `place.take_back` (FR7, FR8). Whoever controls the
+station asks for routes from its catalogue with `route.request` and `route.cancel`. Hubben checks
+who asks and what the catalogue says, never the safety (FR11, FR12): the station's own
+interlocking answers with `route.response`, and reports the state at the overview level with
+`route.state`, whole each time it changes. The remote picture draws only what the station reports
+(FR13). The safety stays in the station; the inside never leaves it.
+
+    GET  /api/station/1/overview?places=a,b   Overview: the remote picture's data, for the places
+                                              the client runs, controls or is approved for, and
+                                              their neighbours
+
 Transport (Claude, draft): HTTP with JSON under /api/station/1/ and an event stream (SSE):
 
     POST /api/station/1/connect            ConnectRequest  -> ConnectReply
@@ -54,6 +70,18 @@ class ClientKind(StrEnum):
     TKL = "tkl"
     TMBOX_APP = "tmbox_app"  # TMBox iPhone and Apple Watch
     DISPATCH = "dispatch"  # the dispatcher's views
+    REMOTE = "remote"  # fjärrställverket: en TKL utan egen station (TKL47, FR1)
+
+
+class PlaceMode(StrEnum):
+    """Driftformen (FR5, TKL48): one per place during the meet. A station is manned or
+    remote-controlled, never both (FR6)."""
+
+    MANNED = "manned"  # Bemannad
+    OFFERED = "offered"  # Erbjuden: lämnad till någon som inte svarat än (FR8)
+    REMOTE = "remote"  # Fjärrstyrd
+    NO_CONTACT = "no_contact"  # Kontakt saknas, med stationen eller med den som fjärrstyr
+    AUTOMATIC = "automatic"  # Automatik: Drifts automatik sköter platsen (F14)
 
 
 class ConnectRequest(Contract):
@@ -95,6 +123,19 @@ class ConnectRequest(Contract):
         description="Prova i TKL: bara en provkörning i Provbanan, aldrig en riktig träff. Hubben "
         "säger nej till en riktig träff (STUDIO-12).",
     )
+    remote_area: Id | None = Field(
+        default_factory=lambda: None,
+        description="Bara för ett fjärrställverk: planens fjärrområde. Utan wants föreslår "
+        "Hubben dess driftplatser (FR49).",
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> ConnectRequest:
+        if self.kind == ClientKind.REMOTE and (self.station_id or self.outside):
+            raise ValueError("Ett fjärrställverk har ingen egen station (TKL47).")
+        if self.remote_area is not None and self.kind != ClientKind.REMOTE:
+            raise ValueError("Bara ett fjärrställverk ansluter med ett fjärrområde.")
+        return self
 
 
 class ApprovalStatus(StrEnum):
@@ -159,9 +200,8 @@ class ConnectReply(Contract):
 
 class Action(StrEnum):
     # DRIFT-40: when a station with parts (delställverk, TKL97) is remote-controlled, the parts'
-    # requests, the answers and the list of trains ready to send travel in this protocol too
-    # (TKL100, TKL108). Their actions and snapshot fields are written when remote control is
-    # built (#36); until then they stay inside the station's TKL.
+    # requests and the list of trains ready to send travel in route.state (TKL100, TKL108); the
+    # station forwards them (#36 del b).
     TRAIN_LOOKUP = "train.lookup"
     TRAIN_TRACK_CHANGE = "train.track.change"
     TRAIN_DEPARTED = "train.departed"
@@ -177,7 +217,14 @@ class Action(StrEnum):
     SECTION_OCCUPANCY = "section.occupancy"
     SIGNAL_EXIT = "signal.exit"
     PLACE_LEAVE = "place.leave"  # lämna till automatiken (F14)
-    PLACE_TAKE_BACK = "place.take_back"  # ta tillbaka från automatiken
+    PLACE_TAKE_BACK = "place.take_back"  # ta tillbaka från automatiken, och från fjärr (FR7)
+    # Fjärrstyrning (#36, TKL89)
+    PLACE_OFFER = "place.offer"  # stationens egen TKL lämnar över (FR8)
+    PLACE_OFFER_ANSWER = "place.offer.answer"  # den som erbjuds tar emot eller avböjer
+    ROUTE_REQUEST = "route.request"  # den som styr begär en tågväg ur katalogen (FR11)
+    ROUTE_CANCEL = "route.cancel"  # den som styr tar bort en begärd eller låst väg
+    ROUTE_RESPONSE = "route.response"  # stationens ställverk: låst, eller nej med skäl
+    ROUTE_STATE = "route.state"  # stationens läge i översiktsnivå, helt varje gång
 
 
 class RevisionScope(StrEnum):
@@ -301,6 +348,129 @@ class ExitSignal(Contract):
     call: Id | None = None
 
 
+# --- Fjärrstyrning (#36): handing over, and the routes asked for from afar ----------------------
+
+
+class PlaceOffer(Contract):
+    """place.offer: the station's own TKL hands the station to someone in Snapshot.remote's
+    receivers (FR8). The offer stands for a minute (TKL125)."""
+
+    to: Id = Field(description="Den som erbjuds: klientens id ur receivers.")
+
+
+class OfferAnswer(Contract):
+    """place.offer.answer: the one offered takes the station, which becomes Fjärrstyrd, or
+    declines it. With the station's place as the command's place."""
+
+    accept: bool
+
+
+class RouteRequest(Contract):
+    """route.request: whoever controls the station asks for a route from its catalogue (FR11).
+    The id is the client's, so that a resend is a duplicate, as for clearance."""
+
+    request_id: Id = Field(description="Klienten väljer id.")
+    route: Id = Field(description="Tågvägens id i fjärrkatalogen (remote_routes).")
+    call: Id | None = Field(default=None, description="Tåget, när det finns ett.")
+
+
+class RouteCancel(Contract):
+    """route.cancel: a route asked for or locked is taken away. The station's interlocking
+    decides when it is released, as on the spot."""
+
+    request_id: Id
+
+
+class RouteResponse(Contract):
+    """route.response: the station's interlocking has locked the route, or says no with a reason
+    of its own: conflicting_route, switch_not_in_control, area_released or track_occupied."""
+
+    request_id: Id
+    locked: bool
+    reason: Reason | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> RouteResponse:
+        if self.locked == (self.reason is not None):
+            raise ValueError("Ett nej har ett skäl, och bara ett nej.")
+        return self
+
+
+class RouteBy(StrEnum):
+    """Who laid a route, or switched an automat (FR33, FR37)."""
+
+    REMOTE = "remote"  # den som fjärrstyr, genom Hubben
+    STATION = "station"  # på platsen, i stationens egen panel
+    AUTOMAT = "automat"  # en stationsautomat, eller automaten av sig själv (FR29)
+
+
+class LockedRoute(Contract):
+    """A catalogue route the station's interlocking holds locked. It stays until the train has
+    gone, also when the station is taken back (FR15)."""
+
+    route: Id = Field(description="Tågvägens id i fjärrkatalogen.")
+    by: RouteBy
+    request_id: Id | None = Field(default=None, description="Begäran den svarade på.")
+    automat: Text | None = Field(default=None, description="Automaten som lade den.")
+
+
+class AutomatOn(Contract):
+    """A station automat that is switched on, and who switched it on (FR25, FR29)."""
+
+    code: Text = Field(max_length=12)
+    by: RouteBy
+
+
+class LocalArea(Contract):
+    """A local area given to people on the spot (lokal frigivning, TKL44, TKL48, FR39)."""
+
+    code: Text = Field(max_length=12, description="Lokalfrigivningens kod, till exempel L01.")
+    tracks: list[Id] = Field(
+        default_factory=list, description="Stationsspåren i området, för fjärrbilden."
+    )
+
+
+class PartRequest(Contract):
+    """DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the
+    clearer, when a station with parts is remote-controlled. The station forwards it."""
+
+    request_id: Id
+    part: Id = Field(description="Delens id i utsidan.")
+    text: Text = Field(description="Vad delen begär, som stationen skriver det.")
+
+
+class ReadyToSend(Contract):
+    """FR51: a train ready to send, as the clearer's list shows it, in the plan's order."""
+
+    train_number: Text
+    call: Id | None = None
+    part: Id | None = None
+    departure: TimeOfDay | None = None
+
+
+class RouteState(Contract):
+    """route.state: the station at the overview level, whole each time it changes (FR13). The
+    catalogue routes it holds locked and who locked them, those the station or an automat laid
+    too; the automats that are on; the local areas; and at level 3 the occupied tracks. The parts'
+    requests and the ready list travel here when a station with parts is remote-controlled
+    (DRIFT-40)."""
+
+    locked: list[LockedRoute] = Field(default_factory=list)
+    automats: list[AutomatOn] = Field(default_factory=list)
+    local_areas: list[LocalArea] = Field(default_factory=list)
+    occupied: list[Id] = Field(
+        default_factory=list,
+        description="Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.",
+    )
+    part_requests: list[PartRequest] = Field(
+        default_factory=list, description="Delarnas begäran, när stationen fjärrstyrs (FR50)."
+    )
+    ready_to_send: list[ReadyToSend] = Field(
+        default_factory=list,
+        description="Tåg som är klara att skicka, i avgångstidens ordning (FR51).",
+    )
+
+
 PAYLOADS: dict[Action, type[Contract]] = {
     Action.TRAIN_LOOKUP: TrainLookup,
     Action.TRAIN_TRACK_CHANGE: TrackChange,
@@ -318,6 +488,12 @@ PAYLOADS: dict[Action, type[Contract]] = {
     Action.SIGNAL_EXIT: ExitSignal,
     Action.PLACE_LEAVE: PlaceOnly,
     Action.PLACE_TAKE_BACK: PlaceOnly,
+    Action.PLACE_OFFER: PlaceOffer,
+    Action.PLACE_OFFER_ANSWER: OfferAnswer,
+    Action.ROUTE_REQUEST: RouteRequest,
+    Action.ROUTE_CANCEL: RouteCancel,
+    Action.ROUTE_RESPONSE: RouteResponse,
+    Action.ROUTE_STATE: RouteState,
 }
 
 
@@ -526,6 +702,78 @@ class DriverMessageHere(Contract):
     seq: int = Field(ge=1, description="Drifthändelsen meddelandet är.")
 
 
+class Receiver(Contract):
+    """Someone a station can be handed to, or who controls it (FR3, TKL47)."""
+
+    client_id: Id
+    kind: ClientKind
+    name: Text = Field(
+        description="Driftplatsen grannens TKL kör, eller fjärrställverkets namn i Klienter."
+    )
+    place: Id | None = Field(
+        default=None, description="Grannens driftplats, när det är en granne som tar emot."
+    )
+
+
+class OfferHere(Contract):
+    """An offer that stands: the station, who it is offered to, and how long it stands."""
+
+    place: Id
+    to: Receiver
+    expires_in: int = Field(ge=0, description="Sekunder kvar av minuten (FR8).")
+
+
+class RemoteRouteState(StrEnum):
+    REQUESTED = "requested"  # begärd, stationen har inte svarat
+    LOCKED = "locked"  # låst i stationens ställverk
+    REFUSED = "refused"  # nekad, med skäl; också när stationen inte svarade (FR14)
+    CANCELLED = "cancelled"  # borttagen av den som styr; stationen löser upp den
+    RELEASED = "released"  # upplöst, efter tåget eller efter borttagningen
+
+
+class RemoteRouteHere(Contract):
+    """A route asked for from afar, and how it stands."""
+
+    request_id: Id
+    route: Id
+    call: Id | None = None
+    train_number: Text | None = None
+    state: RemoteRouteState
+    reason: Reason | None = Field(default=None, description="Skälet till ett nej.")
+    by: Id = Field(description="Klienten som begärde.")
+    asked_at: TimeOfDay
+    answer_in: int | None = Field(
+        default=None, description="Sekunder kvar för stationen att svara (FR14)."
+    )
+
+
+class RemoteHere(Contract):
+    """Fjärrstyrningen vid platsen: who controls it, the offer out, whom it can be handed to,
+    the routes asked for and the station's last route.state, which Hubben keeps (FR15)."""
+
+    controllable: bool = Field(
+        default=False,
+        description="Stationen har en fjärrkatalog och kan fjärrstyras. En station som inte kan "
+        "det visas alltid som bemannad (FR16, FR38).",
+    )
+    controller: Receiver | None = None
+    offer: OfferHere | None = None
+    receivers: list[Receiver] = Field(
+        default_factory=list, description="Vilka stationen kan lämnas till just nu."
+    )
+    controller_silent: int | None = Field(
+        default=None,
+        description="Sekunder sedan den som fjärrstyr hördes av. Efter 45 går inga nya "
+        "fjärrtågvägar (FR28), efter 90 kopplar stationen in sin förvalda automat (FR29).",
+    )
+    routes: list[RemoteRouteHere] = Field(
+        default_factory=list, description="Fjärrtågvägarna, senaste först."
+    )
+    route_state: RouteState | None = Field(
+        default=None, description="Stationens senaste route.state."
+    )
+
+
 class Snapshot(Contract):
     """Everything a client needs for one place, replaced whole every time."""
 
@@ -558,6 +806,77 @@ class Snapshot(Contract):
         description="Förarnas meddelanden om tåg som rör platsen, de senaste 30 spelminuterna. "
         "Bara till TKL (KLAR-27, DRIFT-38).",
     )
+    # Made by factories, so that the schema gives no default and a client may leave them out.
+    mode: PlaceMode = Field(
+        default_factory=lambda: PlaceMode.MANNED,
+        description="Driftformen (FR5), i stället för automatic.",
+    )
+    remote: RemoteHere = Field(
+        default_factory=RemoteHere,
+        description="Fjärrstyrningen vid platsen; tom från en äldre hubb.",
+    )
+    offers: list[OfferHere] = Field(
+        default_factory=list,
+        description="Stationer som just den här klienten är erbjuden och kan svara på.",
+    )
+    controls: list[Id] = Field(
+        default_factory=list, description="Driftplatserna just den här klienten fjärrstyr."
+    )
+
+
+# --- The remote picture's data (fjärrbilden, FR31–FR38) -----------------------------------------
+
+
+class TrainOnTrack(Contract):
+    """A train number on a station track: red where the train is, green for the one expected
+    (FR35)."""
+
+    track: Text = Field(description="Spårets namn i planen.")
+    train_number: Text
+    call: Id
+    expected: bool = Field(description="Väntat tåg, inte här än.")
+
+
+class SectionOverview(Contract):
+    """A section from the place: which way a train goes on it and whether it is occupied."""
+
+    section: Id
+    other_place: Id
+    exit: Id | None = None
+    occupied: bool = False
+    detected: bool = False
+    towards: Id | None = Field(default=None, description="Driftplatsen tåget på sträckan går mot.")
+    train_number: Text | None = None
+
+
+class OverviewPlace(Contract):
+    """One place in the remote picture. No names of people, as Nu (B13)."""
+
+    place: Neighbour
+    mode: PlaceMode
+    controllable: bool = False
+    controller: Receiver | None = None
+    level: int | None = Field(default=None, ge=0, le=3, description="Stationens nivå i TKL.")
+    heard: int | None = Field(
+        default=None, description="Sekunder sedan stationen hördes av, för pricken."
+    )
+    outside: StationOutside | None = Field(
+        default=None, description="Utsidan träffen kör med, med fjärrkatalogen och översikten."
+    )
+    route_state: RouteState | None = None
+    routes: list[RemoteRouteHere] = Field(default_factory=list)
+    trains: list[TrainOnTrack] = Field(default_factory=list)
+    sections: list[SectionOverview] = Field(default_factory=list)
+
+
+class Overview(Contract):
+    """GET /api/station/1/overview?places=a,b: the remote picture's data, for the places the
+    client runs, controls, is offered or is approved for, and their neighbours."""
+
+    protocol: Literal["trainmeet.station/1"] = PROTOCOL
+    context: MeetContext
+    clock: Clock
+    places: list[OverviewPlace] = Field(default_factory=list)
 
 
 # --- The reply and the events -------------------------------------------------------------
@@ -603,6 +922,11 @@ class EventKind(StrEnum):
     CLEARANCE_REMINDER = "clearance.reminder"  # unanswered for 3 minutes (H39)
     LINE_AVAILABLE = "line.available"
     APPROVAL = "approval"  # the client's approval changed
+    # Fjärrstyrning (#36): hints like changed; the snapshot is still the truth.
+    PLACE_OFFERED = "place.offered"  # till den som erbjuds
+    ROUTE_REQUESTED = "route.requested"  # till stationen
+    ROUTE_ANSWERED = "route.answered"  # till den som frågade
+    LOCAL_RELEASE_REQUESTED = "local_release.requested"  # till den som fjärrstyr
 
 
 class Event(Contract):

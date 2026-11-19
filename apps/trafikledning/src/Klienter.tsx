@@ -6,7 +6,9 @@ import { Chip, Chips, LoginFirst, Select } from "./ui";
 // Klienter (S3, TRAFIK-04): boxes, TKL and screens, with the new ones under Väntar. Godkänn a
 // TKL for a place, give a box its place, side and language, give a screen its view, and take
 // a key back (H31). A TKL that wants several driftplatser, a station and its parts, has a row
-// per driftplats, each approved or refused on its own (TRAFIK-35). Only for the administrator.
+// per driftplats, each approved or refused on its own (TRAFIK-35). A remote interlocking (TKL47)
+// is approved the same way for the driftplatser in its remote area (TRAFIK-34). Only for the
+// administrator.
 
 export type ClientAction =
   | { action: "assign"; client_id: string; places: string[]; side: Client["side"]; language: string }
@@ -293,6 +295,9 @@ function ClientRow({ client, now, onChange }: { client: Client; now: Now | null;
       </div>
       <div className="kontroller">{controls}</div>
       <WantedPlaces client={client} now={now} onChange={onChange} />
+      {client.kind === "remote" && (
+        <p className="liten">Fjärrställverket godkänns för driftplatserna i sitt fjärrområde. Det ger bara rätt att ta emot dem: varje station lämnar över själv, och i Nu kan trafikledningen ta över och lämna tillbaka.</p>
+      )}
       <ExitQuestions client={client} onAnswer={(section, exit) => onChange?.({ action: "exit", client_id: id, section, exit })} />
     </li>
   );

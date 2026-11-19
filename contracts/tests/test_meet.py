@@ -206,3 +206,32 @@ def test_a_part_is_one_of_its_stations_parts() -> None:
     yard = place(data, "asn-bg")["station"]
     yard["station_id"] = yard["outside"]["station_id"] = "annan"
     assert "kopplade till olika stationer" in problems(data)
+
+
+# --- Fjärrområden (TKL87, PLAN-33, FR49) ----------------------------------------------------------
+
+
+def test_a_remote_place_points_at_a_remote_area_of_the_plan() -> None:
+    data = provbanan()
+    data["remote_areas"] = [{"id": "vast", "name": "Västra", "places": ["asn", "mla"]}]
+    place(data, "mla")["kind"] = "remote"
+    place(data, "mla")["remote_area"] = "vast"
+    plan = MeetPackage.model_validate(data)
+    assert plan.remote_areas[0].places == ["asn", "mla"]
+    place(data, "nby")["remote_area"] = "vast"
+    assert "Driftplatsen nby står inte i fjärrområdet vast" in problems(data)
+    place(data, "nby")["remote_area"] = "ost"
+    assert "pekar på ett okänt fjärrområde: ost" in problems(data)
+
+
+def test_a_remote_area_hangs_together_along_the_line() -> None:
+    data = provbanan()
+    data["remote_areas"] = [{"id": "a", "name": "A", "places": ["nby", "mla"]}]
+    assert "Fjärrområdet a hänger inte ihop längs linjen" in problems(data)
+    data["remote_areas"] = [{"id": "a", "name": "A", "places": ["asn", "lvh"]}]
+    assert "Fjärrområdet a har en hållplats: lvh" in problems(data)
+    data["remote_areas"] = [
+        {"id": "a", "name": "A", "places": ["asn"]},
+        {"id": "b", "name": "B", "places": ["asn", "mla"]},
+    ]
+    assert "Driftplatsen asn hör till två fjärrområden: a och b" in problems(data)

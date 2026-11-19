@@ -12,7 +12,10 @@ from datetime import datetime
 from contracts import station
 from contracts.common import Side
 from contracts.meet import Place, PlaceKind
-from drift.engine import Case, Drift, Leg, model_time
+from drift.engine import ROUTE_ANSWER_SECONDS, Case, Drift, Leg, model_time
+
+# The routes asked for from afar that a snapshot shows besides those still open (#36).
+ROUTES_SHOWN = 20
 
 
 def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
@@ -69,7 +72,48 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
         neighbours=neighbours,
         all_places=[_neighbour(drift, p) for p in drift.package.places if p.kind != PlaceKind.HALT],
         automatic=drift.left_here(place),
+        mode=drift.mode_of(place),
+        remote=station.RemoteHere(
+            routes=remote_routes(drift, place, now), route_state=drift.route_states.get(place)
+        ),
     )
+
+
+def remote_routes(drift: Drift, place: str, now: datetime) -> list[station.RemoteRouteHere]:
+    """The routes asked for at the place from afar, the latest first: every one still open, and
+    the last few answered (#36)."""
+    open_states = {
+        station.RemoteRouteState.REQUESTED,
+        station.RemoteRouteState.LOCKED,
+        station.RemoteRouteState.CANCELLED,
+    }
+    asks = sorted(
+        (ask for ask in drift.route_asks.values() if ask.place == place),
+        key=lambda ask: ask.at,
+        reverse=True,
+    )
+    shown = [ask for ask in asks if ask.state in open_states]
+    shown += [ask for ask in asks if ask.state not in open_states][:ROUTES_SHOWN]
+    routes = []
+    for ask in sorted(shown, key=lambda ask: ask.at, reverse=True):
+        waiting = ask.state == station.RemoteRouteState.REQUESTED
+        left = ROUTE_ANSWER_SECONDS - (now - ask.at).total_seconds()
+        routes.append(
+            station.RemoteRouteHere(
+                request_id=ask.request_id,
+                route=ask.route,
+                call=ask.call,
+                train_number=drift.calls[ask.call][0].number
+                if ask.call is not None and ask.call in drift.calls
+                else None,
+                state=ask.state,
+                reason=ask.reason,
+                by=ask.by,
+                asked_at=ask.asked_at,
+                answer_in=max(0, int(left)) if waiting else None,
+            )
+        )
+    return routes
 
 
 def _neighbour(drift: Drift, place: Place) -> station.Neighbour:
@@ -95,7 +139,7 @@ def _section(
         other_place=other,
         other_code=places[other].code,
         tracks=section.tracks,
-        clearance_mode=section.clearance_mode or drift.package.meet.clearance_mode,
+        clearance_mode=drift.clearance_mode(section),
         side=side,
         occupied=any(case.departed and case.leg.section.id == section.id for case in _cases(drift)),
         detected=drift.detected(section.id),

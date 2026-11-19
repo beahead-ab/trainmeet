@@ -19,6 +19,7 @@ export const KINDS: Record<Client["kind"], string> = {
   tmbox_app: "TMBox-appen",
   tkl: "TKL",
   dispatch: "Trafikledningen",
+  remote: "Fjärrställverk",
   screen: "Skärm",
 };
 export const APPROVAL: Record<string, string> = { waiting: "Väntar", approved: "Ansluten", refused: "Nekad", revoked: "Återkallad" };
@@ -61,6 +62,19 @@ export const EVENTS: Record<string, string> = {
   "place.manned": "Platsen bemannad",
   "place.left": "Lämnad till automatiken",
   "place.taken_back": "Tagen tillbaka från automatiken",
+  // Fjärrstyrning (#36, FR37): every handover, route, local area and automat, with who did it.
+  "place.offered": "Stationen erbjuden",
+  "place.offer_answered": "Erbjudandet besvarat",
+  "place.remote": "Trafikledningen gav stationen för fjärrstyrning",
+  "route.requested": "Fjärrtågväg begärd",
+  "route.answered": "Svar på fjärrtågvägen",
+  "route.cancelled": "Fjärrtågvägen borttagen",
+  "route.released": "Fjärrtågvägen upplöst",
+  "route.state": "Stationens läge",
+  "local_release.requested": "Lokalt område begärt",
+  "local_release.answered": "Lokalt område givet",
+  "local_release.ended": "Lokalt område slut",
+  "automat.set": "Stationsautomat",
   "automation.set": "Automatikens inställningar ändrade",
   // Lokföraren (LOK-07): what the drivers do, and what the game lets them see.
   "service.claimed": "Tjänsten tagen",
@@ -84,8 +98,9 @@ export const DRIVER_MESSAGES: Record<string, string> = {
   engine_trouble: "Loket krånglar",
 };
 
-// Automatiken (F14): the place's mode, who left it, and the choices (F15, H42).
-export const MODES: Record<string, string> = { manned: "Bemannad", no_contact: "Kontakt saknas", automatic: "Automatiken" };
+// Automatiken (F14): the place's mode, who left it, and the choices (F15, H42). The operating form
+// (driftform, FR5) adds Erbjuden and Fjärrstyrd (#36).
+export const MODES: Record<string, string> = { manned: "Bemannad", offered: "Erbjuden", remote: "Fjärrstyrd", no_contact: "Kontakt saknas", automatic: "Automatiken" };
 const LEFT_BY: Record<string, string> = {
   dispatcher: "lämnad av trafikledningen",
   operator: "lämnad av boxen eller TKL",
@@ -147,7 +162,13 @@ export function clientDetails(client: Client, now: Now | null): string {
   const details = [KINDS[client.kind] ?? client.kind, APPROVAL[client.status] ?? client.status];
   if (client.kind === "screen") details[1] = client.view ? `Visar ${VIEWS[client.view] ?? client.view}` : "Väntar på en vy";
   const where = (client.places ?? []).map((place) => placeName(now, place)).join(", ");
-  if (where) details.push(where + (client.side !== "both" ? ` · ${SIDES[client.side].toLowerCase()}` : ""));
+  if (client.kind === "remote") {
+    // Fjärrställverket (TKL47, TRAFIK-34): its remote area, which it may only receive (FR4).
+    const area = (client.wanted ?? []).map((row) => placeName(now, row.place)).join(", ") || where;
+    if (area) details.push(`Fjärrområde ${area}`);
+  } else if (where) details.push(where + (client.side !== "both" ? ` · ${SIDES[client.side].toLowerCase()}` : ""));
+  // What it remote-controls now: a remote interlocking, or a TKL that controls a neighbour (FR3).
+  if (client.controls?.length) details.push(`Fjärrstyr ${client.controls.map((place) => placeName(now, place)).join(", ")}`);
   if (client.display) details.push(`${client.display.cols}×${client.display.rows}`);
   if (client.language && client.kind.startsWith("tmbox")) details.push(LANGUAGES[client.language] ?? client.language);
   return details.join(" · ");
@@ -158,7 +179,7 @@ export const CLIENT_GROUPS: [ClientGroup, string, (client: Client) => boolean][]
   ["all", "Alla", () => true],
   ["waiting", "Väntar", waits],
   ["boxes", "Boxar", (client) => client.kind.startsWith("tmbox")],
-  ["stations", "TKL", (client) => client.kind === "tkl"],
+  ["stations", "TKL", (client) => client.kind === "tkl" || client.kind === "remote"],
   ["screens", "Skärmar", (client) => client.kind === "screen"],
 ];
 
@@ -213,8 +234,59 @@ export function dayDue(day: DayStatus): string | null {
   return null;
 }
 
-export function describe(event: DriftEvent, pkg: Package | null = null): string {
+const ROUTE_REASONS: Record<string, string> = {
+  conflicting_route: "en fientlig väg är lagd",
+  switch_not_in_control: "växlarna ligger inte i kontroll",
+  area_released: "området är lokalt frigivet",
+  track_occupied: "spåret är upptaget",
+  station_not_answering: "stationen svarade inte",
+};
+const BY_WHOM: Record<string, string> = { remote: "från fjärr", station: "på platsen", automat: "av sig själv" };
+
+/** Fjärrstyrning in Logg (#36, FR37): who the station was handed to, the route and its answer. */
+function remoteText(event: DriftEvent, clients: Client[]): string | null {
   const data = event.data ?? {};
+  const who = (id: unknown) => (typeof id === "string" ? actorName({ kind: "client", id }, clients) : "");
+  switch (event.kind) {
+    case "place.offered":
+      return `Stationen erbjuden till ${who(data["to"])}`;
+    case "place.offer_answered":
+      if (data["accepted"]) return `${who(data["to"])} tog emot stationen: fjärrstyrd`;
+      if (data["expired"]) return `Erbjudandet till ${who(data["to"])} gick ut efter en minut`;
+      if (data["withdrawn"]) return `Stationen tog tillbaka erbjudandet till ${who(data["to"])}`;
+      return `${who(data["to"])} avböjde stationen`;
+    case "place.remote":
+      return `Trafikledningen gav stationen till ${who(data["controller"])}: fjärrstyrd`;
+    case "place.taken_back":
+      return data["controller"] ? `Tagen tillbaka från ${who(data["controller"])}: bemannad` : null;
+    case "place.left":
+      return data["controller"] ? `Togs över från ${who(data["controller"])}` + (data["by"] === "lost_contact" ? " efter Kontakt saknas" : "") : null;
+    case "route.requested":
+      return `Fjärrtågväg ${String(data["route"])} begärd`;
+    case "route.answered": {
+      if (data["locked"]) return "Fjärrtågvägen låst i stationens ställverk";
+      const reason = typeof data["reason"] === "string" ? (ROUTE_REASONS[data["reason"]] ?? data["reason"]) : null;
+      return "Fjärrtågvägen nekad" + (reason ? `: ${reason}` : "");
+    }
+    case "route.released":
+      return `Fjärrtågväg ${String(data["route"])} upplöst`;
+    case "automat.set": {
+      const by = typeof data["by"] === "string" ? ` ${BY_WHOM[data["by"]] ?? ""}`.trimEnd() : "";
+      return `Stationsautomat ${String(data["code"])} ${data["on"] ? "inkopplad" : "urkopplad"}${by}`;
+    }
+    case "local_release.answered":
+      return `Lokalt område ${String(data["code"])} ${data["given"] === false ? "nekat" : "givet"}`;
+    case "local_release.ended":
+      return `Lokalt område ${String(data["code"])} slut`;
+    default:
+      return null;
+  }
+}
+
+export function describe(event: DriftEvent, pkg: Package | null = null, clients: Client[] = []): string {
+  const data = event.data ?? {};
+  const remote = remoteText(event, clients);
+  if (remote) return remote;
   if (event.kind === "change.made" && data["change"]) {
     const text = changeText(data["change"] as DriftChange, pkg, data["train_number"] as string | null);
     return `Driftändring: ${text}` + (data["waiting"] ? ", väntar på tåget" : "") + (data["forced"] ? ", tvingad igenom" : "");
@@ -265,7 +337,10 @@ export function modeText(place: AutomationPlace, clientName: (id: string) => str
   if (place.takes_over_in !== null && place.takes_over_in !== undefined) {
     text += ` · automatiken tar över om ${Math.ceil(place.takes_over_in / 60)} min`;
   }
-  if (place.operator && place.mode !== "automatic") text += ` · ${clientName(place.operator)}`;
+  // Who controls it (FR5): from afar, or the one it is offered to.
+  if (place.controller) text += ` · styrs av ${clientName(place.controller)}`;
+  else if (place.operator && place.mode !== "automatic") text += ` · ${clientName(place.operator)}`;
+  if (place.offered_to) text += ` · till ${clientName(place.offered_to)}`;
   return text;
 }
 
@@ -282,7 +357,7 @@ export function eventRows(events: DriftEvent[], now: Now | null, clients: Client
   const oldest = [...events].sort((a, b) => a.seq - b.seq);
   return [
     ["Nr", "Speldygn", "Tid", "Händelse", "Tåg", "Driftplats", "Vem", "Klockslag"],
-    ...oldest.map((event) => [String(event.seq), String(event.game_day), event.model_time, describe(event, pkg), trainNumber(now, event.train), event.place ? placeName(now, event.place) : "", actorName(event.actor, clients), event.wall_time]),
+    ...oldest.map((event) => [String(event.seq), String(event.game_day), event.model_time, describe(event, pkg, clients), trainNumber(now, event.train), event.place ? placeName(now, event.place) : "", actorName(event.actor, clients), event.wall_time]),
   ];
 }
 
@@ -297,7 +372,8 @@ export function refusalRows(refusals: Refusal[], now: Now | null): string[][] {
 export const logFile = (now: Now | null, what: "logg" | "nekade", ending: "csv" | "json", today: Date = new Date()) =>
   `${what}-${now?.meet_id ?? "traffen"}-dag${now?.game_day ?? 1}-${today.toISOString().slice(0, 10)}.${ending}`;
 
-/** Påbörjat och klart (DRIFT-47) are for Drift's own record: Logg shows only Lås upp. */
+/** Påbörjat och klart (DRIFT-47) are for Drift's own record: Logg shows only Lås upp. The
+ * station's whole route.state is kept for a restart; Logg shows what changed in it (#36). */
 export const shown = (event: DriftEvent) =>
-  event.kind !== "transition.begun" && (event.kind !== "transition.done" || Boolean((event.data ?? {})["unlocked"]));
+  event.kind !== "transition.begun" && event.kind !== "route.state" && (event.kind !== "transition.done" || Boolean((event.data ?? {})["unlocked"]));
 

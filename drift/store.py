@@ -19,15 +19,15 @@ from contracts import station
 from contracts.common import Weekday, checksum
 from contracts.meet import DriverLevel, MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
-from contracts.station_outside import StationOutside
+from contracts.station_outside import ReceiverKind, StationOutside
 from contracts.terminal import DisplaySize
 from drift.automatik import Automatik
 from drift.copy import EventCopy
 from drift.drivers import messages_here
-from drift.engine import Drift, Outcome, Refused, model_time, now_utc
+from drift.engine import OFFER_SECONDS, Caller, Drift, Outcome, Refused, model_time, now_utc
 from drift.exits import ExitMemory, couple
 from drift.notices import notices
-from drift.snapshot import snapshot
+from drift.snapshot import remote_routes, snapshot
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
 from drift.track_display import base_order, checked, shown
@@ -188,6 +188,24 @@ class NotPreview(Exception):
 
 class UnknownExit(Exception):
     """No such exit at the station, or no such section at the place."""
+
+
+@dataclass(frozen=True)
+class StationClient:
+    """A station client of a run, as the remote control needs it (#36)."""
+
+    client_id: str
+    request: station.ConnectRequest
+    status: str
+    places: list[str]
+
+    @property
+    def approved(self) -> bool:
+        return self.status == station.ApprovalStatus.APPROVED.value
+
+    @property
+    def remote(self) -> bool:
+        return self.request.kind == station.ClientKind.REMOTE
 
 
 class UnknownDriver(Exception):
@@ -646,10 +664,22 @@ class PreviewStore:
         return self._automatik[run_id]
 
     def _heard(
-        self, run_id: str, drift: Drift, client: str, place: str | None, now: datetime
+        self,
+        run_id: str,
+        drift: Drift,
+        client: str,
+        place: str | None,
+        now: datetime,
+        *,
+        works: bool = True,
     ) -> None:
-        """A box or TKL at work: in contact now, and the first one at a place mans it."""
+        """A box or TKL at work: in contact now, and the first one at a place mans it. One that
+        reads or acts at a place from afar, or only watches it, is heard but works no place by
+        it: a controller or a remote interlocking never mans a station (FR6)."""
         if place is None:
+            return
+        if not works:
+            self.automatik(run_id).touch(client)
             return
         self.automatik(run_id).observe(client, place)
         drift.man(place, client, now)
@@ -1017,12 +1047,14 @@ class PreviewStore:
             asked = station.ConnectRequest.model_validate_json(request)
             approved = list(json.loads(places))
             questions: list[dict[str, Any]] = []
-            if status == station.ApprovalStatus.APPROVED.value and approved:
-                drift = drift or self._load(db, run_id, now_utc())
+            drift = drift or self._load(db, run_id, now_utc())
+            remote = asked.kind == station.ClientKind.REMOTE
+            if status == station.ApprovalStatus.APPROVED.value and approved and not remote:
                 for place in approved:
                     _, asking = self._coupling(db, run_id, drift, asked, place)
                     questions += [q.model_dump(mode="json") for q in asking]
-            outside = self._outside(asked, approved[0] if approved else None)
+            # A remote interlocking has no station of its own (TKL47).
+            outside = None if remote else self._outside(asked, approved[0] if approved else None)
             listed.append(
                 {
                     "client_id": client_id,
@@ -1036,6 +1068,7 @@ class PreviewStore:
                     "wanted": self._wanted(
                         asked, approved, self._refused_places(db, client_id), str(status)
                     ),
+                    "controls": drift.controlled_by(client_id),
                 }
             )
         return listed
@@ -1075,7 +1108,11 @@ class PreviewStore:
     def _wants(self, request: station.ConnectRequest) -> list[str]:
         """The places a client asks for, so that Klienter suggests them: those it named, else
         the station's own place (H25); and one place per part of the station that is its own
-        driftplats (TRAFIK-35)."""
+        driftplats (TRAFIK-35). A remote interlocking asks for its remote area: the places it
+        named, else those of the plan's area it named (FR4, FR49)."""
+        if request.kind == station.ClientKind.REMOTE:
+            area = next((a for a in self.package.remote_areas if a.id == request.remote_area), None)
+            return list(dict.fromkeys(request.wants or (area.places if area else [])))
         home, parts = self._station_places(request)
         asked = list(request.wants) or ([home] if home else [])
         return list(dict.fromkeys([*asked, *(place for place, _ in parts)]))
@@ -1193,20 +1230,43 @@ class PreviewStore:
         if row is None:
             return seen
         request = station.ConnectRequest.model_validate_json(row[0])
-        found, questions = self._coupling(db, run_id, drift, request, seen.place.place)
-        # The drivers' messages go to the clearers with TKL, not to the TMBox (DRIFT-38).
-        told = (
-            messages_here(drift, seen.place.place, now_utc())
-            if request.kind == station.ClientKind.TKL
-            else []
+        place = seen.place.place
+        clients = self._run_clients(db, run_id)
+        own = self._works(clients, client_id, place)
+        # The exits as the station has them; Hubben asks only the station's own TKL (H26).
+        home = self._station_of(clients, drift, place)
+        asked = request if own or home is None else home.request
+        found, questions = self._coupling(db, run_id, drift, asked, place)
+        # The drivers' messages go to the clearers with TKL, not to the TMBox (DRIFT-38), and to
+        # whoever clears for a remote-controlled station (FR17).
+        clears = request.kind == station.ClientKind.TKL or drift.controller_of(place) == client_id
+        told = messages_here(drift, place, now_utc()) if clears else []
+        now = now_utc()
+        # What this client may do with each call: a station handed over is cleared from afar.
+        may = drift.actions_for(place, client_id, own)
+        calls = (
+            seen.calls
+            if may is None
+            else [
+                c.model_copy(update={"allowed_actions": [a for a in c.allowed_actions if a in may]})
+                for c in seen.calls
+            ]
         )
         return seen.model_copy(
             update={
+                "calls": calls,
                 "sections": [
                     s.model_copy(update={"exit": found.get(s.section)}) for s in seen.sections
                 ],
-                "questions": questions,
+                "questions": questions if own else [],
                 "driver_messages": told,
+                "mode": self.automatik(run_id).mode(drift, place),
+                "remote": self._remote_here(run_id, clients, drift, place),
+                "offers": [
+                    self._offer_here(clients, drift, offered, now)
+                    for offered in drift.offered_to(client_id)
+                ],
+                "controls": drift.controlled_by(client_id),
             }
         )
 
@@ -1337,6 +1397,305 @@ class PreviewStore:
             raise UnknownClient()
         return str(row[0]), str(row[1]), list(json.loads(row[2]))
 
+    # --- Fjärrstyrning (#36, TKL46–TKL48, TKL89) ---------------------------------------------
+
+    def _run_clients(self, db: sqlite3.Connection, run_id: str) -> dict[str, StationClient]:
+        return {
+            str(client_id): StationClient(
+                str(client_id),
+                station.ConnectRequest.model_validate_json(request),
+                str(status),
+                list(json.loads(places)),
+            )
+            for client_id, request, status, places in db.execute(
+                "SELECT client_id, request, status, places FROM station_client WHERE run_id=? "
+                "ORDER BY created, client_id",
+                (run_id,),
+            )
+        }
+
+    @staticmethod
+    def _station_of(
+        clients: dict[str, StationClient], drift: Drift, place: str
+    ) -> StationClient | None:
+        """The station's own TKL at the place: approved for it, the one that works it if it is
+        among them, else the latest to connect."""
+        own = [
+            c
+            for c in clients.values()
+            if c.approved and place in c.places and c.request.kind == station.ClientKind.TKL
+        ]
+        working = drift.manned.get(place)
+        return next((c for c in own if c.client_id == working), own[-1] if own else None)
+
+    def _place_outside(
+        self, clients: dict[str, StationClient], drift: Drift, place: str
+    ) -> StationOutside | None:
+        """The outside the meet runs with at the place: pinned in the version, else the one the
+        station's own TKL brought (KLAR-12)."""
+        own = self._station_of(clients, drift, place)
+        if own is not None:
+            return self._outside(own.request, place)
+        found = next((p for p in self.package.places if p.id == place), None)
+        return found.station.outside if found is not None and found.station else None
+
+    def _controllable(self, clients: dict[str, StationClient], drift: Drift, place: str) -> bool:
+        """The station has a remote catalogue, and its TKL is not at level 0 (FR16)."""
+        outside = self._place_outside(clients, drift, place)
+        own = self._station_of(clients, drift, place)
+        return bool(outside and outside.remote_routes) and (own is None or own.request.level > 0)
+
+    def _receiver(
+        self,
+        clients: dict[str, StationClient],
+        drift: Drift,
+        client_id: str,
+        kind: station.ClientKind,
+        via: str | None = None,
+    ) -> station.Receiver:
+        """Who someone is in the remote control: a remote interlocking by its name, a TKL by
+        the place it runs (FR3)."""
+        names = {p.id: p.name for p in drift.package.places}
+        found = clients.get(client_id)
+        if found is None:
+            return station.Receiver(client_id=client_id, kind=kind, name=client_id, place=via)
+        if found.remote:
+            return station.Receiver(
+                client_id=client_id, kind=found.request.kind, name=found.request.name, place=via
+            )
+        home = next((p for p in found.places if drift.manned.get(p) == client_id), None)
+        home = home or (found.places[0] if found.places else None)
+        name = names.get(home or "", found.request.name)
+        return station.Receiver(client_id=client_id, kind=found.request.kind, name=name, place=via)
+
+    def _receivers(
+        self, clients: dict[str, StationClient], drift: Drift, place: str
+    ) -> dict[str, station.Receiver]:
+        """Whom the station may be handed to now (FR2, FR3): a neighbour's TKL, whoever already
+        controls a neighbour, or a remote interlocking approved for the place, as the station's
+        outside allows. What the receiver then controls must hang together along the line."""
+        outside = self._place_outside(clients, drift, place)
+        kinds = set(outside.remote_receivers if outside else []) or set(ReceiverKind)
+        own = {c.client_id for c in clients.values() if place in c.places and not c.remote}
+
+        def fits(client_id: str) -> bool:
+            area = {*drift.places_of(client_id), place}
+            return client_id not in own and drift.hangs_together(sorted(area))
+
+        found: dict[str, station.Receiver] = {}
+        if ReceiverKind.NEIGHBOURS in kinds:
+            for section in drift.package.sections:
+                if place not in (section.place_a, section.place_b):
+                    continue
+                other = section.place_b if section.place_a == place else section.place_a
+                who = drift.controller_of(other)
+                client = clients.get(who or "")
+                if client is None or client.request.kind not in (
+                    station.ClientKind.TKL,
+                    station.ClientKind.REMOTE,
+                ):
+                    continue
+                if fits(client.client_id):
+                    found.setdefault(
+                        client.client_id,
+                        self._receiver(
+                            clients, drift, client.client_id, client.request.kind, other
+                        ),
+                    )
+        if ReceiverKind.REMOTE in kinds:
+            for client in clients.values():
+                approved = client.remote and client.approved and place in client.places
+                if approved and fits(client.client_id):
+                    found.setdefault(
+                        client.client_id,
+                        self._receiver(clients, drift, client.client_id, client.request.kind),
+                    )
+        return found
+
+    def _remote_here(
+        self, run_id: str, clients: dict[str, StationClient], drift: Drift, place: str
+    ) -> station.RemoteHere:
+        """Fjärrstyrningen vid platsen, as the station and its controller see it."""
+        now = now_utc()
+        controllable = self._controllable(clients, drift, place)
+        control = drift.remote.get(place)
+        offer = drift.offers.get(place)
+        return station.RemoteHere(
+            controllable=controllable,
+            controller=self._receiver(clients, drift, control.controller, control.kind)
+            if control
+            else None,
+            offer=self._offer_here(clients, drift, place, now) if offer else None,
+            receivers=list(self._receivers(clients, drift, place).values())
+            if controllable and control is None
+            else [],
+            controller_silent=int(self.automatik(run_id).client_silent(control.controller))
+            if control
+            else None,
+            routes=remote_routes(drift, place, now),
+            route_state=drift.route_states.get(place),
+        )
+
+    def _offer_here(
+        self, clients: dict[str, StationClient], drift: Drift, place: str, now: datetime
+    ) -> station.OfferHere:
+        offer = drift.offers[place]
+        left = OFFER_SECONDS - (now - offer.at).total_seconds()
+        return station.OfferHere(
+            place=place,
+            to=self._receiver(clients, drift, offer.to, offer.kind),
+            expires_in=max(0, int(left)),
+        )
+
+    def _caller(
+        self,
+        run_id: str,
+        clients: dict[str, StationClient],
+        drift: Drift,
+        client_id: str,
+        command: station.Command,
+    ) -> Caller:
+        """What Drift needs to know of the client behind a command (#36). Read before the
+        command counts as contact: a controller silent for 45 seconds sends no new route
+        (FR28)."""
+        client = clients[client_id]
+        place = command.place
+        outside = self._place_outside(clients, drift, place)
+        automatik = self.automatik(run_id)
+        receivers = (
+            {cid: r.kind for cid, r in self._receivers(clients, drift, place).items()}
+            if command.action == station.Action.PLACE_OFFER
+            else {}
+        )
+        return Caller(
+            own=place in client.places and not client.remote,
+            kind=client.request.kind,
+            receivers=receivers,
+            catalogue=frozenset(r.id for r in outside.remote_routes) if outside else frozenset(),
+            controllable=self._controllable(clients, drift, place),
+            controller_heard=automatik.client_heard(client_id),
+            station_heard=automatik.station_heard(place),
+        )
+
+    @staticmethod
+    def _reach(drift: Drift, client_id: str, approved: list[str]) -> set[str]:
+        """Where a client may read and act: the places it is approved for, those it controls
+        and those it is offered (FR4, FR8)."""
+        return {*approved, *drift.controlled_by(client_id), *drift.offered_to(client_id)}
+
+    def _works(self, clients: dict[str, StationClient], client_id: str, place: str) -> bool:
+        """Does the client work the place as its own? Not a remote interlocking, nor anyone
+        reading it from afar (FR6)."""
+        client = clients.get(client_id)
+        return client is not None and place in client.places and not client.remote
+
+    def overview(self, key: str, places: list[str]) -> station.Overview:
+        """The remote picture's data (FR31–FR38): for each place asked for, its operating form
+        and who controls it, the outside with the catalogue, the station's latest route.state,
+        the routes asked for, the trains on its tracks and its sections. A client reads the
+        places it runs, controls, is offered or is approved for, and their neighbours; with
+        none asked for, all of them. No names of people (B13)."""
+        with self._transaction() as db:
+            client_id, run_id, approved = self._approved(db, key)
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            reach = self._reach(drift, client_id, approved)
+            near = set(reach)
+            for section in drift.package.sections:
+                if section.place_a in reach or section.place_b in reach:
+                    near |= {section.place_a, section.place_b}
+            asked = list(dict.fromkeys(places)) or [p for p in drift.stops() if p in near]
+            if not set(asked) <= near or not set(asked) <= set(drift.stops()):
+                raise NotApproved()
+            self.automatik(run_id).touch(client_id)
+            clients = self._run_clients(db, run_id)
+            return station.Overview(
+                context=drift.context,
+                clock=snapshot(drift, asked[0], now).clock
+                if asked
+                else station.Clock(
+                    time=model_time(drift.clock.at(now)),
+                    seconds=int(drift.clock.at(now)),
+                    running=drift.clock.running,
+                    speed=drift.clock.speed,
+                    game_day=drift.game_day,
+                ),
+                places=[self._overview_place(db, run_id, clients, drift, p, now) for p in asked],
+            )
+
+    def _overview_place(
+        self,
+        db: sqlite3.Connection,
+        run_id: str,
+        clients: dict[str, StationClient],
+        drift: Drift,
+        place: str,
+        now: datetime,
+    ) -> station.OverviewPlace:
+        seen = snapshot(drift, place, now)
+        automatik = self.automatik(run_id)
+        controllable = self._controllable(clients, drift, place)
+        mode = automatik.mode(drift, place)
+        if not controllable and mode in (station.PlaceMode.REMOTE, station.PlaceMode.OFFERED):
+            mode = station.PlaceMode.MANNED  # Never shown as remote-controlled (FR38).
+        control = drift.remote.get(place)
+        home = self._station_of(clients, drift, place)
+        silent = automatik.now() - automatik.last_heard(place)
+        exits: dict[str, str] = {}
+        if home is not None:
+            exits, _ = self._coupling(db, run_id, drift, home.request, place)
+        else:
+            found = next(p for p in drift.package.places if p.id == place)
+            exits = dict(found.station.exit_map) if found.station else {}
+        moving = [case for case in drift.cases.values() if case.active and case.departed]
+        sections = []
+        for here in seen.sections:
+            case = next((c for c in moving if c.leg.section.id == here.section), None)
+            sections.append(
+                station.SectionOverview(
+                    section=here.section,
+                    other_place=here.other_place,
+                    exit=exits.get(here.section),
+                    occupied=here.occupied,
+                    detected=here.detected,
+                    towards=case.leg.arrival.place if case else None,
+                    train_number=case.leg.train.number if case else None,
+                )
+            )
+        trains = [
+            station.TrainOnTrack(
+                track=call.track or call.planned_track or "",
+                train_number=call.train_number,
+                call=call.call,
+                expected=call.arrival_state == station.ArrivalState.ON_THE_WAY,
+            )
+            for call in seen.calls
+            if (call.track or call.planned_track)
+            and (
+                call.arrival_state == station.ArrivalState.ON_THE_WAY
+                or (
+                    call.arrival_state == station.ArrivalState.ARRIVED
+                    and call.departure_state != station.DepartureState.DEPARTED
+                    and call.allowed_actions
+                )
+            )
+        ]
+        return station.OverviewPlace(
+            place=seen.place,
+            mode=mode,
+            controllable=controllable,
+            controller=self._receiver(clients, drift, control.controller, control.kind)
+            if control
+            else None,
+            level=home.request.level if home else None,
+            heard=int(silent) if silent != float("inf") else None,
+            outside=self._place_outside(clients, drift, place),
+            route_state=drift.route_states.get(place),
+            routes=remote_routes(drift, place, now),
+            trains=trains,
+            sections=sections,
+        )
+
     # --- Push (F20, SYNK-05) ----------------------------------------------------------------
 
     def set_push(self, key: str, token: station.PushToken | None) -> None:
@@ -1373,14 +1732,16 @@ class PreviewStore:
         return last, notices(drift, after)
 
     def place_snapshot(self, key: str, place: str) -> station.Snapshot:
+        """The place for a client approved for it, controlling it, or offered it (#36)."""
         with self._transaction() as db:
             client_id, run_id, places = self._approved(db, key)
-            if place not in places:
-                raise NotApproved()
             now = now_utc()
             drift = self._load(db, run_id, now)
+            if place not in self._reach(drift, client_id, places):
+                raise NotApproved()
             size = len(drift.history)
-            self._heard(run_id, drift, client_id, place, now)
+            works = self._works(self._run_clients(db, run_id), client_id, place)
+            self._heard(run_id, drift, client_id, place, now, works=works)
             self._save(db, run_id, drift.history[size:])
             return self._dressed(db, run_id, drift, client_id, snapshot(drift, place, now))
 
@@ -1388,10 +1749,13 @@ class PreviewStore:
         """For the event stream: the number that moves when the place's snapshot changes."""
         with self._transaction() as db:
             client_id, run_id, places = self._approved(db, key)
-            if place not in places:
-                raise NotApproved()
             drift = self._load(db, run_id, now_utc())
-            self.automatik(run_id).observe(client_id, place)
+            if place not in self._reach(drift, client_id, places):
+                raise NotApproved()
+            if self._works(self._run_clients(db, run_id), client_id, place):
+                self.automatik(run_id).observe(client_id, place)
+            else:
+                self.automatik(run_id).touch(client_id)
             return drift.place_revision.get(place, 0)
 
     def _level(self, db: sqlite3.Connection, client_id: str) -> int:
@@ -1407,19 +1771,24 @@ class PreviewStore:
         one its station connected with; a reconnect brings the new one."""
         with self._transaction() as db:
             client_id, run_id, places = self._approved(db, key)
-            if command.client_id != client_id or command.place not in places:
+            now = now_utc()
+            drift = self._load(db, run_id, now)
+            if command.client_id != client_id or command.place not in self._reach(
+                drift, client_id, places
+            ):
                 raise NotApproved()
             level = self._level(db, client_id)
-            now = now_utc()
             signature = sha256(command.model_dump_json().encode()).hexdigest()
             earlier = db.execute(
                 "SELECT signature, answer FROM station_reply "
                 "WHERE run_id=? AND client_id=? AND message_id=?",
                 (run_id, client_id, command.message_id),
             ).fetchone()
-            drift = self._load(db, run_id, now)
+            clients = self._run_clients(db, run_id)
+            caller = self._caller(run_id, clients, drift, client_id, command)
             heard = len(drift.history)
-            self._heard(run_id, drift, client_id, command.place, now)
+            works = self._works(clients, client_id, command.place)
+            self._heard(run_id, drift, client_id, command.place, now, works=works)
             self._save(db, run_id, drift.history[heard:])
             if earlier is not None:
                 if earlier[0] != signature:
@@ -1448,7 +1817,7 @@ class PreviewStore:
             reason: Reason | None = None
             outcome = Outcome()
             try:
-                outcome = drift.command(command, now, level=level)
+                outcome = drift.command(command, now, level=level, caller=caller)
             except Refused as error:
                 reason = error.reason
             self._save(db, run_id, drift.history[size:])
@@ -1493,21 +1862,31 @@ class PreviewStore:
                 return
             now = now_utc()
             drift = self._load(db, run_id, now)
-            if not drift.clock.running or drift.locked is not None:
+            if drift.locked is not None:
                 return
             size = len(drift.history)
             if size >= self.max_actions:
                 raise RunLimit()
+            # Fjärrstyrning's time limits are real time, the clock running or not (FR8, FR14).
+            drift.remote_tick(now)
+            if not drift.clock.running:
+                self._save(db, run_id, drift.history[size:])
+                return
             drift.remind(now)
             drift.day_tick(now)
             if drift.automation.enabled:
                 self.automatik(run_id).tick(drift, now)
             self._save(db, run_id, drift.history[size:])
 
+    def _status(self, db: sqlite3.Connection, run_id: str, drift: Drift) -> events.AutomationStatus:
+        clients = self._run_clients(db, run_id)
+        controllable = frozenset(p for p in drift.stops() if self._controllable(clients, drift, p))
+        return self.automatik(run_id).status(drift, controllable)
+
     def automation(self, run_id: str) -> events.AutomationStatus:
         with self._transaction() as db:
             drift = self._load(db, run_id, now_utc())
-            return self.automatik(run_id).status(drift)
+            return self._status(db, run_id, drift)
 
     def set_automation(
         self, run_id: str, settings: events.AutomationSettings
@@ -1519,13 +1898,16 @@ class PreviewStore:
             if settings != drift.automation:
                 drift.set_automation(settings, now)
             self._save(db, run_id, drift.history[size:])
-            return self.automatik(run_id).status(drift)
+            return self._status(db, run_id, drift)
 
     def automation_place(
         self, run_id: str, change: events.AutomationPlace
     ) -> events.AutomationStatus:
-        """Trafikledningen leaves a place to the automation, or gives it back to a box or
-        TKL in contact there (the one heard last, unless one is named)."""
+        """Trafikledningen leaves a place to the automation (Ta över), gives it back to a box or
+        TKL in contact there (the one heard last, unless one is named), or gives it to the one
+        who is to remote-control it, without an offer (FR9). Trafikledningen can always take
+        over and give back; the one it gives to must be able to receive the station (FR2, FR16).
+        """
         with self._transaction() as db:
             now = now_utc()
             drift = self._load(db, run_id, now)
@@ -1533,6 +1915,19 @@ class PreviewStore:
             size = len(drift.history)
             if change.action == "leave":
                 drift.leave(change.place, events.LeftBy.DISPATCHER, now)
+            elif change.action == "remote":
+                clients = self._run_clients(db, run_id)
+                if change.place not in drift.stops():
+                    raise Refused(Reason.WRONG_PLACE)
+                if not self._controllable(clients, drift, change.place):
+                    raise Refused(Reason.NO_CATALOG)
+                receivers = self._receivers(clients, drift, change.place)
+                current = drift.remote.get(change.place)
+                given = receivers.get(change.client_id or "")
+                if given is None and (current is None or current.controller != change.client_id):
+                    raise Refused(Reason.UNKNOWN_RECEIVER)
+                if given is not None:
+                    drift.give_remote(change.place, given.client_id, given.kind, now)
             else:
                 present = automatik.present(change.place)
                 client = change.client_id or (present[0] if present else None)
@@ -1540,7 +1935,7 @@ class PreviewStore:
                     raise Refused(Reason.CLIENT_NOT_PRESENT)
                 drift.take_back(change.place, client, "dispatcher", now)
             self._save(db, run_id, drift.history[size:])
-            return automatik.status(drift)
+            return self._status(db, run_id, drift)
 
     # --- The hub's own meet ---------------------------------------------------------------
 

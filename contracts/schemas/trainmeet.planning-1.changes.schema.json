@@ -217,6 +217,46 @@
       "title": "PlaceChange",
       "type": "object"
     },
+    "RemoteAreaChange": {
+      "additionalProperties": true,
+      "description": "Ett fjärrområde i utkastet (PLAN-04, PLAN-33, FR49): a name and a row of driftplatser that\nhangs together along the line. Each of them is planned as remote-controlled from the area;\na place taken out of the area is manned again. No name takes the area away.",
+      "properties": {
+        "remote_area": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Remote Area",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fjärrområdets namn, eller tomt.",
+          "title": "Name"
+        },
+        "places": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Places",
+          "type": "array"
+        }
+      },
+      "required": [
+        "remote_area"
+      ],
+      "title": "RemoteAreaChange",
+      "type": "object"
+    },
     "SectionChange": {
       "additionalProperties": true,
       "description": "A change to one section in the draft. Clearance mode empty follows the meet.",
@@ -420,6 +460,9 @@
           },
           {
             "$ref": "#/$defs/InstructionsChange"
+          },
+          {
+            "$ref": "#/$defs/RemoteAreaChange"
           }
         ]
       },

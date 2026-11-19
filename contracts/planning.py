@@ -281,6 +281,16 @@ class StationVersion(Contract):
     outside: StationOutside
 
 
+class RemoteAreaChange(Contract):
+    """Ett fjärrområde i utkastet (PLAN-04, PLAN-33, FR49): a name and a row of driftplatser that
+    hangs together along the line. Each of them is planned as remote-controlled from the area;
+    a place taken out of the area is manned again. No name takes the area away."""
+
+    remote_area: Id
+    name: Text | None = Field(default=None, description="Fjärrområdets namn, eller tomt.")
+    places: list[Id] = Field(default_factory=list, max_length=100)
+
+
 class SectionChange(Contract):
     """A change to one section in the draft. Clearance mode empty follows the meet."""
 
@@ -414,9 +424,10 @@ class InstructionsChange(Contract):
 
 def _change_kind(value: Any) -> str:
     """Which change it is, from its fields: a place, a section's tracks or its clearance, a
-    call, a train's field or its days, or the general instructions."""
+    call, a train's field or its days, the general instructions, or a remote area."""
     if isinstance(value, dict):
         for key, kind in (
+            ("remote_area", "remote_area"),
             ("instructions", "instructions"),
             ("confirm", "confirm"),
             ("station", "station"),
@@ -430,6 +441,7 @@ def _change_kind(value: Any) -> str:
                 return kind
         return "section"
     for model, kind in (
+        (RemoteAreaChange, "remote_area"),
         (InstructionsChange, "instructions"),
         (ConfirmChange, "confirm"),
         (StationChange, "station"),
@@ -453,7 +465,8 @@ Change = Annotated[
     | Annotated[TrainDaysChange, Tag("days")]
     | Annotated[ConfirmChange, Tag("confirm")]
     | Annotated[StationChange, Tag("station")]
-    | Annotated[InstructionsChange, Tag("instructions")],
+    | Annotated[InstructionsChange, Tag("instructions")]
+    | Annotated[RemoteAreaChange, Tag("remote_area")],
     Discriminator(_change_kind),
 ]
 

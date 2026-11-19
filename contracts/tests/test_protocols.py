@@ -50,6 +50,9 @@ def test_the_actions_kept_from_v2_and_the_new_ones_for_tkl() -> None:
     new = {"section.occupancy", "signal.exit", "train.set_aside"}
     # Lämna till och ta tillbaka från automatiken, for TKL and the app (F14).
     new |= {"place.leave", "place.take_back"}
+    # Fjärrstyrning (#36, TKL89): handing over, and the routes asked for from afar.
+    new |= {"place.offer", "place.offer.answer"}
+    new |= {"route.request", "route.cancel", "route.response", "route.state"}
     assert {a.value for a in station.Action} == kept | new
 
 

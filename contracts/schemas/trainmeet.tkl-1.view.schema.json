@@ -20,7 +20,13 @@
         "section.occupancy",
         "signal.exit",
         "place.leave",
-        "place.take_back"
+        "place.take_back",
+        "place.offer",
+        "place.offer.answer",
+        "route.request",
+        "route.cancel",
+        "route.response",
+        "route.state"
       ],
       "title": "Action",
       "type": "string"
@@ -33,6 +39,27 @@
       ],
       "title": "ArrivalState",
       "type": "string"
+    },
+    "AutomatOn": {
+      "additionalProperties": true,
+      "description": "A station automat that is switched on, and who switched it on (FR25, FR29).",
+      "properties": {
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "by": {
+          "$ref": "#/$defs/RouteBy"
+        }
+      },
+      "required": [
+        "code",
+        "by"
+      ],
+      "title": "AutomatOn",
+      "type": "object"
     },
     "CallHere": {
       "additionalProperties": true,
@@ -319,6 +346,16 @@
       "title": "ClearanceStatus",
       "type": "string"
     },
+    "ClientKind": {
+      "enum": [
+        "tkl",
+        "tmbox_app",
+        "dispatch",
+        "remote"
+      ],
+      "title": "ClientKind",
+      "type": "string"
+    },
     "Clock": {
       "additionalProperties": true,
       "properties": {
@@ -574,6 +611,83 @@
       "title": "LineMessage",
       "type": "object"
     },
+    "LocalArea": {
+      "additionalProperties": true,
+      "description": "A local area given to people on the spot (lokal frigivning, TKL44, TKL48, FR39).",
+      "properties": {
+        "code": {
+          "description": "Lokalfrigivningens kod, till exempel L01.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "tracks": {
+          "description": "Stationsspåren i området, för fjärrbilden.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "LocalArea",
+      "type": "object"
+    },
+    "LockedRoute": {
+      "additionalProperties": true,
+      "description": "A catalogue route the station's interlocking holds locked. It stays until the train has\ngone, also when the station is taken back (FR15).",
+      "properties": {
+        "route": {
+          "description": "Tågvägens id i fjärrkatalogen.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Route",
+          "type": "string"
+        },
+        "by": {
+          "$ref": "#/$defs/RouteBy"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Begäran den svarade på.",
+          "title": "Request Id"
+        },
+        "automat": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Automaten som lade den.",
+          "title": "Automat"
+        }
+      },
+      "required": [
+        "route",
+        "by"
+      ],
+      "title": "LockedRoute",
+      "type": "object"
+    },
     "MeetContext": {
       "additionalProperties": true,
       "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
@@ -651,6 +765,499 @@
         "name"
       ],
       "title": "Neighbour",
+      "type": "object"
+    },
+    "OfferHere": {
+      "additionalProperties": true,
+      "description": "An offer that stands: the station, who it is offered to, and how long it stands.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/Receiver"
+        },
+        "expires_in": {
+          "description": "Sekunder kvar av minuten (FR8).",
+          "minimum": 0,
+          "title": "Expires In",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "place",
+        "to",
+        "expires_in"
+      ],
+      "title": "OfferHere",
+      "type": "object"
+    },
+    "PartRequest": {
+      "additionalProperties": true,
+      "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+      "properties": {
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "part": {
+          "description": "Delens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Part",
+          "type": "string"
+        },
+        "text": {
+          "description": "Vad delen begär, som stationen skriver det.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "part",
+        "text"
+      ],
+      "title": "PartRequest",
+      "type": "object"
+    },
+    "PlaceMode": {
+      "description": "Driftformen (FR5, TKL48): one per place during the meet. A station is manned or\nremote-controlled, never both (FR6).",
+      "enum": [
+        "manned",
+        "offered",
+        "remote",
+        "no_contact",
+        "automatic"
+      ],
+      "title": "PlaceMode",
+      "type": "string"
+    },
+    "ReadyToSend": {
+      "additionalProperties": true,
+      "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+      "properties": {
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Part"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        }
+      },
+      "required": [
+        "train_number"
+      ],
+      "title": "ReadyToSend",
+      "type": "object"
+    },
+    "Reason": {
+      "enum": [
+        "unsupported_protocol",
+        "unknown_action",
+        "not_approved",
+        "wrong_place",
+        "stale_meet_context",
+        "stale_revision",
+        "no_active_meet",
+        "train_number_required",
+        "unknown_train_number",
+        "ambiguous_train_number",
+        "unknown_call",
+        "unknown_track",
+        "track_occupied",
+        "unknown_section",
+        "channel_occupied",
+        "call_already_requested",
+        "clearance_not_pending",
+        "unknown_clearance",
+        "not_sender",
+        "not_receiver",
+        "train_already_departed",
+        "departure_not_reserved",
+        "invalid_departure",
+        "invalid_arrival",
+        "train_not_departed",
+        "unknown_line_message",
+        "already_acknowledged",
+        "not_level_3",
+        "station_automatic",
+        "automatic_station_manned",
+        "automation_off",
+        "client_not_present",
+        "no_jump_to_undo",
+        "other_game_day",
+        "day_still_running",
+        "unknown_place",
+        "unknown_train",
+        "no_route",
+        "invalid_time",
+        "train_number_taken",
+        "unknown_change",
+        "section_closed",
+        "unknown_version",
+        "same_version",
+        "no_switch_waiting",
+        "drift_locked",
+        "not_locked",
+        "not_leader",
+        "already_leader",
+        "unknown_service",
+        "service_taken",
+        "one_service",
+        "no_service",
+        "unknown_driver",
+        "not_in_service",
+        "unknown_paper",
+        "paper_decided",
+        "paper_no_places",
+        "paper_few_places",
+        "paper_no_times",
+        "paper_no_number",
+        "not_controller",
+        "not_in_catalog",
+        "route_already_requested",
+        "route_not_pending",
+        "offer_not_pending",
+        "offer_pending",
+        "station_not_answering",
+        "place_remote",
+        "no_catalog",
+        "not_station",
+        "unknown_receiver",
+        "no_contact",
+        "conflicting_route",
+        "switch_not_in_control",
+        "area_released"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "Receiver": {
+      "additionalProperties": true,
+      "description": "Someone a station can be handed to, or who controls it (FR3, TKL47).",
+      "properties": {
+        "client_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Client Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClientKind"
+        },
+        "name": {
+          "description": "Driftplatsen grannens TKL kör, eller fjärrställverkets namn i Klienter.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Grannens driftplats, när det är en granne som tar emot.",
+          "title": "Place"
+        }
+      },
+      "required": [
+        "client_id",
+        "kind",
+        "name"
+      ],
+      "title": "Receiver",
+      "type": "object"
+    },
+    "RemoteHere": {
+      "additionalProperties": true,
+      "description": "Fjärrstyrningen vid platsen: who controls it, the offer out, whom it can be handed to,\nthe routes asked for and the station's last route.state, which Hubben keeps (FR15).",
+      "properties": {
+        "controllable": {
+          "default": false,
+          "description": "Stationen har en fjärrkatalog och kan fjärrstyras. En station som inte kan det visas alltid som bemannad (FR16, FR38).",
+          "title": "Controllable",
+          "type": "boolean"
+        },
+        "controller": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receiver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "offer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OfferHere"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "receivers": {
+          "description": "Vilka stationen kan lämnas till just nu.",
+          "items": {
+            "$ref": "#/$defs/Receiver"
+          },
+          "title": "Receivers",
+          "type": "array"
+        },
+        "controller_silent": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sekunder sedan den som fjärrstyr hördes av. Efter 45 går inga nya fjärrtågvägar (FR28), efter 90 kopplar stationen in sin förvalda automat (FR29).",
+          "title": "Controller Silent"
+        },
+        "routes": {
+          "description": "Fjärrtågvägarna, senaste först.",
+          "items": {
+            "$ref": "#/$defs/RemoteRouteHere"
+          },
+          "title": "Routes",
+          "type": "array"
+        },
+        "route_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RouteState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationens senaste route.state."
+        }
+      },
+      "title": "RemoteHere",
+      "type": "object"
+    },
+    "RemoteRouteHere": {
+      "additionalProperties": true,
+      "description": "A route asked for from afar, and how it stands.",
+      "properties": {
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "route": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Route",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "state": {
+          "$ref": "#/$defs/RemoteRouteState"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Skälet till ett nej."
+        },
+        "by": {
+          "description": "Klienten som begärde.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "By",
+          "type": "string"
+        },
+        "asked_at": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Asked At",
+          "type": "string"
+        },
+        "answer_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sekunder kvar för stationen att svara (FR14).",
+          "title": "Answer In"
+        }
+      },
+      "required": [
+        "request_id",
+        "route",
+        "state",
+        "by",
+        "asked_at"
+      ],
+      "title": "RemoteRouteHere",
+      "type": "object"
+    },
+    "RemoteRouteState": {
+      "enum": [
+        "requested",
+        "locked",
+        "refused",
+        "cancelled",
+        "released"
+      ],
+      "title": "RemoteRouteState",
+      "type": "string"
+    },
+    "RouteBy": {
+      "description": "Who laid a route, or switched an automat (FR33, FR37).",
+      "enum": [
+        "remote",
+        "station",
+        "automat"
+      ],
+      "title": "RouteBy",
+      "type": "string"
+    },
+    "RouteState": {
+      "additionalProperties": true,
+      "description": "route.state: the station at the overview level, whole each time it changes (FR13). The\ncatalogue routes it holds locked and who locked them, those the station or an automat laid\ntoo; the automats that are on; the local areas; and at level 3 the occupied tracks. The parts'\nrequests and the ready list travel here when a station with parts is remote-controlled\n(DRIFT-40).",
+      "properties": {
+        "locked": {
+          "items": {
+            "$ref": "#/$defs/LockedRoute"
+          },
+          "title": "Locked",
+          "type": "array"
+        },
+        "automats": {
+          "items": {
+            "$ref": "#/$defs/AutomatOn"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "local_areas": {
+          "items": {
+            "$ref": "#/$defs/LocalArea"
+          },
+          "title": "Local Areas",
+          "type": "array"
+        },
+        "occupied": {
+          "description": "Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Occupied",
+          "type": "array"
+        },
+        "part_requests": {
+          "description": "Delarnas begäran, när stationen fjärrstyrs (FR50).",
+          "items": {
+            "$ref": "#/$defs/PartRequest"
+          },
+          "title": "Part Requests",
+          "type": "array"
+        },
+        "ready_to_send": {
+          "description": "Tåg som är klara att skicka, i avgångstidens ordning (FR51).",
+          "items": {
+            "$ref": "#/$defs/ReadyToSend"
+          },
+          "title": "Ready To Send",
+          "type": "array"
+        }
+      },
+      "title": "RouteState",
       "type": "object"
     },
     "SectionHere": {
@@ -840,6 +1447,31 @@
             "$ref": "#/$defs/DriverMessageHere"
           },
           "title": "Driver Messages",
+          "type": "array"
+        },
+        "mode": {
+          "$ref": "#/$defs/PlaceMode",
+          "description": "Driftformen (FR5), i stället för automatic."
+        },
+        "remote": {
+          "$ref": "#/$defs/RemoteHere",
+          "description": "Fjärrstyrningen vid platsen; tom från en äldre hubb."
+        },
+        "offers": {
+          "description": "Stationer som just den här klienten är erbjuden och kan svara på.",
+          "items": {
+            "$ref": "#/$defs/OfferHere"
+          },
+          "title": "Offers",
+          "type": "array"
+        },
+        "controls": {
+          "description": "Driftplatserna just den här klienten fjärrstyr.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Controls",
           "type": "array"
         }
       },

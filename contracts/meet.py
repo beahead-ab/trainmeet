@@ -9,6 +9,10 @@ Built on the old Server's schema 3, made plain (spec 5.1 with the decisions of 4
   track id when a station is coupled (H27, TKL14).
 - A part of a station that is its own driftplats (TKL101) stands as a place of its own, next to
   the station's, linked to the same station and marked with the station's place (PLAN-34).
+- The plan's remote areas (fjärrområden, TKL87, PLAN-33, FR49): a name and a row of driftplatser
+  that hang together along the line. A place planned as remote-controlled points at its area,
+  not at another place. It is only the default; the operating form during the meet decides.
+  The older remote_from, pointing at a place, still reads.
 - US meets are not part of this format (F26).
 
 Synk stores a published package as a frozen version with its checksum (common.checksum).
@@ -41,7 +45,7 @@ class PlaceKind(StrEnum):
     """Platstyp (F2). Set from the plan; Drift may change manned/unmanned during the meet."""
 
     MANNED = "manned"  # bemannad: own box or TKL, clears trains
-    REMOTE = "remote"  # fjärrstyrd: run from another place, named in remote_from
+    REMOTE = "remote"  # fjärrstyrd: run from a remote area (remote_area), or from remote_from
     UNMANNED = "unmanned"  # obemannad: the automation runs it
     SHADOW_YARD = "shadow_yard"  # skuggbangård: trains start and end here
     HALT = "halt"  # industri/hållplats: along a section, no clearance
@@ -170,7 +174,16 @@ class Place(Contract):
     code: Text = Field(description="Signaturen, till exempel Nby.")
     name: Text
     kind: PlaceKind
-    remote_from: Id | None = Field(default=None, description="Driftplatsen som fjärrstyr.")
+    remote_from: Id | None = Field(
+        default=None,
+        description="Driftplatsen som fjärrstyr, som planen sa före fjärrområdena. Läses "
+        "fortfarande; en ny plan pekar på ett fjärrområde (TKL87).",
+    )
+    remote_area: Id | None = Field(
+        default=None,
+        description="Fjärrområdet driftplatsen är tänkt att fjärrstyras från: förvalet. "
+        "Driftformen under träffen avgör (FR49, PLAN-33).",
+    )
     phone: Text | None = Field(default=None, description="Träffens leknummer (H30).")
     aliases: list[Text] = Field(default_factory=list)
     tracks: list[PlanTrack] = Field(default_factory=list)
@@ -184,6 +197,19 @@ class Place(Contract):
     instructions: dict[Language, str] = Field(default_factory=dict)
     source_ids: dict[str, str] = Field(
         default_factory=dict, description="Planens käll-id:n, till exempel för Tellurian."
+    )
+
+
+class RemoteArea(Contract):
+    """Fjärrområde in the plan (TKL87, PLAN-04, PLAN-33, FR49): the driftplatser planned to be
+    remote-controlled together, in a row along the line that hangs together (FR2). The remote
+    interlocking that runs it is approved for them in Klienter, and each station hands itself
+    over during the meet; the plan only gives the default."""
+
+    id: Id
+    name: Text = Field(description="Fjärrområdets namn, till exempel Väster.")
+    places: list[Id] = Field(
+        min_length=1, description="Driftplatserna i ordning längs linjen, som hänger ihop."
     )
 
 
@@ -363,6 +389,10 @@ class MeetPackage(Contract):
     display: Display = Field(default_factory=Display)
     about: dict[Language, About] = Field(default_factory=dict)
     findings: list[Finding] = Field(default_factory=list)
+    remote_areas: list[RemoteArea] = Field(
+        default_factory=list,
+        description="Fjärrområdena i planen (TKL87, PLAN-33). Tomt i en plan utan fjärrstyrning.",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> MeetPackage:
@@ -370,6 +400,65 @@ class MeetPackage(Contract):
         if problems:
             raise ValueError(" ".join(problems))
         return self
+
+
+def hangs_together(package: MeetPackage, places: list[str]) -> bool:
+    """Do the places hang together along the line (FR2)? Two places are next to each other when
+    a section joins them, or when one is a part of the other (PLAN-34). An empty or single row
+    hangs together."""
+    wanted = set(places)
+    if len(wanted) <= 1:
+        return True
+    near: dict[str, set[str]] = {place: set() for place in wanted}
+    for section in package.sections:
+        if section.place_a in wanted and section.place_b in wanted:
+            near[section.place_a].add(section.place_b)
+            near[section.place_b].add(section.place_a)
+    for place in package.places:
+        if place.id in wanted and place.part_of in wanted:
+            near[place.id].add(place.part_of)
+            near[place.part_of].add(place.id)
+    start = next(iter(wanted))
+    reached, todo = {start}, [start]
+    while todo:
+        for other in near[todo.pop()] - reached:
+            reached.add(other)
+            todo.append(other)
+    return reached == wanted
+
+
+def _area_problems(package: MeetPackage, places: dict[str, Place]) -> list[str]:
+    """The remote areas (TKL87, FR2): known stops in a row that hangs together, each in one area,
+    and every place that points at an area is in it."""
+    problems: list[str] = []
+    seen: dict[str, str] = {}
+    areas = {area.id: area for area in package.remote_areas}
+    for area in package.remote_areas:
+        for ref in area.places:
+            found = places.get(ref)
+            if found is None:
+                problems.append(f"Fjärrområdet {area.id} pekar på en okänd driftplats: {ref}.")
+            elif found.kind == PlaceKind.HALT:
+                problems.append(f"Fjärrområdet {area.id} har en hållplats: {ref}.")
+            elif ref in seen:
+                problems.append(
+                    f"Driftplatsen {ref} hör till två fjärrområden: {seen[ref]} och {area.id}."
+                )
+            else:
+                seen[ref] = area.id
+        if not hangs_together(package, [ref for ref in area.places if ref in places]):
+            problems.append(f"Fjärrområdet {area.id} hänger inte ihop längs linjen.")
+    for place in package.places:
+        if place.remote_area is None:
+            continue
+        planned = areas.get(place.remote_area)
+        if planned is None:
+            problems.append(
+                f"Driftplatsen {place.id} pekar på ett okänt fjärrområde: {place.remote_area}."
+            )
+        elif place.id not in planned.places:
+            problems.append(f"Driftplatsen {place.id} står inte i fjärrområdet {planned.id}.")
+    return problems
 
 
 def _duplicates(ids: list[str]) -> list[str]:
@@ -426,6 +515,7 @@ def _structural_problems(package: MeetPackage) -> list[str]:
         ("omlopp", [t.id for t in package.turns]),
         ("växlingsuppdrag", [s.id for s in package.shunting]),
         ("bilagor", [a.id for a in package.attachments]),
+        ("fjärrområden", [a.id for a in package.remote_areas]),
     ):
         for dup in _duplicates(ids):
             problems.append(f"Två {label} har id {dup}.")
@@ -436,8 +526,11 @@ def _structural_problems(package: MeetPackage) -> list[str]:
 
     for place in package.places:
         if place.kind == PlaceKind.REMOTE:
-            if place.remote_from is None:
-                problems.append(f"Driftplatsen {place.id} är fjärrstyrd men saknar remote_from.")
+            if place.remote_from is None and place.remote_area is None:
+                problems.append(
+                    f"Driftplatsen {place.id} är fjärrstyrd men saknar remote_from eller "
+                    "remote_area."
+                )
             elif place.remote_from == place.id:
                 problems.append(f"Driftplatsen {place.id} kan inte fjärrstyra sig själv.")
         if place.remote_from is not None:
@@ -468,6 +561,7 @@ def _structural_problems(package: MeetPackage) -> list[str]:
                 if exit_id not in station_exits:
                     problems.append(f"Utfartstabellen vid {place.id} har okänd utfart {exit_id}.")
 
+    problems += _area_problems(package, places)
     for section in package.sections:
         where = f"Sträckan {section.id}"
         place_ref(section.place_a, where)

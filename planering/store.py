@@ -27,9 +27,11 @@ from contracts.meet import (
     MeetPackage,
     Place,
     PlaceKind,
+    RemoteArea,
     Section,
     TrackKind,
     Train,
+    hangs_together,
 )
 from contracts.planning import (
     PLANNER,
@@ -54,6 +56,7 @@ from contracts.planning import (
     PlaceChange,
     Proposal,
     Question,
+    RemoteAreaChange,
     SectionChange,
     SectionTracksChange,
     Source,
@@ -414,7 +417,9 @@ class Planning:
             kept = list(draft.changes)
             for change in changes:
                 kind, target = _target(change)
-                if target not in known[kind]:
+                if isinstance(change, RemoteAreaChange):
+                    _check_area(draft.package, change)
+                elif target not in known[kind]:
                     raise PlanningError("Det finns inte i utkastet.")
                 _check_value(draft.package, change)
                 pool = {s.outside.station_id for s in draft.stations}
@@ -693,6 +698,8 @@ def _target(change: Change) -> tuple[str, Id]:
         return "station", change.place
     if isinstance(change, InstructionsChange):
         return "instructions", _instructions_target(change)
+    if isinstance(change, RemoteAreaChange):
+        return "remote_area", change.remote_area
     return "section", change.section
 
 
@@ -734,6 +741,67 @@ def _check_value(package: MeetPackage, change: Change) -> None:
     pdf = change.pdf if isinstance(change, InstructionsChange) else None
     if pdf is not None and (pdf.kind != AttachmentKind.INSTRUCTIONS or pdf.media_type != PDF):
         raise PlanningError("Instruktionerna läggs in som en PDF.")
+
+
+def _check_area(package: MeetPackage, change: RemoteAreaChange) -> None:
+    """A remote area (PLAN-33, FR2): known driftplatser, no halts, in no other area, that hang
+    together along the line. With no name it is taken away."""
+    if change.name is None:
+        return
+    places = {p.id: p for p in package.places}
+    if not change.places:
+        raise PlanningError("Ett fjärrområde har minst en driftplats.")
+    for ref in change.places:
+        place = places.get(ref)
+        if place is None:
+            raise PlanningError("Driftplatsen finns inte i utkastet.")
+        if place.kind == PlaceKind.HALT:
+            raise PlanningError(f"{place.name} är en hållplats och kan inte fjärrstyras.")
+        other = next(
+            (a for a in package.remote_areas if a.id != change.remote_area and ref in a.places),
+            None,
+        )
+        if other is not None:
+            raise PlanningError(f"{place.name} hör redan till fjärrområdet {other.name}.")
+    if len(set(change.places)) != len(change.places):
+        raise PlanningError("En driftplats står två gånger i fjärrområdet.")
+    if not hangs_together(package, change.places):
+        raise PlanningError("Fjärrområdet hänger inte ihop längs linjen.")
+
+
+def _remote_areas(
+    package: MeetPackage, places: dict[Id, Place], changes: list[Change]
+) -> list[RemoteArea]:
+    """The plan's remote areas after the planner's changes (PLAN-04, PLAN-33, FR49). A place in
+    an area is planned as remote-controlled from it, not from another place; one taken out of
+    every area is manned again."""
+    areas = {area.id: area for area in package.remote_areas}
+    for change in changes:
+        if not isinstance(change, RemoteAreaChange):
+            continue
+        if change.name is None:
+            areas.pop(change.remote_area, None)
+            continue
+        areas[change.remote_area] = RemoteArea(
+            id=change.remote_area,
+            name=change.name,
+            places=[ref for ref in change.places if ref in places],
+        )
+    member = {ref: area.id for area in areas.values() for ref in area.places}
+    for place_id, place in list(places.items()):
+        if place_id in member:
+            places[place_id] = place.model_copy(
+                update={
+                    "kind": PlaceKind.REMOTE,
+                    "remote_area": member[place_id],
+                    "remote_from": None,
+                }
+            )
+        elif place.remote_area is not None:
+            places[place_id] = place.model_copy(
+                update={"kind": PlaceKind.MANNED, "remote_area": None}
+            )
+    return [area for area in areas.values() if area.places]
 
 
 def _train_of(package: MeetPackage, change: Change) -> Id | None:
@@ -914,6 +982,12 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
         places[place_id] = place.model_copy(
             update={"station": link.model_copy(update={"track_map": track_map})}
         )
+    areas = _remote_areas(package, places, list(draft.changes))
+    facts = {ref: fact for ref, fact in facts.items() if not ref.startswith("remote_area:")}
+    for area in areas:
+        facts[f"remote_area:{area.id}"] = Fact(
+            ref=f"remote_area:{area.id}", certainty=Certainty.CONFIRMED, origins=planner
+        )
     rules = []
     for rule in draft.rulebook.train_types:
         question = next((q for q in questions if f"train_type:{rule.code}" in q.refs), None)
@@ -939,6 +1013,7 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                     "trains": list(trains.values()),
                     "about": about,
                     "attachments": attachments,
+                    "remote_areas": areas,
                 }
             ),
             "facts": list(facts.values()),

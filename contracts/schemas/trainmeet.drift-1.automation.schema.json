@@ -71,6 +71,54 @@
           },
           "title": "Present",
           "type": "array"
+        },
+        "controller": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Den som fjärrstyr platsen (FR5).",
+          "title": "Controller"
+        },
+        "offered_to": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Den platsen är erbjuden (FR8).",
+          "title": "Offered To"
+        },
+        "back_to": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Den som fjärrstyrde platsen när trafikledningen tog över: Lämna tillbaka ger den till honom igen (FR9).",
+          "title": "Back To"
+        },
+        "controllable": {
+          "default": false,
+          "description": "Platsen har en fjärrkatalog och kan fjärrstyras (FR16).",
+          "title": "Controllable",
+          "type": "boolean"
         }
       },
       "required": [
@@ -222,8 +270,11 @@
       "type": "string"
     },
     "PlaceMode": {
+      "description": "Driftformen (FR5, TKL48): one per place during the meet. A station is manned or\nremote-controlled, never both (FR6).",
       "enum": [
         "manned",
+        "offered",
+        "remote",
         "no_contact",
         "automatic"
       ],

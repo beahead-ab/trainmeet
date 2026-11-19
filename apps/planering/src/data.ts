@@ -12,6 +12,7 @@ export type Call = Train["calls"][number];
 export type Duty = NonNullable<Package["duties"]>[number];
 export type Turn = NonNullable<Package["turns"]>[number];
 export type Shunting = NonNullable<Package["shunting"]>[number];
+export type RemoteArea = NonNullable<Package["remote_areas"]>[number];
 export type TrainTypeRule = NonNullable<NonNullable<Draft["rulebook"]>["train_types"]>[number];
 export type Source = NonNullable<Draft["sources"]>[number];
 export type Fact = NonNullable<Draft["facts"]>[number];
@@ -163,4 +164,44 @@ export function describePreview(preview: ImportPreview): string {
   let text = parts.length ? `${parts.join(" · ")}.` : "Inget ändras: filen ger samma utkast.";
   if (preview.kept) text += ` ${plural(preview.kept, "ändring", "ändringar")} från Planering står kvar.`;
   return text;
+}
+
+// Fjärrområden (PLAN-04, PLAN-33, FR49, TKL87): the plan holds remote areas, a name and a row of
+// driftplatser that hangs together along the line. A place in an area is planned as
+// remote-controlled from it; only the default, as the operating form during the meet decides.
+
+/** Where a place planned as remote-controlled is controlled from: its remote area, or the place
+ * an older plan named. */
+export function remoteFrom(pkg: Package, place: Place, name: (id: string) => string): string | null {
+  if (place.remote_area) {
+    const area = (pkg.remote_areas ?? []).find((item) => item.id === place.remote_area);
+    return `fjärrområdet ${area?.name ?? place.remote_area}`;
+  }
+  return place.remote_from ? name(place.remote_from) : null;
+}
+
+/** An area's driftplatser as one line along the line: Åby – Bby – Cby. */
+export const areaPlaces = (area: RemoteArea, name: (id: string) => string) => area.places.map(name).join(" – ");
+
+/** The places an area may hold: the driftplatser with clearance, never a halt. */
+export const areaChoices = (pkg: Package) => pkg.places.filter((place) => place.kind !== "halt");
+
+/** A new area's id from its name, unlike the ids already there. */
+export function areaId(name: string, taken: readonly string[]): string {
+  const base =
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "fjarromrade";
+  let id = base;
+  for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+/** The change Spara sends for an area: its places in the plan's order; no name takes it away. */
+export function areaChange(pkg: Package, id: string, name: string | null, chosen: readonly string[]) {
+  const places = pkg.places.map((place) => place.id).filter((place) => chosen.includes(place));
+  return { remote_area: id, name: name?.trim() || null, places: name?.trim() ? places : [] };
 }

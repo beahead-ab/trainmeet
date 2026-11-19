@@ -189,6 +189,7 @@ class RelayKind(StrEnum):
     PUSH = "push"  # the phone's address for push, or none to stop
     EXIT = "exit"  # TKL answers which exit a section has (H26)
     TRACK_DISPLAY = "track_display"  # Spår-vyn for the place (BOXIOS-16)
+    OVERVIEW = "overview"  # fjärrbildens data, för de driftplatser klienten frågar efter (#36)
 
 
 class RelayCall(Contract):
@@ -208,6 +209,9 @@ class RelayCall(Contract):
     push: station.PushToken | None = None
     exit: station.ExitAnswer | None = None
     track_display: station.TrackDisplayChange | None = None
+    places: list[Id] = Field(
+        default_factory=list, max_length=100, description="Driftplatserna i översikten (#36)."
+    )
 
 
 class RelayCalls(Contract):
@@ -224,6 +228,7 @@ class RelayAnswer(Contract):
     snapshot: station.Snapshot | None = None
     reply: station.Reply | None = None
     revision: int | None = Field(default=None, ge=0)
+    overview: station.Overview | None = None
 
 
 # --- Push (SYNK-05, F20) -----------------------------------------------------------------------
