@@ -23,7 +23,9 @@ jobs:
   tester:
     name: Tester
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # CAD's image chain (#89 del c1) runs real photos through OpenCV; pytest took 14 minutes
+    # with it, so 25 leaves room. --durations shows what grew.
+    timeout-minutes: 25
     # TrainMeet Catalog's tests need a PostgreSQL of their own (catalog/tests/conftest.py).
     services:
       postgres:
@@ -62,7 +64,7 @@ jobs:
             || (sudo apt-get update -q && sudo apt-get install -y -q mosquitto)
 
       - name: Testerna
-        run: uv run pytest
+        run: uv run pytest --durations=15
 
       - name: Kontraktens TypeScript-typer
         run: |
