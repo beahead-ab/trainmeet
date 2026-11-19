@@ -1,0 +1,5394 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TrainMeet CAD · kontrakten",
+    "version": "1"
+  },
+  "paths": {
+    "/api/version": {
+      "get": {
+        "operationId": "cadVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.version"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/session": {
+      "get": {
+        "operationId": "cadSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.session"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "cadLogOut",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.session"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/trial/accounts": {
+      "get": {
+        "operationId": "cadTrialAccounts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.cad-1.account"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/trial/login": {
+      "post": {
+        "operationId": "cadTrialLogIn",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.session"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.trial-login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/libraries": {
+      "get": {
+        "operationId": "cadLibraries",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.cad-1.library"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/modules": {
+      "get": {
+        "operationId": "cadModules",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "library",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scale",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "H0",
+                "N",
+                "0"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "cadNewModule",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/modules/{module}": {
+      "get": {
+        "operationId": "cadModule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "cadSaveModule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "cadRemoveModule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module-removed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/modules/{module}/versions/{version}": {
+      "get": {
+        "operationId": "cadModuleVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/modules/{module}/history": {
+      "get": {
+        "operationId": "cadModuleHistory",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.cad-1.module-event"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/modules/{module}/approve": {
+      "post": {
+        "operationId": "cadApproveModule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-approval"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/modules/{module}/visibility": {
+      "put": {
+        "operationId": "cadModuleVisibility",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.visibility-change"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/profiles": {
+      "get": {
+        "operationId": "cadProfiles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.profile-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "scale",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "H0",
+                "N",
+                "0"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "cadNewProfile",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-profile"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "trainmeet.cad-1.version": {
+        "additionalProperties": true,
+        "description": "What is running, so a tester can see which change the test environment has.",
+        "properties": {
+          "product": {
+            "const": "TrainMeet CAD",
+            "default": "TrainMeet CAD",
+            "title": "Product",
+            "type": "string"
+          },
+          "version": {
+            "description": "The package version, for example 0.1.0.",
+            "title": "Version",
+            "type": "string"
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The git commit, or null locally.",
+            "title": "Commit"
+          },
+          "pr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The pull request the change came from.",
+            "title": "Pr"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The title of that pull request.",
+            "title": "Title"
+          },
+          "built": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When the image was built, UTC.",
+            "title": "Built"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "CadVersion",
+        "type": "object"
+      },
+      "trainmeet.cad-1.session": {
+        "additionalProperties": true,
+        "description": "Who is logged in, if anyone, and how one logs in here.",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.session.CadAccount"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "login": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.session.LoginKind"
+          },
+          "clubs": {
+            "description": "The person's clubs, as ID says now.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.session.ClubChoice"
+            },
+            "title": "Clubs",
+            "type": "array"
+          },
+          "apps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.session.AppKey"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The app switcher's apps, as ID says (ID11); null when ID does not answer.",
+            "title": "Apps"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The tokens left on the person's own account in ID (TOKEN-01); null without ID or when ID does not answer.",
+            "title": "Tokens"
+          },
+          "tokens_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tokens in TrainMeet ID.",
+            "title": "Tokens Url"
+          },
+          "help_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hjälp och fel in TrainMeet ID (KONTO-06).",
+            "title": "Help Url"
+          },
+          "logout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too (KONTO-01).",
+            "title": "Logout Url"
+          }
+        },
+        "required": [
+          "login"
+        ],
+        "title": "CadSession",
+        "type": "object"
+      },
+      "trainmeet.cad-1.session.AppKey": {
+        "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+        "enum": [
+          "hub",
+          "tkl",
+          "cad",
+          "catalog",
+          "driver",
+          "id"
+        ],
+        "title": "AppKey",
+        "type": "string"
+      },
+      "trainmeet.cad-1.session.CadAccount": {
+        "additionalProperties": true,
+        "description": "The person who is logged in, as CAD knows them. The id is ID's subject.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "initials": {
+            "description": "For the account button.",
+            "maxLength": 3,
+            "minLength": 1,
+            "title": "Initials",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials"
+        ],
+        "title": "CadAccount",
+        "type": "object"
+      },
+      "trainmeet.cad-1.session.ClubChoice": {
+        "additionalProperties": true,
+        "description": "One of the person's clubs in TrainMeet ID (#67).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "admin": {
+            "description": "The person is the club's administrator.",
+            "title": "Admin",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "admin"
+        ],
+        "title": "ClubChoice",
+        "type": "object"
+      },
+      "trainmeet.cad-1.session.LoginKind": {
+        "description": "How people log in to this CAD.",
+        "enum": [
+          "trial",
+          "id"
+        ],
+        "title": "LoginKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.account": {
+        "additionalProperties": true,
+        "description": "The person who is logged in, as CAD knows them. The id is ID's subject.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "initials": {
+            "description": "For the account button.",
+            "maxLength": 3,
+            "minLength": 1,
+            "title": "Initials",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials"
+        ],
+        "title": "CadAccount",
+        "type": "object"
+      },
+      "trainmeet.cad-1.trial-login": {
+        "additionalProperties": true,
+        "properties": {
+          "account": {
+            "format": "uuid",
+            "title": "Account",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account"
+        ],
+        "title": "CadTrialLogin",
+        "type": "object"
+      },
+      "trainmeet.cad-1.problem": {
+        "additionalProperties": true,
+        "description": "The answer when CAD says no: 401, 403, 404, 409, 422 or 503.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.problem.ProblemCode"
+          },
+          "message": {
+            "description": "In Swedish, for the person and for logs.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CadProblem",
+        "type": "object"
+      },
+      "trainmeet.cad-1.problem.ProblemCode": {
+        "description": "Why CAD said no. The web app has the text for each.",
+        "enum": [
+          "login",
+          "not_found",
+          "forbidden",
+          "changed",
+          "invalid",
+          "unavailable"
+        ],
+        "title": "ProblemCode",
+        "type": "string"
+      },
+      "trainmeet.cad-1.library": {
+        "additionalProperties": true,
+        "description": "Ett modulbibliotek: the person's own, a club's, or everything the person sees.",
+        "properties": {
+          "id": {
+            "pattern": "^(mine|all|club:[0-9a-f-]{36})$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "mine",
+              "club",
+              "all"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "club": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club"
+          },
+          "may_add": {
+            "description": "New modules can be added here.",
+            "title": "May Add",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "may_add"
+        ],
+        "title": "Library",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list": {
+        "additionalProperties": true,
+        "properties": {
+          "library": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Library"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.ModuleBrief"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "gables": {
+            "description": "Gavlar i biblioteket, most first.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GableCount"
+            },
+            "title": "Gables",
+            "type": "array"
+          }
+        },
+        "required": [
+          "library",
+          "modules",
+          "gables"
+        ],
+        "title": "ModuleList",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.ArcSegment": {
+        "additionalProperties": true,
+        "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+        "properties": {
+          "kind": {
+            "const": "arc",
+            "default": "arc",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          },
+          "center": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Center",
+            "type": "array"
+          },
+          "radius": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "clockwise": {
+            "title": "Clockwise",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "center",
+          "radius",
+          "clockwise"
+        ],
+        "title": "ArcSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.Certainty": {
+        "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+        "enum": [
+          "certain",
+          "probable",
+          "uncertain",
+          "confirmed"
+        ],
+        "title": "Certainty",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.Curve": {
+        "additionalProperties": true,
+        "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+        "properties": {
+          "kind": {
+            "const": "curve",
+            "default": "curve",
+            "title": "Kind",
+            "type": "string"
+          },
+          "radius": {
+            "description": "Track 1's centre line, in mm.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "angle": {
+            "description": "The angle, in degrees.",
+            "exclusiveMaximum": 180,
+            "exclusiveMinimum": 0,
+            "title": "Angle",
+            "type": "number"
+          },
+          "width": {
+            "description": "The module body's width, Kant 1 to the other edge.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.EdgeSide",
+            "default": "outer"
+          },
+          "sides": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.CurveSides",
+            "default": "bent"
+          },
+          "measured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.CurveMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The string and sagitta the radius and angle came from."
+          }
+        },
+        "required": [
+          "radius",
+          "angle",
+          "width"
+        ],
+        "title": "Curve",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.CurveMeasure": {
+        "additionalProperties": true,
+        "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+        "properties": {
+          "chord": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Chord",
+            "type": "number"
+          },
+          "sagitta": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Sagitta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chord",
+          "sagitta"
+        ],
+        "title": "CurveMeasure",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.CurveSides": {
+        "description": "The box's long sides.",
+        "enum": [
+          "bent",
+          "straight"
+        ],
+        "title": "CurveSides",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.EdgeSide": {
+        "description": "Which edge of a curve module is Kant 1.",
+        "enum": [
+          "outer",
+          "inner"
+        ],
+        "title": "EdgeSide",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.GableCount": {
+        "additionalProperties": true,
+        "description": "Gavlar i biblioteket: how many gables of one kind.",
+        "properties": {
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "count": {
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "count"
+        ],
+        "title": "GableCount",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.GableLabel": {
+        "additionalProperties": true,
+        "description": "A gable as the library shows it: \"FREMO dubbelspår\", \"Egen gavel · 3 spår\".",
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GableEnd"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "tracks": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "end",
+          "label",
+          "tracks"
+        ],
+        "title": "GableLabel",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.GraphNode": {
+        "additionalProperties": true,
+        "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.NodeType"
+          },
+          "at": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At",
+            "type": "array"
+          },
+          "gable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GableEnd"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maximum": 12,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spår n i gaveln.",
+            "title": "Track"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "at"
+        ],
+        "title": "GraphNode",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.GraphOrigin": {
+        "additionalProperties": true,
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphSource"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Certainty"
+          }
+        },
+        "required": [
+          "source",
+          "certainty"
+        ],
+        "title": "GraphOrigin",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.GraphPiece": {
+        "additionalProperties": true,
+        "description": "Spårbit: track centre from one node to another, as LINE and ARC segments in order.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "End",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "arc": "#/components/schemas/trainmeet.cad-1.module-list.ArcSegment",
+                  "line": "#/components/schemas/trainmeet.cad-1.module-list.LineSegment"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module-list.LineSegment"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module-list.ArcSegment"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnummer, när ägaren har gett det.",
+            "title": "Track"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "segments"
+        ],
+        "title": "GraphPiece",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.GraphSource": {
+        "description": "Where a piece of the graph comes from.",
+        "enum": [
+          "measures",
+          "photo",
+          "sketch",
+          "anyrail",
+          "drawn"
+        ],
+        "title": "GraphSource",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.GraphSwitch": {
+        "additionalProperties": true,
+        "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Node",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.SwitchType"
+          },
+          "trunk": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trunk"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Straight"
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diverging"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Radius"
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 90,
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Angle"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "type"
+        ],
+        "title": "GraphSwitch",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.Library": {
+        "additionalProperties": true,
+        "description": "Ett modulbibliotek: the person's own, a club's, or everything the person sees.",
+        "properties": {
+          "id": {
+            "pattern": "^(mine|all|club:[0-9a-f-]{36})$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "mine",
+              "club",
+              "all"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "club": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club"
+          },
+          "may_add": {
+            "description": "New modules can be added here.",
+            "title": "May Add",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "may_add"
+        ],
+        "title": "Library",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.LineSegment": {
+        "additionalProperties": true,
+        "description": "LINE: a straight piece of track centre, in mm.",
+        "properties": {
+          "kind": {
+            "const": "line",
+            "default": "line",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "LineSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.ModuleBrief": {
+        "additionalProperties": true,
+        "description": "A module as the library lists it.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "description": "M-001, per owner.",
+            "pattern": "^M-\\d{3,}$",
+            "title": "Number",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Owner"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Visibility"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Scale"
+          },
+          "shape": {
+            "discriminator": {
+              "mapping": {
+                "curve": "#/components/schemas/trainmeet.cad-1.module-list.Curve",
+                "straight": "#/components/schemas/trainmeet.cad-1.module-list.Straight",
+                "trapezoid": "#/components/schemas/trainmeet.cad-1.module-list.Trapezoid"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Straight"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Curve"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-list.Trapezoid"
+              }
+            ],
+            "title": "Shape"
+          },
+          "gables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GableLabel"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Gables",
+            "type": "array"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.TrackGraph"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.ModuleStatus"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "photographed": {
+            "default": false,
+            "description": "Verifierad mot foto (part c). Dashed track until then.",
+            "title": "Photographed",
+            "type": "boolean"
+          },
+          "track_length": {
+            "description": "The track pieces' length, in mm.",
+            "minimum": 0,
+            "title": "Track Length",
+            "type": "number"
+          },
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "name",
+          "owner",
+          "visibility",
+          "scale",
+          "shape",
+          "gables",
+          "graph",
+          "status",
+          "version",
+          "track_length",
+          "changed_at"
+        ],
+        "title": "ModuleBrief",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.ModuleStatus": {
+        "enum": [
+          "draft",
+          "approved"
+        ],
+        "title": "ModuleStatus",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.NodeType": {
+        "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+        "enum": [
+          "switch",
+          "crossing",
+          "signal_point",
+          "block_boundary",
+          "module_joint",
+          "joint",
+          "stop_point",
+          "buffer_stop",
+          "line_exit",
+          "turntable"
+        ],
+        "title": "NodeType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.Owner": {
+        "additionalProperties": true,
+        "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-list.OwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "Owner",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.OwnerKind": {
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "OwnerKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.Straight": {
+        "additionalProperties": true,
+        "description": "Rak modul: length × width.",
+        "properties": {
+          "kind": {
+            "const": "straight",
+            "default": "straight",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "description": "Along Kant 1, gable A to gable B.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width": {
+            "description": "Gable width, Kant 1 to the far side.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width"
+        ],
+        "title": "Straight",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.SwitchType": {
+        "description": "Växeltyp (RS1).",
+        "enum": [
+          "ordinary",
+          "y",
+          "single_slip",
+          "double_slip",
+          "crossing"
+        ],
+        "title": "SwitchType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-list.TrackGraph": {
+        "additionalProperties": true,
+        "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21).\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+        "properties": {
+          "geometry": {
+            "default": "mm",
+            "enum": [
+              "mm",
+              "schema"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-list.GraphSwitch"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "issued": {
+            "default": 0,
+            "description": "Ids issued so far; the next is one more.",
+            "minimum": 0,
+            "title": "Issued",
+            "type": "integer"
+          }
+        },
+        "title": "TrackGraph",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.Trapezoid": {
+        "additionalProperties": true,
+        "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+        "properties": {
+          "kind": {
+            "const": "trapezoid",
+            "default": "trapezoid",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width_a": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width A",
+            "type": "number"
+          },
+          "width_b": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width_a",
+          "width_b"
+        ],
+        "title": "Trapezoid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-list.Visibility": {
+        "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+        "enum": [
+          "me",
+          "club",
+          "all"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module": {
+        "additionalProperties": true,
+        "description": "Modul: one version of it, with its page's facts (CAD-05).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "description": "M-001, per owner.",
+            "pattern": "^M-\\d{3,}$",
+            "title": "Number",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.Owner"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.Visibility"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.Scale"
+          },
+          "shape": {
+            "discriminator": {
+              "mapping": {
+                "curve": "#/components/schemas/trainmeet.cad-1.module.Curve",
+                "straight": "#/components/schemas/trainmeet.cad-1.module.Straight",
+                "trapezoid": "#/components/schemas/trainmeet.cad-1.module.Trapezoid"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.Straight"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.Curve"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.Trapezoid"
+              }
+            ],
+            "title": "Shape"
+          },
+          "gables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.GableLabel"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Gables",
+            "type": "array"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.TrackGraph"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.ModuleStatus"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "photographed": {
+            "default": false,
+            "description": "Verifierad mot foto (part c). Dashed track until then.",
+            "title": "Photographed",
+            "type": "boolean"
+          },
+          "track_length": {
+            "description": "The track pieces' length, in mm.",
+            "minimum": 0,
+            "title": "Track Length",
+            "type": "number"
+          },
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "club": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The club that sees it with the visibility klubben.",
+            "title": "Club"
+          },
+          "club_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club Name"
+          },
+          "approved_version": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approved Version"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approved By"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "used_in": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.UsedIn"
+            },
+            "title": "Used In",
+            "type": "array"
+          },
+          "may_edit": {
+            "description": "The person may change it (CAD-21).",
+            "title": "May Edit",
+            "type": "boolean"
+          },
+          "latest": {
+            "description": "The newest version; version is the one shown.",
+            "minimum": 1,
+            "title": "Latest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "name",
+          "owner",
+          "visibility",
+          "scale",
+          "shape",
+          "gables",
+          "graph",
+          "status",
+          "version",
+          "track_length",
+          "changed_at",
+          "created_at",
+          "may_edit",
+          "latest"
+        ],
+        "title": "Module",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.ArcSegment": {
+        "additionalProperties": true,
+        "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+        "properties": {
+          "kind": {
+            "const": "arc",
+            "default": "arc",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          },
+          "center": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Center",
+            "type": "array"
+          },
+          "radius": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "clockwise": {
+            "title": "Clockwise",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "center",
+          "radius",
+          "clockwise"
+        ],
+        "title": "ArcSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.Certainty": {
+        "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+        "enum": [
+          "certain",
+          "probable",
+          "uncertain",
+          "confirmed"
+        ],
+        "title": "Certainty",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.Curve": {
+        "additionalProperties": true,
+        "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+        "properties": {
+          "kind": {
+            "const": "curve",
+            "default": "curve",
+            "title": "Kind",
+            "type": "string"
+          },
+          "radius": {
+            "description": "Track 1's centre line, in mm.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "angle": {
+            "description": "The angle, in degrees.",
+            "exclusiveMaximum": 180,
+            "exclusiveMinimum": 0,
+            "title": "Angle",
+            "type": "number"
+          },
+          "width": {
+            "description": "The module body's width, Kant 1 to the other edge.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.EdgeSide",
+            "default": "outer"
+          },
+          "sides": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.CurveSides",
+            "default": "bent"
+          },
+          "measured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.CurveMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The string and sagitta the radius and angle came from."
+          }
+        },
+        "required": [
+          "radius",
+          "angle",
+          "width"
+        ],
+        "title": "Curve",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.CurveMeasure": {
+        "additionalProperties": true,
+        "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+        "properties": {
+          "chord": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Chord",
+            "type": "number"
+          },
+          "sagitta": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Sagitta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chord",
+          "sagitta"
+        ],
+        "title": "CurveMeasure",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.CurveSides": {
+        "description": "The box's long sides.",
+        "enum": [
+          "bent",
+          "straight"
+        ],
+        "title": "CurveSides",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.EdgeSide": {
+        "description": "Which edge of a curve module is Kant 1.",
+        "enum": [
+          "outer",
+          "inner"
+        ],
+        "title": "EdgeSide",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.GableLabel": {
+        "additionalProperties": true,
+        "description": "A gable as the library shows it: \"FREMO dubbelspår\", \"Egen gavel · 3 spår\".",
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.GableEnd"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "tracks": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "end",
+          "label",
+          "tracks"
+        ],
+        "title": "GableLabel",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.GraphNode": {
+        "additionalProperties": true,
+        "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.NodeType"
+          },
+          "at": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At",
+            "type": "array"
+          },
+          "gable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.GableEnd"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maximum": 12,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spår n i gaveln.",
+            "title": "Track"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "at"
+        ],
+        "title": "GraphNode",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.GraphOrigin": {
+        "additionalProperties": true,
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphSource"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.Certainty"
+          }
+        },
+        "required": [
+          "source",
+          "certainty"
+        ],
+        "title": "GraphOrigin",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.GraphPiece": {
+        "additionalProperties": true,
+        "description": "Spårbit: track centre from one node to another, as LINE and ARC segments in order.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "End",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "arc": "#/components/schemas/trainmeet.cad-1.module.ArcSegment",
+                  "line": "#/components/schemas/trainmeet.cad-1.module.LineSegment"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module.LineSegment"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module.ArcSegment"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnummer, när ägaren har gett det.",
+            "title": "Track"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "segments"
+        ],
+        "title": "GraphPiece",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.GraphSource": {
+        "description": "Where a piece of the graph comes from.",
+        "enum": [
+          "measures",
+          "photo",
+          "sketch",
+          "anyrail",
+          "drawn"
+        ],
+        "title": "GraphSource",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.GraphSwitch": {
+        "additionalProperties": true,
+        "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Node",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.SwitchType"
+          },
+          "trunk": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trunk"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Straight"
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diverging"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Radius"
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 90,
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Angle"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "type"
+        ],
+        "title": "GraphSwitch",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.LineSegment": {
+        "additionalProperties": true,
+        "description": "LINE: a straight piece of track centre, in mm.",
+        "properties": {
+          "kind": {
+            "const": "line",
+            "default": "line",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "LineSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.ModuleStatus": {
+        "enum": [
+          "draft",
+          "approved"
+        ],
+        "title": "ModuleStatus",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.NodeType": {
+        "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+        "enum": [
+          "switch",
+          "crossing",
+          "signal_point",
+          "block_boundary",
+          "module_joint",
+          "joint",
+          "stop_point",
+          "buffer_stop",
+          "line_exit",
+          "turntable"
+        ],
+        "title": "NodeType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.Owner": {
+        "additionalProperties": true,
+        "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.OwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "Owner",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.OwnerKind": {
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "OwnerKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.Straight": {
+        "additionalProperties": true,
+        "description": "Rak modul: length × width.",
+        "properties": {
+          "kind": {
+            "const": "straight",
+            "default": "straight",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "description": "Along Kant 1, gable A to gable B.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width": {
+            "description": "Gable width, Kant 1 to the far side.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width"
+        ],
+        "title": "Straight",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.SwitchType": {
+        "description": "Växeltyp (RS1).",
+        "enum": [
+          "ordinary",
+          "y",
+          "single_slip",
+          "double_slip",
+          "crossing"
+        ],
+        "title": "SwitchType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module.TrackGraph": {
+        "additionalProperties": true,
+        "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21).\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+        "properties": {
+          "geometry": {
+            "default": "mm",
+            "enum": [
+              "mm",
+              "schema"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.GraphSwitch"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "issued": {
+            "default": 0,
+            "description": "Ids issued so far; the next is one more.",
+            "minimum": 0,
+            "title": "Issued",
+            "type": "integer"
+          }
+        },
+        "title": "TrackGraph",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.Trapezoid": {
+        "additionalProperties": true,
+        "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+        "properties": {
+          "kind": {
+            "const": "trapezoid",
+            "default": "trapezoid",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width_a": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width A",
+            "type": "number"
+          },
+          "width_b": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width_a",
+          "width_b"
+        ],
+        "title": "Trapezoid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.UsedIn": {
+        "additionalProperties": true,
+        "description": "Används i: an assembly or a meet that uses the module, at the version it pinned (part d).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "assembly",
+              "meet"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "version"
+        ],
+        "title": "UsedIn",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module.Visibility": {
+        "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+        "enum": [
+          "me",
+          "club",
+          "all"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module": {
+        "additionalProperties": true,
+        "description": "Ny modul, bara mått (CAD-01). owner a club's id makes it the club's: the club's\nadministrator may. club is the club that sees it with the visibility klubben.",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Scale"
+          },
+          "shape": {
+            "discriminator": {
+              "mapping": {
+                "curve": "#/components/schemas/trainmeet.cad-1.new-module.Curve",
+                "straight": "#/components/schemas/trainmeet.cad-1.new-module.Straight",
+                "trapezoid": "#/components/schemas/trainmeet.cad-1.new-module.Trapezoid"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Straight"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Curve"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Trapezoid"
+              }
+            ],
+            "title": "Shape"
+          },
+          "gables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Gable"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Gables",
+            "type": "array"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Owner"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Visibility",
+            "default": "me"
+          },
+          "club": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club"
+          }
+        },
+        "required": [
+          "name",
+          "scale",
+          "shape",
+          "gables"
+        ],
+        "title": "NewModule",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.Curve": {
+        "additionalProperties": true,
+        "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+        "properties": {
+          "kind": {
+            "const": "curve",
+            "default": "curve",
+            "title": "Kind",
+            "type": "string"
+          },
+          "radius": {
+            "description": "Track 1's centre line, in mm.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "angle": {
+            "description": "The angle, in degrees.",
+            "exclusiveMaximum": 180,
+            "exclusiveMinimum": 0,
+            "title": "Angle",
+            "type": "number"
+          },
+          "width": {
+            "description": "The module body's width, Kant 1 to the other edge.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-module.EdgeSide",
+            "default": "outer"
+          },
+          "sides": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-module.CurveSides",
+            "default": "bent"
+          },
+          "measured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module.CurveMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The string and sagitta the radius and angle came from."
+          }
+        },
+        "required": [
+          "radius",
+          "angle",
+          "width"
+        ],
+        "title": "Curve",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.CurveMeasure": {
+        "additionalProperties": true,
+        "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+        "properties": {
+          "chord": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Chord",
+            "type": "number"
+          },
+          "sagitta": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Sagitta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chord",
+          "sagitta"
+        ],
+        "title": "CurveMeasure",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.CurveSides": {
+        "description": "The box's long sides.",
+        "enum": [
+          "bent",
+          "straight"
+        ],
+        "title": "CurveSides",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module.EdgeSide": {
+        "description": "Which edge of a curve module is Kant 1.",
+        "enum": [
+          "outer",
+          "inner"
+        ],
+        "title": "EdgeSide",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module.Gable": {
+        "additionalProperties": true,
+        "description": "Gavel: a module's end, with its norm, its profile and where the tracks go through it, in\nmm from Kant 1, track 1 nearest Kant 1. Without a profile it is an own gable, measured here.",
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-module.GableEnd"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-module.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null: egen gavel.",
+            "title": "Profile"
+          },
+          "tracks": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            "maxItems": 12,
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "end"
+        ],
+        "title": "Gable",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-module.Straight": {
+        "additionalProperties": true,
+        "description": "Rak modul: length × width.",
+        "properties": {
+          "kind": {
+            "const": "straight",
+            "default": "straight",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "description": "Along Kant 1, gable A to gable B.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width": {
+            "description": "Gable width, Kant 1 to the far side.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width"
+        ],
+        "title": "Straight",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.Trapezoid": {
+        "additionalProperties": true,
+        "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+        "properties": {
+          "kind": {
+            "const": "trapezoid",
+            "default": "trapezoid",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width_a": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width A",
+            "type": "number"
+          },
+          "width_b": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width_a",
+          "width_b"
+        ],
+        "title": "Trapezoid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-module.Visibility": {
+        "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+        "enum": [
+          "me",
+          "club",
+          "all"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change": {
+        "additionalProperties": true,
+        "description": "Spara: a new version on top of base, the newest the person read. Refused with 409 when a\nnewer version exists.",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Scale"
+          },
+          "shape": {
+            "discriminator": {
+              "mapping": {
+                "curve": "#/components/schemas/trainmeet.cad-1.module-change.Curve",
+                "straight": "#/components/schemas/trainmeet.cad-1.module-change.Straight",
+                "trapezoid": "#/components/schemas/trainmeet.cad-1.module-change.Trapezoid"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Straight"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Curve"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Trapezoid"
+              }
+            ],
+            "title": "Shape"
+          },
+          "gables": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Gable"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Gables",
+            "type": "array"
+          },
+          "base": {
+            "minimum": 1,
+            "title": "Base",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "scale",
+          "shape",
+          "gables",
+          "base"
+        ],
+        "title": "ModuleChange",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-change.Curve": {
+        "additionalProperties": true,
+        "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+        "properties": {
+          "kind": {
+            "const": "curve",
+            "default": "curve",
+            "title": "Kind",
+            "type": "string"
+          },
+          "radius": {
+            "description": "Track 1's centre line, in mm.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "angle": {
+            "description": "The angle, in degrees.",
+            "exclusiveMaximum": 180,
+            "exclusiveMinimum": 0,
+            "title": "Angle",
+            "type": "number"
+          },
+          "width": {
+            "description": "The module body's width, Kant 1 to the other edge.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-change.EdgeSide",
+            "default": "outer"
+          },
+          "sides": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-change.CurveSides",
+            "default": "bent"
+          },
+          "measured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change.CurveMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The string and sagitta the radius and angle came from."
+          }
+        },
+        "required": [
+          "radius",
+          "angle",
+          "width"
+        ],
+        "title": "Curve",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-change.CurveMeasure": {
+        "additionalProperties": true,
+        "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+        "properties": {
+          "chord": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Chord",
+            "type": "number"
+          },
+          "sagitta": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Sagitta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chord",
+          "sagitta"
+        ],
+        "title": "CurveMeasure",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-change.CurveSides": {
+        "description": "The box's long sides.",
+        "enum": [
+          "bent",
+          "straight"
+        ],
+        "title": "CurveSides",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change.EdgeSide": {
+        "description": "Which edge of a curve module is Kant 1.",
+        "enum": [
+          "outer",
+          "inner"
+        ],
+        "title": "EdgeSide",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change.Gable": {
+        "additionalProperties": true,
+        "description": "Gavel: a module's end, with its norm, its profile and where the tracks go through it, in\nmm from Kant 1, track 1 nearest Kant 1. Without a profile it is an own gable, measured here.",
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-change.GableEnd"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module-change.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null: egen gavel.",
+            "title": "Profile"
+          },
+          "tracks": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            "maxItems": 12,
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "end"
+        ],
+        "title": "Gable",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-change.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-change.Straight": {
+        "additionalProperties": true,
+        "description": "Rak modul: length × width.",
+        "properties": {
+          "kind": {
+            "const": "straight",
+            "default": "straight",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "description": "Along Kant 1, gable A to gable B.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width": {
+            "description": "Gable width, Kant 1 to the far side.",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width"
+        ],
+        "title": "Straight",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-change.Trapezoid": {
+        "additionalProperties": true,
+        "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+        "properties": {
+          "kind": {
+            "const": "trapezoid",
+            "default": "trapezoid",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Length",
+            "type": "number"
+          },
+          "width_a": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width A",
+            "type": "number"
+          },
+          "width_b": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Width B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "width_a",
+          "width_b"
+        ],
+        "title": "Trapezoid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-approval": {
+        "additionalProperties": true,
+        "description": "Godkänn: the person approves the newest version.",
+        "properties": {
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "ModuleApproval",
+        "type": "object"
+      },
+      "trainmeet.cad-1.visibility-change": {
+        "additionalProperties": true,
+        "properties": {
+          "visibility": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.visibility-change.Visibility"
+          },
+          "club": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club"
+          }
+        },
+        "required": [
+          "visibility"
+        ],
+        "title": "VisibilityChange",
+        "type": "object"
+      },
+      "trainmeet.cad-1.visibility-change.Visibility": {
+        "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+        "enum": [
+          "me",
+          "club",
+          "all"
+        ],
+        "title": "Visibility",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-event": {
+        "additionalProperties": true,
+        "description": "Historik: one thing that happened to the module.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module-event.ModuleEventKind"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "by": {
+            "description": "The person's name.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "text": {
+            "description": "What happened, in Swedish.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "version",
+          "by",
+          "text"
+        ],
+        "title": "ModuleEvent",
+        "type": "object"
+      },
+      "trainmeet.cad-1.module-event.ModuleEventKind": {
+        "enum": [
+          "created",
+          "saved",
+          "approved",
+          "visibility",
+          "removed"
+        ],
+        "title": "ModuleEventKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.module-removed": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ModuleRemoved",
+        "type": "object"
+      },
+      "trainmeet.cad-1.profile-list": {
+        "additionalProperties": true,
+        "properties": {
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.Scale"
+          },
+          "norms": {
+            "description": "The norms in this scale (CAD11, CAD12).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.NormInfo"
+            },
+            "title": "Norms",
+            "type": "array"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.GableProfile"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scale",
+          "norms",
+          "profiles"
+        ],
+        "title": "ProfileList",
+        "type": "object"
+      },
+      "trainmeet.cad-1.profile-list.GableProfile": {
+        "additionalProperties": true,
+        "description": "Gavelprofil: where the tracks go through a gable, measured from Kant 1. Modules with the\nsame profile fit together. A position the profile leaves open is given per module.",
+        "properties": {
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.ProfileKind"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.Scale"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tracks": {
+            "description": "How many tracks.",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Tracks",
+            "type": "integer"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Kant 1 → spår 1 in mm; null: given per module.",
+            "title": "First"
+          },
+          "spacings": {
+            "description": "Spår n → spår n + 1 in mm, one fewer than the tracks; null: per module.",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Spacings",
+            "type": "array"
+          },
+          "read": {
+            "default": true,
+            "description": "The norm's exact measures are read in. False: they are read in before the launch (CAD-N), and what is open is given per module.",
+            "title": "Read",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Where the measures come from.",
+            "title": "Note"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.Owner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "An own profile's owner."
+          },
+          "uses": {
+            "default": 0,
+            "description": "How many gables in the modules the person sees use it.",
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "scale",
+          "tracks"
+        ],
+        "title": "GableProfile",
+        "type": "object"
+      },
+      "trainmeet.cad-1.profile-list.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.profile-list.NormInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "norm": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.Norm"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "norm",
+          "name"
+        ],
+        "title": "NormInfo",
+        "type": "object"
+      },
+      "trainmeet.cad-1.profile-list.Owner": {
+        "additionalProperties": true,
+        "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.profile-list.OwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "Owner",
+        "type": "object"
+      },
+      "trainmeet.cad-1.profile-list.OwnerKind": {
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "OwnerKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.profile-list.ProfileKind": {
+        "enum": [
+          "norm",
+          "general",
+          "own"
+        ],
+        "title": "ProfileKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.profile-list.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.gable-profile": {
+        "additionalProperties": true,
+        "description": "Gavelprofil: where the tracks go through a gable, measured from Kant 1. Modules with the\nsame profile fit together. A position the profile leaves open is given per module.",
+        "properties": {
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile.ProfileKind"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile.Scale"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tracks": {
+            "description": "How many tracks.",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Tracks",
+            "type": "integer"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Kant 1 → spår 1 in mm; null: given per module.",
+            "title": "First"
+          },
+          "spacings": {
+            "description": "Spår n → spår n + 1 in mm, one fewer than the tracks; null: per module.",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Spacings",
+            "type": "array"
+          },
+          "read": {
+            "default": true,
+            "description": "The norm's exact measures are read in. False: they are read in before the launch (CAD-N), and what is open is given per module.",
+            "title": "Read",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Where the measures come from.",
+            "title": "Note"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile.Owner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "An own profile's owner."
+          },
+          "uses": {
+            "default": 0,
+            "description": "How many gables in the modules the person sees use it.",
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "scale",
+          "tracks"
+        ],
+        "title": "GableProfile",
+        "type": "object"
+      },
+      "trainmeet.cad-1.gable-profile.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.gable-profile.Owner": {
+        "additionalProperties": true,
+        "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.gable-profile.OwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "Owner",
+        "type": "object"
+      },
+      "trainmeet.cad-1.gable-profile.OwnerKind": {
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "OwnerKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.gable-profile.ProfileKind": {
+        "enum": [
+          "norm",
+          "general",
+          "own"
+        ],
+        "title": "ProfileKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.gable-profile.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-profile": {
+        "additionalProperties": true,
+        "description": "An own gable profile, a person's or a club's: every track's position from Kant 1. A club's\nprofile can be the club's own norm (CAD11).",
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.new-profile.Scale"
+          },
+          "norm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.new-profile.Norm"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A club's id; null: the person's own.",
+            "title": "Owner"
+          },
+          "tracks": {
+            "description": "Every track's position from Kant 1.",
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "scale",
+          "tracks"
+        ],
+        "title": "NewProfile",
+        "type": "object"
+      },
+      "trainmeet.cad-1.new-profile.Norm": {
+        "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+        "enum": [
+          "fremo",
+          "mmm",
+          "usms",
+          "club",
+          "fremo_spur_0"
+        ],
+        "title": "Norm",
+        "type": "string"
+      },
+      "trainmeet.cad-1.new-profile.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.track-graph": {
+        "additionalProperties": true,
+        "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21).\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+        "properties": {
+          "geometry": {
+            "default": "mm",
+            "enum": [
+              "mm",
+              "schema"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphSwitch"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "issued": {
+            "default": 0,
+            "description": "Ids issued so far; the next is one more.",
+            "minimum": 0,
+            "title": "Issued",
+            "type": "integer"
+          }
+        },
+        "title": "TrackGraph",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.ArcSegment": {
+        "additionalProperties": true,
+        "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+        "properties": {
+          "kind": {
+            "const": "arc",
+            "default": "arc",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          },
+          "center": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Center",
+            "type": "array"
+          },
+          "radius": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "title": "Radius",
+            "type": "number"
+          },
+          "clockwise": {
+            "title": "Clockwise",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "center",
+          "radius",
+          "clockwise"
+        ],
+        "title": "ArcSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.Certainty": {
+        "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+        "enum": [
+          "certain",
+          "probable",
+          "uncertain",
+          "confirmed"
+        ],
+        "title": "Certainty",
+        "type": "string"
+      },
+      "trainmeet.cad-1.track-graph.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.track-graph.GraphNode": {
+        "additionalProperties": true,
+        "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.NodeType"
+          },
+          "at": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At",
+            "type": "array"
+          },
+          "gable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GableEnd"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maximum": 12,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spår n i gaveln.",
+            "title": "Track"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "at"
+        ],
+        "title": "GraphNode",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.GraphOrigin": {
+        "additionalProperties": true,
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphSource"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.Certainty"
+          }
+        },
+        "required": [
+          "source",
+          "certainty"
+        ],
+        "title": "GraphOrigin",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.GraphPiece": {
+        "additionalProperties": true,
+        "description": "Spårbit: track centre from one node to another, as LINE and ARC segments in order.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "End",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "arc": "#/components/schemas/trainmeet.cad-1.track-graph.ArcSegment",
+                  "line": "#/components/schemas/trainmeet.cad-1.track-graph.LineSegment"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.LineSegment"
+                },
+                {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.ArcSegment"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårnummer, när ägaren har gett det.",
+            "title": "Track"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "segments"
+        ],
+        "title": "GraphPiece",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.GraphSource": {
+        "description": "Where a piece of the graph comes from.",
+        "enum": [
+          "measures",
+          "photo",
+          "sketch",
+          "anyrail",
+          "drawn"
+        ],
+        "title": "GraphSource",
+        "type": "string"
+      },
+      "trainmeet.cad-1.track-graph.GraphSwitch": {
+        "additionalProperties": true,
+        "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known.",
+        "properties": {
+          "id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "node": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Node",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.SwitchType"
+          },
+          "trunk": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trunk"
+          },
+          "straight": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Straight"
+          },
+          "diverging": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diverging"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Radius"
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 90,
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Angle"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.track-graph.GraphOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "type"
+        ],
+        "title": "GraphSwitch",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.LineSegment": {
+        "additionalProperties": true,
+        "description": "LINE: a straight piece of track centre, in mm.",
+        "properties": {
+          "kind": {
+            "const": "line",
+            "default": "line",
+            "title": "Kind",
+            "type": "string"
+          },
+          "start": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Start",
+            "type": "array"
+          },
+          "end": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "End",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "LineSegment",
+        "type": "object"
+      },
+      "trainmeet.cad-1.track-graph.NodeType": {
+        "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+        "enum": [
+          "switch",
+          "crossing",
+          "signal_point",
+          "block_boundary",
+          "module_joint",
+          "joint",
+          "stop_point",
+          "buffer_stop",
+          "line_exit",
+          "turntable"
+        ],
+        "title": "NodeType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.track-graph.SwitchType": {
+        "description": "Växeltyp (RS1).",
+        "enum": [
+          "ordinary",
+          "y",
+          "single_slip",
+          "double_slip",
+          "crossing"
+        ],
+        "title": "SwitchType",
+        "type": "string"
+      },
+      "trainmeet.cad-1.assembly": {
+        "additionalProperties": true,
+        "description": "Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that\nfit together (CAD9). Only the shell in part a; part d builds it.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.assembly.Owner"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.assembly.Scale"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.assembly.PlacedModule"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "joints": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.assembly.Joint"
+            },
+            "title": "Joints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "owner",
+          "scale"
+        ],
+        "title": "Assembly",
+        "type": "object"
+      },
+      "trainmeet.cad-1.assembly.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.assembly.Joint": {
+        "additionalProperties": true,
+        "description": "Skarv: two modules' gables together, at an angle (CAD-06).",
+        "properties": {
+          "a": {
+            "description": "The placed module's index, and its gable.",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.assembly.GableEnd"
+              }
+            ],
+            "title": "A",
+            "type": "array"
+          },
+          "b": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.assembly.GableEnd"
+              }
+            ],
+            "title": "B",
+            "type": "array"
+          },
+          "angle": {
+            "default": 0,
+            "description": "The angle between them, in degrees.",
+            "title": "Angle",
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "Joint",
+        "type": "object"
+      },
+      "trainmeet.cad-1.assembly.Owner": {
+        "additionalProperties": true,
+        "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.assembly.OwnerKind"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "Owner",
+        "type": "object"
+      },
+      "trainmeet.cad-1.assembly.OwnerKind": {
+        "enum": [
+          "person",
+          "club"
+        ],
+        "title": "OwnerKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.assembly.PlacedModule": {
+        "additionalProperties": true,
+        "description": "A module in an assembly, at the version it pinned (CAD-21), shifted and turned.",
+        "properties": {
+          "module": {
+            "format": "uuid",
+            "title": "Module",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "at": {
+            "description": "Where the module's origin (gable A at Kant 1) lies, in mm.",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At",
+            "type": "array"
+          },
+          "angle": {
+            "description": "The module's turn, in degrees, counterclockwise.",
+            "title": "Angle",
+            "type": "number"
+          }
+        },
+        "required": [
+          "module",
+          "version",
+          "at",
+          "angle"
+        ],
+        "title": "PlacedModule",
+        "type": "object"
+      },
+      "trainmeet.cad-1.assembly.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cad_session"
+      }
+    }
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 # Testmiljön på servern, i /srv/trainmeet. Läggs dit av jobbet "Testmiljön" vid varje
-# ändring på main, tillsammans med Caddyfile, catalog-backup.sh och en .env med taggarna,
-# adresserna och hemligheterna (catalog.env och id.env). Mejlnyckeln ligger i id-vault/.
-# Hubben, Catalog och TrainMeet ID delar server och Caddy, men inget annat (C35, CAT-218).
+# ändring på main, tillsammans med Caddyfile, catalog-backup.sh, cad-backup.sh och en .env med
+# taggarna, adresserna och hemligheterna (catalog.env, id.env och cad.env). Mejlnyckeln ligger i
+# id-vault/. Hubben, Catalog, CAD och TrainMeet ID delar server och Caddy, men inget annat (C35,
+# CAT-218).
 services:
   hub:
     image: trainmeet-hub:${HUB_TAG:?HUB_TAG saknas}
@@ -132,6 +133,52 @@ services:
     ports:
       - "127.0.0.1:8081:8080"
 
+  # TrainMeet CAD (#89): the module library, with its own PostgreSQL, as Catalog. No port
+  # outside for the database: only CAD reaches it, on compose's own network. Both are in the
+  # profile cad, which up.sh turns on with CAD's secrets in cad.env (CAD_DB_PASSWORD,
+  # CAD_BACKUP_KEY and ID_CAD_SECRET, made by deploy/testmiljo.py), so that the checks that run
+  # this file without CAD need none of its names.
+  cad-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    profiles: ["cad"]
+    environment:
+      POSTGRES_DB: cad
+      POSTGRES_USER: cad
+      POSTGRES_PASSWORD: ${CAD_DB_PASSWORD:-}
+    volumes:
+      - cad-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cad -d cad"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  cad:
+    image: trainmeet-cad:${CAD_TAG:-latest}
+    restart: unless-stopped
+    profiles: ["cad"]
+    depends_on:
+      cad-db:
+        condition: service_healthy
+    environment:
+      CAD_DATABASE_URL: postgresql://cad:${CAD_DB_PASSWORD:-}@cad-db:5432/cad
+      # The database is migrated by up.sh after the backup; CAD only checks it.
+      CAD_MIGRATE: check
+      # The trial login, as Catalog's: only until TrainMeet ID can send its codes.
+      CAD_TRIAL_LOGIN: ${CAD_TRIAL_LOGIN:-off}
+      # The login with TrainMeet ID, the client "cad" (#89). The browser goes to ID's address,
+      # and CAD itself reaches ID next to it.
+      CAD_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
+      CAD_ID_INTERNAL: http://id:8080/realms/trainmeet
+      CAD_ID_SECRET: ${ID_CAD_SECRET:-}
+      CAD_PUBLIC_URL: https://${CAD_DOMAIN:-test.cad.trainmeet.app}
+      # ID's API, which CAD asks about the clubs and the roles at every call (#67, KONTO-34).
+      CAD_ID_API: http://id-api:8080
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:8086:8080"
+
   # TrainMeet ID: Keycloak with the code to the email (#66, ID4, ID5), and its own PostgreSQL.
   id-db:
     image: postgres:17-alpine
@@ -183,6 +230,10 @@ services:
       ID_HUB_URL: https://${HUB_DOMAIN}
       # TKL logs in with ID (#78, TKL18), a public client with PKCE.
       ID_TKL_URL: https://${TKL_DOMAIN:-test.tkl.trainmeet.app}
+      # CAD logs in with ID (#89), a client of its own in the realm. Without the secret the
+      # realm's update for CAD waits for the next start.
+      ID_CAD_SECRET: ${ID_CAD_SECRET:-}
+      ID_CAD_URL: https://${CAD_DOMAIN:-test.cad.trainmeet.app}
     volumes:
       - ./id-vault:/opt/keycloak/vault:ro
     ports:
@@ -205,8 +256,8 @@ services:
       ID_API_INTERNAL: http://id:8080/realms/trainmeet
       ID_API_SECRET: ${ID_APP_SECRET}
       ID_API_PUBLIC_URL: https://${ID_DOMAIN}
-      # The apps that may ask about the roles (KONTO-34): Catalog, and the Hub (#78).
-      ID_API_APPS: catalog,hub
+      # The apps that may ask about the roles (KONTO-34): Catalog, the Hub (#78) and CAD (#89).
+      ID_API_APPS: catalog,hub,cad
       ID_SMTP_HOST: smtp.tem.scaleway.com
       ID_SMTP_PORT: "465"
       ID_SMTP_SSL: "true"
@@ -247,6 +298,7 @@ services:
       ID_DOMAIN: ${ID_DOMAIN:?ID_DOMAIN saknas}
       TAGS_DOMAIN: ${TAGS_DOMAIN:?TAGS_DOMAIN saknas}
       TKL_DOMAIN: ${TKL_DOMAIN:-test.tkl.trainmeet.app}
+      CAD_DOMAIN: ${CAD_DOMAIN:-test.cad.trainmeet.app}
     ports:
       - "80:80"
       - "443:443"
@@ -261,5 +313,6 @@ volumes:
   caddy-data:
   caddy-config:
   catalog-db:
+  cad-db:
   id-db:
   pi-data:

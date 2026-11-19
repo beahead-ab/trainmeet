@@ -14,6 +14,9 @@ hundrade gången:
   Secret Manager och skrivs till en fil som jobbet lägger på servern; de skrivs aldrig ut.
 - TrainMeet ID:s tre hemligheter (#66): databasens lösenord, den första administratörens
   lösenord och hemligheten som Catalog loggar in i ID med. Likadant som Catalogs.
+- TrainMeet CAD:s hemligheter (#89): lösenordet till CAD:s databas och nyckeln som dess
+  säkerhetskopior krypteras med, som Catalogs, och hemligheten som CAD loggar in i ID med
+  (klienten cad). Den sista sparas för sig, som hubbens, och går både till ID och till CAD.
 
     python deploy/testmiljo.py ensure
 
@@ -26,8 +29,8 @@ Valfritt:
   som bara når Object Storage i det här projektet. Nyckeln sparas i Secret Manager och läggs i
   catalog-vault på servern. Utan rätten att skapa IAM-appar ligger bilderna på serverns disk.
 
-Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, created, och
-pictures_key när hinken finns.
+Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, cad_env,
+created, och pictures_key när hinken finns.
 """
 
 from __future__ import annotations
@@ -82,6 +85,8 @@ S3_ENDPOINT = "https://s3.nl-ams.scw.cloud"
 ID_SECRET_NAME = "trainmeet-testmiljo-id"
 ID_API_SECRET_NAME = "trainmeet-testmiljo-id-api"
 ID_HUB_SECRET_NAME = "trainmeet-testmiljo-id-hub"
+CAD_SECRET_NAME = "trainmeet-testmiljo-cad"
+ID_CAD_SECRET_NAME = "trainmeet-testmiljo-id-cad"
 DEFAULT_TYPE = "DEV1-S"
 IMAGE_LABEL = "ubuntu_noble"
 DEPLOY_USER = "deploy"
@@ -198,6 +203,57 @@ class IdHubSecrets:
 
     def env_file(self) -> str:
         return f"ID_HUB_SECRET={self.hub_secret}\n"
+
+
+@dataclass(frozen=True)
+class CadSecrets:
+    """TrainMeet CAD's database password and backup key in the test environment (#89), as
+    Catalog's."""
+
+    db_password: str
+    backup_key: str
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> CadSecrets:
+        data = json.loads(text)
+        return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+    def env_file(self) -> str:
+        """The lines up.sh puts in .env on the server. Hex only, so no quoting is needed."""
+        return f"CAD_DB_PASSWORD={self.db_password}\nCAD_BACKUP_KEY={self.backup_key}\n"
+
+
+@dataclass(frozen=True)
+class IdCadSecrets:
+    """CAD's client in ID (#89): the secret it logs in to Keycloak with, and asks ID's API about
+    the clubs and the roles with. A secret of its own, as the hub's, so the earlier ones stay as
+    they are. Keycloak's client cad and CAD itself both read it as ID_CAD_SECRET."""
+
+    cad_secret: str
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self))
+
+    @classmethod
+    def from_json(cls, text: str) -> IdCadSecrets:
+        data = json.loads(text)
+        return cls(**{field: str(data[field]) for field in cls.__dataclass_fields__})
+
+    def env_file(self) -> str:
+        return f"ID_CAD_SECRET={self.cad_secret}\n"
+
+
+def generate_cad_secrets() -> CadSecrets:
+    return CadSecrets(
+        db_password=random_secrets.token_hex(24), backup_key=random_secrets.token_hex(32)
+    )
+
+
+def generate_id_cad_secrets() -> IdCadSecrets:
+    return IdCadSecrets(cad_secret=random_secrets.token_hex(32))
 
 
 def generate_id_hub_secrets() -> IdHubSecrets:
@@ -354,6 +410,32 @@ def ensure_catalog_secrets(secrets: SecretV1Beta1API, project_id: str) -> Catalo
     if created:
         print("Catalogs hemligheter skapade och sparade i Secret Manager.")
     return CatalogSecrets.from_json(text)
+
+
+def ensure_cad_secrets(secrets: SecretV1Beta1API, project_id: str) -> CadSecrets:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        CAD_SECRET_NAME,
+        "CAD:s databaslösenord och backupnyckel i testmiljön. Skapas av deploy/testmiljo.py.",
+        lambda: generate_cad_secrets().to_json(),
+    )
+    if created:
+        print("CAD:s hemligheter skapade och sparade i Secret Manager.")
+    return CadSecrets.from_json(text)
+
+
+def ensure_id_cad_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdCadSecrets:
+    text, created = ensure_secret(
+        secrets,
+        project_id,
+        ID_CAD_SECRET_NAME,
+        "Hemligheten som CAD loggar in i Keycloak med (#89). Skapas av deploy/testmiljo.py.",
+        lambda: generate_id_cad_secrets().to_json(),
+    )
+    if created:
+        print("CAD:s hemlighet mot ID skapad och sparad i Secret Manager.")
+    return IdCadSecrets.from_json(text)
 
 
 # --- Nätet -----------------------------------------------------------------------------
@@ -536,6 +618,12 @@ def write_catalog_env(catalog: CatalogSecrets, bucket: str | None = None) -> Pat
     pictures' bucket when there is one (#51)."""
     text = catalog.env_file() + (f"CATALOG_PICTURES_S3_BUCKET={bucket}\n" if bucket else "")
     return write_private("testmiljo_catalog.env", text)
+
+
+def write_cad_env(cad: CadSecrets, id_cad: IdCadSecrets) -> Path:
+    """CAD's secrets as a private file, for the deploy to put on the server (#89): its
+    database and backups, and the secret it logs in to ID with, which id.env also has."""
+    return write_private("testmiljo_cad.env", cad.env_file() + id_cad.env_file())
 
 
 # --- Catalogs bilder (#51) --------------------------------------------------------------
@@ -828,6 +916,8 @@ def main(argv: list[str]) -> int:
         id_secrets = ensure_id_secrets(secrets, project_id)
         id_api_secrets = ensure_id_api_secrets(secrets, project_id)
         id_hub_secrets = ensure_id_hub_secrets(secrets, project_id)
+        cad_secrets = ensure_cad_secrets(secrets, project_id)
+        id_cad_secrets = ensure_id_cad_secrets(secrets, project_id)
         pictures = ensure_pictures(
             IamV1Alpha1API(client), secrets, project_id, env("SCW_DEFAULT_ORGANIZATION_ID")
         )
@@ -856,16 +946,18 @@ def main(argv: list[str]) -> int:
     # The pictures' key goes to catalog-vault on the server, which only the deploy user reads.
     if pictures is not None:
         output("pictures_key", str(write_private("testmiljo_bilder.key", pictures[1].key_file())))
-    # up.sh puts both files in .env, so Catalog reads ID_CATALOG_SECRET from there too, and the
-    # hub ID_HUB_SECRET (#78). ID sends its codes with Scaleway's Transactional Email in this
-    # project (#66).
+    # up.sh puts the files in .env, so Catalog reads ID_CATALOG_SECRET from there too, the hub
+    # ID_HUB_SECRET (#78), and Keycloak's client cad ID_CAD_SECRET (#89). ID sends its codes
+    # with Scaleway's Transactional Email in this project (#66).
     id_env = (
         id_secrets.env_file()
         + id_api_secrets.env_file()
         + id_hub_secrets.env_file()
+        + id_cad_secrets.env_file()
         + f"TEM_PROJECT_ID={project_id}\n"
     )
     output("id_env", str(write_private("testmiljo_id.env", id_env)))
+    output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets)))
     output("created", "true" if created else "false")
     return 0
 

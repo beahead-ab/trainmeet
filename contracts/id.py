@@ -38,6 +38,7 @@ For the apps, with an access token from Keycloak's client credentials (KONTO-34)
     GET    /api/id/1/apps/access?person=&resource=        Access
     GET    /api/id/1/apps/fleets?person=                  [FleetAccess], the fleets shared with
     GET    /api/id/1/apps/switcher?person=                Switcher: the apps to show (ID11)
+    GET    /api/id/1/apps/clubs?person=                   [Club], the person's own (CAD's klubben)
 
 For TrainMeet's owners, named in ID's vault (TOKEN-05), on the owner page:
     GET    /api/id/1/owner/reviewers                      [Grant]: Granskare in Catalog (ID6)
@@ -136,9 +137,9 @@ class Role(StrEnum):
     REVIEWER = "reviewer"
     """Granskare av förebilder in Catalog (KONTO-30, ID6)."""
     VIEWER = "viewer"
-    """May look at a shared fleet (CAT-44)."""
+    """May look at a shared fleet (CAT-44), or see and use a module in CAD (CAD-21)."""
     EDITOR = "editor"
-    """May edit a shared fleet (CAT-44, CAT-46)."""
+    """May edit a shared fleet (CAT-44, CAT-46), or change a module in CAD: redigera (CAD-21)."""
 
 
 class Version(Contract):

@@ -13,9 +13,9 @@ Det här repot är nästa generation. All ny kod ligger här, med en mapp per de
 | `hub/` | Hubbens startprogram: drar igång delarna, första start och inloggning, API:erna och webbapparna under `apps/` | Raspberry Pi på träffen och i molnet |
 | `id/` | TrainMeet ID, en inloggning för allt | I molnet |
 | `tkl/` | TrainMeet TKL, ställverket och Studio | Stationens dator eller i molnet |
-| `cad/` | TrainMeet CAD, modulbiblioteket | I molnet |
+| `cad/` | TrainMeet CAD, modulbiblioteket: moduler med versioner, gavlar och gavelprofiler, och spårgrafen till Studio. En egen tjänst med egen PostgreSQL; använder bara `contracts/` | I molnet |
 | `catalog/` | TrainMeet Catalog: fordonen, taggarna och resan till träffen. En egen tjänst med egen PostgreSQL; använder bara `contracts/` | I molnet |
-| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`), Catalogs (`apps/catalog`), ID:s (`apps/id`) och Hubbens (H62): trafikledningen (`apps/trafikledning`), Planering (`apps/planering`), träffens skärmar (`apps/skarmar`), TMBox web (`apps/tmbox-webb`) och Lokföraren i telefonen (`apps/lokforaren`), med Hubbens sidhuvud i `apps/hubben` | – |
+| `apps/` | Webbapparna i TypeScript, React och Vite: designsystemet (`apps/design`), Catalogs (`apps/catalog`), CAD:s (`apps/cad`), ID:s (`apps/id`) och Hubbens (H62): trafikledningen (`apps/trafikledning`), Planering (`apps/planering`), träffens skärmar (`apps/skarmar`), TMBox web (`apps/tmbox-webb`) och Lokföraren i telefonen (`apps/lokforaren`), med Hubbens sidhuvud i `apps/hubben` | – |
 
 Mapparna kommer till i den ordning delarna byggs. Först kommer Grunden (kontrakten, de automatiska testerna och testmiljön), sedan Drift.
 
@@ -73,6 +73,27 @@ Fordonens bilder sparas på egen dator i `.catalog/pictures` (`CATALOG_PICTURES_
 
 Friläggningen (CAT-127–CAT-129) körs i Catalog med modellen U2NetP, som `catalog/Dockerfile` hämtar och kontrollerar med SHA-256 när bilden byggs. På egen dator saknas modellen, och då går bara bakgrunden Original att välja. För att prova den: hämta `https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx` utanför repot och peka ut den med `CATALOG_BACKGROUND_MODEL`; samma variabel låter testerna prova den riktiga modellen.
 
+### CAD på egen dator
+
+TrainMeet CAD är modulbiblioteket (#89): moduler ur bara mått, raka och kurvor, med gavlar, gavelprofiler, synlighet, versioner och historik. Tjänsten i `cad/` har en egen PostgreSQL och webbappen i `apps/cad`, och använder bara `contracts/` (`contracts/cad.py`, `contracts/cad.openapi.json`).
+
+```sh
+npm ci && npm run build -w apps/cad            # webbappen, till apps/cad/dist
+CAD_DATABASE_URL=postgresql:///cad CAD_MIGRATE=auto CAD_TRIAL_LOGIN=on \
+  uv run uvicorn cad.app:app --port 8004       # CAD på http://127.0.0.1:8004
+npm run dev -w apps/cad                        # eller webbappen med omladdning, mot port 8004
+CAD_TEST_DATABASE_URL=postgresql:///postgres uv run pytest cad
+```
+
+Med `CAD_ID_ISSUER`, `CAD_ID_SECRET` och `CAD_PUBLIC_URL` loggar CAD in med TrainMeet ID som klienten `cad`, och med `CAD_ID_API` frågar CAD ID:s API om klubbarna och rollerna vid varje anrop; se `cad/settings.py`. Webbläsarprovet går igenom provinloggningen, en rak modul, en kurvmodul, Godkänn och biblioteket i Chrome, mot en låtsad TrainMeet ID (`cad/prov_webblasare.py`):
+
+```sh
+uv run python -m cad.prov_webblasare --databas postgresql://postgres@127.0.0.1:5432/postgres --ny   # port 8095
+CHROME_PATH=/usr/bin/google-chrome node apps/cad/e2e/bibliotek.mjs   # PROV_BILDER=<mapp> sparar skärmbilderna
+```
+
+Bilden byggs med `docker build -f cad/Dockerfile -t trainmeet-cad .`; webbappens typer och tester körs när bilden byggs.
+
 ### TKL på egen dator
 
 TrainMeet TKL är stationens eget program (KLAR-22). På nivå 0 är det bara klarering: spår och utfarter som en lista i Studio, och ställverket med Tåg · Klarering · Händelser mot hubbens stationsprotokoll. TKL har en egen liten server som håller stationen, PIN-koden och nyckeln från godkännandet, och en webbapp i `apps/tkl`. Servern använder bara `contracts/`.
@@ -103,7 +124,7 @@ Bredvid Keycloak, på samma adress, finns ID:s eget API (#67): klubbarna och med
 
 ## Testmiljön
 
-https://test.hub.trainmeet.app, https://test.tkl.trainmeet.app, https://test.catalog.trainmeet.app och https://test.id.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
+https://test.hub.trainmeet.app, https://test.tkl.trainmeet.app, https://test.catalog.trainmeet.app, https://test.cad.trainmeet.app och https://test.id.trainmeet.app visar alltid det som ligger på `main`. När en PR slås ihop och kontrollerna är gröna lägger jobbet *Testmiljön* ut hubben av sig själv. Det tar några minuter.
 
 [Öppna Provbanan](https://test.hub.trainmeet.app/provbanan) och starta en provkörning. Prova tåg 101 från Norrby för begärd klarering och tåg 102 från Sjövik för direktklarering. Du kan starta och stoppa klockan, svara från nästa driftplats och följa tåget till ankomst. Provkörningen är separat för varje webbläsare och sparas i ett dygn.
 
@@ -115,11 +136,13 @@ TrainMeet ID ligger på samma server med en egen PostgreSQL, där ID:s API har d
 
 [TKL](https://test.tkl.trainmeet.app) är TKL i molnet (#76, #88). Logga in med TrainMeet ID; ingen första start och ingen PIN. Under *Dina stationer* skapar du en station, som sparas i testhubbens Synk direkt, eller öppnar en du redan har. Skriv spår och utfarter i *Studio* och tryck *Spara i molnet* i raden överst. Under *Inställningar › Anslutning* står träffarna i dina klubbar enligt TrainMeet ID, var och en direkt till testhubben eller genom dess relä till Låtsas-Pi:n när den leder träffen, och Provbanan med koden från din provkörning, märkt PROV. Godkänn TKL under klienterna; sedan klarerar TKL tåg mot de andra driftplatserna. Stationen hör till kontot: öppna den i en annan webbläsare så finns den där. Har den ändrats någon annanstans sedan du öppnade den får du välja *Läs in den nya* eller *Spara ändå ovanpå*.
 
+[CAD](https://test.cad.trainmeet.app) är modulbiblioteket (#89). Logga in med TrainMeet ID, välj *Ny modul* och *Bara mått*, och gör en rak modul eller en kurvmodul: snöret och pilhöjden ger radien och vinkeln. Modulens sida visar gavlarna, vem som ser modulen och historiken, och *Godkänn*. Under *Gavelprofiler* finns normerna per skala och de egna gavlarna. CAD har en egen PostgreSQL i en container, som säkerhetskopieras före varje migrering och varje natt, som Catalogs; de 14 senaste av varje slag ligger i `/srv/trainmeet/cad-backup`. Lösenordet till CAD:s databas, nyckeln till säkerhetskopiorna och hemligheten som CAD loggar in i ID med (klienten `cad`) skapas av `deploy/testmiljo.py` och ligger i Scaleways Secret Manager, som Catalogs; ingen behöver lägga in något för hand.
+
 Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff, lägger till Tellurians planeringsfil (JSON, nivå 4), läser importrapporten, rättar telefon och klareringsläge under *Data* och publicerar en version under *Versioner* (steg 4a). Drift kör sedan versionen: välj den under *Byt träff*. Värnamos planeringsfil finns som testdata i `integrationer/tests/fixtures/varnamo.json.gz`.
 
 - **Var:** en server hos Scaleway i Amsterdam, zon `nl-ams-1` (DEV1-S, Ubuntu 24.04), med en fast IPv4-adress. Caddy framför hubben hämtar certifikatet från Let's Encrypt. Ungefär 9–11 € i månaden före moms.
 - **Hur:** `deploy/testmiljo.py` skapar servern, adressen, säkerhetsgruppen och SSH-nycklarna första gången och återanvänder dem sedan. Nycklarna ligger i Scaleways Secret Manager, aldrig i repot. Filerna som hamnar på servern ligger i `deploy/testmiljo/`.
-- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app), `TESTID_DOMAIN` (förval test.id.trainmeet.app), `TESTPI_DOMAIN` (förval test.pi.trainmeet.app), `TESTTKL_DOMAIN` (förval test.tkl.trainmeet.app), `TESTTAGS_DOMAIN` (förval trainmeet.app, taggarnas adress) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
+- **Inställningar** (valfria, under *Settings → Secrets and variables → Actions → Variables*): `TESTHUB_DOMAIN` (förval test.hub.trainmeet.app), `TESTCATALOG_DOMAIN` (förval test.catalog.trainmeet.app), `TESTID_DOMAIN` (förval test.id.trainmeet.app), `TESTPI_DOMAIN` (förval test.pi.trainmeet.app), `TESTTKL_DOMAIN` (förval test.tkl.trainmeet.app), `TESTCAD_DOMAIN` (förval test.cad.trainmeet.app), `TESTTAGS_DOMAIN` (förval trainmeet.app, taggarnas adress) och `TESTMILJO_TYPE` (förval DEV1-S; STARDUST1-S är billigast).
 - **Kvoten:** Scaleway låter ett konto skapa servrar först när betalsättet är verifierat, och fler typer när identiteten är verifierad. Säger jobbet att kvoten är slut, listar det vilka servertyper kontot får skapa (om applikationen har behörigheten `IAMReadOnly`), annars se *Organization → Quotas* i Scaleways konsol.
 
 ### Engångsuppsättningen
@@ -130,7 +153,7 @@ Under [Planering](https://test.hub.trainmeet.app/planering) skapar man en träff
    - *IAM → API keys → Generate API key* för applikationen, med `trainmeet` som standardprojekt. Spara *Secret Key* direkt; den visas bara en gång.
 2. **Fyra secrets i GitHub** (*Settings → Secrets and variables → Actions → New repository secret*): `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID` (projektets id under projektets *Settings*) och `SCW_DEFAULT_ORGANIZATION_ID` (under *Organization settings*).
 3. **Kör jobbet:** *Actions → Tester → Run workflow* på `main`. Första gången skapas servern. Sammanfattningen av körningen visar serverns adress.
-4. **DNS-raderna i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). För Catalog typ **CNAME**, namn **test.catalog**, mål **test.hub.trainmeet.app**, proxy **av**, och likadant för ID med namnet **test.id**. För taggarnas adress (C38), i zonen `trainmeet.app`: typ **CNAME**, namn **@**, mål **test.hub.trainmeet.app**, proxy **av**. Då går trainmeet.app/t/ vidare till Catalog i testmiljön, och nya taggar får den adressen från nästa utläggning. Kör jobbet en gång till.
+4. **DNS-raderna i Cloudflare**, zonen `trainmeet.app`: typ **A**, namn **test.hub**, innehåll serverns adress, proxy **av** (grått moln). För Catalog typ **CNAME**, namn **test.catalog**, mål **test.hub.trainmeet.app**, proxy **av**, och likadant för ID med namnet **test.id** och för CAD med namnet **test.cad**. För taggarnas adress (C38), i zonen `trainmeet.app`: typ **CNAME**, namn **@**, mål **test.hub.trainmeet.app**, proxy **av**. Då går trainmeet.app/t/ vidare till Catalog i testmiljön, och nya taggar får den adressen från nästa utläggning. Kör jobbet en gång till.
 5. **Nyckeln till mejlen** (#66): i Scaleways konsol *IAM → Applications → Create application* med namnet `trainmeet-mejl`, en policy med behörigheten `TransactionalEmailFullAccess` i projektet `trainmeet`, och en API-nyckel för applikationen. Lägg *Secret Key* som secret `TEM_SECRET_KEY` i GitHub. Domänen trainmeet.se ska vara verifierad under *Transactional Email*. Då hämtar Caddy certifikaten, och sidorna är ute.
 
 Utan nyckeln hoppar jobbet över utläggningen och säger det, så att `main` ändå blir grön.

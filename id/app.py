@@ -445,6 +445,11 @@ def create_app(
     def fleets(person: UUID, _: App) -> list[FleetAccess]:
         return roles.fleets_for(person)
 
+    @app.get(API + "/apps/clubs")
+    def app_clubs(person: UUID, _: App) -> list[Club]:
+        """The person's clubs, with their role: CAD's visibility klubben (#89, CAD-05)."""
+        return roles.clubs_for(person)
+
     # --- TrainMeet tokens (#79, TOKEN-08) ------------------------------------------------------
 
     @app.get(API + "/tokens")

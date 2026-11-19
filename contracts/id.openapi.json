@@ -1885,6 +1885,61 @@
         ]
       }
     },
+    "/api/id/1/apps/clubs": {
+      "get": {
+        "operationId": "appClubs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/trainmeet.id-1.club"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ID säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.id-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "app": []
+          }
+        ]
+      }
+    },
     "/api/id/1/tokens": {
       "get": {
         "operationId": "tokens",

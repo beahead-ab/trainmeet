@@ -1,6 +1,6 @@
-# Caddy framför testhubben, Låtsas-Pi, TKL, Catalog och TrainMeet ID. Certifikaten hämtas automatiskt
-# från Let's Encrypt när DNS-raderna för HUB_DOMAIN, PI_DOMAIN, TKL_DOMAIN, CATALOG_DOMAIN,
-# ID_DOMAIN och TAGS_DOMAIN pekar på servern.
+# Caddy framför testhubben, Låtsas-Pi, TKL, Catalog, CAD och TrainMeet ID. Certifikaten hämtas
+# automatiskt från Let's Encrypt när DNS-raderna för HUB_DOMAIN, PI_DOMAIN, TKL_DOMAIN,
+# CATALOG_DOMAIN, CAD_DOMAIN, ID_DOMAIN och TAGS_DOMAIN pekar på servern.
 # Saknas en rad väntar den adressen; de andra fungerar ändå.
 {
 	admin off
@@ -43,6 +43,13 @@
 	import skydd
 	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy catalog:8080
+}
+
+# TrainMeet CAD (#89), the module library. CAD sets its own Content-Security-Policy.
+{$CAD_DOMAIN} {
+	import skydd
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy cad:8080
 }
 
 # TrainMeet ID (#66, #67). Keycloak answers /realms/ and /resources/ and sets its own headers

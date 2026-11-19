@@ -21,7 +21,7 @@ import { VehiclesPage } from "./VehiclesPage";
 
 export type T = (key: TextKey, vars?: Record<string, string | number>) => string;
 
-/** The other TrainMeet apps. Only the Hub has a test environment so far. */
+/** The other TrainMeet apps, with the test environment's addresses where it runs there. */
 const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
 
 /** With the person's apps from ID, only those they have something in (KONTO-38, ID11). */
@@ -43,7 +43,7 @@ function everyApp(t: T, host: string): SwitcherApp[] {
   return [
     { product: "HUB", label: "TrainMeet Hub", what: t("appHub"), href: test ? "https://test.hub.trainmeet.app" : undefined },
     { product: "TKL", label: "TrainMeet TKL", what: t("appTkl") },
-    { product: "CAD", label: "TrainMeet CAD", what: t("appCad") },
+    { product: "CAD", label: "TrainMeet CAD", what: t("appCad"), href: test ? "https://test.cad.trainmeet.app" : undefined },
     { product: "CATALOG", label: "TrainMeet Catalog", what: t("appCatalog") },
     { product: "TMBOX", label: "TMBox", what: t("appTmbox") },
     { product: "LOKFÖRAREN", label: "Lokföraren", what: t("appDriver") },

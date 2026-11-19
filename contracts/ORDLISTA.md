@@ -381,6 +381,7 @@ Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmod
 | Uppgifterna som fil | `AccountExport`, `CatalogExport` | Allt TrainMeet har om personen, från ID och Catalog, i en fil före borttagningen (KONTO-31). |
 | Ägare borttagna | `OwnersRemoved` | ID säger till Catalog vilka ägare som är borta, och Catalog tar bort deras vagnparker (CAT-193). Bara ID:s egen klient får anropa. |
 | Apparnas fråga | `Access`, `FleetAccess` | Vilka roller en person har till en resurs nu, och vilka vagnparker som är delade med personen. Appen frågar vid varje anrop (KONTO-34). |
+| Personens klubbar | `GET /api/id/1/apps/clubs`, `Club` | Klubbarna personen är med i, med rollen där, som en app frågar efter vid varje anrop. CAD:s synlighet Min klubb följer dem (#89, CAD-05). |
 | Klubbens vagnpark | `FleetAccess.club` | Vagnparken ägs av en klubb, så dess bilder räknas mot klubbens 2 GB och inte mot en persons 100 MB (TOKEN-29, TK17). |
 | Saldo | `TokenBalance`, `TokenOwner`, `GET /api/id/1/tokens` | TrainMeet tokens som går att använda nu, per person och per klubb (TK1, TOKEN-12). Det är månadens gratiskvot som är kvar och de köpta. |
 | Gratiskvot | `TokenBalance.free_left`, `free_monthly` | 100 tokens i månaden per person och 300 per klubb (TOKEN-14). Används först, och det som inte används sparas inte till nästa månad (TK2). |
@@ -390,3 +391,22 @@ Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmod
 | Köp fler | `TokenShop`, `TokenPurchase`, `TokenCheckout`, `/api/id/1/tokens/purchases`, `/api/id/1/stripe/webhook` | Paketen 500, 1 500 och 5 000 tokens för 49, 129 och 399 kr (TOKEN-02), betalda med kort i Stripe Checkout (TOKEN-11). De köpta kommer en gång, när Stripe säger att betalningen är klar. Bara Stripes testläge tills frågan MOMS är avgjord. |
 | Egen AI på kontot | `OwnAiState`, `OwnAiChange`, `/api/id/1/tokens/own-ai`, `TokenBalance.own_ai` | En persons eller klubbs egen AI-tjänst i TrainMeet ID (TOKEN-03): det vanliga chatt-API:t eller Claudes eget, provad med en bild innan den sparas. Mätaren läser med den i stället för TrainMeets AI och drar inga tokens (TK4). Nyckeln är förseglad i ID och visas aldrig igen. |
 | Ägarsidan | `OwnerPage`, `TokenSettings`, `TokenMonth`, `/api/id/1/owner`, `Session.owner` | TrainMeets ägare sätter faktorerna, månadens budget för TrainMeets AI och taken per dygn för ett konto och en klubb, och ser kostnaden, intäkten och vad faktorn gör av den uppmätta kostnaden per sida (TOKEN-05, TK6). Budgeten larmar ägarna vid 80 % och stoppar TrainMeets AI vid 100 %; egen AI fungerar som förut (TK15). Ägarna står som adresser i ID:s valv, aldrig i koden. |
+
+## TrainMeet CAD
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| CAD:s API | `trainmeet.cad/1`, `contracts/cad.py` | Modulbiblioteket som egen molntjänst på ID (CAD-14). Beskrivs i `cad.openapi.json`, med TypeScript-typerna i `cad.d.ts`. |
+| Modulbibliotek | `Library`, `ModuleList`, `/api/cad/1/modules?library=` | Modulerna man ser: sitt eget (`mine`), en klubbs (`club:<id>`) eller alla man ser (`all`), med sök och gavlarna i biblioteket. Väljs i sidhuvudet. |
+| Modul | `Module`, `ModuleBrief`, `NewModule` | En modul med namn, nummer per ägare (M-001), ägare, synlighet, skala, form, två gavlar, spårgraf och status, i sin senaste version (CAD-05, CAD-08). Ägs av en person eller en klubb i ID. Ny modul ur bara mått är gratis (CAD-01, CAD-18). |
+| Modulversion | `Module.version`, `ModuleChange.base`, `/modules/{module}/versions/{version}` | Varje sparning blir en ny version, och en version ändras aldrig. Den nyaste är ett utkast tills den godkänns (`ModuleApproval`). Sparas ovanpå en äldre version nekas den med 409. Inte träffpaketets Version. |
+| Historik | `ModuleEvent` | Det som hänt modulen: skapad, sparad, godkänd, ny synlighet och borttagen, med version, tid och vem. |
+| Skala | `Scale` | H0, N eller 0. Sitter på modulen (CAD9, CAD10, CAD12). |
+| Norm | `Norm`, `NORMS`, `NormInfo` | Organisationen vars regler en gavel följer, och sitter på varje gavel: i H0 FREMO, MMM, USMS och klubbens egen, i 0 FREMO Spur 0 (CAD11, CAD12). En övergångsmodul har olika normer i ändarna. I N namnger specen ingen norm än. |
+| Kant 1 | `Gable.tracks`, `Curve.edge` | Långsidan som alla gavelmått räknas från, överst i ritningen. På en kurva är den ytterkanten eller innerkanten. |
+| Gavel | `Gable`, `GableEnd`, `GableLabel` | Modulens ände, A eller B, med sin norm, sin gavelprofil och spårens lägen i mm från Kant 1, spår 1 närmast. Utan profil är det en egen gavel, uppmätt spår för spår. |
+| Gavelprofil | `GableProfile`, `ProfileKind`, `NewProfile` | Var spåren går ut genom gaveln, från Kant 1 (CAD-07). Normens (`norm`), allmän (`general`, lägena anges per modul) eller egen (`own`, en persons eller klubbs, varje läge uppmätt). Det profilen inte låser anges per modul; normernas exakta mått läses in före lanseringen (`read`). `uses` räknar gavlarna som använder den. |
+| Synlighet | `Visibility` | Vem ser modulen: bara jag (`me`), min klubb (`club`, med klubben ur ID) eller alla i TrainMeet (`all`). Den som ser en modul får använda den; bara ägaren och de med rollen redigera ändrar den (CAD-21). |
+| Redigera | `Module.may_edit`, `Role.EDITOR` på `module:<id>` | Rätten att ändra en modul: personens egen, klubbens administratörer för klubbens, och den som ID ger rollen `editor` på modulen (CAD-21, KONTO-36). |
+| Spårgraf | `TrackGraph`, `GraphNode`, `GraphPiece`, `GraphSwitch` | Det CAD skickar till Studio (CAD-10): noder, spårbitar, växlar och korsningar, med geometri som LINE och ARC i mm och id som aldrig byts (CAD-20). Noderna har stationsmodellens typer; ett spår i gaveln är en modulskarv. Blir stationsmodellens `Node` och `TrackPiece` med samma id, bågarna som punkter var 10:e mm. |
+| Anläggning | `Assembly`, `PlacedModule`, `Joint` | Moduler ihop, med skarvar och vinklar, och modulversionerna pinnade (CAD-06, CAD-21). Bara skalet i del a; byggs i del d. |

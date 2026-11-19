@@ -136,13 +136,17 @@ class Roles:
     # --- Clubs ------------------------------------------------------------------------------
 
     def clubs(self, asker: Asker) -> list[Club]:
+        return self.clubs_for(asker.id)
+
+    def clubs_for(self, person: UUID) -> list[Club]:
+        """The person's clubs, admin before member when both, by name."""
         with self.db.transaction() as conn:
             rows = conn.execute(
                 "SELECT club.id, club.name, g.role FROM role_grant g "
                 "JOIN club ON club.id::text = g.resource_id "
                 "WHERE g.resource_kind = 'club' AND g.person_id = %s "
                 "AND g.role IN ('admin', 'member') ORDER BY lower(club.name), g.role",
-                (asker.id,),
+                (person,),
             ).fetchall()
         found: dict[UUID, Club] = {}
         for row in rows:

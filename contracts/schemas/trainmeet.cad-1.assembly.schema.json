@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.assembly.schema.json",
+  "title": "trainmeet.cad-1.assembly",
+  "$defs": {
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "Joint": {
+      "additionalProperties": true,
+      "description": "Skarv: two modules' gables together, at an angle (CAD-06).",
+      "properties": {
+        "a": {
+          "description": "The placed module's index, and its gable.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/GableEnd"
+            }
+          ],
+          "title": "A",
+          "type": "array"
+        },
+        "b": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/GableEnd"
+            }
+          ],
+          "title": "B",
+          "type": "array"
+        },
+        "angle": {
+          "default": 0,
+          "description": "The angle between them, in degrees.",
+          "title": "Angle",
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "Joint",
+      "type": "object"
+    },
+    "Owner": {
+      "additionalProperties": true,
+      "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/OwnerKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "Owner",
+      "type": "object"
+    },
+    "OwnerKind": {
+      "enum": [
+        "person",
+        "club"
+      ],
+      "title": "OwnerKind",
+      "type": "string"
+    },
+    "PlacedModule": {
+      "additionalProperties": true,
+      "description": "A module in an assembly, at the version it pinned (CAD-21), shifted and turned.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "at": {
+          "description": "Where the module's origin (gable A at Kant 1) lies, in mm.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "angle": {
+          "description": "The module's turn, in degrees, counterclockwise.",
+          "title": "Angle",
+          "type": "number"
+        }
+      },
+      "required": [
+        "module",
+        "version",
+        "at",
+        "angle"
+      ],
+      "title": "PlacedModule",
+      "type": "object"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that\nfit together (CAD9). Only the shell in part a; part d builds it.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "owner": {
+      "$ref": "#/$defs/Owner"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/PlacedModule"
+      },
+      "title": "Modules",
+      "type": "array"
+    },
+    "joints": {
+      "items": {
+        "$ref": "#/$defs/Joint"
+      },
+      "title": "Joints",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "owner",
+    "scale"
+  ],
+  "type": "object"
+}

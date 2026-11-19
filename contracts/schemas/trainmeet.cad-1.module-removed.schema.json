@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.module-removed.schema.json",
+  "title": "trainmeet.cad-1.module-removed",
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

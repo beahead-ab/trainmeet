@@ -1,0 +1,12 @@
+{
+  "name": "TrainMeet CAD",
+  "short_name": "CAD",
+  "description": "Modulbiblioteket: modulernas mått, gavlar och spår.",
+  "lang": "sv",
+  "start_url": "/moduler",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f3ef",
+  "theme_color": "#121418",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

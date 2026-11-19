@@ -212,10 +212,42 @@
         "profile",
         "email"
       ]
+    },
+    {
+      "clientId": "cad",
+      "name": "TrainMeet CAD",
+      "description": "CAD loggar in med ID (#89) och frågar ID:s API om klubbarna och rollerna med en egen token (KONTO-34), som Catalog.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ID_CAD_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "${ID_CAD_URL}/api/cad/1/id/callback"
+      ],
+      "webOrigins": [
+        "${ID_CAD_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ID_CAD_URL}/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "basic",
+        "profile",
+        "email"
+      ]
     }
   ],
   "attributes": {
-    "trainmeetVersion": "7"
+    "trainmeetVersion": "8"
   },
   "users": [
     {

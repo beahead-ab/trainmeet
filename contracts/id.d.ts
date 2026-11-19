@@ -452,6 +452,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/apps/clubs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appClubs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/tokens": {
         parameters: {
             query?: never;
@@ -5260,6 +5276,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.id-1.fleet-access"][];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appClubs: {
+        parameters: {
+            query: {
+                person: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.club"][];
                 };
             };
             /** @description ID säger nej */

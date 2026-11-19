@@ -1663,6 +1663,11 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+cad = [
+    { name = "httpx" },
+    { name = "psycopg", extra = ["binary", "pool"] },
+    { name = "pyjwt", extra = ["crypto"] },
+]
 catalog = [
     { name = "botocore" },
     { name = "httpx" },
@@ -1709,6 +1714,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+cad = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
+]
 catalog = [
     { name = "botocore", specifier = ">=1.35" },
     { name = "httpx", specifier = ">=0.27" },

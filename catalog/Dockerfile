@@ -11,6 +11,7 @@ COPY package.json package-lock.json ./
 COPY apps/design/package.json apps/design/
 COPY apps/hubben/package.json apps/hubben/
 COPY apps/catalog/package.json apps/catalog/
+COPY apps/cad/package.json apps/cad/
 COPY apps/id/package.json apps/id/
 COPY apps/skarmar/package.json apps/skarmar/
 COPY apps/tmbox-webb/package.json apps/tmbox-webb/

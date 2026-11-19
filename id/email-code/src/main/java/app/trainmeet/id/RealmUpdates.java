@@ -32,7 +32,7 @@ final class RealmUpdates {
     static final String REALM = "trainmeet";
     static final String VERSION = "trainmeetVersion";
     /** The latest update. The realm file says the same. */
-    static final int LATEST = 7;
+    static final int LATEST = 8;
 
     static final String PASSKEY_ACTION = "webauthn-register-passwordless";
 
@@ -50,7 +50,8 @@ final class RealmUpdates {
             RealmUpdates::catalogAsks,
             RealmUpdates::idRemovesAccounts,
             RealmUpdates::hubLogsIn,
-            (session, realm) -> tklLogsIn(realm));
+            (session, realm) -> tklLogsIn(realm),
+            RealmUpdates::cadLogsIn);
 
     /**
      * Every update runs in a transaction of its own, together with the new number. One that fails
@@ -263,6 +264,47 @@ final class RealmUpdates {
         realm.getClientScopesStream()
                 .filter(scope -> SCOPES.contains(scope.getName()))
                 .forEach(scope -> client.addClientScope(scope, true));
+    }
+
+    static final String CAD_CLIENT = "cad";
+
+    /**
+     * 8: TrainMeet CAD logs in with ID (#89), as the client "cad", with its secret and address
+     * from the environment (ID_CAD_SECRET, ID_CAD_URL), and asks ID's API about the clubs and the
+     * roles with a token of its own, from client credentials (KONTO-34), like Catalog and the Hub.
+     * Without the secret the update fails and waits until the next start, so that the client is
+     * made once the secret is there.
+     */
+    static void cadLogsIn(KeycloakSession session, RealmModel realm) {
+        if (realm.getClientByClientId(CAD_CLIENT) != null) {
+            return;
+        }
+        String secret = System.getenv("ID_CAD_SECRET");
+        String address = System.getenv("ID_CAD_URL");
+        if (secret == null || secret.isBlank() || address == null || address.isBlank()) {
+            throw new IllegalStateException("ID_CAD_SECRET eller ID_CAD_URL saknas, så CAD får ingen klient än.");
+        }
+        ClientModel client = realm.addClient(CAD_CLIENT);
+        client.setName("TrainMeet CAD");
+        client.setEnabled(true);
+        client.setProtocol("openid-connect");
+        client.setPublicClient(false);
+        client.setClientAuthenticatorType("client-secret");
+        client.setSecret(secret);
+        client.setStandardFlowEnabled(true);
+        client.setImplicitFlowEnabled(false);
+        client.setDirectAccessGrantsEnabled(false);
+        client.setFrontchannelLogout(false);
+        client.setRedirectUris(Set.of(address + "/api/cad/1/id/callback"));
+        client.setWebOrigins(Set.of(address));
+        client.setAttribute("pkce.code.challenge.method", "S256");
+        client.setAttribute("post.logout.redirect.uris", address + "/*");
+        realm.getClientScopesStream()
+                .filter(scope -> SCOPES.contains(scope.getName()))
+                .forEach(scope -> client.addClientScope(scope, true));
+        client.setServiceAccountsEnabled(true);
+        session.getContext().setRealm(realm);
+        new ClientManager(new RealmManager(session)).enableServiceAccount(client);
     }
 
     private static int parse(String value) {

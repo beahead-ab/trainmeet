@@ -88,10 +88,14 @@ describe("an empty Catalog", () => {
 describe("the app switcher", () => {
   const t = (key: Parameters<typeof text>[1]) => text("sv", key);
 
-  it("has the seven apps as drawn, with the Hub's and ID's test environments from the test environment", () => {
+  it("has the seven apps as drawn, with the Hub's, CAD's and ID's test environments from the test environment", () => {
     const apps = switcherApps(t, "test.catalog.trainmeet.app");
     expect(apps.map((app) => app.product)).toEqual(["HUB", "TKL", "CAD", "CATALOG", "TMBOX", "LOKFÖRAREN", "ID"]);
-    expect(apps.filter((app) => app.href).map((app) => app.href)).toEqual(["https://test.hub.trainmeet.app", "https://test.id.trainmeet.app"]);
+    expect(apps.filter((app) => app.href).map((app) => app.href)).toEqual([
+      "https://test.hub.trainmeet.app",
+      "https://test.cad.trainmeet.app",
+      "https://test.id.trainmeet.app",
+    ]);
   });
 
   it("links to nothing that is not built yet", () => {
