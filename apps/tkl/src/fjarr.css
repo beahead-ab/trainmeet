@@ -1,0 +1,176 @@
+/* Fjärrstyrning (#36 del c): the fjärrbild in the skin 95 on black, as wide as the screen, and
+   the row under it. A chosen route blinks until it is sent (FR13). */
+
+main.tkl.fjarr-sida {
+  max-width: none;
+}
+.fj-roll {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+  flex-wrap: wrap;
+}
+.fj-roll button[aria-checked="true"],
+.fj-skarm button[aria-checked="true"] {
+  background: var(--tm-blue);
+  border-color: var(--tm-blue);
+  color: var(--tm-on-blue);
+  font-weight: 600;
+}
+.fj-huvud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+.fj-huvud h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.fj-skarm {
+  display: flex;
+  gap: 6px;
+}
+.fj-skarm button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.fj-bild {
+  background: #000;
+  border-radius: var(--tm-radius);
+  border: 1px solid #2a2d30;
+  padding: 6px;
+}
+svg.fjarrbild {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100vh - 230px);
+  user-select: none;
+}
+.fj-bild svg.gammal-bild {
+  opacity: 0.6;
+}
+.fj-bild + .fj-tecken {
+  margin-top: 8px;
+}
+svg.fjarrbild .fj-klick {
+  cursor: pointer;
+}
+svg.fjarrbild .fj-klick:focus-visible {
+  outline: none;
+  stroke: #ffffff;
+  stroke-width: 0.08;
+}
+@keyframes fj-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.12;
+  }
+}
+svg.fjarrbild .fj-blink,
+.fj-blinkar {
+  animation: fj-blink 0.9s linear infinite;
+}
+.fj-tecken {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  list-style: none;
+  padding: 6px 10px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  background: #000;
+  color: #d3d6d9;
+  border-radius: 8px;
+}
+.fj-tecken li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fj-tecken svg.fj-prov {
+  width: 28px;
+  height: 12px;
+}
+.fj-kolumner {
+  margin-top: 4px;
+}
+.fj-ruta {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.fj-ruta h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.fj-rad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+  border-top: 1px solid var(--tm-line);
+}
+.fj-rad:first-of-type {
+  border-top: 0;
+}
+.fj-rad.erbjudande b {
+  color: #b88a00;
+}
+.fj-rad.nej {
+  color: #c4352b;
+}
+.fj-rad.markerad {
+  background: var(--tm-blue-soft);
+  border-radius: 6px;
+  padding-left: 6px;
+}
+.fj-stationer {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+.fj-stationer li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.prick {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8f94;
+}
+.prick.gron {
+  background: #2db84c;
+}
+.fj-omraden {
+  border: 1px solid var(--tm-line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 8px 0;
+}
+.fj-klarering .kolumner {
+  margin-top: 8px;
+}
+.fj-klocka {
+  font-size: 20px;
+  font-weight: 700;
+}
+svg.fjarrbild text,
+svg.fjarrbild polygon.fj-pil {
+  pointer-events: none;
+}

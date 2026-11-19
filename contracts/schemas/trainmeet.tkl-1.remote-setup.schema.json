@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.remote-setup.schema.json",
+  "title": "trainmeet.tkl-1.remote-setup",
+  "additionalProperties": true,
+  "description": "Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en.",
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "area": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area"
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "maxItems": 40,
+      "title": "Places",
+      "type": "array"
+    },
+    "pin": {
+      "description": "4–12 siffror. Skrivs aldrig ut.",
+      "pattern": "^[0-9]{4,12}$",
+      "title": "Pin",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "pin"
+  ],
+  "type": "object"
+}

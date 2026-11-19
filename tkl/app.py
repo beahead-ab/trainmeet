@@ -186,6 +186,22 @@ the station's model is no draft. Använd ritningen makes it the station's model 
 does: refused with the problems while it has any, and while the interlocking has set routes or
 train numbers.
 
+Fjärrstyrning (#36 del c, tkl/fjarr/): TKL started in the remote role is a remote interlocking
+with no station of its own (FR1, TKL47); it connects as the station protocol's client kind remote
+with its remote area (FR4). A station's own TKL controls a neighbour with the same fjärrbild, as
+the same client (FR3). Hubben decides which places TKL may read and act on:
+
+    POST /api/tkl/1/fjarr/setup                   TklRemoteSetUp -> TklState: första start som
+                                                  Fjärrställverk (ingen egen station)
+    GET  /api/tkl/1/fjarr/areas?address=          TklRemoteAreas: the plan's remote areas (FR49)
+    POST /api/tkl/1/fjarr/connection              TklRemoteConnect -> TklConnection (kind remote)
+    GET  /api/tkl/1/fjarr                         TklFjarr: the overview, and what TKL controls and
+                                                  is offered (FR8, FR31–FR38)
+    GET  /api/tkl/1/fjarr/places/{place}          TklView: a station TKL controls, for Klarering
+    POST /api/tkl/1/fjarr/commands                TklCommand -> station.Reply: place.offer.answer,
+                                                  route.request, route.cancel and the clearance
+                                                  for the whole station (FR11, FR13, FR17)
+
 Everything but the state, first start and unlocking needs the PIN: a session in an HttpOnly
 cookie (TKL18). TKL in the cloud also keeps which station is the browser's in a cookie, and
 reaches only the hubs it is set up for, never an address someone types (TKL5).
@@ -248,6 +264,7 @@ from contracts.tkl import (
     TklDrawing,
     TklDrawingState,
     TklEmergencyRelease,
+    TklFjarr,
     TklFunctionAction,
     TklFunctionAsk,
     TklIdState,
@@ -277,6 +294,9 @@ from contracts.tkl import (
     TklReadyAsk,
     TklReadyMove,
     TklReadyRef,
+    TklRemote,
+    TklRemoteConnect,
+    TklRemoteSetUp,
     TklReport,
     TklReportKind,
     TklReset,
@@ -292,7 +312,7 @@ from contracts.tkl import (
     TklView,
     TklWait,
 )
-from tkl import VERSION, hub_places, hub_reports, id_login, manover, prova, track_plan
+from tkl import VERSION, fjarr, hub_places, hub_reports, id_login, manover, prova, track_plan
 from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
@@ -410,6 +430,7 @@ def create_app(
     usb_finder: how a local TKL finds its Stream Decks on USB (#86, SD50), by default through
     libhidapi; the cloud never looks. The driver runs while the app's lifespan does."""
     store = TklStore(data_dir / "tkl.sqlite3")
+    roles = fjarr.Roles(data_dir / "fjarr.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
     cloud = mode == TklMode.CLOUD
     services: list[loconet.Service] = []
@@ -460,6 +481,7 @@ def create_app(
             unlocked=found is not None and store.unlocked(slot, session),
             station=found,
             locked=found is not None and store.station_locked(slot),
+            remote=roles.role(slot) if found is not None else None,
         ).model_dump(mode="json")
 
     def opened(request: Request, response: Response, token: str) -> None:
@@ -3443,6 +3465,183 @@ def create_app(
         if running is not None:
             running.stop()
         return prova_view(found)
+
+    # --- Fjärrstyrning (#36 del c): the remote interlocking and the fjärrbild ----------------
+
+    def remote_of(found: str) -> TklRemote:
+        remote = roles.role(found)
+        if remote is None:
+            raise HTTPException(409, "TKL är stationens ställverk, inte ett fjärrställverk.")
+        return remote
+
+    @routes.post("/fjarr/setup", status_code=201)
+    def remote_set_up(
+        change: TklRemoteSetUp, request: Request, response: Response
+    ) -> dict[str, Any]:
+        """Första start som Fjärrställverk (ingen egen station, FR1, TKL47): the same PIN and
+        lock as a station's TKL, with the remote interlocking's name and its remote area."""
+        same_site(request)
+        no_store(response)
+        given = token_urlsafe(32) if cloud else None
+        slot = token_hash(given) if given else LOCAL
+        remote = TklRemote(
+            name=" ".join(change.name.split()), area=change.area, places=change.places
+        )
+        try:
+            token = store.set_up(slot, fjarr.remote_id(remote.name), remote.name, change.pin)
+        except AlreadySetUp as error:
+            raise HTTPException(409, "TKL har redan en station.") from error
+        except Full as error:
+            raise HTTPException(429, "TKL i molnet har inte plats för fler stationer.") from error
+        roles.keep(slot, remote)
+        if given:
+            response.set_cookie(
+                SLOT,
+                given,
+                max_age=int(SLOT_LIFETIME.total_seconds()),
+                httponly=True,
+                samesite="strict",
+                secure=secure(request),
+            )
+        opened(request, response, token)
+        return state(slot, token)
+
+    @routes.get("/fjarr/areas")
+    def remote_areas(
+        response: Response,
+        address: Annotated[str, Query(max_length=200)],
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """The plan's remote areas and driftplatser at the hub, to choose from (FR49)."""
+        no_store(response)
+        unlocked(slot, session)
+        return fjarr.areas(client, checked(address)).model_dump(mode="json")
+
+    @routes.post("/fjarr/connection")
+    def remote_connect(
+        given: TklRemoteConnect,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Anslut som fjärrställverk (FR4): the client kind remote, with no station and its
+        remote area. TKL then waits for the approval and keeps following it, as for a station."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        asked = fjarr.connect_request(remote_of(found), given, f"TKL {VERSION}")
+        address = checked(given.address)
+        reaching = HubClient(client, address)
+        try:
+            reply = reaching.connect(asked)
+        except Unreachable as error:
+            raise HTTPException(502, NO_CONTACT) from error
+        except HubError as error:
+            raise HTTPException(
+                error.status if error.status < 500 else 502, error.detail
+            ) from error
+        described = reaching.describe(nearby=address not in internet)
+        store.connected(
+            found,
+            Connection(
+                address=address,
+                relay=reply.relay,
+                hub_name=described.name if described else None,
+                client_id=reply.client_id,
+                status=reply.status,
+                places=reply.places,
+                outside_version=0,
+                message=reply.message,
+                key=reply.key,
+                preview=reply.preview,
+                wanted=list(reply.wanted),
+                asked=time.time(),
+            ),
+        )
+        return shown(store.connection(found))
+
+    def keyed(found: str) -> Connection:
+        """The connection with its key, following the approval until it comes. Hubben decides
+        which places TKL may read and act on: those it runs, controls or is offered (FR4)."""
+        made = store.connection(found)
+        if made is not None and made.key is None:
+            made = follow(found, made)
+        if made is None or made.key is None:
+            raise HTTPException(409, NOT_CONNECTED)
+        return made
+
+    pictures: dict[str, TklFjarr] = {}
+
+    @routes.get("/fjarr")
+    def remote_picture(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Fjärrbildens data (FR31–FR38): Hubben's overview, with what TKL controls and is
+        offered now (FR8). The last good one, marked stale, when the hub cannot be reached."""
+        no_store(response)
+        found = unlocked(slot, session)
+        made = keyed(found)
+        home = None if roles.role(found) else hub_places.home_place(made)
+        try:
+            seen = fjarr.picture(hub(made), made, home)
+        except Unreachable:
+            last = pictures.get(found)
+            kept = last or TklFjarr(client_id=made.client_id)
+            return kept.model_copy(update={"stale": True, "message": NO_CONTACT}).model_dump(
+                mode="json"
+            )
+        except HubError as error:
+            refused(found, error)
+        pictures[found] = seen
+        return seen.model_dump(mode="json")
+
+    @routes.get("/fjarr/places/{place}")
+    def remote_place(
+        place: Annotated[str, PathPart(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")],
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """A station TKL controls, or is offered, as its own snapshot: Tåg and Klarering for the
+        whole station (FR17)."""
+        no_store(response)
+        found = unlocked(slot, session)
+        made = keyed(found)
+        try:
+            snapshot = hub(made).snapshot(place)
+        except Unreachable:
+            return seen(found, place, NO_CONTACT)
+        except HubError as error:
+            refused(found, error)
+        heard = store.remember(found, snapshot)
+        return TklView(snapshot=snapshot, heard=heard).model_dump(mode="json")
+
+    @routes.post("/fjarr/commands")
+    def remote_command(
+        given: TklCommand,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """A command at a station TKL controls or is offered: Ta emot or Avböj (FR8), Lägg
+        tågvägen and Ta bort (FR11, FR13), and the clearance for the whole station (FR17). Never
+        done locally: Hubben's answer and the station's report are what count."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        made = keyed(found)
+        sent = station.Command(client_id=made.client_id, **given.model_dump())
+        try:
+            reply = hub(made).command(sent)
+        except Unreachable as error:
+            raise HTTPException(502, NO_CONTACT) from error
+        except HubError as error:
+            refused(found, error)
+        store.remember(found, reply.snapshot)
+        return reply.model_dump(mode="json")
 
     app.include_router(routes)
 

@@ -144,6 +144,11 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.deck-prova-ask": tkl.TklDeckProvaAsk,
     "trainmeet.tkl-1.deck-change": tkl.TklDeckChange,
     "trainmeet.tkl-1.deck-status": tkl.TklDeckStatus,
+    # Fjärrstyrning (#36 del c): the remote interlocking and the fjärrbild
+    "trainmeet.tkl-1.remote-setup": tkl.TklRemoteSetUp,
+    "trainmeet.tkl-1.remote-areas": tkl.TklRemoteAreas,
+    "trainmeet.tkl-1.remote-connect": tkl.TklRemoteConnect,
+    "trainmeet.tkl-1.fjarr": tkl.TklFjarr,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,

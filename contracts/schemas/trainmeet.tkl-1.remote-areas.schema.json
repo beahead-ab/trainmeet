@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.remote-areas.schema.json",
+  "title": "trainmeet.tkl-1.remote-areas",
+  "$defs": {
+    "TklRemoteArea": {
+      "additionalProperties": true,
+      "description": "A remote area in the plan, as the hub has it (FR49, PLAN-33).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "places": {
+          "description": "Driftplatserna i ordning längs linjen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "places"
+      ],
+      "title": "TklRemoteArea",
+      "type": "object"
+    },
+    "TklRemotePlace": {
+      "additionalProperties": true,
+      "description": "A driftplats in the plan, to choose a remote area by hand.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place",
+        "code",
+        "name"
+      ],
+      "title": "TklRemotePlace",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The plan's remote areas and driftplatser at a hub, for Anslut (FR49).",
+  "properties": {
+    "areas": {
+      "items": {
+        "$ref": "#/$defs/TklRemoteArea"
+      },
+      "title": "Areas",
+      "type": "array"
+    },
+    "places": {
+      "items": {
+        "$ref": "#/$defs/TklRemotePlace"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför listan är tom, till exempel ingen träff igång.",
+      "title": "Message"
+    }
+  },
+  "type": "object"
+}

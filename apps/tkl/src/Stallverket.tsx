@@ -115,7 +115,7 @@ function TrackChoice({ call, outside, busy, onSend }: { call: CallHere; outside:
   );
 }
 
-function Tag({ snapshot, outside, busy, onSend }: { snapshot: Snapshot; outside: Outside | null; busy: boolean; onSend: Send }) {
+export function Tag({ snapshot, outside, busy, onSend }: { snapshot: Snapshot; outside: Outside | null; busy: boolean; onSend: Send }) {
   const { coming, atStation, left, next } = trains(snapshot);
   return (
     <section className="kolumn" aria-labelledby="kol-tag">
@@ -351,7 +351,7 @@ export function Klarering({ snapshot, outside, busy, onSend }: { snapshot: Snaps
   );
 }
 
-function Handelser({ journal }: { journal: Happening[] }) {
+export function Handelser({ journal }: { journal: Happening[] }) {
   return (
     <section className="kolumn" aria-labelledby="kol-handelser">
       <h2 id="kol-handelser">

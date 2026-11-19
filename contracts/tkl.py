@@ -63,6 +63,12 @@ Stream Deck (#87 del d): a deck opens as the tågklarerare or as a part of the s
 role). A part's deck has the mode Bangård, the shunter's deck: the part's tracks, where a press
 lays the switch street from the chosen end, its routes out, requested from the station, and
 Ände, Lämna, Klart, Ring and the train key for Klart att skicka (SD60, SD61, SD74, SD86, SD87).
+
+Fjärrstyrning (#36 del c), under /api/tkl/1/fjarr: TKL started in the remote role is a remote
+interlocking with no station of its own (FR1, TKL47), and a station's own TKL controls a
+neighbour with the same fjärrbild (FR3). The fjärrbild is Hubben's Overview, drawn in the skin 95
+(FR31–FR38, FR47, FR48); routes from the stations' remote catalogues are asked for and taken away,
+and the controlled stations are cleared, with ordinary station commands (FR11–FR14, FR17).
 """
 
 from __future__ import annotations
@@ -80,6 +86,8 @@ from contracts.station import (
     ExitSignalAspect,
     MeetContext,
     MessageId,
+    OfferHere,
+    Overview,
     Revision,
     Snapshot,
 )
@@ -138,6 +146,10 @@ class TklState(Contract):
         default=False,
         description="Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje "
         "deck visar bara klockan, och PIN-koden låser upp.",
+    )
+    remote: TklRemote | None = Field(
+        default=None,
+        description="TKL körs som fjärrställverk, utan egen station (FR1, TKL47, #36 del c).",
     )
 
 
@@ -2557,3 +2569,93 @@ class TklDeckChange(Contract):
         default=None,
         description="Rollen (#87 del d): delens id, eller tom för tågklareraren.",
     )
+
+
+# --- Fjärrstyrning (#36 del c): the remote interlocking and the fjärrbild -------------------------
+# TKL started in the remote role is a remote interlocking (fjärrställverk) with no station of its
+# own (FR1, TKL47): it connects as the station protocol's client kind remote with its remote
+# area, and a station hands itself over to it (FR4, FR8). A station's own TKL controls a
+# neighbour with the same fjärrbild (FR3). The fjärrbild is drawn from Hubben's Overview: only
+# what the stations report, never what was sent (FR13). Routes are asked for and taken away,
+# and the controlled stations are cleared, with ordinary station commands (FR11, FR17).
+
+
+class TklRemote(Contract):
+    """The remote interlocking TKL runs as, set at first start (FR1, TKL47): its name in
+    Klienter and the remote area it asks for, the plan's area or driftplatser written by hand."""
+
+    name: Text
+    area: Id | None = Field(default=None, description="Planens fjärrområde (FR49).")
+    places: list[Id] = Field(
+        default_factory=list,
+        max_length=40,
+        description="Driftplatserna skrivna för hand, i ordning längs linjen. Tomt: planens "
+        "fjärrområde.",
+    )
+
+
+class TklRemoteSetUp(Contract):
+    """Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en."""
+
+    name: str = Field(min_length=1, max_length=40)
+    area: Id | None = None
+    places: list[Id] = Field(default_factory=list, max_length=40)
+    pin: str = TKL_PIN
+
+
+class TklRemoteArea(Contract):
+    """A remote area in the plan, as the hub has it (FR49, PLAN-33)."""
+
+    id: Id
+    name: Text
+    places: list[Id] = Field(description="Driftplatserna i ordning längs linjen.")
+
+
+class TklRemotePlace(Contract):
+    """A driftplats in the plan, to choose a remote area by hand."""
+
+    place: Id
+    code: Text
+    name: Text
+
+
+class TklRemoteAreas(Contract):
+    """The plan's remote areas and driftplatser at a hub, for Anslut (FR49)."""
+
+    areas: list[TklRemoteArea] = Field(default_factory=list)
+    places: list[TklRemotePlace] = Field(default_factory=list)
+    message: Text | None = Field(
+        default=None, description="Varför listan är tom, till exempel ingen träff igång."
+    )
+
+
+class TklRemoteConnect(Contract):
+    """Anslut som fjärrställverk (FR4): the hub, the code over the internet, and the remote area,
+    the plan's or driftplatser written by hand. Trafikledningen approves it per driftplats."""
+
+    address: Text = Field(max_length=200)
+    code: Text | None = Field(default=None, max_length=20)
+    area: Id | None = None
+    places: list[Id] = Field(default_factory=list, max_length=40)
+
+
+class TklFjarr(Contract):
+    """Fjärrbildens data (FR31–FR38): Hubben's overview of the places TKL controls, is offered,
+    is approved for, and their neighbours, with what this TKL controls and is offered now
+    (FR8). When the hub cannot be reached, the last good one is kept and marked stale."""
+
+    overview: Overview | None = None
+    client_id: Id | None = Field(
+        default=None,
+        description="TKL:s klient i Hubben: tågvägarna den begärt och stationerna den styr.",
+    )
+    controls: list[Id] = Field(default_factory=list, description="Driftplatserna TKL fjärrstyr nu.")
+    offers: list[OfferHere] = Field(
+        default_factory=list, description="Stationer som erbjuds TKL och väntar på svar."
+    )
+    stale: bool = False
+    heard: datetime | None = None
+    message: Text | None = None
+
+
+TklState.model_rebuild()

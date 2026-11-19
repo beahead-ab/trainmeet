@@ -1,0 +1,1564 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.fjarr.schema.json",
+  "title": "trainmeet.tkl-1.fjarr",
+  "$defs": {
+    "Automat": {
+      "additionalProperties": true,
+      "description": "A station automat in the station's own interlocking (FR24). Switched on and off by whoever\ncontrols the station: on the spot when manned, from the remote picture when remote-controlled\n(FR25).",
+      "properties": {
+        "code": {
+          "description": "Koden vid stationsnamnet, till exempel A3, AU21 eller L01. Flera av samma slag skiljs åt med infartssignalens nummer (FR40).",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutomatKind"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Förvald: stationen kopplar in den själv efter 90 sekunder utan kontakt med den som fjärrstyr (FR29).",
+          "title": "Default"
+        }
+      },
+      "required": [
+        "code",
+        "kind"
+      ],
+      "title": "Automat",
+      "type": "object"
+    },
+    "AutomatKind": {
+      "description": "The station automats (FR24, FR39), as in interlockings 85 and 95.",
+      "enum": [
+        "a1",
+        "a2",
+        "a3",
+        "an",
+        "au",
+        "local_release"
+      ],
+      "title": "AutomatKind",
+      "type": "string"
+    },
+    "AutomatOn": {
+      "additionalProperties": true,
+      "description": "A station automat that is switched on, and who switched it on (FR25, FR29).",
+      "properties": {
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "by": {
+          "$ref": "#/$defs/RouteBy"
+        }
+      },
+      "required": [
+        "code",
+        "by"
+      ],
+      "title": "AutomatOn",
+      "type": "object"
+    },
+    "BoxSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side"
+        },
+        "label": {
+          "description": "Det boxen visar för sidan, till exempel Väster.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "label"
+      ],
+      "title": "BoxSide",
+      "type": "object"
+    },
+    "ClientKind": {
+      "enum": [
+        "tkl",
+        "tmbox_app",
+        "dispatch",
+        "remote"
+      ],
+      "title": "ClientKind",
+      "type": "string"
+    },
+    "Clock": {
+      "additionalProperties": true,
+      "properties": {
+        "time": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Time",
+          "type": "string"
+        },
+        "seconds": {
+          "description": "Sekunder sedan speldygnets midnatt; kan gå över 24 h.",
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "integer"
+        },
+        "running": {
+          "description": "Falskt betyder stoppad klocka, inte tappad kontakt.",
+          "title": "Running",
+          "type": "boolean"
+        },
+        "speed": {
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "time",
+        "seconds",
+        "running",
+        "speed",
+        "game_day"
+      ],
+      "title": "Clock",
+      "type": "object"
+    },
+    "Exit": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Utfartens fasta id. Kopplas till en sträcka per träff (H26).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Vilken sida utfarten ligger på."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Till exempel Mot Norrby.",
+          "title": "Name"
+        },
+        "tracks": {
+          "description": "Stationsspåren som når utfarten, vid gränsen.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalerna vid gränsen, med sina namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "side"
+      ],
+      "title": "Exit",
+      "type": "object"
+    },
+    "LocalArea": {
+      "additionalProperties": true,
+      "description": "A local area given to people on the spot (lokal frigivning, TKL44, TKL48, FR39).",
+      "properties": {
+        "code": {
+          "description": "Lokalfrigivningens kod, till exempel L01.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "tracks": {
+          "description": "Stationsspåren i området, för fjärrbilden.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "LocalArea",
+      "type": "object"
+    },
+    "LockedRoute": {
+      "additionalProperties": true,
+      "description": "A catalogue route the station's interlocking holds locked. It stays until the train has\ngone, also when the station is taken back (FR15).",
+      "properties": {
+        "route": {
+          "description": "Tågvägens id i fjärrkatalogen.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Route",
+          "type": "string"
+        },
+        "by": {
+          "$ref": "#/$defs/RouteBy"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Begäran den svarade på.",
+          "title": "Request Id"
+        },
+        "automat": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Automaten som lade den.",
+          "title": "Automat"
+        }
+      },
+      "required": [
+        "route",
+        "by"
+      ],
+      "title": "LockedRoute",
+      "type": "object"
+    },
+    "MeetContext": {
+      "additionalProperties": true,
+      "description": "Which meet, version and game day the client saw. A command for another is refused\nwith stale_meet_context, so an old choice never survives a change of meet or day.",
+      "properties": {
+        "meet_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "game_day": {
+          "minimum": 1,
+          "title": "Game Day",
+          "type": "integer"
+        },
+        "epoch": {
+          "description": "Ledarskapets epok; byts vid övertag.",
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "meet_id",
+        "version",
+        "game_day",
+        "epoch"
+      ],
+      "title": "MeetContext",
+      "type": "object"
+    },
+    "Neighbour": {
+      "additionalProperties": true,
+      "description": "A place and its game number, for the telephone list in TKL and the app (H24).",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "place",
+        "code",
+        "name"
+      ],
+      "title": "Neighbour",
+      "type": "object"
+    },
+    "OfferHere": {
+      "additionalProperties": true,
+      "description": "An offer that stands: the station, who it is offered to, and how long it stands.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/Receiver"
+        },
+        "expires_in": {
+          "description": "Sekunder kvar av minuten (FR8).",
+          "minimum": 0,
+          "title": "Expires In",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "place",
+        "to",
+        "expires_in"
+      ],
+      "title": "OfferHere",
+      "type": "object"
+    },
+    "Overview": {
+      "additionalProperties": true,
+      "description": "GET /api/station/1/overview?places=a,b: the remote picture's data, for the places the\nclient runs, controls, is offered or is approved for, and their neighbours.",
+      "properties": {
+        "protocol": {
+          "const": "trainmeet.station/1",
+          "default": "trainmeet.station/1",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "#/$defs/MeetContext"
+        },
+        "clock": {
+          "$ref": "#/$defs/Clock"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/OverviewPlace"
+          },
+          "title": "Places",
+          "type": "array"
+        }
+      },
+      "required": [
+        "context",
+        "clock"
+      ],
+      "title": "Overview",
+      "type": "object"
+    },
+    "OverviewDrawing": {
+      "additionalProperties": true,
+      "description": "The outside's overview (FR31, FR48, TKL88): a simple drawing, in a grid read from left to\nright, of the tracks, switches and main signals that are controlled centrally. Every signal\nand switch sits on a horizontal line, as in the remote picture. Tracks no catalogue route\nreaches are left out, and there are no switch numbers, dwarf signals or addresses. Each\ncatalogue route names the pieces and links it lays, in order, so that a locked route can be\ndrawn and the switches' lie seen. Studio makes it from the drawing.",
+      "properties": {
+        "columns": {
+          "description": "Rutnätets bredd i kolumner.",
+          "maximum": 400,
+          "minimum": 1,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "description": "Rutnätets höjd i rader.",
+          "maximum": 40,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/OverviewTrack"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/OverviewLink"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/OverviewSignal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/OverviewExit"
+          },
+          "title": "Exits",
+          "type": "array"
+        },
+        "routes": {
+          "description": "Katalogvägens id → bitarna och strecken den lägger, i ordning.",
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$": {
+              "items": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "title": "Routes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "OverviewDrawing",
+      "type": "object"
+    },
+    "OverviewExit": {
+      "additionalProperties": true,
+      "description": "Where a line end leaves the drawing.",
+      "properties": {
+        "exit": {
+          "description": "Utfartens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "row": {
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exit",
+        "row",
+        "column"
+      ],
+      "title": "OverviewExit",
+      "type": "object"
+    },
+    "OverviewLink": {
+      "additionalProperties": true,
+      "description": "A switch as a line between two rows (växeln som streck, FR31, FR36): from a point on one\nrow to a point on another. No number, no address.",
+      "properties": {
+        "id": {
+          "description": "Streckets id i översikten. Aldrig växelns nummer.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from_row": {
+          "minimum": 0,
+          "title": "From Row",
+          "type": "integer"
+        },
+        "from_column": {
+          "minimum": 0,
+          "title": "From Column",
+          "type": "integer"
+        },
+        "to_row": {
+          "minimum": 0,
+          "title": "To Row",
+          "type": "integer"
+        },
+        "to_column": {
+          "minimum": 0,
+          "title": "To Column",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "from_row",
+        "from_column",
+        "to_row",
+        "to_column"
+      ],
+      "title": "OverviewLink",
+      "type": "object"
+    },
+    "OverviewPlace": {
+      "additionalProperties": true,
+      "description": "One place in the remote picture. No names of people, as Nu (B13).",
+      "properties": {
+        "place": {
+          "$ref": "#/$defs/Neighbour"
+        },
+        "mode": {
+          "$ref": "#/$defs/PlaceMode"
+        },
+        "controllable": {
+          "default": false,
+          "title": "Controllable",
+          "type": "boolean"
+        },
+        "controller": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receiver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "level": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationens nivå i TKL.",
+          "title": "Level"
+        },
+        "heard": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sekunder sedan stationen hördes av, för pricken.",
+          "title": "Heard"
+        },
+        "outside": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StationOutside"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Utsidan träffen kör med, med fjärrkatalogen och översikten."
+        },
+        "route_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RouteState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "routes": {
+          "items": {
+            "$ref": "#/$defs/RemoteRouteHere"
+          },
+          "title": "Routes",
+          "type": "array"
+        },
+        "trains": {
+          "items": {
+            "$ref": "#/$defs/TrainOnTrack"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/SectionOverview"
+          },
+          "title": "Sections",
+          "type": "array"
+        }
+      },
+      "required": [
+        "place",
+        "mode"
+      ],
+      "title": "OverviewPlace",
+      "type": "object"
+    },
+    "OverviewSignal": {
+      "additionalProperties": true,
+      "description": "A main signal with its number, where it stands and which way it faces. The catalogue's\nroutes start and end at them (FR31). Dwarf signals are never in the overview (FR36).",
+      "properties": {
+        "name": {
+          "description": "Signalens nummer, som i tågvägarna.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "row": {
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "column": {
+          "minimum": 0,
+          "title": "Column",
+          "type": "integer"
+        },
+        "towards": {
+          "$ref": "#/$defs/Side",
+          "description": "Åt vilket håll signalen visar."
+        }
+      },
+      "required": [
+        "name",
+        "row",
+        "column",
+        "towards"
+      ],
+      "title": "OverviewSignal",
+      "type": "object"
+    },
+    "OverviewTrack": {
+      "additionalProperties": true,
+      "description": "A horizontal piece of track in the overview, on one row of the grid.",
+      "properties": {
+        "id": {
+          "description": "Bitens id i översikten. Inte ett nummer eller en adress.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "row": {
+          "description": "Raden, uppifrån och från 0.",
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "start": {
+          "description": "Kolumnen där biten börjar, från vänster och från 0.",
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "description": "Kolumnen där biten slutar, till höger om start.",
+          "minimum": 1,
+          "title": "End",
+          "type": "integer"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stationsspåret biten är, med spårets id i utsidan.",
+          "title": "Track"
+        },
+        "platform": {
+          "default": false,
+          "description": "Biten har plattform.",
+          "title": "Platform",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "row",
+        "start",
+        "end"
+      ],
+      "title": "OverviewTrack",
+      "type": "object"
+    },
+    "PartRequest": {
+      "additionalProperties": true,
+      "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+      "properties": {
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "part": {
+          "description": "Delens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Part",
+          "type": "string"
+        },
+        "text": {
+          "description": "Vad delen begär, som stationen skriver det.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "part",
+        "text"
+      ],
+      "title": "PartRequest",
+      "type": "object"
+    },
+    "PlaceMode": {
+      "description": "Driftformen (FR5, TKL48): one per place during the meet. A station is manned or\nremote-controlled, never both (FR6).",
+      "enum": [
+        "manned",
+        "offered",
+        "remote",
+        "no_contact",
+        "automatic"
+      ],
+      "title": "PlaceMode",
+      "type": "string"
+    },
+    "ReadyToSend": {
+      "additionalProperties": true,
+      "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+      "properties": {
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Part"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        }
+      },
+      "required": [
+        "train_number"
+      ],
+      "title": "ReadyToSend",
+      "type": "object"
+    },
+    "Reason": {
+      "enum": [
+        "unsupported_protocol",
+        "unknown_action",
+        "not_approved",
+        "wrong_place",
+        "stale_meet_context",
+        "stale_revision",
+        "no_active_meet",
+        "train_number_required",
+        "unknown_train_number",
+        "ambiguous_train_number",
+        "unknown_call",
+        "unknown_track",
+        "track_occupied",
+        "unknown_section",
+        "channel_occupied",
+        "call_already_requested",
+        "clearance_not_pending",
+        "unknown_clearance",
+        "not_sender",
+        "not_receiver",
+        "train_already_departed",
+        "departure_not_reserved",
+        "invalid_departure",
+        "invalid_arrival",
+        "train_not_departed",
+        "unknown_line_message",
+        "already_acknowledged",
+        "not_level_3",
+        "station_automatic",
+        "automatic_station_manned",
+        "automation_off",
+        "client_not_present",
+        "no_jump_to_undo",
+        "other_game_day",
+        "day_still_running",
+        "unknown_place",
+        "unknown_train",
+        "no_route",
+        "invalid_time",
+        "train_number_taken",
+        "unknown_change",
+        "section_closed",
+        "unknown_version",
+        "same_version",
+        "no_switch_waiting",
+        "drift_locked",
+        "not_locked",
+        "not_leader",
+        "already_leader",
+        "unknown_service",
+        "service_taken",
+        "one_service",
+        "no_service",
+        "unknown_driver",
+        "not_in_service",
+        "unknown_paper",
+        "paper_decided",
+        "paper_no_places",
+        "paper_few_places",
+        "paper_no_times",
+        "paper_no_number",
+        "not_controller",
+        "not_in_catalog",
+        "route_already_requested",
+        "route_not_pending",
+        "offer_not_pending",
+        "offer_pending",
+        "station_not_answering",
+        "place_remote",
+        "no_catalog",
+        "not_station",
+        "unknown_receiver",
+        "no_contact",
+        "conflicting_route",
+        "switch_not_in_control",
+        "area_released"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "Receiver": {
+      "additionalProperties": true,
+      "description": "Someone a station can be handed to, or who controls it (FR3, TKL47).",
+      "properties": {
+        "client_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Client Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClientKind"
+        },
+        "name": {
+          "description": "Driftplatsen grannens TKL kör, eller fjärrställverkets namn i Klienter.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Grannens driftplats, när det är en granne som tar emot.",
+          "title": "Place"
+        }
+      },
+      "required": [
+        "client_id",
+        "kind",
+        "name"
+      ],
+      "title": "Receiver",
+      "type": "object"
+    },
+    "ReceiverKind": {
+      "description": "Who may receive the station when it is handed over (FR3, TKL46, TKL47).",
+      "enum": [
+        "neighbours",
+        "remote"
+      ],
+      "title": "ReceiverKind",
+      "type": "string"
+    },
+    "RemoteRoute": {
+      "additionalProperties": true,
+      "description": "A route in the remote catalogue (fjärrkatalog, TKL46, FR10): one of the station's own\ntrain routes that may be requested from afar. Shunting routes never are. The catalogue only\nsays what may be asked for; the station's interlocking tries each request as if it had been\nlaid on the spot (FR12).",
+      "properties": {
+        "id": {
+          "description": "Tågvägens fasta id i stationen, till exempel 21-33.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "description": "Start som i stationens egen tabell: en signal, ett spår eller A1.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "description": "Mål som i stationens egen tabell.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "exit": {
+          "description": "Linjeänden: utfartens id i utsidan.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Exit",
+          "type": "string"
+        },
+        "track": {
+          "description": "Stationsspåret.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Track",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/RouteDirection",
+          "description": "in från linjen till spåret, out från spåret mot linjen."
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "exit",
+        "track",
+        "direction"
+      ],
+      "title": "RemoteRoute",
+      "type": "object"
+    },
+    "RemoteRouteHere": {
+      "additionalProperties": true,
+      "description": "A route asked for from afar, and how it stands.",
+      "properties": {
+        "request_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "route": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Route",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        },
+        "state": {
+          "$ref": "#/$defs/RemoteRouteState"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Skälet till ett nej."
+        },
+        "by": {
+          "description": "Klienten som begärde.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "By",
+          "type": "string"
+        },
+        "asked_at": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "Asked At",
+          "type": "string"
+        },
+        "answer_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sekunder kvar för stationen att svara (FR14).",
+          "title": "Answer In"
+        }
+      },
+      "required": [
+        "request_id",
+        "route",
+        "state",
+        "by",
+        "asked_at"
+      ],
+      "title": "RemoteRouteHere",
+      "type": "object"
+    },
+    "RemoteRouteState": {
+      "enum": [
+        "requested",
+        "locked",
+        "refused",
+        "cancelled",
+        "released"
+      ],
+      "title": "RemoteRouteState",
+      "type": "string"
+    },
+    "RouteBy": {
+      "description": "Who laid a route, or switched an automat (FR33, FR37).",
+      "enum": [
+        "remote",
+        "station",
+        "automat"
+      ],
+      "title": "RouteBy",
+      "type": "string"
+    },
+    "RouteDirection": {
+      "enum": [
+        "in",
+        "out"
+      ],
+      "title": "RouteDirection",
+      "type": "string"
+    },
+    "RouteState": {
+      "additionalProperties": true,
+      "description": "route.state: the station at the overview level, whole each time it changes (FR13). The\ncatalogue routes it holds locked and who locked them, those the station or an automat laid\ntoo; the automats that are on; the local areas; and at level 3 the occupied tracks. The parts'\nrequests and the ready list travel here when a station with parts is remote-controlled\n(DRIFT-40).",
+      "properties": {
+        "locked": {
+          "items": {
+            "$ref": "#/$defs/LockedRoute"
+          },
+          "title": "Locked",
+          "type": "array"
+        },
+        "automats": {
+          "items": {
+            "$ref": "#/$defs/AutomatOn"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "local_areas": {
+          "items": {
+            "$ref": "#/$defs/LocalArea"
+          },
+          "title": "Local Areas",
+          "type": "array"
+        },
+        "occupied": {
+          "description": "Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Occupied",
+          "type": "array"
+        },
+        "part_requests": {
+          "description": "Delarnas begäran, när stationen fjärrstyrs (FR50).",
+          "items": {
+            "$ref": "#/$defs/PartRequest"
+          },
+          "title": "Part Requests",
+          "type": "array"
+        },
+        "ready_to_send": {
+          "description": "Tåg som är klara att skicka, i avgångstidens ordning (FR51).",
+          "items": {
+            "$ref": "#/$defs/ReadyToSend"
+          },
+          "title": "Ready To Send",
+          "type": "array"
+        }
+      },
+      "title": "RouteState",
+      "type": "object"
+    },
+    "SectionOverview": {
+      "additionalProperties": true,
+      "description": "A section from the place: which way a train goes on it and whether it is occupied.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "other_place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Other Place",
+          "type": "string"
+        },
+        "exit": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit"
+        },
+        "occupied": {
+          "default": false,
+          "title": "Occupied",
+          "type": "boolean"
+        },
+        "detected": {
+          "default": false,
+          "title": "Detected",
+          "type": "boolean"
+        },
+        "towards": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Driftplatsen tåget på sträckan går mot.",
+          "title": "Towards"
+        },
+        "train_number": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Number"
+        }
+      },
+      "required": [
+        "section",
+        "other_place"
+      ],
+      "title": "SectionOverview",
+      "type": "object"
+    },
+    "Side": {
+      "description": "Which side of a place a section or exit leaves from, as the box shows it.",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StationOutside": {
+      "additionalProperties": true,
+      "description": "The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).",
+      "properties": {
+        "format": {
+          "const": "trainmeet.station-outside/1",
+          "default": "trainmeet.station-outside/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "station_id": {
+          "description": "Stationens id, skapat i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/StationTrack"
+          },
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/Exit"
+          },
+          "minItems": 1,
+          "title": "Exits",
+          "type": "array"
+        },
+        "sides": {
+          "items": {
+            "$ref": "#/$defs/BoxSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "parts": {
+          "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+          "items": {
+            "$ref": "#/$defs/StationPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "remote_routes": {
+          "description": "Fjärrkatalogen: de av stationens tågvägar som får begäras från fjärr (TKL46, FR10). Tomt: stationen kan inte fjärrstyras, som på nivå 0 (FR16).",
+          "items": {
+            "$ref": "#/$defs/RemoteRoute"
+          },
+          "title": "Remote Routes",
+          "type": "array"
+        },
+        "automats": {
+          "description": "Stationsautomaterna med sina koder (FR24, FR39).",
+          "items": {
+            "$ref": "#/$defs/Automat"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "overview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverviewDrawing"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "En enkel ritning av det som styrs centralt, för fjärrbilden (FR31, FR48)."
+        },
+        "remote_receivers": {
+          "description": "Vilket slag som får ta emot stationen: grannar, fjärrställverk eller båda. Tomt: båda. Vilka grannarna är avgörs per träff (H26).",
+          "items": {
+            "$ref": "#/$defs/ReceiverKind"
+          },
+          "title": "Remote Receivers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "tracks",
+        "exits"
+      ],
+      "title": "StationOutside",
+      "type": "object"
+    },
+    "StationPart": {
+      "additionalProperties": true,
+      "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+      "properties": {
+        "id": {
+          "description": "Delens fasta id i stationen, satt i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Delens namn, som driftplatsen får i planen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "StationPart",
+      "type": "object"
+    },
+    "StationTrack": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Spårets korta namn i stationen, till exempel 1a. Fast id.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Det som står på skärmen, till exempel Spår 1a.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "StationTrack",
+      "type": "object"
+    },
+    "TrainOnTrack": {
+      "additionalProperties": true,
+      "description": "A train number on a station track: red where the train is, green for the one expected\n(FR35).",
+      "properties": {
+        "track": {
+          "description": "Spårets namn i planen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Track",
+          "type": "string"
+        },
+        "train_number": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Train Number",
+          "type": "string"
+        },
+        "call": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Call",
+          "type": "string"
+        },
+        "expected": {
+          "description": "Väntat tåg, inte här än.",
+          "title": "Expected",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "track",
+        "train_number",
+        "call",
+        "expected"
+      ],
+      "title": "TrainOnTrack",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Fjärrbildens data (FR31–FR38): Hubben's overview of the places TKL controls, is offered,\nis approved for, and their neighbours, with what this TKL controls and is offered now\n(FR8). When the hub cannot be reached, the last good one is kept and marked stale.",
+  "properties": {
+    "overview": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Overview"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "client_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "TKL:s klient i Hubben: tågvägarna den begärt och stationerna den styr.",
+      "title": "Client Id"
+    },
+    "controls": {
+      "description": "Driftplatserna TKL fjärrstyr nu.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Controls",
+      "type": "array"
+    },
+    "offers": {
+      "description": "Stationer som erbjuds TKL och väntar på svar.",
+      "items": {
+        "$ref": "#/$defs/OfferHere"
+      },
+      "title": "Offers",
+      "type": "array"
+    },
+    "stale": {
+      "default": false,
+      "title": "Stale",
+      "type": "boolean"
+    },
+    "heard": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heard"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "type": "object"
+}

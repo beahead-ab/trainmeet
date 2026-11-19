@@ -63,3 +63,26 @@ docker run -d --name tkl -p 8090:8090 -e TKL_MODE=local -v tkl-data:/data \
 ```
 
 På macOS och Windows når Docker inte USB på det här sättet; där körs TKL från källkoden.
+
+## Fjärrstyrning
+
+TKL kan startas som **Fjärrställverk (ingen egen station)** för rollen fjärrtågklarerare (FR1). Vid första start väljer man det bredvid stationens ställverk och skriver ett namn, planens fjärrområde eller driftplatserna i ordning längs linjen, och en PIN. Under Inställningar ansluter fjärrställverket till hubben; där kan man också välja bland planens fjärrområden. Trafikledningen godkänner det i Klienter för varje driftplats, och det ger bara rätt att ta emot (FR4).
+
+Sidorna är **Fjärrbild** och **Tåg och klarering**. Fjärrbilden ritar fjärrområdet och grannarna i skalet 95, bara det stationerna rapporterar (FR13, FR31–FR38, FR47, FR48). En station som erbjuds står under *Väntar på dig* med Ta emot och Avböj. En tågväg väljs med ett tryck på startsignalen och ett på målet; den blinkar tills *Lägg tågvägen* skickar den, och stationens ställverk låser den eller säger nej med skäl. *Ta bort* tar bort en väg man lagt. Under Tåg och klarering klarerar man för hela stationen, en flik per station (FR17).
+
+Fjärrbild på en skärm och Tåg och klarering på en annan, som skärm 1 och 3 i specen: öppna TKL med `?skarm=3` på den andra skärmen och välj Tåg och klarering. Skärm 2, stationens egen bild i detalj, finns bara i stationens TKL: insidan lämnar aldrig stationen. Varje skärm minns sitt val, *Allt på en skärm* eller *Bara fjärrbilden*.
+
+En stations egen TKL får fliken **Fjärr** med samma sidor när den styr en granne eller en granne erbjuds den (FR3).
+
+### Webbläsarprovet
+
+`apps/tkl/e2e/fjarr.mjs` provar fjärrstyrningen mot en hubb med Provbanan och TKL som fjärrställverk: erbjudande, Ta emot, en tågväg som låses och blir grön, en väg som krockar och nekas med skäl utan att bilden ändras, Ta bort, Tåg och klarering, och att stationen tas tillbaka.
+
+```
+PROV_HUBB=http://127.0.0.1:8080 PROV_TKL_FJARR=http://127.0.0.1:8093 PROV_TKL_GRANNE=http://127.0.0.1:8094 \
+  CHROME_PATH=/usr/bin/google-chrome node apps/tkl/e2e/fjarr.mjs
+```
+
+Med `PROV_TKL_GRANNE`, en andra nystartad TKL, provas också grannen: Norrbys egen TKL får fliken Fjärr när Åsen erbjuds den, tar emot och lägger en tågväg med samma fjärrbild (FR3).
+
+Station A (Åsen i Provbanan) är tills vidare ett låtsat ställverk i provet, `stationA` i skriptet: en klient på stationsprotokollet som TKL på nivå 2, med en fjärrkatalog och en översikt i Gårdsjös form, som svarar på `route.request` som stationen ska. När Studio tar fram fjärrkatalogen och översikten och ställverket svarar på begärda vägar (#36 del b) byts det mot en andra TKL med Gårdsjö som stationsmodell, som erbjuder och tar tillbaka stationen i sitt eget Ställverk.

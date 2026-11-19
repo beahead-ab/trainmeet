@@ -86,6 +86,12 @@ class HubClient:
         answer = self._call("POST", STATION + "/commands", command.model_dump(mode="json"))
         return station.Reply.model_validate(answer)
 
+    def overview(self, places: list[str] | None = None) -> station.Overview:
+        """Fjärrbildens data (#36): the places asked for; none gives every place the client
+        runs, controls, is offered or is approved for, and their neighbours."""
+        query = f"?places={','.join(places)}" if places else ""
+        return station.Overview.model_validate(self._call("GET", f"{STATION}/overview{query}"))
+
     def exit(self, place: str, answer: station.ExitAnswer) -> station.Snapshot:
         given = self._call(
             "POST", f"{STATION}/places/{place}/exits", answer.model_dump(mode="json")

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.remote-connect.schema.json",
+  "title": "trainmeet.tkl-1.remote-connect",
+  "additionalProperties": true,
+  "description": "Anslut som fjärrställverk (FR4): the hub, the code over the internet, and the remote area,\nthe plan's or driftplatser written by hand. Trafikledningen approves it per driftplats.",
+  "properties": {
+    "address": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "maxLength": 20,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "area": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area"
+    },
+    "places": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "maxItems": 40,
+      "title": "Places",
+      "type": "array"
+    }
+  },
+  "required": [
+    "address"
+  ],
+  "type": "object"
+}

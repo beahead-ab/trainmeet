@@ -305,6 +305,30 @@ jobs:
           npm ci --no-audit --no-fund
           node apps/tkl/e2e/stallverk.mjs
 
+      # Fjärrstyrning (#36 del c): TKL ur bilden som fjärrställverk och en TKL som granne, mot
+      # samma hubb med Provbanan. Stationen Åsen är ett låtsat ställverk i provet tills TKL:s egen
+      # sida finns (apps/tkl/e2e/fjarr.mjs).
+      - name: Fjärrstyrningen i webbläsaren (#36)
+        timeout-minutes: 4
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_HUBB: http://127.0.0.1:8080
+          PROV_HUBB_I_TKL: http://host.docker.internal:8080
+          PROV_TKL_FJARR: http://127.0.0.1:8093
+          PROV_TKL_GRANNE: http://127.0.0.1:8094
+          PROV_BILDER: ${{ runner.temp }}/tkl/fjarr
+        run: |
+          docker run -d --name tkl-fjarr -p 127.0.0.1:8093:8090 -e TKL_MODE=local \
+            --add-host=host.docker.internal:host-gateway trainmeet-tkl:prov
+          docker run -d --name tkl-granne -p 127.0.0.1:8094:8090 -e TKL_MODE=local \
+            --add-host=host.docker.internal:host-gateway trainmeet-tkl:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8093/healthz >/dev/null 2>&1 \
+              && curl -fsS http://127.0.0.1:8094/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          node apps/tkl/e2e/fjarr.mjs
+
       # Rita (#85): en station ritas från ingenting i Chrome mot TKL ur bilden, tas i bruk och får
       # tågvägen A1 → 1Ö i Ställverket (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
       - name: Rita i webbläsaren (#85)
@@ -335,6 +359,8 @@ jobs:
           docker logs tkl || true
           docker logs tkl-lokal || true
           docker logs tkl-rita || true
+          docker logs tkl-fjarr || true
+          docker logs tkl-granne || true
           cat "$RUNNER_TEMP/hubb.log" || true
 
       # Hubben körs genom uv och håller uv:s cache låst. Den stängs av före jobbets egen städning,
