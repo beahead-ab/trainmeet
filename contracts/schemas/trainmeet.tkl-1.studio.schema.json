@@ -153,6 +153,14 @@
           },
           "title": "Sides",
           "type": "array"
+        },
+        "parts": {
+          "description": "Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.",
+          "items": {
+            "$ref": "#/$defs/StationPart"
+          },
+          "title": "Parts",
+          "type": "array"
         }
       },
       "required": [
@@ -162,6 +170,46 @@
         "exits"
       ],
       "title": "StationOutside",
+      "type": "object"
+    },
+    "StationPart": {
+      "additionalProperties": true,
+      "description": "A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).",
+      "properties": {
+        "id": {
+          "description": "Delens fasta id i stationen, satt i TKL Studio.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Delens namn, som driftplatsen får i planen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.",
+          "title": "Code"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "StationPart",
       "type": "object"
     },
     "StationTrack": {

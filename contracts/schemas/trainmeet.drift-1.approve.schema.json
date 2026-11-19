@@ -3,6 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.drift-1.approve.schema.json",
   "title": "trainmeet.drift-1.approve",
   "additionalProperties": true,
+  "description": "Trafikledningen godkänner en TKL eller appen för driftplatser (H31). Godkännandet gäller\nper driftplats (TRAFIK-35): en klient som redan är godkänd behåller sin nyckel och får\ndriftplatserna till de den har. Annars ger godkännandet en ny nyckel.",
   "properties": {
     "client_id": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",

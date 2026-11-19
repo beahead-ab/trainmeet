@@ -26,6 +26,7 @@ from contracts.meet import (
     Meet,
     MeetPackage,
     Place,
+    PlaceKind,
     Section,
     TrackKind,
     Train,
@@ -419,6 +420,13 @@ class Planning:
                 pool = {s.outside.station_id for s in draft.stations}
                 if isinstance(change, StationChange) and change.station not in {None, *pool}:
                     raise PlanningError("Stationen finns inte bland underlagen.")
+                if isinstance(change, StationChange) and any(
+                    p.id == change.place and p.part_of for p in draft.package.places
+                ):
+                    raise PlanningError(
+                        "Driftplatsen är en del av en station och följer stationens koppling. "
+                        "Koppla stationen till sin egen driftplats."
+                    )
                 kept = [c for c in kept if _target(c) != (kind, target)] + [change]
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
             draft = _replay(draft.model_copy(update={"changes": kept}), answers)
@@ -790,17 +798,36 @@ def _lay_taken(draft: Draft) -> Draft:
 
 
 def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
-    """The planner's changes and answers on top of what the sources gave."""
+    """The planner's changes and answers on top of what the sources gave. The stations are
+    coupled anew each time, their parts first (PLAN-34), so that a change to a part's place
+    counts as one to any other place."""
     package = draft.package
     if package is None:
         return draft
-    facts = {fact.ref: fact for fact in draft.facts}
+    # What earlier couplings made is undone here and made again from the changes below.
+    made = {p.id for p in package.places if PART_SOURCE in p.source_ids}
+    facts = {
+        fact.ref: fact
+        for fact in draft.facts
+        if not any(fact.ref == f"place:{i}" or fact.ref.startswith(f"place:{i}.") for i in made)
+    }
     planner = [Origin(source=PLANNER, at="Planering")]
-    places: dict[Id, Place] = {p.id: p for p in package.places}
+    places: dict[Id, Place] = {
+        p.id: p.model_copy(update={"part_of": None, "station": None}) if p.part_of else p
+        for p in package.places
+        if p.id not in made
+    }
     sections: dict[Id, Section] = {s.id: s for s in package.sections}
     trains: dict[Id, Train] = {t.id: t for t in package.trains}
     owner = {c.id: t.id for t in package.trains for c in t.calls}
-    coupled: dict[Id, Id | None] = {}
+    coupled: dict[Id, Id | None] = {
+        change.place: change.station
+        for change in draft.changes
+        if isinstance(change, StationChange) and change.place in places
+    }
+    pool = {s.outside.station_id: s for s in draft.stations}
+    places, part_questions, part_facts = _parts(places, coupled, pool, answers)
+    facts.update({fact.ref: fact for fact in part_facts})
     about = dict(package.about)
     attachments = list(package.attachments)
     for change in draft.changes:
@@ -851,8 +878,7 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                 update={"tracks": change.tracks}
             )
             ref = f"section:{change.section}.tracks"
-        elif isinstance(change, StationChange) and change.place in places:
-            coupled[change.place] = change.station
+        elif isinstance(change, StationChange) and change.place in coupled:
             ref = f"place:{change.place}.station"
         elif isinstance(change, SectionChange) and change.section in sections:
             sections[change.section] = sections[change.section].model_copy(
@@ -865,29 +891,28 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     questions = [
         q.model_copy(update={"answer": answers.get(q.id)})
         for q in draft.questions
-        if q.cause != STATION_TRACK
-    ]
-    pool = {s.outside.station_id: s for s in draft.stations}
-    for place_id, station_id in coupled.items():
-        place = places[place_id]
-        entry = pool.get(station_id) if station_id else None
-        if entry is None:
-            places[place_id] = place.model_copy(update={"station": None})
+        if q.cause not in (STATION_TRACK, STATION_PART)
+    ] + part_questions
+    for place_id, place in list(places.items()):
+        if place_id in coupled:
+            entry = pool.get(coupled[place_id] or "")
+            if entry is None:
+                places[place_id] = place.model_copy(update={"station": None})
+                continue
+            link = CoupledStation(
+                station_id=entry.outside.station_id, version=entry.version, outside=entry.outside
+            )
+        elif place.part_of is not None and place.station is not None:
+            link = place.station
+        else:
             continue
         named = [t.name for t in place.tracks] or sorted(
             {c.track for t in trains.values() for c in t.calls if c.place == place_id and c.track}
         )
-        track_map, asked = _station_tracks(place, named, entry.outside, answers)
+        track_map, asked = _station_tracks(place, named, link.outside, answers)
         questions += asked
         places[place_id] = place.model_copy(
-            update={
-                "station": CoupledStation(
-                    station_id=entry.outside.station_id,
-                    version=entry.version,
-                    outside=entry.outside,
-                    track_map=track_map,
-                )
-            }
+            update={"station": link.model_copy(update={"track_map": track_map})}
         )
     rules = []
     for rule in draft.rulebook.train_types:
@@ -924,6 +949,117 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
 
 
 STATION_TRACK: Final = "station_track"
+STATION_PART: Final = "station_part"
+NEW_PART: Final = "new"
+"""The answer that a place of the plan is not the part: the part gets a place of its own."""
+PART_SOURCE: Final = "station_part"
+"""source_ids key of a place made from a station's part: the part's id."""
+
+
+def _parts(
+    places: dict[Id, Place],
+    coupled: Mapping[Id, Id | None],
+    pool: Mapping[Id, StationVersion],
+    answers: Mapping[str, str],
+) -> tuple[dict[Id, Place], list[Question], list[Fact]]:
+    """The parts of the coupled stations that are their own driftplatser (PLAN-34, TKL101).
+    A place of the plan with the part's id or name is linked to the station as the part, and
+    the planner is asked to confirm it, as with the tracks; a No gives the part a place of its
+    own. A part the plan does not have becomes a manned place right after the station's,
+    linked to the same station. A place coupled to a station itself is never a part."""
+    asked: list[Question] = []
+    facts: list[Fact] = []
+    taken = {place for place, station in coupled.items() if station}
+    for home_id, station_id in coupled.items():
+        entry = pool.get(station_id or "")
+        if entry is None:
+            continue
+        outside, home, after = entry.outside, places[home_id], home_id
+        for part in outside.parts:
+            link = CoupledStation(
+                station_id=outside.station_id, version=entry.version, outside=outside, part=part.id
+            )
+            found = _part_in_plan(places, part.id, part.name, taken)
+            question_id = _question_id(f"station-part:{home_id}:", part.id)
+            answer = answers.get(question_id)
+            if found is not None:
+                asked.append(
+                    Question(
+                        id=question_id,
+                        cause=STATION_PART,
+                        message=f"Är driftplatsen {found.name} i planen delen {part.name} av "
+                        f"stationen {outside.name} i {home.name}?",
+                        refs=[f"place:{found.id}", f"place:{home_id}"],
+                        alternatives=[
+                            Alternative(value=found.id, label=f"Ja, {found.name} är delen"),
+                            Alternative(value=NEW_PART, label=f"Nej, en ny driftplats {part.name}"),
+                        ],
+                        answer=answer if answer in (found.id, NEW_PART) else None,
+                    )
+                )
+                if answer != NEW_PART:
+                    taken.add(found.id)
+                    places[found.id] = found.model_copy(
+                        update={"part_of": home_id, "station": link}
+                    )
+                    continue
+            new = Place(
+                id=_free_id(part.id, places),
+                code=part.code or part.name,
+                name=part.name,
+                kind=PlaceKind.MANNED,
+                part_of=home_id,
+                station=link,
+                source_ids={PART_SOURCE: part.id},
+            )
+            taken.add(new.id)
+            places = _after(places, after, new)
+            after = new.id
+            facts.append(
+                Fact(
+                    ref=f"place:{new.id}",
+                    certainty=Certainty.SURE,
+                    origins=[Origin(source=entry.source, at=f"Delen {part.id}")],
+                    note=f"En del av stationen {outside.name} som bemannas för sig.",
+                )
+            )
+    return places, asked, facts
+
+
+def _part_in_plan(
+    places: Mapping[Id, Place], part_id: str, name: str, taken: set[Id]
+) -> Place | None:
+    """The place of the plan that is the part: the same id, else the same name. A halt has no
+    clearance and no TKL, so it is never a part."""
+    free = [p for p in places.values() if p.id not in taken and p.kind != PlaceKind.HALT]
+    by_id = [p for p in free if p.id == part_id]
+    by_name = [p for p in free if p.name.casefold() == name.casefold()]
+    found = by_id or by_name
+    return found[0] if len(found) == 1 else None
+
+
+def _free_id(wanted: str, places: Mapping[Id, Place]) -> str:
+    """The part's id as the place's, or with a number after it when the plan has the id."""
+    found, number = wanted, 1
+    while found in places:
+        number += 1
+        found = f"{wanted[: 80 - len(str(number)) - 1]}-{number}"
+    return found
+
+
+def _after(places: dict[Id, Place], after: Id, place: Place) -> dict[Id, Place]:
+    """The places in order, with the new one right after the given one (PLAN-34)."""
+    ordered: dict[Id, Place] = {}
+    for key, value in places.items():
+        ordered[key] = value
+        if key == after:
+            ordered[place.id] = place
+    return ordered
+
+
+def _question_id(prefix: str, name: str) -> str:
+    """A question's id: the prefix and the name with only an id's characters, within 80."""
+    return (prefix + re.sub(r"[^A-Za-z0-9]+", "-", name)[:40])[:80]
 
 
 def _station_tracks(
@@ -944,13 +1080,13 @@ def _station_tracks(
         if len(match) == 1:
             found[name] = match[0]
             continue
-        question_id = f"station-track:{place.id}:" + re.sub(r"[^A-Za-z0-9]+", "-", name)[:40]
+        question_id = _question_id(f"station-track:{place.id}:", name)
         answer = answers.get(question_id)
         if answer in ids:
             found[name] = answer
         asked.append(
             Question(
-                id=question_id[:80],
+                id=question_id,
                 cause=STATION_TRACK,
                 message=f"Vilket spår i stationen {outside.name} är planens spår {name} i "
                 f"{place.name}?",

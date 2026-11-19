@@ -413,6 +413,10 @@ input.cell { width: 8em; }
 .plats .namn { font: 600 13px Inter, sans-serif; fill: var(--tm-text); }
 .plats .namn.under { font-weight: 500; fill: #3d3d3a; }
 .plats .not { font: 12px Inter, sans-serif; fill: var(--tm-mute); }
+/* A part of a station that is its own driftplats (PLAN-34): dotted to its station. */
+.delar .del { stroke: #6b7280; stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; }
+.plats.del .ruta { stroke-dasharray: 2 3; }
+.del-av { color: var(--tm-mute); }
 .plats:focus { outline: none; }
 .plats:focus-visible .ruta, .plats:focus-visible .ring { stroke: var(--tm-blue); }
 .bana-yta .vald { border-left: 0; padding: 0 22px 20px; }

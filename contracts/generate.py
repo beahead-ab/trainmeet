@@ -148,6 +148,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.drift-1.switch": drift.SwitchVersion,
     "trainmeet.drift-1.switch-preview": drift.SwitchPreview,
     "trainmeet.drift-1.approve": drift.Approve,
+    "trainmeet.drift-1.refuse": drift.Refuse,
     "trainmeet.drift-1.revoke": drift.Revoke,
     "trainmeet.drift-1.assign": drift.Assign,
     "trainmeet.drift-1.couple-exit": drift.CoupleExit,
@@ -634,7 +635,7 @@ def openapi() -> str:
         many=True,
     )
     route("get", "/api/drift/1/clients", "driftClients", d + "client", bearer=True, many=True)
-    for action in ("approve", "revoke", "assign"):
+    for action in ("approve", "refuse", "revoke", "assign"):
         route(
             "post",
             f"/api/drift/1/clients/{action}",
@@ -781,7 +782,7 @@ def openapi() -> str:
     route("post", pv + "/clock", "previewClock", d + "preview", d + "clock")
     route("post", pv + "/command", "previewCommand", d + "preview", s + "command")
     route("get", pv + "/clients", "previewClients", d + "preview-clients")
-    for action in ("approve", "revoke", "assign"):
+    for action in ("approve", "refuse", "revoke", "assign"):
         route(
             "post",
             f"{pv}/clients/{action}",

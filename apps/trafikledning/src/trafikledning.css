@@ -83,6 +83,9 @@ h3 {
   font-size: 13px;
   margin: 4px 0 0;
 }
+.liten.block {
+  display: block;
+}
 .ingress {
   color: var(--tm-mute);
   margin: 6px 0 16px;
@@ -296,6 +299,22 @@ input.tal {
 }
 .utfartsfraga p {
   margin: 0 0 6px;
+}
+/* Godkännande per driftplats (TRAFIK-35): the station and each part, a row each, under the
+   client's row and over its whole width. */
+.lista li .driftplatser {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+  border-top: 1px dashed var(--tm-line);
+}
+.lista li .driftplatser li {
+  margin-bottom: 6px;
+  padding: 6px 10px;
+}
+.lista li .driftplatser li:last-child {
+  margin-bottom: 0;
 }
 .mellan {
   justify-content: space-between;

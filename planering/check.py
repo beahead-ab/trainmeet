@@ -11,7 +11,12 @@ runs on into Monday morning.
 - B, conflict: two trains on the same track of a place at once; a passage takes a minute.
 - C, observation: trains that follow closely on the same section.
 - D, observation: what cannot be checked: a call without a time, or trains between two places
-  that clear with no section between them (Drift cannot clear that part of the way).
+  that clear with no section between them (Drift cannot clear that part of the way). A part of
+  a station and the station itself are the exception: the way between them is the station's own
+  interlocking, never a clearance (TKL97, PLAN-34).
+- A part of a station that is its own driftplats, with no train leaving it in the plan
+  (observation): its trains may stand on the station in the source. Hubben says so and moves
+  nothing; there is no rule for which of the station's trains are the part's.
 - Questions without an answer, and facts that are unsure (observation).
 
 A single-track section with at least two A conflicts gives the double-track question; a No
@@ -78,6 +83,7 @@ def review(draft: Draft) -> Review:
         *_track_conflicts(package),
         *_without_section(package),
         *_unused(package),
+        *_parts_without_trains(package),
     ]
     unanswered = [q for q in draft.questions if q.answer is None]
     unsure = [f for f in draft.facts if f.certainty == Certainty.UNSURE]
@@ -148,6 +154,8 @@ def _links(package: MeetPackage) -> dict[str, set[str]]:
         )
     ]
     hops += [(a.place, b.place) for train in package.trains for a, b in pairwise(train.calls)]
+    # A part of a station lies at the station, whether or not a train runs between them.
+    hops += [(p.id, p.part_of) for p in package.places if p.part_of is not None]
     for a, b in hops:
         linked[a].add(b)
         linked[b].add(a)
@@ -188,6 +196,34 @@ def _unused(package: MeetPackage) -> list[Finding]:
             ),
             refs=[p.id for p in loose],
         )
+    ]
+
+
+def _parts_without_trains(package: MeetPackage) -> list[Finding]:
+    """A part of a station that is its own driftplats, and no train leaves it in the plan
+    (PLAN-34, TKL108). The source may have its trains on the station: said, never guessed."""
+    names = {place.id: place.name for place in package.places}
+    leaving = {
+        call.place
+        for train in package.trains
+        for index, call in enumerate(train.calls)
+        if index < len(train.calls) - 1
+    }
+    return [
+        Finding(
+            id=_id("part-without-trains", place.id),
+            severity=Severity.OBSERVATION,
+            code="part_without_trains",
+            message=(
+                f"Inget tåg avgår från {place.name} i planen. {place.name} är en del av "
+                f"{names.get(place.part_of, place.part_of)} och egen driftplats. Står delens tåg "
+                f"på {names.get(place.part_of, place.part_of)} i underlaget, flytta dem dit i "
+                "planeringsprogrammet; Hubben flyttar inga tåg själv."
+            ),
+            refs=[place.id, place.part_of],
+        )
+        for place in package.places
+        if place.part_of is not None and place.id not in leaving
     ]
 
 
@@ -482,6 +518,8 @@ def _without_section(package: MeetPackage) -> list[Finding]:
     names = {place.id: place.name for place in package.places}
     stops = {place.id for place in package.places if place.kind != PlaceKind.HALT}
     sections = {frozenset((s.place_a, s.place_b)) for s in package.sections}
+    # Between a part and its station the station's own interlocking moves the train (TKL97).
+    sections |= {frozenset((p.id, p.part_of)) for p in package.places if p.part_of is not None}
     missing: dict[tuple[str, str], list[Train]] = defaultdict(list)
     for train in package.trains:
         route = [call.place for call in train.calls if call.place in stops]

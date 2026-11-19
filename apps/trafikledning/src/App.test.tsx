@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { Client, HubInfo, Now, Version } from "./api";
+import type { Automation, Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
 import { heaps, Klockan, Molnet, Natet, newSeed, SettingsPage, TellurianDispatch, Uppdatering } from "./Installningar";
@@ -468,5 +468,33 @@ describe("Logga in igen på träffens Pi utan internet (KONTO-11, KONTO-37)", ()
     expect(html).toContain('id="id-again" type="button" class="tm-knapp primar">Logga in igen som Provare Ett<');
     expect(html).toContain("biljetten från TrainMeet ID gäller i 30 dagar");
     expect(html).toContain('id="id-login" class="tm-knapp"');
+  });
+});
+
+describe("Nu: en del av en station som egen driftplats (TRAFIK-35, PLAN-34)", () => {
+  const lekby = {
+    ...now,
+    places: [
+      { place: "lokstall", code: "Lls", name: "Lekby lokstall", part_of: "p4" },
+      { place: "p5", code: "Gdö", name: "Gårdsjö", part_of: null },
+      { place: "p4", code: "Lek", name: "Lekby", part_of: null },
+    ],
+  } as unknown as Now;
+  const automation = {
+    settings: { enabled: true, lost_contact_minutes: 0, disturbance: "off", where: "both", seed: "", stabling: true, stabling_minutes: 5, late_stop_minutes: 2, answer_seconds: 3 },
+    places: [
+      { place: "lokstall", name: "Lekby lokstall", code: "Lls", mode: "manned", operator: "tkl-lekby", present: ["tkl-lekby"] },
+      { place: "p5", name: "Gårdsjö", code: "Gdö", mode: "automatic", present: [] },
+      { place: "p4", name: "Lekby", code: "Lek", mode: "manned", operator: "tkl-lekby", present: ["tkl-lekby"] },
+    ],
+    trains: [],
+  } as unknown as Automation;
+
+  it("shows the part as its own row, right after its station and marked with it", () => {
+    const html = renderToStaticMarkup(<NuPage admin now={lekby} clients={[]} choices={meetChoices([])} asked={null} automation={automation} />);
+    const rows = html.slice(html.indexOf('id="auto-places"'));
+    expect(rows).toContain('<tr class="del"><td>Lekby lokstall (Lls)<span class="liten block">del av Lekby</span></td>');
+    expect(rows.indexOf("Gårdsjö (Gdö)")).toBeLessThan(rows.indexOf("Lekby (Lek)"));
+    expect(rows.indexOf("Lekby (Lek)")).toBeLessThan(rows.indexOf("Lekby lokstall (Lls)"));
   });
 });

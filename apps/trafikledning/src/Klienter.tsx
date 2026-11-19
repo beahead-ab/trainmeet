@@ -1,15 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { hub, type Client, type LetIn, type Now, type OneTimeCode } from "./api";
-import { CLIENT_GROUPS, LANGUAGES, SIDES, VIEWS, clientDetails, type ClientGroup } from "./drift";
+import { CLIENT_GROUPS, LANGUAGES, SIDES, VIEWS, clientDetails, waits, wantedRows, type ClientGroup } from "./drift";
 import { Chip, Chips, LoginFirst, Select } from "./ui";
 
 // Klienter (S3, TRAFIK-04): boxes, TKL and screens, with the new ones under Väntar. Godkänn a
 // TKL for a place, give a box its place, side and language, give a screen its view, and take
-// a key back (H31). Only for the administrator.
+// a key back (H31). A TKL that wants several driftplatser, a station and its parts, has a row
+// per driftplats, each approved or refused on its own (TRAFIK-35). Only for the administrator.
 
 export type ClientAction =
   | { action: "assign"; client_id: string; places: string[]; side: Client["side"]; language: string }
   | { action: "approve"; client_id: string; places: string[] }
+  | { action: "refuse"; client_id: string; places: string[] }
   | { action: "revoke"; client_id: string }
   | { action: "view"; client_id: string; view: string }
   | { action: "exit"; client_id: string; section: string; exit: string };
@@ -204,6 +206,37 @@ export function SlappIn({ initial, onMessage }: { initial?: LetIn[]; onMessage?:
   );
 }
 
+/** Godkännande per driftplats (TRAFIK-35): the station's place and each part's, a row each. A
+ * refused part does not stop the station. */
+export function WantedPlaces({ client, now, onChange }: { client: Client; now: Now | null; onChange?: (change: ClientAction) => void }) {
+  const rows = wantedRows(client, now);
+  if (!rows.length) return null;
+  return (
+    <ul className="driftplatser" aria-label={`Driftplatser för ${client.name}`}>
+      {rows.map((row) => (
+        <li key={row.place} className={row.status === "waiting" ? "vantar" : undefined}>
+          <span className="vem">
+            <b>{row.name}</b>
+            <span className="liten">{[row.part, row.said].filter(Boolean).join(" · ")}</span>
+          </span>
+          <span className="kontroller">
+            {row.approve && (
+              <button type="button" aria-label={`Godkänn ${row.name}`} onClick={() => row.approve && onChange?.(row.approve)}>
+                Godkänn
+              </button>
+            )}
+            {row.refuse && (
+              <button type="button" className="fara" aria-label={`Neka ${row.name}`} onClick={() => row.refuse && onChange?.(row.refuse)}>
+                Neka
+              </button>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ClientRow({ client, now, onChange }: { client: Client; now: Now | null; onChange?: (change: ClientAction) => void }) {
   const places: [string, string][] = (now?.places ?? []).map((place) => [place.place, place.name]);
   const at = client.places ?? [];
@@ -239,6 +272,9 @@ function ClientRow({ client, now, onChange }: { client: Client; now: Now | null;
         Återkalla
       </button>
     );
+  } else if ((client.wanted ?? []).some((row) => row.status === "waiting")) {
+    // The places it wants are answered a row each, below.
+    controls = null;
   } else {
     controls = (
       <>
@@ -250,12 +286,13 @@ function ClientRow({ client, now, onChange }: { client: Client; now: Now | null;
     );
   }
   return (
-    <li className={client.status === "waiting" ? "vantar" : undefined}>
+    <li className={waits(client) ? "vantar" : undefined}>
       <div className="vem">
         <b>{client.name}</b>
         <span className="liten">{clientDetails(client, now)}</span>
       </div>
       <div className="kontroller">{controls}</div>
+      <WantedPlaces client={client} now={now} onChange={onChange} />
       <ExitQuestions client={client} onAnswer={(section, exit) => onChange?.({ action: "exit", client_id: id, section, exit })} />
     </li>
   );

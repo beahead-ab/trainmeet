@@ -83,6 +83,11 @@ CREATE TABLE IF NOT EXISTS station_client (
     key_hash TEXT UNIQUE,
     key_once TEXT
 );
+CREATE TABLE IF NOT EXISTS station_refused (
+    client_id TEXT NOT NULL REFERENCES station_client(client_id) ON DELETE CASCADE,
+    place TEXT NOT NULL,
+    PRIMARY KEY (client_id, place)
+);
 CREATE TABLE IF NOT EXISTS station_push (
     client_id TEXT PRIMARY KEY REFERENCES station_client(client_id) ON DELETE CASCADE,
     token TEXT NOT NULL
@@ -204,6 +209,15 @@ class DriverRecord:
     photo_type: str | None
     photo_version: int
     joined: datetime
+
+
+def _waits(client: dict[str, Any]) -> bool:
+    """A client under Väntar: waiting itself, or with a place it wants still waiting
+    (TRAFIK-35)."""
+    status = station.ApprovalStatus.WAITING.value
+    return bool(
+        client["status"] == status or any(w["status"] == status for w in client.get("wanted", []))
+    )
 
 
 def _key_hash(key: str) -> str:
@@ -809,7 +823,7 @@ class PreviewStore:
             }
             for box in boxes
         ]
-        return sorted(listed + others, key=lambda item: item["status"] != "waiting")
+        return sorted(listed + others, key=lambda item: not _waits(item))
 
     def assign(self, run_id: str, assignment: events.Assign) -> list[dict[str, Any]]:
         with self._transaction() as db:
@@ -853,8 +867,7 @@ class PreviewStore:
                 raise RunLimit()
             client_id = f"{request.kind.value}-{token_hex(6)}"
             stored = request.model_copy(update={"code": None})
-            if not stored.wants:
-                stored = stored.model_copy(update={"wants": self._place_of(stored)})
+            stored = stored.model_copy(update={"wants": self._wants(stored)})
             db.execute(
                 "INSERT INTO station_client VALUES (?, ?, ?, ?, ?, '[]', NULL, NULL)",
                 (
@@ -889,28 +902,88 @@ class PreviewStore:
         )
 
     def approve(self, run_id: str, approval: events.Approve) -> list[dict[str, Any]]:
-        """The dispatcher approves a client for places. A new key replaces any old one."""
+        """The dispatcher approves a client for places, each on its own (TRAFIK-35). A client
+        that is approved keeps its key and gets the places added to those it has, so a part
+        approved after the station needs no new key. Otherwise a new key replaces any old one."""
         with self._transaction() as db:
             drift = self._load(db, run_id, now_utc())
             stops = {p.id for p in drift.package.places if p.kind != PlaceKind.HALT}
             if not set(approval.places) <= stops:
                 raise Refused(Reason.WRONG_PLACE)
-            key = token_urlsafe(32)
-            changed = db.execute(
-                "UPDATE station_client SET status=?, places=?, key_hash=?, key_once=? "
+            row = db.execute(
+                "SELECT status, places, key_hash FROM station_client "
                 "WHERE client_id=? AND run_id=?",
-                (
-                    station.ApprovalStatus.APPROVED.value,
-                    json.dumps(approval.places),
-                    _key_hash(key),
-                    key,
-                    approval.client_id,
-                    run_id,
-                ),
-            ).rowcount
-            if not changed:
+                (approval.client_id, run_id),
+            ).fetchone()
+            if row is None:
                 raise UnknownClient()
+            if row[0] == station.ApprovalStatus.APPROVED.value and row[2] is not None:
+                places = list(dict.fromkeys([*json.loads(row[1]), *approval.places]))
+                db.execute(
+                    "UPDATE station_client SET places=? WHERE client_id=?",
+                    (json.dumps(places), approval.client_id),
+                )
+            else:
+                key = token_urlsafe(32)
+                db.execute(
+                    "UPDATE station_client SET status=?, places=?, key_hash=?, key_once=? "
+                    "WHERE client_id=?",
+                    (
+                        station.ApprovalStatus.APPROVED.value,
+                        json.dumps(list(dict.fromkeys(approval.places))),
+                        _key_hash(key),
+                        key,
+                        approval.client_id,
+                    ),
+                )
+            db.executemany(
+                "DELETE FROM station_refused WHERE client_id=? AND place=?",
+                ((approval.client_id, place) for place in approval.places),
+            )
         return self.clients(run_id)
+
+    def refuse(self, run_id: str, refusal: events.Refuse) -> list[dict[str, Any]]:
+        """The dispatcher says no to places a client wants, each on its own (TRAFIK-35). A
+        refused part does not stop the station: the client keeps the places it has. One that
+        has none left loses its key, and waits for the rest or is refused."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT status, places, request FROM station_client WHERE client_id=? AND run_id=?",
+                (refusal.client_id, run_id),
+            ).fetchone()
+            if row is None:
+                raise UnknownClient()
+            db.executemany(
+                "INSERT OR IGNORE INTO station_refused VALUES (?, ?)",
+                ((refusal.client_id, place) for place in refusal.places),
+            )
+            kept = [place for place in json.loads(row[1]) if place not in refusal.places]
+            db.execute(
+                "UPDATE station_client SET places=? WHERE client_id=?",
+                (json.dumps(kept), refusal.client_id),
+            )
+            if not kept and row[0] != station.ApprovalStatus.REVOKED.value:
+                refused = self._refused_places(db, refusal.client_id)
+                asked = station.ConnectRequest.model_validate_json(row[2])
+                waiting = [place for place in asked.wants if place not in refused]
+                status = (
+                    station.ApprovalStatus.WAITING if waiting else station.ApprovalStatus.REFUSED
+                )
+                db.execute(
+                    "UPDATE station_client SET status=?, key_hash=NULL, key_once=NULL "
+                    "WHERE client_id=?",
+                    (status.value, refusal.client_id),
+                )
+        return self.clients(run_id)
+
+    @staticmethod
+    def _refused_places(db: sqlite3.Connection, client_id: str) -> set[str]:
+        return {
+            str(place)
+            for (place,) in db.execute(
+                "SELECT place FROM station_refused WHERE client_id=?", (client_id,)
+            )
+        }
 
     def revoke(self, run_id: str, revocation: events.Revoke) -> list[dict[str, Any]]:
         """The key stops working at once; the client has to be approved again."""
@@ -951,25 +1024,98 @@ class PreviewStore:
                     "side": "both",
                     "station_id": outside.station_id if outside else asked.station_id,
                     "questions": questions,
+                    "wanted": self._wanted(
+                        asked, approved, self._refused_places(db, client_id), str(status)
+                    ),
                 }
             )
         return listed
 
+    def _wanted(
+        self, request: station.ConnectRequest, approved: list[str], refused: set[str], status: str
+    ) -> list[dict[str, Any]]:
+        """Each place the client wants or has, with the dispatcher's answer for it, and the
+        station's place for a part (TRAFIK-35)."""
+        home, parts = self._station_places(request)
+        part_of: dict[str, tuple[str | None, str | None]] = {
+            p.id: (p.station.part if p.station else None, p.part_of)
+            for p in self.package.places
+            if p.part_of is not None
+        }
+        part_of.update(
+            {place: (part, part_of.get(place, (None, home))[1]) for place, part in parts}
+        )
+        revoked = status == station.ApprovalStatus.REVOKED.value
+        rows = []
+        for place in dict.fromkeys([*request.wants, *approved]):
+            said = (
+                station.ApprovalStatus.REVOKED
+                if revoked and place in approved
+                else station.ApprovalStatus.APPROVED
+                if place in approved
+                else station.ApprovalStatus.REFUSED
+                if place in refused
+                else station.ApprovalStatus.WAITING
+            )
+            part, whole = part_of.get(place, (None, None))
+            rows.append({"place": place, "status": said.value, "part": part, "part_of": whole})
+        return rows
+
     # --- Stationens utfarter (H26, PLAN-31, TRAFIK-05) -----------------------------------
 
-    def _place_of(self, request: station.ConnectRequest) -> list[str]:
-        """The place a TKL most likely wants, so that Klienter suggests it: the one the station
-        is coupled to in advance, or the one with the station's name (H25)."""
+    def _wants(self, request: station.ConnectRequest) -> list[str]:
+        """The places a client asks for, so that Klienter suggests them: those it named, else
+        the station's own place (H25); and one place per part of the station that is its own
+        driftplats (TRAFIK-35)."""
+        home, parts = self._station_places(request)
+        asked = list(request.wants) or ([home] if home else [])
+        return list(dict.fromkeys([*asked, *(place for place, _ in parts)]))
+
+    def _station_places(
+        self, request: station.ConnectRequest
+    ) -> tuple[str | None, list[tuple[str, str]]]:
+        """The station's place and its parts' places with the part's id (PLAN-34, TRAFIK-35):
+        coupled in advance in the version, else the place with the station's name, and a part's
+        place by the part's id or name. The parts are those the TKL's outside lists, the ones
+        its owner staffs on their own (TKL101); a client without an outside goes by the
+        version's."""
         stops = [p for p in self.package.places if p.kind != PlaceKind.HALT]
         station_id = request.outside.station_id if request.outside else request.station_id
-        coupled = [p.id for p in stops if p.station and p.station.station_id == station_id]
-        if coupled:
-            return coupled[:1]
+        coupled = [p for p in stops if p.station is not None and p.station.station_id == station_id]
+        home = next((p.id for p in coupled if p.part_of is None), None)
+        if home is None and request.outside is not None:
+            name = request.outside.name.casefold()
+            home = next(
+                (
+                    p.id
+                    for p in stops
+                    if p.part_of is None and name in (p.name.casefold(), p.code.casefold())
+                ),
+                None,
+            )
+        linked = {
+            p.station.part: p.id
+            for p in coupled
+            if p.part_of is not None and p.station is not None and p.station.part is not None
+        }
         if request.outside is None:
-            return []
-        name = request.outside.name.casefold()
-        named = [p.id for p in stops if name in (p.name.casefold(), p.code.casefold())]
-        return named[:1]
+            return home, [(place, part) for part, place in linked.items()]
+        parts: list[tuple[str, str]] = []
+        taken = {home}
+        for part in request.outside.parts:
+            name = part.name.casefold()
+            place = linked.get(part.id) or next(
+                (
+                    p.id
+                    for p in stops
+                    if p.id not in taken and (p.id == part.id or p.name.casefold() == name)
+                ),
+                None,
+            )
+            if place is not None and place not in taken:
+                parts.append((place, part.id))
+                taken.add(place)
+        return home, parts
 
     def _outside(self, request: station.ConnectRequest, place: str | None) -> StationOutside | None:
         """The station's outside at the place: pinned in the version when the planner coupled

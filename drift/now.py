@@ -32,7 +32,7 @@ def now(drift: Drift, at: datetime) -> contract.Now:
             game_day=drift.game_day,
         ),
         places=[
-            contract.NowPlace(place=p.id, code=p.code, name=p.name)
+            contract.NowPlace(place=p.id, code=p.code, name=p.name, part_of=p.part_of)
             for p in drift.package.places
             if p.kind != PlaceKind.HALT
         ],

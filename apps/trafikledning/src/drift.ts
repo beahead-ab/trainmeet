@@ -104,6 +104,43 @@ export const WHERE: Record<string, string> = { both: "Station och linje", statio
 
 export const placeName = (now: Now | null, id: string) => now?.places.find((place) => place.place === id)?.name ?? id;
 export const placeCode = (now: Now | null, id: string) => now?.places.find((place) => place.place === id)?.code ?? id;
+/** The station's place when the place is a part of it that is its own driftplats (PLAN-34). */
+export const stationOf = (now: Now | null, id: string) => now?.places.find((place) => place.place === id)?.part_of ?? null;
+/** A part's mark: del av and its station's name. */
+export const partText = (now: Now | null, station: string | null | undefined) => (station ? `del av ${placeName(now, station)}` : null);
+
+/** The rows in order with each part right after its station (TRAFIK-35). */
+export function byStation<Row>(rows: Row[], id: (row: Row) => string, partOf: (row: Row) => string | null | undefined): Row[] {
+  const known = new Set(rows.map(id));
+  const isPart = (row: Row) => {
+    const station = partOf(row);
+    return Boolean(station && station !== id(row) && known.has(station));
+  };
+  return rows.filter((row) => !isPart(row)).flatMap((row) => [row, ...rows.filter((part) => isPart(part) && partOf(part) === id(row))]);
+}
+
+export type Wanted = NonNullable<Client["wanted"]>[number];
+/** What each driftplats a TKL wants says in Klienter: Väntar, Godkänd, Nekad or Återkallad. */
+export const WANTED: Record<string, string> = { waiting: "Väntar", approved: "Godkänd", refused: "Nekad", revoked: "Återkallad" };
+
+/** Godkännande per driftplats (TRAFIK-35): each place the client wants is its own row, a part
+ * after its station and marked with it. Waiting, it may be approved or refused; refused, it may
+ * be approved after all. Each answer is for that place alone. */
+export function wantedRows(client: Client, now: Now | null) {
+  const wanted = byStation(client.wanted ?? [], (row) => row.place, (row) => row.part_of);
+  return wanted.map((row: Wanted) => ({
+    place: row.place,
+    name: placeName(now, row.place),
+    status: row.status,
+    said: WANTED[row.status] ?? row.status,
+    part: partText(now, row.part_of),
+    approve: row.status === "waiting" || row.status === "refused" ? { action: "approve" as const, client_id: client.client_id, places: [row.place] } : null,
+    refuse: row.status === "waiting" ? { action: "refuse" as const, client_id: client.client_id, places: [row.place] } : null,
+  }));
+}
+
+/** A client under Väntar: waiting itself, or with a driftplats it wants still waiting. */
+export const waits = (client: Client) => client.status === "waiting" || (client.wanted ?? []).some((row) => row.status === "waiting");
 
 /** What a client row says about the client, after its name. */
 export function clientDetails(client: Client, now: Now | null): string {
@@ -119,7 +156,7 @@ export function clientDetails(client: Client, now: Now | null): string {
 export type ClientGroup = "all" | "waiting" | "boxes" | "stations" | "screens";
 export const CLIENT_GROUPS: [ClientGroup, string, (client: Client) => boolean][] = [
   ["all", "Alla", () => true],
-  ["waiting", "Väntar", (client) => client.status === "waiting"],
+  ["waiting", "Väntar", waits],
   ["boxes", "Boxar", (client) => client.kind.startsWith("tmbox")],
   ["stations", "TKL", (client) => client.kind === "tkl"],
   ["screens", "Skärmar", (client) => client.kind === "screen"],

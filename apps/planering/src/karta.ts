@@ -105,6 +105,16 @@ export function layout(pkg: Package): Layout {
       queue.push(...chain);
     }
   }
+  // A part of a station that no link reaches stands right by its station (PLAN-34): under it,
+  // else above, else beside.
+  for (const place of pkg.places) {
+    const home = place.part_of ? at.get(place.part_of) : undefined;
+    if (at.has(place.id) || !home) continue;
+    const [column, row] = home;
+    const spots: [number, number][] = [1, -1, 2, -2].flatMap((step): [number, number][] => [[column, row + step], [column + step, row + Math.sign(step)], [column - step, row + Math.sign(step)]]);
+    const spot = spots.find(([c, r]) => !taken.has(`${c},${r}`));
+    if (spot) claim(place.id, spot[0], spot[1]);
+  }
   // Places no link reaches stand in a row of their own under the rest.
   const bottom = Math.max(0, ...[...at.values()].map(([, r]) => r)) + 1;
   let spare = 0;

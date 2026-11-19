@@ -26,6 +26,7 @@ export type SwitchVersion = Schemas["trainmeet.drift-1.switch"];
 export type SwitchPreview = Schemas["trainmeet.drift-1.switch-preview"];
 export type Assign = Schemas["trainmeet.drift-1.assign"];
 export type Approve = Schemas["trainmeet.drift-1.approve"];
+export type Refuse = Schemas["trainmeet.drift-1.refuse"];
 export type Revoke = Schemas["trainmeet.drift-1.revoke"];
 export type CoupleExit = Schemas["trainmeet.drift-1.couple-exit"];
 export type ShowView = Schemas["trainmeet.screen-1.show"];
@@ -69,6 +70,8 @@ export const api = {
   takeOver: (confirm: string) => call<DriftEvent>(`${DRIFT}/takeover`, { confirm }),
   assign: (change: Assign) => call<Client>(`${DRIFT}/clients/assign`, change),
   approve: (change: Approve) => call<Client>(`${DRIFT}/clients/approve`, change),
+  /** Neka a driftplats, each on its own (TRAFIK-35). */
+  refuse: (change: Refuse) => call<Client>(`${DRIFT}/clients/refuse`, change),
   revoke: (change: Revoke) => call<Client>(`${DRIFT}/clients/revoke`, change),
   coupleExit: (change: CoupleExit) => call<Client>(`${DRIFT}/clients/exit`, change),
   view: (change: ShowView) => call<Client>(`${DRIFT}/clients/view`, change),
@@ -117,6 +120,7 @@ export const provbanan = {
   clients: () => call<PreviewClients>(`${PROV}/clients`),
   assign: (change: Assign) => call<PreviewClients>(`${PROV}/clients/assign`, change),
   approve: (change: Approve) => call<PreviewClients>(`${PROV}/clients/approve`, change),
+  refuse: (change: Refuse) => call<PreviewClients>(`${PROV}/clients/refuse`, change),
   revoke: (change: Revoke) => call<PreviewClients>(`${PROV}/clients/revoke`, change),
   coupleExit: (change: CoupleExit) => call<PreviewClients>(`${PROV}/clients/exit`, change),
 };
