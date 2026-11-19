@@ -1641,6 +1641,15 @@ wheels = [
 ]
 
 [[package]]
+name = "streamdeck"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/c2/f6ffbad24afae8a19692edf68011cad105832f7b8a460be051fec9455c20/streamdeck-0.10.0.tar.gz", hash = "sha256:fafea91a4ae8e710e0e5f5878d3c923e740d87e4316af825ff7a2ca92948e6a4", size = 2427704, upload-time = "2026-08-30T03:05:46.803Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/9b/47794f27a0c49f79587af38799a449ede21c18524d1c6922b0161f6d775f/streamdeck-0.10.0-py3-none-any.whl", hash = "sha256:c1b9acee34c186eeb3a954cf873bbaac4b1ffda26dac12d9f7c475d89f70ef0c", size = 39856, upload-time = "2026-08-30T03:05:40.603Z" },
+]
+
+[[package]]
 name = "trainmeet"
 version = "0.1.0"
 source = { editable = "." }
@@ -1683,7 +1692,9 @@ push = [
 ]
 tkl = [
     { name = "httpx" },
+    { name = "pillow" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "streamdeck" },
     { name = "zeroconf" },
 ]
 
@@ -1727,7 +1738,9 @@ push = [
 ]
 tkl = [
     { name = "httpx", specifier = ">=0.27" },
+    { name = "pillow", specifier = ">=11" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
+    { name = "streamdeck", specifier = ">=0.10" },
     { name = "zeroconf", specifier = ">=0.136" },
 ]
 

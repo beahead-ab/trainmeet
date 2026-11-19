@@ -508,6 +508,13 @@
           "default": false,
           "title": "Chosen",
           "type": "boolean"
+        },
+        "state": {
+          "default": "",
+          "description": "Spårplanens läge i biten, i korthet: ändras när ett spår, en signal eller ett tågnummer i den ändras, så att bilden ritas om (#86 del b).",
+          "maxLength": 40,
+          "title": "State",
+          "type": "string"
         }
       },
       "required": [
@@ -640,6 +647,13 @@
       ],
       "default": null,
       "title": "Accepted"
+    },
+    "said": {
+      "default": "",
+      "description": "Ställverkets nej i tre sekunder, för pekremsan på + och + XL (SD18).",
+      "maxLength": 60,
+      "title": "Said",
+      "type": "string"
     }
   },
   "required": [

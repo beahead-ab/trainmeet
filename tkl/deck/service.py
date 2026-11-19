@@ -3,9 +3,11 @@ number (SD35), the start shared at a workplace (SD36), and TKL's runtime data fo
 how often each route is set, the routes pinned on Favoriter and Dagens vägar (SD23, SD24,
 SD48, SD49).
 
-The deck on the screen and, in del b, a real deck over USB are the same here: a deck is opened
+The deck on the screen and a real deck, over USB or WebHID, are the same here: a deck is opened
 by its serial number with its model, or its grid when TKL does not know the model (SD53), and
-then read, pressed, held, turned and touched through the logic (tkl.deck.logic).
+then read, pressed, held, turned and touched through the logic (tkl.deck.logic). The room also
+knows how each deck is connected now (SD50), and keeps the last view of each deck for a moment,
+so that its pictures are drawn from it without reading the interlocking again (#86 del b).
 
 Only routes are counted, never people (SD24). Dagens vägar are made again when the meet's
 package changes version (SD23).
@@ -14,11 +16,14 @@ package changes version (SD23).
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Final
 
 from contracts import station
 from contracts.tkl import (
+    DeckConnection,
     DeckModelId,
     Panel,
     RouteKind,
@@ -28,10 +33,12 @@ from contracts.tkl import (
     TklDeckProfile,
     TklDeckRoute,
     TklDeckSettings,
+    TklDeckView,
 )
 from tkl.deck import logic
 from tkl.deck.models import model_of, size_of
 from tkl.deck.places import Geography
+from tkl.deck.render import Picture
 from tkl.deck.trains import Daily, daily
 from tkl.stallverk import Plant
 from tkl.standard import RouteKind as EngineKind
@@ -41,6 +48,20 @@ COUNTS: Final = "counts"
 PINNED: Final = "pinned"
 DAILY: Final = "daily"
 SEP: Final = "\N{UNIT SEPARATOR}"
+SEEN: Final = 90.0
+"""A deck in a browser, WebHID or on the screen, counts as connected this long after it was last
+heard; it waits for changes at most 25 seconds at a time. A deck over USB is connected until
+the driver says it is gone."""
+KEPT: Final = 2.0
+"""The last view of a deck is used for its pictures at most this long, in seconds."""
+
+
+@dataclass(frozen=True)
+class Shown:
+    """A deck's view, and the panel behind Spårplan's keys when it shows any."""
+
+    view: TklDeckView
+    picture: Picture | None = None
 
 
 def settings_for(known: TklDeckSettings | None, serial: str, given: TklDeckOpen) -> TklDeckSettings:
@@ -70,6 +91,8 @@ class Room:
         self.selections: dict[tuple[str, str], logic.Selection] = {}
         self.signatures: dict[tuple[str, str], tuple[object, ...]] = {}
         self.panels: dict[str, Panel | None] = {}
+        self.links: dict[tuple[str, str], tuple[DeckConnection, float]] = {}
+        self.kept: dict[tuple[str, str], tuple[int, float, Shown]] = {}
 
     def panel(self, plant: Plant, make: Callable[[], Panel | None]) -> Panel | None:
         with self.lock:
@@ -109,6 +132,51 @@ class Room:
     def forget(self, slot: str, serial: str) -> None:
         with self.lock:
             self.decks.pop((slot, serial), None)
+            self.kept.pop((slot, serial), None)
+
+    # --- how each deck is connected now (SD50) ---------------------------------------------
+
+    def link(self, slot: str, serial: str, connection: DeckConnection) -> None:
+        with self.lock:
+            self.links[(slot, serial)] = (connection, time.monotonic())
+
+    def heard(self, slot: str, serial: str) -> None:
+        """A deck in a browser asked for something: it is still there."""
+        with self.lock:
+            found = self.links.get((slot, serial))
+            if found is not None:
+                self.links[(slot, serial)] = (found[0], time.monotonic())
+
+    def unlink(self, slot: str, serial: str) -> None:
+        with self.lock:
+            self.links.pop((slot, serial), None)
+
+    def connection(self, slot: str, serial: str) -> DeckConnection | None:
+        with self.lock:
+            found = self.links.get((slot, serial))
+        if found is None:
+            return None
+        how, seen = found
+        if how != DeckConnection.USB and time.monotonic() - seen > SEEN:
+            return None
+        return how
+
+    # --- the last view, for the pictures (#86 del b) ---------------------------------------
+
+    def keep(self, slot: str, serial: str, shown: Shown) -> None:
+        with self.lock:
+            found = self.decks.get((slot, serial))
+            revision = found.revision if found is not None else 0
+            lasts = min(KEPT, shown.view.refresh_ms / 1000)
+            self.kept[(slot, serial)] = (revision, time.monotonic() + lasts, shown)
+
+    def kept_view(self, slot: str, serial: str, revision: int) -> Shown | None:
+        """The last view while it is new and nothing has changed since."""
+        with self.lock:
+            found = self.kept.get((slot, serial))
+        if found is None or found[0] != revision or time.monotonic() >= found[1]:
+            return None
+        return found[2]
 
     def revision(self, slot: str, serial: str, signature: tuple[object, ...]) -> int:
         """The deck's revision for waiting: up one whenever what it shows may have changed,

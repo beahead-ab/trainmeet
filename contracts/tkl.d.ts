@@ -996,6 +996,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/decks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDeckClose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/ingen-kontakt.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckNoContactPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/key/{index}.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckKeyPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/strip.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckStripPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/info.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckInfoPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/deck-favoriter": {
         parameters: {
             query?: never;
@@ -2557,6 +2653,12 @@ export interface components {
             unlocked: boolean;
             /** @default null */
             station: components["schemas"]["trainmeet.tkl-1.state.TklStation"] | null;
+            /**
+             * Locked
+             * @description Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje deck visar bara klockan, och PIN-koden låser upp.
+             * @default false
+             */
+            locked: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -8247,6 +8349,12 @@ export interface components {
             grid: components["schemas"]["trainmeet.tkl-1.deck-model.TklDeckGrid"];
             /** @description Storleken vars profil modellen får (SD54). */
             size: components["schemas"]["trainmeet.tkl-1.deck-model.DeckModelId"];
+            /**
+             * Tried
+             * @description Provad med ett riktigt deck (SD58). Tills dess står modellen som Inte provad.
+             * @default false
+             */
+            tried: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -8374,7 +8482,7 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka";
+        "trainmeet.tkl-1.deck-profile.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las";
         /**
          * DeckDial
          * @description What a dial does in a mode (SD83): turn chooses, press does it.
@@ -8648,7 +8756,7 @@ export interface components {
         /**
          * TklDeckOpen
          * @description A deck on this computer, by its serial number: its model, or its grid for a model TKL
-         *     does not know (SD53).
+         *     does not know (SD53), and how it is connected.
          */
         "trainmeet.tkl-1.deck-open": {
             /** @default null */
@@ -8660,9 +8768,18 @@ export interface components {
              * @default null
              */
             workplace: string | null;
+            /** @default skarm */
+            connection: components["schemas"]["trainmeet.tkl-1.deck-open.DeckConnection"];
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DeckConnection
+         * @description How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser
+         *     drives it with WebHID; or it is the deck on the screen (SD59).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-open.DeckConnection": "usb" | "webhid" | "skarm";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -8780,6 +8897,12 @@ export interface components {
              * @default null
              */
             accepted: boolean | null;
+            /**
+             * Said
+             * @description Ställverkets nej i tre sekunder, för pekremsan på + och + XL (SD18).
+             * @default
+             */
+            said: string;
         } & {
             [key: string]: unknown;
         };
@@ -9078,6 +9201,12 @@ export interface components {
              * @default false
              */
             chosen: boolean;
+            /**
+             * State
+             * @description Spårplanens läge i biten, i korthet: ändras när ett spår, en signal eller ett tågnummer i den ändras, så att bilden ritas om (#86 del b).
+             * @default
+             */
+            state: string;
         } & {
             [key: string]: unknown;
         };
@@ -9194,6 +9323,119 @@ export interface components {
             /** End */
             end: string;
             kind: components["schemas"]["trainmeet.tkl-1.deck-favourites.RouteKind"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDecks
+         * @description The decks this TKL knows (SD35), and whether it owns decks over USB itself: a local TKL
+         *     does, so that a deck works without an open tab (SD50); TKL in the cloud never opens USB.
+         */
+        "trainmeet.tkl-1.decks": {
+            /**
+             * Usb
+             * @description TKL sköter deck över USB på den här datorn.
+             */
+            usb: boolean;
+            /**
+             * Usb Problem
+             * @description Varför TKL inte når USB just nu, till exempel utan libhidapi.
+             * @default null
+             */
+            usb_problem: string | null;
+            /** Decks */
+            decks?: components["schemas"]["trainmeet.tkl-1.decks.TklDeckStatus"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DeckConnection
+         * @description How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser
+         *     drives it with WebHID; or it is the deck on the screen (SD59).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.decks.DeckConnection": "usb" | "webhid" | "skarm";
+        /**
+         * DeckModelId
+         * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+         *     profile of the size they have (SD54).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.decks.DeckModelId": "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+        /**
+         * TklDeckGrid
+         * @description What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+         *     the info line, the touch points and the pedals. A model TKL does not know is read this
+         *     way too, and gets the default for its grid.
+         */
+        "trainmeet.tkl-1.decks.TklDeckGrid": {
+            /** Columns */
+            columns: number;
+            /** Rows */
+            rows: number;
+            /**
+             * Dials
+             * @default 0
+             */
+            dials: number;
+            /**
+             * Strip
+             * @description Pekremsan, på + och + XL.
+             * @default false
+             */
+            strip: boolean;
+            /**
+             * Info
+             * @description Inforaden, på Neo.
+             * @default false
+             */
+            info: boolean;
+            /**
+             * Touch
+             * @description Pekpunkterna, på Neo.
+             * @default 0
+             */
+            touch: number;
+            /**
+             * Pedals
+             * @default 0
+             */
+            pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckStatus
+         * @description One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is
+         *     connected now, and whether its model is tried with a real deck (SD35, SD50, SD58).
+         */
+        "trainmeet.tkl-1.decks.TklDeckStatus": {
+            /** Serial */
+            serial: string;
+            /** @default null */
+            model: components["schemas"]["trainmeet.tkl-1.decks.DeckModelId"] | null;
+            /**
+             * Name
+             * @description Modellens namn, eller rutnätet för en okänd modell.
+             */
+            name: string;
+            grid: components["schemas"]["trainmeet.tkl-1.decks.TklDeckGrid"];
+            /**
+             * Workplace
+             * @default 1
+             */
+            workplace: string;
+            /**
+             * @description Ansluten nu: över USB, med WebHID eller på skärmen.
+             * @default null
+             */
+            connection: components["schemas"]["trainmeet.tkl-1.decks.DeckConnection"] | null;
+            /**
+             * Tried
+             * @description Modellen är provad med ett riktigt deck.
+             * @default false
+             */
+            tried: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -10789,6 +11031,174 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-wait"];
                 };
+            };
+        };
+    };
+    tklDecks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.decks"];
+                };
+            };
+        };
+    };
+    tklDeckClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tklDeckNoContactPicture: {
+        parameters: {
+            query?: {
+                size?: number;
+                height?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG, med ETag; samma bild igen är 304. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tklDeckKeyPicture: {
+        parameters: {
+            query?: {
+                size?: number;
+                height?: number;
+                phase?: number;
+            };
+            header?: never;
+            path: {
+                serial: string;
+                index: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG, med ETag; samma bild igen är 304. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tklDeckStripPicture: {
+        parameters: {
+            query?: {
+                width?: number;
+                height?: number;
+            };
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG, med ETag; samma bild igen är 304. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tklDeckInfoPicture: {
+        parameters: {
+            query?: {
+                width?: number;
+                height?: number;
+            };
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG, med ETag; samma bild igen är 304. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

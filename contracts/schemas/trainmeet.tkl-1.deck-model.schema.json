@@ -97,6 +97,12 @@
     "size": {
       "$ref": "#/$defs/DeckModelId",
       "description": "Storleken vars profil modellen får (SD54)."
+    },
+    "tried": {
+      "default": false,
+      "description": "Provad med ett riktigt deck (SD58). Tills dess står modellen som Inte provad.",
+      "title": "Tried",
+      "type": "boolean"
     }
   },
   "required": [

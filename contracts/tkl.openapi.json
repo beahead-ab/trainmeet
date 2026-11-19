@@ -1729,6 +1729,264 @@
         ]
       }
     },
+    "/api/tkl/1/decks": {
+      "get": {
+        "operationId": "tklDecks",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.decks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tkl/1/deck/{serial}/close": {
+      "post": {
+        "operationId": "tklDeckClose",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "parameters": [
+          {
+            "name": "serial",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/tkl/1/deck/ingen-kontakt.png": {
+      "get": {
+        "operationId": "tklDeckNoContactPicture",
+        "responses": {
+          "200": {
+            "description": "PNG, med ETag; samma bild igen är 304.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          }
+        },
+        "parameters": [
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 32,
+              "maximum": 256,
+              "default": 72
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 32,
+              "maximum": 256
+            }
+          }
+        ]
+      }
+    },
+    "/api/tkl/1/deck/{serial}/key/{index}.png": {
+      "get": {
+        "operationId": "tklDeckKeyPicture",
+        "responses": {
+          "200": {
+            "description": "PNG, med ETag; samma bild igen är 304.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          }
+        },
+        "parameters": [
+          {
+            "name": "serial",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 32,
+              "maximum": 256,
+              "default": 72
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 32,
+              "maximum": 256
+            }
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/api/tkl/1/deck/{serial}/strip.png": {
+      "get": {
+        "operationId": "tklDeckStripPicture",
+        "responses": {
+          "200": {
+            "description": "PNG, med ETag; samma bild igen är 304.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          }
+        },
+        "parameters": [
+          {
+            "name": "serial",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 2000,
+              "default": 800
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 400,
+              "default": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/tkl/1/deck/{serial}/info.png": {
+      "get": {
+        "operationId": "tklDeckInfoPicture",
+        "responses": {
+          "200": {
+            "description": "PNG, med ETag; samma bild igen är 304.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          }
+        },
+        "parameters": [
+          {
+            "name": "serial",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 2000,
+              "default": 248
+            }
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 400,
+              "default": 58
+            }
+          }
+        ]
+      }
+    },
     "/api/tkl/1/deck-favoriter": {
       "get": {
         "operationId": "tklDeckFavourites",
@@ -5113,6 +5371,12 @@
               }
             ],
             "default": null
+          },
+          "locked": {
+            "default": false,
+            "description": "Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje deck visar bara klockan, och PIN-koden låser upp.",
+            "title": "Locked",
+            "type": "boolean"
           }
         },
         "required": [
@@ -16768,6 +17032,12 @@
           "size": {
             "$ref": "#/components/schemas/trainmeet.tkl-1.deck-model.DeckModelId",
             "description": "Storleken vars profil modellen får (SD54)."
+          },
+          "tried": {
+            "default": false,
+            "description": "Provad med ett riktigt deck (SD58). Tills dess står modellen som Inte provad.",
+            "title": "Tried",
+            "type": "boolean"
           }
         },
         "required": [
@@ -16998,7 +17268,8 @@
           "ankommit",
           "kor",
           "avbryt",
-          "tillbaka"
+          "tillbaka",
+          "las"
         ],
         "title": "DeckAction",
         "type": "string"
@@ -17578,7 +17849,7 @@
       },
       "trainmeet.tkl-1.deck-open": {
         "additionalProperties": true,
-        "description": "A deck on this computer, by its serial number: its model, or its grid for a model TKL\ndoes not know (SD53).",
+        "description": "A deck on this computer, by its serial number: its model, or its grid for a model TKL\ndoes not know (SD53), and how it is connected.",
         "properties": {
           "model": {
             "anyOf": [
@@ -17615,10 +17886,24 @@
             ],
             "default": null,
             "title": "Workplace"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.deck-open.DeckConnection",
+            "default": "skarm"
           }
         },
         "title": "TklDeckOpen",
         "type": "object"
+      },
+      "trainmeet.tkl-1.deck-open.DeckConnection": {
+        "description": "How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser\ndrives it with WebHID; or it is the deck on the screen (SD59).",
+        "enum": [
+          "usb",
+          "webhid",
+          "skarm"
+        ],
+        "title": "DeckConnection",
+        "type": "string"
       },
       "trainmeet.tkl-1.deck-open.DeckModelId": {
         "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
@@ -17817,6 +18102,13 @@
             ],
             "default": null,
             "title": "Accepted"
+          },
+          "said": {
+            "default": "",
+            "description": "Ställverkets nej i tre sekunder, för pekremsan på + och + XL (SD18).",
+            "maxLength": 60,
+            "title": "Said",
+            "type": "string"
           }
         },
         "required": [
@@ -18332,6 +18624,13 @@
             "default": false,
             "title": "Chosen",
             "type": "boolean"
+          },
+          "state": {
+            "default": "",
+            "description": "Spårplanens läge i biten, i korthet: ändras när ett spår, en signal eller ett tågnummer i den ändras, så att bilden ritas om (#86 del b).",
+            "maxLength": 40,
+            "title": "State",
+            "type": "string"
           }
         },
         "required": [
@@ -18550,6 +18849,195 @@
           "kind"
         ],
         "title": "TklDeckRoute",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.decks": {
+        "additionalProperties": true,
+        "description": "The decks this TKL knows (SD35), and whether it owns decks over USB itself: a local TKL\ndoes, so that a deck works without an open tab (SD50); TKL in the cloud never opens USB.",
+        "properties": {
+          "usb": {
+            "description": "TKL sköter deck över USB på den här datorn.",
+            "title": "Usb",
+            "type": "boolean"
+          },
+          "usb_problem": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte når USB just nu, till exempel utan libhidapi.",
+            "title": "Usb Problem"
+          },
+          "decks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.decks.TklDeckStatus"
+            },
+            "title": "Decks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "usb"
+        ],
+        "title": "TklDecks",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.decks.DeckConnection": {
+        "description": "How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser\ndrives it with WebHID; or it is the deck on the screen (SD59).",
+        "enum": [
+          "usb",
+          "webhid",
+          "skarm"
+        ],
+        "title": "DeckConnection",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.decks.DeckModelId": {
+        "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+        "enum": [
+          "mini",
+          "neo",
+          "15",
+          "xl",
+          "plus",
+          "plus-xl",
+          "pedal",
+          "module-6",
+          "module-15",
+          "module-32",
+          "studio"
+        ],
+        "title": "DeckModelId",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.decks.TklDeckGrid": {
+        "additionalProperties": true,
+        "description": "What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,\nthe info line, the touch points and the pedals. A model TKL does not know is read this\nway too, and gets the default for its grid.",
+        "properties": {
+          "columns": {
+            "maximum": 32,
+            "minimum": 0,
+            "title": "Columns",
+            "type": "integer"
+          },
+          "rows": {
+            "maximum": 8,
+            "minimum": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "dials": {
+            "default": 0,
+            "maximum": 8,
+            "minimum": 0,
+            "title": "Dials",
+            "type": "integer"
+          },
+          "strip": {
+            "default": false,
+            "description": "Pekremsan, på + och + XL.",
+            "title": "Strip",
+            "type": "boolean"
+          },
+          "info": {
+            "default": false,
+            "description": "Inforaden, på Neo.",
+            "title": "Info",
+            "type": "boolean"
+          },
+          "touch": {
+            "default": 0,
+            "description": "Pekpunkterna, på Neo.",
+            "maximum": 4,
+            "minimum": 0,
+            "title": "Touch",
+            "type": "integer"
+          },
+          "pedals": {
+            "default": 0,
+            "maximum": 8,
+            "minimum": 0,
+            "title": "Pedals",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "title": "TklDeckGrid",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.decks.TklDeckStatus": {
+        "additionalProperties": true,
+        "description": "One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is\nconnected now, and whether its model is tried with a real deck (SD35, SD50, SD58).",
+        "properties": {
+          "serial": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Serial",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.decks.DeckModelId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "description": "Modellens namn, eller rutnätet för en okänd modell.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.decks.TklDeckGrid"
+          },
+          "workplace": {
+            "default": "1",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Workplace",
+            "type": "string"
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.decks.DeckConnection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Ansluten nu: över USB, med WebHID eller på skärmen."
+          },
+          "tried": {
+            "default": false,
+            "description": "Modellen är provad med ett riktigt deck.",
+            "title": "Tried",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "serial",
+          "name",
+          "grid"
+        ],
+        "title": "TklDeckStatus",
         "type": "object"
       }
     },

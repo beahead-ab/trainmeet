@@ -3,7 +3,8 @@
 #   docker build -f tkl/Dockerfile -t trainmeet-tkl .
 # On a station's computer TKL runs without a container: `uv run python -m tkl`. The image runs
 # TKL in the cloud (TKL_MODE=cloud), one station per browser, reaching only the hubs in
-# TKL_HUBBAR. Nothing secret goes in the image.
+# TKL_HUBBAR. With TKL_MODE=local and the USB bus given to it, it owns Stream Decks over USB
+# (tkl/README.md). Nothing secret goes in the image.
 
 FROM node:22-slim AS web
 WORKDIR /src
@@ -43,6 +44,10 @@ COPY tkl ./tkl
 RUN uv sync --locked --no-default-groups --group tkl --no-editable
 
 FROM python:3.12-slim
+# libhidapi: a local TKL owns its Stream Decks over USB (#86, SD50); in the cloud it is never used.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libhidapi-libusb0 \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin tkl \
     && mkdir /data && chown tkl:tkl /data
 COPY --from=build /app/.venv /app/.venv

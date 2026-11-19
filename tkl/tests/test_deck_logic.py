@@ -14,18 +14,21 @@ from contracts.common import Side
 from contracts.meet import ClearanceMode, TrackKind
 from contracts.station_model import StationModel
 from contracts.tkl import (
+    DeckAction,
     DeckHold,
+    DeckKeyType,
     DeckMode,
     DeckModelId,
     DeckPageKind,
     DeckPan,
     RouteKind,
     TklDeckFace,
+    TklDeckKey,
     TklDeckRoute,
     TklDeckSettings,
 )
 from tkl import track_plan
-from tkl.deck import logic
+from tkl.deck import logic, look
 from tkl.deck.logic import Deck, Holds, Said, Selection, World
 from tkl.deck.models import model_of
 from tkl.deck.profile import build, geography_of
@@ -82,6 +85,10 @@ class Hands:
     ) -> Said:
         self.commands.append((action, payload))
         return Said(True, "Skickat.")
+
+    def lock(self) -> Said:
+        self.calls.append("lock")
+        return Said(True, "TKL är låst.")
 
 
 @dataclass
@@ -655,3 +662,44 @@ def test_favoriter_are_the_pinned_routes_then_the_most_used() -> None:
     }
     shown = logic.favourites(pinned, counted, lambda r: r.start != "Gone")
     assert [(r.start, r.end) for r in shown] == [("In", "12"), ("In2", "22"), ("Ut2", "Ut")]
+
+
+def test_las_on_the_page_lage_locks_tkl() -> None:
+    """SD30: Lås (Fika) stands on the last free key of the page Läge on every deck, and a
+    press asks TKL to lock itself; the default pages stay as they are."""
+    for model_id in (DeckModelId.MINI, DeckModelId.FIFTEEN, DeckModelId.XL, DeckModelId.PLUS):
+        s = provbanan()
+        s.snapshot = snapshot()
+        deck = s.deck(model_id)
+        assert "Lås TKL" not in [f.label for f in s.faces(deck)], "not on the pages"
+        mini = model_id == DeckModelId.MINI
+        lage = next(
+            i
+            for i, f in enumerate(s.faces(deck))
+            if f.label.startswith("Nästa sida" if mini else "Läge")
+        )
+        s.press(deck, lage, hold=mini)
+        faces = s.faces(deck)
+        at = s.index(deck, "Lås TKL")
+        assert all(f.type != "empty" for f in faces[at + 1 :]), "the last free key"
+        assert (faces[at].text, faces[at].under) == ("Lås", "fika")
+        assert "lock" not in s.hands.calls
+        s.press(deck, at)
+        assert s.hands.calls == ["lock"], model_id
+        assert deck.overlay is None and deck.accepted is True
+
+
+def test_las_as_a_key_of_its_own_locks_tkl() -> None:
+    """SD4, SD30: Lås is in the catalogue, so a profile may put it on a page (Studio, #86 del c)."""
+    s = provbanan()
+    deck = s.deck(DeckModelId.FIFTEEN)
+    page = logic.current(deck)
+    assert page is not None
+    keys = list(page.keys)
+    keys[9] = TklDeckKey(type=DeckKeyType.ACTION, action=DeckAction.LOCK)
+    pages = list(deck.profile.pages)
+    pages[deck.page] = page.model_copy(update={"keys": keys})
+    deck.profile = deck.profile.model_copy(update={"pages": pages})
+    assert s.faces(deck)[9] == look.LOCK
+    s.press(deck, 9)
+    assert s.hands.calls == ["lock"]

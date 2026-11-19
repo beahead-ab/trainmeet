@@ -280,3 +280,28 @@
 .sd-tom {
   color: #9ca3af;
 }
+.sd-hid {
+  margin-top: 8px;
+  color: #9ca3af;
+  font-size: 12px;
+  max-width: 560px;
+}
+.sd-hid p {
+  margin: 4px 0 0;
+}
+.sd-hid button {
+  font: inherit;
+  background: #1f2937;
+  color: #f3f4f6;
+  border: 1px solid #374151;
+  border-radius: 7px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.sd-hid button.lank {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #93c5fd;
+  text-decoration: underline;
+}

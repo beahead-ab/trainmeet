@@ -228,7 +228,7 @@ describe("what a key shows", () => {
   });
 
   it("draws Spårplan's cut-out: the plan in the square, its tracks in their state (SD71, SD72)", () => {
-    const cell = face({ type: "cell", bg: "#000000", fg: "#f3f4f6", tile: { x: 9, y: 0, w: 3, h: 3, drawn: "85", start: null, goals: [], names: [], chosen: false }, label: "Ruta" });
+    const cell = face({ type: "cell", bg: "#000000", fg: "#f3f4f6", tile: { x: 9, y: 0, w: 3, h: 3, drawn: "85", start: null, goals: [], names: [], chosen: false, state: "" }, label: "Ruta" });
     const markup = renderToStaticMarkup(<DeckKey face={cell} now={0} plan={plan} />);
     expect(markup).toContain('viewBox="216 0 72 72"');
     expect(count(markup, "<polyline")).toBe(3);

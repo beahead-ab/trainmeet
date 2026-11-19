@@ -5,9 +5,14 @@
 // keys and press with a click (SD83), Neo's touch points change the page (SD82). The deck waits
 // for the next change like the interlocking's second screen, and says Ingen kontakt when TKL does
 // not answer, never an old state (SD21).
+//
+// A real deck (#86 del b, SD50): a local TKL owns its decks over USB, and the panel says so. In
+// Chrome and Edge, Anslut Stream Deck lets the browser drive a deck with WebHID (deckhid.ts), with
+// the pictures TKL's server draws; elsewhere a short line says why there is no button.
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type WheelEvent } from "react";
-import { api, type DeckFace, type DeckModel, type DeckTile, type DeckView, type Panel } from "./api";
+import { api, type DeckFace, type DeckModel, type Decks, type DeckTile, type DeckView, type Panel } from "./api";
 import { facesOf, Holds, KEY, keyStyle, PLAN_COLOURS, readDeck, RELAY_DARK, RELAY_TRACK, saveDeck, serialFor, textSize, type Stored } from "./deck";
+import { bridges, connect, fetchPixels, hasHid, NOT_HERE, OWNED, type Bridge, type BridgeApi, type HidDeck } from "./deckhid";
 import type { Drawing } from "./stallverk";
 import "./deck.css";
 
@@ -217,6 +222,71 @@ function Dials({ count, labels, onDial }: { count: number; labels: string[]; onD
   );
 }
 
+/** TKL's API for a deck in the browser with WebHID. */
+export const hidApi: BridgeApi = {
+  decks: api.decks,
+  open: api.deckOpenReal,
+  view: api.deck,
+  press: api.deckPress,
+  dial: api.deckDial,
+  touch: api.deckTouch,
+  wait: api.deckWait,
+  close: api.deckClose,
+  picture: fetchPixels,
+};
+
+/** A model in the chooser: Inte provad until a real deck of it has been tried (SD58). */
+export const modelName = (model: Pick<DeckModel, "name" | "tried">) => (model.tried ? model.name : `${model.name} · Inte provad`);
+
+type HidProps = {
+  hid: boolean;
+  decks: Decks | null;
+  connected: Pick<Bridge, "serial" | "name" | "contact">[];
+  said: string[];
+  onConnect?: () => void;
+  onRelease?: (serial: string) => void;
+};
+
+/** A real deck (SD50): the decks TKL owns over USB, Anslut Stream Deck where the browser has
+ * WebHID, the decks connected that way, and what happened. */
+export function HidRow({ hid, decks, connected, said, onConnect, onRelease }: HidProps) {
+  const owned = (decks?.decks ?? []).filter((d) => d.connection === "usb");
+  return (
+    <div className="sd-hid" aria-label="Riktigt Stream Deck">
+      {owned.map((d) => (
+        <p key={d.serial} className="liten">
+          {d.name}: {OWNED}
+        </p>
+      ))}
+      {decks?.usb && decks.usb_problem ? <p className="liten">{decks.usb_problem}</p> : null}
+      {hid ? (
+        <div className="sd-rad">
+          <button type="button" onClick={onConnect}>
+            Anslut Stream Deck
+          </button>
+          {connected.map((b) => (
+            <span key={b.serial} className="liten">
+              {b.name} med WebHID{b.contact ? "" : ": Ingen kontakt"}{" "}
+              <button type="button" className="lank" onClick={() => onRelease?.(b.serial)}>
+                Koppla från
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="liten">{NOT_HERE}</p>
+      )}
+      {said.map((line, i) => (
+        <p key={i} className="liten" role="status">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+let reopened = false;
+
 /** The panel Stream Deck in Ställverket: the chosen model, the deck, and what it said. */
 export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Plan; initial?: { view: DeckView; models: DeckModel[] } }) {
   const serial = serialFor(screen);
@@ -228,6 +298,39 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
   const revision = useRef<number | null>(initial?.view.revision ?? null);
   const holds = useRef(new Holds());
   const sending = useRef(Promise.resolve());
+  const [decks, setDecks] = useState<Decks | null>(null);
+  const [said, setSaid] = useState<string[]>([]);
+  const [, redraw] = useState(0);
+  const changed = () => redraw((n) => n + 1);
+
+  useEffect(() => {
+    // The decks TKL owns over USB, and a deck the browser already allows is opened again.
+    if (initial) return;
+    void api.decks().then(setDecks).catch(() => {});
+    if (reopened || !hasHid()) return;
+    reopened = true;
+    void (async () => {
+      const library = await import("@elgato-stream-deck/webhid");
+      const found = await library.getStreamDecks().catch(() => []);
+      if (found.length) setSaid(await connect(found as HidDeck[], hidApi, changed));
+    })();
+  }, [initial]);
+
+  const connectHid = async () => {
+    try {
+      const library = await import("@elgato-stream-deck/webhid");
+      const chosen = await library.requestStreamDecks();
+      if (chosen.length) setSaid(await connect(chosen as HidDeck[], hidApi, changed));
+      setDecks(await api.decks().catch(() => decks));
+    } catch (error) {
+      setSaid([`Stream Deck gick inte att koppla in: ${error instanceof Error ? error.message : String(error)}. Stäng Elgatos eget program om det håller decket.`]);
+    }
+  };
+  const release = async (serial: string) => {
+    await bridges.get(serial)?.close();
+    bridges.delete(serial);
+    changed();
+  };
 
   const shown = (fresh: DeckView) => {
     revision.current = fresh.revision;
@@ -319,9 +422,9 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
         <label>
           Modell{" "}
           <select aria-label="Modell" value={stored.model} onChange={(e) => choose(e.target.value)}>
-            {(models.length ? models : [{ id: stored.model, name: stored.model }]).map((m) => (
+            {(models.length ? models : [{ id: stored.model, name: stored.model, tried: true }]).map((m) => (
               <option key={m.id} value={m.id}>
-                {m.name}
+                {modelName(m)}
               </option>
             ))}
           </select>
@@ -350,6 +453,16 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
       <p className={`sd-status${view?.accepted === false ? " nej" : ""}`} role="status" aria-live="polite">
         {!contact ? "Ingen kontakt med TKL." : view?.locked ? "TKL är låst: decket visar bara klockan." : (view?.message ?? "")}
       </p>
+      {initial ? null : (
+        <HidRow
+          hid={hasHid()}
+          decks={decks}
+          connected={[...bridges.values()].filter((b) => !b.closed)}
+          said={said}
+          onConnect={() => void connectHid()}
+          onRelease={(serial) => void release(serial)}
+        />
+      )}
     </section>
   );
 }

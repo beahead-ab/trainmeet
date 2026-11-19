@@ -77,6 +77,12 @@ export type DeckFace = Schemas["trainmeet.tkl-1.deck-view.TklDeckFace"];
 export type DeckTile = Schemas["trainmeet.tkl-1.deck-view.TklDeckTile"];
 export type DeckStrip = Schemas["trainmeet.tkl-1.deck-view.TklDeckStrip"];
 export type DeckFavourites = Schemas["trainmeet.tkl-1.deck-favourites"];
+// Stream Deck (#86 del b): real decks, over USB in a local TKL or with WebHID in the browser.
+export type DeckOpen = Schemas["trainmeet.tkl-1.deck-open"];
+export type DeckGrid = Schemas["trainmeet.tkl-1.deck-open.TklDeckGrid"];
+export type DeckConnection = Schemas["trainmeet.tkl-1.deck-open.DeckConnection"];
+export type Decks = Schemas["trainmeet.tkl-1.decks"];
+export type DeckStatus = Schemas["trainmeet.tkl-1.decks.TklDeckStatus"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -221,6 +227,10 @@ export const api = {
   deckTouch: (serial: string, point: -1 | 1) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}/touch`, "POST", { point }),
   deckWait: (serial: string, after: number, seconds = 25) =>
     call<InterlockingWait>(`${TKL}/deck/${encodeURIComponent(serial)}/wait?after=${after}&seconds=${seconds}`),
+  // Stream Deck (#86 del b): a real deck, its status, and every key as a picture TKL draws.
+  decks: () => call<Decks>(`${TKL}/decks`),
+  deckOpenReal: (serial: string, open: DeckOpen) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`, "POST", open),
+  deckClose: (serial: string) => call<void>(`${TKL}/deck/${encodeURIComponent(serial)}/close`, "POST"),
   deckFavourites: () => call<DeckFavourites>(`${TKL}/deck-favoriter`),
   deckPin: (start: string, end: string, kind: RouteKind, pinned: boolean) =>
     call<DeckFavourites>(`${TKL}/deck-favoriter`, "POST", { start, end, kind, pinned }),

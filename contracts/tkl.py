@@ -49,7 +49,15 @@ SD53). A profile is data, never code (SD5): the modes Tågen, Platser and Spårp
 pages of keys from a fixed catalogue (SD4, SD63), computed from the station model for the grid
 (SD32, SD39). The deck's logic presses, holds, turns and touches; it calls the interlocking's
 functions and shows its yes or no (SD1). What every key shows is a face with the locked colours
-(SD3), the same for the deck on the screen and, in del b, for a real deck over USB.
+(SD3), the same for the deck on the screen and for a real deck.
+
+Stream Deck (#86 del b): a real deck. A local TKL owns its decks over USB, so that a deck works
+without an open tab and in every browser; TKL in the cloud never opens USB, and there Chrome and
+Edge drive a deck with WebHID (SD50). Both draw the same pictures: TKL's server draws every key,
+the touch strip and the info line as PNG at the deck's own size, from the same faces as the deck
+on the screen. TKL is locked for the whole station with Lås, in TKL or on a deck, and opened with
+the PIN; then every deck shows only the clock (SD30). A model counts as tried only after a real
+deck of it has been tried; until then it is Inte provad (SD58).
 """
 
 from __future__ import annotations
@@ -115,6 +123,11 @@ class TklState(Contract):
     set_up: bool
     unlocked: bool
     station: TklStation | None = None
+    locked: bool = Field(
+        default=False,
+        description="Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje "
+        "deck visar bara klockan, och PIN-koden låser upp.",
+    )
 
 
 class TklSetUp(Contract):
@@ -1411,6 +1424,10 @@ class TklDeckModel(Contract):
     name: Text
     grid: TklDeckGrid
     size: DeckModelId = Field(description="Storleken vars profil modellen får (SD54).")
+    tried: bool = Field(
+        default=False,
+        description="Provad med ett riktigt deck (SD58). Tills dess står modellen som Inte provad.",
+    )
 
 
 class DeckStyle(StrEnum):
@@ -1473,6 +1490,7 @@ class DeckAction(StrEnum):
     RUN = "kor"  # Kör, only in Prova and the reference stations (SD28)
     CANCEL = "avbryt"
     BACK = "tillbaka"
+    LOCK = "las"  # Lås (Fika): TKL is locked for the whole station (SD30), on the page Läge
 
 
 class DeckPan(StrEnum):
@@ -1640,6 +1658,11 @@ class TklDeckTile(Contract):
     goals: list[Name] = Field(default_factory=list)
     names: list[Text] = Field(default_factory=list, description="Spåren i biten (SD70).")
     chosen: bool = False
+    state: Annotated[str, StringConstraints(max_length=40)] = Field(
+        default="",
+        description="Spårplanens läge i biten, i korthet: ändras när ett spår, en signal eller "
+        "ett tågnummer i den ändras, så att bilden ritas om (#86 del b).",
+    )
 
 
 class TklDeckFace(Contract):
@@ -1722,6 +1745,10 @@ class TklDeckView(Contract):
     contact: bool = Field(default=True, description="Ställverket svarar; annars Ingen kontakt.")
     message: Text | None = Field(default=None, description="Ställverkets senaste svar.")
     accepted: bool | None = None
+    said: KeyText = Field(
+        default="",
+        description="Ställverkets nej i tre sekunder, för pekremsan på + och + XL (SD18).",
+    )
 
 
 class TklDeckPress(Contract):
@@ -1745,19 +1772,55 @@ class TklDeckTouch(Contract):
     point: Literal[-1, 1]
 
 
+class DeckConnection(StrEnum):
+    """How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser
+    drives it with WebHID; or it is the deck on the screen (SD59)."""
+
+    USB = "usb"
+    WEBHID = "webhid"
+    SCREEN = "skarm"
+
+
 class TklDeckOpen(Contract):
     """A deck on this computer, by its serial number: its model, or its grid for a model TKL
-    does not know (SD53)."""
+    does not know (SD53), and how it is connected."""
 
     model: DeckModelId | None = None
     grid: TklDeckGrid | None = None
     workplace: Name | None = None
+    connection: DeckConnection = DeckConnection.SCREEN
 
     @model_validator(mode="after")
     def _one(self) -> TklDeckOpen:
         if self.model is None and self.grid is None:
             raise ValueError("Ange modellen eller rutnätet.")
         return self
+
+
+class TklDeckStatus(Contract):
+    """One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is
+    connected now, and whether its model is tried with a real deck (SD35, SD50, SD58)."""
+
+    serial: Name
+    model: DeckModelId | None = None
+    name: Text = Field(description="Modellens namn, eller rutnätet för en okänd modell.")
+    grid: TklDeckGrid
+    workplace: Name = "1"
+    connection: DeckConnection | None = Field(
+        default=None, description="Ansluten nu: över USB, med WebHID eller på skärmen."
+    )
+    tried: bool = Field(default=False, description="Modellen är provad med ett riktigt deck.")
+
+
+class TklDecks(Contract):
+    """The decks this TKL knows (SD35), and whether it owns decks over USB itself: a local TKL
+    does, so that a deck works without an open tab (SD50); TKL in the cloud never opens USB."""
+
+    usb: bool = Field(description="TKL sköter deck över USB på den här datorn.")
+    usb_problem: Text | None = Field(
+        default=None, description="Varför TKL inte når USB just nu, till exempel utan libhidapi."
+    )
+    decks: list[TklDeckStatus] = Field(default_factory=list)
 
 
 class TklDeckRoute(Contract):

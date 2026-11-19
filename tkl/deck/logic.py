@@ -115,6 +115,9 @@ class Hands(Protocol):
         payload: dict[str, object],
         revision: station.Revision | None,
     ) -> Said: ...
+    def lock(self) -> Said:
+        """Lås (Fika, SD30): TKL is locked for the whole station until the PIN opens it."""
+        ...
 
 
 @dataclass
@@ -406,6 +409,16 @@ def view(deck: Deck, selection: Selection, world: World) -> TklDeckView:
     page = current(deck)
     faces = keys(deck, selection, world)
     flashing = [f.until for f in deck.flash.values() if f.until > world.now]
+    said = ""
+    if (
+        deck.accepted is False
+        and deck.message
+        and not world.locked
+        and world.now - deck.said_at < FLASH_SECONDS
+    ):
+        # The no on the strip for three seconds (SD18), where the deck has one.
+        said = deck.message[:60]
+        flashing.append(deck.said_at + FLASH_SECONDS)
     refresh = int(max(200, (min(flashing) - world.now) * 1000 + 50)) if flashing else 15000
     return TklDeckView(
         settings=deck.settings,
@@ -424,6 +437,7 @@ def view(deck: Deck, selection: Selection, world: World) -> TklDeckView:
         contact=world.interlocking is not None,
         message=deck.message,
         accepted=deck.accepted,
+        said=said if profile.grid.strip else "",
     )
 
 
@@ -1254,6 +1268,8 @@ def _action_face(
             return TklDeckFace(
                 type="action", text="Tillbaka", bg="#1f1f1f", fg="#d4d4d4", label="Tillbaka"
             )
+        case DeckAction.LOCK:
+            return look.LOCK
     return look.EMPTY
 
 
@@ -1341,6 +1357,10 @@ def _overlay(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace
                 size - 1,
             )
             faces[mode_at] = _mode_face(deck)
+        # Lås (SD30) on the last free key of the page Läge: the default pages stay as they are.
+        free = [i for i, f in enumerate(faces) if f.type == "empty"]
+        if free:
+            faces[free[-1]] = look.LOCK
         return faces
     if overlay.kind == "pages":
         listed = every_page(deck, world)
@@ -1737,6 +1757,11 @@ def _press_overlay(
     size = profile.grid.columns * profile.grid.rows
     page = current(deck)
     if overlay.kind == "modes":
+        shown_now = _overlay(deck, selection, world)
+        if 0 <= index < len(shown_now) and shown_now[index] == look.LOCK:
+            deck.overlay = None
+            _said(deck, world, hands.lock(), None, "Lås")
+            return
         have = modes(deck, world)
         mode_at = next(
             (i for i, k in enumerate(page.keys if page else []) if k and k.type == K.MODE), None
@@ -2251,6 +2276,9 @@ def _press_action(
             )
             if parts is not None:
                 deck.page = parts
+        case DeckAction.LOCK:
+            # Lås (Fika, SD30), where the owner has put it in Studio (#86 del c).
+            _said(deck, world, hands.lock(), None, "Lås")
 
 
 # --- dials and touch (SD82, SD83) ----------------------------------------------------------------

@@ -104,6 +104,9 @@ CREATE TABLE IF NOT EXISTS session (
     expires REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS failure (slot TEXT NOT NULL, at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS station_lock (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS id_login (
     key_hash TEXT PRIMARY KEY, slot TEXT NOT NULL, state TEXT NOT NULL, nonce TEXT NOT NULL,
     verifier TEXT NOT NULL, expires REAL NOT NULL
@@ -327,12 +330,34 @@ class TklStore:
             return self._new_session(db, slot)
 
     def unlock(self, slot: str, pin: str) -> str:
+        """The PIN opens TKL: a session for this browser, and the station's lock is gone (SD30)."""
         with self._transaction() as db:
             right = self._pin_right(db, slot, pin)
+            if right:
+                db.execute("DELETE FROM station_lock WHERE slot=?", (slot,))
             token = self._new_session(db, slot) if right else ""
         if not right:
             raise WrongPin()
         return token
+
+    def lock_station(self, slot: str) -> None:
+        """Lås, in TKL or on a deck (Fika, SD30): TKL is locked for the whole station. Every
+        session ends, every deck shows only the clock, and only the PIN opens it again. The
+        lock is kept over a restart."""
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                return
+            db.execute(
+                "INSERT OR REPLACE INTO station_lock VALUES (?, ?)", (slot, now_utc().timestamp())
+            )
+            db.execute("DELETE FROM session WHERE slot=?", (slot,))
+
+    def station_locked(self, slot: str | None) -> bool:
+        if not slot:
+            return False
+        with self._transaction() as db:
+            row = db.execute("SELECT 1 FROM station_lock WHERE slot=?", (slot,)).fetchone()
+        return row is not None
 
     def change_pin(self, slot: str, pin: str, new_pin: str, keep: str) -> None:
         """Byt PIN: the current one first. Every other session ends."""
@@ -385,7 +410,8 @@ class TklStore:
             return False
         with self._transaction() as db:
             row = db.execute(
-                "SELECT 1 FROM session WHERE token_hash=? AND slot=? AND expires>?",
+                "SELECT 1 FROM session WHERE token_hash=? AND slot=? AND expires>? AND NOT EXISTS "
+                "(SELECT 1 FROM station_lock WHERE station_lock.slot=session.slot)",
                 (token_hash(session), slot, now_utc().timestamp()),
             ).fetchone()
         return row is not None

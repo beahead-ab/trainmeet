@@ -70,21 +70,35 @@ the cloud shows the objects and their addresses but never opens a port (TKLMOLN-
 
 At level 3 with LocoNet the interlocking's orders go out on the bus after every operation.
 
-Stream Deck (#86 del a), the same for the deck on the screen and, in del b, a real deck over USB.
+Stream Deck (#86), the same for the deck on the screen and a real deck, over USB or WebHID.
 A deck is known by its serial number (SD35); its faces come from the interlocking and the hub,
 and what it does goes through the interlocking's operations above (SD1):
 
-    GET  /api/tkl/1/deck/models                   [TklDeckModel]: Elgato's models (SD52)
+    GET  /api/tkl/1/deck/models                   [TklDeckModel]: Elgato's models (SD52), each
+                                                  tried with a real deck or Inte provad (SD58)
     GET  /api/tkl/1/deck/profile?model=           TklDeckProfile: the default for a model (SD39)
-    POST /api/tkl/1/deck/{serial}                 TklDeckOpen -> TklDeckView: the deck, opened
+    GET  /api/tkl/1/decks                         TklDecks: the decks, how each is connected
+    POST /api/tkl/1/deck/{serial}                 TklDeckOpen -> TklDeckView: the deck, opened;
+                                                  409 when TKL owns it over USB (SD50)
+    POST /api/tkl/1/deck/{serial}/close           the browser let go of its deck (WebHID)
     GET  /api/tkl/1/deck/{serial}                 TklDeckView: every key's face (only the clock
                                                   while TKL is locked, SD30)
+    GET  /api/tkl/1/deck/{serial}/key/{i}.png?size=   a key as a real deck shows it, with an ETag
+    GET  /api/tkl/1/deck/{serial}/strip.png       the touch strip of + and + XL (SD33)
+    GET  /api/tkl/1/deck/{serial}/info.png        Neo's info line (SD34)
+    GET  /api/tkl/1/deck/ingen-kontakt.png?size=  Ingen kontakt as a key, for WebHID (SD21)
     POST /api/tkl/1/deck/{serial}/press           TklDeckPress: a press or a hold (SD29)
     POST /api/tkl/1/deck/{serial}/dial            TklDeckDialAsk: a dial (SD83)
     POST /api/tkl/1/deck/{serial}/touch           TklDeckTouch: Neo's touch points (SD82)
     GET  /api/tkl/1/deck/{serial}/wait?after=     TklWait: a long poll for the deck's next change
     GET  /api/tkl/1/deck-favoriter                TklDeckFavourites (SD24)
     POST /api/tkl/1/deck-favoriter                TklDeckPin: Fäst på Stream Deck (SD48)
+
+A local TKL owns its decks over USB in the background (tkl/deck/usb.py), so that they work
+without an open tab; TKL in the cloud never opens USB, and there Chrome and Edge drive a deck with
+WebHID through the pictures above (SD50). Lås, in TKL's header or on the page Läge of a deck
+(Fika), locks TKL for the whole station: every session ends, every deck shows only the clock, and
+the PIN opens it again (SD30, TKL18).
 
 Every route set, from the panel or a deck, is counted in TKL's runtime data (SD24, SD49).
 
@@ -132,7 +146,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from secrets import token_urlsafe
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, Literal, NoReturn
 from urllib.parse import urlsplit
 
 import httpx
@@ -148,6 +162,7 @@ from contracts.station_model import StationModel, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
+    DeckConnection,
     DeckModelId,
     TklAnswer,
     TklCardModule,
@@ -159,6 +174,8 @@ from contracts.tkl import (
     TklDeckPin,
     TklDeckPress,
     TklDeckRoute,
+    TklDecks,
+    TklDeckStatus,
     TklDeckTouch,
     TklDrawing,
     TklDrawingState,
@@ -197,10 +214,16 @@ from contracts.tkl import (
 )
 from tkl import VERSION, hub_reports, id_login, manover, prova, track_plan
 from tkl.deck import logic as deck_logic
+from tkl.deck import look as deck_look
+from tkl.deck import render as deck_render
 from tkl.deck import service as deck_service
+from tkl.deck import usb as deck_usb
+from tkl.deck.models import BY_ID as DECK_BY_ID
 from tkl.deck.models import MODELS as DECK_MODELS
+from tkl.deck.models import name_of as deck_name
 from tkl.deck.profile import build as deck_profile
 from tkl.deck.profile import geography_of
+from tkl.deck.service import Shown
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
@@ -250,6 +273,9 @@ WAIT_SECONDS = 25.0
 DECK_FRESH = 5.0
 """The deck reads the place's snapshot from Hubben when the last one is older than this."""
 WAIT_STEP = 0.2
+LOCKED = "TKL är låst. PIN-koden låser upp."
+OWNED = "Decket sköts av TKL över USB."
+SERIAL_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
 PROVA_CODE = (
     "Prova ansluts bara till en provkörning i Provbanan, aldrig till en riktig träff "
     "(STUDIO-12). Skriv provkörningens kod."
@@ -289,21 +315,30 @@ def create_app(
     discover: Callable[[], list[str]] = browse,
     id_settings: TklIdSettings | None = None,
     loconet_settings: loconet.Settings | None = None,
+    usb_finder: deck_usb.Finder | None = None,
 ) -> FastAPI:
     """mode: one station on the station's computer, or one per browser in the cloud.
     over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones.
     id_settings: the login with TrainMeet ID and the cloud hub for the station packages (#78).
-    loconet_settings: how a local TKL reaches LocoNet (#85); the cloud never does."""
+    loconet_settings: how a local TKL reaches LocoNet (#85); the cloud never does.
+    usb_finder: how a local TKL finds its Stream Decks on USB (#86, SD50), by default through
+    libhidapi; the cloud never looks. The driver runs while the app's lifespan does."""
     store = TklStore(data_dir / "tkl.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
     cloud = mode == TklMode.CLOUD
     services: list[loconet.Service] = []
+    starting: list[Callable[[], None]] = []
+    stopping: list[Callable[[], None]] = []
 
     runner = prova.Runner()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        for start in starting:
+            start()
         yield
+        for stop in stopping:
+            await run_in_threadpool(stop)
         runner.close()
         for running in services:
             running.close()
@@ -338,6 +373,7 @@ def create_app(
             set_up=found is not None,
             unlocked=found is not None and store.unlocked(slot, session),
             station=found,
+            locked=found is not None and store.station_locked(slot),
         ).model_dump(mode="json")
 
     def opened(request: Request, response: Response, token: str) -> None:
@@ -419,11 +455,16 @@ def create_app(
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> dict[str, Any]:
+        """Lås: TKL is locked for the whole station, not only in this browser (SD30). Every
+        session ends and every deck shows only the clock until the PIN opens TKL again."""
         same_site(request)
         no_store(response)
+        found = slot_of(slot)
+        if found is not None:
+            store.lock_station(found)
         store.lock(session)
         response.delete_cookie(SESSION)
-        return state(slot_of(slot), None)
+        return state(found, None)
 
     @routes.post("/pin", status_code=204)
     def change_pin(
@@ -1503,19 +1544,23 @@ def create_app(
             lambda made: made.function(ask.function, ask.action, ask.value, confirm=ask.confirm),
         )
 
-    # --- Stream Deck (#86 del a): the deck's profile, its logic and the deck on the screen -----
+    # --- Stream Deck (#86): the deck's profile, its logic, the deck on the screen and real decks
 
     room = deck_service.Room()
 
     class DeckHands:
         """What a deck does goes through the interlocking's operations, as the panel's, and
-        TKL's clearance as it is (SD1, SD14)."""
+        TKL's clearance as it is (SD1, SD14). Not tied to a request: the USB driver uses the
+        same hands for the decks TKL owns (SD50)."""
 
         def __init__(self, found: str) -> None:
             self.found = found
 
         def answer(self, act: Callable[[Interlocking], Outcome]) -> deck_logic.Said:
-            told = operate(self.found, act)
+            try:
+                told = operate(self.found, act)
+            except HTTPException as error:
+                return deck_logic.Said(False, str(error.detail))
             return deck_logic.Said(bool(told["accepted"]), str(told["message"]))
 
         def set_route(self, start: str, end: str, kind: object | None) -> deck_logic.Said:
@@ -1564,6 +1609,12 @@ def create_app(
             store.remember(self.found, reply.snapshot)
             accepted = reply.status != station.ReplyStatus.REJECTED
             return deck_logic.Said(accepted, reply.message or ("Ja." if accepted else "Nej."))
+
+        def lock(self) -> deck_logic.Said:
+            """Lås on the deck (Fika, SD30): TKL is locked for the whole station."""
+            store.lock_station(self.found)
+            LOGGER.info("TKL är låst från ett Stream Deck.")
+            return deck_logic.Said(True, LOCKED)
 
     def deck_snapshot(found: str) -> tuple[station.Snapshot | None, datetime | None, bool]:
         """The place's snapshot for the deck, at most DECK_FRESH seconds old, when it was
@@ -1619,11 +1670,12 @@ def create_app(
         return world, panel
 
     def deck_found(slot: str | None, session: str | None) -> tuple[str, bool]:
-        """The station, and whether TKL is locked: then the deck shows only the clock (SD30)."""
+        """The station, and whether TKL is locked, for the whole station or in this browser:
+        then the deck shows only the clock (SD30)."""
         found = slot_of(slot)
         if found is None or store.station_of(found) is None:
             raise HTTPException(401, "Lås upp TKL med PIN-koden.")
-        return found, not store.unlocked(found, session)
+        return found, store.station_locked(found) or not store.unlocked(found, session)
 
     def deck_signature(found: str, workplace: str) -> tuple[object, ...]:
         selection = room.selection(found, workplace)
@@ -1639,20 +1691,29 @@ def create_app(
             selection.revision,
             id(selection),
             str(drift.get(deck_service.PINNED)),
+            store.station_locked(found),
         )
 
-    def deck_view(
-        found: str,
-        serial: str,
-        locked: bool,
-        act: Callable[[deck_logic.Deck, deck_logic.Selection, deck_logic.World], None]
-        | None = None,
-    ) -> Any:
+    def deck_picture(world: deck_logic.World, panel: Any) -> deck_render.Picture | None:
+        """The panel with the interlocking's state, for Spårplan's keys (SD70, SD71)."""
+        if panel is None or world.interlocking is None:
+            return None
+        state = world.state
+        sections = world.snapshot.sections if world.snapshot is not None else []
+        busy = {
+            e.exit for e in state.exits if any(s.exit == e.outside and s.occupied for s in sections)
+        }
+        return deck_render.picture(panel, state, busy)
+
+    Act = Callable[[deck_logic.Deck, deck_logic.Selection, deck_logic.World], None]
+
+    def deck_view(found: str, serial: str, locked: bool, act: Act | None = None) -> Shown:
         settings = store.deck(found, serial)
         if settings is None:
             raise HTTPException(
                 404, "Decket finns inte här. Öppna det på skärmen eller koppla in det."
             )
+        room.heard(found, serial)
         world, panel = deck_world(found, locked)
         profile = deck_profile(world.plant, panel, settings.grid, settings.model)
         with room.lock:
@@ -1662,13 +1723,132 @@ def create_app(
                 act(deck, selection, world)
                 if deck.settings != settings:
                     store.save_deck(found, deck.settings)
+                locked = locked or store.station_locked(found)
                 world, _ = deck_world(found, locked)
             room.revision(found, serial, deck_signature(found, deck.settings.workplace))
-            return deck_logic.view(deck, selection, world).model_dump(mode="json")
+            view = deck_logic.view(deck, selection, world)
+            picture = deck_picture(world, panel) if any(f.tile for f in view.keys) else None
+            shown = Shown(deck_render.stamp(view, picture), picture)
+            room.keep(found, serial, shown)
+            return shown
+
+    def deck_opened(found: str, serial: str, given: TklDeckOpen) -> Shown:
+        """A deck on this computer, by its serial number (SD35): the deck on the screen, one in
+        the browser with WebHID, or one TKL owns over USB (SD50). Its settings are kept here
+        (SD49)."""
+        if (
+            given.connection != DeckConnection.USB
+            and room.connection(found, serial) == DeckConnection.USB
+        ):
+            raise HTTPException(409, OWNED)
+        known = store.deck(found, serial)
+        settings = deck_service.settings_for(known, serial, given)
+        if known is None or known.grid != settings.grid:
+            room.forget(found, serial)
+        store.save_deck(found, settings)
+        room.link(found, serial, given.connection)
+        return deck_view(found, serial, store.station_locked(found))
+
+    def deck_shown(found: str, serial: str, locked: bool) -> Shown:
+        """The deck's last view while nothing has changed, else a new one: its pictures are
+        drawn from it, one request per key."""
+        settings = store.deck(found, serial)
+        if settings is None:
+            raise HTTPException(404, "Decket finns inte här.")
+        revision = room.revision(found, serial, deck_signature(found, settings.workplace))
+        kept = room.kept_view(found, serial, revision)
+        if kept is not None and kept.view.locked == locked:
+            return kept
+        return deck_view(found, serial, locked)
+
+    def deck_press(found: str, serial: str, locked: bool, key: int, hold: bool) -> Shown:
+        hands = DeckHands(found)
+
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.press(deck, chosen, world, hands, key, hold)
+
+        return deck_view(found, serial, locked, act)
+
+    def deck_turn(found: str, serial: str, locked: bool, ask: TklDeckDialAsk) -> Shown:
+        hands = DeckHands(found)
+
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.dial(deck, chosen, world, hands, ask.dial, ask.turn, ask.press)
+
+        return deck_view(found, serial, locked, act)
+
+    def deck_touched(found: str, serial: str, locked: bool, point: Literal[-1, 1]) -> Shown:
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.touch(deck, world, point)
+
+        return deck_view(found, serial, locked, act)
+
+    class UsbDesk:
+        """The decks a local TKL owns over USB (SD50): the same deck service as the API's, for
+        the station on this computer, without an HTTP request and without a browser's PIN
+        session. The station's own lock still holds: locked, a deck shows only the clock."""
+
+        def found(self) -> tuple[str, bool]:
+            if store.station_of(LOCAL) is None:
+                raise NotSetUp()
+            return LOCAL, store.station_locked(LOCAL)
+
+        def open(self, serial: str, model: DeckModelId) -> Shown:
+            found, _ = self.found()
+            return deck_opened(
+                found, serial, TklDeckOpen(model=model, connection=DeckConnection.USB)
+            )
+
+        def view(self, serial: str) -> Shown:
+            found, locked = self.found()
+            return deck_view(found, serial, locked)
+
+        def press(self, serial: str, key: int, hold: bool) -> Shown:
+            found, locked = self.found()
+            return deck_press(found, serial, locked, key, hold)
+
+        def dial(self, serial: str, dial: int, turn: int, press: bool) -> Shown:
+            found, locked = self.found()
+            ask = TklDeckDialAsk(dial=dial, turn=turn, press=press)
+            return deck_turn(found, serial, locked, ask)
+
+        def touch(self, serial: str, point: Literal[-1, 1]) -> Shown:
+            found, locked = self.found()
+            return deck_touched(found, serial, locked, point)
+
+        def revision(self, serial: str) -> int:
+            found, _ = self.found()
+            settings = store.deck(found, serial)
+            if settings is None:
+                raise HTTPException(404, "Decket finns inte här.")
+            return room.revision(found, serial, deck_signature(found, settings.workplace))
+
+        def gone(self, serial: str) -> None:
+            room.unlink(LOCAL, serial)
+
+    usb = None if cloud else deck_usb.Driver(UsbDesk(), usb_finder or deck_usb.find)
+    app.state.deck_usb = usb
+    if usb is not None:
+        starting.append(usb.start)
+        stopping.append(usb.stop)
+
+    def picture_answer(request: Request, tag: str, draw: Callable[[], bytes]) -> Response:
+        """A picture with its ETag: the same picture again is a 304, so that a deck in the
+        browser may ask after every change."""
+        headers = {"ETag": tag, "Cache-Control": "no-cache"}
+        if tag in request.headers.get("if-none-match", ""):
+            return Response(status_code=304, headers=headers)
+        return Response(draw(), media_type="image/png", headers=headers)
 
     @routes.get("/deck/models")
     def deck_models(response: Response) -> Any:
-        """Elgato's models and their grids (SD52)."""
+        """Elgato's models and their grids (SD52), each tried with a real deck or not (SD58)."""
         no_store(response)
         return [m.model_dump(mode="json") for m in DECK_MODELS]
 
@@ -1686,26 +1866,77 @@ def create_app(
         known = next(m for m in DECK_MODELS if m.id == model)
         return deck_profile(world.plant, panel, known.grid, model).model_dump(mode="json")
 
+    @routes.get("/deck/ingen-kontakt.png")
+    def deck_no_contact_picture(
+        request: Request,
+        size: Annotated[int, Query(ge=deck_render.SMALLEST, le=deck_render.LARGEST)] = 72,
+        height: Annotated[
+            int | None, Query(ge=deck_render.SMALLEST, le=deck_render.LARGEST)
+        ] = None,
+    ) -> Response:
+        """Ingen kontakt as a key (SD21): fetched once by a deck in the browser, which shows it
+        on every key when TKL does not answer, never an old state."""
+        face = deck_look.no_contact()
+        tall = height or size
+        tag = deck_render.key_etag(face, size, tall, 0)
+        return picture_answer(
+            request, tag, lambda: deck_render.png(deck_render.key(face, size, tall))
+        )
+
+    @routes.get("/decks")
+    def decks(response: Response, slot: SlotCookie = None, session: SessionCookie = None) -> Any:
+        """The decks TKL knows, how each is connected now, and whether TKL owns decks over USB
+        here (SD35, SD50, SD58): what Studio, Deck shows (#86 del c)."""
+        no_store(response)
+        found = unlocked(slot, session)
+        listed = []
+        for settings in store.decks(found):
+            known = DECK_BY_ID.get(settings.model) if settings.model is not None else None
+            listed.append(
+                TklDeckStatus(
+                    serial=settings.serial,
+                    model=settings.model,
+                    name=deck_name(settings.model, settings.grid),
+                    grid=settings.grid,
+                    workplace=settings.workplace,
+                    connection=room.connection(found, settings.serial),
+                    tried=known.tried if known is not None else False,
+                )
+            )
+        problem = usb.problem if usb is not None else None
+        return TklDecks(usb=usb is not None, usb_problem=problem, decks=listed).model_dump(
+            mode="json"
+        )
+
     @routes.post("/deck/{serial}")
     def deck_open(
-        serial: Annotated[str, PathPart(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")],
+        serial: Annotated[str, PathPart(pattern=SERIAL_PATTERN)],
         given: TklDeckOpen,
         request: Request,
         response: Response,
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> Any:
-        """A deck on this computer, by its serial number (SD35): the deck on the screen, or
-        in del b one over USB. Its settings are kept here (SD49)."""
+        """A deck on this computer, by its serial number (SD35): the deck on the screen, or one
+        in the browser with WebHID; one TKL owns over USB is not opened twice (SD50)."""
         same_site(request)
         no_store(response)
         found = unlocked(slot, session)
-        known = store.deck(found, serial)
-        settings = deck_service.settings_for(known, serial, given)
-        if known is None or known.grid != settings.grid:
-            room.forget(found, serial)
-        store.save_deck(found, settings)
-        return deck_view(found, serial, False)
+        return deck_opened(found, serial, given).view.model_dump(mode="json")
+
+    @routes.post("/deck/{serial}/close", status_code=204)
+    def deck_close(
+        serial: str,
+        request: Request,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Response:
+        """The browser let go of its deck: unplugged, or the page closed (SD50)."""
+        same_site(request)
+        found, _ = deck_found(slot, session)
+        if room.connection(found, serial) != DeckConnection.USB:
+            room.unlink(found, serial)
+        return Response(status_code=204)
 
     @routes.get("/deck/{serial}")
     def deck_state(
@@ -1714,10 +1945,82 @@ def create_app(
         """Every key's face for the deck now: the locked TKL shows only the clock (SD30)."""
         no_store(response)
         found, locked = deck_found(slot, session)
-        return deck_view(found, serial, locked)
+        return deck_view(found, serial, locked).view.model_dump(mode="json")
+
+    @routes.get("/deck/{serial}/key/{index}.png")
+    def deck_key_picture(
+        serial: str,
+        index: Annotated[int, PathPart(ge=0, le=255)],
+        request: Request,
+        size: Annotated[int, Query(ge=deck_render.SMALLEST, le=deck_render.LARGEST)] = 72,
+        height: Annotated[
+            int | None, Query(ge=deck_render.SMALLEST, le=deck_render.LARGEST)
+        ] = None,
+        phase: Annotated[int, Query(ge=0, le=1)] = 0,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Response:
+        """One key as a real deck shows it, at the deck's own size (SD3): the same picture for
+        WebHID as over USB. `phase` 1 is a blinking key's other colour."""
+        found, locked = deck_found(slot, session)
+        shown = deck_shown(found, serial, locked)
+        faces = shown.view.keys
+        face = faces[index] if index < len(faces) else deck_look.EMPTY
+        tall = height or size
+        tag = deck_render.key_etag(face, size, tall, phase)
+
+        def draw() -> bytes:
+            return deck_render.png(deck_render.key(face, size, tall, shown.picture, phase))
+
+        return picture_answer(request, tag, draw)
+
+    @routes.get("/deck/{serial}/strip.png")
+    def deck_strip_picture(
+        serial: str,
+        request: Request,
+        width: Annotated[int, Query(ge=100, le=2000)] = 800,
+        height: Annotated[int, Query(ge=20, le=400)] = 100,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Response:
+        """The touch strip of + and + XL (SD33, SD83): a segment per dial."""
+        found, locked = deck_found(slot, session)
+        view = deck_shown(found, serial, locked).view
+        dials = view.settings.grid.dials
+        parts = view.strip
+        tag = deck_render.etag(
+            "strip", [p.model_dump() for p in parts], view.said, view.contact, dials, width, height
+        )
+
+        def draw() -> bytes:
+            image = deck_render.strip(
+                parts, dials, width, height, said=view.said, contact=view.contact
+            )
+            return deck_render.png(image)
+
+        return picture_answer(request, tag, draw)
+
+    @routes.get("/deck/{serial}/info.png")
+    def deck_info_picture(
+        serial: str,
+        request: Request,
+        width: Annotated[int, Query(ge=100, le=2000)] = 248,
+        height: Annotated[int, Query(ge=20, le=400)] = 58,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Response:
+        """Neo's info line (SD34, SD82): the clock and the page, and the latest no."""
+        found, locked = deck_found(slot, session)
+        view = deck_shown(found, serial, locked).view
+        tag = deck_render.etag("info", view.info, view.contact, width, height)
+
+        def draw() -> bytes:
+            return deck_render.png(deck_render.info(view.info, width, height, contact=view.contact))
+
+        return picture_answer(request, tag, draw)
 
     @routes.post("/deck/{serial}/press")
-    def deck_press(
+    def deck_press_route(
         serial: str,
         ask: TklDeckPress,
         request: Request,
@@ -1729,14 +2032,7 @@ def create_app(
         same_site(request)
         no_store(response)
         found, locked = deck_found(slot, session)
-        hands = DeckHands(found)
-
-        def act(
-            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
-        ) -> None:
-            deck_logic.press(deck, chosen, world, hands, ask.key, ask.hold)
-
-        return deck_view(found, serial, locked, act)
+        return deck_press(found, serial, locked, ask.key, ask.hold).view.model_dump(mode="json")
 
     @routes.post("/deck/{serial}/dial")
     def deck_dial(
@@ -1751,14 +2047,7 @@ def create_app(
         same_site(request)
         no_store(response)
         found, locked = deck_found(slot, session)
-        hands = DeckHands(found)
-
-        def act(
-            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
-        ) -> None:
-            deck_logic.dial(deck, chosen, world, hands, ask.dial, ask.turn, ask.press)
-
-        return deck_view(found, serial, locked, act)
+        return deck_turn(found, serial, locked, ask).view.model_dump(mode="json")
 
     @routes.post("/deck/{serial}/touch")
     def deck_touch(
@@ -1773,13 +2062,7 @@ def create_app(
         same_site(request)
         no_store(response)
         found, locked = deck_found(slot, session)
-
-        def act(
-            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
-        ) -> None:
-            deck_logic.touch(deck, world, ask.point)
-
-        return deck_view(found, serial, locked, act)
+        return deck_touched(found, serial, locked, ask.point).view.model_dump(mode="json")
 
     @routes.get("/deck/{serial}/wait")
     async def deck_wait(
@@ -1796,6 +2079,7 @@ def create_app(
         settings = await run_in_threadpool(store.deck, found, serial)
         if settings is None:
             raise HTTPException(404, "Decket finns inte här.")
+        room.heard(found, serial)
         waited = 0.0
         while True:
             signature = await run_in_threadpool(deck_signature, found, settings.workplace)

@@ -219,7 +219,7 @@ Studio › Koppla in och ställverket på nivå 3 (#85), i `tkl/loconet/`, och S
 
 ## TKL: Stream Deck
 
-Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmodellen för varje decks rutnät, och logiken anropar ställverkets egna funktioner. Samma API för decket på skärmen och ett riktigt deck över USB (#86 del b).
+Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmodellen för varje decks rutnät, och logiken anropar ställverkets egna funktioner. Samma API för decket på skärmen och ett riktigt deck, över USB eller med WebHID (#86 del b).
 
 | Svenska | I kontrakten | Betyder |
 | --- | --- | --- |
@@ -235,6 +235,10 @@ Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmod
 | Dagens vägar | `DeckPageKind.daily`, `DeckKeyType.daily` | Infarten och utfarten för varje tåg på sitt planerade spår, ur träffens tidtabell i ögonblicksbilden (SD23). Ligger i TKL:s driftdata och görs om när träffpaketet byter version. |
 | Favoriter | `TklDeckFavourites`, `TklDeckPin`, `/api/tkl/1/deck-favoriter` | De fästa vägarna först, sedan de som lagts minst två gånger (SD24, SD48). Ställverket räknar varje lagd väg, del för del, bara vägar och inga personer. |
 | Knappens utseende | `TklDeckFace`, `TklDeckView`, `TklDeckTile` | Vad varje knapp visar, med prototypens låsta färger (SD3, SD6): hindrad väg nedtonad med märke och skäl (SD17), nej med skälet i tre sekunder (SD18), Ingen kontakt när ställverket inte svarar (SD21) och bara klockan när TKL är låst (SD30). |
+| Riktigt deck | `DeckConnection`, `TklDeckStatus`, `TklDecks`, `GET /api/tkl/1/decks` | Ett Stream Deck kopplat till datorn (SD50): över USB, som en lokal TKL sköter själv så att decket fungerar utan öppen flik och i alla webbläsare, eller med WebHID i Chrome och Edge för TKL i molnet. Ett deck som TKL sköter över USB öppnas aldrig en gång till i webbläsaren. Decket på skärmen är `skarm`. |
+| Knappens bild | `GET /api/tkl/1/deck/{serienummer}/key/{i}.png`, `strip.png`, `info.png`, `tkl/deck/render.py` | Det ett riktigt deck visar: knappen ritad av TKL i deckets egen storlek ur knappens utseende, med designsystemets typsnitt, likadant över USB och med WebHID (SD3, SD6). Pekremsan på + och + XL och inforaden på Neo har egna bilder. En ETag gör att samma bild inte hämtas två gånger. |
+| Inte provad | `TklDeckModel.tried`, `TklDeckStatus.tried` | En modell som ingen har provat med ett riktigt deck än (SD58). Står i modellväljaren och i Studio › Deck tills den är provad. |
+| Låst | `TklState.locked`, `DeckAction.las` | TKL låst för hela stationen (SD30): med Lås i TKL eller på decket, sidan Läge (Fika är samma lås). Alla sessioner slutar, varje deck visar bara klockan, och PIN-koden låser upp (TKL18). |
 
 ## TrainMeet Catalog
 
