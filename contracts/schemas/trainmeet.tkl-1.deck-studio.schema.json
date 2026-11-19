@@ -16,7 +16,15 @@
         "los-alla",
         "noll",
         "nodutlosning",
-        "ingenting"
+        "ingenting",
+        "lamna",
+        "klart",
+        "ring",
+        "grindar",
+        "tuta",
+        "fika",
+        "klocka",
+        "begaran"
       ],
       "title": "DeckAction",
       "type": "string"
@@ -29,7 +37,9 @@
         "vaxlingsvagar",
         "platser",
         "signaler",
-        "funktioner"
+        "funktioner",
+        "bangard-spar",
+        "bangard-vagar-ut"
       ],
       "title": "DeckButtonGroup",
       "type": "string"
@@ -61,7 +71,10 @@
         "del",
         "sidled",
         "hojdled",
-        "signal"
+        "signal",
+        "begar",
+        "gata",
+        "klart-tag"
       ],
       "title": "DeckDial",
       "type": "string"
@@ -86,17 +99,22 @@
         "page",
         "action",
         "panel",
-        "route"
+        "route",
+        "ande",
+        "gata",
+        "begar",
+        "klart-tag"
       ],
       "title": "DeckKeyType",
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
       "enum": [
         "tagen",
         "platser",
-        "sparplan"
+        "sparplan",
+        "bangard"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -131,7 +149,8 @@
         "alla",
         "hela",
         "utsnitt",
-        "egen"
+        "egen",
+        "bangard"
       ],
       "title": "DeckPageKind",
       "type": "string"
@@ -195,6 +214,15 @@
         "column"
       ],
       "title": "DeckStyle",
+      "type": "string"
+    },
+    "PartSide": {
+      "description": "Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "PartSide",
       "type": "string"
     },
     "RouteKind": {
@@ -498,6 +526,10 @@
             "goal",
             "contact",
             "clock",
+            "end",
+            "street",
+            "request",
+            "fika",
             "empty"
           ],
           "title": "Type",
@@ -931,6 +963,33 @@
           ],
           "default": null,
           "description": "Snabbvägens väg (ROUTE)."
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).",
+          "title": "Track"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartSide"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
         },
         "text": {
           "default": "",
@@ -1438,6 +1497,20 @@
           },
           "title": "Pedals",
           "type": "array"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen profilen är för: rangerarens deck, läget Bangård (#87 del d).",
+          "title": "Part"
         }
       },
       "required": [
@@ -1445,6 +1518,37 @@
         "style"
       ],
       "title": "TklDeckProfile",
+      "type": "object"
+    },
+    "TklDeckRole": {
+      "additionalProperties": true,
+      "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård.",
+      "properties": {
+        "part": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens id; inget för tågklareraren.",
+          "title": "Part"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "TklDeckRole",
       "type": "object"
     },
     "TklDeckRoute": {
@@ -1745,6 +1849,28 @@
       ],
       "default": null,
       "title": "Message"
+    },
+    "part": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Delen vars deck, Bangård, visas; inget för tågklareraren.",
+      "title": "Part"
+    },
+    "roles": {
+      "description": "Rollerna att välja: tågklareraren och delarna (#87).",
+      "items": {
+        "$ref": "#/$defs/TklDeckRole"
+      },
+      "title": "Roles",
+      "type": "array"
     }
   },
   "required": [

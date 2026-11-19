@@ -16,7 +16,15 @@
         "los-alla",
         "noll",
         "nodutlosning",
-        "ingenting"
+        "ingenting",
+        "lamna",
+        "klart",
+        "ring",
+        "grindar",
+        "tuta",
+        "fika",
+        "klocka",
+        "begaran"
       ],
       "title": "DeckAction",
       "type": "string"
@@ -56,17 +64,22 @@
         "page",
         "action",
         "panel",
-        "route"
+        "route",
+        "ande",
+        "gata",
+        "begar",
+        "klart-tag"
       ],
       "title": "DeckKeyType",
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
       "enum": [
         "tagen",
         "platser",
-        "sparplan"
+        "sparplan",
+        "bangard"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -101,7 +114,8 @@
         "alla",
         "hela",
         "utsnitt",
-        "egen"
+        "egen",
+        "bangard"
       ],
       "title": "DeckPageKind",
       "type": "string"
@@ -136,6 +150,15 @@
         "ner"
       ],
       "title": "DeckPan",
+      "type": "string"
+    },
+    "PartSide": {
+      "description": "Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).",
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "PartSide",
       "type": "string"
     },
     "RouteKind": {
@@ -504,6 +527,33 @@
           "default": null,
           "description": "Snabbvägens väg (ROUTE)."
         },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).",
+          "title": "Track"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartSide"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
+        },
         "text": {
           "default": "",
           "description": "Knappens text, när den är given.",
@@ -629,6 +679,20 @@
       "maxItems": 400,
       "title": "Deviations",
       "type": "array"
+    },
+    "part": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Delens deck, Bangård (#87 del d); inget för tågklareraren.",
+      "title": "Part"
     }
   },
   "required": [

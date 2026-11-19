@@ -126,6 +126,7 @@ export type DeckSuggestion = DeckSuggest["rule"];
 export type DeckProva = Schemas["trainmeet.tkl-1.deck-prova"];
 export type DeckKeyTried = Schemas["trainmeet.tkl-1.deck-prova.TklDeckKeyTried"];
 export type DeckChange = Schemas["trainmeet.tkl-1.deck-change"];
+export type DeckRole = Schemas["trainmeet.tkl-1.decks.TklDeckRole"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -273,7 +274,7 @@ export const api = {
   part: (part: string) => partCalls(part),
   // Stream Deck (#86 del a): the same API for the deck on the screen and, later, a real deck.
   deckModels: () => call<DeckModel[]>(`${TKL}/deck/models`),
-  deckOpen: (serial: string, model: DeckModelId) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`, "POST", { model }),
+  deckOpen: (serial: string, model: DeckModelId, role: string | null = null) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`, "POST", role ? { model, role } : { model }),
   deck: (serial: string) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`),
   deckPress: (serial: string, key: number, hold: boolean) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}/press`, "POST", { key, hold }),
   deckDial: (serial: string, dial: number, turn: number, press: boolean) =>
@@ -292,12 +293,13 @@ export const api = {
   deckSettings: (serial: string, change: DeckChange) => call<DeckStatus>(`${TKL}/deck/${encodeURIComponent(serial)}`, "PUT", change),
   deckBlink: (serial: string) => call<DeckStatus>(`${TKL}/deck/${encodeURIComponent(serial)}/blinka`, "POST"),
   deckForget: (serial: string) => call<void>(`${TKL}/deck/${encodeURIComponent(serial)}`, "DELETE"),
-  streamDeck: (size: DeckModelId) => call<DeckStudio>(`${TKL}/studio/stream-deck?size=${encodeURIComponent(size)}`),
+  streamDeck: (size: DeckModelId, part: string | null = null) => call<DeckStudio>(`${TKL}/studio/stream-deck?size=${encodeURIComponent(size)}${part ? `&part=${encodeURIComponent(part)}` : ""}`),
   streamDeckDraft: (edit: DeckEdit) => call<DeckStudio>(`${TKL}/studio/stream-deck/utkast`, "POST", edit),
   saveStreamDeck: (edit: DeckEdit) => call<DeckStudio>(`${TKL}/studio/stream-deck`, "PUT", edit),
   streamDeckSuggest: (ask: DeckSuggest) => call<DeckStudio>(`${TKL}/studio/stream-deck/foresla`, "POST", ask),
-  streamDeckProva: (size: DeckModelId | null) => call<DeckProva>(`${TKL}/studio/stream-deck/prova${size ? `?size=${encodeURIComponent(size)}` : ""}`),
-  streamDeckProvaStart: (size: DeckModelId) => call<DeckProva>(`${TKL}/studio/stream-deck/prova/start`, "POST", { size }),
+  streamDeckProva: (size: DeckModelId | null, part: string | null = null) =>
+    call<DeckProva>(`${TKL}/studio/stream-deck/prova${size ? `?size=${encodeURIComponent(size)}${part ? `&part=${encodeURIComponent(part)}` : ""}` : ""}`),
+  streamDeckProvaStart: (size: DeckModelId, part: string | null = null) => call<DeckProva>(`${TKL}/studio/stream-deck/prova/start`, "POST", { size, part }),
   streamDeckProvaStop: () => call<DeckProva>(`${TKL}/studio/stream-deck/prova/stop`, "POST"),
 };
 

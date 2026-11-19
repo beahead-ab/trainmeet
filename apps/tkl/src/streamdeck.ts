@@ -13,7 +13,9 @@ export type Look = Pick<DeckKey, "text" | "under" | "press" | "hold" | "number" 
 export type Dragged = { from: "list"; index: number } | { from: "cell"; cell: number };
 
 export const SIZES: DeckModelId[] = ["mini", "neo", "15", "xl", "plus", "plus-xl", "studio", "pedal"];
-export const MODE_NAMES: Record<DeckMode, string> = { tagen: "Tågen", platser: "Platser", sparplan: "Spårplan" };
+export const MODE_NAMES: Record<DeckMode, string> = { tagen: "Tågen", platser: "Platser", sparplan: "Spårplan", bangard: "Bangård" };
+/** A part's deck, the shunter's (#87 del d): the pedal has none (TKL122). */
+export const YARD_SIZES: DeckModelId[] = SIZES.filter((s) => s !== "pedal");
 export const ACTION_NAMES: Record<DeckAction, string> = {
   los: "Lös ut",
   ankommit: "Ankommit",
@@ -27,6 +29,14 @@ export const ACTION_NAMES: Record<DeckAction, string> = {
   noll: "Noll",
   nodutlosning: "Nödutlösning",
   ingenting: "Ingenting",
+  lamna: "Lämna",
+  klart: "Klart",
+  ring: "Ring",
+  grindar: "Grindar",
+  tuta: "Tuta",
+  fika: "Fika",
+  klocka: "Klocka",
+  begaran: "Begär",
 };
 export const TYPE_NAMES: Record<KeyType, string> = {
   train: "Tågknapp",
@@ -47,6 +57,10 @@ export const TYPE_NAMES: Record<KeyType, string> = {
   action: "Funktion",
   panel: "Panelfunktion",
   route: "Snabbväg",
+  ande: "Ände",
+  gata: "Spår",
+  begar: "Väg ut",
+  "klart-tag": "Tågknapp, klart att skicka",
 };
 /** What a press and a hold may do, per type: the fixed list (SD43), as TKL's server has it.
  * Lös ut alla, Noll and Nödutlösning are holds, never a press (SD29). */
@@ -92,9 +106,11 @@ export const GROUPS: [DeckButton["group"], string][] = [
   ["vaxlingsvagar", "Växlingsvägar"],
   ["platser", "Platser"],
   ["signaler", "Signaler"],
+  ["bangard-spar", "Delens spår"],
+  ["bangard-vagar-ut", "Vägar ut"],
   ["funktioner", "Funktioner"],
 ];
-const IDENTITY = ["type", "slot", "point", "place", "part", "dx", "dy", "rect", "pan", "action", "function", "route"] as const;
+const IDENTITY = ["type", "slot", "point", "place", "part", "dx", "dy", "rect", "pan", "action", "function", "route", "track", "side"] as const;
 const LOOK = ["text", "under", "press", "hold", "number", "dim", "confirm"] as const;
 const ARROW = "→";
 
@@ -125,6 +141,8 @@ export function fullKey(given: Partial<DeckKey> & Pick<DeckKey, "type">): DeckKe
     action: null,
     function: null,
     route: null,
+    track: null,
+    side: null,
     text: "",
     under: "",
     press: null,
@@ -264,6 +282,9 @@ export function keyWords(key: DeckKey): string {
       return key.action ? ACTION_NAMES[key.action] : "";
     case "panel":
       return key.function ?? "";
+    case "gata":
+    case "begar":
+      return `${key.type === "gata" ? "Spår" : "Väg ut till"} ${key.track ?? ""}${key.side ? ` från ${key.side === "left" ? "vänster" : "höger"}` : ""}`;
     default:
       return key.slot ? `${TYPE_NAMES[key.type]} ${key.slot}` : TYPE_NAMES[key.type];
   }
@@ -304,5 +325,5 @@ export function sizeOfModel(model: DeckModelId | null | undefined): DeckModelId 
 
 /** What Studio, Deck changes for one deck: what is not given stays as it is (SD46). */
 export function deckChange(given: Partial<DeckChange>): DeckChange {
-  return { name: null, brightness: null, hold: null, sleep: null, lock_key: null, opens_in: null, opens_on: null, workplace: null, ...given };
+  return { name: null, brightness: null, hold: null, sleep: null, lock_key: null, opens_in: null, opens_on: null, workplace: null, role: null, ...given };
 }

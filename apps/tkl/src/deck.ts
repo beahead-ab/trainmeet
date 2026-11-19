@@ -7,28 +7,40 @@
 import type { CSSProperties } from "react";
 import type { DeckFace, DeckView } from "./api";
 
-/** One deck per screen, known by its serial number like a real one (SD35). */
-export const serialFor = (screen: number) => `skarm-${screen}`;
+/** One deck per screen, known by its serial number like a real one (SD35). On a part's screen
+ * /del/<id> the deck is the part's own, in its role (#87 del d). */
+export const serialFor = (screen: number, role: string | null = null) =>
+  role ? `del-${role.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 48)}-${screen}` : `skarm-${screen}`;
 export const KEY = 64;
 export const STORED = "tkl.streamdeck";
 
 export type Stored = { open: boolean; model: string };
 
-export function readDeck(screen: number, storage: Pick<Storage, "getItem"> | null): Stored {
+const storedKey = (screen: number, role: string | null) => (role ? `${STORED}.del.${role}.${screen}` : `${STORED}.${screen}`);
+
+export function readDeck(screen: number, storage: Pick<Storage, "getItem"> | null, role: string | null = null): Stored {
   try {
-    const found = JSON.parse(storage?.getItem(`${STORED}.${screen}`) ?? "null") as Partial<Stored> | null;
+    const found = JSON.parse(storage?.getItem(storedKey(screen, role)) ?? "null") as Partial<Stored> | null;
     return { open: !!found?.open, model: typeof found?.model === "string" ? found.model : "15" };
   } catch {
     return { open: false, model: "15" };
   }
 }
 
-export function saveDeck(screen: number, stored: Stored, storage: Pick<Storage, "setItem"> | null): void {
+export function saveDeck(screen: number, stored: Stored, storage: Pick<Storage, "setItem"> | null, role: string | null = null): void {
   try {
-    storage?.setItem(`${STORED}.${screen}`, JSON.stringify(stored));
+    storage?.setItem(storedKey(screen, role), JSON.stringify(stored));
   } catch {
     // Without storage the choice holds for this page only.
   }
+}
+
+/** The sound a key makes on the deck on the screen: Tuta and Ring on the shunter's deck (#87). */
+export function soundOf(face: DeckFace | undefined): "horn" | "ring" | null {
+  if (!face || face.type !== "action") return null;
+  if (face.text === "Tuta") return "horn";
+  if (face.text === "Ring") return "ring";
+  return null;
 }
 
 /** The text's size in a key's height, as the prototype's canvas chooses it: by its length,

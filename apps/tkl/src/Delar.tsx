@@ -6,17 +6,21 @@
 // - DelSida, the part's own screen at /del/<id>, on any screen on the station's network behind
 //   the same PIN (TKL102): the station's panel with the part's area active and the rest greyed,
 //   the switch streets and the routes out per end, Lämna, Klart, Grindar, Ring, Tuta, Fika and
-//   Klocka (RANG-04), the train for Klart att skicka, and what was refused and why.
+//   Klocka (RANG-04), the train for Klart att skicka, and what was refused and why. Its Stream
+//   Deck panel opens the deck on the screen in the part's role, the shunter's deck Bangård
+//   (#87 del d, SD74).
 //
 // Every press asks the interlocking, under the part's own path; its yes, or no with the reason,
 // is what the screen shows (STV-43). The look follows the prototype's box (the reference
 // interlocking with ?roll=rangerare in the specification).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, Problem, type Connection, type Interlocking, type InterlockingAnswer, type PartCalls, type PartRouteOut, type PartShown, type PartSide, type PartStreet, type PartTrains, type TrackPlan } from "./api";
+import { DeckPanel } from "./Deck";
+import { readDeck, saveDeck } from "./deck";
 import { areaOf, atEnd, boxOf, givePress, outPress, partOf, placeLine, readyLine, stepTo } from "./delar";
 import { tone } from "./ljud";
 import { Panelen } from "./Panelen";
-import { skinOf } from "./skal";
+import { screenNumber, skinOf } from "./skal";
 import { clickPoint, clickSwitch, drawing, filled, guidance, NOTHING, routeEnds, routeName, type Calls, type Done, type Valet } from "./stallverk";
 import { text, type Say } from "./texter";
 import "./delar.css";
@@ -135,6 +139,7 @@ export function PartBoxView({ state, say, working, onWork, dragged, onDrag }: Bo
 }
 
 const sv: Say = (key, vars) => text("sv", key, vars);
+const storage = (): Storage | null => (typeof localStorage === "undefined" ? null : localStorage);
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const nowText = () => new Date().toLocaleTimeString("sv-SE");
 const SIDES: [PartSide, string][] = [
@@ -212,6 +217,8 @@ export function DelPanel({ plan, state: raw, part, calls, onState, trains: given
   const [giving, setGiving] = useState(false);
   const [trains, setTrains] = useState<PartTrains | null>(given ?? null);
   const [number, setNumber] = useState("");
+  const [screen] = useState(() => (typeof location === "undefined" ? 1 : screenNumber(location.search)));
+  const [deckOpen, setDeckOpen] = useState(() => readDeck(screen, storage(), part.id).open);
   const skin = skinOf("85");
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
   const drawn = drawing(panel, state, new Set(), ends);
@@ -300,9 +307,23 @@ export function DelPanel({ plan, state: raw, part, calls, onState, trains: given
         <h1>{part.name}</h1>
         <span className="liten">i {plan.summary.name}s ställverk</span>
         <span className="tm-fyll" />
+        <button
+          type="button"
+          className="sd-oppna"
+          aria-pressed={deckOpen}
+          title="Rangerarens Stream Deck på skärmen: prova utan något deck alls"
+          onClick={() => {
+            const open = !deckOpen;
+            setDeckOpen(open);
+            saveDeck(screen, { ...readDeck(screen, storage(), part.id), open }, storage(), part.id);
+          }}
+        >
+          Stream Deck
+        </button>
         <span className="klocka tm-mono">{nowText().slice(0, 5)}</span>
       </div>
       <PartPlaces parts={[part]} connection={connection} />
+      {deckOpen ? <DeckPanel screen={screen} plan={{ panel, drawn }} role={part.id} /> : null}
       {valet.said ? (
         <p className={`stv-svar ${valet.said.ok ? "ja" : "nej"}`} role={valet.said.ok ? "status" : "alert"}>
           {valet.said.ok ? null : <b>Nej: </b>}

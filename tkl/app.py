@@ -148,6 +148,11 @@ every deck uses the owner's profile of its size, on the screen, over USB and wit
                                                   empty interlocking, never the live one
     POST /api/tkl/1/studio/stream-deck/prova/stop
 
+A deck opens as the tågklarerare or as a part of the station, its role (#87 del d): set in Studio,
+Deck, or given when the deck on a part's screen /del/<id> opens it. A part's deck has the mode
+Bangård only, the shunter's deck, whose keys go through the part's operations above; the owner's
+changes for it are kept per part and size, and Sidor and Prova take `part`.
+
 A local TKL owns its decks over USB in the background (tkl/deck/usb.py), so that they work
 without an open tab; TKL in the cloud never opens USB, and there Chrome and Edge drive a deck with
 WebHID through the pictures above (SD50). Lås, in TKL's header or on the page Läge of a deck
@@ -263,6 +268,7 @@ from contracts.tkl import (
     TklPartRequestAsk,
     TklPartRequestRef,
     TklPartStreetAsk,
+    TklPartTrain,
     TklPartTrains,
     TklPinChange,
     TklPretendAsk,
@@ -306,7 +312,7 @@ from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, fi
 from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
 from tkl.provkor import NoQuestion, Provkor, idle
-from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
+from tkl.stallverk import Interlocking, Outcome, Plant, UnknownStart, load, plant_of
 from tkl.stallverk.interlocking import KOPPLA_IN, Order
 from tkl.stallverk.parts import Part, plan_trains
 from tkl.standard import LayoutError, RouteKind, problems
@@ -2184,6 +2190,42 @@ def create_app(
             """Nödutlösning with a hold (SD29): the hold is the confirmation."""
             return self.answer(lambda made: made.emergency_release(route, True))
 
+        # The shunter's deck (#87 del d): the interlocking's own part operations, as the part's
+        # screen calls them (SD1).
+
+        def part_street(self, part: str, street: str) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_street(part, street))
+
+        def part_request(self, part: str, route_out: str) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_request(part, route_out))
+
+        def part_return(self, part: str, request: int) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_return(part, request))
+
+        def part_done(self, part: str) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_done(part))
+
+        def part_gates(self, part: str) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_gates(part))
+
+        def part_ring(self, part: str) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_ring(part))
+
+        def part_fika(self, part: str, on: bool) -> deck_logic.Said:
+            return self.answer(lambda made: made.part_fika(part, on))
+
+        def part_ready(self, part: str, train: TklPartTrain) -> deck_logic.Said:
+            """Klart att skicka (TKL108): the train from the plan with its track and time."""
+            return self.answer(
+                lambda made: made.part_ready(
+                    part,
+                    train.number,
+                    call=train.call,
+                    track=train.track,
+                    departure=train.departure,
+                )
+            )
+
     def deck_snapshot(found: str) -> tuple[station.Snapshot | None, datetime | None, bool]:
         """The place's snapshot for the deck, at most DECK_FRESH seconds old, when it was
         heard, and whether TKL is in drift: connected to a real meet (SD28)."""
@@ -2210,7 +2252,42 @@ def create_app(
         minutes = int((c.seconds + passed * c.speed) // 60)
         return f"{(minutes // 60) % 24:02d}:{minutes % 60:02d}"
 
-    def deck_world(found: str, locked: bool) -> tuple[deck_logic.World, Any]:
+    def deck_seen(found: str, made: Connection, place: str) -> station.Snapshot | None:
+        """A place's snapshot for the deck, at most DECK_FRESH seconds old, else the last."""
+        last = store.last_seen(found, place)
+        if last is not None and (datetime.now(UTC) - last[1]).total_seconds() < DECK_FRESH:
+            return last[0]
+        try:
+            fresh = hub(made).snapshot(place)
+        except (Unreachable, HubError):
+            return last[0] if last is not None else None
+        store.remember(found, fresh)
+        return fresh
+
+    def deck_part_trains(found: str, plant: Plant, part_id: str) -> list[TklPartTrain] | None:
+        """The trains the shunter's train key steps through (SD60): the same list as
+        /stallverk/parts/{id}/trains, from the snapshots the deck already reads."""
+        part = plant.parts.get(part_id)
+        if part is None:
+            return None
+        made = store.connection(found)
+        if made is not None and made.key is None:
+            made = follow(found, made)
+        here: station.Snapshot | None = None
+        own: station.Snapshot | None = None
+        if made is None or made.key is None:
+            return None  # no plan from Hubben: the train key says so
+        for place in made.places:
+            seen = deck_seen(found, made, place)
+            if place == part.spec.place:
+                own = seen
+            elif here is None:
+                here = seen
+        return plan_trains(part, plant, here, own).trains
+
+    def deck_world(
+        found: str, locked: bool, part: str | None = None
+    ) -> tuple[deck_logic.World, Any]:
         model, revision, body = store.interlocking(found)
         if model is None:
             raise HTTPException(404, NO_MODEL)
@@ -2234,6 +2311,7 @@ def create_app(
             station=here.name if here is not None else "",
             favourites=deck_service.favourites(store, found, plant).shown,
             daily_kept=deck_service.todays(store, found, snapshot, plant, geo),
+            part_trains=deck_part_trains(found, plant, part) if part and not locked else None,
         )
         return world, panel
 
@@ -2247,12 +2325,12 @@ def create_app(
 
     def deck_signature(found: str, serial: str, workplace: str) -> tuple[object, ...]:
         selection = room.selection(found, workplace)
-        heard = None
         reached = store.connection(found)
-        home = hub_places.home_place(reached) if reached is not None else None
-        if home is not None:
-            last = store.last_seen(found, home)
-            heard = last[1] if last else None
+        # Every place's latest snapshot: the shunter's train key reads the part's too (#87).
+        heard = tuple(
+            (last[1] if (last := store.last_seen(found, place)) else None)
+            for place in (reached.places if reached is not None else [])
+        )
         drift = store.deck_drift(found)
         return (
             store.interlocking_revision(found),
@@ -2279,6 +2357,15 @@ def create_app(
 
     Act = Callable[[deck_logic.Deck, deck_logic.Selection, deck_logic.World], None]
 
+    def part_given(found: str, part: str) -> str:
+        """A deck's role must be a part of the station's model (#87 del d)."""
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        if all(p.id != part for p in model.parts):
+            raise HTTPException(422, f"Delen {part} finns inte i stationsmodellen.")
+        return part
+
     def deck_view(found: str, serial: str, locked: bool, act: Act | None = None) -> Shown:
         settings = store.deck(found, serial)
         if settings is None:
@@ -2286,10 +2373,16 @@ def create_app(
                 404, "Decket finns inte här. Öppna det på skärmen eller koppla in det."
             )
         room.heard(found, serial)
-        world, panel = deck_world(found, locked)
-        # The owner's profile of the deck's size (SD40), the default when the owner changed none.
-        mine = deck_studio.deviations_for(store.deck_deviations(found).sizes, settings.model)
-        applied = deck_deviations.owned(world.plant, panel, settings.grid, settings.model, mine)
+        role = settings.role
+        world, panel = deck_world(found, locked, role)
+        # The owner's profile of the deck's size (SD40), the default when the owner changed none;
+        # a part's deck has the shunter's, Bangård, and never the tågklarerare's modes (#87).
+        kept = store.deck_deviations(found)
+        sizes = kept.parts.get(role, {}) if role is not None else kept.sizes
+        mine = deck_studio.deviations_for(sizes, settings.model)
+        applied = deck_deviations.owned(
+            world.plant, panel, settings.grid, settings.model, mine, role
+        )
         profile = applied.profile
         with room.lock:
             deck = room.deck(found, settings, profile, world)
@@ -2299,7 +2392,7 @@ def create_app(
                 if deck.settings != settings:
                     store.save_deck(found, deck.settings)
                 locked = locked or store.station_locked(found)
-                world, _ = deck_world(found, locked)
+                world, _ = deck_world(found, locked, role)
             room.revision(found, serial, deck_signature(found, serial, deck.settings.workplace))
             view = deck_logic.view(deck, selection, world)
             picture = deck_picture(world, panel) if any(f.tile for f in view.keys) else None
@@ -2316,9 +2409,11 @@ def create_app(
             and room.connection(found, serial) == DeckConnection.USB
         ):
             raise HTTPException(409, OWNED)
+        if given.role is not None:
+            part_given(found, given.role)
         known = store.deck(found, serial)
         settings = deck_service.settings_for(known, serial, given)
-        if known is None or known.grid != settings.grid:
+        if known is None or known.grid != settings.grid or known.role != settings.role:
             room.forget(found, serial)
         store.save_deck(found, settings)
         room.link(found, serial, given.connection)
@@ -2431,15 +2526,19 @@ def create_app(
     def deck_profile_of(
         response: Response,
         model: DeckModelId,
+        part: Annotated[str | None, Query(max_length=80)] = None,
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> Any:
-        """The default profile for a model, computed from the station model (SD39, SD53)."""
+        """The default profile for a model, computed from the station model (SD39, SD53); with
+        a part, the shunter's deck, Bangård (#87 del d)."""
         no_store(response)
         found = unlocked(slot, session)
+        if part is not None:
+            part_given(found, part)
         world, panel = deck_world(found, False)
         known = next(m for m in DECK_MODELS if m.id == model)
-        return deck_profile(world.plant, panel, known.grid, model).model_dump(mode="json")
+        return deck_profile(world.plant, panel, known.grid, model, part).model_dump(mode="json")
 
     @routes.get("/deck/ingen-kontakt.png")
     def deck_no_contact_picture(
@@ -2480,9 +2579,11 @@ def create_app(
         found = unlocked(slot, session)
         listed = [deck_status(found, settings) for settings in store.decks(found)]
         problem = usb.problem if usb is not None else None
-        return TklDecks(usb=usb is not None, usb_problem=problem, decks=listed).model_dump(
-            mode="json"
-        )
+        model = store.station_model(found)
+        roles = deck_studio.roles_of(plant_of(model)) if model is not None else []
+        return TklDecks(
+            usb=usb is not None, usb_problem=problem, decks=listed, roles=roles
+        ).model_dump(mode="json")
 
     @routes.post("/deck/{serial}")
     def deck_open(
@@ -2721,13 +2822,20 @@ def create_app(
         found = unlocked(slot, session)
         settings = known_deck(found, serial)
         given = {k: v for k, v in change.model_dump(exclude_unset=True).items() if v is not None}
-        for cleared in ("name", "opens_on"):
+        for cleared in ("name", "opens_on", "role"):
             if cleared in given and not str(given[cleared]).strip():
                 given[cleared] = None
+        if given.get("role") is not None:
+            # Rollen (#87 del d): a part of the station; empty is the tågklarerare.
+            given["role"] = part_given(found, str(given["role"]).strip())
         made = settings.model_copy(update=given)
         made = TklDeckSettings.model_validate(made.model_dump())
         store.save_deck(found, made)
-        if made.opens_in != settings.opens_in or made.opens_on != settings.opens_on:
+        if (
+            made.opens_in != settings.opens_in
+            or made.opens_on != settings.opens_on
+            or made.role != settings.role
+        ):
             room.forget(found, serial)
         return deck_status(found, made).model_dump(mode="json")
 
@@ -2778,21 +2886,28 @@ def create_app(
         panel = room.panel(plant, lambda: track_plan.panel_of(model))
         return plant, panel
 
+    def kept_sizes(found: str, part: str | None) -> dict[DeckModelId, list[Any]]:
+        """The owner's deviations per size: the tågklarerare's, or a part's deck's (#87)."""
+        kept = store.deck_deviations(found)
+        return dict(kept.parts.get(part, {})) if part is not None else dict(kept.sizes)
+
     def studio_deck(
         found: str,
         size: DeckModelId,
         deviations: list[Any] | None = None,
         message: str | None = None,
+        part: str | None = None,
     ) -> Any:
         """Sidor for one size: the owner's deviations as kept, or as given and not kept yet,
-        made the fewest that give the same profile, with Att kolla after them."""
+        made the fewest that give the same profile, with Att kolla after them. With a part, the
+        shunter's deck, Bangård (#87 del d)."""
         plant, panel = deck_station(found)
-        kept = store.deck_deviations(found).sizes
+        kept = kept_sizes(found, part)
         given = kept.get(size, []) if deviations is None else deviations
-        default = deck_studio.default_of(plant, panel, size)
-        known = deck_deviations.known_of(plant, geography_of(plant, panel))
+        default = deck_studio.default_of(plant, panel, size, part)
+        known = deck_deviations.known_of(plant, geography_of(plant, panel), part)
         made, applied = deck_deviations.tidy(default, given, known)
-        decks_here = [d.model for d in store.decks(found)]
+        decks_here = [d.model for d in store.decks(found) if d.role == part]
         shown = {**kept, size: made}
         return deck_studio.view(
             size,
@@ -2801,8 +2916,9 @@ def create_app(
             made,
             applied,
             saved=made == kept.get(size, []),
-            all_sizes=deck_studio.sizes(plant, panel, shown, decks_here),
+            all_sizes=deck_studio.sizes(plant, panel, shown, decks_here, part),
             message=message,
+            roles=deck_studio.roles_of(plant),
         ).model_dump(mode="json")
 
     def refused_changes(edit: TklDeckEdit) -> None:
@@ -2814,25 +2930,33 @@ def create_app(
                 {"message": "Ändringen går inte att göra på ett Stream Deck.", "problems": wrong},
             )
 
-    def size_given(size: DeckModelId) -> DeckModelId:
+    def size_given(size: DeckModelId, part: str | None = None) -> DeckModelId:
         if size not in deck_studio.SIZES:
             raise HTTPException(
                 422, "Den modellen får profilen för sin storlek (SD54). Välj storleken."
             )
+        if part is not None and size not in deck_studio.YARD_SIZES:
+            raise HTTPException(422, "Pedalen har inget rangerardeck (TKL122).")
         return size
+
+    def studio_part(found: str, part: str | None) -> str | None:
+        return part_given(found, part) if part is not None else None
 
     @routes.get("/studio/stream-deck")
     def stream_deck(
         response: Response,
         size: DeckModelId = DeckModelId.FIFTEEN,
+        part: Annotated[str | None, Query(max_length=80)] = None,
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> Any:
         """Sidor (SD41): the owner's profile for one size, Att kolla, the checks and Knappar.
-        The default is there without the owner doing anything (SD39)."""
+        The default is there without the owner doing anything (SD39). With a part, its deck,
+        Bangård (#87 del d)."""
         no_store(response)
         found = unlocked(slot, session)
-        return studio_deck(found, size_given(size))
+        part = studio_part(found, part)
+        return studio_deck(found, size_given(size, part), part=part)
 
     @routes.post("/studio/stream-deck/utkast")
     def stream_deck_draft(
@@ -2845,9 +2969,10 @@ def create_app(
         """The owner's changes shown before they are kept: refused with the reason when one may
         not be made (SD43)."""
         found = doing(request, response, slot, session)
-        size_given(edit.size)
+        part = studio_part(found, edit.part)
+        size_given(edit.size, part)
         refused_changes(edit)
-        return studio_deck(found, edit.size, list(edit.deviations))
+        return studio_deck(found, edit.size, list(edit.deviations), part=part)
 
     @routes.put("/studio/stream-deck")
     def save_stream_deck(
@@ -2860,19 +2985,25 @@ def create_app(
         """The owner's changes for one size, kept with the station's model and versioned with
         it (SD40, SD49). Every deck of the size gets them on its next view."""
         found = doing(request, response, slot, session)
-        size_given(edit.size)
+        part = studio_part(found, edit.part)
+        size_given(edit.size, part)
         refused_changes(edit)
         plant, panel = deck_station(found)
-        default = deck_studio.default_of(plant, panel, edit.size)
-        known = deck_deviations.known_of(plant, geography_of(plant, panel))
+        default = deck_studio.default_of(plant, panel, edit.size, part)
+        known = deck_deviations.known_of(plant, geography_of(plant, panel), part)
         made, _ = deck_deviations.tidy(default, list(edit.deviations), known)
         kept = store.deck_deviations(found)
-        sizes = {**kept.sizes, edit.size: made}
+        if part is None:
+            saved = kept.model_copy(update={"sizes": {**kept.sizes, edit.size: made}})
+        else:
+            # The shunter's deck: its own deviations per part and size (#87 del d).
+            mine = {**kept.parts.get(part, {}), edit.size: made}
+            saved = kept.model_copy(update={"parts": {**kept.parts, part: mine}})
         try:
-            store.save_deck_deviations(found, TklDeckDeviations(sizes=sizes))
+            store.save_deck_deviations(found, TklDeckDeviations.model_validate(saved.model_dump()))
         except NoModel as error:
             raise HTTPException(404, NO_MODEL) from error
-        return studio_deck(found, edit.size, message="Sparat. Decken visar det direkt.")
+        return studio_deck(found, edit.size, message="Sparat. Decken visar det direkt.", part=part)
 
     @routes.post("/studio/stream-deck/foresla")
     def stream_deck_suggest(
@@ -2885,12 +3016,13 @@ def create_app(
         """Föreslå (SD45): a page made again geographically, by Dagens vägar or by Mest
         använda. Shown, not kept, until the owner saves."""
         found = doing(request, response, slot, session)
-        size_given(ask.size)
+        part = studio_part(found, ask.part)
+        size_given(ask.size, part)
         refused_changes(ask)
         plant, panel = deck_station(found)
         geo = geography_of(plant, panel)
-        default = deck_studio.default_of(plant, panel, ask.size)
-        known = deck_deviations.known_of(plant, geo)
+        default = deck_studio.default_of(plant, panel, ask.size, part)
+        known = deck_deviations.known_of(plant, geo, part)
         daily = deck_service.kept_daily(store, found)
         counts = deck_service.counts(store, found)
         try:
@@ -2899,19 +3031,21 @@ def create_app(
             )
         except deck_suggest.NoSuggestion as error:
             raise HTTPException(409, str(error)) from error
-        return studio_deck(found, ask.size, made)
+        return studio_deck(found, ask.size, made, part=part)
 
     @routes.get("/studio/stream-deck/prova")
     def stream_deck_prova(
         response: Response,
         size: DeckModelId | None = None,
+        part: Annotated[str | None, Query(max_length=80)] = None,
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> Any:
-        """Prova alla knappar (SD47): the progress while it runs, then every key's result."""
+        """Prova alla knappar (SD47): the progress while it runs, then every key's result; for
+        the tågklarerare's deck, or a part's (#87 del d)."""
         no_store(response)
         found = unlocked(slot, session)
-        return deck_tryall.view(keys_runner.job(found), size).model_dump(mode="json")
+        return deck_tryall.view(keys_runner.job(found), size, part).model_dump(mode="json")
 
     @routes.post("/studio/stream-deck/prova/start")
     def stream_deck_prova_start(
@@ -2924,10 +3058,12 @@ def create_app(
         """Every key of every page of the size, the owner's profile as it is kept, pressed on an
         empty interlocking in the background; never the live one (SD47)."""
         found = doing(request, response, slot, session)
-        size = size_given(ask.size)
+        part = studio_part(found, ask.part)
+        size = size_given(ask.size, part)
         plant, panel = deck_station(found)
-        mine = store.deck_deviations(found).sizes.get(size, [])
-        profile = deck_deviations.owned(plant, panel, DECK_BY_ID[size].grid, size, mine).profile
+        mine = kept_sizes(found, part).get(size, [])
+        grid = DECK_BY_ID[size].grid
+        profile = deck_deviations.owned(plant, panel, grid, size, mine, part).profile
         favourites = deck_service.favourites(store, found, plant).shown
         try:
             job = keys_runner.start(
@@ -2941,7 +3077,7 @@ def create_app(
             )
         except deck_tryall.Busy as error:
             raise HTTPException(429, PROVA_BUSY) from error
-        return deck_tryall.view(job, size).model_dump(mode="json")
+        return deck_tryall.view(job, size, part).model_dump(mode="json")
 
     @routes.post("/studio/stream-deck/prova/stop")
     def stream_deck_prova_stop(
@@ -2952,7 +3088,7 @@ def create_app(
         job = keys_runner.job(found)
         if job is not None and job.thread is not None:
             job.thread.join(timeout=10)
-        return deck_tryall.view(job).model_dump(mode="json")
+        return deck_tryall.view(job, any_part=True).model_dump(mode="json")
 
     # --- Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL -----------------
 

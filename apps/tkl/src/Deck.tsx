@@ -9,10 +9,14 @@
 // A real deck (#86 del b, SD50): a local TKL owns its decks over USB, and the panel says so. In
 // Chrome and Edge, Anslut Stream Deck lets the browser drive a deck with WebHID (deckhid.ts), with
 // the pictures TKL's server draws; elsewhere a short line says why there is no button.
+//
+// The shunter's deck (#87 del d): on a part's screen /del/<id> the panel opens the deck in the
+// part's role, the mode Bangård only. Tuta and Ring sound on the screen, and Fika draws a cup.
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type WheelEvent } from "react";
 import { api, type DeckFace, type DeckModel, type Decks, type DeckTile, type DeckView, type Panel } from "./api";
-import { facesOf, Holds, KEY, keyStyle, PLAN_COLOURS, readDeck, RELAY_DARK, RELAY_TRACK, saveDeck, serialFor, textSize, type Stored } from "./deck";
+import { facesOf, Holds, KEY, keyStyle, PLAN_COLOURS, readDeck, RELAY_DARK, RELAY_TRACK, saveDeck, serialFor, soundOf, textSize, type Stored } from "./deck";
 import { bridges, connect, fetchPixels, hasHid, NOT_HERE, OWNED, type Bridge, type BridgeApi, type HidDeck } from "./deckhid";
+import { tone } from "./ljud";
 import type { Drawing } from "./stallverk";
 import "./deck.css";
 
@@ -90,6 +94,7 @@ export function DeckKey({ face, now, plan, size = KEY }: { face: DeckFace; now: 
   const small = face.small ?? "";
   const children: ReactNode[] = [];
   if (face.band) children.push(<span key="band" className="sd-band" style={{ background: face.band }} />);
+  if (face.type === "fika") children.push(<Cup key="cup" />);
   if (face.tile) children.push(<TileDrawing key="tile" tile={face.tile} plan={plan} />);
   if (top) children.push(<span key="top" className="sd-top">{top}</span>);
   if (text) {
@@ -112,6 +117,18 @@ export function DeckKey({ face, now, plan, size = KEY }: { face: DeckFace; now: 
     <span className={`sd-face${face.dim ? " dim" : ""}`} style={keyStyle(face, now, size)} data-type={face.type} data-blink={face.blink ? "ja" : undefined}>
       {children}
     </span>
+  );
+}
+
+/** Fika on the shunter's deck: a cup drawn as a shape, never an emoji (SD6). */
+function Cup() {
+  return (
+    <svg className="sd-kopp" viewBox="0 0 24 20" aria-hidden="true">
+      <path d="M3 6h12l-1.2 9H4.2z" fill="currentColor" />
+      <path d="M15 8.2a3 3 0 0 1 0 5.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M1.5 17.2h15" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M6 4.5l1-3M9 4.5l1-3" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
   );
 }
 
@@ -289,10 +306,11 @@ export function HidRow({ hid, decks, connected, said, onConnect, onRelease }: Hi
 
 let reopened = false;
 
-/** The panel Stream Deck in Ställverket: the chosen model, the deck, and what it said. */
-export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Plan; initial?: { view: DeckView; models: DeckModel[] } }) {
-  const serial = serialFor(screen);
-  const [stored, setStored] = useState<Stored>(() => readDeck(screen, storage()));
+/** The panel Stream Deck in Ställverket: the chosen model, the deck, and what it said. With a
+ * part's role, on the part's screen: the shunter's deck, Bangård (#87 del d). */
+export function DeckPanel({ screen, plan, initial, role = null }: { screen: number; plan: Plan; initial?: { view: DeckView; models: DeckModel[] }; role?: string | null }) {
+  const serial = serialFor(screen, role);
+  const [stored, setStored] = useState<Stored>(() => readDeck(screen, storage(), role));
   const [models, setModels] = useState<DeckModel[]>(initial?.models ?? []);
   const [view, setView] = useState<DeckView | null>(initial?.view ?? null);
   const [contact, setContact] = useState(true);
@@ -356,7 +374,7 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
     let alive = true;
     void (async () => {
       try {
-        const [found, opened] = await Promise.all([api.deckModels(), api.deckOpen(serial, stored.model as DeckModel["id"])]);
+        const [found, opened] = await Promise.all([api.deckModels(), api.deckOpen(serial, stored.model as DeckModel["id"], role)]);
         if (!alive) return;
         setModels(found);
         shown(opened);
@@ -367,7 +385,7 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
     return () => {
       alive = false;
     };
-  }, [serial, stored.model, initial]);
+  }, [serial, stored.model, initial, role]);
 
   useEffect(() => {
     if (initial) return;
@@ -413,10 +431,18 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
   const choose = (model: string) => {
     const next = { ...stored, model };
     setStored(next);
-    saveDeck(screen, next, storage());
+    saveDeck(screen, next, storage(), role);
     revision.current = null;
   };
   const faces = facesOf(view, contact);
+  const press = (key: number, hold: boolean) => {
+    // Tuta and Ring sound here; the deck itself has no speaker (#87 del d).
+    const sound = hold ? null : soundOf(faces[key]);
+    if (sound) tone(sound);
+    send(() => api.deckPress(serial, key, hold));
+  };
+  // A part's deck has no pedal (TKL122).
+  const offered = role ? models.filter((m) => m.id !== "pedal") : models;
   return (
     <section className="sd-panel" aria-label="Stream Deck">
       <div className="sd-rad">
@@ -424,14 +450,17 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
         <label>
           Modell{" "}
           <select aria-label="Modell" value={stored.model} onChange={(e) => choose(e.target.value)}>
-            {(models.length ? models : [{ id: stored.model, name: stored.model, tried: true }]).map((m) => (
+            {(offered.length ? offered : [{ id: stored.model, name: stored.model, tried: true }]).map((m) => (
               <option key={m.id} value={m.id}>
                 {modelName(m)}
               </option>
             ))}
           </select>
         </label>
-        <span className="liten">Klick är ett tryck, håll nere {((view?.hold_ms ?? 600) / 1000).toLocaleString("sv-SE")} s för håll in. Läge byter läge; håll in Läge för alla sidor.</span>
+        <span className="liten">
+          Klick är ett tryck, håll nere {((view?.hold_ms ?? 600) / 1000).toLocaleString("sv-SE")} s för håll in.{" "}
+          {role ? "Ände byter ände, ett spår lägger växelgatan och en väg ut begärs av tågklareraren. Håll in tågknappen för nästa tåg." : "Läge byter läge; håll in Läge för alla sidor."}
+        </span>
       </div>
       {view ? (
         <DeckGrid
@@ -442,10 +471,10 @@ export function DeckPanel({ screen, plan, initial }: { screen: number; plan: Pla
           onDown={(key) => holds.current.pressed(key, Date.now())}
           onUp={(key) => {
             const what = holds.current.released(key, Date.now());
-            if (what) send(() => api.deckPress(serial, key, what === "hold"));
+            if (what) press(key, what === "hold");
           }}
           onLeave={(key) => holds.current.cancel(key)}
-          onKey={(key, hold) => send(() => api.deckPress(serial, key, hold))}
+          onKey={(key, hold) => press(key, hold)}
           onDial={(dial, turn, press) => send(() => api.deckDial(serial, dial, turn, press))}
           onTouch={(point) => send(() => api.deckTouch(serial, point))}
         />

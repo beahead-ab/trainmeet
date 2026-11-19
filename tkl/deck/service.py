@@ -69,7 +69,8 @@ class Shown:
 
 
 def settings_for(known: TklDeckSettings | None, serial: str, given: TklDeckOpen) -> TklDeckSettings:
-    """A deck's settings when it is opened: its model or grid, and its workplace."""
+    """A deck's settings when it is opened: its model or grid, its workplace, and its role
+    when it is given."""
     model: DeckModelId | None
     if given.model is not None:
         model = given.model
@@ -82,6 +83,9 @@ def settings_for(known: TklDeckSettings | None, serial: str, given: TklDeckOpen)
     update: dict[str, object] = {"model": model, "grid": grid}
     if given.workplace is not None:
         update["workplace"] = given.workplace
+    if given.role is not None:
+        # The deck on a part's screen opens in the part's role (#87 del d).
+        update["role"] = given.role
     return base.model_copy(update=update)
 
 

@@ -17,6 +17,9 @@
 //
 // Prova (SD47): Prova alla knappar presses every key against an empty interlocking in the
 // background, with the progress, and says per key what it did.
+//
+// Roll (#87 del d): Sidor and Prova show the tågklarerare's deck or a part's, the shunter's deck
+// Bangård, with its own changes per size; under Deck each deck gets its role.
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   api,
@@ -31,6 +34,7 @@ import {
   type DeckPage,
   type DeckProblem,
   type DeckProva,
+  type DeckRole,
   type Decks,
   type DeckStatus,
   type DeckStudio,
@@ -113,6 +117,7 @@ export type SidorProps = {
   problems: string[];
   newPage: string;
   onSize: (size: DeckModelId) => void;
+  onRole?: (part: string | null) => void;
   onMode: (mode: DeckMode) => void;
   onPage: (page: number) => void;
   onChoose: (cell: number | null) => void;
@@ -149,6 +154,12 @@ export function SidorView(props: SidorProps) {
   return (
     <div className="sds-sidor">
       <div className="sds-val">
+        {(studio.roles ?? []).length > 1 ? (
+          <>
+            <span className="sds-etikett">Roll</span>
+            <RoleChoice roles={studio.roles ?? []} part={studio.part ?? null} onRole={props.onRole} />
+          </>
+        ) : null}
         <span className="sds-etikett">Storlek</span>
         <div className="sds-segment" role="group" aria-label="Storlek">
           {(studio.sizes ?? []).map((s) => (
@@ -174,6 +185,19 @@ export function SidorView(props: SidorProps) {
       </div>
       {pedal ? <PedalView {...props} /> : <PagesView {...props} />}
       <Footer {...props} pedal={pedal} />
+    </div>
+  );
+}
+
+/** Roll (#87 del d): the tågklarerare's deck, or a part's, the shunter's deck Bangård. */
+export function RoleChoice({ roles, part, onRole, label = "Roll" }: { roles: DeckRole[]; part: string | null; onRole?: (part: string | null) => void; label?: string }) {
+  return (
+    <div className="sds-segment" role="group" aria-label={label}>
+      {roles.map((r) => (
+        <button key={r.part ?? ""} type="button" aria-pressed={(r.part ?? null) === part} onClick={() => onRole?.(r.part ?? null)}>
+          {r.name}
+        </button>
+      ))}
     </div>
   );
 }
@@ -679,8 +703,9 @@ export function DeckTab(props: DeckTabProps) {
   );
 }
 
-function DeckSettingsView({ deck, pages, busy, onChange, onForget }: DeckTabProps & { deck: DeckStatus }) {
+function DeckSettingsView({ deck, decks, pages, busy, onChange, onForget }: DeckTabProps & { deck: DeckStatus }) {
   const s = deck.settings;
+  const roles = decks?.roles ?? [];
   const set = (change: Partial<DeckChange>) => onChange(deck.serial, change);
   return (
     <section className="ruta sds-deckval" aria-label={`Decket ${deckName(deck)}`}>
@@ -693,6 +718,19 @@ function DeckSettingsView({ deck, pages, busy, onChange, onForget }: DeckTabProp
         Namn
         <input key={`n-${deck.serial}-${s?.name ?? ""}`} aria-label="Namn" defaultValue={s?.name ?? ""} maxLength={40} disabled={busy} onBlur={(e) => e.target.value !== (s?.name ?? "") && set({ name: e.target.value })} />
       </label>
+      {roles.length > 1 ? (
+        <label>
+          Roll
+          <select aria-label="Roll" value={s?.role ?? ""} disabled={busy} onChange={(e) => set({ role: e.target.value })}>
+            {roles.map((r) => (
+              <option key={r.part ?? ""} value={r.part ?? ""}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {s?.role ? <p className="liten">Decket öppnar i Bangård, rangerarens deck, och når bara delens lägen (#87).</p> : null}
       <label>
         Ljusstyrka
         <input type="range" aria-label="Ljusstyrka" min={0} max={100} step={5} value={s?.brightness ?? 70} disabled={busy} onChange={(e) => set({ brightness: Number(e.target.value) })} />
@@ -747,6 +785,9 @@ function DeckSettingsView({ deck, pages, busy, onChange, onForget }: DeckTabProp
 // --- Prova ---------------------------------------------------------------------------------
 
 export type ProvaTabProps = {
+  roles?: DeckRole[];
+  part?: string | null;
+  onRole?: (part: string | null) => void;
   size: DeckModelId;
   sizes: { size: DeckModelId; name: string }[];
   prova: DeckProva | null;
@@ -760,7 +801,7 @@ export type ProvaTabProps = {
 
 export const RESULT: Record<string, string> = { gick: "Gick", nej: "Nej", inget: "Inget" };
 
-export function ProvaTab({ size, sizes, prova, pages, favourites, onSize, onStart, onStop, onGo }: ProvaTabProps) {
+export function ProvaTab({ roles = [], part = null, onRole, size, sizes, prova, pages, favourites, onSize, onStart, onStop, onGo }: ProvaTabProps) {
   const running = !!prova?.running;
   const keys = prova?.keys ?? [];
   const most = (favourites?.counted ?? []).slice(0, 6);
@@ -774,6 +815,7 @@ export function ProvaTab({ size, sizes, prova, pages, favourites, onSize, onStar
             <p className="liten">Studio trycker på varje knapp mot ett tomt ställverk, en kopia och aldrig det riktiga (SD47).</p>
           </div>
           <span className="tm-fyll" />
+          {roles.length > 1 ? <RoleChoice roles={roles} part={part} onRole={running ? undefined : onRole} label="Roll att prova" /> : null}
           <label>
             Storlek{" "}
             <select aria-label="Storlek att prova" value={size} disabled={running} onChange={(e) => onSize(e.target.value as DeckModelId)}>
@@ -878,6 +920,7 @@ type Calls = typeof api;
 export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
   const [tab, setTab] = useState<Tab>("sidor");
   const [size, setSize] = useState<DeckModelId>("15");
+  const [role, setRole] = useState<string | null>(null);
   const [studio, setStudio] = useState<DeckStudio | null>(null);
   const [mode, setMode] = useState<DeckMode | null>(null);
   const [page, setPage] = useState(0);
@@ -899,6 +942,8 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
   const [favourites, setFavourites] = useState<DeckFavourites | null>(null);
   const sizeRef = useRef(size);
   sizeRef.current = size;
+  const roleRef = useRef(role);
+  roleRef.current = role;
 
   const shown = useCallback((found: DeckStudio, keep = true) => {
     setStudio(found);
@@ -917,7 +962,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
     let gone = false;
     setSaid("");
     calls
-      .streamDeck(size)
+      .streamDeck(size, role)
       .then((found) => {
         if (gone) return;
         shown(found, false);
@@ -928,7 +973,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
       gone = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, calls, shown]);
+  }, [size, role, calls, shown]);
 
   useEffect(() => {
     void calls
@@ -942,7 +987,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
     setSaid("");
     setProblems([]);
     try {
-      const found = await calls.streamDeckDraft({ size, deviations });
+      const found = await calls.streamDeckDraft({ size, deviations, part: role });
       shown(found);
       done?.(found);
     } catch (error) {
@@ -1015,7 +1060,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
     setBusy(true);
     setProblems([]);
     try {
-      const found = await calls.saveStreamDeck({ size, deviations });
+      const found = await calls.saveStreamDeck({ size, deviations, part: role });
       shown(found);
       setSaid(found.message ?? "Sparat.");
     } catch (error) {
@@ -1030,7 +1075,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
     setBusy(true);
     setProblems([]);
     try {
-      shown(await calls.streamDeckSuggest({ size, deviations, page: refOf(current), rule }));
+      shown(await calls.streamDeckSuggest({ size, deviations, page: refOf(current), rule, part: role }));
       setSaid(`Sidan ${current.name} är föreslagen. Spara om den ska gälla.`);
     } catch (error) {
       failed(error, "Föreslå gick inte.");
@@ -1064,13 +1109,14 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
   }, [tab, readDecks]);
   const chosenDeck = decks?.decks?.find((d) => d.serial === deck) ?? null;
   const deckSize = sizeOfModel(chosenDeck?.model);
+  const deckRole = chosenDeck?.settings?.role ?? null;
   useEffect(() => {
-    if (!deckSize) return setDeckPages([]);
+    if (!deckSize || (deckRole && deckSize === "pedal")) return setDeckPages([]);
     void calls
-      .streamDeck(deckSize)
+      .streamDeck(deckSize, deckRole)
       .then((found) => setDeckPages((found.profile.pages ?? []).filter((p) => p.listed ?? true).map((p) => p.name)))
       .catch(() => setDeckPages([]));
-  }, [deckSize, calls]);
+  }, [deckSize, deckRole, calls]);
   const deckWork = async (work: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -1098,19 +1144,19 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
   useEffect(() => {
     if (tab !== "prova") return;
     void calls
-      .streamDeckProva(size)
+      .streamDeckProva(size, role)
       .then(setProva)
       .catch(() => {});
     void calls
       .deckFavourites()
       .then(setFavourites)
       .catch(() => setFavourites(null));
-  }, [tab, size, calls]);
+  }, [tab, size, role, calls]);
   useEffect(() => {
     if (!running) return;
     const every = setInterval(() => {
       void calls
-        .streamDeckProva(sizeRef.current)
+        .streamDeckProva(sizeRef.current, roleRef.current)
         .then(setProva)
         .catch(() => {});
     }, POLL_MS);
@@ -1136,6 +1182,12 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
         newPage={newPage}
         onSize={(next) => {
           setSize(next);
+          setChosen(null);
+        }}
+        onRole={(next) => {
+          // A part's deck has no pedal (TKL122): the 15 instead.
+          if (next && size === "pedal") setSize("15");
+          setRole(next);
           setChosen(null);
         }}
         onMode={(next) => {
@@ -1170,7 +1222,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
         onResetSize={() => void edit([])}
         onSave={() => void save()}
         onUndo={() => {
-          void calls.streamDeck(size).then((found) => shown(found));
+          void calls.streamDeck(size, role).then((found) => shown(found));
           setSaid("");
           setProblems([]);
         }}
@@ -1226,6 +1278,12 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
   } else if (tab === "prova") {
     body = (
       <ProvaTab
+        roles={studio?.roles ?? []}
+        part={role}
+        onRole={(next) => {
+          if (next && size === "pedal") setSize("15");
+          setRole(next);
+        }}
         size={size}
         sizes={(studio?.sizes ?? []).filter((s) => s.size !== "pedal" || (s.deviations ?? 0) > 0)}
         prova={prova}
@@ -1234,7 +1292,7 @@ export function StreamDeckStudio({ calls = api }: { calls?: Calls }) {
         onSize={setSize}
         onStart={() =>
           void calls
-            .streamDeckProvaStart(size)
+            .streamDeckProvaStart(size, role)
             .then(setProva)
             .catch((error: unknown) => setProva({ message: message(error, "Provet startade inte.") } as DeckProva))
         }

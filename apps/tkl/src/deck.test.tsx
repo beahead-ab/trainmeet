@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { DeckFace, DeckView, Interlocking, Panel } from "./api";
 import { DeckGrid, DeckKey } from "./Deck";
-import { facesOf, Holds, keyStyle, readDeck, saveDeck, serialFor, textSize } from "./deck";
+import { facesOf, Holds, keyStyle, readDeck, saveDeck, serialFor, soundOf, textSize } from "./deck";
 import { drawing, filled } from "./stallverk";
 
 const panel: Panel = {
@@ -265,5 +265,121 @@ describe("the deck per screen", () => {
     saveDeck(2, { open: true, model: "xl" }, storage);
     expect(readDeck(2, storage)).toEqual({ open: true, model: "xl" });
     expect(readDeck(3, storage).open).toBe(false);
+  });
+});
+
+// Bangård (#87 del d): the shunter's deck on the part's screen, as a 15. TKL's server computes
+// every face from the part's state (tkl/deck/yard.py); the screen draws it, sends the presses and
+// sounds Tuta and Ring. The faces here are the server's for a made-up yard.
+describe("Bangård on the screen as a 15 (#87 del d)", () => {
+  const END = 10;
+  const OUT = 5;
+  const GIVE = 11;
+  const TRAIN = 4;
+  const yard = (more: Partial<Record<number, DeckFace>> = {}) =>
+    deckView(
+      "15",
+      (n) => {
+        const keys = Array.from({ length: n }, () => face({}));
+        keys[0] = face({ type: "street", text: "51", under: "V 51", bg: "#1e293b", fg: "#f0f9ff", frame: "#38bdf8", label: "Växelgata V 51 mot 51" });
+        keys[TRAIN] = face({ type: "train", top: "klart att skicka", text: "9101", under: "spår 51 · 10:42", small: "1/3", bg: "#1d1a0b", fg: "#fde68a", frame: "#f5c518", label: "Tåg 9101: anmäl klart att skicka" });
+        keys[OUT] = face({ type: "request", text: "3", under: "begär", bg: "#262b31", fg: "#e5e7eb", frame: "#a78bfa", label: "Begär V 3" });
+        keys[END] = face({ type: "end", top: "Ände", text: "Vänster", under: "◀ vald", bg: "#334155", fg: "#ffffff", line: "#f8fafc", label: "Ände: vänster" });
+        keys[GIVE] = face({ type: "action", text: "Lämna", under: "tillbaka", bg: "#1f2937", fg: "#fef3c7", dim: true, label: "Lämna" });
+        keys[12] = face({ type: "action", text: "Klart", under: "lämna tillbaka", bg: "#14532d", fg: "#dcfce7", label: "Klart" });
+        keys[13] = face({ type: "action", text: "Ring", under: "tågklareraren", bg: "#1e1b4b", fg: "#c7d2fe", label: "Ring tågklareraren" });
+        keys[14] = face({ type: "mode", top: "Läge", text: "Bangård", label: "Läge Bangård" });
+        for (const [at, given] of Object.entries(more)) keys[Number(at)] = given as DeckFace;
+        return keys;
+      },
+      { modes: ["bangard"], mode: "bangard", page: "Bangård", fixed: [10, 11, 12, 13, 14], settings: { ...deckView("15").settings, serial: "del-bangarden-1", role: "bangarden" } },
+    );
+  const pressed = (view: DeckView, key: number) => {
+    const sent: [number, boolean][] = [];
+    const holds = new Holds(view.hold_ms ?? 600);
+    const buttons = elements(
+      DeckGrid({
+        view,
+        faces: facesOf(view, true),
+        now: 0,
+        plan,
+        onDown: (k) => holds.pressed(k, 0),
+        onUp: (k) => {
+          const what = holds.released(k, 100);
+          if (what) sent.push([k, what === "hold"]);
+        },
+      }),
+    ).filter((e) => e.props.className === "sd-key") as ReactElement<{ onPointerDown: (e: { preventDefault: () => void }) => void; onPointerUp: () => void }>[];
+    buttons[key]?.props.onPointerDown({ preventDefault: () => undefined });
+    buttons[key]?.props.onPointerUp();
+    return sent;
+  };
+
+  it("is the part's own deck on its screen, kept apart from the station's", () => {
+    const kept = new Map<string, string>();
+    const storage = { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v) };
+    expect(serialFor(1, "bangarden")).toBe("del-bangarden-1");
+    expect(serialFor(1, "a:b")).toBe("del-a-b-1");
+    saveDeck(1, { open: true, model: "15" }, storage, "bangarden");
+    expect(readDeck(1, storage, "bangarden").open).toBe(true);
+    expect(readDeck(1, storage).open).toBe(false);
+  });
+
+  it("Ände shows the chosen end, and a press on it goes to TKL as a press", () => {
+    const view = yard();
+    const markup = html(view);
+    expect(markup).toContain('data-type="end"');
+    expect(markup).toContain('aria-label="Ände: vänster"');
+    expect(markup).toContain("sd-line");
+    expect(pressed(view, END)).toEqual([[END, false]]);
+    const right = html(yard({ [END]: face({ type: "end", top: "Ände", text: "Höger", under: "vald ▶", bg: "#334155", fg: "#ffffff", line: "#f8fafc", label: "Ände: höger" }) }));
+    expect(right).toContain('aria-label="Ände: höger"');
+    expect(right).toContain("vald ▶");
+  });
+
+  it("a request: begär, then waiting blinks, then approved is green", () => {
+    expect(pressed(yard(), OUT)).toEqual([[OUT, false]]);
+    const waiting = face({ type: "request", text: "3", under: "väntar", bg: "#422006", fg: "#ffffff", frame: "#c4b5fd", blink: "#ca8a04", label: "V 3 begärd, väntar på svar" });
+    expect(keyStyle(waiting, 0).background).toBe("#422006");
+    expect(keyStyle(waiting, 600).background).toBe("#ca8a04");
+    expect(html(yard({ [OUT]: waiting }))).toContain('data-blink="ja"');
+    const approved = html(yard({ [OUT]: face({ type: "request", text: "3", under: "godkänd", bg: "#15803d", fg: "#ffffff", frame: "#c4b5fd", label: "V 3 godkänd" }) }));
+    expect(approved).toContain("background:#15803d");
+    expect(approved).toContain("godkänd");
+  });
+
+  it("Lämna waits for a track, and the approved route out says lämna?", () => {
+    const giving = yard({
+      [GIVE]: face({ type: "action", text: "Lämna", under: "välj spår", bg: "#a16207", fg: "#fef3c7", label: "Lämna: välj spåret" }),
+      [OUT]: face({ type: "request", text: "3", under: "lämna?", bg: "#15803d", fg: "#ffffff", frame: "#c4b5fd", dashed: true, label: "V 3 godkänd, tryck för att lämna tillbaka" }),
+    });
+    const markup = html(giving);
+    expect(markup).toContain("välj spår");
+    expect(markup).toContain("lämna?");
+    expect(keyStyle(facesOf(giving, true)[OUT] as DeckFace, 0).outline).toContain("dashed");
+    expect(pressed(giving, OUT)).toEqual([[OUT, false]]);
+    // With nothing approved, Lämna is dimmed.
+    const idle = facesOf(yard(), true)[GIVE] as DeckFace;
+    expect(renderToStaticMarkup(<DeckKey face={idle} now={0} plan={null} />)).toContain("sd-face dim");
+  });
+
+  it("the train key shows the next train; a hold steps to the next one", () => {
+    const view = yard();
+    const markup = html(view);
+    for (const said of ["klart att skicka", "9101", "spår 51 · 10:42", "1/3"]) expect(markup).toContain(said);
+    const holds = new Holds(view.hold_ms ?? 600);
+    holds.pressed(TRAIN, 0);
+    expect(holds.tick(700)).toEqual([TRAIN]);
+    expect(holds.released(TRAIN, 800)).toBeNull();
+    expect(pressed(view, TRAIN)).toEqual([[TRAIN, false]]);
+  });
+
+  it("Tuta and Ring sound on the screen, and Fika draws the cup", () => {
+    expect(soundOf(face({ type: "action", text: "Tuta" }))).toBe("horn");
+    expect(soundOf(face({ type: "action", text: "Ring" }))).toBe("ring");
+    expect(soundOf(face({ type: "street", text: "51" }))).toBeNull();
+    const cup = renderToStaticMarkup(<DeckKey face={face({ type: "fika", text: "Fika", under: "tryck: tillbaka", bg: "#1c1917", fg: "#a8a29e" })} now={0} plan={null} />);
+    expect(cup).toContain("sd-kopp");
+    expect(cup).not.toContain("☕");
   });
 });

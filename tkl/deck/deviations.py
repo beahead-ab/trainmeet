@@ -14,6 +14,9 @@ what a gesture means (SD3): a deviation that tries is refused with the reason. L
 Noll and Nödutlösning are done with a hold, never a press (SD29), and never on a pedal (SD55).
 The fixed row is the same on every page and is not changed here (SD27).
 
+The shunter's deck, Bangård (#87 del d), has deviations of its own per part and size: its keys
+are the shunter's, and a page of it takes only those.
+
 `apply` is pure: the default, the deviations and what the station has in, the owner's profile
 and Att kolla out. `diff` is its reverse, so that Studio keeps the fewest deviations that make
 the owner's profile: apply(default, diff(default, profile)) is the profile.
@@ -30,6 +33,7 @@ from dataclasses import dataclass, field
 from threading import Lock
 from typing import Final
 
+from contracts.station_model import PartSide
 from contracts.tkl import (
     DeckAction,
     DeckChange,
@@ -70,6 +74,8 @@ IDENTITY: Final = (
     "action",
     "function",
     "route",
+    "track",
+    "side",
 )
 """What a key is: the fields that find it again on a page after the default is made again."""
 LOOK: Final = ("text", "under", "press", "hold", "number", "dim", "confirm")
@@ -106,10 +112,22 @@ ADDABLE: Final = frozenset(
         K.ACTION,
         K.PANEL,
         K.ROUTE,
+        K.END,
+        K.STREET,
+        K.REQUEST,
+        K.READY,
     }
 )
 """The types the owner can put on a page from Knappar. Spårplan's squares and a part's key
 are the default's: they follow the drawing."""
+YARD_KEYS: Final = frozenset({K.END, K.STREET, K.REQUEST, K.READY})
+"""The shunter's own keys (#87 del d): only on Bangård's pages."""
+YARD_ACTIONS: Final = frozenset(
+    {A.GIVE_BACK, A.DONE, A.RING, A.GATES, A.HORN, A.FIKA, A.CLOCK, A.REQUESTS}
+)
+"""The shunter's own actions (SD61, RANG-04): only on Bangård's pages."""
+ON_YARD: Final = YARD_KEYS | frozenset({K.ACTION, K.MODE, K.NEXT, K.PAGE})
+"""What a page of Bangård takes: the shunter's keys, the actions and the navigation."""
 ON_A_PEDAL: Final = frozenset({K.ACTION, K.ROUTE, K.PANEL})
 """A pedal has no screen (SD55): an action, a snabbväg or a panel function."""
 COLOURS: Final = frozenset(
@@ -129,6 +147,14 @@ ACTION_NAMES: Final = {
     A.RESET: "Noll",
     A.EMERGENCY: "Nödutlösning",
     A.NOTHING: "Ingenting",
+    A.GIVE_BACK: "Lämna",
+    A.DONE: "Klart",
+    A.RING: "Ring",
+    A.GATES: "Grindar",
+    A.HORN: "Tuta",
+    A.FIKA: "Fika",
+    A.CLOCK: "Klocka",
+    A.REQUESTS: "Begär",
 }
 TYPE_NAMES: Final = {
     K.TRAIN: "Tågknapp",
@@ -149,7 +175,12 @@ TYPE_NAMES: Final = {
     K.ACTION: "Funktion",
     K.PANEL: "Panelfunktion",
     K.ROUTE: "Snabbväg",
+    K.END: "Ände",
+    K.STREET: "Spår",
+    K.REQUEST: "Väg ut",
+    K.READY: "Tågknapp, klart att skicka",
 }
+END_NAMES: Final = {PartSide.LEFT: "vänster", PartSide.RIGHT: "höger"}
 ARROW: Final = "\N{RIGHTWARDS ARROW}"
 
 
@@ -194,6 +225,10 @@ def describe(key: TklDeckKey | None) -> str:
             return f"{TYPE_NAMES[key.type].lower()} {key.slot or ''}".strip()
         case K.PAN if key.pan is not None:
             return f"panoreringen {key.pan.value}"
+        case K.STREET | K.REQUEST:
+            what = "spåret" if key.type == K.STREET else "vägen ut till"
+            end = f" från {END_NAMES[key.side]} ände" if key.side is not None else ""
+            return f"{what} {key.track}{end}"
     return TYPE_NAMES.get(key.type, key.type.value)
 
 
@@ -219,10 +254,20 @@ class Known:
     parts: int
     functions: frozenset[str]
     route: Callable[[TklDeckRoute], bool]
+    streets: frozenset[tuple[str, PartSide | None]] = frozenset()
+    """Bangård: the part's switch streets, by track and end (#87 del d)."""
+    outs: frozenset[tuple[str, PartSide | None]] = frozenset()
+    """Bangård: the part's routes out, by track and end."""
 
     def has(self, key: TklDeckKey) -> str | None:
         """Why the key points at nothing, else None."""
         match key.type:
+            case K.STREET if not _at_end(self.streets, key):
+                end = f" från {END_NAMES[key.side]} ände" if key.side is not None else ""
+                return f"Delen har ingen växelgata till {key.track}{end}."
+            case K.REQUEST if not _at_end(self.outs, key):
+                end = f" från {END_NAMES[key.side]} ände" if key.side is not None else ""
+                return f"Delen har ingen väg ut till {key.track}{end}."
             case K.SIGNAL if key.point not in self.points:
                 return f"Signalen {key.point} finns inte i stationsmodellen."
             case K.PLACE | K.TRACK if key.place not in self.places:
@@ -242,6 +287,11 @@ class Known:
         return None
 
 
+def _at_end(found: frozenset[tuple[str, PartSide | None]], key: TklDeckKey) -> bool:
+    """A street or a route out to the key's track, from its end when it has one."""
+    return any(t == key.track and (key.side is None or s in (key.side, None)) for t, s in found)
+
+
 def route_exists(plant: Plant) -> Callable[[TklDeckRoute], bool]:
     def check(route: TklDeckRoute) -> bool:
         kind = EngineKind(route.kind.value)
@@ -252,8 +302,15 @@ def route_exists(plant: Plant) -> Callable[[TklDeckRoute], bool]:
     return check
 
 
-def known_of(plant: Plant, geo: Geography) -> Known:
+def known_of(plant: Plant, geo: Geography, part: str | None = None) -> Known:
+    found = plant.parts.get(part) if part is not None else None
     return Known(
+        streets=frozenset((s.track, s.side) for s in found.streets.values())
+        if found
+        else frozenset(),
+        outs=frozenset((r.track, r.side) for r in found.routes_out.values())
+        if found
+        else frozenset(),
         points=frozenset(p.name for p in geo.points)
         | frozenset(plant.points)
         | frozenset(geo.start_place)
@@ -538,6 +595,9 @@ def _one(work: _Work, d: TklDeckDeviation) -> str | None:
     assert d.key is not None
     if d.change == C.ADD:
         assert d.cell is not None
+        wrong = _not_here(page.page, d.key)
+        if wrong:
+            return wrong
         if work.known is not None:
             missing = work.known.has(d.key)
             if missing:
@@ -559,6 +619,20 @@ def _one(work: _Work, d: TklDeckDeviation) -> str | None:
     found = page.keys[here]
     assert found is not None
     page.keys[here] = _looked(found, d)
+    return None
+
+
+def _not_here(page: TklDeckPage, key: TklDeckKey) -> str | None:
+    """The shunter's keys only on Bangård's pages, and only those there (#87 del d)."""
+    shunter = key.type in YARD_KEYS or (key.type == K.ACTION and key.action in YARD_ACTIONS)
+    if page.mode == DeckMode.YARD:
+        if key.type not in ON_YARD:
+            return "Bangård har bara rangerarens knappar."
+        if key.type == K.ACTION and not shunter and key.action != A.RUN:
+            return "Bangård har bara rangerarens knappar."
+        return None
+    if shunter:
+        return "Rangerarens knappar finns bara i Bangård, på en dels deck."
     return None
 
 
@@ -716,7 +790,7 @@ def tidy(
 # --- the owner's profile, made once per default and deviations ------------------------------------
 
 
-_MADE: dict[tuple[str, str, DeckModelId | None, str], Applied] = {}
+_MADE: dict[tuple[str, str, DeckModelId | None, str, str | None], Applied] = {}
 _LOCK = Lock()
 KEPT: Final = 64
 
@@ -727,20 +801,22 @@ def owned(
     grid: TklDeckGrid,
     model: DeckModelId | None,
     deviations: list[TklDeckDeviation],
+    part: str | None = None,
 ) -> Applied:
     """The owner's profile for a deck: the default for its grid with the owner's deviations for
-    its size. The same default and deviations always give the same profile object, so that a
-    deck's state is kept until one of them changes."""
-    default = build(plant, panel, grid, model)
+    its size, or for a part's deck the shunter's (#87 del d). The same default and deviations
+    always give the same profile object, so that a deck's state is kept until one of them
+    changes."""
+    default = build(plant, panel, grid, model, part)
     if not deviations:
         return Applied(default)
     said = json.dumps([d.model_dump(mode="json") for d in deviations], sort_keys=True)
-    key = (plant.fingerprint, grid.model_dump_json(), model, said)
+    key = (plant.fingerprint, grid.model_dump_json(), model, said, part)
     with _LOCK:
         known_made = _MADE.get(key)
     if known_made is not None:
         return known_made
-    made = apply(default, deviations, known_of(plant, geography_of(plant, panel)))
+    made = apply(default, deviations, known_of(plant, geography_of(plant, panel), part))
     with _LOCK:
         if len(_MADE) >= KEPT:
             _MADE.clear()

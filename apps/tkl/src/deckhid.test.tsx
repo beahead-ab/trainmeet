@@ -161,7 +161,7 @@ describe("Stream Deck with WebHID (#86 del b, SD50)", () => {
   it("opens the deck on TKL's server with its serial number and model, and fills every key", async () => {
     const { deck, api, bridge, how } = await started("xl");
     expect(how).toBe("open");
-    expect(api.opened).toEqual([["SD0001", { model: "xl", grid: null, workplace: null, connection: "webhid" }]]);
+    expect(api.opened).toEqual([["SD0001", { model: "xl", grid: null, workplace: null, connection: "webhid", role: null }]]);
     expect(deck.filled.map(([i]) => i).sort((a, b) => a - b)).toEqual(Array.from({ length: 32 }, (_, i) => i));
     expect(api.fetched).toContain("/api/tkl/1/deck/SD0001/key/0.png?size=96");
     expect(api.fetched.filter((p) => p.includes("/key/")).length).toBe(32);
@@ -298,7 +298,7 @@ describe("Stream Deck with WebHID (#86 del b, SD50)", () => {
 
   it("reads a deck TKL does not know by its grid (SD53), and the models and serials", async () => {
     const { api, bridge } = await started("galleon-k100");
-    expect(api.opened[0]?.[1]).toEqual({ model: null, grid: { columns: 3, rows: 4, dials: 0, strip: false, info: false, touch: 0, pedals: 0 }, workplace: null, connection: "webhid" });
+    expect(api.opened[0]?.[1]).toEqual({ model: null, grid: { columns: 3, rows: 4, dials: 0, strip: false, info: false, touch: 0, pedals: 0 }, workplace: null, connection: "webhid", role: null });
     await bridge.close();
     expect(gridOf(MODEL_CONTROLS.neo!() as never)).toMatchObject({ columns: 4, rows: 2, info: true, touch: 2 });
     expect(gridOf(MODEL_CONTROLS.plus!() as never)).toMatchObject({ columns: 4, rows: 2, dials: 4, strip: true });

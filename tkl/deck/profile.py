@@ -24,16 +24,29 @@ The modes (SD63, SD76) and their pages:
 - Spårplan, from 15 keys or with dials (SD76): Hela stationen, the plan cut in a piece per key
   (SD70), and the cut-out, a square of the plan per key with the pan keys (SD71, SD81).
 
+Bangård (#87 del d, SD60, SD61, SD74, SD86, SD87): the shunter's deck, for a deck with a part's
+role, is made from the part of the model alone. The part's tracks with a switch street from both
+ends become track keys, where a press lays the street from the chosen end, and the stations
+tracks its routes out lead to become request keys; Ände chooses the end. On the 15 it is one page
+with Ände, Lämna, Klart, Ring and Läge in the bottom row; on Mini the end and then the track,
+with Begär opening the routes out; on Neo the tracks and the requests on pages of their own; on +
+a dial chooses the route out; on XL and + XL the yard drawn, the tracks with their streets at
+either end and the requests in two columns, with Tuta, Fika, Kör, Klocka and Grindar (RANG-04).
+A track with a street from one end only, a load track or the depot, is laid on the screen where
+the deck has no room for it. The pedal has no shunter's deck (TKL122).
+
 A profile is data (SD5): keys from the fixed catalogue (SD4) that name a slot, a place, a signal
 or a square. No code here names a station (RS13).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import Final
 
+from contracts.station_model import PartSide, RouteOut, SwitchStreet
 from contracts.tkl import (
     DeckAction,
     DeckDial,
@@ -189,23 +202,28 @@ class Builder:
         return f.fixed.get("arrived") or f.fixed.get("release")
 
 
-_MADE: dict[tuple[str, str, DeckModelId | None], TklDeckProfile] = {}
+_MADE: dict[tuple[str, str, DeckModelId | None, str | None], TklDeckProfile] = {}
 _GEOGRAPHY: dict[str, Geography] = {}
 _LOCK = Lock()
 KEPT: Final = 64
 
 
 def build(
-    plant: Plant, panel: Panel | None, grid: TklDeckGrid, model: DeckModelId | None = None
+    plant: Plant,
+    panel: Panel | None,
+    grid: TklDeckGrid,
+    model: DeckModelId | None = None,
+    part: str | None = None,
 ) -> TklDeckProfile:
     """The default profile for a grid: the same model and grid always give the same profile,
-    so it is made once (the panel follows from the model)."""
-    key = (plant.fingerprint, grid.model_dump_json(), model)
+    so it is made once (the panel follows from the model). With a part, the shunter's deck of
+    that part: the mode Bangård only (#87 del d)."""
+    key = (plant.fingerprint, grid.model_dump_json(), model, part)
     with _LOCK:
         known = _MADE.get(key)
     if known is not None:
         return known
-    made = _built(plant, panel, grid, model)
+    made = _built(plant, panel, grid, model) if part is None else yard(plant, grid, model, part)
     with _LOCK:
         if len(_MADE) >= KEPT:
             _MADE.clear()
@@ -599,3 +617,312 @@ def cut_size(page: TklDeckPage) -> tuple[int, int]:
     if not cells:
         return 0, 0
     return max(k.dx or 0 for k in cells) + 1, max(k.dy or 0 for k in cells) + 1
+
+
+# --- Bangård, the shunter's deck (#87 del d, SD60, SD61, SD74, SD86, SD87) -------------------
+
+YARD_DIALS: Final = [DeckDial.REQUEST, DeckDial.STREET, DeckDial.READY, DeckDial.PAGE]
+"""What the dials do in Bangård (SD87): on + the first chooses the route out to request."""
+YARD_ROW: Final = {
+    "arrived": "end",
+    "release": "give_back",
+    "alarm": "done",
+    "page": "ring",
+    "mode": "mode",
+}
+"""The fixed row of the 15 and Studio in Bangård: Ände, Lämna, Klart, Ring and Läge (SD86)."""
+YARD_COLUMN: Final = {"alarm": "clock", "arrived": "ring", "release": "done", "mode": "mode"}
+"""The right column of XL and + XL in Bangård: Klocka at the top, Läge at the bottom (SD75)."""
+CORE: Final = ("ready", "give_back", "done", "ring")
+"""What every shunter's deck has besides the tracks and the requests (SD60, SD61)."""
+EXTRAS: Final = ("gates", "horn", "fika", "run", "clock")
+"""What the decks with 32 keys have too: Grindar, Tuta, Fika, Kör and Klocka (RANG-04)."""
+PAGE_ONE: Final = "Bangård"
+PAGE_TRACKS: Final = "Spår"
+PAGE_REQUESTS: Final = "Begäran"
+PAGE_MORE: Final = "Mer"
+
+
+@dataclass(frozen=True)
+class YardTrack:
+    """A track in the yard: one of the part's, with the ends it has a switch street from, or a
+    station track with the ends the part's routes out to it leave from. One without an end
+    belongs to both."""
+
+    track: str
+    sides: frozenset[PartSide | None]
+
+    @property
+    def through(self) -> bool:
+        """Reached from both ends: a track of the yard itself, not a load track or the depot."""
+        return None in self.sides or {PartSide.LEFT, PartSide.RIGHT} <= self.sides
+
+    @property
+    def side(self) -> PartSide | None:
+        """The only end, for a track reached from one end."""
+        found = [s for s in self.sides if s is not None]
+        return found[0] if len(found) == 1 and None not in self.sides else None
+
+
+def yard_tracks(items: Iterable[SwitchStreet | RouteOut]) -> list[YardTrack]:
+    """The tracks of the streets or the routes out, in the model's order: those reached from
+    both ends first (SD61)."""
+    order: list[str] = []
+    sides: dict[str, set[PartSide | None]] = {}
+    for item in items:
+        if item.track not in sides:
+            order.append(item.track)
+            sides[item.track] = set()
+        sides[item.track].add(item.side)
+    found = [YardTrack(t, frozenset(sides[t])) for t in order]
+    return [t for t in found if t.through] + [t for t in found if not t.through]
+
+
+def _role_key(role: str) -> TklDeckKey:
+    actions = {
+        "give_back": DeckAction.GIVE_BACK,
+        "done": DeckAction.DONE,
+        "ring": DeckAction.RING,
+        "gates": DeckAction.GATES,
+        "horn": DeckAction.HORN,
+        "fika": DeckAction.FIKA,
+        "run": DeckAction.RUN,
+        "clock": DeckAction.CLOCK,
+    }
+    if role in actions:
+        return TklDeckKey(type=K.ACTION, action=actions[role])
+    return {
+        "end": TklDeckKey(type=K.END),
+        "mode": TklDeckKey(type=K.MODE),
+        "next": TklDeckKey(type=K.NEXT),
+        "ready": TklDeckKey(type=K.READY),
+    }[role]
+
+
+def _street(track: YardTrack, side: PartSide | None = None) -> TklDeckKey:
+    return TklDeckKey(type=K.STREET, track=track.track, side=side)
+
+
+def _request(track: YardTrack, side: PartSide | None = None) -> TklDeckKey:
+    return TklDeckKey(type=K.REQUEST, track=track.track, side=side)
+
+
+@dataclass
+class _Yard:
+    """The yard as the deck has it: its tracks, its routes out, and what is left to place."""
+
+    through: list[YardTrack]
+    stubs: list[YardTrack]
+    outs: list[YardTrack]
+    tools: list[str]
+    extras: list[str]
+
+
+def yard(
+    plant: Plant, grid: TklDeckGrid, model: DeckModelId | None, part_id: str
+) -> TklDeckProfile:
+    """The shunter's deck for a grid, made from the part of the model (SD61, SD86, SD87). The
+    pedal has none (TKL122)."""
+    f = frame(grid)
+    if f.style == DeckStyle.NONE:
+        return TklDeckProfile(
+            model=model, grid=grid, style=f.style, pedals=[None] * grid.pedals, part=part_id
+        )
+    part = plant.parts.get(part_id)
+    streets = list(part.streets.values()) if part is not None else []
+    outs = list(part.routes_out.values()) if part is not None else []
+    tracks = yard_tracks(streets)
+    roles = YARD_COLUMN if f.style == DeckStyle.COLUMN else YARD_ROW
+    fixed = {
+        index: _role_key(roles.get(role, role))
+        for role, index in f.fixed.items()
+        if role in roles or role in ("next", "mode")
+    }
+    placed = {roles.get(role, role) for role in f.fixed if role in roles}
+    large = f.size >= LARGE
+    found = _Yard(
+        through=[t for t in tracks if t.through],
+        stubs=[t for t in tracks if not t.through],
+        outs=yard_tracks(outs),
+        tools=[r for r in CORE if r not in placed],
+        extras=[r for r in EXTRAS if r not in placed] if large else [],
+    )
+    b = Builder(f, Geography([], [], [], {}, {}, 1.0, (0.0, 0.0), (0.0, 0.0), {}, {}))
+    if f.style == DeckStyle.COLUMN and min(len(r) for r in f.rows) >= 4:
+        _yard_drawn(b, found, fixed)
+    elif f.style == DeckStyle.ROW:
+        _yard_row(b, found, fixed)
+    else:
+        _yard_small(b, found, fixed, "end" not in placed)
+    return TklDeckProfile(
+        model=model,
+        grid=grid,
+        style=f.style,
+        fixed=sorted(f.fixed.values()),
+        modes=[DeckMode.YARD],
+        pages=b.pages,
+        dials={DeckMode.YARD: YARD_DIALS[: grid.dials]} if grid.dials else {},
+        part=part_id,
+    )
+
+
+def _yard_page(
+    b: Builder,
+    name: str,
+    keys: dict[int, TklDeckKey],
+    fixed: dict[int, TklDeckKey],
+    *,
+    listed: bool = True,
+) -> int:
+    return b.page(name, DeckMode.YARD, DeckPageKind.YARD, keys, listed=listed, fixed=fixed)
+
+
+def _fill(cells: Iterable[int], keys: dict[int, TklDeckKey], items: list[TklDeckKey]) -> None:
+    """The items, in order, into the cells still free; what does not fit stays in the list."""
+    for cell in cells:
+        if not items:
+            return
+        if cell not in keys:
+            keys[cell] = items.pop(0)
+
+
+def _overflow(b: Builder, left: list[TklDeckKey], fixed: dict[int, TklDeckKey]) -> None:
+    """What did not fit on the first page, on the next ones in reading order."""
+    n = 2
+    while left:
+        keys: dict[int, TklDeckKey] = {}
+        _fill(b.frame.area, keys, left)
+        _yard_page(b, f"{PAGE_ONE} {n}", keys, fixed)
+        n += 1
+
+
+def _yard_row(b: Builder, y: _Yard, fixed: dict[int, TklDeckKey]) -> None:
+    """The 15 and Studio (SD61, SD86): the tracks in the top row with the train key last, the
+    routes out under, Ände, Lämna, Klart, Ring and Läge in the fixed row. What has room more
+    fills the free keys: the load tracks and the depot, then Grindar, Tuta, Fika, Kör and Klocka
+    on Studio. Tracks and routes out that do not fit go on on the next page."""
+    f = b.frame
+    rows = f.rows
+    top = rows[0] if rows else []
+    keys: dict[int, TklDeckKey] = {}
+    tracks = [_street(t) for t in y.through]
+    outs = [_request(t) for t in y.outs]
+    tools = [_role_key(r) for r in y.tools]
+    if top and "ready" in y.tools:
+        keys[top[-1]] = tools.pop(0)
+    _fill(top, keys, tracks)
+    _fill([i for row in rows[1:] for i in row], keys, outs)
+    _fill(f.area, keys, tracks)
+    _fill(f.area, keys, outs)
+    _fill(f.area, keys, tools)
+    _fill(f.area, keys, [_street(t, t.side) for t in y.stubs])
+    _fill(f.area, keys, [_role_key(r) for r in y.extras])
+    _yard_page(b, PAGE_ONE, keys, fixed)
+    _overflow(b, tracks + outs + tools, fixed)
+
+
+def _yard_drawn(b: Builder, y: _Yard, fixed: dict[int, TklDeckKey]) -> None:
+    """XL and + XL (SD87): the yard drawn. The routes out in two columns, the left end's far
+    left and the right end's far right; next to them each track's switch street from that end,
+    a track per row; the load tracks and the depot under them or towards the middle; and in the
+    middle the train key, Lämna, Grindar, Tuta, Fika and Kör (RANG-04)."""
+    f = b.frame
+    rows = f.rows
+    width = min(len(r) for r in rows)
+    height = len(rows)
+
+    def column(c: int) -> list[int]:
+        return [rows[r][c] for r in range(height)]
+
+    keys: dict[int, TklDeckKey] = {}
+    left_outs = [t for t in y.outs if t.side == PartSide.LEFT]
+    right_outs = [t for t in y.outs if t.side == PartSide.RIGHT]
+    both = [t for t in y.outs if t.side is None and t.through and None in t.sides]
+    paired = [t for t in y.outs if t not in left_outs and t not in right_outs and t not in both]
+    left_keys = [_request(t, PartSide.LEFT) for t in left_outs]
+    right_keys = [_request(t, PartSide.RIGHT) for t in right_outs]
+    for t in paired:
+        left_keys.append(_request(t, PartSide.LEFT))
+        right_keys.append(_request(t, PartSide.RIGHT))
+    for t in both:
+        (left_keys if len(left_keys) <= len(right_keys) else right_keys).append(_request(t))
+    _fill(column(0), keys, left_keys)
+    _fill(column(width - 1), keys, right_keys)
+    left_streets: list[TklDeckKey] = []
+    right_streets: list[TklDeckKey] = []
+    for t in y.through:
+        left_streets.append(_street(t, PartSide.LEFT if PartSide.LEFT in t.sides else None))
+        if PartSide.RIGHT in t.sides:
+            right_streets.append(_street(t, PartSide.RIGHT))
+        elif PartSide.LEFT in t.sides:
+            right_streets.append(_street(t))
+    _fill(column(1), keys, left_streets)
+    _fill(column(width - 2), keys, right_streets)
+    middle = list(range(2, width - 2))
+    left_stubs = [_street(t, t.side) for t in y.stubs if t.side != PartSide.RIGHT]
+    right_stubs = [_street(t, t.side) for t in y.stubs if t.side == PartSide.RIGHT]
+    _fill(column(1) + [i for c in middle for i in column(c)], keys, left_stubs)
+    _fill(column(width - 2) + [i for c in reversed(middle) for i in column(c)], keys, right_stubs)
+    inside = [rows[r][c] for r in range(height) for c in middle]
+    tools = [_role_key(r) for r in y.tools]
+    extras = [_role_key(r) for r in y.extras]
+    for listed in (tools, extras):
+        _fill(inside, keys, listed)
+        _fill(f.area, keys, listed)
+    _yard_page(b, PAGE_ONE, keys, fixed)
+    _overflow(b, left_keys + right_keys + left_streets + right_streets + left_stubs + tools, fixed)
+
+
+def _yard_small(b: Builder, y: _Yard, fixed: dict[int, TklDeckKey], with_end: bool) -> None:
+    """Mini, Neo and + (SD87): Ände and the tracks on Spår; the routes out on Begäran, which on
+    Mini is opened by Begär and on + is a dial; the train key, Lämna, Klart and Ring where there
+    is room, else on Mer."""
+    f = b.frame
+    area = f.area
+    mini = f.style == DeckStyle.NEXT
+    dial = f.grid.dials > 0
+    end = [_role_key("end")] if with_end else []
+    tracks = [_street(t) for t in (y.through or y.stubs)]
+    outs = [] if dial else [_request(t) for t in y.outs]
+    planned: list[tuple[str, list[TklDeckKey], str]] = []
+    room = max(1, len(area) - len(end))
+    pieces = [tracks[i : i + room] for i in range(0, len(tracks), room)] or [[]]
+    for n, piece in enumerate(pieces, start=1):
+        name = PAGE_TRACKS if len(pieces) == 1 else f"{PAGE_TRACKS} {n}"
+        planned.append((name, end + piece, "tracks"))
+    lead = [] if mini else end
+    per = max(1, len(area) - len(lead))
+    out_pieces = [lead + outs[i : i + per] for i in range(0, len(outs), per)]
+    named = [
+        (PAGE_REQUESTS if len(out_pieces) == 1 else f"{PAGE_REQUESTS} {n}", piece)
+        for n, piece in enumerate(out_pieces, start=1)
+    ]
+    if not mini:
+        planned += [(name, piece, "outs") for name, piece in named]
+    rest: list[TklDeckKey] = []
+    for role in y.tools:
+        key = _role_key(role)
+        wanted = ["outs", "tracks"] if role == "give_back" else ["tracks", "outs"]
+        target = next(
+            (p for kind in wanted for p in planned if p[2] == kind and len(p[1]) < len(area)),
+            None,
+        )
+        if target is not None:
+            target[1].append(key)
+        else:
+            rest.append(key)
+    more = [TklDeckKey(type=K.ACTION, action=DeckAction.REQUESTS)] if mini and outs else []
+    more += rest + [_role_key(r) for r in y.extras]
+    chunks = [more[i : i + len(area)] for i in range(0, len(more), len(area))]
+    for n, piece in enumerate(chunks, start=1):
+        planned.append((PAGE_MORE if len(chunks) == 1 else f"{PAGE_MORE} {n}", piece, "more"))
+    first_out = len(planned)
+    for name, listed_keys, _kind in planned:
+        keys: dict[int, TklDeckKey] = {}
+        for cell, key in zip(area, listed_keys, strict=False):
+            if key.type == K.ACTION and key.action == DeckAction.REQUESTS:
+                key = key.model_copy(update={"page": first_out})
+            keys[cell] = key
+        _yard_page(b, name, keys, fixed)
+    for name, piece in named if mini else []:
+        _yard_page(b, name, dict(zip(area, piece, strict=False)), fixed, listed=False)

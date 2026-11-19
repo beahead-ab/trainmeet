@@ -138,7 +138,7 @@ export class Bridge {
       this.closed = true;
       return "owned";
     }
-    const open: DeckOpen = this.model ? { model: this.model, grid: null, workplace: null, connection: "webhid" } : { model: null, grid: gridOf(info.controls), workplace: null, connection: "webhid" };
+    const open: DeckOpen = this.model ? { model: this.model, grid: null, workplace: null, connection: "webhid", role: null } : { model: null, grid: gridOf(info.controls), workplace: null, connection: "webhid", role: null };
     let view: DeckView;
     try {
       view = await this.api.open(this.serial, open);
