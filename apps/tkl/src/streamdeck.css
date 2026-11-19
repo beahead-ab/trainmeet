@@ -1,0 +1,409 @@
+/* Studio › Inställningar › Stream Deck (#86 del c): Sidor with Knappar, the deck and the key side
+   by side on a station screen and one under the other on a tablet; Deck's list and the chosen
+   deck's settings; Prova's results. The keys are the deck on the screen's own (deck.css). */
+
+.sds-ram {
+  grid-template-columns: 180px minmax(0, 1fr);
+}
+.sds .sidrubrik h1 {
+  margin: 4px 0;
+}
+.sds-flikrad {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--tm-line);
+  margin: 10px 0 14px;
+}
+.sds-flikrad button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: none;
+  font-weight: 600;
+  color: var(--tm-mute);
+}
+.sds-flikrad button[aria-selected="true"] {
+  color: var(--tm-text);
+  border-bottom-color: var(--tm-blue);
+}
+.sds-val {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+.sds-etikett {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+}
+.sds-segment {
+  display: inline-flex;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.sds-segment button {
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid var(--tm-line);
+  position: relative;
+}
+.sds-segment button:last-child {
+  border-right: 0;
+}
+.sds-segment button[aria-pressed="true"] {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 700;
+}
+.sds-prick,
+.sds-varning-prick {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-blue);
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.sds-varning-prick {
+  background: #f0b429;
+}
+.sds-tre {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) minmax(200px, 280px);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .sds-tre {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sds-knappar {
+  max-height: 78vh;
+  overflow: auto;
+}
+.sds-grupp h3 {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-mute);
+  margin: 12px 0 4px;
+}
+.sds-grupp ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sds-rad {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: grab;
+}
+.sds-handtag {
+  color: var(--tm-mute);
+}
+.sds-radtext {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sds-var {
+  text-align: right;
+  max-width: 11em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sds-rad.vald {
+  background: var(--tm-blue-soft);
+  outline: 1px solid var(--tm-blue);
+}
+.sds-rad.saknas .liten {
+  color: #b07800;
+  font-weight: 600;
+}
+.sds-flikar {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sds-sidflikar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sds-sidflikar button {
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.sds-sidflikar button[aria-selected="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.sds-sidflikar button.del {
+  font-style: italic;
+  opacity: 0.85;
+}
+.sds-sidval {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.sds-sidval input {
+  max-width: 160px;
+}
+.sds-miniatyr {
+  background: #0d0f11;
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+.sds-miniatyr .panel-ram {
+  max-height: 210px;
+}
+.sds-miniatyr svg.panel {
+  max-height: 200px;
+  width: 100%;
+}
+.sds-miniatyr .liten {
+  color: #cbd5e1;
+  margin: 6px 4px 0;
+}
+svg.panel .signal.valbar {
+  cursor: pointer;
+}
+svg.panel .signal.valbar:hover polygon,
+svg.panel .signal.valbar:focus polygon {
+  fill: #60a5fa;
+}
+svg.panel .signal circle.ring {
+  fill: none;
+  stroke: #60a5fa;
+}
+svg.panel .signal circle.traff {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+}
+.sds-deck {
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #16191c;
+  border-radius: 16px;
+  padding: 14px;
+}
+.sds-grid {
+  display: grid;
+  gap: 8px;
+}
+.sds-ruta {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #0d0f11;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.sds-ruta .sd-face {
+  border-radius: 8px;
+}
+.sds-ruta.vald {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px #60a5fa;
+}
+.sds-ruta[data-fixed="ja"] {
+  opacity: 0.85;
+  cursor: default;
+}
+.sds-ruta.slapp {
+  border: 2px dashed #60a5fa;
+}
+.sds-tom {
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 700;
+}
+.sds-fast {
+  text-align: center;
+}
+.sds-knappen dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.sds-knappen dt {
+  color: var(--tm-mute);
+}
+.sds-knappen dd {
+  margin: 0;
+}
+.sds-text {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sds-kontroller {
+  margin-top: 12px;
+  border-top: 1px solid var(--tm-line);
+  padding-top: 10px;
+}
+.sds-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tm-chip.rod {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+.sds-attkolla,
+.sds-problem {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.sds-attkolla li.varning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: #fff4d6;
+  color: #5c4300;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.sds-attkolla li span {
+  flex: 1;
+}
+.sds-fot {
+  margin-top: 12px;
+}
+.sds-foresla {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+.sds-pedal .sds-pedaler {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.sds-decktab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1080px) {
+  .sds-decktab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sds-tabell {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.sds-tabell th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--tm-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px;
+}
+.sds-tabell td {
+  padding: 6px;
+  border-top: 1px solid var(--tm-line);
+  vertical-align: middle;
+}
+.sds-tabell tr.vald td {
+  background: var(--tm-blue-soft);
+}
+.sds-tabell .tm-chip {
+  margin-right: 4px;
+}
+.sds-provatab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1080px) {
+  .sds-provatab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sds-provatab progress {
+  width: 100%;
+  height: 12px;
+}
+.sds-rutor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.sds-rutor div {
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+}
+.sds-rutor b {
+  font-size: 26px;
+}
+.sds-rutor .gron b {
+  color: #1f7a3a;
+}
+.sds-rutor .rod b {
+  color: #b91c1c;
+}
+.sds-rutor .gul b {
+  color: #b07800;
+}
+.sds-resultat tr[data-result="nej"] td {
+  background: #fdecec;
+}
+.sds-mest ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.sds-mest li {
+  display: grid;
+  grid-template-columns: 5em 1fr 2em;
+  align-items: center;
+  gap: 8px;
+}
+.sds-stapel {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--tm-blue);
+}

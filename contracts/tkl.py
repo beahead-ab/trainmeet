@@ -1460,6 +1460,7 @@ class DeckPageKind(StrEnum):
     ALL = "alla"  # every start (SD25)
     WHOLE = "hela"  # Spårplan, Hela stationen (SD70)
     CUTOUT = "utsnitt"  # Spårplan, the cut-out (SD71)
+    OWN = "egen"  # a page the owner added in Studio (SD40)
 
 
 class DeckKeyType(StrEnum):
@@ -1482,6 +1483,7 @@ class DeckKeyType(StrEnum):
     PAGE = "page"  # ▶ in the fixed row: the next page of the mode
     ACTION = "action"  # Lös ut, Ankommit, Kör, Avbryt, Tillbaka
     PANEL = "panel"  # a panel function of the station, by its name
+    ROUTE = "route"  # Snabbväg: one press sets a whole route, start to goal (SD42, #86 del c)
 
 
 class DeckAction(StrEnum):
@@ -1491,6 +1493,13 @@ class DeckAction(StrEnum):
     CANCEL = "avbryt"
     BACK = "tillbaka"
     LOCK = "las"  # Lås (Fika): TKL is locked for the whole station (SD30), on the page Läge
+    # What a press or a hold does, as the owner chooses it in Studio from this list (SD43):
+    LAY = "lagg"  # Lägg vägen: the key's route
+    RELEASE_ROUTE = "los-vagen"  # Lös ut vägen: the key's route, when it is set
+    RELEASE_ALL = "los-alla"  # Lös ut alla: only with a hold, never on a pedal (SD29, SD55)
+    RESET = "noll"  # Noll: the interlocking reset, only with a hold, never on a pedal
+    EMERGENCY = "nodutlosning"  # Nödutlösning of the latest route: only with a hold
+    NOTHING = "ingenting"
 
 
 class DeckPan(StrEnum):
@@ -1538,8 +1547,18 @@ class DeckPlanDrawn(StrEnum):
     RELAY = "rela"
 
 
+class TklDeckRoute(Contract):
+    start: Name
+    end: Name
+    kind: RouteKind
+
+
 class TklDeckKey(Contract):
-    """A key in a profile: its type from the catalogue and what it points at, as data (SD5)."""
+    """A key in a profile: its type from the catalogue and what it points at, as data (SD5).
+
+    What the owner may change in Studio (SD43) is here too: the text and the line under, what a
+    press and a hold do from the fixed list `DeckAction`, and what the key shows. Never the
+    colours, the symbols or what a gesture means (SD3): those follow the catalogue."""
 
     type: DeckKeyType
     slot: int | None = Field(default=None, ge=1, description="Tåget, linjen eller vägen i tur.")
@@ -1555,7 +1574,24 @@ class TklDeckKey(Contract):
     pan: DeckPan | None = None
     action: DeckAction | None = None
     function: Text | None = Field(default=None, description="Panelfunktionens namn (PANEL).")
+    route: TklDeckRoute | None = Field(default=None, description="Snabbvägens väg (ROUTE).")
     text: KeyText = Field(default="", description="Knappens text, när den är given.")
+    under: KeyText = Field(default="", description="Undertexten, när ägaren har gett den.")
+    press: DeckAction | None = Field(
+        default=None, description="Vad ett tryck gör, ur den fasta listan; annars katalogens."
+    )
+    hold: DeckAction | None = Field(
+        default=None, description="Vad håll in gör, ur den fasta listan; annars katalogens."
+    )
+    number: bool | None = Field(
+        default=None, description="Visa tågnumret på målspåret (snabbväg). Förval: ja."
+    )
+    dim: bool | None = Field(
+        default=None, description="Tona ned knappen när vägen är hindrad (SD17). Förval: ja."
+    )
+    confirm: bool | None = Field(
+        default=None, description="Fråga en gång till före trycket. Förval: nej."
+    )
 
 
 class TklDeckPage(Contract):
@@ -1608,7 +1644,7 @@ class TklDeckPoint(Contract):
 
 class TklDeckProfile(Contract):
     """The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and
-    never stored as code. The owner's changes in Studio come in del c."""
+    never stored as code, with the owner's deviations laid on (SD40, tkl.deck.deviations)."""
 
     model: DeckModelId | None = None
     grid: TklDeckGrid
@@ -1626,6 +1662,10 @@ class TklDeckProfile(Contract):
         default=(0, 0), description="Där utsnittets rutor börjar, i spårplanens rutor."
     )
     plan: tuple[float, float] = Field(default=(0, 0), description="Spårplanens storlek i rutor.")
+    pedals: list[TklDeckKey | None] = Field(
+        default_factory=list,
+        description="Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.",
+    )
 
 
 class TklDeckSettings(Contract):
@@ -1643,6 +1683,18 @@ class TklDeckSettings(Contract):
     places_shown: DeckPlacesShown = DeckPlacesShown.ALL
     plan_drawn: DeckPlanDrawn = DeckPlanDrawn.STANDARD_85
     signal_numbers: bool = Field(default=False, description="Signalnumren i Platser (SD69).")
+    name: Text | None = Field(default=None, description="Ägarens namn på decket.")
+    brightness: int = Field(default=70, ge=0, le=100, description="Ljusstyrkan, i procent (SD46).")
+    sleep: int = Field(
+        default=0, ge=0, le=240, description="Släcks efter så många minuter utan tryck; 0 aldrig."
+    )
+    lock_key: bool = Field(
+        default=True,
+        description="Lås (Fika) på sidan Läge (SD30). Låst TKL visar ändå bara klockan.",
+    )
+    opens_on: Text | None = Field(
+        default=None, description="Sidan decket öppnar på (SD35); annars lägets första."
+    )
 
 
 class TklDeckTile(Contract):
@@ -1686,6 +1738,9 @@ class TklDeckFace(Contract):
         "page",
         "action",
         "panel",
+        "route",
+        "here",
+        "ask",
         "case",
         "answer",
         "variant",
@@ -1810,6 +1865,10 @@ class TklDeckStatus(Contract):
         default=None, description="Ansluten nu: över USB, med WebHID eller på skärmen."
     )
     tried: bool = Field(default=False, description="Modellen är provad med ett riktigt deck.")
+    settings: TklDeckSettings | None = Field(
+        default=None, description="Decket som datorn har det: ljusstyrka, hålltid och resten."
+    )
+    blinking: bool = Field(default=False, description="Decket blinkar just nu (Blinka).")
 
 
 class TklDecks(Contract):
@@ -1821,12 +1880,6 @@ class TklDecks(Contract):
         default=None, description="Varför TKL inte når USB just nu, till exempel utan libhidapi."
     )
     decks: list[TklDeckStatus] = Field(default_factory=list)
-
-
-class TklDeckRoute(Contract):
-    start: Name
-    end: Name
-    kind: RouteKind
 
 
 class TklDeckCount(TklDeckRoute):
@@ -1846,3 +1899,231 @@ class TklDeckFavourites(Contract):
     pinned: list[TklDeckRoute] = Field(default_factory=list)
     counted: list[TklDeckCount] = Field(default_factory=list)
     shown: list[TklDeckRoute] = Field(default_factory=list, description="Sidan Favoriter.")
+
+
+# --- Studio, Inställningar, Stream Deck (#86 del c): the owner's deviations, the checks, Prova
+
+DECK_DEVIATIONS: Final = 400
+"""The most deviations one size keeps."""
+
+
+class DeckPageRef(Contract):
+    """A page by its kind and its name, never by its place among the pages (SD40): a page the
+    default makes again after the drawing changed is found by the same kind and name."""
+
+    kind: DeckPageKind
+    name: Text
+
+
+class DeckChange(StrEnum):
+    """What a deviation from the default does (SD40, SD43)."""
+
+    MOVE = "flytta"  # a key to another cell of its page; what stands there takes its old cell
+    ADD = "lagg-till"  # a key from Knappar onto a cell
+    REMOVE = "ta-bort"  # a key off its page
+    KEY = "andra"  # a key's text, the line under, press, hold and what it shows
+    ADD_PAGE = "ny-sida"  # a page of the owner's own, last in its mode
+    REMOVE_PAGE = "ta-bort-sida"
+    ORDER = "ordning"  # the pages of a mode in the owner's order
+    PEDAL = "pedal"  # what a pedal does (SD55)
+
+
+class TklDeckDeviation(Contract):
+    """One of the owner's changes from the default, in stable ids (SD40): a key by what it is
+    (its type and what it points at: a route start → goal, a place, a signal, a slot, an
+    action), a page by its kind and name. The cell is only where the key goes. Never a colour,
+    a symbol or a gesture's meaning (SD3, SD43): a deviation that tries is refused."""
+
+    change: DeckChange
+    page: DeckPageRef | None = Field(default=None, description="Sidan ändringen gäller.")
+    key: TklDeckKey | None = Field(
+        default=None, description="Knappen, igenkänd på vad den är; hela knappen för Lägg till."
+    )
+    cell: int | None = Field(default=None, ge=0, le=255, description="Dit knappen flyttas.")
+    text: KeyText | None = None
+    under: KeyText | None = None
+    press: DeckAction | None = None
+    hold: DeckAction | None = None
+    number: bool | None = None
+    dim: bool | None = None
+    confirm: bool | None = None
+    mode: DeckMode | None = Field(default=None, description="Läget för en ny sida.")
+    order: list[DeckPageRef] = Field(
+        default_factory=list, max_length=200, description="Lägets sidor i ägarens ordning."
+    )
+    pedal: int | None = Field(default=None, ge=0, le=7, description="Pedalen, från vänster.")
+
+
+class TklDeckDeviations(Contract):
+    """The owner's deviations per size (SD32, SD40), kept with the station's model in the
+    package's inside and versioned with it, as Manöver's settings are (SD49). A size is the
+    model whose profile a deck gets (SD54)."""
+
+    sizes: dict[DeckModelId, list[TklDeckDeviation]] = Field(default_factory=dict)
+
+
+class TklDeckToCheck(Contract):
+    """Att kolla (SD40): a deviation that could not be laid on again, and why."""
+
+    deviation: int = Field(ge=0, description="Avvikelsens plats i listan.")
+    text: Text
+    page: DeckPageRef | None = None
+    key: TklDeckKey | None = None
+
+
+class DeckProblemKind(StrEnum):
+    UNREACHED = "nas-inte"  # a route no page of the profile reaches
+    MISSING = "finns-inte"  # a key pointing at something the station does not have
+
+
+class TklDeckProblem(Contract):
+    """One of Studio's checks that failed (SD44), with where it is, so that it can be clicked."""
+
+    kind: DeckProblemKind
+    text: Text
+    page: int | None = Field(default=None, ge=0, description="Sidan i ägarens profil.")
+    cell: int | None = Field(default=None, ge=0)
+    route: TklDeckRoute | None = None
+
+
+class TklDeckChecks(Contract):
+    """Studio's checks of a profile (SD44): every train route and shunting route is reached
+    from some page, and no key points at something that does not exist."""
+
+    routes: int = Field(ge=0, description="Stationens vägar.")
+    reached: int = Field(ge=0, description="Vägarna som nås från decket.")
+    quick: int = Field(default=0, ge=0, description="Vägarna som har en snabbväg.")
+    problems: list[TklDeckProblem] = Field(default_factory=list)
+
+
+class DeckButtonGroup(StrEnum):
+    """Knappar in Studio (SD41): the station's keys by group."""
+
+    TRAFFIC = "trafiken"  # Tågknapp, Linjeknapp, Larm och klocka, Dagens vägar, Favoriter
+    TRAIN_ROUTES = "tagvagar"
+    SHUNTING_ROUTES = "vaxlingsvagar"
+    PLACES = "platser"
+    SIGNALS = "signaler"
+    FUNCTIONS = "funktioner"  # the actions, the panel functions, Läge and ▶
+
+
+class TklDeckButton(Contract):
+    """A row in Knappar: a key the owner can drag onto the deck, and where it is now."""
+
+    group: DeckButtonGroup
+    key: TklDeckKey
+    text: Text
+    where: Text = Field(default="", description="Var den ligger på decket, eller hur den nås.")
+    missing: bool = Field(default=False, description="Vägen nås inte från decket (SD44).")
+    pieces: list[Name] = Field(default_factory=list, description="Vägens spårbitar, för bilden.")
+
+
+class TklDeckStudioPage(Contract):
+    """A page of the owner's profile as Studio draws it: every key's face against an empty
+    interlocking, so that the owner sees what the key is."""
+
+    ref: DeckPageRef
+    faces: list[TklDeckFace]
+    changed: bool = Field(default=False, description="Sidan har egna ändringar.")
+
+
+class TklDeckSize(Contract):
+    """A size to choose in Studio, with its own default and the owner's changes (SD32)."""
+
+    size: DeckModelId
+    name: Text
+    grid: TklDeckGrid
+    decks: int = Field(default=0, ge=0, description="Deck på datorn med den här storleken.")
+    deviations: int = Field(default=0, ge=0)
+    to_check: int = Field(default=0, ge=0)
+    problems: int = Field(
+        default=0, ge=0, description="Kontrollernas problem (SD44), för storlekar som används."
+    )
+
+
+class TklDeckStudio(Contract):
+    """Studio, Inställningar, Stream Deck, Sidor (SD38–SD45): the owner's profile for one size,
+    the default's deviations, Att kolla, the checks and the list Knappar."""
+
+    size: DeckModelId
+    sizes: list[TklDeckSize] = Field(default_factory=list)
+    profile: TklDeckProfile
+    pages: list[TklDeckStudioPage] = Field(default_factory=list)
+    deviations: list[TklDeckDeviation] = Field(default_factory=list)
+    saved: bool = Field(default=True, description="Avvikelserna är de som är sparade.")
+    to_check: list[TklDeckToCheck] = Field(default_factory=list)
+    checks: TklDeckChecks
+    buttons: list[TklDeckButton] = Field(default_factory=list)
+    message: Text | None = None
+
+
+class TklDeckEdit(Contract):
+    """The owner's deviations for one size: shown before they are saved, or saved (SD40)."""
+
+    size: DeckModelId
+    deviations: list[TklDeckDeviation] = Field(default_factory=list, max_length=DECK_DEVIATIONS)
+
+
+class DeckSuggestion(StrEnum):
+    """Föreslå (SD45): the rule a page is made again by."""
+
+    GEOGRAPHIC = "geografiskt"  # as the default lays it out, west to east
+    DAILY = "dagens"  # Dagens vägar, from TKL's runtime data (SD23)
+    MOST_USED = "mest-anvanda"  # the counted routes, the most used first (SD24)
+
+
+class TklDeckSuggest(TklDeckEdit):
+    page: DeckPageRef
+    rule: DeckSuggestion
+
+
+class DeckTried(StrEnum):
+    DID = "gick"  # the key did what it does: the interlocking said yes, or the deck changed
+    REFUSED = "nej"  # the interlocking said no, with its reason
+    NOTHING = "inget"  # nothing happened, with what the deck said
+
+
+class TklDeckKeyTried(Contract):
+    """One key pressed by Prova alla knappar (SD47)."""
+
+    page: int = Field(ge=0)
+    page_name: Text
+    cell: int = Field(ge=0)
+    label: Text
+    result: DeckTried
+    said: Text = ""
+
+
+class TklDeckProva(Contract):
+    """Prova alla knappar (SD47): every key of every page of one size pressed against an empty
+    interlocking, a copy that is never the live one, in the background with its progress."""
+
+    size: DeckModelId | None = None
+    running: bool = False
+    done: int = Field(default=0, ge=0)
+    total: int = Field(default=0, ge=0)
+    did: int = Field(default=0, ge=0)
+    refused: int = Field(default=0, ge=0)
+    nothing: int = Field(default=0, ge=0)
+    keys: list[TklDeckKeyTried] = Field(default_factory=list)
+    started: datetime | None = None
+    finished: datetime | None = None
+    message: Text | None = None
+
+
+class TklDeckProvaAsk(Contract):
+    size: DeckModelId
+
+
+class TklDeckChange(Contract):
+    """Studio, Deck (SD46): what the owner sets for one deck on this computer. What is not
+    given, or null, stays as it is; an empty name or start page takes it away."""
+
+    name: KeyText | None = None
+    brightness: int | None = Field(default=None, ge=0, le=100)
+    hold: DeckHold | None = None
+    sleep: int | None = Field(default=None, ge=0, le=240)
+    lock_key: bool | None = None
+    opens_in: DeckMode | None = None
+    opens_on: KeyText | None = None
+    workplace: Name | None = None

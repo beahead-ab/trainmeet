@@ -119,6 +119,15 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.deck-favourites": tkl.TklDeckFavourites,
     # Stream Deck (#86 del b): real decks over USB and WebHID
     "trainmeet.tkl-1.decks": tkl.TklDecks,
+    # Stream Deck (#86 del c): Studio, Inställningar, Stream Deck
+    "trainmeet.tkl-1.deck-deviations": tkl.TklDeckDeviations,
+    "trainmeet.tkl-1.deck-studio": tkl.TklDeckStudio,
+    "trainmeet.tkl-1.deck-edit": tkl.TklDeckEdit,
+    "trainmeet.tkl-1.deck-suggest": tkl.TklDeckSuggest,
+    "trainmeet.tkl-1.deck-prova": tkl.TklDeckProva,
+    "trainmeet.tkl-1.deck-prova-ask": tkl.TklDeckProvaAsk,
+    "trainmeet.tkl-1.deck-change": tkl.TklDeckChange,
+    "trainmeet.tkl-1.deck-status": tkl.TklDeckStatus,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -2054,6 +2063,31 @@ def tkl_openapi() -> str:
                 param["required"] = False  # a tall key, as Studio's; else as wide as `size`
     route("get", a + "/deck-favoriter", "tklDeckFavourites", t + "deck-favourites")
     route("post", a + "/deck-favoriter", "tklDeckPin", t + "deck-favourites", t + "deck-pin")
+    # Stream Deck (#86 del c): Studio, Deck, and Studio, Inställningar, Stream Deck.
+    route("put", d + "/{serial}", "tklDeckSettings", t + "deck-status", t + "deck-change")
+    route("delete", d + "/{serial}", "tklDeckForget", None)
+    route("post", d + "/{serial}/blinka", "tklDeckBlink", t + "deck-status")
+    sd = a + "/studio/stream-deck"
+    studio_deck = t + "deck-studio"
+    size_query: dict[str, JsonSchemaValue] = {
+        "size": {"type": "string", "enum": [m.value for m in tkl.DeckModelId], "default": "15"}
+    }
+    route("get", sd, "tklStreamDeck", studio_deck, query=size_query)
+    route("put", sd, "tklSaveStreamDeck", studio_deck, t + "deck-edit")
+    route("post", sd + "/utkast", "tklStreamDeckDraft", studio_deck, t + "deck-edit")
+    route("post", sd + "/foresla", "tklStreamDeckSuggest", studio_deck, t + "deck-suggest")
+    prova_query: dict[str, JsonSchemaValue] = {
+        "size": {"type": "string", "enum": [m.value for m in tkl.DeckModelId], "default": None}
+    }
+    route("get", sd + "/prova", "tklStreamDeckProva", t + "deck-prova", query=prova_query)
+    route(
+        "post",
+        sd + "/prova/start",
+        "tklStreamDeckProvaStart",
+        t + "deck-prova",
+        t + "deck-prova-ask",
+    )
+    route("post", sd + "/prova/stop", "tklStreamDeckProvaStop", t + "deck-prova")
     stems = [
         s
         for s in CONTRACTS

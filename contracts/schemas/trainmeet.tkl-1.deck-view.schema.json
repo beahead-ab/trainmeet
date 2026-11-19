@@ -95,6 +95,9 @@
             "page",
             "action",
             "panel",
+            "route",
+            "here",
+            "ask",
             "case",
             "answer",
             "variant",
@@ -410,6 +413,58 @@
           "description": "Signalnumren i Platser (SD69).",
           "title": "Signal Numbers",
           "type": "boolean"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ägarens namn på decket.",
+          "title": "Name"
+        },
+        "brightness": {
+          "default": 70,
+          "description": "Ljusstyrkan, i procent (SD46).",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Brightness",
+          "type": "integer"
+        },
+        "sleep": {
+          "default": 0,
+          "description": "Släcks efter så många minuter utan tryck; 0 aldrig.",
+          "maximum": 240,
+          "minimum": 0,
+          "title": "Sleep",
+          "type": "integer"
+        },
+        "lock_key": {
+          "default": true,
+          "description": "Lås (Fika) på sidan Läge (SD30). Låst TKL visar ändå bara klockan.",
+          "title": "Lock Key",
+          "type": "boolean"
+        },
+        "opens_on": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan decket öppnar på (SD35); annars lägets första.",
+          "title": "Opens On"
         }
       },
       "required": [

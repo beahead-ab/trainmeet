@@ -93,6 +93,26 @@ and what it does goes through the interlocking's operations above (SD1):
     GET  /api/tkl/1/deck/{serial}/wait?after=     TklWait: a long poll for the deck's next change
     GET  /api/tkl/1/deck-favoriter                TklDeckFavourites (SD24)
     POST /api/tkl/1/deck-favoriter                TklDeckPin: Fäst på Stream Deck (SD48)
+    PUT  /api/tkl/1/deck/{serial}                 TklDeckChange -> TklDeckStatus: ljusstyrka,
+                                                  hålltid, släckning, lås, start och arbetsplats
+                                                  (SD46); they reach the deck over USB and WebHID
+    POST /api/tkl/1/deck/{serial}/blinka          TklDeckStatus: the deck lights up (SD46)
+    DELETE /api/tkl/1/deck/{serial}               Glöm deck: its settings on this computer go
+
+Studio, Inställningar, Stream Deck (#86 del c, SD38–SD47): the owner's deviations from the
+default per size, kept with the model and versioned with it like Manöver's settings (SD40, SD49);
+every deck uses the owner's profile of its size, on the screen, over USB and with WebHID:
+
+    GET  /api/tkl/1/studio/stream-deck?size=      TklDeckStudio: Sidor for one size, with Att
+                                                  kolla, the checks (SD44) and Knappar (SD41)
+    POST /api/tkl/1/studio/stream-deck/utkast     TklDeckEdit -> TklDeckStudio: shown, not kept
+    PUT  /api/tkl/1/studio/stream-deck            TklDeckEdit -> TklDeckStudio: kept; 422 with
+                                                  the reasons when a change may not be made (SD43)
+    POST /api/tkl/1/studio/stream-deck/foresla    TklDeckSuggest -> TklDeckStudio: Föreslå (SD45)
+    GET  /api/tkl/1/studio/stream-deck/prova?size= TklDeckProva: Prova alla knappar (SD47)
+    POST /api/tkl/1/studio/stream-deck/prova/start TklDeckProvaAsk: in the background, against an
+                                                  empty interlocking, never the live one
+    POST /api/tkl/1/studio/stream-deck/prova/stop
 
 A local TKL owns its decks over USB in the background (tkl/deck/usb.py), so that they work
 without an open tab; TKL in the cloud never opens USB, and there Chrome and Edge drive a deck with
@@ -169,13 +189,19 @@ from contracts.tkl import (
     TklCommand,
     TklConnect,
     TklConnection,
+    TklDeckChange,
+    TklDeckDeviations,
     TklDeckDialAsk,
+    TklDeckEdit,
     TklDeckOpen,
     TklDeckPin,
     TklDeckPress,
+    TklDeckProvaAsk,
     TklDeckRoute,
     TklDecks,
+    TklDeckSettings,
     TklDeckStatus,
+    TklDeckSuggest,
     TklDeckTouch,
     TklDrawing,
     TklDrawingState,
@@ -213,10 +239,14 @@ from contracts.tkl import (
     TklWait,
 )
 from tkl import VERSION, hub_reports, id_login, manover, prova, track_plan
+from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
 from tkl.deck import render as deck_render
 from tkl.deck import service as deck_service
+from tkl.deck import studio as deck_studio
+from tkl.deck import suggest as deck_suggest
+from tkl.deck import tryall as deck_tryall
 from tkl.deck import usb as deck_usb
 from tkl.deck.models import BY_ID as DECK_BY_ID
 from tkl.deck.models import MODELS as DECK_MODELS
@@ -900,6 +930,10 @@ def create_app(
         settings = store.manover_of_version(found, number) if model is not None else None
         if settings is not None:
             inside["manover"] = settings.model_dump(mode="json", exclude_defaults=True)
+        own = store.deck_deviations_of_version(found, number) if model is not None else None
+        if own is not None:
+            # The owner's Stream Deck profiles, as deviations per size (SD49).
+            inside["streamdeck"] = own.model_dump(mode="json", exclude_defaults=True)
         package = StationPackage(station_id=outside.station_id, outside=outside, inside=inside)
         base = asked.on_top if asked.on_top is not None else (account.saved or 0)
         address = f"{id_settings.cloud}/api/sync/1/stations/{outside.station_id}/versions"
@@ -1616,6 +1650,14 @@ def create_app(
             LOGGER.info("TKL är låst från ett Stream Deck.")
             return deck_logic.Said(True, LOCKED)
 
+        def reset(self) -> deck_logic.Said:
+            """Noll with a hold (SD29): the hold is the confirmation, as the panel's dialog."""
+            return self.answer(lambda made: made.reset(True))
+
+        def emergency(self, route: int) -> deck_logic.Said:
+            """Nödutlösning with a hold (SD29): the hold is the confirmation."""
+            return self.answer(lambda made: made.emergency_release(route, True))
+
     def deck_snapshot(found: str) -> tuple[station.Snapshot | None, datetime | None, bool]:
         """The place's snapshot for the deck, at most DECK_FRESH seconds old, when it was
         heard, and whether TKL is in drift: connected to a real meet (SD28)."""
@@ -1677,7 +1719,7 @@ def create_app(
             raise HTTPException(401, "Lås upp TKL med PIN-koden.")
         return found, store.station_locked(found) or not store.unlocked(found, session)
 
-    def deck_signature(found: str, workplace: str) -> tuple[object, ...]:
+    def deck_signature(found: str, serial: str, workplace: str) -> tuple[object, ...]:
         selection = room.selection(found, workplace)
         heard = None
         reached = store.connection(found)
@@ -1692,6 +1734,9 @@ def create_app(
             id(selection),
             str(drift.get(deck_service.PINNED)),
             store.station_locked(found),
+            store.deck_deviations_body(found),
+            room.blinking(found, serial),
+            settings.model_dump_json() if (settings := store.deck(found, serial)) else None,
         )
 
     def deck_picture(world: deck_logic.World, panel: Any) -> deck_render.Picture | None:
@@ -1715,7 +1760,10 @@ def create_app(
             )
         room.heard(found, serial)
         world, panel = deck_world(found, locked)
-        profile = deck_profile(world.plant, panel, settings.grid, settings.model)
+        # The owner's profile of the deck's size (SD40), the default when the owner changed none.
+        mine = deck_studio.deviations_for(store.deck_deviations(found).sizes, settings.model)
+        applied = deck_deviations.owned(world.plant, panel, settings.grid, settings.model, mine)
+        profile = applied.profile
         with room.lock:
             deck = room.deck(found, settings, profile, world)
             selection = room.selection(found, deck.settings.workplace)
@@ -1725,7 +1773,7 @@ def create_app(
                     store.save_deck(found, deck.settings)
                 locked = locked or store.station_locked(found)
                 world, _ = deck_world(found, locked)
-            room.revision(found, serial, deck_signature(found, deck.settings.workplace))
+            room.revision(found, serial, deck_signature(found, serial, deck.settings.workplace))
             view = deck_logic.view(deck, selection, world)
             picture = deck_picture(world, panel) if any(f.tile for f in view.keys) else None
             shown = Shown(deck_render.stamp(view, picture), picture)
@@ -1755,7 +1803,7 @@ def create_app(
         settings = store.deck(found, serial)
         if settings is None:
             raise HTTPException(404, "Decket finns inte här.")
-        revision = room.revision(found, serial, deck_signature(found, settings.workplace))
+        revision = room.revision(found, serial, deck_signature(found, serial, settings.workplace))
         kept = room.kept_view(found, serial, revision)
         if kept is not None and kept.view.locked == locked:
             return kept
@@ -1827,7 +1875,7 @@ def create_app(
             settings = store.deck(found, serial)
             if settings is None:
                 raise HTTPException(404, "Decket finns inte här.")
-            return room.revision(found, serial, deck_signature(found, settings.workplace))
+            return room.revision(found, serial, deck_signature(found, serial, settings.workplace))
 
         def gone(self, serial: str) -> None:
             room.unlink(LOCAL, serial)
@@ -1883,26 +1931,27 @@ def create_app(
             request, tag, lambda: deck_render.png(deck_render.key(face, size, tall))
         )
 
+    def deck_status(found: str, settings: TklDeckSettings) -> TklDeckStatus:
+        known = DECK_BY_ID.get(settings.model) if settings.model is not None else None
+        return TklDeckStatus(
+            serial=settings.serial,
+            model=settings.model,
+            name=deck_name(settings.model, settings.grid),
+            grid=settings.grid,
+            workplace=settings.workplace,
+            connection=room.connection(found, settings.serial),
+            tried=known.tried if known is not None else False,
+            settings=settings,
+            blinking=room.blinking(found, settings.serial),
+        )
+
     @routes.get("/decks")
     def decks(response: Response, slot: SlotCookie = None, session: SessionCookie = None) -> Any:
         """The decks TKL knows, how each is connected now, and whether TKL owns decks over USB
         here (SD35, SD50, SD58): what Studio, Deck shows (#86 del c)."""
         no_store(response)
         found = unlocked(slot, session)
-        listed = []
-        for settings in store.decks(found):
-            known = DECK_BY_ID.get(settings.model) if settings.model is not None else None
-            listed.append(
-                TklDeckStatus(
-                    serial=settings.serial,
-                    model=settings.model,
-                    name=deck_name(settings.model, settings.grid),
-                    grid=settings.grid,
-                    workplace=settings.workplace,
-                    connection=room.connection(found, settings.serial),
-                    tried=known.tried if known is not None else False,
-                )
-            )
+        listed = [deck_status(found, settings) for settings in store.decks(found)]
         problem = usb.problem if usb is not None else None
         return TklDecks(usb=usb is not None, usb_problem=problem, decks=listed).model_dump(
             mode="json"
@@ -2082,7 +2131,7 @@ def create_app(
         room.heard(found, serial)
         waited = 0.0
         while True:
-            signature = await run_in_threadpool(deck_signature, found, settings.workplace)
+            signature = await run_in_threadpool(deck_signature, found, serial, settings.workplace)
             revision = room.revision(found, serial, signature)
             if revision != after or waited >= seconds:
                 return TklWait(revision=revision, changed=revision != after).model_dump(mode="json")
@@ -2119,6 +2168,264 @@ def create_app(
             )
         deck_service.pin(store, found, route, ask.pinned)
         return deck_service.favourites(store, found, world.plant).model_dump(mode="json")
+
+    # --- Studio, Deck (#86 del c, SD46): each deck's own settings, on this computer -----------
+
+    def known_deck(found: str, serial: str) -> TklDeckSettings:
+        settings = store.deck(found, serial)
+        if settings is None:
+            raise HTTPException(404, "Decket finns inte här. Koppla in det eller öppna det.")
+        return settings
+
+    @routes.put("/deck/{serial}")
+    def deck_settings(
+        serial: Annotated[str, PathPart(pattern=SERIAL_PATTERN)],
+        change: TklDeckChange,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Ljusstyrka, hålltid, släckning, lås, the page it opens on and the workplace, for one
+        deck (SD29, SD35, SD36, SD46). Brightness and sleep reach the deck over USB and WebHID
+        with its next view; the deck opens on its start page again."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        settings = known_deck(found, serial)
+        given = {k: v for k, v in change.model_dump(exclude_unset=True).items() if v is not None}
+        for cleared in ("name", "opens_on"):
+            if cleared in given and not str(given[cleared]).strip():
+                given[cleared] = None
+        made = settings.model_copy(update=given)
+        made = TklDeckSettings.model_validate(made.model_dump())
+        store.save_deck(found, made)
+        if made.opens_in != settings.opens_in or made.opens_on != settings.opens_on:
+            room.forget(found, serial)
+        return deck_status(found, made).model_dump(mode="json")
+
+    @routes.post("/deck/{serial}/blinka")
+    def deck_blink(
+        serial: Annotated[str, PathPart(pattern=SERIAL_PATTERN)],
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Blinka (SD46): every key of the deck lights up for a moment, on the deck itself."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        settings = known_deck(found, serial)
+        room.blink(found, serial)
+        return deck_status(found, settings).model_dump(mode="json")
+
+    @routes.delete("/deck/{serial}", status_code=204)
+    def deck_forget(
+        serial: Annotated[str, PathPart(pattern=SERIAL_PATTERN)],
+        request: Request,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Response:
+        """Glöm deck: its settings on this computer go. A deck that is connected again gets the
+        defaults."""
+        same_site(request)
+        found = unlocked(slot, session)
+        if not store.forget_deck(found, serial):
+            raise HTTPException(404, "Decket finns inte här.")
+        room.forget(found, serial)
+        if room.connection(found, serial) != DeckConnection.USB:
+            room.unlink(found, serial)
+        return Response(status_code=204)
+
+    # --- Studio, Inställningar, Stream Deck (#86 del c): Sidor and Prova ----------------------
+
+    keys_runner = deck_tryall.Runner()
+    stopping.append(keys_runner.close)
+
+    def deck_station(found: str) -> tuple[Any, Any]:
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        plant = plant_of(model)
+        panel = room.panel(plant, lambda: track_plan.panel_of(model))
+        return plant, panel
+
+    def studio_deck(
+        found: str,
+        size: DeckModelId,
+        deviations: list[Any] | None = None,
+        message: str | None = None,
+    ) -> Any:
+        """Sidor for one size: the owner's deviations as kept, or as given and not kept yet,
+        made the fewest that give the same profile, with Att kolla after them."""
+        plant, panel = deck_station(found)
+        kept = store.deck_deviations(found).sizes
+        given = kept.get(size, []) if deviations is None else deviations
+        default = deck_studio.default_of(plant, panel, size)
+        known = deck_deviations.known_of(plant, geography_of(plant, panel))
+        made, applied = deck_deviations.tidy(default, given, known)
+        decks_here = [d.model for d in store.decks(found)]
+        shown = {**kept, size: made}
+        return deck_studio.view(
+            size,
+            plant,
+            panel,
+            made,
+            applied,
+            saved=made == kept.get(size, []),
+            all_sizes=deck_studio.sizes(plant, panel, shown, decks_here),
+            message=message,
+        ).model_dump(mode="json")
+
+    def refused_changes(edit: TklDeckEdit) -> None:
+        grid = DECK_BY_ID[edit.size].grid
+        wrong = deck_deviations.refusals(edit.deviations, edit.size, grid)
+        if wrong:
+            raise HTTPException(
+                422,
+                {"message": "Ändringen går inte att göra på ett Stream Deck.", "problems": wrong},
+            )
+
+    def size_given(size: DeckModelId) -> DeckModelId:
+        if size not in deck_studio.SIZES:
+            raise HTTPException(
+                422, "Den modellen får profilen för sin storlek (SD54). Välj storleken."
+            )
+        return size
+
+    @routes.get("/studio/stream-deck")
+    def stream_deck(
+        response: Response,
+        size: DeckModelId = DeckModelId.FIFTEEN,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Sidor (SD41): the owner's profile for one size, Att kolla, the checks and Knappar.
+        The default is there without the owner doing anything (SD39)."""
+        no_store(response)
+        found = unlocked(slot, session)
+        return studio_deck(found, size_given(size))
+
+    @routes.post("/studio/stream-deck/utkast")
+    def stream_deck_draft(
+        edit: TklDeckEdit,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The owner's changes shown before they are kept: refused with the reason when one may
+        not be made (SD43)."""
+        found = doing(request, response, slot, session)
+        size_given(edit.size)
+        refused_changes(edit)
+        return studio_deck(found, edit.size, list(edit.deviations))
+
+    @routes.put("/studio/stream-deck")
+    def save_stream_deck(
+        edit: TklDeckEdit,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The owner's changes for one size, kept with the station's model and versioned with
+        it (SD40, SD49). Every deck of the size gets them on its next view."""
+        found = doing(request, response, slot, session)
+        size_given(edit.size)
+        refused_changes(edit)
+        plant, panel = deck_station(found)
+        default = deck_studio.default_of(plant, panel, edit.size)
+        known = deck_deviations.known_of(plant, geography_of(plant, panel))
+        made, _ = deck_deviations.tidy(default, list(edit.deviations), known)
+        kept = store.deck_deviations(found)
+        sizes = {**kept.sizes, edit.size: made}
+        try:
+            store.save_deck_deviations(found, TklDeckDeviations(sizes=sizes))
+        except NoModel as error:
+            raise HTTPException(404, NO_MODEL) from error
+        return studio_deck(found, edit.size, message="Sparat. Decken visar det direkt.")
+
+    @routes.post("/studio/stream-deck/foresla")
+    def stream_deck_suggest(
+        ask: TklDeckSuggest,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Föreslå (SD45): a page made again geographically, by Dagens vägar or by Mest
+        använda. Shown, not kept, until the owner saves."""
+        found = doing(request, response, slot, session)
+        size_given(ask.size)
+        refused_changes(ask)
+        plant, panel = deck_station(found)
+        geo = geography_of(plant, panel)
+        default = deck_studio.default_of(plant, panel, ask.size)
+        known = deck_deviations.known_of(plant, geo)
+        daily = deck_service.kept_daily(store, found)
+        counts = deck_service.counts(store, found)
+        try:
+            made = deck_suggest.suggest(
+                default, list(ask.deviations), ask.page, ask.rule, known, plant, geo, daily, counts
+            )
+        except deck_suggest.NoSuggestion as error:
+            raise HTTPException(409, str(error)) from error
+        return studio_deck(found, ask.size, made)
+
+    @routes.get("/studio/stream-deck/prova")
+    def stream_deck_prova(
+        response: Response,
+        size: DeckModelId | None = None,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Prova alla knappar (SD47): the progress while it runs, then every key's result."""
+        no_store(response)
+        found = unlocked(slot, session)
+        return deck_tryall.view(keys_runner.job(found), size).model_dump(mode="json")
+
+    @routes.post("/studio/stream-deck/prova/start")
+    def stream_deck_prova_start(
+        ask: TklDeckProvaAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Every key of every page of the size, the owner's profile as it is kept, pressed on an
+        empty interlocking in the background; never the live one (SD47)."""
+        found = doing(request, response, slot, session)
+        size = size_given(ask.size)
+        plant, panel = deck_station(found)
+        mine = store.deck_deviations(found).sizes.get(size, [])
+        profile = deck_deviations.owned(plant, panel, DECK_BY_ID[size].grid, size, mine).profile
+        favourites = deck_service.favourites(store, found, plant).shown
+        try:
+            job = keys_runner.start(
+                found,
+                size,
+                profile,
+                plant,
+                geography_of(plant, panel),
+                favourites,
+                deck_service.kept_daily(store, found),
+            )
+        except deck_tryall.Busy as error:
+            raise HTTPException(429, PROVA_BUSY) from error
+        return deck_tryall.view(job, size).model_dump(mode="json")
+
+    @routes.post("/studio/stream-deck/prova/stop")
+    def stream_deck_prova_stop(
+        request: Request, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        found = doing(request, response, slot, session)
+        keys_runner.stop(found)
+        job = keys_runner.job(found)
+        if job is not None and job.thread is not None:
+            job.thread.join(timeout=10)
+        return deck_tryall.view(job).model_dump(mode="json")
 
     # --- Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL -----------------
 

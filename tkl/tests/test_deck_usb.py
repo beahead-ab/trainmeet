@@ -59,6 +59,7 @@ class FakeDeck:
     strip_images: list[bytes] = field(default_factory=list)
     screen_images: list[bytes] = field(default_factory=list)
     colours: dict[int, tuple[int, int, int]] = field(default_factory=dict)
+    brightness: list[int] = field(default_factory=list)
     on_key: Callable[..., None] | None = None
     on_dial: Callable[..., None] | None = None
     on_touch: Callable[..., None] | None = None
@@ -127,6 +128,9 @@ class FakeDeck:
 
     def set_key_color(self, key: int, r: int, g: int, b: int) -> None:
         self.colours[key] = (r, g, b)
+
+    def set_brightness(self, percent: int) -> None:
+        self.brightness.append(percent)
 
     def set_key_callback(self, callback: Callable[..., None] | None) -> None:
         self.on_key = callback
@@ -229,6 +233,46 @@ def rig(tmp_path: Path) -> Rig:
 def picture(face: Any, size: tuple[int, int]) -> bytes:
     form = {"size": size, "format": "BMP", "flip": (False, False), "rotation": 0}
     return usb.native(render.key(face, size[0], size[1]), form)
+
+
+# --- Studio, Deck (#86 del c, SD46): what the owner sets reaches the deck -------------------
+
+
+def test_brightness_sleep_hold_and_blinka_from_studio_reach_the_deck_on_usb(rig: Rig) -> None:
+    """SD46, SD29: the owner's brightness and hold time reach the deck; after the owner's
+    minutes without a press it goes dark, and the first press only wakes it; Blinka lights
+    every key of the real deck."""
+    deck = xl()
+    rig.plugged.append(deck)
+    rig.step()
+    assert deck.brightness == [70], "the default brightness"
+    changed = rig.client.put(
+        API + "/deck/XL0001", json={"brightness": 30, "sleep": 1, "hold": "lang"}
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["settings"]["brightness"] == 30
+    assert changed.json()["connection"] == "usb"
+    rig.step(usb.POLL + 0.01)
+    assert deck.brightness[-1] == 30
+    assert rig.driver.decks["usb-1"].holds.seconds == 1.0, "Lång is a second"
+    rig.step(59)
+    assert deck.brightness[-1] == 30
+    rig.step(2)
+    assert deck.brightness[-1] == 0, "dark after a minute without a press"
+    rig.press(deck, rig.key("XL0001", "Plats O"))
+    assert deck.brightness[-1] == 30, "the first press wakes it"
+    assert not any(f.label == "Start O" for f in rig.view("XL0001").keys), "and does nothing"
+    rig.press(deck, rig.key("XL0001", "Plats O"), held=0.1)
+    assert any(f.label == "Start O" for f in rig.view("XL0001").keys)
+    rig.step(61)
+    assert deck.brightness[-1] == 0
+    blinked = rig.client.post(API + "/deck/XL0001/blinka")
+    assert blinked.status_code == 200 and blinked.json()["blinking"] is True
+    deck.writes.clear()
+    rig.step(usb.POLL + 0.01)
+    assert deck.brightness[-1] == 30, "Blinka lights a dark deck"
+    assert sorted(deck.writes) == list(range(32)), "every key of the real deck"
+    assert {f.type for f in rig.view("XL0001").keys} == {"here"}
 
 
 # --- the models ---------------------------------------------------------------------------

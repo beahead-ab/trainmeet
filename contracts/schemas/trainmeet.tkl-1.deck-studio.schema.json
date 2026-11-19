@@ -1,0 +1,1750 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-studio.schema.json",
+  "title": "trainmeet.tkl-1.deck-studio",
+  "$defs": {
+    "DeckAction": {
+      "enum": [
+        "los",
+        "ankommit",
+        "kor",
+        "avbryt",
+        "tillbaka",
+        "las",
+        "lagg",
+        "los-vagen",
+        "los-alla",
+        "noll",
+        "nodutlosning",
+        "ingenting"
+      ],
+      "title": "DeckAction",
+      "type": "string"
+    },
+    "DeckButtonGroup": {
+      "description": "Knappar in Studio (SD41): the station's keys by group.",
+      "enum": [
+        "trafiken",
+        "tagvagar",
+        "vaxlingsvagar",
+        "platser",
+        "signaler",
+        "funktioner"
+      ],
+      "title": "DeckButtonGroup",
+      "type": "string"
+    },
+    "DeckChange": {
+      "description": "What a deviation from the default does (SD40, SD43).",
+      "enum": [
+        "flytta",
+        "lagg-till",
+        "ta-bort",
+        "andra",
+        "ny-sida",
+        "ta-bort-sida",
+        "ordning",
+        "pedal"
+      ],
+      "title": "DeckChange",
+      "type": "string"
+    },
+    "DeckDial": {
+      "description": "What a dial does in a mode (SD83): turn chooses, press does it.",
+      "enum": [
+        "tag",
+        "spar",
+        "sida",
+        "lagd-vag",
+        "start",
+        "mal",
+        "del",
+        "sidled",
+        "hojdled",
+        "signal"
+      ],
+      "title": "DeckDial",
+      "type": "string"
+    },
+    "DeckKeyType": {
+      "description": "The fixed catalogue of keys (SD4): a new type is added for all, never for a station.",
+      "enum": [
+        "train",
+        "line",
+        "alarm",
+        "track",
+        "place",
+        "part",
+        "signal",
+        "daily",
+        "favourite",
+        "tile",
+        "cell",
+        "pan",
+        "mode",
+        "next",
+        "page",
+        "action",
+        "panel",
+        "route"
+      ],
+      "title": "DeckKeyType",
+      "type": "string"
+    },
+    "DeckMode": {
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "enum": [
+        "tagen",
+        "platser",
+        "sparplan"
+      ],
+      "title": "DeckMode",
+      "type": "string"
+    },
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    },
+    "DeckPageKind": {
+      "enum": [
+        "nu",
+        "dagens",
+        "favoriter",
+        "platser",
+        "delar",
+        "del",
+        "signaler",
+        "alla",
+        "hela",
+        "utsnitt",
+        "egen"
+      ],
+      "title": "DeckPageKind",
+      "type": "string"
+    },
+    "DeckPageRef": {
+      "additionalProperties": true,
+      "description": "A page by its kind and its name, never by its place among the pages (SD40): a page the\ndefault makes again after the drawing changed is found by the same kind and name.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DeckPageKind"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "DeckPageRef",
+      "type": "object"
+    },
+    "DeckPan": {
+      "enum": [
+        "hela",
+        "vaster",
+        "oster",
+        "upp",
+        "ner"
+      ],
+      "title": "DeckPan",
+      "type": "string"
+    },
+    "DeckPlanDrawn": {
+      "description": "How Spårplan is drawn (SD72).",
+      "enum": [
+        "85",
+        "rela"
+      ],
+      "title": "DeckPlanDrawn",
+      "type": "string"
+    },
+    "DeckProblemKind": {
+      "enum": [
+        "nas-inte",
+        "finns-inte"
+      ],
+      "title": "DeckProblemKind",
+      "type": "string"
+    },
+    "DeckStyle": {
+      "description": "Where Läge and the fixed keys sit (SD27, SD75, SD77, SD78).",
+      "enum": [
+        "none",
+        "next",
+        "last",
+        "row",
+        "column"
+      ],
+      "title": "DeckStyle",
+      "type": "string"
+    },
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    },
+    "TklDeckButton": {
+      "additionalProperties": true,
+      "description": "A row in Knappar: a key the owner can drag onto the deck, and where it is now.",
+      "properties": {
+        "group": {
+          "$ref": "#/$defs/DeckButtonGroup"
+        },
+        "key": {
+          "$ref": "#/$defs/TklDeckKey"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "where": {
+          "default": "",
+          "description": "Var den ligger på decket, eller hur den nås.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Where",
+          "type": "string"
+        },
+        "missing": {
+          "default": false,
+          "description": "Vägen nås inte från decket (SD44).",
+          "title": "Missing",
+          "type": "boolean"
+        },
+        "pieces": {
+          "description": "Vägens spårbitar, för bilden.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Pieces",
+          "type": "array"
+        }
+      },
+      "required": [
+        "group",
+        "key",
+        "text"
+      ],
+      "title": "TklDeckButton",
+      "type": "object"
+    },
+    "TklDeckChecks": {
+      "additionalProperties": true,
+      "description": "Studio's checks of a profile (SD44): every train route and shunting route is reached\nfrom some page, and no key points at something that does not exist.",
+      "properties": {
+        "routes": {
+          "description": "Stationens vägar.",
+          "minimum": 0,
+          "title": "Routes",
+          "type": "integer"
+        },
+        "reached": {
+          "description": "Vägarna som nås från decket.",
+          "minimum": 0,
+          "title": "Reached",
+          "type": "integer"
+        },
+        "quick": {
+          "default": 0,
+          "description": "Vägarna som har en snabbväg.",
+          "minimum": 0,
+          "title": "Quick",
+          "type": "integer"
+        },
+        "problems": {
+          "items": {
+            "$ref": "#/$defs/TklDeckProblem"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "routes",
+        "reached"
+      ],
+      "title": "TklDeckChecks",
+      "type": "object"
+    },
+    "TklDeckDeviation": {
+      "additionalProperties": true,
+      "description": "One of the owner's changes from the default, in stable ids (SD40): a key by what it is\n(its type and what it points at: a route start → goal, a place, a signal, a slot, an\naction), a page by its kind and name. The cell is only where the key goes. Never a colour,\na symbol or a gesture's meaning (SD3, SD43): a deviation that tries is refused.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/DeckChange"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckPageRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan ändringen gäller."
+        },
+        "key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Knappen, igenkänd på vad den är; hela knappen för Lägg till."
+        },
+        "cell": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dit knappen flyttas.",
+          "title": "Cell"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "under": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Under"
+        },
+        "press": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number"
+        },
+        "dim": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dim"
+        },
+        "confirm": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confirm"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Läget för en ny sida."
+        },
+        "order": {
+          "description": "Lägets sidor i ägarens ordning.",
+          "items": {
+            "$ref": "#/$defs/DeckPageRef"
+          },
+          "maxItems": 200,
+          "title": "Order",
+          "type": "array"
+        },
+        "pedal": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pedalen, från vänster.",
+          "title": "Pedal"
+        }
+      },
+      "required": [
+        "change"
+      ],
+      "title": "TklDeckDeviation",
+      "type": "object"
+    },
+    "TklDeckFace": {
+      "additionalProperties": true,
+      "description": "What a key shows: the prototype's look, with the locked colours (SD3, SD6).",
+      "properties": {
+        "type": {
+          "default": "empty",
+          "enum": [
+            "train",
+            "line",
+            "alarm",
+            "track",
+            "place",
+            "part",
+            "signal",
+            "daily",
+            "favourite",
+            "tile",
+            "cell",
+            "pan",
+            "mode",
+            "next",
+            "page",
+            "action",
+            "panel",
+            "route",
+            "here",
+            "ask",
+            "case",
+            "answer",
+            "variant",
+            "goal",
+            "contact",
+            "clock",
+            "empty"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "maxLength": 60,
+          "title": "Text",
+          "type": "string"
+        },
+        "top": {
+          "default": "",
+          "maxLength": 60,
+          "title": "Top",
+          "type": "string"
+        },
+        "under": {
+          "default": "",
+          "maxLength": 60,
+          "title": "Under",
+          "type": "string"
+        },
+        "small": {
+          "default": "",
+          "description": "Liten text, som signalnumren (SD69).",
+          "maxLength": 60,
+          "title": "Small",
+          "type": "string"
+        },
+        "bg": {
+          "default": "#0d0f11",
+          "pattern": "^#[0-9a-f]{6}$",
+          "title": "Bg",
+          "type": "string"
+        },
+        "fg": {
+          "default": "#0d0f11",
+          "pattern": "^#[0-9a-f]{6}$",
+          "title": "Fg",
+          "type": "string"
+        },
+        "frame": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frame"
+        },
+        "dashed": {
+          "default": false,
+          "title": "Dashed",
+          "type": "boolean"
+        },
+        "band": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bandet överst: vägens färg.",
+          "title": "Band"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Strecket nederst: vald sida.",
+          "title": "Line"
+        },
+        "bar": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Platsens stapel: fri, belagd, lagd.",
+          "title": "Bar"
+        },
+        "bar_dashed": {
+          "default": false,
+          "title": "Bar Dashed",
+          "type": "boolean"
+        },
+        "dot": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Märket för en hindrad väg (SD17).",
+          "title": "Dot"
+        },
+        "star": {
+          "default": false,
+          "description": "Planerat spår bland målen (SD20).",
+          "title": "Star",
+          "type": "boolean"
+        },
+        "chip": {
+          "default": "",
+          "description": "Tågnumret på platsen (SD19).",
+          "maxLength": 60,
+          "title": "Chip",
+          "type": "string"
+        },
+        "chip_colour": {
+          "default": "",
+          "enum": [
+            "green",
+            "red",
+            ""
+          ],
+          "title": "Chip Colour",
+          "type": "string"
+        },
+        "blink": {
+          "anyOf": [
+            {
+              "pattern": "^#[0-9a-f]{6}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Blinkar mellan bg och den här.",
+          "title": "Blink"
+        },
+        "dim": {
+          "default": false,
+          "title": "Dim",
+          "type": "boolean"
+        },
+        "tile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckTile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "default": "",
+          "description": "För skärmläsare: vad knappen är.",
+          "maxLength": 60,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "title": "TklDeckFace",
+      "type": "object"
+    },
+    "TklDeckGrid": {
+      "additionalProperties": true,
+      "description": "What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,\nthe info line, the touch points and the pedals. A model TKL does not know is read this\nway too, and gets the default for its grid.",
+      "properties": {
+        "columns": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "dials": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Dials",
+          "type": "integer"
+        },
+        "strip": {
+          "default": false,
+          "description": "Pekremsan, på + och + XL.",
+          "title": "Strip",
+          "type": "boolean"
+        },
+        "info": {
+          "default": false,
+          "description": "Inforaden, på Neo.",
+          "title": "Info",
+          "type": "boolean"
+        },
+        "touch": {
+          "default": 0,
+          "description": "Pekpunkterna, på Neo.",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Touch",
+          "type": "integer"
+        },
+        "pedals": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Pedals",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TklDeckGrid",
+      "type": "object"
+    },
+    "TklDeckKey": {
+      "additionalProperties": true,
+      "description": "A key in a profile: its type from the catalogue and what it points at, as data (SD5).\n\nWhat the owner may change in Studio (SD43) is here too: the text and the line under, what a\npress and a hold do from the fixed list `DeckAction`, and what the key shows. Never the\ncolours, the symbols or what a gesture means (SD3): those follow the catalogue.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/DeckKeyType"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tåget, linjen eller vägen i tur.",
+          "title": "Slot"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signalen eller punkten (SIGNAL).",
+          "title": "Point"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Platsen (PLACE, TRACK).",
+          "title": "Place"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen (PART).",
+          "title": "Part"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan knappen öppnar.",
+          "title": "Page"
+        },
+        "dx": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Utsnittets kolumn (CELL).",
+          "title": "Dx"
+        },
+        "dy": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Utsnittets rad (CELL).",
+          "title": "Dy"
+        },
+        "rect": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Biten av spårplanen i rutor: x, y, bredd, höjd (TILE).",
+          "title": "Rect"
+        },
+        "pan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckPan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "function": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Panelfunktionens namn (PANEL).",
+          "title": "Function"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckRoute"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Snabbvägens väg (ROUTE)."
+        },
+        "text": {
+          "default": "",
+          "description": "Knappens text, när den är given.",
+          "maxLength": 60,
+          "title": "Text",
+          "type": "string"
+        },
+        "under": {
+          "default": "",
+          "description": "Undertexten, när ägaren har gett den.",
+          "maxLength": 60,
+          "title": "Under",
+          "type": "string"
+        },
+        "press": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad ett tryck gör, ur den fasta listan; annars katalogens."
+        },
+        "hold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vad håll in gör, ur den fasta listan; annars katalogens."
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Visa tågnumret på målspåret (snabbväg). Förval: ja.",
+          "title": "Number"
+        },
+        "dim": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tona ned knappen när vägen är hindrad (SD17). Förval: ja.",
+          "title": "Dim"
+        },
+        "confirm": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fråga en gång till före trycket. Förval: nej.",
+          "title": "Confirm"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TklDeckKey",
+      "type": "object"
+    },
+    "TklDeckPage": {
+      "additionalProperties": true,
+      "description": "A page: every key of the grid, row by row, the fixed ones included.",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/DeckMode"
+        },
+        "kind": {
+          "$ref": "#/$defs/DeckPageKind"
+        },
+        "keys": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TklDeckKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Keys",
+          "type": "array"
+        },
+        "listed": {
+          "default": true,
+          "description": "Står bland Sidor (SD26). En dels sida gör inte det.",
+          "title": "Listed",
+          "type": "boolean"
+        },
+        "cancel": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Där Avbryt står medan en start är vald.",
+          "title": "Cancel"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen sidan visar (SD79).",
+          "title": "Part"
+        }
+      },
+      "required": [
+        "name",
+        "mode",
+        "kind",
+        "keys"
+      ],
+      "title": "TklDeckPage",
+      "type": "object"
+    },
+    "TklDeckPart": {
+      "additionalProperties": true,
+      "description": "A part of the station, west to east (SD79): the west exits, a group of track parts, or\nthe east exits.",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "places": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "said": {
+          "default": "",
+          "description": "Platserna i korthet, till exempel A1–A4.",
+          "maxLength": 60,
+          "title": "Said",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "places"
+      ],
+      "title": "TklDeckPart",
+      "type": "object"
+    },
+    "TklDeckPlace": {
+      "additionalProperties": true,
+      "description": "A place where a train route starts or ends (SD66): an exit or a station track.",
+      "properties": {
+        "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "exit",
+            "track"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "description": "Exit's or track's own name (SD73).",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "part": {
+          "minimum": 0,
+          "title": "Part",
+          "type": "integer"
+        },
+        "starts": {
+          "description": "Tågvägarnas starter här.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Starts",
+          "type": "array"
+        },
+        "ends": {
+          "description": "Tågvägarnas mål här.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Ends",
+          "type": "array"
+        },
+        "signals": {
+          "description": "Signalen i var ände (SD69).",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "part",
+        "x",
+        "y"
+      ],
+      "title": "TklDeckPlace",
+      "type": "object"
+    },
+    "TklDeckPoint": {
+      "additionalProperties": true,
+      "description": "A route's start or goal where the panel has it, for the geographic pages and Spårplan.",
+      "properties": {
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "x",
+        "y",
+        "start"
+      ],
+      "title": "TklDeckPoint",
+      "type": "object"
+    },
+    "TklDeckProblem": {
+      "additionalProperties": true,
+      "description": "One of Studio's checks that failed (SD44), with where it is, so that it can be clicked.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DeckProblemKind"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sidan i ägarens profil.",
+          "title": "Page"
+        },
+        "cell": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cell"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckRoute"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "TklDeckProblem",
+      "type": "object"
+    },
+    "TklDeckProfile": {
+      "additionalProperties": true,
+      "description": "The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and\nnever stored as code, with the owner's deviations laid on (SD40, tkl.deck.deviations).",
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckModelId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "grid": {
+          "$ref": "#/$defs/TklDeckGrid"
+        },
+        "style": {
+          "$ref": "#/$defs/DeckStyle"
+        },
+        "fixed": {
+          "description": "Den fasta radens knappar (SD27).",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Fixed",
+          "type": "array"
+        },
+        "modes": {
+          "description": "Lägena decket har (SD76).",
+          "items": {
+            "$ref": "#/$defs/DeckMode"
+          },
+          "title": "Modes",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "$ref": "#/$defs/TklDeckPage"
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "dials": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/DeckDial"
+            },
+            "type": "array"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/DeckMode"
+          },
+          "title": "Dials",
+          "type": "object"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/TklDeckPlace"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/TklDeckPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/TklDeckPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "one_line": {
+          "default": false,
+          "description": "Stationen har en linje: spårknappar (SD12).",
+          "title": "One Line",
+          "type": "boolean"
+        },
+        "tile": {
+          "default": 1,
+          "description": "En ruta i utsnittet, i spårplanens rutor.",
+          "exclusiveMinimum": 0,
+          "title": "Tile",
+          "type": "number"
+        },
+        "tile_origin": {
+          "default": [
+            0,
+            0
+          ],
+          "description": "Där utsnittets rutor börjar, i spårplanens rutor.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Tile Origin",
+          "type": "array"
+        },
+        "plan": {
+          "default": [
+            0,
+            0
+          ],
+          "description": "Spårplanens storlek i rutor.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Plan",
+          "type": "array"
+        },
+        "pedals": {
+          "description": "Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TklDeckKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Pedals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "grid",
+        "style"
+      ],
+      "title": "TklDeckProfile",
+      "type": "object"
+    },
+    "TklDeckRoute": {
+      "additionalProperties": true,
+      "properties": {
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "kind"
+      ],
+      "title": "TklDeckRoute",
+      "type": "object"
+    },
+    "TklDeckSize": {
+      "additionalProperties": true,
+      "description": "A size to choose in Studio, with its own default and the owner's changes (SD32).",
+      "properties": {
+        "size": {
+          "$ref": "#/$defs/DeckModelId"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "grid": {
+          "$ref": "#/$defs/TklDeckGrid"
+        },
+        "decks": {
+          "default": 0,
+          "description": "Deck på datorn med den här storleken.",
+          "minimum": 0,
+          "title": "Decks",
+          "type": "integer"
+        },
+        "deviations": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Deviations",
+          "type": "integer"
+        },
+        "to_check": {
+          "default": 0,
+          "minimum": 0,
+          "title": "To Check",
+          "type": "integer"
+        },
+        "problems": {
+          "default": 0,
+          "description": "Kontrollernas problem (SD44), för storlekar som används.",
+          "minimum": 0,
+          "title": "Problems",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size",
+        "name",
+        "grid"
+      ],
+      "title": "TklDeckSize",
+      "type": "object"
+    },
+    "TklDeckStudioPage": {
+      "additionalProperties": true,
+      "description": "A page of the owner's profile as Studio draws it: every key's face against an empty\ninterlocking, so that the owner sees what the key is.",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/DeckPageRef"
+        },
+        "faces": {
+          "items": {
+            "$ref": "#/$defs/TklDeckFace"
+          },
+          "title": "Faces",
+          "type": "array"
+        },
+        "changed": {
+          "default": false,
+          "description": "Sidan har egna ändringar.",
+          "title": "Changed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ref",
+        "faces"
+      ],
+      "title": "TklDeckStudioPage",
+      "type": "object"
+    },
+    "TklDeckTile": {
+      "additionalProperties": true,
+      "description": "A key that draws a piece of the track plan (SD70, SD71): the rectangle in the panel's\ncells, how it is drawn, and what is lit in it.",
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "w": {
+          "title": "W",
+          "type": "number"
+        },
+        "h": {
+          "title": "H",
+          "type": "number"
+        },
+        "drawn": {
+          "$ref": "#/$defs/DeckPlanDrawn",
+          "default": "85"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "goals": {
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "names": {
+          "description": "Spåren i biten (SD70).",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+        },
+        "chosen": {
+          "default": false,
+          "title": "Chosen",
+          "type": "boolean"
+        },
+        "state": {
+          "default": "",
+          "description": "Spårplanens läge i biten, i korthet: ändras när ett spår, en signal eller ett tågnummer i den ändras, så att bilden ritas om (#86 del b).",
+          "maxLength": 40,
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "title": "TklDeckTile",
+      "type": "object"
+    },
+    "TklDeckToCheck": {
+      "additionalProperties": true,
+      "description": "Att kolla (SD40): a deviation that could not be laid on again, and why.",
+      "properties": {
+        "deviation": {
+          "description": "Avvikelsens plats i listan.",
+          "minimum": 0,
+          "title": "Deviation",
+          "type": "integer"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckPageRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TklDeckKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "deviation",
+        "text"
+      ],
+      "title": "TklDeckToCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Studio, Inställningar, Stream Deck, Sidor (SD38–SD45): the owner's profile for one size,\nthe default's deviations, Att kolla, the checks and the list Knappar.",
+  "properties": {
+    "size": {
+      "$ref": "#/$defs/DeckModelId"
+    },
+    "sizes": {
+      "items": {
+        "$ref": "#/$defs/TklDeckSize"
+      },
+      "title": "Sizes",
+      "type": "array"
+    },
+    "profile": {
+      "$ref": "#/$defs/TklDeckProfile"
+    },
+    "pages": {
+      "items": {
+        "$ref": "#/$defs/TklDeckStudioPage"
+      },
+      "title": "Pages",
+      "type": "array"
+    },
+    "deviations": {
+      "items": {
+        "$ref": "#/$defs/TklDeckDeviation"
+      },
+      "title": "Deviations",
+      "type": "array"
+    },
+    "saved": {
+      "default": true,
+      "description": "Avvikelserna är de som är sparade.",
+      "title": "Saved",
+      "type": "boolean"
+    },
+    "to_check": {
+      "items": {
+        "$ref": "#/$defs/TklDeckToCheck"
+      },
+      "title": "To Check",
+      "type": "array"
+    },
+    "checks": {
+      "$ref": "#/$defs/TklDeckChecks"
+    },
+    "buttons": {
+      "items": {
+        "$ref": "#/$defs/TklDeckButton"
+      },
+      "title": "Buttons",
+      "type": "array"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    }
+  },
+  "required": [
+    "size",
+    "profile",
+    "checks"
+  ],
+  "type": "object"
+}

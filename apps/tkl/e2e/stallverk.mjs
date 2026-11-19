@@ -19,7 +19,9 @@
 // genom varje väg med Kör, Klart, och Ställverket utan noten om att stationen inte är provad.
 // Stream Deck på skärmen (#86 del a) som 15, med 102 på linjen vid Öst 2: tågknappen på sidan Nu
 // lägger infarten 52 → 62, Läge byter till Platser, och samma väg läggs där med Öst 2 och sedan
-// 2 på den andra sidan. Det är ärendets prov, utan ett riktigt deck.
+// 2 på den andra sidan. Det är ärendets prov, utan ett riktigt deck. I Studio › Inställningar ›
+// Stream Deck (#86 del c) dras snabbvägen 52 → 62 ur Knappar till en tom ruta på sidan Väster för
+// en 15 och sparas; decket på skärmen har den sedan där, och den lägger vägen med ett tryck.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -155,6 +157,23 @@ async function numberAt(page, number, colour) {
   return found.first().evaluate((g) => g.style.transform);
 }
 
+const QUICK_CELL = 4;
+
+/** Studio › Inställningar › Stream Deck (#86 del c) för en 15: snabbvägen 52 → 62 dras ur Knappar
+ * till den tomma rutan på sidan Väster och sparas med stationsmodellen. */
+async function studioDeck(page) {
+  await page.goto(`${TKL}/studio/installningar/stream-deck`);
+  await page.locator(".sds-sidor").waitFor();
+  check(await page.getByRole("group", { name: "Storlek" }).getByRole("button", { name: "Stream Deck 15", pressed: true }).count(), "Studio visar inte 15:an först.");
+  await page.getByRole("tab", { name: "Väster", exact: true }).click();
+  const cell = page.locator(`.sds-ruta[data-cell="${QUICK_CELL}"]`);
+  await page.locator(".sds-rad", { hasText: "52 → 62" }).dragTo(cell);
+  await page.waitForFunction((at) => (document.querySelector(`.sds-ruta[data-cell="${at}"]`)?.getAttribute("aria-label") ?? "").startsWith("52→62"), QUICK_CELL);
+  await page.getByRole("button", { name: "Spara", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "Sparat" }).waitFor();
+  await screenshot(page, "studio-stream-deck");
+}
+
 /** Stream Deck på skärmen som 15 (#86 del a): tågknappen, Läge och Platser lägger samma väg. */
 async function streamDeck(page) {
   const routes = async () => (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).routes;
@@ -195,6 +214,14 @@ async function streamDeck(page) {
   await until((r) => r.length === 1 && r[0].start === "52" && r[0].end === "62", "Platser lade inte samma väg 52 → 62.");
   await key("Lös ut").click();
   await until((r) => r.length === 0, "Lös ut på decket löste inte ut vägen från Platser.");
+  // Studio › Stream Deck (#86 del c): snabbvägen står där ägaren lade den och lägger vägen.
+  const quick = deck.locator(`.sd-key[data-key="${QUICK_CELL}"]`);
+  check(((await quick.getAttribute("aria-label")) ?? "").startsWith("52→62"), "Snabbvägen från Studio står inte på sin plats på decket.");
+  await quick.click();
+  await until((r) => r.length === 1 && r[0].start === "52" && r[0].end === "62", "Snabbvägen lade inte 52 → 62.");
+  await screenshot(page, "deck-snabbvag");
+  await key("Lös ut").click();
+  await until((r) => r.length === 0, "Lös ut på decket löste inte ut snabbvägen.");
   await page.getByRole("button", { name: "Stream Deck", exact: true }).click();
   await deck.waitFor({ state: "detached" });
 }
@@ -213,6 +240,7 @@ try {
   await useGardsjo(page);
   await screenshot(page, "sparplan-gardsjo");
   const tried = await prova(page);
+  await studioDeck(page);
   await connect(page, code);
   await approve(hub, "tkl", "asn");
   await page.goto(`${TKL}/`);
@@ -370,6 +398,7 @@ try {
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Prova i TKL: ${tried} vägar gick igenom, Klart.`);
   console.log("Stream Deck på skärmen: tågknappen lade 52 → 62, Läge bytte till Platser, och Öst 2 → 2 lade samma väg.");
+  console.log("Studio › Stream Deck: snabbvägen 52 → 62 sparades på Väster och lade vägen från decket på skärmen.");
   console.log(`Ställverket i TKL: 102 rullade i Foto från ${onTheLineInFoto} till ${rolledTo} mm, stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
 } catch (error) {
   if (error instanceof ProvFel) {
