@@ -9,7 +9,8 @@ the chosen page, the red dot for a hindered route, the green mark for a train re
 (SD62), and the text in the middle with a line over
 and a line under. From the deck on the screen (apps/tkl/src/deck.css) come the train number's
 chip, the place's bar, the star and the signal numbers, and Spårplan's keys draw their piece of
-the panel with the tracks in their state, the signals as triangles and the train numbers.
+the panel with the tracks in their state, the signals as triangles and the train numbers. The
+shunter's deck (#87 del d) uses the same marks, and its Fika draws a cup.
 
 Everything is drawn at the size asked for, never a bitmap scaled: 72 px on the 15, 80 on Mini,
 96 on XL and Neo, 112 on + XL, 120 on +, and 80 × 120 on Studio.
@@ -451,6 +452,16 @@ def _key(face: TklDeckFace, w: int, h: int, found: Picture | None, phase: int) -
         _frame(draw, w, h, face.frame, face.dashed)
     fg = face.fg
     text = face.text
+    if face.type == "fika":
+        # Fika on the shunter's deck (RANG-04): a cup, a shape and never an emoji (SD6).
+        _cup(draw, w / 2, h * 0.33, min(w, h) * 0.34, fg)
+        if text:
+            f, shown = fitted(text, True, 700, round(h * 0.18), w * 0.9, 8)
+            text_at(draw, shown, f, w / 2, h * 0.63, fg)
+        if face.under:
+            f, shown = fitted(face.under, False, 600, round(h * 0.13), w * 0.92, 7)
+            text_at(draw, shown, f, w / 2, h * 0.83, blend(fg, bg, 0.85))
+        return image
     if text:
         n = len(text)
         ratio = 0.2 if n > 6 else 0.25 if n > 4 else 0.3 if n > 2 else 0.38
@@ -503,6 +514,28 @@ def _frame(draw: ImageDraw.ImageDraw, w: int, h: int, colour: str, dashed: bool)
 
 
 READY: Final = "#22c55e"
+
+
+def _cup(draw: ImageDraw.ImageDraw, cx: float, cy: float, s: float, colour: str) -> None:
+    """A cup on a saucer with steam, s wide, its middle at (cx, cy)."""
+    t = max(1, round(s * 0.07))
+    top, bottom = cy - s * 0.18, cy + s * 0.3
+    left, right = cx - s * 0.36, cx + s * 0.22
+    draw.polygon(
+        [(left, top), (right, top), (right - s * 0.06, bottom), (left + s * 0.06, bottom)],
+        fill=colour,
+    )
+    draw.arc(
+        [right - s * 0.12, top + s * 0.04, right + s * 0.2, top + s * 0.3],
+        start=-90,
+        end=90,
+        fill=colour,
+        width=t,
+    )
+    draw.line([(cx - s * 0.5, bottom + t), (cx + s * 0.38, bottom + t)], fill=colour, width=t)
+    for dx in (-0.2, -0.04):
+        x = cx + s * dx
+        draw.line([(x, top - s * 0.08), (x + s * 0.05, top - s * 0.3)], fill=colour, width=t)
 
 
 def _ready_mark(draw: ImageDraw.ImageDraw, w: int, h: int) -> None:

@@ -24,6 +24,9 @@ press and a hold do from the fixed list, whether a snabbväg shows the train num
 hindered, and whether it asks once more before a press. A pedal does only what the owner chose
 for it (SD55). Blinka lights a deck so that the owner sees which one it is (SD46).
 
+A deck with a part's role has the mode Bangård only, the shunter's deck (#87 del d, SD74): its
+keys and presses are in tkl.deck.yard, and go through the interlocking's own part operations.
+
 Pure Python without I/O: the interlocking is read, and changed only through Hands. No code here
 names a station (RS13).
 """
@@ -34,9 +37,11 @@ import math
 import time as clock_time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Final, Literal, Protocol
 
 from contracts import station
+from contracts.station_model import PartSide
 from contracts.tkl import (
     DeckAction,
     DeckDial,
@@ -62,10 +67,11 @@ from contracts.tkl import (
     TklDeckView,
     TklInterlocking,
     TklNumberColour,
+    TklPartTrain,
     TklTarget,
     TklTargets,
 )
-from tkl.deck import look
+from tkl.deck import look, yard
 from tkl.deck.places import Geography
 from tkl.deck.profile import cut_size
 from tkl.deck.trains import Case, Daily, Line, Step, Turn, cases, daily, lines, turns
@@ -86,6 +92,7 @@ MODE_NAMES: Final = {
     DeckMode.TRAINS: ("Tågen", "ett tåg per knapp"),
     DeckMode.PLACES: ("Platser", "från och till i klartext"),
     DeckMode.TRACK_PLAN: ("Spårplan", "signaler och växlar"),
+    DeckMode.YARD: ("Bangård", "rangerarens deck"),
 }
 KIND_WORD: Final = {RouteKind.TRAIN: "tåg", RouteKind.SHUNTING: "växling"}
 FAMILIES: Final = {
@@ -99,6 +106,7 @@ FAMILIES: Final = {
     DeckPageKind.WHOLE: "plan",
     DeckPageKind.CUTOUT: "plan",
     DeckPageKind.OWN: "own",
+    DeckPageKind.YARD: "yard",
 }
 """The pages ▶ turns between on the bigger decks: those of the same kind."""
 MOST_FAVOURITES: Final = 10
@@ -200,6 +208,16 @@ class Deck:
     """Blinka (SD46): the deck shows that it is this one until then."""
     asking: tuple[int, int, float] | None = None
     """A key that asks once more (SD43): its page, its cell and until when."""
+    end: PartSide = PartSide.LEFT
+    """Bangård: the end Ände has chosen (SD86)."""
+    giving: bool = False
+    """Bangård: Lämna waits for the route out to return (SD61)."""
+    train_at: int = 0
+    """Bangård: which of the plan's trains the train key shows, after holds (SD60)."""
+    waiting: dict[str, int] = field(default_factory=dict)
+    """Bangård: the requests the deck last saw waiting, by route out."""
+    refusal_seen: datetime | None = None
+    """Bangård: the part's latest no the deck has seen."""
 
 
 @dataclass
@@ -219,6 +237,8 @@ class World:
     favourites: list[TklDeckRoute] = field(default_factory=list)
     daily_kept: list[Daily] | None = None
     """Dagens vägar as TKL's runtime data keeps them (SD49); else made from the snapshot."""
+    part_trains: list[TklPartTrain] | None = None
+    """Bangård: the trains the part may announce, from the plan (TKL108); None without one."""
     now: float = field(default_factory=clock_time.monotonic)
     _state: TklInterlocking | None = None
     _targets: dict[str, TklTargets | None] = field(default_factory=dict)
@@ -511,6 +531,10 @@ def keys(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace]:
         return [look.here(name) for _ in range(size)]
     if world.interlocking is None:
         return [look.no_contact() for _ in range(size)]
+    if deck.profile.part is not None:
+        if yard.has_fika(deck, world):
+            return yard.fika_faces(size)
+        yard.observe(deck, world, current(deck))
     if deck.overlay is not None:
         return _overlay(deck, selection, world)
     page = current(deck)
@@ -588,13 +612,27 @@ def _face(
             return _next_face(deck, world, page)
         case K.PAGE:
             return _page_face(deck, world)
+        case K.ACTION if _yard_action(deck, key.action):
+            return yard.action_face(deck, world, key.action)
         case K.ACTION:
             return _action_face(deck, selection, world, key.action)
         case K.PANEL:
             return _panel_face(world, key.function or "")
         case K.ROUTE:
             return _quick_face(deck, world, key)
+        case K.END | K.STREET | K.REQUEST | K.READY:
+            return yard.face(deck, world, key)
     return look.EMPTY
+
+
+def _yard_action(deck: Deck, action: DeckAction | None) -> bool:
+    """The shunter's own actions, and Kör on a part's deck (#87 del d)."""
+    return action in yard.ACTIONS or (action == DeckAction.RUN and deck.profile.part is not None)
+
+
+PART_MAY: Final = frozenset({DeckAction.CANCEL, DeckAction.BACK, DeckAction.NOTHING})
+"""Besides the shunter's own: what a part's deck may do. Never the tågklarerare's (SD74)."""
+NOT_THE_PARTS: Final = "Rangerarens deck gör bara delens egna funktioner."
 
 
 def _turn(world: World, slot: int | None) -> Turn | None:
@@ -1247,6 +1285,8 @@ def _mode_face(deck: Deck) -> TklDeckFace:
 def _next_page(deck: Deck, world: World) -> int | None:
     page = current(deck)
     found = pages_of(deck, world, deck.mode)
+    if page is not None and not page.listed and page.kind == DeckPageKind.YARD:
+        return yard.next_page(deck, page)
     if page is not None and not page.listed:
         # A part's page: the next page of the same part, else back to the parts.
         following = deck.page + 1
@@ -1457,8 +1497,11 @@ def _overlay(deck: Deck, selection: Selection, world: World) -> list[TklDeckFace
             )
             faces[mode_at] = _mode_face(deck)
         # Lås (SD30) on the last free key of the page Läge: the default pages stay as they are.
+        # A part's deck has the part's own Fika there, never the lock for the whole station.
         free = [i for i, f in enumerate(faces) if f.type == "empty"]
-        if free and deck.settings.lock_key:
+        if free and deck.profile.part is not None:
+            faces[free[-1]] = yard.fika_key()
+        elif free and deck.settings.lock_key:
             faces[free[-1]] = look.LOCK
         return faces
     if overlay.kind == "pages":
@@ -1606,6 +1649,8 @@ def info(deck: Deck, selection: Selection, world: World) -> str:
         return world.time
     if deck.accepted is False and deck.message and world.now - deck.said_at < FLASH_SECONDS:
         return f"{world.time}  Nej: {deck.message}"[:60]
+    if deck.mode == DeckMode.YARD:
+        return yard.info(deck, world)
     if selection.chosen:
         start = selection.point or _place_name(deck, selection.place)
         return f"{world.time}  Start {start} · välj mål"[:60]
@@ -1627,6 +1672,10 @@ def _strip_part(
     deck: Deck, selection: Selection, world: World, n: int, dial: DeckDial
 ) -> TklDeckStrip:
     at = deck.dials.get(n, 0)
+    if deck.mode == DeckMode.YARD:
+        shunter = yard.strip_part(deck, world, dial, at)
+        if shunter is not None:
+            return shunter
     state = world.state
     match dial:
         case DeckDial.TRAIN:
@@ -1756,6 +1805,10 @@ def press_here(
     if deck.profile.style == DeckStyle.NONE:
         _press_pedal(deck, selection, world, hands, index, hold)
         return
+    if deck.profile.part is not None and yard.has_fika(deck, world):
+        # Fika on the shunter's deck: any key brings the shunter back (RANG-04).
+        yard.back_from_fika(deck, world, hands)
+        return
     size = deck.profile.grid.columns * deck.profile.grid.rows
     if not 0 <= index < size:
         return
@@ -1833,6 +1886,9 @@ def _press_key(
     index: int | None,
     hold: bool,
 ) -> None:
+    if deck.profile.part is not None and key.type not in yard.ON_A_PARTS_DECK:
+        _say(deck, world, NOT_THE_PARTS)
+        return
     chosen = key.hold if hold else key.press
     if chosen is not None:
         # What the owner chose from the fixed list (SD43).
@@ -1901,6 +1957,8 @@ def _press_key(
             _press_panel(deck, world, hands, key, index)
         case K.ROUTE:
             _press_quick(deck, world, hands, key, index, hold)
+        case K.END | K.STREET | K.REQUEST | K.READY:
+            yard.press_key(deck, world, hands, key, index, hold)
 
 
 def _press_panel(
@@ -1955,6 +2013,9 @@ def _do(
     Nödutlösning only with a hold (SD29)."""
     route = key.route
     text = f"{route.start}\N{RIGHTWARDS ARROW}{route.end}" if route is not None else ""
+    if deck.profile.part is not None and action in (DeckAction.LAY, DeckAction.RELEASE_ROUTE):
+        _say(deck, world, NOT_THE_PARTS)
+        return
     match action:
         case DeckAction.NOTHING:
             return
@@ -1993,6 +2054,10 @@ def _press_overlay(
         if 0 <= index < len(shown_now) and shown_now[index] == look.LOCK:
             deck.overlay = None
             _said(deck, world, hands.lock(), None, "Lås")
+            return
+        if 0 <= index < len(shown_now) and shown_now[index] == yard.fika_key() and page:
+            deck.overlay = None
+            yard.press_action(deck, world, hands, page, DeckAction.FIKA, None)
             return
         have = modes(deck, world)
         mode_at = next(
@@ -2470,6 +2535,13 @@ def _press_action(
     index: int | None,
     hold: bool,
 ) -> None:
+    if action is not None and _yard_action(deck, action):
+        yard.press_action(deck, world, hands, page, action, index)
+        return
+    if deck.profile.part is not None and action not in PART_MAY:
+        # A part's deck never does the tågklarerare's (SD74), whatever a key was given.
+        _say(deck, world, NOT_THE_PARTS)
+        return
     state = world.state
     if action in HOLD_ONLY and not hold:
         name = {
@@ -2559,6 +2631,8 @@ def dial(
     what = found[number]
     at = deck.dials.get(number, 0) + turn
     deck.dials[number] = at
+    if deck.mode == DeckMode.YARD and yard.dial(deck, world, hands, what, at, turn, pushed):
+        return
     state = world.state
     match what:
         case DeckDial.TRAIN:

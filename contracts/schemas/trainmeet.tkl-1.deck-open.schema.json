@@ -132,6 +132,20 @@
     "connection": {
       "$ref": "#/$defs/DeckConnection",
       "default": "skarm"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Öppna decket i en dels roll, som decket på delens skärm (#87 del d). Inget: rollen decket har.",
+      "title": "Role"
     }
   },
   "type": "object"

@@ -14,11 +14,12 @@
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
       "enum": [
         "tagen",
         "platser",
-        "sparplan"
+        "sparplan",
+        "bangard"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -128,6 +129,20 @@
       ],
       "default": null,
       "title": "Workplace"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "maxLength": 60,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rollen (#87 del d): delens id, eller tom för tågklareraren.",
+      "title": "Role"
     }
   },
   "type": "object"

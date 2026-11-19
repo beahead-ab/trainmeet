@@ -12,6 +12,9 @@ Each key either did what it does (the interlocking said yes, or the deck chose a
 page or opened Läge), was refused with the interlocking's reason, or did nothing, with what the
 deck said. Tågen's keys need Hubben (SD63): without it a train key does nothing, and says so.
 
+A part's deck, Bangård (#87 del d), is tried the same way: its keys go through the
+interlocking's own part operations on the copy, and Ände, Lämna and Begär say what they chose.
+
 `Runner` runs it in the background with its progress, as Studio's Prova does (tkl/prova.py).
 
 Pure Python without I/O. No code here names a station (RS13).
@@ -25,6 +28,7 @@ from datetime import UTC, datetime
 from typing import Final
 
 from contracts import station
+from contracts.station_model import PartSide
 from contracts.tkl import (
     DeckKeyType,
     DeckModelId,
@@ -37,6 +41,7 @@ from contracts.tkl import (
     TklDeckRoute,
     TklDeckSettings,
     TklFunctionAction,
+    TklPartTrain,
 )
 from tkl.deck import logic
 from tkl.deck.deviations import HOLD_ONLY, cap, describe
@@ -47,6 +52,8 @@ from tkl.stallverk import Interlocking, Outcome, Plant
 from tkl.standard import RouteKind as EngineKind
 
 K = DeckKeyType
+YARD_FOLLOWS: Final = frozenset({K.STREET, K.REQUEST})
+"""The shunter's keys that follow Ände when they have no end of their own (#87 del d)."""
 MOST_RUNNING: Final = 4
 """At most this many stations try their keys at once: TKL in the cloud has many."""
 NO_HUB: Final = "Prova alla knappar når inte Hubben: Tågen och klareringen provas i drift."
@@ -115,6 +122,35 @@ class Direct:
     def emergency(self, route: int) -> logic.Said:
         return self._said(self.it.emergency_release(route, True))
 
+    # --- the shunter's deck (#87 del d): the interlocking's part operations on the copy ------
+
+    def part_street(self, part: str, street: str) -> logic.Said:
+        return self._said(self.it.part_street(part, street))
+
+    def part_request(self, part: str, route_out: str) -> logic.Said:
+        return self._said(self.it.part_request(part, route_out))
+
+    def part_return(self, part: str, request: int) -> logic.Said:
+        return self._said(self.it.part_return(part, request))
+
+    def part_done(self, part: str) -> logic.Said:
+        return self._said(self.it.part_done(part))
+
+    def part_gates(self, part: str) -> logic.Said:
+        return self._said(self.it.part_gates(part))
+
+    def part_ring(self, part: str) -> logic.Said:
+        return self._said(self.it.part_ring(part))
+
+    def part_fika(self, part: str, on: bool) -> logic.Said:
+        return self._said(self.it.part_fika(part, on))
+
+    def part_ready(self, part: str, train: TklPartTrain) -> logic.Said:
+        found = self.it.part_ready(
+            part, train.number, call=train.call, track=train.track, departure=train.departure
+        )
+        return self._said(found)
+
 
 @dataclass(frozen=True)
 class Pressed:
@@ -155,10 +191,16 @@ def _state(deck: logic.Deck, selection: logic.Selection) -> tuple[object, ...]:
         selection.point,
         selection.place,
         selection.kind,
+        deck.end,
+        deck.giving,
+        deck.train_at,
     )
 
 
 def _changed(deck: logic.Deck, selection: logic.Selection, world: logic.World) -> str:
+    if deck.profile.part is not None and deck.message and deck.overlay is None:
+        # The shunter's deck says what it chose: the end, Lämna or the page of routes out.
+        return deck.message
     if selection.point is not None:
         targets = world.targets(selection.point)
         goals = len(targets.targets) if targets is not None else 0
@@ -187,7 +229,27 @@ def try_key(
     favourites: list[TklDeckRoute] | None = None,
     daily: list[Daily] | None = None,
 ) -> TklDeckKeyTried:
-    """One key pressed on an empty interlocking, and what it did (SD47)."""
+    """One key pressed on an empty interlocking, and what it did (SD47). A key of the shunter's
+    deck that follows Ände is tried from the left end, and from the right when it did not do
+    anything there (#87 del d)."""
+    found = _try_key(profile, pressed, plant, geo, favourites, daily, PartSide.LEFT)
+    follows = pressed.key.type in YARD_FOLLOWS and pressed.key.side is None
+    if follows and found.result != DeckTried.DID:
+        right = _try_key(profile, pressed, plant, geo, favourites, daily, PartSide.RIGHT)
+        if right.result == DeckTried.DID:
+            return right
+    return found
+
+
+def _try_key(
+    profile: TklDeckProfile,
+    pressed: Pressed,
+    plant: Plant,
+    geo: Geography,
+    favourites: list[TklDeckRoute] | None,
+    daily: list[Daily] | None,
+    end: PartSide,
+) -> TklDeckKeyTried:
     it = Interlocking(plant)
     world = logic.World(
         plant=plant,
@@ -203,6 +265,7 @@ def try_key(
         profile=profile,
         mode=page.mode if page is not None else None,
         page=pressed.page,
+        end=end,
     )
     selection = logic.Selection()
     key = pressed.key
@@ -257,6 +320,8 @@ class Job:
     total: int
     started: datetime
     keys: list[TklDeckKeyTried] = field(default_factory=list)
+    part: str | None = None
+    """The part whose deck, Bangård, is tried (#87 del d); None for the tågklarerare's."""
     finished: datetime | None = None
     stop: threading.Event = field(default_factory=threading.Event)
     thread: threading.Thread | None = None
@@ -301,7 +366,7 @@ class Runner:
             if sum(1 for j in self._jobs.values() if j.running) >= self.most:
                 raise Busy()
             pressed = keys_of(profile)
-            job = Job(size=size, total=len(pressed), started=datetime.now(UTC))
+            job = Job(size=size, total=len(pressed), started=datetime.now(UTC), part=profile.part)
             self._jobs[slot] = job
 
         def run() -> None:
@@ -335,11 +400,23 @@ class Runner:
 ORDER: Final = {DeckTried.REFUSED: 0, DeckTried.NOTHING: 1, DeckTried.DID: 2}
 
 
-def view(job: Job | None, size: DeckModelId | None = None) -> TklDeckProva:
-    """Prova alla knappar as Studio shows it: the refused first, then those that did nothing."""
-    if job is None or (size is not None and job.size != size):
+def view(
+    job: Job | None,
+    size: DeckModelId | None = None,
+    part: str | None = None,
+    *,
+    any_part: bool = False,
+) -> TklDeckProva:
+    """Prova alla knappar as Studio shows it: the refused first, then those that did nothing.
+    For one size and one role: the tågklarerare's deck, or a part's (#87 del d)."""
+    if (
+        job is None
+        or (size is not None and job.size != size)
+        or (not any_part and job.part != part)
+    ):
         return TklDeckProva(
             size=size,
+            part=part,
             message="Prova alla knappar trycker på varje knapp mot ett tomt ställverk.",
         )
     keys = list(job.keys)
@@ -355,6 +432,7 @@ def view(job: Job | None, size: DeckModelId | None = None) -> TklDeckProva:
         message = f"Alla {job.total} knappar är provade."
     return TklDeckProva(
         size=job.size,
+        part=job.part,
         running=job.running,
         done=len(keys),
         total=job.total,

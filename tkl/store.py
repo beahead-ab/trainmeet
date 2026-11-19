@@ -741,11 +741,17 @@ class TklStore:
         (SD43). None at all is not stored, and the same deviations are always the same text, so
         that only a real change counts as one since the latest version."""
         sizes = {size: found for size, found in kept.sizes.items() if found}
-        made = TklDeckDeviations(sizes=sizes)
+        # The shunter's decks (#87 del d): per part and size, kept the same way.
+        parts = {
+            part: mine
+            for part, by_size in kept.parts.items()
+            if (mine := {size: found for size, found in by_size.items() if found})
+        }
+        made = TklDeckDeviations(sizes=sizes, parts=parts)
         with self._transaction() as db:
             if self._model(db, slot) is None:
                 raise NoModel()
-            if not sizes:
+            if not sizes and not parts:
                 db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
             else:
                 body = made.model_dump(mode="json", exclude_defaults=True)

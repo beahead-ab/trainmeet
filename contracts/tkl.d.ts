@@ -11145,6 +11145,12 @@ export interface components {
              * @description Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.
              */
             pedals?: (components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckKey"] | null)[];
+            /**
+             * Part
+             * @description Delen profilen är för: rangerarens deck, läget Bangård (#87 del d).
+             * @default null
+             */
+            part: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -11152,26 +11158,26 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting";
+        "trainmeet.tkl-1.deck-profile.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting" | "lamna" | "klart" | "ring" | "grindar" | "tuta" | "fika" | "klocka" | "begaran";
         /**
          * DeckDial
          * @description What a dial does in a mode (SD83): turn chooses, press does it.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckDial": "tag" | "spar" | "sida" | "lagd-vag" | "start" | "mal" | "del" | "sidled" | "hojdled" | "signal";
+        "trainmeet.tkl-1.deck-profile.DeckDial": "tag" | "spar" | "sida" | "lagd-vag" | "start" | "mal" | "del" | "sidled" | "hojdled" | "signal" | "begar" | "gata" | "klart-tag";
         /**
          * DeckKeyType
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route";
+        "trainmeet.tkl-1.deck-profile.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-profile.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -11183,7 +11189,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-profile.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen";
+        "trainmeet.tkl-1.deck-profile.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
         /**
          * DeckPan
          * @enum {string}
@@ -11195,6 +11201,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.deck-profile.DeckStyle": "none" | "next" | "last" | "row" | "column";
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.PartSide": "left" | "right";
         /**
          * RouteKind
          * @enum {string}
@@ -11320,6 +11332,17 @@ export interface components {
              * @default null
              */
             route: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckRoute"] | null;
+            /**
+             * Track
+             * @description Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).
+             * @default null
+             */
+            track: string | null;
+            /**
+             * @description Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.deck-profile.PartSide"] | null;
             /**
              * Text
              * @description Knappens text, när den är given.
@@ -11498,6 +11521,12 @@ export interface components {
             workplace: string | null;
             /** @default skarm */
             connection: components["schemas"]["trainmeet.tkl-1.deck-open.DeckConnection"];
+            /**
+             * Role
+             * @description Öppna decket i en dels roll, som decket på delens skärm (#87 del d). Inget: rollen decket har.
+             * @default null
+             */
+            role: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -11642,11 +11671,11 @@ export interface components {
         "trainmeet.tkl-1.deck-view.DeckHold": "kort" | "normal" | "lang";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-view.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-view.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -11682,7 +11711,7 @@ export interface components {
              * @default empty
              * @enum {string}
              */
-            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "empty";
+            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "empty";
             /**
              * Text
              * @default
@@ -11909,6 +11938,12 @@ export interface components {
              * @default null
              */
             opens_on: string | null;
+            /**
+             * Role
+             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @default null
+             */
+            role: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -12109,6 +12144,11 @@ export interface components {
             usb_problem: string | null;
             /** Decks */
             decks?: components["schemas"]["trainmeet.tkl-1.decks.TklDeckStatus"][];
+            /**
+             * Roles
+             * @description Rollerna ett deck kan ha: tågklareraren och delarna.
+             */
+            roles?: components["schemas"]["trainmeet.tkl-1.decks.TklDeckRole"][];
         } & {
             [key: string]: unknown;
         };
@@ -12127,11 +12167,11 @@ export interface components {
         "trainmeet.tkl-1.decks.DeckHold": "kort" | "normal" | "lang";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.decks.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.decks.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -12190,6 +12230,23 @@ export interface components {
              * @default 0
              */
             pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckRole
+         * @description A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
+         *     whose deck is the shunter's, Bangård.
+         */
+        "trainmeet.tkl-1.decks.TklDeckRole": {
+            /**
+             * Part
+             * @description Delens id; inget för tågklareraren.
+             * @default null
+             */
+            part: string | null;
+            /** Name */
+            name: string;
         } & {
             [key: string]: unknown;
         };
@@ -12261,6 +12318,12 @@ export interface components {
              * @default null
              */
             opens_on: string | null;
+            /**
+             * Role
+             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @default null
+             */
+            role: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -12321,6 +12384,15 @@ export interface components {
             sizes?: {
                 [key: string]: components["schemas"]["trainmeet.tkl-1.deck-deviations.TklDeckDeviation"][];
             };
+            /**
+             * Parts
+             * @description Ägarens ändringar av rangerarens deck, Bangård, per del och storlek (#87).
+             */
+            parts?: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["trainmeet.tkl-1.deck-deviations.TklDeckDeviation"][];
+                };
+            };
         } & {
             [key: string]: unknown;
         };
@@ -12328,7 +12400,7 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting";
+        "trainmeet.tkl-1.deck-deviations.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting" | "lamna" | "klart" | "ring" | "grindar" | "tuta" | "fika" | "klocka" | "begaran";
         /**
          * DeckChange
          * @description What a deviation from the default does (SD40, SD43).
@@ -12340,14 +12412,14 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route";
+        "trainmeet.tkl-1.deck-deviations.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-deviations.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -12359,7 +12431,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-deviations.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen";
+        "trainmeet.tkl-1.deck-deviations.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -12377,6 +12449,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.deck-deviations.DeckPan": "hela" | "vaster" | "oster" | "upp" | "ner";
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-deviations.PartSide": "left" | "right";
         /**
          * RouteKind
          * @enum {string}
@@ -12534,6 +12612,17 @@ export interface components {
              */
             route: components["schemas"]["trainmeet.tkl-1.deck-deviations.TklDeckRoute"] | null;
             /**
+             * Track
+             * @description Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).
+             * @default null
+             */
+            track: string | null;
+            /**
+             * @description Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.deck-deviations.PartSide"] | null;
+            /**
              * Text
              * @description Knappens text, när den är given.
              * @default
@@ -12616,6 +12705,17 @@ export interface components {
              * @default null
              */
             message: string | null;
+            /**
+             * Part
+             * @description Delen vars deck, Bangård, visas; inget för tågklareraren.
+             * @default null
+             */
+            part: string | null;
+            /**
+             * Roles
+             * @description Rollerna att välja: tågklareraren och delarna (#87).
+             */
+            roles?: components["schemas"]["trainmeet.tkl-1.deck-studio.TklDeckRole"][];
         } & {
             [key: string]: unknown;
         };
@@ -12623,13 +12723,13 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting";
+        "trainmeet.tkl-1.deck-studio.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting" | "lamna" | "klart" | "ring" | "grindar" | "tuta" | "fika" | "klocka" | "begaran";
         /**
          * DeckButtonGroup
          * @description Knappar in Studio (SD41): the station's keys by group.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckButtonGroup": "trafiken" | "tagvagar" | "vaxlingsvagar" | "platser" | "signaler" | "funktioner";
+        "trainmeet.tkl-1.deck-studio.DeckButtonGroup": "trafiken" | "tagvagar" | "vaxlingsvagar" | "platser" | "signaler" | "funktioner" | "bangard-spar" | "bangard-vagar-ut";
         /**
          * DeckChange
          * @description What a deviation from the default does (SD40, SD43).
@@ -12641,20 +12741,20 @@ export interface components {
          * @description What a dial does in a mode (SD83): turn chooses, press does it.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckDial": "tag" | "spar" | "sida" | "lagd-vag" | "start" | "mal" | "del" | "sidled" | "hojdled" | "signal";
+        "trainmeet.tkl-1.deck-studio.DeckDial": "tag" | "spar" | "sida" | "lagd-vag" | "start" | "mal" | "del" | "sidled" | "hojdled" | "signal" | "begar" | "gata" | "klart-tag";
         /**
          * DeckKeyType
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route";
+        "trainmeet.tkl-1.deck-studio.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-studio.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -12666,7 +12766,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-studio.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen";
+        "trainmeet.tkl-1.deck-studio.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -12701,6 +12801,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.deck-studio.DeckStyle": "none" | "next" | "last" | "row" | "column";
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-studio.PartSide": "left" | "right";
         /**
          * RouteKind
          * @enum {string}
@@ -12845,7 +12951,7 @@ export interface components {
              * @default empty
              * @enum {string}
              */
-            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "empty";
+            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "here" | "ask" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "end" | "street" | "request" | "fika" | "empty";
             /**
              * Text
              * @default
@@ -13082,6 +13188,17 @@ export interface components {
              * @default null
              */
             route: components["schemas"]["trainmeet.tkl-1.deck-studio.TklDeckRoute"] | null;
+            /**
+             * Track
+             * @description Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).
+             * @default null
+             */
+            track: string | null;
+            /**
+             * @description Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.deck-studio.PartSide"] | null;
             /**
              * Text
              * @description Knappens text, när den är given.
@@ -13330,6 +13447,29 @@ export interface components {
              * @description Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.
              */
             pedals?: (components["schemas"]["trainmeet.tkl-1.deck-studio.TklDeckKey"] | null)[];
+            /**
+             * Part
+             * @description Delen profilen är för: rangerarens deck, läget Bangård (#87 del d).
+             * @default null
+             */
+            part: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckRole
+         * @description A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
+         *     whose deck is the shunter's, Bangård.
+         */
+        "trainmeet.tkl-1.deck-studio.TklDeckRole": {
+            /**
+             * Part
+             * @description Delens id; inget för tågklareraren.
+             * @default null
+             */
+            part: string | null;
+            /** Name */
+            name: string;
         } & {
             [key: string]: unknown;
         };
@@ -13464,6 +13604,12 @@ export interface components {
             size: components["schemas"]["trainmeet.tkl-1.deck-edit.DeckModelId"];
             /** Deviations */
             deviations?: components["schemas"]["trainmeet.tkl-1.deck-edit.TklDeckDeviation"][];
+            /**
+             * Part
+             * @description Delens deck, Bangård (#87 del d); inget för tågklareraren.
+             * @default null
+             */
+            part: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13471,7 +13617,7 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting";
+        "trainmeet.tkl-1.deck-edit.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting" | "lamna" | "klart" | "ring" | "grindar" | "tuta" | "fika" | "klocka" | "begaran";
         /**
          * DeckChange
          * @description What a deviation from the default does (SD40, SD43).
@@ -13483,14 +13629,14 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route";
+        "trainmeet.tkl-1.deck-edit.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-edit.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -13502,7 +13648,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-edit.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen";
+        "trainmeet.tkl-1.deck-edit.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -13520,6 +13666,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.deck-edit.DeckPan": "hela" | "vaster" | "oster" | "upp" | "ner";
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-edit.PartSide": "left" | "right";
         /**
          * RouteKind
          * @enum {string}
@@ -13677,6 +13829,17 @@ export interface components {
              */
             route: components["schemas"]["trainmeet.tkl-1.deck-edit.TklDeckRoute"] | null;
             /**
+             * Track
+             * @description Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).
+             * @default null
+             */
+            track: string | null;
+            /**
+             * @description Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.deck-edit.PartSide"] | null;
+            /**
              * Text
              * @description Knappens text, när den är given.
              * @default
@@ -13734,6 +13897,12 @@ export interface components {
             size: components["schemas"]["trainmeet.tkl-1.deck-suggest.DeckModelId"];
             /** Deviations */
             deviations?: components["schemas"]["trainmeet.tkl-1.deck-suggest.TklDeckDeviation"][];
+            /**
+             * Part
+             * @description Delens deck, Bangård (#87 del d); inget för tågklareraren.
+             * @default null
+             */
+            part: string | null;
             page: components["schemas"]["trainmeet.tkl-1.deck-suggest.DeckPageRef"];
             rule: components["schemas"]["trainmeet.tkl-1.deck-suggest.DeckSuggestion"];
         } & {
@@ -13743,7 +13912,7 @@ export interface components {
          * DeckAction
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting";
+        "trainmeet.tkl-1.deck-suggest.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka" | "las" | "lagg" | "los-vagen" | "los-alla" | "noll" | "nodutlosning" | "ingenting" | "lamna" | "klart" | "ring" | "grindar" | "tuta" | "fika" | "klocka" | "begaran";
         /**
          * DeckChange
          * @description What a deviation from the default does (SD40, SD43).
@@ -13755,14 +13924,14 @@ export interface components {
          * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route";
+        "trainmeet.tkl-1.deck-suggest.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "route" | "ande" | "gata" | "begar" | "klart-tag";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-suggest.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -13774,7 +13943,7 @@ export interface components {
          * DeckPageKind
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-suggest.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen";
+        "trainmeet.tkl-1.deck-suggest.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt" | "egen" | "bangard";
         /**
          * DeckPageRef
          * @description A page by its kind and its name, never by its place among the pages (SD40): a page the
@@ -13798,6 +13967,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.deck-suggest.DeckSuggestion": "geografiskt" | "dagens" | "mest-anvanda";
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-suggest.PartSide": "left" | "right";
         /**
          * RouteKind
          * @enum {string}
@@ -13955,6 +14130,17 @@ export interface components {
              */
             route: components["schemas"]["trainmeet.tkl-1.deck-suggest.TklDeckRoute"] | null;
             /**
+             * Track
+             * @description Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).
+             * @default null
+             */
+            track: string | null;
+            /**
+             * @description Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.deck-suggest.PartSide"] | null;
+            /**
              * Text
              * @description Knappens text, när den är given.
              * @default
@@ -14062,6 +14248,12 @@ export interface components {
              * @default null
              */
             message: string | null;
+            /**
+             * Part
+             * @description Delens deck, Bangård (#87 del d).
+             * @default null
+             */
+            part: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14102,6 +14294,12 @@ export interface components {
         /** TklDeckProvaAsk */
         "trainmeet.tkl-1.deck-prova-ask": {
             size: components["schemas"]["trainmeet.tkl-1.deck-prova-ask.DeckModelId"];
+            /**
+             * Part
+             * @description Delens deck, Bangård (#87 del d).
+             * @default null
+             */
+            part: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14152,6 +14350,12 @@ export interface components {
              * @default null
              */
             workplace: string | null;
+            /**
+             * Role
+             * @description Rollen (#87 del d): delens id, eller tom för tågklareraren.
+             * @default null
+             */
+            role: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14163,11 +14367,11 @@ export interface components {
         "trainmeet.tkl-1.deck-change.DeckHold": "kort" | "normal" | "lang";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-change.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-change.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * TklDeckStatus
          * @description One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is
@@ -14229,11 +14433,11 @@ export interface components {
         "trainmeet.tkl-1.deck-status.DeckHold": "kort" | "normal" | "lang";
         /**
          * DeckMode
-         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-         *     shunter's deck (#87).
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+         *     deck, for a deck with a part's role (#87 del d, SD74).
          * @enum {string}
          */
-        "trainmeet.tkl-1.deck-status.DeckMode": "tagen" | "platser" | "sparplan";
+        "trainmeet.tkl-1.deck-status.DeckMode": "tagen" | "platser" | "sparplan" | "bangard";
         /**
          * DeckModelId
          * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
@@ -14363,6 +14567,12 @@ export interface components {
              * @default null
              */
             opens_on: string | null;
+            /**
+             * Role
+             * @description Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.
+             * @default null
+             */
+            role: string | null;
         } & {
             [key: string]: unknown;
         };

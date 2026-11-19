@@ -24,11 +24,12 @@
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård comes with the\nshunter's deck (#87).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
       "enum": [
         "tagen",
         "platser",
-        "sparplan"
+        "sparplan",
+        "bangard"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -245,6 +246,20 @@
           "default": null,
           "description": "Sidan decket öppnar på (SD35); annars lägets första.",
           "title": "Opens On"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+          "title": "Role"
         }
       },
       "required": [

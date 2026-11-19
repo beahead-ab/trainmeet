@@ -14,6 +14,11 @@ A page is reached when it is listed among Sidor, or a part's key on a reached pa
 The default reaches every route (del a tried that for the four reference stations); the owner's
 changes may not, and then Studio says which route and why, clickable.
 
+The shunter's deck, Bangård (#87 del d), is checked against its part instead: every switch street
+to a track of the yard and every route out is reached, with a key for its track from its end, a
+key that follows Ände where the deck has Ände, or a dial (SD87). A load track or the depot, with
+a street from one end only, is laid on the screen where the deck has no room for it (SD61).
+
 Pure Python without I/O. No code here names a station (RS13).
 """
 
@@ -21,8 +26,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from contracts.station_model import PartSide
 from contracts.tkl import (
+    DeckAction,
+    DeckDial,
     DeckKeyType,
+    DeckMode,
     DeckPageKind,
     DeckProblemKind,
     RouteKind,
@@ -33,6 +42,7 @@ from contracts.tkl import (
 )
 from tkl.deck.deviations import ARROW, Known, cap, describe
 from tkl.deck.places import Geography
+from tkl.deck.profile import yard_tracks
 from tkl.stallverk import Plant
 from tkl.standard import RouteKind as EngineKind
 
@@ -52,13 +62,17 @@ class Reach:
 
 
 def reached_pages(profile: TklDeckProfile) -> frozenset[int]:
-    """The listed pages, and the pages a part's key on a reached page opens (SD79)."""
+    """The listed pages, and the pages a part's key on a reached page opens (SD79), or Begär on
+    the shunter's Mini (SD87)."""
     found = {i for i, p in enumerate(profile.pages) if p.listed}
     todo = list(found)
     while todo:
         page = profile.pages[todo.pop()]
         for key in page.keys:
-            target = key.page if key is not None and key.type == K.PART else None
+            opens = key is not None and (
+                key.type == K.PART or (key.type == K.ACTION and key.action == DeckAction.REQUESTS)
+            )
+            target = key.page if key is not None and opens else None
             if target is not None and target < len(profile.pages) and target not in found:
                 found.add(target)
                 todo.append(target)
@@ -123,6 +137,8 @@ def how(route: TklDeckRoute, found: Reach, plant: Plant, geo: Geography) -> tupl
 
 def check(profile: TklDeckProfile, plant: Plant, geo: Geography, known: Known) -> TklDeckChecks:
     """SD44 for one size: the routes the deck reaches, its snabbvägar, and the problems."""
+    if profile.part is not None:
+        return yard_check(profile, plant, known)
     found = reach(profile)
     routes = routes_of(plant)
     problems: list[TklDeckProblem] = []
@@ -143,6 +159,13 @@ def check(profile: TklDeckProfile, plant: Plant, geo: Geography, known: Known) -
                     route=route,
                 )
             )
+    problems += missing_keys(profile, known)
+    return TklDeckChecks(routes=len(routes), reached=reached, quick=quick, problems=problems)
+
+
+def missing_keys(profile: TklDeckProfile, known: Known) -> list[TklDeckProblem]:
+    """The keys that point at something the station does not have."""
+    problems: list[TklDeckProblem] = []
     for i, page in enumerate(profile.pages):
         for cell, key in enumerate(page.keys):
             missing = known.has(key) if key is not None else None
@@ -170,7 +193,110 @@ def check(profile: TklDeckProfile, plant: Plant, geo: Geography, known: Known) -
                     route=key.route if key is not None else None,
                 )
             )
-    return TklDeckChecks(routes=len(routes), reached=reached, quick=quick, problems=problems)
+    return problems
 
 
-__all__ = ["Reach", "check", "how", "reach", "reached_pages", "routes_of"]
+# --- Bangård (#87 del d) --------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class YardReach:
+    """What the shunter's deck reaches: its keys by type, track and end, whether it has Ände,
+    and its dials."""
+
+    keys: frozenset[tuple[DeckKeyType, str, PartSide | None]]
+    end: bool
+    dials: frozenset[DeckDial]
+
+    def has(self, kind: DeckKeyType, track: str, side: PartSide | None) -> bool:
+        """A street or a route out to a track from an end (None: both)."""
+        if kind == K.REQUEST and DeckDial.REQUEST in self.dials and (self.end or side != RIGHT):
+            return True
+        if kind == K.STREET and DeckDial.STREET in self.dials and (self.end or side != RIGHT):
+            return True
+        for k, t, s in self.keys:
+            if k != kind or t != track:
+                continue
+            if side is None or s == side or (s is None and (self.end or side == LEFT)):
+                return True
+        return False
+
+
+LEFT = PartSide.LEFT
+RIGHT = PartSide.RIGHT
+
+
+def yard_reach(profile: TklDeckProfile) -> YardReach:
+    keys: set[tuple[DeckKeyType, str, PartSide | None]] = set()
+    end = False
+    for i in reached_pages(profile):
+        for key in profile.pages[i].keys:
+            if key is None:
+                continue
+            if key.type == K.END:
+                end = True
+            elif key.type in (K.STREET, K.REQUEST) and key.track:
+                keys.add((key.type, key.track, key.side))
+    return YardReach(frozenset(keys), end, frozenset(profile.dials.get(DeckMode.YARD, [])))
+
+
+def yard_check(profile: TklDeckProfile, plant: Plant, known: Known) -> TklDeckChecks:
+    """SD44 for the shunter's deck: every street to a track of the yard and every route out is
+    reached (SD61, SD87). The load tracks and the depot are laid on the screen."""
+    part = plant.parts.get(profile.part or "")
+    problems: list[TklDeckProblem] = []
+    pedal = profile.grid.columns * profile.grid.rows == 0
+    if part is None:
+        if not pedal:
+            problems.append(
+                TklDeckProblem(
+                    kind=DeckProblemKind.MISSING,
+                    text=f"Delen {profile.part} finns inte i stationsmodellen.",
+                )
+            )
+        return TklDeckChecks(routes=0, reached=0, problems=problems)
+    through = {t.track for t in yard_tracks(part.streets.values()) if t.through}
+    found = yard_reach(profile)
+    total = 0
+    reached = 0
+    for street in part.streets.values():
+        if street.track not in through:
+            continue
+        total += 1
+        if found.has(K.STREET, street.track, street.side):
+            reached += 1
+        elif not pedal:
+            problems.append(
+                TklDeckProblem(
+                    kind=DeckProblemKind.UNREACHED,
+                    text=f"Växelgatan {street.name} till {street.track} nås inte från decket.",
+                )
+            )
+    for out in part.routes_out.values():
+        total += 1
+        if found.has(K.REQUEST, out.track, out.side):
+            reached += 1
+        elif not pedal:
+            problems.append(
+                TklDeckProblem(
+                    kind=DeckProblemKind.UNREACHED,
+                    text=f"Vägen ut {out.name} ({out.start} {ARROW} {out.end}) nås inte från "
+                    "decket.",
+                    route=TklDeckRoute(start=out.start, end=out.end, kind=RouteKind.SHUNTING),
+                )
+            )
+    problems += missing_keys(profile, known)
+    return TklDeckChecks(routes=total, reached=reached, problems=problems)
+
+
+__all__ = [
+    "Reach",
+    "YardReach",
+    "check",
+    "how",
+    "reach",
+    "reached_pages",
+    "routes_of",
+    "yard_check",
+    "yard_reach",
+]

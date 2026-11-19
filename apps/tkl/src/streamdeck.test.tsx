@@ -427,7 +427,7 @@ describe("Deck (SD46, SD58, SD35, SD36)", () => {
     expect(props.onChange).toHaveBeenLastCalledWith("skarm-1", { workplace: "2" });
     (buttonsNamed(all, "Glöm decket")[0]?.props.onClick as () => void)();
     expect(props.onForget).toHaveBeenCalledWith("skarm-1");
-    expect(deckChange({ brightness: 55 })).toEqual({ name: null, brightness: 55, hold: null, sleep: null, lock_key: null, opens_in: null, opens_on: null, workplace: null });
+    expect(deckChange({ brightness: 55 })).toEqual({ name: null, brightness: 55, hold: null, sleep: null, lock_key: null, opens_in: null, opens_on: null, workplace: null, role: null });
   });
 });
 

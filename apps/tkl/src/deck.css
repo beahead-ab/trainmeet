@@ -318,3 +318,14 @@
   color: #93c5fd;
   text-decoration: underline;
 }
+/* Fika on the shunter's deck (#87 del d): the cup above the text, as TKL's renderer draws it. */
+.sd-face[data-type="fika"] .sd-text {
+  top: 63%;
+}
+.sd-kopp {
+  position: absolute;
+  left: 33%;
+  top: 14%;
+  width: 34%;
+  height: 34%;
+}

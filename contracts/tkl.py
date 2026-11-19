@@ -58,6 +58,11 @@ the touch strip and the info line as PNG at the deck's own size, from the same f
 on the screen. TKL is locked for the whole station with Lås, in TKL or on a deck, and opened with
 the PIN; then every deck shows only the clock (SD30). A model counts as tried only after a real
 deck of it has been tried; until then it is Inte provad (SD58).
+
+Stream Deck (#87 del d): a deck opens as the tågklarerare or as a part of the station (its
+role). A part's deck has the mode Bangård, the shunter's deck: the part's tracks, where a press
+lays the switch street from the chosen end, its routes out, requested from the station, and
+Ände, Lämna, Klart, Ring and the train key for Klart att skicka (SD60, SD61, SD74, SD86, SD87).
 """
 
 from __future__ import annotations
@@ -1782,12 +1787,13 @@ class DeckStyle(StrEnum):
 
 
 class DeckMode(StrEnum):
-    """Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
-    shunter's deck (#87)."""
+    """Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's
+    deck, for a deck with a part's role (#87 del d, SD74)."""
 
     TRAINS = "tagen"
     PLACES = "platser"
     TRACK_PLAN = "sparplan"
+    YARD = "bangard"
 
 
 class DeckPageKind(StrEnum):
@@ -1802,6 +1808,7 @@ class DeckPageKind(StrEnum):
     WHOLE = "hela"  # Spårplan, Hela stationen (SD70)
     CUTOUT = "utsnitt"  # Spårplan, the cut-out (SD71)
     OWN = "egen"  # a page the owner added in Studio (SD40)
+    YARD = "bangard"  # Bangård, the shunter's deck (SD61, SD86, SD87)
 
 
 class DeckKeyType(StrEnum):
@@ -1825,6 +1832,11 @@ class DeckKeyType(StrEnum):
     ACTION = "action"  # Lös ut, Ankommit, Kör, Avbryt, Tillbaka
     PANEL = "panel"  # a panel function of the station, by its name
     ROUTE = "route"  # Snabbväg: one press sets a whole route, start to goal (SD42, #86 del c)
+    # Bangård, the shunter's deck (#87 del d):
+    END = "ande"  # Ände: the left or the right end, and the key shows which (SD86)
+    STREET = "gata"  # a track of the part: a press lays the switch street from the end (SD61)
+    REQUEST = "begar"  # a route out: a press requests it from the station (SD61, RANG-03)
+    READY = "klart-tag"  # the next train from the plan: a press announces it (SD60, TKL108)
 
 
 class DeckAction(StrEnum):
@@ -1841,6 +1853,15 @@ class DeckAction(StrEnum):
     RESET = "noll"  # Noll: the interlocking reset, only with a hold, never on a pedal
     EMERGENCY = "nodutlosning"  # Nödutlösning of the latest route: only with a hold
     NOTHING = "ingenting"
+    # Bangård, the shunter's deck (#87 del d, SD61, RANG-04):
+    GIVE_BACK = "lamna"  # Lämna, then a track: that route is returned
+    DONE = "klart"  # Klart: every request returned and the border switches back
+    RING = "ring"  # Ring: rings the station
+    GATES = "grindar"  # Grindar: the border switches back, nothing returned
+    HORN = "tuta"  # Tuta
+    FIKA = "fika"  # Fika: the part's own, its deck dark until the shunter is back
+    CLOCK = "klocka"  # Klocka
+    REQUESTS = "begaran"  # Begär on Mini: opens the routes out (SD87)
 
 
 class DeckPan(StrEnum):
@@ -1864,6 +1885,9 @@ class DeckDial(StrEnum):
     SIDEWAYS = "sidled"
     UPDOWN = "hojdled"
     SIGNAL = "signal"
+    REQUEST = "begar"  # Bangård on +: turn chooses the route out, press requests it (SD87)
+    STREET = "gata"  # Bangård: turn chooses the track, press lays the street from the end
+    READY = "klart-tag"  # Bangård: turn chooses the train, press announces it (SD60)
 
 
 class DeckHold(StrEnum):
@@ -1916,6 +1940,14 @@ class TklDeckKey(Contract):
     action: DeckAction | None = None
     function: Text | None = Field(default=None, description="Panelfunktionens namn (PANEL).")
     route: TklDeckRoute | None = Field(default=None, description="Snabbvägens väg (ROUTE).")
+    track: Name | None = Field(
+        default=None,
+        description="Spåret: växelgatans eller vägen ut:s spår i delen (STREET, REQUEST, #87).",
+    )
+    side: PartSide | None = Field(
+        default=None,
+        description="Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST).",
+    )
     text: KeyText = Field(default="", description="Knappens text, när den är given.")
     under: KeyText = Field(default="", description="Undertexten, när ägaren har gett den.")
     press: DeckAction | None = Field(
@@ -2007,6 +2039,10 @@ class TklDeckProfile(Contract):
         default_factory=list,
         description="Pedalernas funktioner (SD55): inget förval, ingenting förrän ägaren väljer.",
     )
+    part: Id | None = Field(
+        default=None,
+        description="Delen profilen är för: rangerarens deck, läget Bangård (#87 del d).",
+    )
 
 
 class TklDeckSettings(Contract):
@@ -2036,6 +2072,11 @@ class TklDeckSettings(Contract):
     opens_on: Text | None = Field(
         default=None, description="Sidan decket öppnar på (SD35); annars lägets första."
     )
+    role: Id | None = Field(
+        default=None,
+        description="Rollen: inget för tågklareraren, eller en del av stationen med sitt id "
+        "(#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+    )
 
 
 class TklDeckTile(Contract):
@@ -2058,38 +2099,46 @@ class TklDeckTile(Contract):
     )
 
 
+DeckFaceType = Literal[
+    "train",
+    "line",
+    "alarm",
+    "track",
+    "place",
+    "part",
+    "signal",
+    "daily",
+    "favourite",
+    "tile",
+    "cell",
+    "pan",
+    "mode",
+    "next",
+    "page",
+    "action",
+    "panel",
+    "route",
+    "here",
+    "ask",
+    "case",
+    "answer",
+    "variant",
+    "goal",
+    "contact",
+    "clock",
+    "end",
+    "street",
+    "request",
+    "fika",
+    "empty",
+]
+"""What kind of key a face is: the catalogue's types and the deck's own (SD4)."""
+
+
 class TklDeckFace(Contract):
     """What a key shows: the prototype's look, with the locked colours (SD3, SD6)."""
 
-    type: Literal[
-        "train",
-        "line",
-        "alarm",
-        "track",
-        "place",
-        "part",
-        "signal",
-        "daily",
-        "favourite",
-        "tile",
-        "cell",
-        "pan",
-        "mode",
-        "next",
-        "page",
-        "action",
-        "panel",
-        "route",
-        "here",
-        "ask",
-        "case",
-        "answer",
-        "variant",
-        "goal",
-        "contact",
-        "clock",
-        "empty",
-    ] = "empty"
+    type: DeckFaceType = "empty"
     text: KeyText = ""
     top: KeyText = ""
     under: KeyText = ""
@@ -2188,6 +2237,11 @@ class TklDeckOpen(Contract):
     grid: TklDeckGrid | None = None
     workplace: Name | None = None
     connection: DeckConnection = DeckConnection.SCREEN
+    role: Id | None = Field(
+        default=None,
+        description="Öppna decket i en dels roll, som decket på delens skärm (#87 del d). "
+        "Inget: rollen decket har.",
+    )
 
     @model_validator(mode="after")
     def _one(self) -> TklDeckOpen:
@@ -2215,6 +2269,14 @@ class TklDeckStatus(Contract):
     blinking: bool = Field(default=False, description="Decket blinkar just nu (Blinka).")
 
 
+class TklDeckRole(Contract):
+    """A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,
+    whose deck is the shunter's, Bangård."""
+
+    part: Id | None = Field(default=None, description="Delens id; inget för tågklareraren.")
+    name: Text
+
+
 class TklDecks(Contract):
     """The decks this TKL knows (SD35), and whether it owns decks over USB itself: a local TKL
     does, so that a deck works without an open tab (SD50); TKL in the cloud never opens USB."""
@@ -2224,6 +2286,9 @@ class TklDecks(Contract):
         default=None, description="Varför TKL inte når USB just nu, till exempel utan libhidapi."
     )
     decks: list[TklDeckStatus] = Field(default_factory=list)
+    roles: list[TklDeckRole] = Field(
+        default_factory=list, description="Rollerna ett deck kan ha: tågklareraren och delarna."
+    )
 
 
 class TklDeckCount(TklDeckRoute):
@@ -2304,6 +2369,10 @@ class TklDeckDeviations(Contract):
     model whose profile a deck gets (SD54)."""
 
     sizes: dict[DeckModelId, list[TklDeckDeviation]] = Field(default_factory=dict)
+    parts: dict[Id, dict[DeckModelId, list[TklDeckDeviation]]] = Field(
+        default_factory=dict,
+        description="Ägarens ändringar av rangerarens deck, Bangård, per del och storlek (#87).",
+    )
 
 
 class TklDeckToCheck(Contract):
@@ -2349,6 +2418,8 @@ class DeckButtonGroup(StrEnum):
     PLACES = "platser"
     SIGNALS = "signaler"
     FUNCTIONS = "funktioner"  # the actions, the panel functions, Läge and ▶
+    YARD_TRACKS = "bangard-spar"  # Bangård: the part's tracks with their switch streets (#87)
+    YARD_OUTS = "bangard-vagar-ut"  # Bangård: the part's routes out
 
 
 class TklDeckButton(Contract):
@@ -2399,6 +2470,12 @@ class TklDeckStudio(Contract):
     checks: TklDeckChecks
     buttons: list[TklDeckButton] = Field(default_factory=list)
     message: Text | None = None
+    part: Id | None = Field(
+        default=None, description="Delen vars deck, Bangård, visas; inget för tågklareraren."
+    )
+    roles: list[TklDeckRole] = Field(
+        default_factory=list, description="Rollerna att välja: tågklareraren och delarna (#87)."
+    )
 
 
 class TklDeckEdit(Contract):
@@ -2406,6 +2483,9 @@ class TklDeckEdit(Contract):
 
     size: DeckModelId
     deviations: list[TklDeckDeviation] = Field(default_factory=list, max_length=DECK_DEVIATIONS)
+    part: Id | None = Field(
+        default=None, description="Delens deck, Bangård (#87 del d); inget för tågklareraren."
+    )
 
 
 class DeckSuggestion(StrEnum):
@@ -2453,10 +2533,12 @@ class TklDeckProva(Contract):
     started: datetime | None = None
     finished: datetime | None = None
     message: Text | None = None
+    part: Id | None = Field(default=None, description="Delens deck, Bangård (#87 del d).")
 
 
 class TklDeckProvaAsk(Contract):
     size: DeckModelId
+    part: Id | None = Field(default=None, description="Delens deck, Bangård (#87 del d).")
 
 
 class TklDeckChange(Contract):
@@ -2471,3 +2553,7 @@ class TklDeckChange(Contract):
     opens_in: DeckMode | None = None
     opens_on: KeyText | None = None
     workplace: Name | None = None
+    role: KeyText | None = Field(
+        default=None,
+        description="Rollen (#87 del d): delens id, eller tom för tågklareraren.",
+    )
