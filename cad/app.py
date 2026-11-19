@@ -27,7 +27,7 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from cad import id_login, login, migrate
+from cad import curves, id_login, login, migrate, smoothing
 from cad.db import Database
 from cad.errors import Refused
 from cad.errors import login as login_first
@@ -40,8 +40,13 @@ from contracts.cad import (
     CadSession,
     CadTrialLogin,
     CadVersion,
+    CheckItem,
+    DrawingEdit,
+    DrawingView,
     GableProfile,
     Library,
+    LockAsk,
+    LockProposal,
     LoginKind,
     Module,
     ModuleApproval,
@@ -54,6 +59,8 @@ from contracts.cad import (
     ProblemCode,
     ProfileList,
     Scale,
+    SmoothAsk,
+    SmoothResult,
     VisibilityChange,
 )
 from contracts.common import AppKey
@@ -340,6 +347,44 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         asker: Who = Depends(who),  # noqa: B008
     ) -> Module:
         return modules.set_visibility(asker, module, body)
+
+    # --- Ritningen and Lås mått (part b) ------------------------------------------------------
+
+    @app.post(API + "/modules/{module}/drawing")
+    def module_drawing(module: UUID, body: DrawingEdit, asker: Who = Depends(who)) -> DrawingView:  # noqa: B008
+        return modules.drawing(asker, module, body)
+
+    @app.post(API + "/modules/{module}/drawing/save")
+    def save_drawing(module: UUID, body: DrawingEdit, asker: Who = Depends(who)) -> Module:  # noqa: B008
+        return modules.save_drawing(asker, module, body)
+
+    @app.post(API + "/modules/{module}/drawing/approve")
+    def approve_plan(module: UUID, body: DrawingEdit, asker: Who = Depends(who)) -> Module:  # noqa: B008
+        return modules.save_drawing(asker, module, body, approve=True)
+
+    @app.post(API + "/modules/{module}/drawing/lock")
+    def lock_measures(module: UUID, body: LockAsk, asker: Who = Depends(who)) -> LockProposal:  # noqa: B008
+        return modules.lock_preview(asker, module, body)
+
+    @app.get(API + "/modules/{module}/checks")
+    def module_checks(
+        module: UUID,
+        asker: Who = Depends(who),  # noqa: B008
+        version: int | None = None,
+    ) -> list[CheckItem]:
+        return modules.checks_of(asker, module, version)
+
+    @app.post(API + "/smooth")
+    def smooth(body: SmoothAsk, asker: Who = Depends(who)) -> SmoothResult:  # noqa: B008
+        try:
+            segs = smoothing.smooth(body.points, body.level, body.scale)
+        except ValueError as error:
+            raise Refused(422, ProblemCode.INVALID, str(error)) from error
+        return SmoothResult(
+            level=body.level,
+            segments=[curves.segment(s) for s in segs],
+            deviation=smoothing.deviation(body.points, segs),
+        )
 
     @app.get(API + "/profiles")
     def profile_list(

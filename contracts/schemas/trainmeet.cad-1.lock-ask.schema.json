@@ -1,0 +1,935 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.lock-ask.schema.json",
+  "title": "trainmeet.cad-1.lock-ask",
+  "$defs": {
+    "AddArc": {
+      "additionalProperties": true,
+      "description": "Båge: an ARC from start, by radius and angle (turning right for a positive angle, as\nseen along the track with y down) from the heading at start, or through three points.",
+      "properties": {
+        "op": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Op",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "start_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Node"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "end_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Node"
+        },
+        "through": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Through"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "maximum": 359,
+              "minimum": -359,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Degrees.",
+          "title": "Angle"
+        },
+        "heading": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Degrees, 0 toward gable B, positive down; null: the track's.",
+          "title": "Heading"
+        }
+      },
+      "required": [
+        "start"
+      ],
+      "title": "AddArc",
+      "type": "object"
+    },
+    "AddLine": {
+      "additionalProperties": true,
+      "description": "Rakt spår: a LINE from start to end. start_node and end_node join it to an end there;\na point on a gable becomes a module joint.",
+      "properties": {
+        "op": {
+          "const": "line",
+          "default": "line",
+          "title": "Op",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "start_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Node"
+        },
+        "end_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Node"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "AddLine",
+      "type": "object"
+    },
+    "AddPolyline": {
+      "additionalProperties": true,
+      "description": "A hand-drawn line: utjämning makes it LINE and ARC at the version's level.",
+      "properties": {
+        "op": {
+          "const": "polyline",
+          "default": "polyline",
+          "title": "Op",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 4000,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "start_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Node"
+        },
+        "end_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Node"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "AddPolyline",
+      "type": "object"
+    },
+    "AddSwitch": {
+      "additionalProperties": true,
+      "description": "Växel: the diverging leg leaves the piece's track tangentially at from_a mm from gable A,\nwith its radius. Either with its angle, to the left or right as seen toward the gable it\nheads for, or drawn to a point: an arc of the radius and then straight to to, which also\ngives the side and the gable it heads for (a track drawn from the middle of another).",
+      "properties": {
+        "op": {
+          "const": "switch",
+          "default": "switch",
+          "title": "Op",
+          "type": "string"
+        },
+        "piece": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Piece",
+          "type": "string"
+        },
+        "from_a": {
+          "description": "Tungspetsen, mm från gavel A.",
+          "minimum": 0,
+          "title": "From A",
+          "type": "number"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 90,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "enum": [
+                "left",
+                "right"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Side"
+        },
+        "toward": {
+          "$ref": "#/$defs/GableEnd",
+          "default": "B"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design"
+        },
+        "tail": {
+          "default": 0,
+          "description": "Straight after the arc, mm.",
+          "maximum": 20000,
+          "minimum": 0,
+          "title": "Tail",
+          "type": "number"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the diverging leg ends.",
+          "title": "To"
+        },
+        "to_node": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Node"
+        }
+      },
+      "required": [
+        "piece",
+        "from_a",
+        "radius"
+      ],
+      "title": "AddSwitch",
+      "type": "object"
+    },
+    "AnswerCheck": {
+      "additionalProperties": true,
+      "description": "Answer an item in Att kolla with one of its choices.",
+      "properties": {
+        "op": {
+          "const": "answer",
+          "default": "answer",
+          "title": "Op",
+          "type": "string"
+        },
+        "key": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "answer": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Answer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "answer"
+      ],
+      "title": "AnswerCheck",
+      "type": "object"
+    },
+    "Cut": {
+      "additionalProperties": true,
+      "description": "Cut a piece in two at the point nearest at: the first part keeps the id.",
+      "properties": {
+        "op": {
+          "const": "cut",
+          "default": "cut",
+          "title": "Op",
+          "type": "string"
+        },
+        "piece": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Piece",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        }
+      },
+      "required": [
+        "piece",
+        "at"
+      ],
+      "title": "Cut",
+      "type": "object"
+    },
+    "Delete": {
+      "additionalProperties": true,
+      "description": "Delete a piece, a switch, an end or a label. The ids are never used again.",
+      "properties": {
+        "op": {
+          "const": "delete",
+          "default": "delete",
+          "title": "Op",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "Delete",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "Join": {
+      "additionalProperties": true,
+      "description": "Join two ends: both move to the middle and become one node.",
+      "properties": {
+        "op": {
+          "const": "join",
+          "default": "join",
+          "title": "Op",
+          "type": "string"
+        },
+        "a": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "A",
+          "type": "string"
+        },
+        "b": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "B",
+          "type": "string"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "Join",
+      "type": "object"
+    },
+    "LockMeasures": {
+      "additionalProperties": true,
+      "description": "Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions\na and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,\nstraight, fitted to the line it replaces. Null a or b: the gable's measure.",
+      "properties": {
+        "op": {
+          "const": "lock",
+          "default": "lock",
+          "title": "Op",
+          "type": "string"
+        },
+        "piece": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: the first track from A to B.",
+          "title": "Piece"
+        },
+        "a": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A"
+        },
+        "b": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B"
+        },
+        "radii": {
+          "$ref": "#/$defs/LockRadii",
+          "default": "same"
+        }
+      },
+      "title": "LockMeasures",
+      "type": "object"
+    },
+    "LockRadii": {
+      "enum": [
+        "same",
+        "different"
+      ],
+      "title": "LockRadii",
+      "type": "string"
+    },
+    "Move": {
+      "additionalProperties": true,
+      "description": "Move a node, a piece, a switch or a label by a vector in mm. What hangs on it is\nreshaped, never replaced.",
+      "properties": {
+        "op": {
+          "const": "move",
+          "default": "move",
+          "title": "Op",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Target",
+          "type": "string"
+        },
+        "by": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "By",
+          "type": "array"
+        }
+      },
+      "required": [
+        "target",
+        "by"
+      ],
+      "title": "Move",
+      "type": "object"
+    },
+    "MoveSwitch": {
+      "additionalProperties": true,
+      "description": "Flytta växel: the points slide along their track; the legs follow.",
+      "properties": {
+        "op": {
+          "const": "move_switch",
+          "default": "move_switch",
+          "title": "Op",
+          "type": "string"
+        },
+        "switch": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Switch",
+          "type": "string"
+        },
+        "from_a": {
+          "minimum": 0,
+          "title": "From A",
+          "type": "number"
+        }
+      },
+      "required": [
+        "switch",
+        "from_a"
+      ],
+      "title": "MoveSwitch",
+      "type": "object"
+    },
+    "SetEnd": {
+      "additionalProperties": true,
+      "description": "Make a free end a buffer stop, or a plain end again.",
+      "properties": {
+        "op": {
+          "const": "end",
+          "default": "end",
+          "title": "Op",
+          "type": "string"
+        },
+        "node": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Node",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "buffer_stop",
+            "joint"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "type"
+      ],
+      "title": "SetEnd",
+      "type": "object"
+    },
+    "SetLabel": {
+      "additionalProperties": true,
+      "description": "Text: a piece's track number, a switch's number, or a free label at a point. An empty\ntext removes it.",
+      "properties": {
+        "op": {
+          "const": "label",
+          "default": "label",
+          "title": "Op",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "text": {
+          "default": "",
+          "maxLength": 40,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "title": "SetLabel",
+      "type": "object"
+    },
+    "SetSmoothing": {
+      "additionalProperties": true,
+      "description": "Utjämning: the level, kept on the version; the drawn lines are made again at it.",
+      "properties": {
+        "op": {
+          "const": "smoothing",
+          "default": "smoothing",
+          "title": "Op",
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/Smoothing"
+        }
+      },
+      "required": [
+        "level"
+      ],
+      "title": "SetSmoothing",
+      "type": "object"
+    },
+    "SetSwitch": {
+      "additionalProperties": true,
+      "description": "Växelinspektören: the diverging radius, the switch type (\"okand\" for Okänd), and Lås\nväxelns läge.",
+      "properties": {
+        "op": {
+          "const": "set_switch",
+          "default": "set_switch",
+          "title": "Op",
+          "type": "string"
+        },
+        "switch": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Switch",
+          "type": "string"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design"
+        },
+        "locked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locked"
+        }
+      },
+      "required": [
+        "switch"
+      ],
+      "title": "SetSwitch",
+      "type": "object"
+    },
+    "Smoothing": {
+      "description": "Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).",
+      "enum": [
+        "off",
+        "light",
+        "normal",
+        "strong"
+      ],
+      "title": "Smoothing",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lås mått, the preview: the change set so far and the lock to try.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "operations": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "answer": "#/$defs/AnswerCheck",
+            "arc": "#/$defs/AddArc",
+            "cut": "#/$defs/Cut",
+            "delete": "#/$defs/Delete",
+            "end": "#/$defs/SetEnd",
+            "join": "#/$defs/Join",
+            "label": "#/$defs/SetLabel",
+            "line": "#/$defs/AddLine",
+            "lock": "#/$defs/LockMeasures",
+            "move": "#/$defs/Move",
+            "move_switch": "#/$defs/MoveSwitch",
+            "polyline": "#/$defs/AddPolyline",
+            "set_switch": "#/$defs/SetSwitch",
+            "smoothing": "#/$defs/SetSmoothing",
+            "switch": "#/$defs/AddSwitch"
+          },
+          "propertyName": "op"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/AddLine"
+          },
+          {
+            "$ref": "#/$defs/AddArc"
+          },
+          {
+            "$ref": "#/$defs/AddPolyline"
+          },
+          {
+            "$ref": "#/$defs/AddSwitch"
+          },
+          {
+            "$ref": "#/$defs/MoveSwitch"
+          },
+          {
+            "$ref": "#/$defs/Move"
+          },
+          {
+            "$ref": "#/$defs/Delete"
+          },
+          {
+            "$ref": "#/$defs/Join"
+          },
+          {
+            "$ref": "#/$defs/Cut"
+          },
+          {
+            "$ref": "#/$defs/SetLabel"
+          },
+          {
+            "$ref": "#/$defs/SetEnd"
+          },
+          {
+            "$ref": "#/$defs/SetSwitch"
+          },
+          {
+            "$ref": "#/$defs/AnswerCheck"
+          },
+          {
+            "$ref": "#/$defs/SetSmoothing"
+          },
+          {
+            "$ref": "#/$defs/LockMeasures"
+          }
+        ]
+      },
+      "maxItems": 2000,
+      "title": "Operations",
+      "type": "array"
+    },
+    "lock": {
+      "$ref": "#/$defs/LockMeasures"
+    }
+  },
+  "required": [
+    "base",
+    "lock"
+  ],
+  "type": "object"
+}

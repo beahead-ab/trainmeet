@@ -907,3 +907,450 @@
   fill: var(--tm-blue-text);
   font-weight: 700;
 }
+
+/* Ritningen (#89 del b): tools, the canvas and the panels, as the view Ritningen. */
+.cad-ritlayout {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 430px;
+  gap: 20px;
+  align-items: start;
+}
+.cad-verktyg {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  background: var(--tm-panel);
+}
+.cad-verktyg button {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tm-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cad-verktyg button[aria-pressed="true"] {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.cad-verktyg button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cad-verktyg hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--tm-line);
+}
+.cad-dukkort {
+  padding: 16px;
+}
+.cad-duk-topp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.cad-duk-topp .cad-vaxel button[disabled] {
+  cursor: not-allowed;
+}
+.cad-kommer-text {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--tm-mute);
+}
+.cad-markor {
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+.cad-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.tm-knapp.liten {
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+}
+.cad-duk-yta {
+  max-height: 760px;
+  touch-action: none;
+  user-select: none;
+}
+.cad-duk-yta.verktyg-line,
+.cad-duk-yta.verktyg-arc,
+.cad-duk-yta.verktyg-measure {
+  cursor: crosshair;
+}
+.cad-duk-yta.verktyg-switch {
+  cursor: grab;
+}
+.cad-duk-yta.verktyg-text {
+  cursor: text;
+}
+.cad-ballast {
+  fill: none;
+  stroke: #d8d1c2;
+  stroke-linecap: round;
+}
+.cad-vald .cad-spar {
+  stroke: var(--tm-blue);
+}
+.cad-vald .cad-ballast {
+  stroke: var(--tm-blue-soft);
+}
+.cad-stoppbock {
+  fill: var(--cad-track);
+}
+.cad-vaxelmarkor circle {
+  fill: var(--tm-panel);
+  stroke: var(--cad-orange);
+}
+.cad-vaxelmarkor text {
+  fill: var(--cad-orange);
+  font-weight: 700;
+}
+.cad-vaxelmarkor.vald circle {
+  fill: var(--tm-blue-soft);
+  stroke: var(--tm-blue);
+}
+.cad-vaxelmarkor.vald text {
+  fill: var(--tm-blue-text);
+}
+.cad-kollmarkor circle,
+.cad-kollmarkor rect {
+  fill: none;
+  stroke: var(--cad-orange);
+}
+.cad-kollmarkor text {
+  fill: var(--cad-orange);
+  font-weight: 700;
+}
+.cad-kollmarkor.antagen circle,
+.cad-kollmarkor.antagen rect {
+  stroke: var(--cad-yellow);
+}
+.cad-kollmarkor.antagen text {
+  fill: var(--cad-yellow);
+}
+.cad-forhand {
+  fill: none;
+  stroke: var(--tm-blue);
+  stroke-dasharray: 8 6;
+  stroke-linecap: round;
+}
+.cad-snapp {
+  fill: var(--tm-blue);
+}
+.cad-mat path {
+  stroke: var(--tm-blue);
+}
+.cad-mat text,
+.cad-ritning .cad-mat text {
+  fill: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-etikett,
+.cad-ritning .cad-etikett {
+  fill: var(--tm-text);
+  font-weight: 600;
+}
+.cad-ritning .cad-etikett.vald {
+  fill: var(--tm-blue-text);
+}
+.cad-duk-fot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 8px 0 0;
+  color: var(--tm-mute);
+}
+.cad-tips {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.cad-tagg.orange,
+.cad-tagg.forslag {
+  background: var(--cad-orange-soft);
+  color: var(--cad-orange);
+  border-color: transparent;
+}
+.cad-tagg.ritad {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  border-color: transparent;
+}
+.cad-inspektor-rubrik {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cad-inspektor-rubrik h2 {
+  margin: 0;
+}
+.cad-vaxelnummer {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--tm-blue);
+  border-radius: 50%;
+  color: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-inspektor-fakta {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px 12px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.cad-inspektor-fakta dt {
+  color: var(--tm-mute);
+}
+.cad-inspektor-fakta dd {
+  margin: 0;
+}
+.cad-inspektor .cad-kryss {
+  margin: 8px 0 12px;
+  font-weight: 500;
+}
+.cad-inspektor input:not([type="checkbox"]),
+.cad-inspektor select,
+.cad-textform input,
+.cad-lasfalt input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.cad-inspektor .cad-mm input {
+  padding-right: 48px;
+}
+.cad-antal {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--cad-yellow-soft);
+  color: var(--cad-yellow);
+  letter-spacing: 0;
+}
+.cad-kollista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cad-kollista li {
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+.cad-kollista li.forslag {
+  background: var(--cad-orange-soft);
+  border-color: color-mix(in srgb, var(--cad-orange) 30%, transparent);
+}
+.cad-kollista li.antagen {
+  background: var(--cad-yellow-soft);
+  border-color: color-mix(in srgb, var(--cad-yellow) 30%, transparent);
+}
+.cad-kollista h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+.cad-kollista li.forslag h3 {
+  color: var(--cad-orange);
+}
+.cad-kollista li.antagen h3 {
+  color: var(--cad-yellow);
+}
+.cad-kollista p {
+  margin: 0 0 10px;
+}
+.cad-besvarade {
+  margin-top: 12px;
+  color: var(--tm-mute);
+}
+.cad-besvarade ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.cad-forklaring {
+  margin: 12px 0 0;
+}
+.cad-lagerrad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+}
+.cad-lagerrad input {
+  appearance: none;
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--tm-line);
+  cursor: pointer;
+}
+.cad-lagerrad input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+}
+.cad-lagerrad input:checked {
+  background: var(--tm-blue);
+}
+.cad-lagerrad input:checked::after {
+  left: 23px;
+}
+.cad-lagerrad input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.cad-textform {
+  display: grid;
+  gap: 12px;
+}
+
+/* Lås mått. */
+.cad-laslayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 450px;
+  gap: 24px;
+  align-items: start;
+}
+.cad-lasbild {
+  max-height: 820px;
+}
+.cad-gammal {
+  fill: none;
+  stroke: var(--cad-orange);
+  stroke-linecap: round;
+}
+.cad-tangent {
+  fill: none;
+  stroke: var(--tm-blue);
+  stroke-linecap: round;
+}
+.cad-del,
+.cad-ritning .cad-del {
+  fill: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-lasmarke path {
+  stroke: var(--tm-blue);
+}
+.cad-lasmarke text,
+.cad-ritning .cad-lasmarke text {
+  fill: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-teckenforklaring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--tm-mute);
+}
+.cad-streck {
+  display: inline-block;
+  width: 44px;
+  height: 0;
+  margin-right: 8px;
+  vertical-align: middle;
+  border-top: 3px solid var(--cad-track);
+}
+.cad-streck.gammal {
+  border-top: 3px dashed var(--cad-orange);
+}
+.cad-kryssmarke {
+  color: var(--tm-blue);
+  font-weight: 700;
+  margin-right: 6px;
+}
+.cad-lasrad {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.cad-lasrad > div {
+  display: grid;
+  gap: 2px;
+}
+.cad-lasfalt {
+  width: 170px;
+}
+.cad-lasfalt input {
+  padding-left: 40px;
+  padding-right: 48px;
+  border: 2px solid var(--tm-blue);
+  font-size: 18px;
+  font-weight: 700;
+}
+.cad-lasfalt > span:first-child {
+  left: 14px;
+  right: auto;
+}
+.cad-radioval {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.cad-delar td,
+.cad-delar th {
+  padding: 10px 14px;
+}
+.cad-delar td:last-child,
+.cad-delar th:last-child {
+  text-align: right;
+}
+.cad-infobox {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  border-color: transparent;
+}
+@media (max-width: 1280px) {
+  .cad-ritlayout {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+  .cad-ritlayout .cad-sidokolumn {
+    grid-column: 1 / -1;
+  }
+  .cad-laslayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

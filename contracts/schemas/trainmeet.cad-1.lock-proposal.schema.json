@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.lock-proposal.schema.json",
+  "title": "trainmeet.cad-1.lock-proposal",
+  "$defs": {
+    "ArcSegment": {
+      "additionalProperties": true,
+      "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+      "properties": {
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "center": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center",
+          "type": "array"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "clockwise": {
+          "title": "Clockwise",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "center",
+        "radius",
+        "clockwise"
+      ],
+      "title": "ArcSegment",
+      "type": "object"
+    },
+    "Deviation": {
+      "additionalProperties": true,
+      "description": "How far one line lies from another: the median and the largest distance, in mm, over\ncount points.",
+      "properties": {
+        "median": {
+          "minimum": 0,
+          "title": "Median",
+          "type": "number"
+        },
+        "max": {
+          "minimum": 0,
+          "title": "Max",
+          "type": "number"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "median",
+        "max",
+        "count"
+      ],
+      "title": "Deviation",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "LineSegment": {
+      "additionalProperties": true,
+      "description": "LINE: a straight piece of track centre, in mm.",
+      "properties": {
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "LineSegment",
+      "type": "object"
+    },
+    "LockGable": {
+      "additionalProperties": true,
+      "description": "LÅSTA MÅTT: a gable track, the value locked and what the line said.",
+      "properties": {
+        "gable": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "track": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Track",
+          "type": "integer"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "line": {
+          "title": "Line",
+          "type": "number"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The profile's name, when it fixes it.",
+          "title": "Profile"
+        }
+      },
+      "required": [
+        "gable",
+        "track",
+        "value",
+        "line"
+      ],
+      "title": "LockGable",
+      "type": "object"
+    },
+    "LockMeasures": {
+      "additionalProperties": true,
+      "description": "Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions\na and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,\nstraight, fitted to the line it replaces. Null a or b: the gable's measure.",
+      "properties": {
+        "op": {
+          "const": "lock",
+          "default": "lock",
+          "title": "Op",
+          "type": "string"
+        },
+        "piece": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: the first track from A to B.",
+          "title": "Piece"
+        },
+        "a": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A"
+        },
+        "b": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B"
+        },
+        "radii": {
+          "$ref": "#/$defs/LockRadii",
+          "default": "same"
+        }
+      },
+      "title": "LockMeasures",
+      "type": "object"
+    },
+    "LockPart": {
+      "additionalProperties": true,
+      "description": "One row in Kurvan's table: Rakt från gavel A, Båge R, Rakt mm · vinkel, Båge R, Rakt\ntill gavel B.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "straight",
+            "arc"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "length": {
+          "minimum": 0,
+          "title": "Length",
+          "type": "number"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "description": "Degrees: the straight's angle to gable A, or the arc's.",
+          "title": "Angle",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "label",
+        "length",
+        "angle"
+      ],
+      "title": "LockPart",
+      "type": "object"
+    },
+    "LockRadii": {
+      "enum": [
+        "same",
+        "different"
+      ],
+      "title": "LockRadii",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0"
+      ],
+      "title": "Norm",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Lås ett mått, räkna om kurvan: the new geometry beside the old line, or why there is\nnone. Använd geometrin saves it (the operation lock); Behåll linjen keeps the old.",
+  "properties": {
+    "solved": {
+      "title": "Solved",
+      "type": "boolean"
+    },
+    "why": {
+      "description": "The sentence under LÅSTA MÅTT, or why there is no solution.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Why",
+      "type": "string"
+    },
+    "radii": {
+      "$ref": "#/$defs/LockRadii"
+    },
+    "gables": {
+      "items": {
+        "$ref": "#/$defs/LockGable"
+      },
+      "title": "Gables",
+      "type": "array"
+    },
+    "parts": {
+      "items": {
+        "$ref": "#/$defs/LockPart"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "old": {
+      "description": "The line it replaces.",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Old",
+      "type": "array"
+    },
+    "new": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "arc": "#/$defs/ArcSegment",
+            "line": "#/$defs/LineSegment"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/LineSegment"
+          },
+          {
+            "$ref": "#/$defs/ArcSegment"
+          }
+        ]
+      },
+      "title": "New",
+      "type": "array"
+    },
+    "tangents": {
+      "description": "The tangent points.",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Tangents",
+      "type": "array"
+    },
+    "deviation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Deviation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "lock": {
+      "$ref": "#/$defs/LockMeasures"
+    }
+  },
+  "required": [
+    "solved",
+    "why",
+    "radii",
+    "lock"
+  ],
+  "type": "object"
+}

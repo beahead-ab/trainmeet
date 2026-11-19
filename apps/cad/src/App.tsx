@@ -10,7 +10,11 @@ import {
   type Account,
   type AppKey,
   type CadVersion,
+  type DrawingView,
+  type EditOp,
   type Library,
+  type LockMeasures,
+  type LockProposal,
   type Module,
   type ModuleChange,
   type ModuleEvent,
@@ -22,12 +26,15 @@ import {
   type Session,
   type Visibility,
 } from "./api";
+import { push, redo, startEditor, undo, type Editor } from "./editor";
+import { LasMatt } from "./LasMatt";
 import { LibraryPage } from "./Library";
 import { ModuleForm, type Owner } from "./ModuleForm";
 import { ModulePage } from "./ModulePage";
 import { NewModulePage } from "./NewModule";
 import { ProfilesPage } from "./Profiles";
-import { modulePath, PATHS, routeFor, tabOf, type Route } from "./routes";
+import { Ritningen } from "./Ritningen";
+import { drawingPath, modulePath, PATHS, routeFor, tabOf, type Route } from "./routes";
 
 const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
 
@@ -77,6 +84,20 @@ export type ShellProps = {
   onRemove?: () => void;
   onNewProfile?: (body: NewProfile) => Promise<void>;
   now?: Date;
+  /** Ritningen: the change set, CAD's drawing of it, and Lås mått's proposal. */
+  editor?: Editor | null;
+  drawing?: DrawingView | null;
+  proposal?: LockProposal | null;
+  busy?: boolean;
+  stale?: boolean;
+  onOps?: (ops: EditOp[]) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onSaveDrawing?: () => void;
+  onApprovePlan?: () => void;
+  onReloadDrawing?: () => void;
+  onLockChange?: (lock: LockMeasures) => void;
+  onLockUse?: (lock: LockMeasures) => void;
 };
 
 function Place({ libraries, library, scale, onLibrary, onScale }: Pick<ShellProps, "libraries" | "library" | "scale" | "onLibrary" | "onScale">) {
@@ -222,6 +243,51 @@ function Page(props: ShellProps) {
       />
     );
   }
+  if (route.page === "drawing" || route.page === "lock") {
+    if (props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
+    if (!props.module.may_edit) {
+      return (
+        <section className="cad-sida">
+          <h1>Ritningen</h1>
+          <p>Bara ägaren och de med rollen redigera ändrar ritningen.</p>
+          <a href={modulePath(route.id, "ritning")} onClick={linkClick(navigate, modulePath(route.id, "ritning"))}>
+            Visa ritningen
+          </a>
+        </section>
+      );
+    }
+    if (route.page === "lock") {
+      return (
+        <LasMatt
+          module={props.module}
+          proposal={props.proposal ?? null}
+          busy={props.busy}
+          error={props.error}
+          navigate={navigate}
+          onChange={props.onLockChange}
+          onUse={props.onLockUse}
+        />
+      );
+    }
+    return (
+      <Ritningen
+        module={props.module}
+        view={props.drawing ?? null}
+        changes={props.editor?.ops.length ?? 0}
+        undone={props.editor?.undone.length ?? 0}
+        busy={props.busy}
+        error={props.error}
+        stale={props.stale}
+        navigate={navigate}
+        onOps={props.onOps}
+        onUndo={props.onUndo}
+        onRedo={props.onRedo}
+        onSave={props.onSaveDrawing}
+        onApprove={props.onApprovePlan}
+        onReload={props.onReloadDrawing}
+      />
+    );
+  }
   if (route.page === "profiles") {
     return props.profiles ? <ProfilesPage list={props.profiles} clubs={session.clubs ?? []} onCreate={props.onNewProfile} /> : <p className="cad-sida">Hämtar gavelprofilerna …</p>;
   }
@@ -347,6 +413,11 @@ export function App() {
   const [profiles, setProfiles] = useState<ProfileList | null>(null);
   const [trialAccounts, setTrialAccounts] = useState<Account[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [drawing, setDrawing] = useState<DrawingView | null>(null);
+  const [proposal, setProposal] = useState<LockProposal | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [stale, setStale] = useState(false);
   const query = useRef("");
 
   const navigate = useCallback((href: string) => {
@@ -407,7 +478,7 @@ export function App() {
     if (route.page === "profiles" || route.page === "form") api.profiles(scale).then(setProfiles, (failure: unknown) => setError(message(failure)));
   }, [account, route, scale]);
 
-  const moduleId = route.page === "module" || route.page === "form" ? (route.id ?? null) : null;
+  const moduleId = route.page === "module" || route.page === "form" || route.page === "drawing" || route.page === "lock" ? (route.id ?? null) : null;
   const moduleVersion = route.page === "module" ? route.version : undefined;
   useEffect(() => {
     if (!account || !moduleId) return;
@@ -423,6 +494,85 @@ export function App() {
     api.history(moduleId).then(setHistory, () => setHistory([]));
     // The route object changes on every navigation; the id and version are what matter.
   }, [account, moduleId, moduleVersion]);
+
+  // Ritningen: a change set on the newest version, kept while one goes to Lås mått and back.
+  const drawingModule = (route.page === "drawing" || route.page === "lock") && module?.id === route.id && module.may_edit ? module : null;
+  useEffect(() => {
+    if (!drawingModule) return;
+    const other = !editor || editor.module !== drawingModule.id;
+    if (other || editor.base > drawingModule.latest || (editor.base !== drawingModule.latest && editor.ops.length === 0)) {
+      if (drawingModule.version !== drawingModule.latest) {
+        api.module(drawingModule.id).then(setModule, (failure: unknown) => setError(message(failure)));
+        return;
+      }
+      if (other) setDrawing(null);
+      const fresh = startEditor(drawingModule.id, drawingModule.latest);
+      setEditor(fresh);
+      setStale(false);
+      api.drawing(drawingModule.id, { base: fresh.base, operations: [] }).then(setDrawing, (failure: unknown) => setError(message(failure)));
+    }
+  }, [drawingModule, editor]);
+
+  const apply = useCallback(
+    (next: Editor) => {
+      if (!drawingModule) return;
+      setBusy(true);
+      api.drawing(drawingModule.id, { base: next.base, operations: next.ops }).then(
+        (found) => {
+          setEditor(next);
+          setDrawing(found);
+          setError(null);
+          setBusy(false);
+        },
+        (failure: unknown) => {
+          setBusy(false);
+          if (failure instanceof ApiError && failure.status === 409) setStale(true);
+          else setError(message(failure));
+        },
+      );
+    },
+    [drawingModule],
+  );
+
+  const lockPiece = route.page === "lock" ? new URLSearchParams(search).get("spar") : null;
+  const preview = useCallback(
+    (lock: LockMeasures) => {
+      if (!drawingModule || !editor) return;
+      setBusy(true);
+      api.lock(drawingModule.id, { base: editor.base, operations: editor.ops, lock }).then(
+        (found) => {
+          setProposal(found);
+          setError(null);
+          setBusy(false);
+        },
+        (failure: unknown) => {
+          setBusy(false);
+          setError(message(failure));
+        },
+      );
+    },
+    [drawingModule, editor],
+  );
+  useEffect(() => {
+    if (route.page !== "lock" || !drawingModule || !editor) return;
+    setProposal(null);
+    preview({ op: "lock", piece: lockPiece, a: null, b: null, radii: "same" });
+    // Only when Lås mått opens; a change of the values previews again from the page.
+  }, [route.page, drawingModule?.id, editor?.base]);
+
+  const savedDrawing = (saved: Module) => {
+    setModule(saved);
+    setEditor(startEditor(saved.id, saved.version));
+    setDrawing(null);
+    api.drawing(saved.id, { base: saved.version, operations: [] }).then(setDrawing, () => undefined);
+    api.history(saved.id).then(setHistory, () => undefined);
+    setBusy(false);
+  };
+  const failed = (failure: unknown) => {
+    setBusy(false);
+    if (failure instanceof ApiError && failure.status === 409) setStale(true);
+    else setError(message(failure));
+  };
 
   const props: ShellProps = {
     route,
@@ -511,6 +661,43 @@ export function App() {
     onNewProfile: async (body) => {
       await api.newProfile(body);
       setProfiles(await api.profiles(scale));
+    },
+    editor,
+    drawing,
+    proposal,
+    busy,
+    stale,
+    onOps: (ops) => editor && apply(push(editor, ...ops)),
+    onUndo: () => editor && editor.ops.length && apply(undo(editor)),
+    onRedo: () => editor && editor.undone.length && apply(redo(editor)),
+    onSaveDrawing: () => {
+      if (!drawingModule || !editor) return;
+      setBusy(true);
+      api.saveDrawing(drawingModule.id, { base: editor.base, operations: editor.ops }).then(savedDrawing, failed);
+    },
+    onApprovePlan: () => {
+      if (!drawingModule || !editor) return;
+      setBusy(true);
+      api.approvePlan(drawingModule.id, { base: editor.base, operations: editor.ops }).then(savedDrawing, failed);
+    },
+    onReloadDrawing: () => {
+      if (!drawingModule) return;
+      api.module(drawingModule.id).then((found) => {
+        setModule(found);
+        setEditor(startEditor(found.id, found.latest));
+        setStale(false);
+        setError(null);
+        api.drawing(found.id, { base: found.latest, operations: [] }).then(setDrawing, (failure: unknown) => setError(message(failure)));
+      }, failed);
+    },
+    onLockChange: preview,
+    onLockUse: (lock) => {
+      if (!drawingModule || !editor) return;
+      setBusy(true);
+      api.saveDrawing(drawingModule.id, { base: editor.base, operations: [...editor.ops, lock] }).then((saved) => {
+        savedDrawing(saved);
+        navigate(drawingPath(saved.id));
+      }, failed);
     },
   };
   return <Shell {...props} />;

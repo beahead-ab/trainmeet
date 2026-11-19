@@ -15,6 +15,11 @@ own modules need no answer from ID.
 Every save is a new version on top of the newest one the person read (409 otherwise). The newest
 version is a draft until someone who may change the module approves it. Removing a module hides
 it; its rows and history stay.
+
+Ritningen (part b): a change set is replayed on the newest version for every call (cad/editor.py);
+Spara makes it a new version, Godkänn spårplanen confirms the graph and approves it, and neither
+lets a version with open Att kolla items be approved. Lås mått's preview is the same replay with
+the lock tried; Använd geometrin is the change set with the lock saved.
 """
 
 from __future__ import annotations
@@ -30,21 +35,31 @@ from uuid import UUID
 
 from psycopg import Connection
 from psycopg.rows import DictRow
+from pydantic import TypeAdapter
 
-from cad import geometry, graph, profiles
+from cad import checks, editor, geometry, graph, profiles, views
 from cad.db import Database
 from cad.errors import Refused, forbidden, invalid, not_found
 from cad.id_roles import IdRoles
 from contracts.cad import (
     NORM_NAMES,
+    CheckItem,
     ClubChoice,
     Curve,
+    DrawingEdit,
+    DrawingSource,
+    DrawingState,
+    DrawingView,
     EdgeSide,
+    EditOp,
     Gable,
     GableCount,
     GableLabel,
     GableProfile,
+    GraphSource,
     Library,
+    LockAsk,
+    LockProposal,
     Module,
     ModuleApproval,
     ModuleBrief,
@@ -122,8 +137,56 @@ MODULE_COLUMNS = (
     "m.id, m.owner_kind, m.owner_id, m.owner_name, m.number, m.visibility, m.club_id, "
     "m.club_name, m.latest, m.approved_version, m.created_at, "
     "v.version, v.name, v.scale, v.shape, v.gables, v.graph, v.track_length, v.saved_at, "
-    "v.approved_at, v.approved_by_name"
+    "v.approved_at, v.approved_by_name, v.drawing"
 )
+
+SHAPE: TypeAdapter[Shape] = TypeAdapter(Shape)
+
+
+def from_measures_only(built: TrackGraph) -> bool:
+    """Is the graph still the one the measures give, nothing drawn on it?"""
+    return (
+        not built.switches
+        and not built.labels
+        and all(p.origin is None or p.origin.source == GraphSource.MEASURES for p in built.pieces)
+        and all(n.gable is not None for n in built.nodes)
+    )
+
+
+def drawing_of(row: dict[str, Any], known: dict[str, GableProfile]) -> editor.Drawing:
+    """A version's drawing, to edit or to check."""
+    return editor.Drawing.of(
+        Scale(row["scale"]),
+        SHAPE.validate_python(row["shape"]),
+        [Gable.model_validate(g) for g in row["gables"]],
+        TrackGraph.model_validate(row["graph"]),
+        DrawingState.model_validate(row.get("drawing") or {}),
+        known,
+    )
+
+
+def replay(drawing: editor.Drawing, operations: Sequence[EditOp]) -> None:
+    try:
+        drawing.apply_all(operations)
+    except editor.EditError as error:
+        raise invalid(str(error)) from error
+
+
+def _what_was_drawn(operations: Sequence[EditOp]) -> str:
+    counts: Counter[str] = Counter(op.op for op in operations)
+    parts: list[str] = []
+    drawn = counts["line"] + counts["arc"] + counts["polyline"]
+    if drawn:
+        parts.append(f"{drawn} spår ritade" if drawn > 1 else "ett spår ritat")
+    if counts["switch"]:
+        parts.append(
+            f"{counts['switch']} växlar lagda" if counts["switch"] > 1 else "en växel lagd"
+        )
+    if counts["lock"]:
+        parts.append("Lås mått")
+    if counts["answer"]:
+        parts.append(f"{counts['answer']} svar i Att kolla")
+    return "ritningen sparad" + (f" ({', '.join(parts)})" if parts else "")
 
 
 class Modules:
@@ -245,7 +308,10 @@ class Modules:
 
     def _module(self, row: dict[str, Any], right: Right, known: dict[str, GableProfile]) -> Module:
         brief = self._brief(row, known)
+        drawn = drawing_of(row, known)
         return Module(
+            drawing=drawn.state(),
+            checks=checks.find(drawn),
             **brief.model_dump(),
             club=row["club_id"],
             club_name=row["club_name"],
@@ -486,11 +552,13 @@ class Modules:
         shape: Shape,
         gables: Sequence[Gable],
         built: TrackGraph,
+        drawing: DrawingState | None = None,
     ) -> None:
+        state = drawing if drawing is not None else DrawingState()
         conn.execute(
             "INSERT INTO module_version (module_id, version, name, scale, shape, gables, graph, "
-            "track_length, saved_by, saved_by_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, "
-            "%s)",
+            "track_length, saved_by, saved_by_name, drawing) VALUES (%s, %s, %s, %s, %s, %s, %s, "
+            "%s, %s, %s, %s)",
             (
                 module,
                 version,
@@ -502,6 +570,7 @@ class Modules:
                 graph.track_length(built),
                 who.person,
                 who.name,
+                json.dumps(state.model_dump(mode="json")),
             ),
         )
 
@@ -546,10 +615,37 @@ class Modules:
             gables = self._checked(
                 conn, who, change.scale, change.shape, list(change.gables), owner["owner_id"]
             )
-            built = graph.from_measures(change.shape, gables, (old_graph, old_gables))
+            known = self._profiles_for(conn, [before["gables"]])
+            state = (
+                drawing_of(before, known)
+                .state()
+                .model_copy(update={"ids": [], "plan_approved": False})
+            )
+            if from_measures_only(old_graph):
+                built = graph.from_measures(change.shape, gables, (old_graph, old_gables))
+            else:
+                # A drawn graph keeps what is drawn; the gable tracks move to the new measures.
+                drawn = drawing_of(before, known)
+                try:
+                    drawn.remeasure(change.shape, gables)
+                except editor.EditError as error:
+                    raise invalid(
+                        f"Ritningen går inte att flytta till de nya måtten: {error}"
+                    ) from error
+                built = drawn.graph()
+                state = drawn.state().model_copy(update={"ids": [], "plan_approved": False})
             version = latest + 1
             self._insert_version(
-                conn, who, module, version, change.name, change.scale, change.shape, gables, built
+                conn,
+                who,
+                module,
+                version,
+                change.name,
+                change.scale,
+                change.shape,
+                gables,
+                built,
+                state,
             )
             conn.execute("UPDATE module SET latest = %s WHERE id = %s", (version, module))
             what = self._what_changed(before, change, gables)
@@ -601,6 +697,12 @@ class Modules:
                 raise not_found()
             if approval.version != int(row["latest"]):
                 raise changed()
+            current = self._row(conn, module, approval.version)
+            unanswered = checks.open_items(
+                checks.find(drawing_of(current, self._profiles_for(conn, [current["gables"]])))
+            )
+            if unanswered:
+                raise invalid(self._unanswered(len(unanswered)))
             conn.execute(
                 "UPDATE module_version SET approved_at = now(), approved_by_name = %s "
                 "WHERE module_id = %s AND version = %s AND approved_at IS NULL",
@@ -649,6 +751,125 @@ class Modules:
                 conn, who, module, ModuleEventKind.REMOVED, int(row["latest"]), "Modulen borttagen"
             )
         return ModuleRemoved(id=module)
+
+    # --- Ritningen (part b) ------------------------------------------------------------------
+
+    @staticmethod
+    def _unanswered(count: int) -> str:
+        what = "en sak att kolla" if count == 1 else f"{count} saker att kolla"
+        return f"Spårplanen har {what}. Svara på dem i Ritningen först."
+
+    def _latest_drawing(
+        self, who: Who, module: UUID, edit: DrawingEdit
+    ) -> tuple[editor.Drawing, int]:
+        row, _ = self._work(who, module, Right.EDIT)
+        latest = int(row["latest"])
+        if edit.base != latest:
+            raise changed()
+        with self.db.transaction() as conn:
+            known = self._profiles_for(conn, [row["gables"]])
+        drawn = drawing_of(row, known)
+        drawn.ids = []
+        replay(drawn, edit.operations)
+        return drawn, latest
+
+    def drawing(self, who: Who, module: UUID, edit: DrawingEdit) -> DrawingView:
+        """The working drawing: the change set on the newest version; nothing is saved."""
+        drawn, latest = self._latest_drawing(who, module, edit)
+        return views.view(module, edit.base, latest, drawn)
+
+    def lock_preview(self, who: Who, module: UUID, ask: LockAsk) -> LockProposal:
+        """Lås mått: what locking the measures would make of the curve, or why it cannot."""
+        drawn, _ = self._latest_drawing(who, module, ask)
+        try:
+            plan = drawn.lock_plan(ask.lock)
+        except editor.EditError as error:
+            raise invalid(str(error)) from error
+        return views.lock_proposal(drawn, ask.lock, plan)
+
+    def checks_of(self, who: Who, module: UUID, version: int | None = None) -> list[CheckItem]:
+        row, _ = self._work(who, module, Right.SEE, version)
+        with self.db.transaction() as conn:
+            known = self._profiles_for(conn, [row["gables"]])
+        return checks.find(drawing_of(row, known))
+
+    def save_drawing(
+        self, who: Who, module: UUID, edit: DrawingEdit, *, approve: bool = False
+    ) -> Module:
+        """Spara: the change set as a new version. With approve, Godkänn spårplanen: refused
+        while Att kolla has open items; the graph is confirmed, saved if it changed, and the
+        version approved."""
+        self._work(who, module, Right.EDIT)
+        with self.db.transaction() as conn:
+            row = conn.execute(
+                "SELECT latest FROM module WHERE id = %s AND removed_at IS NULL FOR UPDATE",
+                (module,),
+            ).fetchone()
+            if row is None:
+                raise not_found()
+            latest = int(row["latest"])
+            if edit.base != latest:
+                raise changed()
+            before = self._row(conn, module, latest)
+            known = self._profiles_for(conn, [before["gables"]])
+            drawn = drawing_of(before, known)
+            drawn.ids = []
+            replay(drawn, edit.operations)
+            found = checks.find(drawn)
+            if approve:
+                unanswered = checks.open_items(found)
+                if unanswered:
+                    raise invalid(self._unanswered(len(unanswered)))
+                drawn.confirm()
+                drawn.plan_approved = True
+                if drawn.source == DrawingSource.MEASURES and drawn.changed:
+                    drawn.source = DrawingSource.DRAWN
+            elif not drawn.changed:
+                raise invalid("Det finns inget att spara.")
+            built = drawn.graph()
+            version = latest
+            if drawn.changed or built != TrackGraph.model_validate(before["graph"]):
+                version = latest + 1
+                gables = [g.model_copy() for g in drawn.gables]
+                self._insert_version(
+                    conn,
+                    who,
+                    module,
+                    version,
+                    str(before["name"]),
+                    Scale(before["scale"]),
+                    SHAPE.validate_python(before["shape"]),
+                    gables,
+                    built,
+                    drawn.state(keep_answers={c.key for c in found}),
+                )
+                conn.execute("UPDATE module SET latest = %s WHERE id = %s", (version, module))
+                self._event(
+                    conn,
+                    who,
+                    module,
+                    ModuleEventKind.SAVED,
+                    version,
+                    f"Version {version}: {_what_was_drawn(edit.operations)}",
+                )
+            if approve:
+                conn.execute(
+                    "UPDATE module_version SET approved_at = now(), approved_by_name = %s "
+                    "WHERE module_id = %s AND version = %s",
+                    (who.name, module, version),
+                )
+                conn.execute(
+                    "UPDATE module SET approved_version = %s WHERE id = %s", (version, module)
+                )
+                self._event(
+                    conn,
+                    who,
+                    module,
+                    ModuleEventKind.APPROVED,
+                    version,
+                    f"Version {version}: spårplanen godkänd",
+                )
+        return self._answer(who, module, Right.EDIT)
 
     # --- Gable profiles -----------------------------------------------------------------------
 

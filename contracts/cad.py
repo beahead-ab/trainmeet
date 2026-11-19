@@ -8,8 +8,12 @@ or the meet's line (the Hub) (CAD-09). Code measures and decides; AI only propos
 Part a of #89 has the library: a module from measures only (CAD-01, "Bara mått"), straight or
 curved, its page with the gables, the visibility, the versions and the history (CAD-05), the
 gable profiles (CAD-07, CAD-22), and the track graph a module from measures gets straight from
-its gables. The photo chain (part c), the drawing editor (part b) and the assemblies, the export
-and the way to Studio (part d) add to this file; nothing here changes meaning for them.
+its gables. Part b has Ritningen (CAD-03): the editing operations as a change set on a version,
+the switch inspector and the switch library, Att kolla, utjämning, and Lås mått with clean
+geometry (CAD-24), with the ids kept and the splits recorded (CAD-20). The photo chain (part c)
+and the assemblies, the export and the way to Studio (part d) add to this file; nothing here
+changes meaning for them: the photo's line is a DrawnLine with the source photo, and AI's
+questions are CheckItems of the kind question.
 
 Addresses:
     GET    /api/version                                     CadVersion
@@ -29,6 +33,12 @@ Addresses:
     POST   /api/cad/1/modules/{module}/approve              ModuleApproval -> Module
     PUT    /api/cad/1/modules/{module}/visibility           VisibilityChange -> Module
     DELETE /api/cad/1/modules/{module}                      ModuleRemoved; soft, history stays
+    POST   /api/cad/1/modules/{module}/drawing              DrawingEdit -> DrawingView
+    POST   /api/cad/1/modules/{module}/drawing/save         DrawingEdit -> Module, a new version
+    POST   /api/cad/1/modules/{module}/drawing/approve      DrawingEdit -> Module, approved
+    POST   /api/cad/1/modules/{module}/drawing/lock         LockAsk -> LockProposal
+    GET    /api/cad/1/modules/{module}/checks?version=      [CheckItem]
+    POST   /api/cad/1/smooth                                SmoothAsk -> SmoothResult
     GET    /api/cad/1/profiles?scale=                       ProfileList
     POST   /api/cad/1/profiles                              NewProfile -> GableProfile, 201
 
@@ -44,7 +54,11 @@ Rules:
   FREMO, MMM, USMS and the club's own norm, in 0 FREMO Spur 0 (CAD12). The spec names no norm
   in N yet, so an N gable has no norm until it does.
 - Every track piece and switch keeps its id when the module is redrawn, so that Studio keeps the
-  owner's additions (CAD-20, CAD13).
+  owner's additions (CAD-20, CAD13). A piece split keeps its id on its first part, and the
+  version records the split (DrawingState.ids).
+- Ritningen's change set is replayed on the newest version for every call; Spara and Godkänn
+  spårplanen are refused with 409 when a newer version exists. A version with open Att kolla
+  items is never approved.
 
 The track graph and the station model (contracts/station_model.py): a node is a station-model
 Node with its point in mm, and its type is one of the station model's (module_joint for a track
@@ -386,13 +400,23 @@ class Curve(Contract):
 
 
 class Trapezoid(Contract):
-    """A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,
-    and the far side slanting from width_a at gable A to width_b at gable B."""
+    """A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+    width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+    down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+    is straight and at right angles to the gables, and only the far side slants. A track at the
+    same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+    straight, arc, straight, arc, straight (CAD-24)."""
 
     kind: Literal["trapezoid"] = "trapezoid"
     length: Mm
     width_a: Mm
     width_b: Mm
+    offset: float = Field(
+        default=0,
+        ge=-20_000,
+        le=20_000,
+        description="Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.",
+    )
 
 
 Shape = Annotated[Straight | Curve | Trapezoid, Field(discriminator="kind")]
@@ -472,6 +496,9 @@ class ArcSegment(Contract):
 
 
 Segment = Annotated[LineSegment | ArcSegment, Field(discriminator="kind")]
+
+SwitchDesignId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+"""A switch type's id in the switch library (Växeltyp)."""
 
 CAD_NODE_TYPES: Final = frozenset(
     {
@@ -555,7 +582,9 @@ class GraphPiece(Contract):
 
 class GraphSwitch(Contract):
     """Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
-    ids. The diverging leg's radius and angle, when known."""
+    ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+    the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+    Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd."""
 
     id: Id
     node: Id
@@ -565,6 +594,27 @@ class GraphSwitch(Contract):
     diverging: Id | None = None
     radius: Mm | None = None
     angle: float | None = Field(default=None, gt=0, lt=90)
+    origin: GraphOrigin | None = None
+    number: Text | None = Field(default=None, max_length=20, description="Växelnummer.")
+    design: SwitchDesignId | None = Field(default=None, description="Växeltyp; null: Okänd.")
+    toward: GableEnd | None = Field(
+        default=None, description="The gable the diverging leg heads for."
+    )
+    locked: bool = Field(
+        default=False,
+        description="Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where "
+        "they are.",
+    )
+
+
+class GraphLabel(Contract):
+    """Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+    (bildkedjan, R4 and point 21). The Text tool writes them."""
+
+    id: Id
+    text: Text = Field(max_length=40)
+    at: Point
+    ref: Id | None = Field(default=None, description="The piece or switch it names.")
     origin: GraphOrigin | None = None
 
 
@@ -579,6 +629,7 @@ class TrackGraph(Contract):
     nodes: list[GraphNode] = Field(default_factory=list)
     pieces: list[GraphPiece] = Field(default_factory=list)
     switches: list[GraphSwitch] = Field(default_factory=list)
+    labels: list[GraphLabel] = Field(default_factory=list)
     complete: bool = True
     issued: int = Field(default=0, ge=0, description="Ids issued so far; the next is one more.")
 
@@ -586,7 +637,7 @@ class TrackGraph(Contract):
     def _linked(self) -> Self:
         node_ids = [n.id for n in self.nodes]
         piece_ids = [p.id for p in self.pieces]
-        ids = node_ids + piece_ids + [s.id for s in self.switches]
+        ids = node_ids + piece_ids + [s.id for s in self.switches] + [x.id for x in self.labels]
         if len(ids) != len(set(ids)):
             raise ValueError("Två delar av spårgrafen har samma id.")
         nodes = {n.id: n for n in self.nodes}
@@ -606,6 +657,509 @@ class TrackGraph(Contract):
                 if leg is not None and leg not in pieces:
                     raise ValueError(f"Växeln {switch.id} har ett ben som inte finns.")
         return self
+
+
+# --- The drawing (part b): Ritningen and Lås mått (CAD-03, CAD-20, CAD-24) ---------------
+
+
+class ScaleLimits(Contract):
+    """What the code holds a drawing in a scale to (cad/switches.py says where each comes from):
+    the track's minimum radius and the kink check, the switches' lower limit, and the gauge."""
+
+    scale: Scale
+    gauge: float = Field(gt=0, description="Spårvidd, mm.")
+    min_radius: float = Field(gt=0, description="Minsta radie för spår, mm.")
+    switch_min_radius: float = Field(gt=0, description="Växelns nedre gräns för radien, mm.")
+    kink: float = Field(gt=0, description="Största vinkelhopp på 10 mm innan det är en knyck, °.")
+    gable_tolerance: float = Field(
+        gt=0, description="Hur långt ett gavelspår får ligga från gavelns mått innan det visas, mm."
+    )
+    design_tolerance: float = Field(
+        gt=0, description="How far a switch's radius may lie from a type's, as a fraction."
+    )
+
+
+class SwitchDesign(Contract):
+    """Växeltyp: a known switch in the switch library, with the diverging leg's radius and angle,
+    and where the numbers come from (bildkedjan step 12). Okänd has neither."""
+
+    id: SwitchDesignId
+    name: Text = Field(max_length=40)
+    scale: Scale | None = Field(default=None, description="Null: every scale (Okänd).")
+    radius: float | None = Field(default=None, gt=0)
+    angle: float | None = Field(default=None, gt=0, lt=90)
+    source: Text | None = Field(default=None, description="Where the radius and angle come from.")
+
+
+UNKNOWN_DESIGN: Final = "okand"
+"""Okänd: the switch type is not known; the radius is what was drawn or measured."""
+
+
+class Smoothing(StrEnum):
+    """Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12)."""
+
+    OFF = "off"
+    """Av: the line stays as drawn, straight pieces between its points."""
+    LIGHT = "light"
+    """Lätt."""
+    NORMAL = "normal"
+    """Normal: minsta radie 400 mm och högst 9 mm från linjen, in H0."""
+    STRONG = "strong"
+    """Kraftig."""
+
+
+class SmoothingLevel(Contract):
+    """One level of utjämning in a scale: the smallest radius it draws and how far the result
+    may lie from the line, and the explanation the view shows."""
+
+    level: Smoothing
+    name: Text = Field(max_length=20)
+    min_radius: float | None = Field(default=None, gt=0)
+    max_deviation: float | None = Field(default=None, gt=0)
+    text: Text
+
+
+class Deviation(Contract):
+    """How far one line lies from another: the median and the largest distance, in mm, over
+    count points."""
+
+    median: float = Field(ge=0)
+    max: float = Field(ge=0)
+    count: int = Field(ge=0)
+
+
+class CheckKind(StrEnum):
+    """Att kolla: what the code found, or (part c) what AI asks."""
+
+    SHORT_RAIL = "short_rail"
+    """A rail ends short of a gable, more than a few mm, with no joint there."""
+    OPEN_END = "open_end"
+    """A track end that meets nothing: not joined, not a buffer stop, not at a gable."""
+    SWITCH_RADIUS = "switch_radius"
+    """A switch's radius at or below the scale's lower limit."""
+    SWITCH_ASSUMED = "switch_assumed"
+    """A switch whose radius matches no switch type: antagen (AR3)."""
+    KINK = "kink"
+    """An angle jump on 10 mm larger than the minimum radius gives (the AnyRail kink check)."""
+    TIGHT_RADIUS = "tight_radius"
+    """A radius over 50 mm under the scale's minimum radius."""
+    GABLE_POSITION = "gable_position"
+    """A gable track that does not meet its gable's measure or profile."""
+    QUESTION = "question"
+    """A question with fixed answers from the photo chain's AI (part c)."""
+
+
+class CheckSource(StrEnum):
+    CODE = "code"
+    """The code measured it."""
+    AI = "ai"
+    """AI asks it (part c); never millimetres, only fixed answers."""
+
+
+class CheckChoice(Contract):
+    """An answer button. closes: the answer settles the item; action: what the view does
+    instead, with no answer stored (choose a switch type, open Lås mått)."""
+
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+    text: Text = Field(max_length=60)
+    closes: bool = True
+    action: Literal["design", "lock"] | None = None
+
+
+class CheckAnswer(Contract):
+    """Ägarens svar på en sak att kolla: kept with the version, by the item's key."""
+
+    key: Text = Field(max_length=120)
+    answer: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+    by: Text | None = Field(default=None, max_length=80)
+
+
+class CheckItem(Contract):
+    """Att kolla: one thing the owner answers before the track plan is approved. The key names
+    the kind, the parts and the measured value, so a changed value asks again."""
+
+    key: Text = Field(max_length=120)
+    kind: CheckKind
+    source: CheckSource = CheckSource.CODE
+    at: Point = Field(description="The place in mm, in the module's coordinates.")
+    title: Text
+    text: Text
+    refs: list[Id] = Field(default_factory=list, description="The nodes, pieces and switches.")
+    choices: list[CheckChoice] = Field(min_length=1)
+    answer: CheckAnswer | None = None
+    assumed: bool = Field(
+        default=False, description="Antagen (AR3): yellow; otherwise orange, as a proposal."
+    )
+
+
+class DrawingSource(StrEnum):
+    """Where the track plan comes from: the badge in Ritningen."""
+
+    MEASURES = "measures"
+    """Ur måtten (CAD-01)."""
+    DRAWN = "drawn"
+    """Ritad: drawn or changed in Ritningen."""
+    PHOTO = "photo"
+    """AI-förslag from the photo (part c)."""
+
+
+class DrawnLine(Contract):
+    """The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
+    makes it LINE and ARC again when its level changes, and the deviation is measured from it."""
+
+    piece: Id
+    points: list[Point] = Field(min_length=2, max_length=4000)
+    source: Literal["hand", "photo"] = "hand"
+
+
+class IdChange(Contract):
+    """A piece split or replaced (CAD-20): Lås mått, a switch or a cut. The first new id is the
+    first old one, so Studio follows the owner's additions (signals, boundaries) along."""
+
+    old: list[Id] = Field(min_length=1)
+    new: list[Id] = Field(min_length=1)
+    why: Literal["lock", "switch", "cut", "switch_removed"]
+
+
+class LockedMeasure(Contract):
+    """Låst mått: a gable track's position from Kant 1, locked by the owner (CAD-24)."""
+
+    gable: GableEnd
+    track: int = Field(ge=1, le=MAX_TRACKS)
+    value: float = Field(gt=0)
+    line: float | None = Field(default=None, description="What the line said before, mm.")
+
+
+class DrawingState(Contract):
+    """What a version keeps of its drawing besides the graph: where it came from, the
+    utjämning, the owner's answers, the drawn lines, the locked measures, and the ids this
+    version split or replaced."""
+
+    source: DrawingSource = DrawingSource.MEASURES
+    smoothing: Smoothing = Smoothing.NORMAL
+    answers: list[CheckAnswer] = Field(default_factory=list)
+    lines: list[DrawnLine] = Field(default_factory=list)
+    locks: list[LockedMeasure] = Field(default_factory=list)
+    ids: list[IdChange] = Field(default_factory=list, description="This version's splits.")
+    plan_approved: bool = Field(default=False, description="Godkänn spårplanen gave this one.")
+
+
+# The editing operations (Ritningen). A change set is a list of them, applied in order on the
+# version it builds on; each is checked, and the graph is validated after each (CAD-20: what is
+# moved, reshaped or recomputed keeps its id, only new things get new ids).
+
+
+class AddLine(Contract):
+    """Rakt spår: a LINE from start to end. start_node and end_node join it to an end there;
+    a point on a gable becomes a module joint."""
+
+    op: Literal["line"] = "line"
+    start: Point
+    end: Point
+    start_node: Id | None = None
+    end_node: Id | None = None
+
+
+class AddArc(Contract):
+    """Båge: an ARC from start, by radius and angle (turning right for a positive angle, as
+    seen along the track with y down) from the heading at start, or through three points."""
+
+    op: Literal["arc"] = "arc"
+    start: Point
+    start_node: Id | None = None
+    end: Point | None = None
+    end_node: Id | None = None
+    through: Point | None = None
+    radius: Mm | None = None
+    angle: float | None = Field(default=None, ge=-359, le=359, description="Degrees.")
+    heading: float | None = Field(
+        default=None, description="Degrees, 0 toward gable B, positive down; null: the track's."
+    )
+
+    @model_validator(mode="after")
+    def _one_way(self) -> Self:
+        three = self.through is not None and self.end is not None
+        turned = self.radius is not None and self.angle is not None
+        if three == turned:
+            raise ValueError("En båge ges av tre punkter, eller av radie och vinkel.")
+        return self
+
+
+class AddPolyline(Contract):
+    """A hand-drawn line: utjämning makes it LINE and ARC at the version's level."""
+
+    op: Literal["polyline"] = "polyline"
+    points: list[Point] = Field(min_length=2, max_length=4000)
+    start_node: Id | None = None
+    end_node: Id | None = None
+
+
+class AddSwitch(Contract):
+    """Växel: the diverging leg leaves the piece's track tangentially at from_a mm from gable A,
+    with its radius. Either with its angle, to the left or right as seen toward the gable it
+    heads for, or drawn to a point: an arc of the radius and then straight to to, which also
+    gives the side and the gable it heads for (a track drawn from the middle of another)."""
+
+    op: Literal["switch"] = "switch"
+    piece: Id
+    from_a: float = Field(ge=0, description="Tungspetsen, mm från gavel A.")
+    radius: Mm
+    angle: float | None = Field(default=None, gt=0, lt=90)
+    side: Literal["left", "right"] | None = None
+    toward: GableEnd = GableEnd.B
+    design: SwitchDesignId | None = None
+    tail: float = Field(default=0, ge=0, le=20_000, description="Straight after the arc, mm.")
+    to: Point | None = Field(default=None, description="Where the diverging leg ends.")
+    to_node: Id | None = None
+
+    @model_validator(mode="after")
+    def _leg(self) -> Self:
+        if self.to is None and (self.angle is None or self.side is None):
+            raise ValueError("En växel ges av vinkel och sida, eller av vart benet går.")
+        return self
+
+
+class MoveSwitch(Contract):
+    """Flytta växel: the points slide along their track; the legs follow."""
+
+    op: Literal["move_switch"] = "move_switch"
+    switch: Id
+    from_a: float = Field(ge=0)
+
+
+class Move(Contract):
+    """Move a node, a piece, a switch or a label by a vector in mm. What hangs on it is
+    reshaped, never replaced."""
+
+    op: Literal["move"] = "move"
+    target: Id
+    by: Point
+
+
+class Delete(Contract):
+    """Delete a piece, a switch, an end or a label. The ids are never used again."""
+
+    op: Literal["delete"] = "delete"
+    target: Id
+
+
+class Join(Contract):
+    """Join two ends: both move to the middle and become one node."""
+
+    op: Literal["join"] = "join"
+    a: Id
+    b: Id
+
+
+class Cut(Contract):
+    """Cut a piece in two at the point nearest at: the first part keeps the id."""
+
+    op: Literal["cut"] = "cut"
+    piece: Id
+    at: Point
+
+
+class SetLabel(Contract):
+    """Text: a piece's track number, a switch's number, or a free label at a point. An empty
+    text removes it."""
+
+    op: Literal["label"] = "label"
+    target: Id | None = None
+    at: Point | None = None
+    text: str = Field(default="", max_length=40)
+
+
+class SetEnd(Contract):
+    """Make a free end a buffer stop, or a plain end again."""
+
+    op: Literal["end"] = "end"
+    node: Id
+    type: Literal["buffer_stop", "joint"]
+
+
+class SetSwitch(Contract):
+    """Växelinspektören: the diverging radius, the switch type ("okand" for Okänd), and Lås
+    växelns läge."""
+
+    op: Literal["set_switch"] = "set_switch"
+    switch: Id
+    radius: Mm | None = None
+    design: SwitchDesignId | None = None
+    locked: bool | None = None
+
+
+class AnswerCheck(Contract):
+    """Answer an item in Att kolla with one of its choices."""
+
+    op: Literal["answer"] = "answer"
+    key: Text = Field(max_length=120)
+    answer: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+
+
+class SetSmoothing(Contract):
+    """Utjämning: the level, kept on the version; the drawn lines are made again at it."""
+
+    op: Literal["smoothing"] = "smoothing"
+    level: Smoothing
+
+
+class LockRadii(StrEnum):
+    SAME = "same"
+    """Samma radie i båda bågarna."""
+    DIFFERENT = "different"
+    """Olika radier."""
+
+
+class LockMeasures(Contract):
+    """Lås mått (CAD-24): the track through piece, from gable A to gable B, gets its positions
+    a and b from Kant 1 locked, and the curve between is made straight, arc, straight, arc,
+    straight, fitted to the line it replaces. Null a or b: the gable's measure."""
+
+    op: Literal["lock"] = "lock"
+    piece: Id | None = Field(default=None, description="Null: the first track from A to B.")
+    a: float | None = Field(default=None, gt=0)
+    b: float | None = Field(default=None, gt=0)
+    radii: LockRadii = LockRadii.SAME
+
+
+EditOp = Annotated[
+    AddLine
+    | AddArc
+    | AddPolyline
+    | AddSwitch
+    | MoveSwitch
+    | Move
+    | Delete
+    | Join
+    | Cut
+    | SetLabel
+    | SetEnd
+    | SetSwitch
+    | AnswerCheck
+    | SetSmoothing
+    | LockMeasures,
+    Field(discriminator="op"),
+]
+
+MAX_OPERATIONS: Final = 2000
+
+
+class DrawingEdit(Contract):
+    """A change set: the operations on top of version base, the newest the person read. The
+    view sends the whole list every time, so undo is one less and the result is always the
+    same for the same list. Refused with 409 when a newer version exists."""
+
+    base: int = Field(ge=1)
+    operations: list[EditOp] = Field(default_factory=list, max_length=MAX_OPERATIONS)
+
+
+class SwitchInfo(Contract):
+    """Växelinspektören: one switch as the inspector shows it."""
+
+    id: Id
+    number: Text
+    leaves: Text = Field(description='The track it leaves and toward which: "spår från A4 mot A3".')
+    from_a: float = Field(description="Tungspetsen, mm från gavel A.")
+    radius: float | None = None
+    angle: float | None = None
+    side: Literal["left", "right"] | None = None
+    toward: GableEnd | None = None
+    design: SwitchDesignId = Field(description='The chosen type, or "okand".')
+    matched: SwitchDesignId | None = Field(
+        default=None, description="The type its radius matches within the tolerance."
+    )
+    assumed: bool = Field(description="Antagen (AR3): Okänd and no type within the tolerance.")
+    locked: bool
+    at: Point
+    origin: GraphOrigin | None = None
+
+
+class DrawingStats(Contract):
+    """The canvas's bottom line: Spår totalt, antal växlar, and how far the drawing lies from
+    its drawn lines (part c: from the photo)."""
+
+    track_length: float = Field(ge=0)
+    switches: int = Field(ge=0)
+    deviation: Deviation | None = None
+
+
+class DrawingView(Contract):
+    """Ritningen: the working drawing after a change set, with what to check and the
+    inspector's facts. Nothing is saved until Spara."""
+
+    module: UUID
+    base: int = Field(ge=1)
+    latest: int = Field(ge=1)
+    scale: Scale
+    shape: Shape
+    gables: list[Gable] = Field(min_length=2, max_length=2)
+    graph: TrackGraph
+    drawing: DrawingState
+    checks: list[CheckItem] = Field(default_factory=list)
+    switches: list[SwitchInfo] = Field(default_factory=list)
+    designs: list[SwitchDesign] = Field(default_factory=list)
+    smoothing_levels: list[SmoothingLevel] = Field(default_factory=list)
+    limits: ScaleLimits
+    stats: DrawingStats
+    changed: bool = Field(description="The operations changed something.")
+
+
+class LockAsk(DrawingEdit):
+    """Lås mått, the preview: the change set so far and the lock to try."""
+
+    lock: LockMeasures
+
+
+class LockPart(Contract):
+    """One row in Kurvan's table: Rakt från gavel A, Båge R, Rakt mm · vinkel, Båge R, Rakt
+    till gavel B."""
+
+    kind: Literal["straight", "arc"]
+    label: Text
+    length: float = Field(ge=0)
+    radius: float | None = None
+    angle: float = Field(description="Degrees: the straight's angle to gable A, or the arc's.")
+
+
+class LockGable(Contract):
+    """LÅSTA MÅTT: a gable track, the value locked and what the line said."""
+
+    gable: GableEnd
+    track: int = Field(ge=1, le=MAX_TRACKS)
+    value: float
+    line: float
+    norm: Norm | None = None
+    profile: Text | None = Field(default=None, description="The profile's name, when it fixes it.")
+
+
+class LockProposal(Contract):
+    """Lås ett mått, räkna om kurvan: the new geometry beside the old line, or why there is
+    none. Använd geometrin saves it (the operation lock); Behåll linjen keeps the old."""
+
+    solved: bool
+    why: Text = Field(description="The sentence under LÅSTA MÅTT, or why there is no solution.")
+    radii: LockRadii
+    gables: list[LockGable] = Field(default_factory=list)
+    parts: list[LockPart] = Field(default_factory=list)
+    old: list[Point] = Field(default_factory=list, description="The line it replaces.")
+    new: list[Segment] = Field(default_factory=list)
+    tangents: list[Point] = Field(default_factory=list, description="The tangent points.")
+    deviation: Deviation | None = None
+    lock: LockMeasures
+
+
+class SmoothAsk(Contract):
+    """Utjämning of one line, to see what a level does."""
+
+    points: list[Point] = Field(min_length=2, max_length=4000)
+    level: Smoothing = Smoothing.NORMAL
+    scale: Scale = Scale.H0
+
+
+class SmoothResult(Contract):
+    level: Smoothing
+    segments: list[Segment]
+    deviation: Deviation
 
 
 # --- The module ---------------------------------------------------------------------------
@@ -670,6 +1224,10 @@ class Module(ModuleBrief):
     used_in: list[UsedIn] = Field(default_factory=list)
     may_edit: bool = Field(description="The person may change it (CAD-21).")
     latest: int = Field(ge=1, description="The newest version; version is the one shown.")
+    drawing: DrawingState = Field(default_factory=DrawingState)
+    checks: list[CheckItem] = Field(
+        default_factory=list, description="Att kolla in this version, answered or not."
+    )
 
 
 class Library(Contract):

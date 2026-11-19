@@ -124,7 +124,8 @@ def test_the_graph_maps_to_the_station_models_parts_with_the_same_ids() -> None:
     the module joints, and the arcs as points every 10 mm."""
     curve = Curve(radius=2000, angle=30, width=500)
     made = graph.from_measures(curve, gables([200, 250]))
-    nodes, pieces = graph.as_station_model(made)
+    nodes, pieces, switches = graph.as_station_model(made)
+    assert switches == []
     assert [n.id for n in nodes] == [n.id for n in made.nodes]
     assert {n.type for n in nodes} == {NodeType.MODULE_JOINT}
     assert [(p.id, p.start, p.end) for p in pieces] == [(p.id, p.start, p.end) for p in made.pieces]

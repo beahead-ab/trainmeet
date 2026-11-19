@@ -5,7 +5,7 @@ import type { ClubChoice, Module, ModuleEvent, Visibility } from "./api";
 import { dayText, stampText, status, VISIBILITY } from "./common";
 import { ModuleDrawing, ProfileBar } from "./Drawing";
 import { metres } from "./geometry";
-import { editPath, modulePath, PATHS, type Tab } from "./routes";
+import { drawingPath, editPath, modulePath, PATHS, type Tab } from "./routes";
 
 const TABS: [Tab, string][] = [
   ["oversikt", "Översikt"],
@@ -229,7 +229,8 @@ export function ModulePage({ module, history, tab, clubs, navigate, onApprove, o
       ) : null}
       <nav className="cad-flikar" aria-label="Modulens flikar">
         {TABS.map(([key, label]) => {
-          const href = modulePath(module.id, key, old ? module.version : undefined);
+          // The Ritning tab opens Ritningen for those who may change the module (CAD-03, CAD-21).
+          const href = key === "ritning" && module.may_edit && !old ? drawingPath(module.id) : modulePath(module.id, key, old ? module.version : undefined);
           return (
             <a key={key} href={href} aria-current={tab === key ? "page" : undefined} onClick={linkClick(navigate, href)}>
               {label}
@@ -279,7 +280,18 @@ export function ModulePage({ module, history, tab, clubs, navigate, onApprove, o
             </span>
           </div>
           {drawing}
-          <p className="cad-dampad">Att rita och ändra spårplanen, växelinspektören och att låsa ett gavelmått kommer i nästa steg.</p>
+          {(module.checks ?? []).some((c) => !c.answer) ? (
+            <p className="cad-dampad">{(module.checks ?? []).filter((c) => !c.answer).length} saker att kolla innan spårplanen godkänns.</p>
+          ) : null}
+          <p className="cad-dampad">
+            {module.may_edit && !old ? (
+              <a href={drawingPath(module.id)} onClick={linkClick(navigate, drawingPath(module.id))}>
+                Öppna Ritningen
+              </a>
+            ) : (
+              "Bara ägaren och de med rollen redigera ändrar ritningen."
+            )}
+          </p>
         </div>
       ) : null}
       {tab === "foto" || tab === "landskap" ? (

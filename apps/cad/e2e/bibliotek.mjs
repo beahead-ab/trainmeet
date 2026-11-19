@@ -1,7 +1,8 @@
 // Webbläsarprovet för modulbiblioteket (#89 del a): CAD med sin riktiga databas och webbapp, mot en
 // låtsad TrainMeet ID (cad/prov_webblasare.py). Provkonto A loggar in med provinloggningen, ser det
 // tomma biblioteket, gör en rak modul och en kurvmodul ur bara mått, godkänner kurvan, och ser
-// biblioteket med gavlarna och statusen, modulens sida och gavelprofilerna.
+// biblioteket med gavlarna och statusen, modulens sida och gavelprofilerna. Sedan Ritningen och Lås
+// mått (#89 del b, ritningen.mjs, som körs härifrån så att CI-steget är detsamma).
 //
 //   CHROME_PATH=/usr/bin/google-chrome node apps/cad/e2e/bibliotek.mjs
 //
@@ -10,6 +11,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { ritningen } from "./ritningen.mjs";
 
 const BASE = (process.env.PROV_ADRESS ?? "http://127.0.0.1:8095").replace(/\/+$/, "");
 const SHOTS = process.env.PROV_BILDER ?? "";
@@ -97,8 +99,10 @@ try {
   await page.getByText(/✓ Godkänd \d+ \w+ \d{4}/).waitFor();
   await page.getByText("Version 1 godkänd").waitFor();
   await shot(page, "06-modulens-sida");
-  await page.getByRole("link", { name: "Ritning" }).click();
-  await page.getByText("Spårgrafen ur måtten").waitFor();
+  // The Ritning tab opens Ritningen for the one who may change the module (#89 del b).
+  await page.getByRole("link", { name: "Ritning", exact: true }).click();
+  await page.getByRole("heading", { name: "Ritningen", exact: true }).waitFor();
+  await page.getByText("Ur måtten").first().waitFor();
   await shot(page, "07-modulens-ritning");
 
   // En rak linjemodul med MMM:s gavel, 140 mm från Kant 1.
@@ -131,8 +135,10 @@ try {
   await page.getByRole("heading", { name: "Anläggningar", exact: true }).waitFor();
   await shot(page, "09-anlaggningar");
 
+  await ritningen(page, { base: BASE, shot, check });
+
   check(problems.length === 0, `Fel i webbläsaren: ${problems.join(" | ")}`);
-  console.log("Webbläsarprovet för modulbiblioteket gick igenom.");
+  console.log("Webbläsarprovet för modulbiblioteket och Ritningen gick igenom.");
 } catch (error) {
   await shot(page, "fel");
   throw error;

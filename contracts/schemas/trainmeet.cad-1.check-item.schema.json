@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.check-item.schema.json",
+  "title": "trainmeet.cad-1.check-item",
+  "$defs": {
+    "CheckAnswer": {
+      "additionalProperties": true,
+      "description": "Ägarens svar på en sak att kolla: kept with the version, by the item's key.",
+      "properties": {
+        "key": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "answer": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Answer",
+          "type": "string"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "By"
+        }
+      },
+      "required": [
+        "key",
+        "answer"
+      ],
+      "title": "CheckAnswer",
+      "type": "object"
+    },
+    "CheckChoice": {
+      "additionalProperties": true,
+      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "closes": {
+          "default": true,
+          "title": "Closes",
+          "type": "boolean"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "design",
+                "lock"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "CheckChoice",
+      "type": "object"
+    },
+    "CheckKind": {
+      "description": "Att kolla: what the code found, or (part c) what AI asks.",
+      "enum": [
+        "short_rail",
+        "open_end",
+        "switch_radius",
+        "switch_assumed",
+        "kink",
+        "tight_radius",
+        "gable_position",
+        "question"
+      ],
+      "title": "CheckKind",
+      "type": "string"
+    },
+    "CheckSource": {
+      "enum": [
+        "code",
+        "ai"
+      ],
+      "title": "CheckSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Att kolla: one thing the owner answers before the track plan is approved. The key names\nthe kind, the parts and the measured value, so a changed value asks again.",
+  "properties": {
+    "key": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Key",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/CheckKind"
+    },
+    "source": {
+      "$ref": "#/$defs/CheckSource",
+      "default": "code"
+    },
+    "at": {
+      "description": "The place in mm, in the module's coordinates.",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "At",
+      "type": "array"
+    },
+    "title": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "refs": {
+      "description": "The nodes, pieces and switches.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Refs",
+      "type": "array"
+    },
+    "choices": {
+      "items": {
+        "$ref": "#/$defs/CheckChoice"
+      },
+      "minItems": 1,
+      "title": "Choices",
+      "type": "array"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CheckAnswer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "assumed": {
+      "default": false,
+      "description": "Antagen (AR3): yellow; otherwise orange, as a proposal.",
+      "title": "Assumed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "key",
+    "kind",
+    "at",
+    "title",
+    "text",
+    "choices"
+  ],
+  "type": "object"
+}
